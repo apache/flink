@@ -38,11 +38,28 @@ public interface BufferProvider extends AvailabilityProvider {
 	Buffer requestBuffer() throws IOException;
 
 	/**
+	 * Returns a {@link BufferBuilder} instance from the buffer provider. This equals to {@link #requestBufferBuilder(int)}
+	 * with unknown target channel.
+	 *
+	 * <p>Returns <code>null</code> if no buffer is available or the buffer provider has been destroyed.
+	 */
+	BufferBuilder requestBufferBuilder() throws IOException;
+
+	/**
 	 * Returns a {@link BufferBuilder} instance from the buffer provider.
 	 *
 	 * <p>Returns <code>null</code> if no buffer is available or the buffer provider has been destroyed.
 	 */
 	BufferBuilder requestBufferBuilder(int targetChannel) throws IOException;
+
+	/**
+	 * Returns a {@link BufferBuilder} instance from the buffer provider. This equals to {@link #requestBufferBuilderBlocking(int)}
+	 * with unknown target channel.
+	 *
+	 * <p>If there is no buffer available, the call will block until one becomes available again or the
+	 * buffer provider has been destroyed.
+	 */
+	BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException;
 
 	/**
 	 * Returns a {@link BufferBuilder} instance from the buffer provider.

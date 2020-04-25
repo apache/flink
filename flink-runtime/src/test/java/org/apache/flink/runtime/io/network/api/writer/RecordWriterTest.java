@@ -413,7 +413,7 @@ public class RecordWriterTest {
 	public void testIsAvailableOrNot() throws Exception {
 		// setup
 		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
-		final BufferPool localPool = globalPool.createBufferPool(1, 1);
+		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
 		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
 			.setBufferPoolFactory(p -> localPool)
 			.build();
@@ -504,7 +504,7 @@ public class RecordWriterTest {
 	public void testIdleTime() throws IOException, InterruptedException {
 		// setup
 		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
-		final BufferPool localPool = globalPool.createBufferPool(1, 1);
+		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
 		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
 			.setBufferPoolFactory(p -> localPool)
 			.build();
@@ -515,7 +515,9 @@ public class RecordWriterTest {
 			resultPartition,
 			new NoOpResultPartitionConsumableNotifier());
 		final RecordWriter recordWriter = createRecordWriter(partitionWrapper);
-		BufferBuilder builder = recordWriter.getNewBufferBuilder(0);
+		BufferBuilder builder = recordWriter.requestNewBufferBuilder(0);
+		final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(builder);
+		builder.finish();
 
 		// idle time is zero when there is buffer available.
 		assertEquals(0, recordWriter.getIdleTimeMsPerSecond().getCount());
@@ -531,7 +533,7 @@ public class RecordWriterTest {
 						runningLock.notify();
 					}
 					// wait for buffer.
-					asyncRequestResult.set(recordWriter.getNewBufferBuilder(0));
+					asyncRequestResult.set(recordWriter.requestNewBufferBuilder(0));
 				} catch (Exception e) {
 				}
 			}
@@ -543,15 +545,13 @@ public class RecordWriterTest {
 			runningLock.wait();
 		}
 		Thread.sleep(10);
-		//recycle the buffer
-		final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(builder);
 
+		//recycle the buffer
 		buffer.recycleBuffer();
 		requestThread.join();
 
 		assertThat(recordWriter.getIdleTimeMsPerSecond().getCount(), Matchers.greaterThan(0L));
 		assertNotNull(asyncRequestResult.get());
-
 	}
 
 	private void verifyBroadcastBufferOrEventIndependence(boolean broadcastEvent) throws Exception {

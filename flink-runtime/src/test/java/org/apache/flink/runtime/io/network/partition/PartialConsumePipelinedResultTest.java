@@ -41,8 +41,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferPool.UNKNOWN_CHANNEL;
-
 /**
  * Test for consuming a pipelined result only partially.
  */
@@ -123,7 +121,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 			final ResultPartitionWriter writer = getEnvironment().getWriter(0);
 
 			for (int i = 0; i < 8; i++) {
-				final BufferBuilder bufferBuilder = writer.getBufferBuilder(UNKNOWN_CHANNEL);
+				final BufferBuilder bufferBuilder = writer.getBufferBuilder(0);
 				writer.addBufferConsumer(bufferBuilder.createBufferConsumer(), 0);
 				Thread.sleep(50);
 				bufferBuilder.finish();

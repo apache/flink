@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.util.ExceptionUtils;
@@ -50,6 +51,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 class LocalBufferPool implements BufferPool {
 	private static final Logger LOG = LoggerFactory.getLogger(LocalBufferPool.class);
+
+	private static final int UNKNOWN_CHANNEL = -1;
 
 	/** Global network buffer pool to get buffers from. */
 	private final NetworkBufferPool networkBufferPool;
@@ -87,11 +90,11 @@ class LocalBufferPool implements BufferPool {
 	 */
 	private int numberOfRequestedMemorySegments;
 
-	private int maxBuffersPerChannel;
+	private final int maxBuffersPerChannel;
 
-	private int[] subpartitionBuffersCount;
+	private final int[] subpartitionBuffersCount;
 
-	private BufferRecycler[] subpartitionBufferRecyclers;
+	private final BufferRecycler[] subpartitionBufferRecyclers;
 
 	private int unavailableSubpartitionsCount = 0;
 
@@ -112,7 +115,7 @@ class LocalBufferPool implements BufferPool {
 	 * 		minimum number of network buffers
 	 */
 	LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments) {
-		this(networkBufferPool, numberOfRequiredMemorySegments, Integer.MAX_VALUE, null);
+		this(networkBufferPool, numberOfRequiredMemorySegments, Integer.MAX_VALUE, null, 0, Integer.MAX_VALUE);
 	}
 
 	/**
@@ -128,7 +131,7 @@ class LocalBufferPool implements BufferPool {
 	 */
 	LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments,
 			int maxNumberOfMemorySegments) {
-		this(networkBufferPool, numberOfRequiredMemorySegments, maxNumberOfMemorySegments, null);
+		this(networkBufferPool, numberOfRequiredMemorySegments, maxNumberOfMemorySegments, null, 0, Integer.MAX_VALUE);
 	}
 
 	/**
@@ -141,30 +144,49 @@ class LocalBufferPool implements BufferPool {
 	 * 		minimum number of network buffers
 	 * @param maxNumberOfMemorySegments
 	 * 		maximum number of network buffers to allocate
-	 * 	@param bufferPoolOwner
+	 * @param bufferPoolOwner
 	 * 		the owner of this buffer pool to release memory when needed
+	 * @param numberOfSubpartitions
+	 * 		number of subpartitions
+	 * @param maxBuffersPerChannel
+	 * 		maximum number of buffers to use for each channel
 	 */
 	LocalBufferPool(
-		NetworkBufferPool networkBufferPool,
-		int numberOfRequiredMemorySegments,
-		int maxNumberOfMemorySegments,
-		@Nullable BufferPoolOwner bufferPoolOwner) {
+			NetworkBufferPool networkBufferPool,
+			int numberOfRequiredMemorySegments,
+			int maxNumberOfMemorySegments,
+			@Nullable BufferPoolOwner bufferPoolOwner,
+			int numberOfSubpartitions,
+			int maxBuffersPerChannel) {
 		checkArgument(maxNumberOfMemorySegments >= numberOfRequiredMemorySegments,
-			"Maximum number of memory segments (%s) should not be smaller than minimum (%s).",
-			maxNumberOfMemorySegments, numberOfRequiredMemorySegments);
+				"Maximum number of memory segments (%s) should not be smaller than minimum (%s).",
+				maxNumberOfMemorySegments, numberOfRequiredMemorySegments);
 
 		checkArgument(maxNumberOfMemorySegments > 0,
-			"Maximum number of memory segments (%s) should be larger than 0.",
-			maxNumberOfMemorySegments);
+				"Maximum number of memory segments (%s) should be larger than 0.",
+				maxNumberOfMemorySegments);
 
 		LOG.debug("Using a local buffer pool with {}-{} buffers",
-			numberOfRequiredMemorySegments, maxNumberOfMemorySegments);
+				numberOfRequiredMemorySegments, maxNumberOfMemorySegments);
 
 		this.networkBufferPool = networkBufferPool;
 		this.numberOfRequiredMemorySegments = numberOfRequiredMemorySegments;
 		this.currentPoolSize = numberOfRequiredMemorySegments;
 		this.maxNumberOfMemorySegments = maxNumberOfMemorySegments;
 		this.bufferPoolOwner = bufferPoolOwner;
+
+		if (numberOfSubpartitions > 0) {
+			checkArgument(maxBuffersPerChannel > 0,
+					"Maximum number of buffers for each channel (%s) should be larger than 0.",
+					maxBuffersPerChannel);
+		}
+
+		this.subpartitionBuffersCount = new int[numberOfSubpartitions];
+		subpartitionBufferRecyclers = new BufferRecycler[numberOfSubpartitions];
+		for (int i = 0; i < subpartitionBufferRecyclers.length; i++) {
+			subpartitionBufferRecyclers[i] = new SubpartitionBufferRecycler(i, this);
+		}
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
 	}
 
 	// ------------------------------------------------------------------------
@@ -208,27 +230,23 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
-	public void setNumSubpartitions(int subpartitions) {
-		this.subpartitionBuffersCount = new int[subpartitions];
-		subpartitionBufferRecyclers = new BufferRecycler[subpartitions];
-		for (int i = 0; i < subpartitionBufferRecyclers.length; i++) {
-			subpartitionBufferRecyclers[i] = new SubpartitionBufferRecycler(i, this);
-		}
-	}
-
-	@Override
-	public void setMaxBuffersPerChannel(int maxBuffersPerChannel) {
-		this.maxBuffersPerChannel = maxBuffersPerChannel;
-	}
-
-	@Override
 	public Buffer requestBuffer() throws IOException {
 		return toBuffer(requestMemorySegment());
 	}
 
 	@Override
+	public BufferBuilder requestBufferBuilder() throws IOException {
+		return toBufferBuilder(requestMemorySegment(UNKNOWN_CHANNEL), UNKNOWN_CHANNEL);
+	}
+
+	@Override
 	public BufferBuilder requestBufferBuilder(int targetChannel) throws IOException {
 		return toBufferBuilder(requestMemorySegment(targetChannel), targetChannel);
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
+		return toBufferBuilder(requestMemorySegmentBlocking(UNKNOWN_CHANNEL), UNKNOWN_CHANNEL);
 	}
 
 	@Override
@@ -464,7 +482,7 @@ class LocalBufferPool implements BufferPool {
 
 	@Override
 	public CompletableFuture<?> getAvailableFuture() {
-		if (numberOfRequestedMemorySegments >= currentPoolSize) {
+		if (numberOfRequestedMemorySegments >= currentPoolSize || unavailableSubpartitionsCount > 0) {
 			return availabilityHelper.getAvailableFuture();
 		} else if (availabilityHelper.isApproximatelyAvailable() || networkBufferPool.isApproximatelyAvailable()) {
 			return AVAILABLE;
@@ -517,16 +535,13 @@ class LocalBufferPool implements BufferPool {
 		}
 	}
 
-	@Nullable
+	@VisibleForTesting
 	@Override
 	public BufferRecycler[] getSubpartitionBufferRecyclers() {
 		return subpartitionBufferRecyclers;
 	}
 
-	/**
-	 *
-	 */
-	class SubpartitionBufferRecycler implements BufferRecycler {
+	private static class SubpartitionBufferRecycler implements BufferRecycler {
 
 		private int channel;
 		private LocalBufferPool bufferPool;

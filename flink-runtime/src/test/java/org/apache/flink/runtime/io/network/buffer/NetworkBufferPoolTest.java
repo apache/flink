@@ -41,7 +41,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferPool.UNKNOWN_CHANNEL;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -328,7 +327,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 			// make releaseMemory calls always fail:
 			numBuffersToRecycle -> {
 				throw new TestIOException();
-		});
+		}, 0, Integer.MAX_VALUE);
 
 		try {
 			// take all but one buffer
@@ -367,7 +366,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers,
 			numBuffersToRecycle -> {
 				throw new TestIOException();
-		});
+		}, 0, Integer.MAX_VALUE);
 
 		try {
 
@@ -673,7 +672,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 				executorService.submit(() -> {
 					try {
 						for (int num = localPoolMaxSize; num > 0; --num) {
-							segmentsRequested.add(localPool.requestBufferBuilderBlocking(UNKNOWN_CHANNEL));
+							segmentsRequested.add(localPool.requestBufferBuilderBlocking());
 						}
 					} catch (Exception e) {
 						cause.set(e);

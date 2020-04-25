@@ -42,7 +42,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferPool.UNKNOWN_CHANNEL;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -321,7 +320,7 @@ public class LocalBufferPoolTest extends TestLogger {
 				// Try to request the next buffer (but pool should be destroyed either right before
 				// the request or more likely during the request).
 				try {
-					localBufferPool.requestBufferBuilderBlocking(UNKNOWN_CHANNEL);
+					localBufferPool.requestBufferBuilderBlocking();
 					fail("Call should have failed with an IllegalStateException");
 				}
 				catch (IllegalStateException e) {
@@ -409,27 +408,38 @@ public class LocalBufferPoolTest extends TestLogger {
 
 	@Test
 	public void testMaxBuffersPerChannelAndAvailability() throws IOException, InterruptedException {
-		localBufferPool.setNumBuffers(3);
-		localBufferPool.setMaxBuffersPerChannel(1);
-		localBufferPool.setNumSubpartitions(2);
+		localBufferPool.lazyDestroy();
+		localBufferPool = new LocalBufferPool(networkBufferPool, 1, Integer.MAX_VALUE, null, 3, 1);
+		localBufferPool.setNumBuffers(10);
 
 		assertTrue(localBufferPool.getAvailableFuture().isDone());
 
 		// request one segment from subpartitin-0 and subpartition-1 respectively
-		final BufferBuilder bufferBuilder0 = localBufferPool.requestBufferBuilderBlocking(0);
-		final BufferBuilder bufferBuilder1 = localBufferPool.requestBufferBuilderBlocking(1);
+		final BufferBuilder bufferBuilder01 = localBufferPool.requestBufferBuilderBlocking(0);
+		final BufferBuilder bufferBuilder11 = localBufferPool.requestBufferBuilderBlocking(1);
 		assertTrue(localBufferPool.getAvailableFuture().isDone());
 
 		// request one segment from subpartition-0
-		final BufferBuilder bufferBuilder2 = localBufferPool.requestBufferBuilderBlocking(0);
+		final BufferBuilder bufferBuilder02 = localBufferPool.requestBufferBuilderBlocking(0);
+		assertFalse(localBufferPool.getAvailableFuture().isDone());
+
+		final BufferBuilder bufferBuilder03 = localBufferPool.requestBufferBuilderBlocking(0);
+		final BufferBuilder bufferBuilder21 = localBufferPool.requestBufferBuilderBlocking(2);
+		final BufferBuilder bufferBuilder22 = localBufferPool.requestBufferBuilderBlocking(2);
 		assertFalse(localBufferPool.getAvailableFuture().isDone());
 
 		// recycle segments
-		bufferBuilder1.getRecycler().recycle(bufferBuilder1.getMemorySegment());
+		bufferBuilder11.getRecycler().recycle(bufferBuilder11.getMemorySegment());
 		assertFalse(localBufferPool.getAvailableFuture().isDone());
-		bufferBuilder0.getRecycler().recycle(bufferBuilder0.getMemorySegment());
+		bufferBuilder21.getRecycler().recycle(bufferBuilder21.getMemorySegment());
+		assertFalse(localBufferPool.getAvailableFuture().isDone());
+		bufferBuilder02.getRecycler().recycle(bufferBuilder02.getMemorySegment());
+		assertFalse(localBufferPool.getAvailableFuture().isDone());
+		bufferBuilder01.getRecycler().recycle(bufferBuilder01.getMemorySegment());
 		assertTrue(localBufferPool.getAvailableFuture().isDone());
-		bufferBuilder2.getRecycler().recycle(bufferBuilder2.getMemorySegment());
+		bufferBuilder03.getRecycler().recycle(bufferBuilder03.getMemorySegment());
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+		bufferBuilder22.getRecycler().recycle(bufferBuilder22.getMemorySegment());
 		assertTrue(localBufferPool.getAvailableFuture().isDone());
 	}
 
@@ -440,7 +450,7 @@ public class LocalBufferPoolTest extends TestLogger {
 		assertTrue(localBufferPool.getAvailableFuture().isDone());
 
 		// request one buffer
-		final BufferBuilder bufferBuilder = checkNotNull(localBufferPool.requestBufferBuilderBlocking(UNKNOWN_CHANNEL));
+		final BufferBuilder bufferBuilder = checkNotNull(localBufferPool.requestBufferBuilderBlocking());
 		CompletableFuture<?> availableFuture = localBufferPool.getAvailableFuture();
 		assertFalse(availableFuture.isDone());
 

@@ -131,8 +131,7 @@ public class ResultPartitionFactory {
 				maxParallelism,
 				partitionManager,
 				bufferCompressor,
-				bufferPoolFactory,
-				maxBuffersPerChannel)
+				bufferPoolFactory)
 			: new ResultPartition(
 				taskNameWithSubtaskAndId,
 				partitionIndex,
@@ -142,8 +141,7 @@ public class ResultPartitionFactory {
 				maxParallelism,
 				partitionManager,
 				bufferCompressor,
-				bufferPoolFactory,
-				maxBuffersPerChannel);
+				bufferPoolFactory);
 
 		createSubpartitions(partition, type, blockingSubpartitionType, subpartitions);
 
@@ -226,7 +224,9 @@ public class ResultPartitionFactory {
 			return bufferPoolFactory.createBufferPool(
 				numberOfSubpartitions + 1,
 				maxNumberOfMemorySegments,
-				type.hasBackPressure() ? null : bufferPoolOwner);
+				type.hasBackPressure() ? null : bufferPoolOwner,
+				numberOfSubpartitions,
+				maxBuffersPerChannel);
 		};
 	}
 

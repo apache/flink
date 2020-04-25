@@ -42,6 +42,16 @@ public class NoOpBufferPool implements BufferPool {
 	}
 
 	@Override
+	public BufferBuilder requestBufferBuilder() throws IOException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public BufferBuilder requestBufferBuilder(int targetChannel) throws IOException {
 		throw new UnsupportedOperationException();
 	}
@@ -88,16 +98,6 @@ public class NoOpBufferPool implements BufferPool {
 
 	@Override
 	public int bestEffortGetNumOfUsedBuffers() {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public void setNumSubpartitions(int subpartitions) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public void setMaxBuffersPerChannel(int maxBuffersPerChannel) {
 		throw new UnsupportedOperationException();
 	}
 

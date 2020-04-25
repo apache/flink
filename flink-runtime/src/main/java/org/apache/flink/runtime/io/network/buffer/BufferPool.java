@@ -18,16 +18,12 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 
 /**
  * A dynamically sized buffer pool.
  */
 public interface BufferPool extends BufferProvider, BufferRecycler {
-
-	int UNKNOWN_CHANNEL = -1;
 
 	/**
 	 * Destroys this buffer pool.
@@ -78,10 +74,5 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
 	 */
 	int bestEffortGetNumOfUsedBuffers();
 
-	void setNumSubpartitions(int subpartitions);
-
-	void setMaxBuffersPerChannel(int maxBuffersPerChannel);
-
-	@Nullable
 	BufferRecycler[] getSubpartitionBufferRecyclers();
 }

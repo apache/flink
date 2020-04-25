@@ -128,7 +128,7 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 	public BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
 		checkState(bufferBuilder == null || bufferBuilder.isFinished());
 
-		BufferBuilder builder = getNewBufferBuilder(targetChannel);
+		BufferBuilder builder = super.requestNewBufferBuilder(targetChannel);
 		if (randomTriggered) {
 			addBufferConsumer(builder.createBufferConsumer(), targetChannel);
 		} else {

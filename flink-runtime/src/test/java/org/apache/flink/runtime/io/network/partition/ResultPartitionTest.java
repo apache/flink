@@ -53,7 +53,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
-import static org.apache.flink.runtime.io.network.buffer.BufferPool.UNKNOWN_CHANNEL;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -338,7 +337,7 @@ public class ResultPartitionTest {
 
 			// take all buffers (more than the minimum required)
 			for (int i = 0; i < numAllBuffers; ++i) {
-				BufferBuilder bufferBuilder = resultPartition.getBufferPool().requestBufferBuilderBlocking(UNKNOWN_CHANNEL);
+				BufferBuilder bufferBuilder = resultPartition.getBufferPool().requestBufferBuilderBlocking();
 				resultPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), 0);
 			}
 			resultPartition.finish();

@@ -108,8 +108,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	@Nullable
 	protected final BufferCompressor bufferCompressor;
 
-	private final int maxBuffersPerChannel;
-
 	public ResultPartition(
 		String owningTaskName,
 		int partitionIndex,
@@ -119,8 +117,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		int numTargetKeyGroups,
 		ResultPartitionManager partitionManager,
 		@Nullable BufferCompressor bufferCompressor,
-		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory,
-		int maxBuffersPerChannel) {
+		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		Preconditions.checkArgument(0 <= partitionIndex, "The partition index must be positive.");
@@ -132,7 +129,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		this.partitionManager = checkNotNull(partitionManager);
 		this.bufferCompressor = bufferCompressor;
 		this.bufferPoolFactory = bufferPoolFactory;
-		this.maxBuffersPerChannel = maxBuffersPerChannel;
 	}
 
 	/**
@@ -151,9 +147,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
 			"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
 
-		// initialize subpartitions and maxBuffersPerChannel
-		bufferPool.setNumSubpartitions(subpartitions.length);
-		bufferPool.setMaxBuffersPerChannel(maxBuffersPerChannel);
 		this.bufferPool = bufferPool;
 		partitionManager.registerResultPartition(this);
 	}

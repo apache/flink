@@ -67,12 +67,17 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilder(int targetChannel) throws IOException {
+	public BufferBuilder requestBufferBuilder() throws IOException {
 		Buffer buffer = requestBuffer();
 		if (buffer != null) {
 			return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
 		}
 		return null;
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilder(int targetChannel) throws IOException {
+		return requestBufferBuilder();
 	}
 
 	private Buffer requestBufferBlocking() throws IOException, InterruptedException {
@@ -90,9 +95,14 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws IOException, InterruptedException {
+	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
 		Buffer buffer = requestBufferBlocking();
 		return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws IOException, InterruptedException {
+		return requestBufferBuilderBlocking();
 	}
 
 	@Override

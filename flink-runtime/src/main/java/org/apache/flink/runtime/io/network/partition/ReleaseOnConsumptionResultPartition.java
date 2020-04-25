@@ -55,8 +55,7 @@ public class ReleaseOnConsumptionResultPartition extends ResultPartition {
 			int numTargetKeyGroups,
 			ResultPartitionManager partitionManager,
 			@Nullable BufferCompressor bufferCompressor,
-			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory,
-			int maxBuffersPerChannel) {
+			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 		super(
 			owningTaskName,
 			partitionIndex,
@@ -66,8 +65,7 @@ public class ReleaseOnConsumptionResultPartition extends ResultPartition {
 			numTargetKeyGroups,
 			partitionManager,
 			bufferCompressor,
-			bufferPoolFactory,
-			maxBuffersPerChannel);
+			bufferPoolFactory);
 
 		this.consumedSubpartitions = new boolean[subpartitions.length];
 		this.numUnconsumedSubpartitions = subpartitions.length;

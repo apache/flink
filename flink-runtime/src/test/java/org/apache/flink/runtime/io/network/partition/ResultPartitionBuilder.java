@@ -126,11 +126,6 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
-	public ResultPartitionBuilder setMaxBuffersPerChannel(int maxBuffersPerChannel) {
-		this.maxBuffersPerChannel = maxBuffersPerChannel;
-		return this;
-	}
-
 	ResultPartitionBuilder setNetworkBufferSize(int networkBufferSize) {
 		this.networkBufferSize = networkBufferSize;
 		return this;

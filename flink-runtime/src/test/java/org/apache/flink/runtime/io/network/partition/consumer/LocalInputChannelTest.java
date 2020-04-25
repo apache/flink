@@ -63,7 +63,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferPool.UNKNOWN_CHANNEL;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
@@ -489,7 +488,7 @@ public class LocalInputChannelTest {
 		public BufferConsumerAndChannel getNextBufferConsumer() throws Exception {
 			if (channelIndexes.size() > 0) {
 				final int channelIndex = channelIndexes.remove(0);
-				BufferBuilder bufferBuilder = bufferProvider.requestBufferBuilderBlocking(UNKNOWN_CHANNEL);
+				BufferBuilder bufferBuilder = bufferProvider.requestBufferBuilderBlocking();
 				BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 				bufferBuilder.appendAndCommit(ByteBuffer.wrap(new byte[4]));
 				bufferBuilder.finish();
