@@ -626,7 +626,6 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  // TODO
   @Ignore("Non-equi-join could be supported later.")
   @Test
   def testNonEqualInnerJoin(): Unit = {
@@ -642,7 +641,6 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
-  // TODO
   @Ignore("Non-equi-join could be supported later.")
   @Test
   def testNonEqualInnerJoinWithRetract(): Unit = {

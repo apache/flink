@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.plan.batch.table.JoinTest.Merger
@@ -127,8 +128,6 @@ class JoinTest extends TableTestBase {
     util.verifyPlan(joined)
   }
 
-  // TODO [FLINK-7942] [table] Reduce aliasing in RexNodes
- // @Ignore
   @Test
   def testFilterJoinRule(): Unit = {
     val util = batchTestUtil()
@@ -143,9 +142,7 @@ class JoinTest extends TableTestBase {
     util.verifyPlan(results)
   }
 
-  // TODO
-  @Ignore("Non-equi-join could be supported later.")
-  @Test
+  @Test(expected = classOf[ValidationException])
   def testFullJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
@@ -154,9 +151,7 @@ class JoinTest extends TableTestBase {
     util.verifyPlan(ds2.fullOuterJoin(ds1, 'b < 'd).select('c, 'g))
   }
 
-  // TODO
-  @Ignore("Non-equi-join could be supported later.")
-  @Test
+  @Test(expected = classOf[ValidationException])
   def testLeftJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
@@ -165,9 +160,7 @@ class JoinTest extends TableTestBase {
     util.verifyPlan(ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g))
   }
 
-  // TODO
-  @Ignore("Non-equi-join could be supported later.")
-  @Test
+  @Test(expected = classOf[ValidationException])
   def testRightJoinNoEquiJoinPredicate(): Unit = {
     val util = batchTestUtil()
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)

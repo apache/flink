@@ -27,9 +27,9 @@ import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
+import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Ignore, _}
 
 import scala.collection.mutable
 
@@ -203,8 +203,6 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected, sink.getRetractResults)
   }
 
-  // FIXME
-  @Ignore("Enable after StreamExecJoin implements ExecNode.")
   @Test
   def testSortWithWhere(): Unit = {
     val sqlQuery =
