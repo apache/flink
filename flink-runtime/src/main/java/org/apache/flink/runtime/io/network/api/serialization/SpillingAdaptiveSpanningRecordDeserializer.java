@@ -638,6 +638,8 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 			this.recordLength = -1;
 			this.lengthBuffer.clear();
 			this.leftOverData = null;
+			this.leftOverStart = 0;
+			this.leftOverLimit = 0;
 			this.accumulatedRecordBytes = 0;
 
 			if (spillingChannel != null) {
