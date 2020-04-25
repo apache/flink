@@ -37,7 +37,6 @@ import scala.collection.{Seq, mutable}
 @RunWith(classOf[Parameterized])
 class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Ignore("CodeGen split")
   @Test
   def testFunctionSplitWhenCodegenOverLengthLimit(): Unit = {
     // test function split

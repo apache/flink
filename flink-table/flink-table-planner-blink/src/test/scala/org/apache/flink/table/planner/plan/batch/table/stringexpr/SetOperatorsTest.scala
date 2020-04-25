@@ -22,13 +22,12 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import java.sql.Timestamp
 
 class SetOperatorsTest extends TableTestBase {
 
-  @Ignore("Support in subQuery in ExpressionConverter")
   @Test
   def testInWithFilter(): Unit = {
     val util = batchTestUtil()
