@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.core.fs.EntropyInjectingFileSystem;
 import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -132,7 +133,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		Path target = scope == CheckpointedStateScope.EXCLUSIVE ? checkpointDirectory : sharedStateDirectory;
 		int bufferSize = Math.max(writeBufferSize, fileStateThreshold);
 
-		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold);
+		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold, scope);
 	}
 
 	// ------------------------------------------------------------------------
@@ -171,9 +172,14 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		private volatile boolean closed;
 
+		private final CheckpointedStateScope scope;
+
 		public FsCheckpointStateOutputStream(
-					Path basePath, FileSystem fs,
-					int bufferSize, int localStateThreshold) {
+					Path basePath,
+					FileSystem fs,
+					int bufferSize,
+					int localStateThreshold,
+					CheckpointedStateScope scope) {
 
 			if (bufferSize < localStateThreshold) {
 				throw new IllegalArgumentException();
@@ -183,6 +189,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			this.fs = fs;
 			this.writeBuffer = new byte[bufferSize];
 			this.localStateThreshold = localStateThreshold;
+			this.scope = scope;
 		}
 
 		@Override
@@ -319,7 +326,21 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 							outStream.close();
 
-							return new FileStateHandle(statePath, size);
+							if (CheckpointedStateScope.EXCLUSIVE.equals(scope)) {
+								EntropyInjectingFileSystem efs = EntropyInjector.getEntropyFs(fs);
+								// currently, do not use relative state handle for entropy file system
+								if (efs != null) {
+									return new FileStateHandle(statePath, size);
+								} else {
+									String relativePathStr = statePath.toUri().toString().substring(basePath.toUri().toString().length());
+									return new RelativeFileStateHandle(
+										statePath,
+										relativePathStr,
+										size);
+								}
+							} else {
+								return new FileStateHandle(statePath, size);
+							}
 						} catch (Exception exception) {
 							try {
 								if (statePath != null) {
