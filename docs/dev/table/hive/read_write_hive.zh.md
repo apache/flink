@@ -1,5 +1,5 @@
 ---
-title: "Reading & Writing Hive Tables"
+title: "读写 Hive 表"
 nav-parent_id: hive_tableapi
 nav-pos: 2
 ---
@@ -22,16 +22,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Using the `HiveCatalog` and Flink's connector to Hive, Flink can read and write from Hive data as an alternative to Hive's batch engine.
-Be sure to follow the instructions to include the correct [dependencies]({{ site.baseurl }}/dev/table/hive/#depedencies) in your application.
-And please also note that Hive connector only works with blink planner.
+通过 `HiveCatalog` 和 Flink 的 Hive 连接器, Flink 可替代 Hive 作为执行引擎读写 Hive 表。
+请确保你的应用程序已按照指示包含了正确的依赖[dependencies]({{ site.baseurl }}/zh/dev/table/hive/#depedencies)。
+另外请注意目前 Hive 连接器仅被 blink 计划器所支持。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Reading From Hive
+## Hive 读取
 
-Assume Hive contains a single table in its `default` database, named people that contains several rows.
+假设在 Hive 的 default 数据库中，存在一个包含几行数据的 people 表。
 
 {% highlight bash %}
 hive> show databases;
@@ -62,7 +62,7 @@ Mary  77.7
 Time taken: 0.097 seconds, Fetched: 10 row(s)
 {% endhighlight %}
 
-With the data ready your can connect to Hive [connect to an existing Hive installation]({{ site.baseurl }}/dev/table/hive/#connecting-to-hive) and begin querying. 
+准备好数据后，你可以连接到 Hive ({{ site.baseurl }}/zh/dev/table/hive/#connecting-to-hive) 并执行查询操作。
 
 {% highlight bash %}
 
@@ -111,18 +111,18 @@ __________ __________
 
 {% endhighlight %}
 
-### Querying Hive views
+### 查询 Hive 视图 
 
-If you need to query Hive views, please note:
+如果你需要查询 Hive 视图，请注意：
 
-1. You have to use the Hive catalog as your current catalog before you can query views in that catalog. It can be done by either `tableEnv.useCatalog(...)` in Table API or `USE CATALOG ...` in SQL Client.
-2. Hive and Flink SQL have different syntax, e.g. different reserved keywords and literals. Make sure the view's query is compatible with Flink grammar.
+1. 在查询 Hive 视图之前，你必须将该视图所在的 Hive catalog 作为你当前使用的 catalog。你可以使用 Table API 中的 `tableEnv.useCatalog(...)` 或者 SQL client中的 `USE CATALOG ...` 完成该操作。
+2. Hive 和 Flink SQL 存在不同的语法，例如不同的保留关键字和字面意思。请确保视图的查询语句与 Flink 语法兼容。
 
-## Writing To Hive
+## Hive 写入
 
-Similarly, data can be written into hive using an `INSERT` clause.
+同样，通过 `INSERT` 语句数据能够被写入 Hive。
 
-Consider there is an example table named "mytable" with two columns: name and age, in string and int type.
+假设有一个名叫 "mytable" 的表，其中拥有 name 和 age 两列，分别为字符串类型和整数类型。
 
 {% highlight bash %}
 # ------ INSERT INTO will append to the table or partition, keeping the existing data intact ------ 
@@ -132,7 +132,7 @@ Flink SQL> INSERT INTO mytable SELECT 'Tom', 25;
 Flink SQL> INSERT OVERWRITE mytable SELECT 'Tom', 25;
 {% endhighlight %}
 
-We support partitioned table too, Consider there is a partitioned table named myparttable with four columns: name, age, my_type and my_date, in types ...... my_type and my_date are the partition keys.
+我们也支持写入分区表, 假设有一个名叫 myparttable 的分区表，该表拥有 4 列，分别是name、age、my_type、my_date，其中 my_type 和 my_date 是分区键。
 
 {% highlight bash %}
 # ------ Insert with static partition ------ 
@@ -146,51 +146,51 @@ Flink SQL> INSERT OVERWRITE myparttable PARTITION (my_type='type_1') SELECT 'Tom
 {% endhighlight %}
 
 
-## Formats
+## 格式
 
-We have tested on the following of table storage formats: text, csv, SequenceFile, ORC, and Parquet.
+我们已经测试了以下表存储格式: text, csv, SequenceFile, ORC, and Parquet。
 
 
-## Optimizations
+## 优化
 
-### Partition Pruning
+### 分区修剪
 
-Flink uses partition pruning as a performance optimization to limits the number of files and partitions
-that Flink reads when querying Hive tables. When your data is partitioned, Flink only reads a subset of the partitions in 
-a Hive table when a query matches certain filter criteria.
+当查询 Hive 表时，Flink 使用分区修剪作为一项优化手段来限制文件和分区的读入数量。
+对数据进行分区后，当查询与某些过滤条件匹配时，
+Flink 只会读取分区的部分子集。
 
-### Projection Pushdown
+### 投影下推
 
-Flink leverages projection pushdown to minimize data transfer between Flink and Hive tables by omitting 
-unnecessary fields from table scans.
+Flink 利用投影下推功能，通过在表扫描时过滤不必要的字段来
+最大程度减少 Flink 和 Hive 之间的数据传输。
 
-It is especially beneficial when a table contains many columns.
+当一个表中包含大量字段时，该优化能大大提高效率。
 
-### Limit Pushdown
+### Limit 下推
 
-For queries with LIMIT clause, Flink will limit the number of output records wherever possible to minimize the
-amount of data transferred across network.
+对于使用了 LIMIT 子句的查询，Flink 将会限制输出数据量，
+最大程度的减少网络之间传输的数据量。
 
-### ORC Vectorized Optimization upon Read
+### 读取时进行矢量优化
 
-Optimization is used automatically when the following conditions are met:
+当满足以下条件时，将自动使用该优化：
 
-- Columns without complex data type, like hive types: List, Map, Struct, Union.
-- Hive version greater than or equal to version 2.0.0.
+- 格式：ORC 或者 Parquet。
+- 没有复杂数据类型的列, 譬如 hive 类型中的: List, Map, Struct, Union。
 
-This feature is turned on by default. If there is a problem, you can use this config option to close ORC Vectorized Optimization:
+此功能默认打开。如果有问题，可以选择使用以下配置选项关闭矢量优化：
 
 {% highlight bash %}
 table.exec.hive.fallback-mapred-reader=true
 {% endhighlight %}
 
 
-## Roadmap
+## 未来规划
 
-We are planning and actively working on supporting features like
+我们正在计划并积极推动以支持以下功能：
 
 - ACID tables
 - bucketed tables
 - more formats
 
-Please reach out to the community for more feature request https://flink.apache.org/community.html#mailing-lists
+请与社区联系以获取更多功能需求 https://flink.apache.org/community.html#mailing-lists。
