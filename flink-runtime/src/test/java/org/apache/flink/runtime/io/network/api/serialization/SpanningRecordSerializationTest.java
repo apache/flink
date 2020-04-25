@@ -233,6 +233,15 @@ public class SpanningRecordSerializationTest extends TestLogger {
 			Util.randomRecord(SerializationTestTypeFactory.BYTE_ARRAY),
 			1,
 			new byte[] {42, 43, 44});
+
+		deserializer.clear();
+
+		testUnconsumedBuffer(
+			serializer,
+			deserializer,
+			Util.randomRecord(SerializationTestTypeFactory.BYTE_ARRAY),
+			1,
+			new byte[] {42, 43, 44});
 	}
 
 	public void testUnconsumedBuffer(
