@@ -88,6 +88,6 @@ class ChannelStateHandleSerializer {
 		for (int i = 0; i < offsetsSize; i++) {
 			offsets.add(dis.readLong());
 		}
-		return handleBuilder.apply(deserializeStreamStateHandle(dis), offsets, info);
+		return handleBuilder.apply(deserializeStreamStateHandle(dis, null), offsets, info);
 	}
 }

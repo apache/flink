@@ -127,7 +127,7 @@ public class OperatorSnapshotUtil {
 			final int v = dis.readInt();
 
 			// still required for compatibility to consume the bytes.
-			MetadataV3Serializer.deserializeStreamStateHandle(dis);
+			MetadataV3Serializer.deserializeStreamStateHandle(dis, null);
 
 			List<OperatorStateHandle> rawOperatorState = null;
 			int numRawOperatorStates = dis.readInt();
@@ -135,7 +135,7 @@ public class OperatorSnapshotUtil {
 				rawOperatorState = new ArrayList<>();
 				for (int i = 0; i < numRawOperatorStates; i++) {
 					OperatorStateHandle operatorState = MetadataV3Serializer.deserializeOperatorStateHandle(
-						dis);
+						dis, null);
 					rawOperatorState.add(operatorState);
 				}
 			}
@@ -146,7 +146,7 @@ public class OperatorSnapshotUtil {
 				managedOperatorState = new ArrayList<>();
 				for (int i = 0; i < numManagedOperatorStates; i++) {
 					OperatorStateHandle operatorState = MetadataV3Serializer.deserializeOperatorStateHandle(
-						dis);
+						dis, null);
 					managedOperatorState.add(operatorState);
 				}
 			}
@@ -157,7 +157,7 @@ public class OperatorSnapshotUtil {
 				rawKeyedState = new ArrayList<>();
 				for (int i = 0; i < numRawKeyedStates; i++) {
 					KeyedStateHandle keyedState = MetadataV3Serializer.deserializeKeyedStateHandle(
-						dis);
+						dis, null);
 					rawKeyedState.add(keyedState);
 				}
 			}
@@ -168,7 +168,7 @@ public class OperatorSnapshotUtil {
 				managedKeyedState = new ArrayList<>();
 				for (int i = 0; i < numManagedKeyedStates; i++) {
 					KeyedStateHandle keyedState = MetadataV3Serializer.deserializeKeyedStateHandle(
-						dis);
+						dis, null);
 					managedKeyedState.add(keyedState);
 				}
 			}

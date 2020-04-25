@@ -71,8 +71,8 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
 	}
 
 	@Override
-	public CheckpointMetadata deserialize(DataInputStream dis, ClassLoader classLoader) throws IOException {
-		return deserializeMetadata(dis);
+	public CheckpointMetadata deserialize(DataInputStream dis, ClassLoader classLoader, String externalPointer) throws IOException {
+		return deserializeMetadata(dis, externalPointer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -109,7 +109,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
 	}
 
 	@Override
-	protected OperatorState deserializeOperatorState(DataInputStream dis) throws IOException {
+	protected OperatorState deserializeOperatorState(DataInputStream dis, String externalPointer) throws IOException {
 		final OperatorID jobVertexId = new OperatorID(dis.readLong(), dis.readLong());
 		final int parallelism = dis.readInt();
 		final int maxParallelism = dis.readInt();
@@ -117,14 +117,14 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
 		final OperatorState operatorState = new OperatorState(jobVertexId, parallelism, maxParallelism);
 
 		// Coordinator state
-		operatorState.setCoordinatorState(deserializeStreamStateHandle(dis));
+		operatorState.setCoordinatorState(deserializeStreamStateHandle(dis, externalPointer));
 
 		// Sub task states
 		final int numSubTaskStates = dis.readInt();
 
 		for (int j = 0; j < numSubTaskStates; j++) {
 			final int subtaskIndex = dis.readInt();
-			final OperatorSubtaskState subtaskState = deserializeSubtaskState(dis);
+			final OperatorSubtaskState subtaskState = deserializeSubtaskState(dis, externalPointer);
 			operatorState.putState(subtaskIndex, subtaskState);
 		}
 
