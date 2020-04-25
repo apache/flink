@@ -159,6 +159,26 @@ public class SavepointITCase extends TestLogger {
 	}
 
 	@Test
+	public void testTriggerSavepointAndResumeWithFileBasedCheckpointsAndRelocateBasePath() throws Exception {
+		final int numTaskManagers = 2;
+		final int numSlotsPerTaskManager = 2;
+		final int parallelism = numTaskManagers * numSlotsPerTaskManager;
+
+		final MiniClusterResourceFactory clusterFactory = new MiniClusterResourceFactory(
+			numTaskManagers,
+			numSlotsPerTaskManager,
+			getFileBasedCheckpointsConfig());
+
+		final String savepointPath = submitJobAndTakeSavepoint(clusterFactory, parallelism);
+		final org.apache.flink.core.fs.Path oldPath = new org.apache.flink.core.fs.Path(savepointPath);
+		final org.apache.flink.core.fs.Path newPath = new org.apache.flink.core.fs.Path(folder.newFolder().toURI().toString());
+		(new org.apache.flink.core.fs.Path(savepointPath).getFileSystem()).rename(oldPath, newPath);
+		verifySavepoint(parallelism, newPath.toUri().toString());
+
+		restoreJobAndVerifyState(newPath.toUri().toString(), clusterFactory, parallelism);
+	}
+
+	@Test
 	public void testShouldAddEntropyToSavepointPath() throws Exception {
 		final int numTaskManagers = 2;
 		final int numSlotsPerTaskManager = 2;
@@ -222,9 +242,12 @@ public class SavepointITCase extends TestLogger {
 		}
 	}
 
-	private void restoreJobAndVerifyState(String savepointPath, MiniClusterResourceFactory clusterFactory, int parallelism) throws Exception {
+	private void restoreJobAndVerifyState(
+		String savepointPath,
+		MiniClusterResourceFactory clusterFactory,
+		int parallelism) throws Exception {
 		final JobGraph jobGraph = createJobGraph(parallelism, 0, 1000);
-		jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
+		jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, false));
 		final JobID jobId = jobGraph.getJobID();
 		StatefulCounter.resetForTest(parallelism);
 

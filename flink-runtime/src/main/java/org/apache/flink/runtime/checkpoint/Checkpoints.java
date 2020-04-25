@@ -93,7 +93,7 @@ public class Checkpoints {
 	//  Reading and validating checkpoint metadata
 	// ------------------------------------------------------------------------
 
-	public static CheckpointMetadata loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader) throws IOException {
+	public static CheckpointMetadata loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader, String externalPointer) throws IOException {
 		checkNotNull(in, "input stream");
 		checkNotNull(classLoader, "classLoader");
 
@@ -102,7 +102,7 @@ public class Checkpoints {
 		if (magicNumber == HEADER_MAGIC_NUMBER) {
 			final int version = in.readInt();
 			final MetadataSerializer serializer = MetadataSerializers.getSerializer(version);
-			return serializer.deserialize(in, classLoader);
+			return serializer.deserialize(in, classLoader, externalPointer);
 		}
 		else {
 			throw new IOException("Unexpected magic number. This can have multiple reasons: " +
@@ -131,7 +131,7 @@ public class Checkpoints {
 		final CheckpointMetadata checkpointMetadata;
 		try (InputStream in = metadataHandle.openInputStream()) {
 			DataInputStream dis = new DataInputStream(in);
-			checkpointMetadata = loadCheckpointMetadata(dis, classLoader);
+			checkpointMetadata = loadCheckpointMetadata(dis, classLoader, checkpointPointer);
 		}
 
 		// generate mapping from operator to task
@@ -234,7 +234,7 @@ public class Checkpoints {
 		try (InputStream in = metadataHandle.openInputStream();
 			DataInputStream dis = new DataInputStream(in)) {
 
-			metadata = loadCheckpointMetadata(dis, classLoader);
+			metadata = loadCheckpointMetadata(dis, classLoader, pointer);
 		}
 
 		Exception exception = null;

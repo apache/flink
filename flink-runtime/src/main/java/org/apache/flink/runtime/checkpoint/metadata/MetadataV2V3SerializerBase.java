@@ -20,6 +20,8 @@ package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.EntropyInjectingFileSystem;
+import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
@@ -37,7 +39,10 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsCompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.FunctionWithException;
@@ -57,6 +62,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base (De)serializer for checkpoint metadata format version 2 and 3.
@@ -88,6 +96,10 @@ public abstract class MetadataV2V3SerializerBase {
 	private static final byte KEY_GROUPS_HANDLE = 3;
 	private static final byte PARTITIONABLE_OPERATOR_STATE_HANDLE = 4;
 	private static final byte INCREMENTAL_KEY_GROUPS_HANDLE = 5;
+	private static final byte RELATIVE_STREAM_STATE_HANDLE = 6;
+
+	private static Path exclusiveCheckpointDir = null;
+	private static String previousExternalPointer = null;
 
 	// ------------------------------------------------------------------------
 	//  (De)serialization entry points
@@ -113,7 +125,7 @@ public abstract class MetadataV2V3SerializerBase {
 		}
 	}
 
-	protected CheckpointMetadata deserializeMetadata(DataInputStream dis) throws IOException {
+	protected CheckpointMetadata deserializeMetadata(DataInputStream dis, String externalPointer) throws IOException {
 		// first: checkpoint ID
 		final long checkpointId = dis.readLong();
 		if (checkpointId < 0) {
@@ -142,7 +154,7 @@ public abstract class MetadataV2V3SerializerBase {
 		final List<OperatorState> operatorStates = new ArrayList<>(numTaskStates);
 
 		for (int i = 0; i < numTaskStates; i++) {
-			operatorStates.add(deserializeOperatorState(dis));
+			operatorStates.add(deserializeOperatorState(dis, externalPointer));
 		}
 
 		return new CheckpointMetadata(checkpointId, operatorStates, masterStates);
@@ -211,7 +223,7 @@ public abstract class MetadataV2V3SerializerBase {
 
 	protected abstract void serializeOperatorState(OperatorState operatorState, DataOutputStream dos) throws IOException;
 
-	protected abstract OperatorState deserializeOperatorState(DataInputStream dis) throws IOException;
+	protected abstract OperatorState deserializeOperatorState(DataInputStream dis, String deserializeOperatorState) throws IOException;
 
 	// ------------------------------------------------------------------------
 	//  operator subtask state (de)serialization methods
@@ -241,15 +253,15 @@ public abstract class MetadataV2V3SerializerBase {
 		}
 	}
 
-	protected OperatorSubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
+	protected OperatorSubtaskState deserializeSubtaskState(DataInputStream dis, String externalPointer) throws IOException {
 		final boolean hasManagedOperatorState = dis.readInt() != 0;
-		final OperatorStateHandle managedOperatorState = hasManagedOperatorState ? deserializeOperatorStateHandle(dis) : null;
+		final OperatorStateHandle managedOperatorState = hasManagedOperatorState ? deserializeOperatorStateHandle(dis, externalPointer) : null;
 
 		final boolean hasRawOperatorState = dis.readInt() != 0;
-		final OperatorStateHandle rawOperatorState = hasRawOperatorState ? deserializeOperatorStateHandle(dis) : null;
+		final OperatorStateHandle rawOperatorState = hasRawOperatorState ? deserializeOperatorStateHandle(dis, externalPointer) : null;
 
-		final KeyedStateHandle managedKeyedState = deserializeKeyedStateHandle(dis);
-		final KeyedStateHandle rawKeyedState = deserializeKeyedStateHandle(dis);
+		final KeyedStateHandle managedKeyedState = deserializeKeyedStateHandle(dis, externalPointer);
+		final KeyedStateHandle rawKeyedState = deserializeKeyedStateHandle(dis, externalPointer);
 
 		StateObjectCollection<InputChannelStateHandle> inputChannelState = deserializeInputChannelStateHandle(dis);
 
@@ -312,14 +324,15 @@ public abstract class MetadataV2V3SerializerBase {
 	}
 
 	private static Map<StateHandleID, StreamStateHandle> deserializeStreamStateHandleMap(
-			DataInputStream dis) throws IOException {
+			DataInputStream dis,
+			String externalPointer) throws IOException {
 
 		final int size = dis.readInt();
 		Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
 
 		for (int i = 0; i < size; ++i) {
 			StateHandleID stateHandleID = new StateHandleID(dis.readUTF());
-			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis);
+			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, externalPointer);
 			result.put(stateHandleID, stateHandle);
 		}
 
@@ -327,7 +340,7 @@ public abstract class MetadataV2V3SerializerBase {
 	}
 
 	@VisibleForTesting
-	public static KeyedStateHandle deserializeKeyedStateHandle(DataInputStream dis) throws IOException {
+	public static KeyedStateHandle deserializeKeyedStateHandle(DataInputStream dis, String externalPointer) throws IOException {
 		final int type = dis.readByte();
 		if (NULL_HANDLE == type) {
 
@@ -344,7 +357,7 @@ public abstract class MetadataV2V3SerializerBase {
 			}
 			KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(
 				keyGroupRange, offsets);
-			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis);
+			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, externalPointer);
 			return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
 		} else if (INCREMENTAL_KEY_GROUPS_HANDLE == type) {
 
@@ -355,9 +368,9 @@ public abstract class MetadataV2V3SerializerBase {
 			KeyGroupRange keyGroupRange =
 				KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
 
-			StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis);
-			Map<StateHandleID, StreamStateHandle> sharedStates = deserializeStreamStateHandleMap(dis);
-			Map<StateHandleID, StreamStateHandle> privateStates = deserializeStreamStateHandleMap(dis);
+			StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis, externalPointer);
+			Map<StateHandleID, StreamStateHandle> sharedStates = deserializeStreamStateHandleMap(dis, externalPointer);
+			Map<StateHandleID, StreamStateHandle> privateStates = deserializeStreamStateHandleMap(dis, externalPointer);
 
 			UUID uuid;
 
@@ -411,7 +424,8 @@ public abstract class MetadataV2V3SerializerBase {
 
 	@VisibleForTesting
 	public static OperatorStateHandle deserializeOperatorStateHandle(
-			DataInputStream dis) throws IOException {
+			DataInputStream dis,
+			String externalPointer) throws IOException {
 
 		final int type = dis.readByte();
 		if (NULL_HANDLE == type) {
@@ -434,7 +448,7 @@ public abstract class MetadataV2V3SerializerBase {
 						new OperatorStateHandle.StateMetaInfo(offsets, mode);
 				offsetsMap.put(key, metaInfo);
 			}
-			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis);
+			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, externalPointer);
 			return new OperatorStreamStateHandle(offsetsMap, stateHandle);
 		} else {
 			throw new IllegalStateException("Reading invalid OperatorStateHandle, type: " + type);
@@ -448,6 +462,11 @@ public abstract class MetadataV2V3SerializerBase {
 		if (stateHandle == null) {
 			dos.writeByte(NULL_HANDLE);
 
+		} else if (stateHandle instanceof RelativeFileStateHandle) {
+			dos.writeByte(RELATIVE_STREAM_STATE_HANDLE);
+			RelativeFileStateHandle relativeFileStateHandle = (RelativeFileStateHandle) stateHandle;
+			dos.writeUTF(relativeFileStateHandle.getRelativePath());
+			dos.writeLong(relativeFileStateHandle.getStateSize());
 		} else if (stateHandle instanceof FileStateHandle) {
 			dos.writeByte(FILE_STREAM_STATE_HANDLE);
 			FileStateHandle fileStateHandle = (FileStateHandle) stateHandle;
@@ -468,7 +487,7 @@ public abstract class MetadataV2V3SerializerBase {
 		dos.flush();
 	}
 
-	public static StreamStateHandle deserializeStreamStateHandle(DataInputStream dis) throws IOException {
+	public static StreamStateHandle deserializeStreamStateHandle(DataInputStream dis, @Nullable String externalPointer) throws IOException {
 		final int type = dis.read();
 		if (NULL_HANDLE == type) {
 			return null;
@@ -482,6 +501,18 @@ public abstract class MetadataV2V3SerializerBase {
 			byte[] data = new byte[numBytes];
 			dis.readFully(data);
 			return new ByteStreamStateHandle(handleName, data);
+		} else if (RELATIVE_STREAM_STATE_HANDLE == type) {
+			checkArgument(externalPointer != null, "external pointer should not be null when deserializing relative state handle.");
+			String relativePath = dis.readUTF();
+			long size = dis.readLong();
+			if (exclusiveCheckpointDir == null || (!externalPointer.equals(previousExternalPointer))) {
+				exclusiveCheckpointDir = ((FsCompletedCheckpointStorageLocation) (AbstractFsCheckpointStorage.resolveCheckpointPointer(externalPointer))).getExclusiveCheckpointDir();
+				EntropyInjectingFileSystem entropyFs = EntropyInjector.getEntropyFs(exclusiveCheckpointDir.getFileSystem());
+				checkState(entropyFs == null, "Do not support relative state handle for entropy file system currently.");
+				previousExternalPointer = externalPointer;
+			}
+			Path statePath = new Path(exclusiveCheckpointDir, relativePath);
+			return new RelativeFileStateHandle(statePath, relativePath, size);
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
 		}

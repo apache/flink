@@ -90,7 +90,7 @@ public class EntropyInjector {
 	// ------------------------------------------------------------------------
 
 	@Nullable
-	private static EntropyInjectingFileSystem getEntropyFs(FileSystem fs) {
+	public static EntropyInjectingFileSystem getEntropyFs(FileSystem fs) {
 		if (fs instanceof EntropyInjectingFileSystem) {
 			return (EntropyInjectingFileSystem) fs;
 		}

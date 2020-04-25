@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 
 import javax.annotation.Nullable;
@@ -169,11 +170,14 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 
 	@Override
 	public CheckpointStateOutputStream createTaskOwnedStateStream() {
+		// as the comment of CheckpointStorageWorkerView#createTaskOwnedStateStream said we may change into shared state,
+		// so we use CheckpointedStateScope.SHARED here.
 		return new FsCheckpointStateOutputStream(
 				taskOwnedStateDirectory,
 				fileSystem,
 				writeBufferSize,
-				fileSizeThreshold);
+				fileSizeThreshold,
+				CheckpointedStateScope.SHARED);
 	}
 
 	@Override
