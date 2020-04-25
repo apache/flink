@@ -677,11 +677,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		writeYarnProperties(yarnProps, yarnPropertiesFile);
 	}
 
-	private void logAndSysout(String message) {
-		LOG.info(message);
-		System.out.println(message);
-	}
-
 	private String encodeDynamicProperties(final CommandLine cmd) {
 		final Properties properties = cmd.getOptionProperties(dynamicproperties.getOpt());
 		final String[] dynamicProperties = properties.stringPropertyNames().stream()
