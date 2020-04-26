@@ -83,7 +83,7 @@ configuration.set_string("table.exec.mini-batch.size", "5000");
 </div>
 </div>
 
-<span class="label label-danger">注意</span> 目前，键值选项仅被Blink计划器支持。
+<span class="label label-danger">注意</span> 目前，键值选项仅被 Blink planner 支持。
 
 ### 执行选项
 
