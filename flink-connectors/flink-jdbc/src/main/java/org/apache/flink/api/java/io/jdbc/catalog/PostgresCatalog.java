@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.DecimalType;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -226,6 +227,8 @@ public class PostgresCatalog extends AbstractJDBCCatalog {
 	public static final String PG_BIGINT_ARRAY = "_int8";
 	public static final String PG_REAL = "float4";
 	public static final String PG_REAL_ARRAY = "_float4";
+	public static final String PG_DECIMAL = "decimal";
+	public static final String PG_DECIMAL_ARRAY = "_decimal";
 	public static final String PG_DOUBLE_PRECISION = "float8";
 	public static final String PG_DOUBLE_PRECISION_ARRAY = "_float8";
 	public static final String PG_NUMERIC = "numeric";
@@ -284,11 +287,20 @@ public class PostgresCatalog extends AbstractJDBCCatalog {
 				return DataTypes.DOUBLE();
 			case PG_DOUBLE_PRECISION_ARRAY:
 				return DataTypes.ARRAY(DataTypes.DOUBLE());
+			case PG_DECIMAL:
 			case PG_NUMERIC:
-				return DataTypes.DECIMAL(precision, metadata.getScale(colIndex));
+				// see SPARK-26538: handle numeric without explicit precision and scale.
+				if (precision > 0) {
+					return DataTypes.DECIMAL(precision, metadata.getScale(colIndex));
+				}
+				return DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18);
+			case PG_DECIMAL_ARRAY:
 			case PG_NUMERIC_ARRAY:
-				return DataTypes.ARRAY(
-					DataTypes.DECIMAL(precision, metadata.getScale(colIndex)));
+				// see SPARK-26538: handle numeric without explicit precision and scale.
+				if (precision > 0) {
+					return DataTypes.ARRAY(DataTypes.DECIMAL(precision, metadata.getScale(colIndex)));
+				}
+				return DataTypes.ARRAY(DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18));
 			case PG_CHAR:
 			case PG_CHARACTER:
 				return DataTypes.CHAR(precision);
