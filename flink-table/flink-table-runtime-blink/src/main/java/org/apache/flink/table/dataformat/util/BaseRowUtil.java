@@ -22,6 +22,7 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.RowKind;
 
 /**
  * Util for base row.
@@ -29,31 +30,21 @@ import org.apache.flink.table.types.logical.LogicalType;
 public final class BaseRowUtil {
 
 	/**
-	 * Indicates the row as an accumulate message.
+	 * Returns true if the message is either {@link RowKind#INSERT} or {@link RowKind#UPDATE_AFTER},
+	 * which refers to an accumulate operation of aggregation.
 	 */
-	public static final byte ACCUMULATE_MSG = 0;
+	public static boolean isAccumulateMsg(BaseRow baseRow) {
+		RowKind kind = baseRow.getRowKind();
+		return kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER;
+	}
 
 	/**
-	 * Indicates the row as a retraction message.
+	 * Returns true if the message is either {@link RowKind#DELETE} or {@link RowKind#UPDATE_BEFORE},
+	 * which refers to a retract operation of aggregation.
 	 */
-	public static final byte RETRACT_MSG = 1;
-
-	public static boolean isAccumulateMsg(BaseRow baseRow) {
-		return baseRow.getHeader() == ACCUMULATE_MSG;
-	}
-
 	public static boolean isRetractMsg(BaseRow baseRow) {
-		return baseRow.getHeader() == RETRACT_MSG;
-	}
-
-	public static BaseRow setAccumulate(BaseRow baseRow) {
-		baseRow.setHeader(ACCUMULATE_MSG);
-		return baseRow;
-	}
-
-	public static BaseRow setRetract(BaseRow baseRow) {
-		baseRow.setHeader(RETRACT_MSG);
-		return baseRow;
+		RowKind kind = baseRow.getRowKind();
+		return kind == RowKind.UPDATE_BEFORE || kind == RowKind.DELETE;
 	}
 
 	public static GenericRow toGenericRow(
@@ -63,7 +54,7 @@ public final class BaseRowUtil {
 			return (GenericRow) baseRow;
 		} else {
 			GenericRow row = new GenericRow(baseRow.getArity());
-			row.setHeader(baseRow.getHeader());
+			row.setRowKind(baseRow.getRowKind());
 			for (int i = 0; i < row.getArity(); i++) {
 				if (baseRow.isNullAt(i)) {
 					row.setField(i, null);

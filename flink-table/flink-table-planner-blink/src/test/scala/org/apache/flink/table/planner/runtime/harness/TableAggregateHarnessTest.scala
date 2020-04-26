@@ -29,7 +29,7 @@ import org.apache.flink.table.api.{EnvironmentSettings, Types}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.{Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor
-import org.apache.flink.table.runtime.util.StreamRecordUtils.{record, retractRecord}
+import org.apache.flink.table.runtime.util.StreamRecordUtils.{insertRecord, deleteRecord}
 import org.apache.flink.types.Row
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -72,38 +72,38 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.setProcessingTime(1)
 
     // input with two columns: key and value
-    testHarness.processElement(record(1: JInt, 1: JInt))
+    testHarness.processElement(insertRecord(1: JInt, 1: JInt))
     // output with three columns: key, value, value. The value is in the top3 of the key
-    expectedOutput.add(record(1: JInt, 1: JInt, 1: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 1: JInt, 1: JInt))
 
-    testHarness.processElement(record(1: JInt, 2: JInt))
-    expectedOutput.add(retractRecord(1: JInt, 1: JInt, 1: JInt))
-    expectedOutput.add(record(1: JInt, 1: JInt, 1: JInt))
-    expectedOutput.add(record(1: JInt, 2: JInt, 2: JInt))
+    testHarness.processElement(insertRecord(1: JInt, 2: JInt))
+    expectedOutput.add(deleteRecord(1: JInt, 1: JInt, 1: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 1: JInt, 1: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
 
-    testHarness.processElement(record(1: JInt, 3: JInt))
-    expectedOutput.add(retractRecord(1: JInt, 1: JInt, 1: JInt))
-    expectedOutput.add(retractRecord(1: JInt, 2: JInt, 2: JInt))
-    expectedOutput.add(record(1: JInt, 1: JInt, 1: JInt))
-    expectedOutput.add(record(1: JInt, 2: JInt, 2: JInt))
-    expectedOutput.add(record(1: JInt, 3: JInt, 3: JInt))
+    testHarness.processElement(insertRecord(1: JInt, 3: JInt))
+    expectedOutput.add(deleteRecord(1: JInt, 1: JInt, 1: JInt))
+    expectedOutput.add(deleteRecord(1: JInt, 2: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 1: JInt, 1: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 3: JInt, 3: JInt))
 
-    testHarness.processElement(record(1: JInt, 2: JInt))
-    expectedOutput.add(retractRecord(1: JInt, 1: JInt, 1: JInt))
-    expectedOutput.add(retractRecord(1: JInt, 2: JInt, 2: JInt))
-    expectedOutput.add(retractRecord(1: JInt, 3: JInt, 3: JInt))
-    expectedOutput.add(record(1: JInt, 2: JInt, 2: JInt))
-    expectedOutput.add(record(1: JInt, 2: JInt, 2: JInt))
-    expectedOutput.add(record(1: JInt, 3: JInt, 3: JInt))
+    testHarness.processElement(insertRecord(1: JInt, 2: JInt))
+    expectedOutput.add(deleteRecord(1: JInt, 1: JInt, 1: JInt))
+    expectedOutput.add(deleteRecord(1: JInt, 2: JInt, 2: JInt))
+    expectedOutput.add(deleteRecord(1: JInt, 3: JInt, 3: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 3: JInt, 3: JInt))
 
     // ingest data with key value of 2
-    testHarness.processElement(record(2: JInt, 2: JInt))
-    expectedOutput.add(record(2: JInt, 2: JInt, 2: JInt))
+    testHarness.processElement(insertRecord(2: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(2: JInt, 2: JInt, 2: JInt))
 
     // trigger cleanup timer
     testHarness.setProcessingTime(3002)
-    testHarness.processElement(record(1: JInt, 2: JInt))
-    expectedOutput.add(record(1: JInt, 2: JInt, 2: JInt))
+    testHarness.processElement(insertRecord(1: JInt, 2: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 2: JInt, 2: JInt))
 
     val result = testHarness.getOutput
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
@@ -133,30 +133,30 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.setProcessingTime(1)
 
     // input with two columns: key and value
-    testHarness.processElement(record(1: JInt))
+    testHarness.processElement(insertRecord(1: JInt))
     // output with three columns: key, value, value. The value is in the top3 of the key
-    expectedOutput.add(record(1: JInt, 1: JInt))
+    expectedOutput.add(insertRecord(1: JInt, 1: JInt))
 
-    testHarness.processElement(retractRecord(1: JInt))
-    expectedOutput.add(retractRecord(1: JInt, 1: JInt))
+    testHarness.processElement(deleteRecord(1: JInt))
+    expectedOutput.add(deleteRecord(1: JInt, 1: JInt))
 
-    testHarness.processElement(record(3: JInt))
-    expectedOutput.add(record(3: JInt, 3: JInt))
+    testHarness.processElement(insertRecord(3: JInt))
+    expectedOutput.add(insertRecord(3: JInt, 3: JInt))
 
-    testHarness.processElement(record(4: JInt))
-    expectedOutput.add(retractRecord(3: JInt, 3: JInt))
-    expectedOutput.add(record(3: JInt, 3: JInt))
-    expectedOutput.add(record(4: JInt, 4: JInt))
+    testHarness.processElement(insertRecord(4: JInt))
+    expectedOutput.add(deleteRecord(3: JInt, 3: JInt))
+    expectedOutput.add(insertRecord(3: JInt, 3: JInt))
+    expectedOutput.add(insertRecord(4: JInt, 4: JInt))
 
-    testHarness.processElement(retractRecord(3: JInt))
-    expectedOutput.add(retractRecord(3: JInt, 3: JInt))
-    expectedOutput.add(retractRecord(4: JInt, 4: JInt))
-    expectedOutput.add(record(4: JInt, 4: JInt))
+    testHarness.processElement(deleteRecord(3: JInt))
+    expectedOutput.add(deleteRecord(3: JInt, 3: JInt))
+    expectedOutput.add(deleteRecord(4: JInt, 4: JInt))
+    expectedOutput.add(insertRecord(4: JInt, 4: JInt))
 
-    testHarness.processElement(record(5: JInt))
-    expectedOutput.add(retractRecord(4: JInt, 4: JInt))
-    expectedOutput.add(record(4: JInt, 4: JInt))
-    expectedOutput.add(record(5: JInt, 5: JInt))
+    testHarness.processElement(insertRecord(5: JInt))
+    expectedOutput.add(deleteRecord(4: JInt, 4: JInt))
+    expectedOutput.add(insertRecord(4: JInt, 4: JInt))
+    expectedOutput.add(insertRecord(5: JInt, 5: JInt))
 
     val result = testHarness.getOutput
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)

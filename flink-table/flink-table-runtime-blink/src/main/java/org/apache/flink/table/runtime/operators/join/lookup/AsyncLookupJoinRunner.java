@@ -239,7 +239,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<BaseRow, BaseRow> {
 			if (rightRows == null || rightRows.isEmpty()) {
 				if (isLeftOuterJoin) {
 					BaseRow outRow = new JoinedRow(leftRow, nullRow);
-					outRow.setHeader(leftRow.getHeader());
+					outRow.setRowKind(leftRow.getRowKind());
 					realOutput.complete(Collections.singleton(outRow));
 				} else {
 					realOutput.complete(Collections.emptyList());
@@ -248,7 +248,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<BaseRow, BaseRow> {
 				List<BaseRow> outRows = new ArrayList<>();
 				for (BaseRow rightRow : rightRows) {
 					BaseRow outRow = new JoinedRow(leftRow, rightRow);
-					outRow.setHeader(leftRow.getHeader());
+					outRow.setRowKind(leftRow.getRowKind());
 					outRows.add(outRow);
 				}
 				realOutput.complete(outRows);

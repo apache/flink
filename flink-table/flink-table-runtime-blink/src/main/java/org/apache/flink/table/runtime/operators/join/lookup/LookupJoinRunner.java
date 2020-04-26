@@ -83,7 +83,7 @@ public class LookupJoinRunner extends ProcessFunction<BaseRow, BaseRow> {
 
 		if (isLeftOuterJoin && !collector.isCollected()) {
 			outRow.replace(in, nullRow);
-			outRow.setHeader(in.getHeader());
+			outRow.setRowKind(in.getRowKind());
 			out.collect(outRow);
 		}
 	}

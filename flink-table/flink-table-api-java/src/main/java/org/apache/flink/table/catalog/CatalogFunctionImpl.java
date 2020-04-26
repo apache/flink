@@ -67,6 +67,9 @@ public class CatalogFunctionImpl implements CatalogFunction {
 
 	@Override
 	public boolean isGeneric() {
+		if (functionLanguage == FunctionLanguage.PYTHON) {
+			return true;
+		}
 		try {
 			Class c = Class.forName(className);
 			if (UserDefinedFunction.class.isAssignableFrom(c)) {

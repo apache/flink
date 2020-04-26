@@ -519,16 +519,14 @@ public class RecordWriterTest {
 		// idle time is zero when there is buffer available.
 		assertEquals(0, recordWriter.getIdleTimeMsPerSecond().getCount());
 
-		final Object runningLock = new Object();
+		CountDownLatch syncLock = new CountDownLatch(1);
 		AtomicReference<BufferBuilder> asyncRequestResult = new AtomicReference<>();
 		final Thread requestThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
 				try {
 					// notify that the request thread start to run.
-					synchronized (runningLock) {
-						runningLock.notify();
-					}
+					syncLock.countDown();
 					// wait for buffer.
 					asyncRequestResult.set(recordWriter.getBufferBuilder());
 				} catch (Exception e) {
@@ -538,9 +536,8 @@ public class RecordWriterTest {
 		requestThread.start();
 
 		// wait until request thread start to run.
-		synchronized (runningLock) {
-			runningLock.wait();
-		}
+		syncLock.await();
+
 		Thread.sleep(10);
 		//recycle the buffer
 		final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(builder);

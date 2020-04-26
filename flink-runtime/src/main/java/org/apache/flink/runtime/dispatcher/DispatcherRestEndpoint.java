@@ -28,6 +28,7 @@ import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.job.JobSubmitHandler;
+import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
@@ -42,7 +43,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * REST endpoint for the {@link Dispatcher} component.
@@ -58,9 +59,10 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			RestHandlerConfiguration restConfiguration,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
 			TransientBlobService transientBlobService,
-			ExecutorService executor,
+			ScheduledExecutorService executor,
 			MetricFetcher metricFetcher,
 			LeaderElectionService leaderElectionService,
+			ExecutionGraphCache executionGraphCache,
 			FatalErrorHandler fatalErrorHandler) throws IOException {
 
 		super(
@@ -73,6 +75,7 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			executor,
 			metricFetcher,
 			leaderElectionService,
+			executionGraphCache,
 			fatalErrorHandler);
 
 		webSubmissionExtension = WebMonitorExtension.empty();

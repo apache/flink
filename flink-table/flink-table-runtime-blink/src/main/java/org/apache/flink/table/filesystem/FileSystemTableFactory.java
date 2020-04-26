@@ -71,6 +71,16 @@ public class FileSystemTableFactory implements
 			.withDescription("The default partition name in case the dynamic partition" +
 					" column value is null/empty string");
 
+	public static final ConfigOption<Long> SINK_ROLLING_POLICY_FILE_SIZE = key("sink.rolling-policy.file-size")
+			.longType()
+			.defaultValue(1024L * 1024L * 128L)
+			.withDescription("The maximum part file size before rolling (by default 128MB).");
+
+	public static final ConfigOption<Long> SINK_ROLLING_POLICY_TIME_INTERVAL = key("sink.rolling-policy.time.interval")
+			.longType()
+			.defaultValue(60L * 1000L)
+			.withDescription("The maximum time duration a part file can stay open before rolling (by default 60 sec).");
+
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
@@ -93,6 +103,8 @@ public class FileSystemTableFactory implements
 		properties.add(DescriptorProperties.PARTITION_KEYS + ".#." +
 				DescriptorProperties.PARTITION_KEYS_NAME);
 		properties.add(PARTITION_DEFAULT_NAME.key());
+		properties.add(SINK_ROLLING_POLICY_FILE_SIZE.key());
+		properties.add(SINK_ROLLING_POLICY_TIME_INTERVAL.key());
 
 		// format
 		properties.add(FORMAT);
@@ -120,10 +132,15 @@ public class FileSystemTableFactory implements
 		properties.putProperties(context.getTable().getProperties());
 
 		return new FileSystemTableSink(
+				context.isBounded(),
 				context.getTable().getSchema(),
 				new Path(properties.getString(PATH)),
 				context.getTable().getPartitionKeys(),
 				getPartitionDefaultName(properties),
+				properties.getOptionalLong(SINK_ROLLING_POLICY_FILE_SIZE.key())
+						.orElse(SINK_ROLLING_POLICY_FILE_SIZE.defaultValue()),
+				properties.getOptionalLong(SINK_ROLLING_POLICY_TIME_INTERVAL.key())
+						.orElse(SINK_ROLLING_POLICY_TIME_INTERVAL.defaultValue()),
 				getFormatProperties(context.getTable().getProperties()));
 	}
 

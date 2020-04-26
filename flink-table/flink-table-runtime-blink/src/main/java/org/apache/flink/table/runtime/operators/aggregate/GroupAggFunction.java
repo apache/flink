@@ -31,10 +31,9 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.ACCUMULATE_MSG;
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.RETRACT_MSG;
 import static org.apache.flink.table.dataformat.util.BaseRowUtil.isAccumulateMsg;
 import static org.apache.flink.table.dataformat.util.BaseRowUtil.isRetractMsg;
 
@@ -190,14 +189,19 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 				} else {
 					// retract previous result
 					if (generateUpdateBefore) {
-						// prepare retraction message for previous row
-						resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
+						// prepare UPDATE_BEFORE message for previous row
+						resultRow.replace(currentKey, prevAggValue).setRowKind(RowKind.UPDATE_BEFORE);
 						out.collect(resultRow);
 					}
+					// prepare UPDATE_AFTER message for new row
+					resultRow.replace(currentKey, newAggValue).setRowKind(RowKind.UPDATE_AFTER);
 				}
+			} else {
+				// this is the first, output new result
+				// prepare INSERT message for new row
+				resultRow.replace(currentKey, newAggValue).setRowKind(RowKind.INSERT);
 			}
-			// emit the new result
-			resultRow.replace(currentKey, newAggValue).setHeader(ACCUMULATE_MSG);
+
 			out.collect(resultRow);
 
 		} else {
@@ -205,7 +209,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 			// sent out a delete message
 			if (!firstRow) {
 				// prepare delete message for previous row
-				resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
+				resultRow.replace(currentKey, prevAggValue).setRowKind(RowKind.DELETE);
 				out.collect(resultRow);
 			}
 			// and clear all state

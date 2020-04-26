@@ -181,7 +181,7 @@ object CorrelateCodeGenerator {
         ctx.addReusableOutputRecord(functionResultType, classOf[GenericRow], nullRowTerm)
         ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
         val header = if (retainHeader) {
-          s"$nullRowTerm.setHeader(${exprGenerator.input1Term}.getHeader());"
+          s"$nullRowTerm.setRowKind(${exprGenerator.input1Term}.getRowKind());"
         } else {
           ""
         }
@@ -199,7 +199,7 @@ object CorrelateCodeGenerator {
         ctx.addReusableOutputRecord(returnType, classOf[GenericRow], outputTerm)
 
         val header = if (retainHeader) {
-          s"$outputTerm.setHeader(${CodeGenUtils.DEFAULT_INPUT1_TERM}.getHeader());"
+          s"$outputTerm.setRowKind(${CodeGenUtils.DEFAULT_INPUT1_TERM}.getRowKind());"
         } else {
           ""
         }
@@ -232,7 +232,7 @@ object CorrelateCodeGenerator {
         ctx.addReusableOutputRecord(returnType, classOf[JoinedRow], joinedRowTerm)
         ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
         val header = if (retainHeader) {
-          s"$joinedRowTerm.setHeader(${exprGenerator.input1Term}.getHeader());"
+          s"$joinedRowTerm.setRowKind(${exprGenerator.input1Term}.getRowKind());"
         } else {
           ""
         }
@@ -311,7 +311,7 @@ object CorrelateCodeGenerator {
       if (swallowInputOnly) {
         // output right only
         val header = if (retainHeader) {
-          s"$udtfInputTerm.setHeader($inputTerm.getHeader());"
+          s"$udtfInputTerm.setRowKind($inputTerm.getRowKind());"
         } else {
           ""
         }
@@ -324,7 +324,7 @@ object CorrelateCodeGenerator {
         collectorCtx.addReusableOutputRecord(resultType, classOf[GenericRow], outputTerm)
 
         val header = if (retainHeader) {
-          s"$outputTerm.setHeader($inputTerm.getHeader());"
+          s"$outputTerm.setRowKind($inputTerm.getRowKind());"
         } else {
           ""
         }
@@ -350,7 +350,7 @@ object CorrelateCodeGenerator {
       collectorCtx.addReusableOutputRecord(resultType, classOf[JoinedRow], joinedRowTerm)
 
       val header = if (retainHeader) {
-        s"$joinedRowTerm.setHeader($inputTerm.getHeader());"
+        s"$joinedRowTerm.setRowKind($inputTerm.getRowKind());"
       } else {
         ""
       }

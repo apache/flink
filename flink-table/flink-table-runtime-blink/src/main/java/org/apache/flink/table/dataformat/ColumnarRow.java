@@ -20,12 +20,13 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.table.dataformat.vector.BytesColumnVector.Bytes;
 import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
+import org.apache.flink.types.RowKind;
 
 /**
  * Columnar row to support access to vector column data. It is a row view in {@link VectorizedColumnBatch}.
  */
 public final class ColumnarRow implements BaseRow {
-	private byte header;
+	private RowKind rowKind = RowKind.INSERT;
 	private VectorizedColumnBatch vectorizedColumnBatch;
 	private int rowId;
 
@@ -51,13 +52,13 @@ public final class ColumnarRow implements BaseRow {
 	}
 
 	@Override
-	public byte getHeader() {
-		return header;
+	public RowKind getRowKind() {
+		return rowKind;
 	}
 
 	@Override
-	public void setHeader(byte header) {
-		this.header = header;
+	public void setRowKind(RowKind kind) {
+		this.rowKind = kind;
 	}
 
 	@Override

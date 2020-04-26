@@ -41,7 +41,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The function could and only could handle append input stream.
+ * A TopN function could handle insert-only stream.
+ *
+ * <p>The input stream should only contain INSERT messages.
  */
 public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 
@@ -159,27 +161,33 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 
 	private void processElementWithRowNumber(BaseRow sortKey, BaseRow input, Collector<BaseRow> out) throws Exception {
 		Iterator<Map.Entry<BaseRow, Collection<BaseRow>>> iterator = buffer.entrySet().iterator();
-		long curRank = 0L;
+		long currentRank = 0L;
 		boolean findsSortKey = false;
-		while (iterator.hasNext() && isInRankEnd(curRank)) {
+		BaseRow currentRow = null;
+		while (iterator.hasNext() && isInRankEnd(currentRank)) {
 			Map.Entry<BaseRow, Collection<BaseRow>> entry = iterator.next();
 			Collection<BaseRow> records = entry.getValue();
 			// meet its own sort key
 			if (!findsSortKey && entry.getKey().equals(sortKey)) {
-				curRank += records.size();
-				collect(out, input, curRank);
+				currentRank += records.size();
+				currentRow = input;
 				findsSortKey = true;
 			} else if (findsSortKey) {
 				Iterator<BaseRow> recordsIter = records.iterator();
-				while (recordsIter.hasNext() && isInRankEnd(curRank)) {
-					curRank += 1;
+				while (recordsIter.hasNext() && isInRankEnd(currentRank)) {
 					BaseRow prevRow = recordsIter.next();
-					retract(out, prevRow, curRank - 1);
-					collect(out, prevRow, curRank);
+					collectUpdateBefore(out, prevRow, currentRank);
+					collectUpdateAfter(out, currentRow, currentRank);
+					currentRow = prevRow;
+					currentRank += 1;
 				}
 			} else {
-				curRank += records.size();
+				currentRank += records.size();
 			}
+		}
+		if (isInRankEnd(currentRank)) {
+			// there is no enough elements in Top-N, emit INSERT message for the new record.
+			collectInsert(out, currentRow, currentRank);
 		}
 
 		// remove the records associated to the sort key which is out of topN
@@ -213,10 +221,11 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 				return;
 			} else {
 				// lastElement shouldn't be null
-				delete(out, lastElement);
+				collectDelete(out, lastElement);
 			}
 		}
-		collect(out, input);
+		// it first appears in the TopN, send INSERT message
+		collectInsert(out, input);
 	}
 
 }

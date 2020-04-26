@@ -176,19 +176,12 @@ public class CliFrontend {
 		final Options commandOptions = CliFrontendParser.getRunCommandOptions();
 		final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
-		final ProgramOptions programOptions = new ProgramOptions(commandLine);
+		final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		// evaluate help flag
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
 			CliFrontendParser.printHelpForRun(customCommandLines);
 			return;
-		}
-
-		if (!programOptions.isPython()) {
-			// Java program should be specified a JAR file
-			if (programOptions.getJarFilePath() == null) {
-				throw new CliArgsException("Java program should be specified a JAR file.");
-			}
 		}
 
 		final PackagedProgram program;
@@ -240,16 +233,12 @@ public class CliFrontend {
 
 		final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, true);
 
-		final ProgramOptions programOptions = new ProgramOptions(commandLine);
+		final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		// evaluate help flag
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
 			CliFrontendParser.printHelpForInfo();
 			return;
-		}
-
-		if (programOptions.getJarFilePath() == null) {
-			throw new CliArgsException("The program JAR file was not specified.");
 		}
 
 		// -------- build the packaged program -------------
@@ -667,31 +656,17 @@ public class CliFrontend {
 	 *
 	 * @return A PackagedProgram (upon success)
 	 */
-	PackagedProgram buildProgram(final ProgramOptions runOptions) throws FileNotFoundException, ProgramInvocationException {
+	PackagedProgram buildProgram(final ProgramOptions runOptions)
+			throws FileNotFoundException, ProgramInvocationException, CliArgsException {
+		runOptions.validate();
+
 		String[] programArgs = runOptions.getProgramArgs();
 		String jarFilePath = runOptions.getJarFilePath();
 		List<URL> classpaths = runOptions.getClasspaths();
 
 		// Get assembler class
 		String entryPointClass = runOptions.getEntryPointClassName();
-		File jarFile = null;
-		if (runOptions.isPython()) {
-			// If the job is specified a jar file
-			if (jarFilePath != null) {
-				jarFile = getJarFile(jarFilePath);
-			}
-
-			// If the job is Python Shell job, the entry point class name is PythonGateWayServer.
-			// Otherwise, the entry point class of python job is PythonDriver
-			if (entryPointClass == null) {
-				entryPointClass = "org.apache.flink.client.python.PythonDriver";
-			}
-		} else {
-			if (jarFilePath == null) {
-				throw new IllegalArgumentException("Java program should be specified a JAR file.");
-			}
-			jarFile = getJarFile(jarFilePath);
-		}
+		File jarFile = jarFilePath != null ? getJarFile(jarFilePath) : null;
 
 		return PackagedProgram.newBuilder()
 			.setJarFile(jarFile)

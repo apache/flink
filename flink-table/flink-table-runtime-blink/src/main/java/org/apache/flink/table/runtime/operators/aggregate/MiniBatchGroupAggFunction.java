@@ -34,6 +34,7 @@ import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 import javax.annotation.Nullable;
@@ -42,8 +43,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.ACCUMULATE_MSG;
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.RETRACT_MSG;
 import static org.apache.flink.table.dataformat.util.BaseRowUtil.isAccumulateMsg;
 
 /**
@@ -209,29 +208,28 @@ public class MiniBatchGroupAggFunction extends MapBundleFunction<BaseRow, List<B
 					if (!equaliser.equalsWithoutHeader(prevAggValue, newAggValue)) {
 						// new row is not same with prev row
 						if (generateUpdateBefore) {
-							// prepare retraction message for previous row
-							resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
+							// prepare UPDATE_BEFORE message for previous row
+							resultRow.replace(currentKey, prevAggValue).setRowKind(RowKind.UPDATE_BEFORE);
 							out.collect(resultRow);
 						}
-						// prepare accumulation message for new row
-						resultRow.replace(currentKey, newAggValue).setHeader(ACCUMULATE_MSG);
+						// prepare UPDATE_AFTER message for new row
+						resultRow.replace(currentKey, newAggValue).setRowKind(RowKind.UPDATE_AFTER);
 						out.collect(resultRow);
 					}
 					// new row is same with prev row, no need to output
 				} else {
 					// this is the first, output new result
-
-					// prepare accumulation message for new row
-					resultRow.replace(currentKey, newAggValue).setHeader(ACCUMULATE_MSG);
+					// prepare INSERT message for new row
+					resultRow.replace(currentKey, newAggValue).setRowKind(RowKind.INSERT);
 					out.collect(resultRow);
 				}
 
 			} else {
 				// we retracted the last record for this key
-				// if this is not first row sent out a delete message
+				// if this is not first row sent out a DELETE message
 				if (!firstRow) {
-					// prepare delete message for previous row
-					resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
+					// prepare DELETE message for previous row
+					resultRow.replace(currentKey, prevAggValue).setRowKind(RowKind.DELETE);
 					out.collect(resultRow);
 				}
 				// and clear all state

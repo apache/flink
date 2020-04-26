@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
+import org.apache.flink.table.api.{DataTypes, Table, TableSchema, ValidationException}
 import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
@@ -29,7 +29,7 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATO
 
 import org.hamcrest.Matchers.{equalTo, startsWith}
 import org.junit.Assert.{assertEquals, assertThat}
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import java.sql.Timestamp
 
@@ -37,25 +37,24 @@ class TemporalTableJoinTest extends TableTestBase {
 
   val util: TableTestUtil = streamTestUtil()
 
-  val orders = util.addDataStream[(Long, String, Timestamp)](
+  val orders: Table = util.addDataStream[(Long, String, Timestamp)](
     "Orders", 'o_amount, 'o_currency, 'o_rowtime.rowtime)
 
-  val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
+  val ratesHistory: Table = util.addDataStream[(String, Int, Timestamp)](
     "RatesHistory", 'currency, 'rate, 'rowtime.rowtime)
 
-  val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
+  val rates: TemporalTableFunction = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
   util.addFunction("Rates", rates)
 
-  val proctimeOrders = util.addDataStream[(Long, String)](
+  val proctimeOrders: Table = util.addDataStream[(Long, String)](
     "ProctimeOrders", 'o_amount, 'o_currency, 'o_proctime.proctime)
 
-  val proctimeRatesHistory = util.addDataStream[(String, Int)](
+  val proctimeRatesHistory: Table = util.addDataStream[(String, Int)](
     "ProctimeRatesHistory", 'currency, 'rate, 'proctime.proctime)
 
-  val proctimeRates = proctimeRatesHistory.createTemporalTableFunction('proctime, 'currency)
+  val proctimeRates: TemporalTableFunction =
+    proctimeRatesHistory.createTemporalTableFunction('proctime, 'currency)
 
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testSimpleJoin(): Unit = {
     val result = orders
@@ -65,8 +64,6 @@ class TemporalTableJoinTest extends TableTestBase {
     util.verifyPlan(result)
   }
 
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testSimpleJoin2(): Unit = {
     val resultJava = orders
@@ -76,8 +73,6 @@ class TemporalTableJoinTest extends TableTestBase {
     util.verifyPlan(resultJava)
   }
 
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testSimpleProctimeJoin(): Unit = {
     val result = proctimeOrders
@@ -92,8 +87,6 @@ class TemporalTableJoinTest extends TableTestBase {
     * Important thing here is that we have complex OR join condition
     * and there are some columns that are not being used (are being pruned).
     */
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testComplexJoin(): Unit = {
     val util = streamTestUtil()
@@ -118,8 +111,6 @@ class TemporalTableJoinTest extends TableTestBase {
     util.verifyPlan(result)
   }
 
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testTemporalTableFunctionOnTopOfQuery(): Unit = {
     val filteredRatesHistory = ratesHistory

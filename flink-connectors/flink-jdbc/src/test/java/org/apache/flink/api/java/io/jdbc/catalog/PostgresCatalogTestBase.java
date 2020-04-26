@@ -57,6 +57,7 @@ public class PostgresCatalogTestBase {
 	protected static final String TABLE4 = "t4";
 	protected static final String TABLE5 = "t5";
 	protected static final String TABLE_PRIMITIVE_TYPE = "dt";
+	protected static final String TABLE_ARRAY_TYPE = "dt2";
 
 	protected static String baseUrl;
 	protected static PostgresCatalog catalog;
@@ -85,12 +86,15 @@ public class PostgresCatalogTestBase {
 		// table: test.public.t2
 		// table: test.test_schema.t3
 		// table: postgres.public.dt
+		// table: postgres.public.dt2
 		createTable(TEST_DB, PostgresTablePath.fromFlinkTableName(TABLE2), getSimpleTable().pgSchemaSql);
 		createTable(TEST_DB, new PostgresTablePath(TEST_SCHEMA, TABLE3), getSimpleTable().pgSchemaSql);
 		createTable(PostgresTablePath.fromFlinkTableName(TABLE_PRIMITIVE_TYPE), getPrimitiveTable().pgSchemaSql);
+		createTable(PostgresTablePath.fromFlinkTableName(TABLE_ARRAY_TYPE), getArrayTable().pgSchemaSql);
 
 		executeSQL(DEFAULT_DATABASE, String.format("insert into public.%s values (%s);", TABLE1, getSimpleTable().values));
 		executeSQL(DEFAULT_DATABASE, String.format("insert into %s values (%s);", TABLE_PRIMITIVE_TYPE, getPrimitiveTable().values));
+		executeSQL(DEFAULT_DATABASE, String.format("insert into %s values (%s);", TABLE_ARRAY_TYPE, getArrayTable().values));
 	}
 
 	public static void createTable(PostgresTablePath tablePath, String tableSchemaSql) throws SQLException {
@@ -204,6 +208,64 @@ public class PostgresCatalogTestBase {
 				"'2015-01-01'," +
 				"'00:51:02.746572'"
 		);
+	}
+
+	// TODO: add back timestamptz once blink planner supports timestamp with timezone
+	public static TestTable getArrayTable() {
+		return new TestTable(
+			TableSchema.builder()
+				.field("int_arr", DataTypes.ARRAY(DataTypes.INT()))
+				.field("bytea_arr", DataTypes.ARRAY(DataTypes.BYTES()))
+				.field("short_arr", DataTypes.ARRAY(DataTypes.SMALLINT()))
+				.field("long_arr", DataTypes.ARRAY(DataTypes.BIGINT()))
+				.field("real_arr", DataTypes.ARRAY(DataTypes.FLOAT()))
+				.field("double_precision_arr", DataTypes.ARRAY(DataTypes.DOUBLE()))
+				.field("numeric_arr", DataTypes.ARRAY(DataTypes.DECIMAL(10, 5)))
+				.field("boolean_arr", DataTypes.ARRAY(DataTypes.BOOLEAN()))
+				.field("text_arr", DataTypes.ARRAY(DataTypes.STRING()))
+				.field("char_arr", DataTypes.ARRAY(DataTypes.CHAR(1)))
+				.field("character_arr", DataTypes.ARRAY(DataTypes.CHAR(3)))
+				.field("character_varying_arr", DataTypes.ARRAY(DataTypes.VARCHAR(20)))
+				.field("timestamp_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP(5)))
+//				.field("timestamptz_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4)))
+				.field("date_arr", DataTypes.ARRAY(DataTypes.DATE()))
+				.field("time_arr", DataTypes.ARRAY(DataTypes.TIME(0)))
+				.build(),
+
+			"int_arr integer[], " +
+				"bytea_arr bytea[], " +
+				"short_arr smallint[], " +
+				"long_arr bigint[], " +
+				"real_arr real[], " +
+				"double_precision_arr double precision[], " +
+				"numeric_arr numeric(10, 5)[], " +
+				"boolean_arr boolean[], " +
+				"text_arr text[], " +
+				"char_arr char[], " +
+				"character_arr character(3)[], " +
+				"character_varying_arr character varying(20)[], " +
+				"timestamp_arr timestamp(5)[], " +
+//				"timestamptz_arr timestamptz(4)[], " +
+				"date_arr date[], " +
+				"time_arr time(0)[]",
+
+			String.format("'{1,2,3}'," +
+					"'{2,3,4}'," +
+					"'{3,4,5}'," +
+					"'{4,5,6}'," +
+					"'{5.5,6.6,7.7}'," +
+					"'{6.6,7.7,8.8}'," +
+					"'{7.7,8.8,9.9}'," +
+					"'{true,false,true}'," +
+					"'{a,b,c}'," +
+					"'{b,c,d}'," +
+					"'{b,c,d}'," +
+					"'{b,c,d}'," +
+					"'{\"2016-06-22 19:10:25\", \"2019-06-22 19:10:25\"}'," +
+//				"'{\"2006-06-22 19:10:25\", \"2009-06-22 19:10:25\"}'," +
+					"'{\"2015-01-01\", \"2020-01-01\"}'," +
+					"'{\"00:51:02.746572\", \"00:59:02.746572\"}'"
+			));
 	}
 
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.entrypoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -46,7 +47,8 @@ public class YarnWorkerResourceSpecFactory extends WorkerResourceSpecFactory {
 		return workerResourceSpecFromConfigAndCpu(configuration, getDefaultCpus(configuration));
 	}
 
-	private static CPUResource getDefaultCpus(final Configuration configuration) {
+	@VisibleForTesting
+	static CPUResource getDefaultCpus(final Configuration configuration) {
 		int fallback = configuration.getInteger(YarnConfigOptions.VCORES);
 		double cpuCoresDouble = TaskExecutorProcessUtils.getCpuCoresWithFallback(configuration, fallback).getValue().doubleValue();
 		@SuppressWarnings("NumericCastThatLosesPrecision")

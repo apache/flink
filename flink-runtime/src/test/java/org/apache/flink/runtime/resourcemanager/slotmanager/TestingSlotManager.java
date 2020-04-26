@@ -27,10 +27,10 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Implementation of {@link SlotManager} for testing purpose.
@@ -38,9 +38,13 @@ import java.util.function.Consumer;
 public class TestingSlotManager implements SlotManager {
 
 	private final Consumer<Boolean> setFailUnfulfillableRequestConsumer;
+	private final Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier;
 
-	TestingSlotManager(Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
+	TestingSlotManager(
+			Consumer<Boolean> setFailUnfulfillableRequestConsumer,
+			Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier) {
 		this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
+		this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
 	}
 
 	@Override
@@ -65,7 +69,7 @@ public class TestingSlotManager implements SlotManager {
 
 	@Override
 	public Map<WorkerResourceSpec, Integer> getRequiredResources() {
-		return Collections.emptyMap();
+		return getRequiredResourcesSupplier.get();
 	}
 
 	@Override

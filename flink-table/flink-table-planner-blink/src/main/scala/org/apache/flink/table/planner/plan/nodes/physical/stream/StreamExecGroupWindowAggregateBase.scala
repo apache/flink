@@ -314,7 +314,7 @@ abstract class StreamExecGroupWindowAggregateBase(
     if (emitStrategy.produceUpdates) {
       // mark this operator will send retraction and set new trigger
       newBuilder
-        .withSendRetraction()
+        .produceUpdates()
         .triggering(emitStrategy.getTrigger)
         .withAllowedLateness(Duration.ofMillis(emitStrategy.getAllowLateness))
     }
