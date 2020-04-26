@@ -18,20 +18,14 @@
 /**
  * Flink sql parser for hive dialect.
  *
- * <p>This module contains the DDLs and some custom DMLs for Apache Flink.
+ * <p>This module contains the DDLs and some custom DMLs for the Hive dialect.
  *
- * <p>Most of the sql grammars belong to sql standard or Flink's dialect. To support
- * a new sql dialect, add a new sql conformance to
- * {@link org.apache.flink.sql.parser.validate.FlinkSqlConformance},
- * then use this sql conformance to make context aware decisions in parse block. See the usage of
- * {@link org.apache.flink.sql.parser.validate.FlinkSqlConformance#HIVE} in {@code parserimpls.ftl}.
- *
- * <p>To use a specific sql dialect for the parser, config the parser to the specific sql conformance
- * with a code snippet like below:
+ * <p>To use a specific sql dialect for the parser, get the corresponding sql conformance and use it
+ * with FlinkSqlParserImplFactory to create the parser like below:
  * <blockquote><pre>
  *   SqlParser.create(source,
  *   		SqlParser.configBuilder()
- *   			.setParserFactory(parserImplFactory())
+ *   			.setParserFactory(new FlinkSqlParserImplFactory(conformance0))
  * 				.setQuoting(Quoting.DOUBLE_QUOTE)
  * 				.setUnquotedCasing(Casing.TO_UPPER)
  * 				.setQuotedCasing(Casing.UNCHANGED)

@@ -22,8 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connectors.hive.HiveTableFactory;
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.AlterHiveDatabaseOp;
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
@@ -114,9 +112,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_NAME;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_TYPE;
 import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveIntStat;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveLongStat;
@@ -255,7 +250,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Map<String, String> properties = hiveDatabase.getParameters();
 
-		boolean isGeneric = getObjectIsGeneric(properties);
+		boolean isGeneric = isGenericForGet(properties);
 		if (!isGeneric) {
 			properties.put(SqlCreateHiveDatabase.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
 		}
@@ -269,7 +264,7 @@ public class HiveCatalog extends AbstractCatalog {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 		checkNotNull(database, "database cannot be null");
 
-		Database hiveDatabase = instantiateHiveDatabase(databaseName, database);
+		Database hiveDatabase = HiveDatabaseUtil.instantiateHiveDatabase(databaseName, database);
 
 		try {
 			client.createDatabase(hiveDatabase);
@@ -280,22 +275,6 @@ public class HiveCatalog extends AbstractCatalog {
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to create database %s", hiveDatabase.getName()), e);
 		}
-	}
-
-	private static Database instantiateHiveDatabase(String databaseName, CatalogDatabase database) {
-
-		Map<String, String> properties = database.getProperties();
-
-		boolean isGeneric = createObjectIsGeneric(properties);
-
-		String dbLocationUri = isGeneric ? null : properties.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
-
-		return new Database(
-				databaseName,
-				database.getComment(),
-				dbLocationUri,
-				properties
-		);
 	}
 
 	@Override
@@ -315,52 +294,9 @@ public class HiveCatalog extends AbstractCatalog {
 
 			return;
 		}
-		Map<String, String> params = hiveDB.getParameters();
-		boolean isGeneric = getObjectIsGeneric(params);
-		if (isGeneric) {
-			// altering generic DB doesn't merge properties, see CatalogTest::testAlterDb
-			hiveDB.setParameters(newDatabase.getProperties());
-		} else {
-			String opStr = newDatabase.getProperties().remove(ALTER_DATABASE_OP);
-			if (opStr == null) {
-				throw new CatalogException(ALTER_DATABASE_OP + " property is missing for alter database statement");
-			}
-			String newLocation = newDatabase.getProperties().remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
-			Map<String, String> newParams = newDatabase.getProperties();
-			AlterHiveDatabaseOp op = AlterHiveDatabaseOp.valueOf(opStr);
-			switch (op) {
-				case CHANGE_PROPS:
-					if (params == null) {
-						hiveDB.setParameters(newParams);
-					} else {
-						params.putAll(newParams);
-					}
-					break;
-				case CHANGE_LOCATION:
-					hiveDB.setLocationUri(newLocation);
-					break;
-				case CHANGE_OWNER:
-					String ownerName = newParams.remove(DATABASE_OWNER_NAME);
-					String ownerType = newParams.remove(DATABASE_OWNER_TYPE);
-					hiveDB.setOwnerName(ownerName);
-					switch (ownerType) {
-						case SqlAlterHiveDatabaseOwner.ROLE_OWNER:
-							hiveDB.setOwnerType(PrincipalType.ROLE);
-							break;
-						case SqlAlterHiveDatabaseOwner.USER_OWNER:
-							hiveDB.setOwnerType(PrincipalType.USER);
-							break;
-						default:
-							throw new CatalogException("Unsupported database owner type: " + ownerType);
-					}
-					break;
-				default:
-					throw new CatalogException("Unsupported alter database op:" + opStr);
-			}
-		}
 
 		try {
-			client.alterDatabase(databaseName, hiveDB);
+			client.alterDatabase(databaseName, HiveDatabaseUtil.alterDatabase(hiveDB, newDatabase));
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to alter database %s", databaseName), e);
 		}
@@ -599,7 +535,7 @@ public class HiveCatalog extends AbstractCatalog {
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
 
-		boolean isGeneric = getObjectIsGeneric(hiveTable.getParameters());
+		boolean isGeneric = isGenericForGet(hiveTable.getParameters());
 
 		TableSchema tableSchema;
 		// Partition keys
@@ -673,7 +609,7 @@ public class HiveCatalog extends AbstractCatalog {
 			properties.put(HiveCatalogConfig.COMMENT, table.getComment());
 		}
 
-		boolean isGeneric = createObjectIsGeneric(properties);
+		boolean isGeneric = isGenericForCreate(properties);
 
 		// Hive table's StorageDescriptor
 		StorageDescriptor sd = hiveTable.getSd();
@@ -1453,7 +1389,7 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private static boolean createObjectIsGeneric(Map<String, String> properties) {
+	static boolean isGenericForCreate(Map<String, String> properties) {
 		// When creating an object, a hive object needs explicitly have a key is_generic = false
 		// otherwise, this is a generic object if 1) the key is missing 2) is_generic = true
 		// this is opposite to reading an object. See getObjectIsGeneric().
@@ -1471,7 +1407,7 @@ public class HiveCatalog extends AbstractCatalog {
 		return isGeneric;
 	}
 
-	private static boolean getObjectIsGeneric(Map<String, String> properties) {
+	static boolean isGenericForGet(Map<String, String> properties) {
 		// When retrieving an object, a generic object needs explicitly have a key is_generic = true
 		// otherwise, this is a Hive object if 1) the key is missing 2) is_generic = false
 		// this is opposite to creating an object. See createObjectIsGeneric()
