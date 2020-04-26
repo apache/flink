@@ -42,13 +42,13 @@ SQL 是数据分析中使用最广泛的语言。Flink Table API 和 SQL 使用�
 
 MiniBatch 聚合的核心思想是将一组输入的数据缓存在聚合算子内部的缓冲区中。当输入的数据被触发处理时，每个键只需一个操作即可访问状态。这样可以大大减少状态开销并获得更好的吞吐量。但是，这可能会增加一些延迟，因为它会缓冲一些记录而不是立即处理它们。这是吞吐量和延迟之间的权衡。
 
-下图说明了 MiniBatch 聚合如何减少状态操作。
+下图说明了 mini-batch 聚合如何减少状态操作。
 
 <div style="text-align: center">
   <img src="{{ site.baseurl }}/fig/table-streaming/minibatch_agg.png" width="50%" height="50%" />
 </div>
 
-默认情况下 MiniBatch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{site.baseurl}}/zh/dev/table/config.html＃execution-options)页面。
+默认情况下 mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{site.baseurl}}/zh/dev/table/config.html＃execution-options)页面。
 
 以下示例显示如何启用这些选项。
 
@@ -110,14 +110,14 @@ GROUP BY color
 
 数据流中的记录可能会倾斜，因此某些聚合算子的实例必须比其他实例处理更多的记录，这会导致 hotspot。本地聚合可以将一定数量具有相同 key 的输入数据累加到单个累加器中。全局聚合将仅接收 reduce 后的累加器，而不是大量的原始输入数据。这可以大大减少网络 shuffle 和状态访问的成本。每次本地聚合累积的输入数据量基于 mini-batch 间隔。这意味着 local-global 聚合依赖于启用了 mini-batch 优化。
 
-下图显示了 Local-Global 聚合如何提高性能。
+下图显示了 local-global 聚合如何提高性能。
 
 <div style="text-align: center">
   <img src="{{ site.baseurl }}/fig/table-streaming/local_agg.png" width="70%" height="70%" />
 </div>
 
 
-以下示例显示如何启用Local-Global 聚合。
+以下示例显示如何启用 local-global 聚合。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
