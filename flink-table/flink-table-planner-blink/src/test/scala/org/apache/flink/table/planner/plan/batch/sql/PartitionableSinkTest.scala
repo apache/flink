@@ -18,12 +18,9 @@
 
 package org.apache.flink.table.planner.plan.batch.sql
 
-import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{SqlDialect, TableConfig, ValidationException}
-import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
@@ -32,14 +29,23 @@ class PartitionableSinkTest extends TableTestBase {
 
   private val util = batchTestUtil()
   util.addTableSource[(Long, Long, Long)]("MyTable", 'a, 'b, 'c)
-  PartitionableSinkITCase.registerTableSink(
-    util.tableEnv,
-    "sink",
-    new RowTypeInfo(
-      Array[TypeInformation[_]](Types.LONG, Types.LONG, Types.LONG),
-      Array("a", "b", "c")),
-    grouping = true,
-    Array("b", "c"))
+  createTable("sink", shuffleBy = false)
+
+  private def createTable(name: String, shuffleBy: Boolean): Unit = {
+    util.tableEnv.sqlUpdate(
+      s"""
+         |create table $name (
+         |  a bigint,
+         |  b bigint,
+         |  c bigint
+         |) partitioned by (b, c) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '/non',
+         |  ${if (shuffleBy) "'sink.shuffle-by-partition.enable'='true'," else ""}
+         |  'format' = 'testcsv'
+         |)
+         |""".stripMargin)
+  }
 
   @Test
   def testStatic(): Unit = {
@@ -49,6 +55,12 @@ class PartitionableSinkTest extends TableTestBase {
   @Test
   def testDynamic(): Unit = {
     util.verifySqlUpdate("INSERT INTO sink SELECT a, b, c FROM MyTable")
+  }
+
+  @Test
+  def testDynamicShuffleBy(): Unit = {
+    createTable("sinkShuffleBy", shuffleBy = true)
+    util.verifySqlUpdate("INSERT INTO sinkShuffleBy SELECT a, b, c FROM MyTable")
   }
 
   @Test
