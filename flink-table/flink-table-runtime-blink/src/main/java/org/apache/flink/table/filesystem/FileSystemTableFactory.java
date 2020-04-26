@@ -110,9 +110,9 @@ public class FileSystemTableFactory implements
 		properties.add(DescriptorProperties.PARTITION_KEYS + ".#." +
 				DescriptorProperties.PARTITION_KEYS_NAME);
 		properties.add(PARTITION_DEFAULT_NAME.key());
+
 		properties.add(SINK_ROLLING_POLICY_FILE_SIZE.key());
 		properties.add(SINK_ROLLING_POLICY_TIME_INTERVAL.key());
-
 		properties.add(SINK_SHUFFLE_BY_PARTITION.key());
 
 		// format
