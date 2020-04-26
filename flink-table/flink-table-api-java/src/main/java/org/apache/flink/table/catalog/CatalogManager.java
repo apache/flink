@@ -396,8 +396,7 @@ public final class CatalogManager {
 	 * @return names of registered temporary views
 	 */
 	public Set<String> listTemporaryViews() {
-		return listTemporaryTablesInternal(getCurrentCatalog(), getCurrentDatabase())
-			.filter(e -> e.getValue() instanceof CatalogView)
+		return listTemporaryViewsInternal(getCurrentCatalog(), getCurrentDatabase())
 			.map(e -> e.getKey().getObjectName())
 			.collect(Collectors.toSet());
 	}
@@ -437,13 +436,19 @@ public final class CatalogManager {
 		try {
 			return Stream.concat(
 				currentCatalog.listViews(getCurrentDatabase()).stream(),
-				listTemporaryTablesInternal(catalogName, databaseName)
-					.filter(e -> e.getValue() instanceof CatalogView)
+				listTemporaryViewsInternal(catalogName, databaseName)
 					.map(e -> e.getKey().getObjectName())
 			).collect(Collectors.toSet());
 		} catch (DatabaseNotExistException e) {
 			throw new ValidationException("Current database does not exist", e);
 		}
+	}
+
+	private Stream<Map.Entry<ObjectIdentifier, CatalogBaseTable>> listTemporaryViewsInternal(
+			String catalogName,
+			String databaseName) {
+		return listTemporaryTablesInternal(catalogName, databaseName)
+			.filter(e -> e.getValue() instanceof CatalogView);
 	}
 
 	/**
