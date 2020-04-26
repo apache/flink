@@ -37,7 +37,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /**
  * Tests for {@link RowTimeSortOperator}.
@@ -70,32 +70,32 @@ public class RowTimeSortOperatorTest {
 		RowTimeSortOperator operator = createSortOperator(inputRowType, rowTimeIdx, gComparator);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 		testHarness.open();
-		testHarness.processElement(record(3, 3L, "Hello world", 3));
-		testHarness.processElement(record(2, 2L, "Hello", 2));
-		testHarness.processElement(record(6, 2L, "Luke Skywalker", 6));
-		testHarness.processElement(record(5, 3L, "I am fine.", 5));
-		testHarness.processElement(record(7, 1L, "Comment#1", 7));
-		testHarness.processElement(record(9, 4L, "Comment#3", 9));
-		testHarness.processElement(record(10, 4L, "Comment#4", 10));
-		testHarness.processElement(record(8, 4L, "Comment#2", 8));
-		testHarness.processElement(record(1, 1L, "Hi", 2));
-		testHarness.processElement(record(1, 1L, "Hi", 1));
-		testHarness.processElement(record(4, 3L, "Helloworld, how are you?", 4));
-		testHarness.processElement(record(4, 5L, "Hello, how are you?", 4));
+		testHarness.processElement(insertRecord(3, 3L, "Hello world", 3));
+		testHarness.processElement(insertRecord(2, 2L, "Hello", 2));
+		testHarness.processElement(insertRecord(6, 2L, "Luke Skywalker", 6));
+		testHarness.processElement(insertRecord(5, 3L, "I am fine.", 5));
+		testHarness.processElement(insertRecord(7, 1L, "Comment#1", 7));
+		testHarness.processElement(insertRecord(9, 4L, "Comment#3", 9));
+		testHarness.processElement(insertRecord(10, 4L, "Comment#4", 10));
+		testHarness.processElement(insertRecord(8, 4L, "Comment#2", 8));
+		testHarness.processElement(insertRecord(1, 1L, "Hi", 2));
+		testHarness.processElement(insertRecord(1, 1L, "Hi", 1));
+		testHarness.processElement(insertRecord(4, 3L, "Helloworld, how are you?", 4));
+		testHarness.processElement(insertRecord(4, 5L, "Hello, how are you?", 4));
 		testHarness.processWatermark(new Watermark(4L));
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(1, 1L, "Hi", 2));
-		expectedOutput.add(record(1, 1L, "Hi", 1));
-		expectedOutput.add(record(7, 1L, "Comment#1", 7));
-		expectedOutput.add(record(2, 2L, "Hello", 2));
-		expectedOutput.add(record(6, 2L, "Luke Skywalker", 6));
-		expectedOutput.add(record(3, 3L, "Hello world", 3));
-		expectedOutput.add(record(4, 3L, "Helloworld, how are you?", 4));
-		expectedOutput.add(record(5, 3L, "I am fine.", 5));
-		expectedOutput.add(record(8, 4L, "Comment#2", 8));
-		expectedOutput.add(record(9, 4L, "Comment#3", 9));
-		expectedOutput.add(record(10, 4L, "Comment#4", 10));
+		expectedOutput.add(insertRecord(1, 1L, "Hi", 2));
+		expectedOutput.add(insertRecord(1, 1L, "Hi", 1));
+		expectedOutput.add(insertRecord(7, 1L, "Comment#1", 7));
+		expectedOutput.add(insertRecord(2, 2L, "Hello", 2));
+		expectedOutput.add(insertRecord(6, 2L, "Luke Skywalker", 6));
+		expectedOutput.add(insertRecord(3, 3L, "Hello world", 3));
+		expectedOutput.add(insertRecord(4, 3L, "Helloworld, how are you?", 4));
+		expectedOutput.add(insertRecord(5, 3L, "I am fine.", 5));
+		expectedOutput.add(insertRecord(8, 4L, "Comment#2", 8));
+		expectedOutput.add(insertRecord(9, 4L, "Comment#3", 9));
+		expectedOutput.add(insertRecord(10, 4L, "Comment#4", 10));
 		expectedOutput.add(new Watermark(4L));
 
 		// do a snapshot, data could be recovered from state
@@ -110,10 +110,10 @@ public class RowTimeSortOperatorTest {
 		testHarness.initializeState(snapshot);
 		testHarness.open();
 		// late data will be dropped
-		testHarness.processElement(record(5, 3L, "I am fine.", 6));
+		testHarness.processElement(insertRecord(5, 3L, "I am fine.", 6));
 		testHarness.processWatermark(new Watermark(5L));
 
-		expectedOutput.add(record(4, 5L, "Hello, how are you?", 4));
+		expectedOutput.add(insertRecord(4, 5L, "Hello, how are you?", 4));
 		expectedOutput.add(new Watermark(5L));
 
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
@@ -139,30 +139,30 @@ public class RowTimeSortOperatorTest {
 		RowTimeSortOperator operator = createSortOperator(inputRowType, rowTimeIdx, null);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 		testHarness.open();
-		testHarness.processElement(record(3L, 2L, "Hello world", 3));
-		testHarness.processElement(record(2L, 2L, "Hello", 2));
-		testHarness.processElement(record(6L, 3L, "Luke Skywalker", 6));
-		testHarness.processElement(record(5L, 3L, "I am fine.", 5));
-		testHarness.processElement(record(7L, 4L, "Comment#1", 7));
-		testHarness.processElement(record(9L, 4L, "Comment#3", 9));
-		testHarness.processElement(record(10L, 4L, "Comment#4", 10));
-		testHarness.processElement(record(8L, 4L, "Comment#2", 8));
-		testHarness.processElement(record(1L, 1L, "Hi", 2));
-		testHarness.processElement(record(1L, 1L, "Hi", 1));
-		testHarness.processElement(record(4L, 3L, "Helloworld, how are you?", 4));
+		testHarness.processElement(insertRecord(3L, 2L, "Hello world", 3));
+		testHarness.processElement(insertRecord(2L, 2L, "Hello", 2));
+		testHarness.processElement(insertRecord(6L, 3L, "Luke Skywalker", 6));
+		testHarness.processElement(insertRecord(5L, 3L, "I am fine.", 5));
+		testHarness.processElement(insertRecord(7L, 4L, "Comment#1", 7));
+		testHarness.processElement(insertRecord(9L, 4L, "Comment#3", 9));
+		testHarness.processElement(insertRecord(10L, 4L, "Comment#4", 10));
+		testHarness.processElement(insertRecord(8L, 4L, "Comment#2", 8));
+		testHarness.processElement(insertRecord(1L, 1L, "Hi", 2));
+		testHarness.processElement(insertRecord(1L, 1L, "Hi", 1));
+		testHarness.processElement(insertRecord(4L, 3L, "Helloworld, how are you?", 4));
 		testHarness.processWatermark(new Watermark(9L));
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(1L, 1L, "Hi", 2));
-		expectedOutput.add(record(1L, 1L, "Hi", 1));
-		expectedOutput.add(record(2L, 2L, "Hello", 2));
-		expectedOutput.add(record(3L, 2L, "Hello world", 3));
-		expectedOutput.add(record(4L, 3L, "Helloworld, how are you?", 4));
-		expectedOutput.add(record(5L, 3L, "I am fine.", 5));
-		expectedOutput.add(record(6L, 3L, "Luke Skywalker", 6));
-		expectedOutput.add(record(7L, 4L, "Comment#1", 7));
-		expectedOutput.add(record(8L, 4L, "Comment#2", 8));
-		expectedOutput.add(record(9L, 4L, "Comment#3", 9));
+		expectedOutput.add(insertRecord(1L, 1L, "Hi", 2));
+		expectedOutput.add(insertRecord(1L, 1L, "Hi", 1));
+		expectedOutput.add(insertRecord(2L, 2L, "Hello", 2));
+		expectedOutput.add(insertRecord(3L, 2L, "Hello world", 3));
+		expectedOutput.add(insertRecord(4L, 3L, "Helloworld, how are you?", 4));
+		expectedOutput.add(insertRecord(5L, 3L, "I am fine.", 5));
+		expectedOutput.add(insertRecord(6L, 3L, "Luke Skywalker", 6));
+		expectedOutput.add(insertRecord(7L, 4L, "Comment#1", 7));
+		expectedOutput.add(insertRecord(8L, 4L, "Comment#2", 8));
+		expectedOutput.add(insertRecord(9L, 4L, "Comment#3", 9));
 		expectedOutput.add(new Watermark(9L));
 
 		// do a snapshot, data could be recovered from state
@@ -177,10 +177,10 @@ public class RowTimeSortOperatorTest {
 		testHarness.initializeState(snapshot);
 		testHarness.open();
 		// late data will be dropped
-		testHarness.processElement(record(5L, 3L, "I am fine.", 6));
+		testHarness.processElement(insertRecord(5L, 3L, "I am fine.", 6));
 		testHarness.processWatermark(new Watermark(10L));
 
-		expectedOutput.add(record(10L, 4L, "Comment#4", 10));
+		expectedOutput.add(insertRecord(10L, 4L, "Comment#4", 10));
 		expectedOutput.add(new Watermark(10L));
 
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());

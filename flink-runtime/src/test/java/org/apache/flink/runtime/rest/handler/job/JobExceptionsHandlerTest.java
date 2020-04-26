@@ -31,7 +31,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
@@ -65,7 +65,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
 			TestingUtils.TIMEOUT(),
 			Collections.emptyMap(),
 			JobExceptionsHeaders.getInstance(),
-			new ExecutionGraphCache(TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
+			new DefaultExecutionGraphCache(TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
 			TestingUtils.defaultExecutor());
 		final int numExceptions = 20;
 		final AccessExecutionGraph archivedExecutionGraph = createAccessExecutionGraph(numExceptions);

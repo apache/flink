@@ -244,7 +244,7 @@ object LookupJoinCodeGenerator {
     ctx.addReusableOutputRecord(resultType, classOf[JoinedRow], joinedRowTerm)
 
     val header = if (retainHeader) {
-      s"$joinedRowTerm.setHeader($inputTerm.getHeader());"
+      s"$joinedRowTerm.setRowKind($inputTerm.getRowKind());"
     } else {
       ""
     }

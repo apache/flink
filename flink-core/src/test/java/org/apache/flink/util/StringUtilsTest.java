@@ -39,6 +39,17 @@ public class StringUtilsTest extends TestLogger {
 	}
 
 	@Test
+	public void testArrayOfBytesArray() {
+		byte[][] expectedArray = new byte[][]{
+			{1, -97, 49, 74 },
+			{2, -92, 48, 73 }
+		};
+
+		String controlString = StringUtils.arrayToString(expectedArray);
+		assertEquals("[[1, -97, 49, 74], [2, -92, 48, 73]]", controlString);
+	}
+
+	@Test
 	public void testArrayToString() {
 		double[] array = {1.0};
 		String controlString = StringUtils.arrayToString(array);

@@ -20,6 +20,7 @@ package org.apache.flink.table.dataformat;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.runtime.util.SegmentsUtil;
+import org.apache.flink.types.RowKind;
 
 import static org.apache.flink.table.dataformat.BinaryFormat.readBinaryFieldFromSegments;
 import static org.apache.flink.table.dataformat.BinaryRow.calculateBitSetWidthInBytes;
@@ -68,13 +69,15 @@ public final class NestedRow extends BinarySection implements BaseRow {
 	}
 
 	@Override
-	public byte getHeader() {
-		return SegmentsUtil.getByte(segments, offset);
+	public RowKind getRowKind() {
+		byte kindValue = SegmentsUtil.getByte(segments, offset);
+		return RowKind.fromByteValue(kindValue);
 	}
 
 	@Override
-	public void setHeader(byte header) {
-		SegmentsUtil.setByte(segments, offset, header);
+	public void setRowKind(RowKind kind) {
+		byte kindValue = kind.toByteValue();
+		SegmentsUtil.setByte(segments, offset, kindValue);
 	}
 
 	private void setNotNullAt(int i) {

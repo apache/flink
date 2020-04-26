@@ -75,13 +75,14 @@ object TestSinkUtil {
 
   def genericRowToString(row: GenericRow, tz: TimeZone): String = {
     val sb = StringBuilder.newBuilder
-    sb.append(row.getHeader).append("|")
+    sb.append(row.getRowKind.shortString).append("(")
     for (i <- 0 until row.getArity) {
       if (i > 0) {
         sb.append(",")
       }
       sb.append(fieldToString(row.getField(i), tz))
     }
+    sb.append(")")
     sb.toString
   }
 

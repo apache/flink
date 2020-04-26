@@ -120,7 +120,7 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 			}
 			for (int i = 0; i < root.getRowCount(); i++) {
 				BaseRow input = forwardedInputQueue.poll();
-				reuseJoinedRow.setHeader(input.getHeader());
+				reuseJoinedRow.setRowKind(input.getRowKind());
 				baseRowWrapper.collect(reuseJoinedRow.replace(input, arrowReader.read(i)));
 			}
 		}

@@ -88,6 +88,32 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 		assertEquals("[1,[50],3,4,5.5,6.6,7.70000,true,a,b,c  ,d,2016-06-22T19:10:25,2015-01-01,00:51:03]", results.toString());
 	}
 
+	@Test
+	public void testArrayTypes() throws Exception {
+		TableEnvironment tEnv = getTableEnvWithPgCatalog();
+
+		List<Row> results = TableUtils.collectToList(
+			tEnv.sqlQuery(String.format("select * from %s", TABLE_ARRAY_TYPE)));
+
+		assertEquals("[" +
+				"[1, 2, 3]," +
+				"[[92, 120, 51, 50], [92, 120, 51, 51], [92, 120, 51, 52]]," +
+				"[3, 4, 5]," +
+				"[4, 5, 6]," +
+				"[5.5, 6.6, 7.7]," +
+				"[6.6, 7.7, 8.8]," +
+				"[7.70000, 8.80000, 9.90000]," +
+				"[true, false, true]," +
+				"[a, b, c]," +
+				"[b, c, d]," +
+				"[b  , c  , d  ]," +
+				"[b, c, d]," +
+				"[2016-06-22T19:10:25, 2019-06-22T19:10:25]," +
+				"[2015-01-01, 2020-01-01]," +
+				"[00:51:03, 00:59:03]]",
+			results.toString());
+	}
+
 	private TableEnvironment getTableEnvWithPgCatalog() {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
 		TableEnvironment tableEnv = TableEnvironment.create(settings);

@@ -20,7 +20,6 @@ package org.apache.flink.table.tpcds;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -123,8 +122,6 @@ public class TpcdsTestProgram {
 		TableEnvironment tEnv = TableEnvironment.create(environmentSettings);
 
 		//config Optimizer parameters
-		tEnv.getConfig().getConfiguration()
-				.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.BATCH.toString());
 		tEnv.getConfig().getConfiguration()
 				.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4);
 		tEnv.getConfig().getConfiguration()

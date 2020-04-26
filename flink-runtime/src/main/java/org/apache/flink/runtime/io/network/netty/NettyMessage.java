@@ -508,7 +508,7 @@ public abstract class NettyMessage {
 			ByteBuf result = null;
 
 			try {
-				result = allocateBuffer(allocator, ID, 16 + 16 + 4 + 16 + 4);
+				result = allocateBuffer(allocator, ID, 20 + 16 + 4 + 16 + 4);
 
 				partitionId.getPartitionId().writeTo(result);
 				partitionId.getProducerId().writeTo(result);
@@ -569,7 +569,7 @@ public abstract class NettyMessage {
 				// TODO Directly serialize to Netty's buffer
 				ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(event);
 
-				result = allocateBuffer(allocator, ID, 4 + serializedEvent.remaining() + 16 + 16 + 16);
+				result = allocateBuffer(allocator, ID, 4 + serializedEvent.remaining() + 20 + 16 + 16);
 
 				result.writeInt(serializedEvent.remaining());
 				result.writeBytes(serializedEvent);

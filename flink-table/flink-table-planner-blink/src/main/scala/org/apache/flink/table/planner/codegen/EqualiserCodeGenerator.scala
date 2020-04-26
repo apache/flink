@@ -40,7 +40,7 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
     val className = newName(name)
     val header =
       s"""
-         |if ($LEFT_INPUT.getHeader() != $RIGHT_INPUT.getHeader()) {
+         |if ($LEFT_INPUT.getRowKind() != $RIGHT_INPUT.getRowKind()) {
          |  return false;
          |}
        """.stripMargin

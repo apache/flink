@@ -52,7 +52,11 @@ public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegi
 
 	@Override
 	public TestingSchedulingExecutionVertex getVertex(ExecutionVertexID vertexId) {
-		return regionVertices.get(vertexId);
+		final TestingSchedulingExecutionVertex executionVertex = regionVertices.get(vertexId);
+		if (executionVertex == null) {
+			throw new IllegalArgumentException(String.format("Execution vertex %s not found in pipelined region", vertexId));
+		}
+		return executionVertex;
 	}
 
 	@Override

@@ -133,6 +133,7 @@ public class HiveCatalog extends AbstractCatalog {
 	// It's appended to Flink function's class name
 	// because Hive's Function object doesn't have properties or other place to store the flag for Flink functions.
 	private static final String FLINK_FUNCTION_PREFIX = "flink:";
+	private static final String FLINK_PYTHON_FUNCTION_PREFIX = FLINK_FUNCTION_PREFIX + "python:";
 
 	private final HiveConf hiveConf;
 	private final String hiveVersion;
@@ -1155,7 +1156,13 @@ public class HiveCatalog extends AbstractCatalog {
 			Function function = client.getFunction(functionPath.getDatabaseName(), functionPath.getObjectName());
 
 			if (function.getClassName().startsWith(FLINK_FUNCTION_PREFIX)) {
-				return new CatalogFunctionImpl(function.getClassName().substring(FLINK_FUNCTION_PREFIX.length()));
+				if (function.getClassName().startsWith(FLINK_PYTHON_FUNCTION_PREFIX)) {
+					return new CatalogFunctionImpl(
+						function.getClassName().substring(FLINK_PYTHON_FUNCTION_PREFIX.length()),
+						FunctionLanguage.PYTHON);
+				} else {
+					return new CatalogFunctionImpl(function.getClassName().substring(FLINK_FUNCTION_PREFIX.length()));
+				}
 			} else {
 				return new CatalogFunctionImpl(function.getClassName());
 			}
@@ -1187,13 +1194,16 @@ public class HiveCatalog extends AbstractCatalog {
 
 		// Hive Function does not have properties map
 		// thus, use a prefix in class name to distinguish Flink and Hive functions
-		String functionClassName = isGeneric ?
-			FLINK_FUNCTION_PREFIX + function.getClassName() :
-			function.getClassName();
-
-		if (!function.getFunctionLanguage().equals(FunctionLanguage.JAVA)) {
+		String functionClassName;
+		if (function.getFunctionLanguage().equals(FunctionLanguage.JAVA)) {
+			functionClassName = isGeneric ?
+				FLINK_FUNCTION_PREFIX + function.getClassName() :
+				function.getClassName();
+		} else if (function.getFunctionLanguage().equals(FunctionLanguage.PYTHON)) {
+			functionClassName = FLINK_PYTHON_FUNCTION_PREFIX + function.getClassName();
+		} else {
 			throw new UnsupportedOperationException("HiveCatalog supports only creating" +
-				" JAVA based function for now");
+				" JAVA or PYTHON based function for now");
 		}
 
 		return new Function(

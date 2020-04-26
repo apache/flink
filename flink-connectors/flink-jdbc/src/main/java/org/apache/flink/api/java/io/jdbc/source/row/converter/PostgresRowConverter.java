@@ -18,7 +18,15 @@
 
 package org.apache.flink.api.java.io.jdbc.source.row.converter;
 
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+
+import org.postgresql.jdbc.PgArray;
+import org.postgresql.util.PGobject;
 
 /**
  * Row converter for Postgres.
@@ -28,4 +36,39 @@ public class PostgresRowConverter extends AbstractJDBCRowConverter {
 	public PostgresRowConverter(RowType rowType) {
 		super(rowType);
 	}
+
+	@Override
+	public JDBCFieldConverter createConverter(LogicalType type) {
+		LogicalTypeRoot root = type.getTypeRoot();
+
+		if (root == LogicalTypeRoot.ARRAY) {
+			ArrayType arrayType = (ArrayType) type;
+
+			// PG's bytea[] is wrapped in PGobject, rather than primitive byte arrays
+			if (LogicalTypeChecks.hasFamily(arrayType.getElementType(), LogicalTypeFamily.BINARY_STRING)) {
+
+				return v -> {
+					PgArray pgArray = (PgArray) v;
+					Object[] in = (Object[]) pgArray.getArray();
+
+					Object[] out = new Object[in.length];
+					for (int i = 0; i < in.length; i++) {
+						out[i] = ((PGobject) in[i]).getValue().getBytes();
+					}
+
+					return out;
+				};
+			} else {
+				return v -> ((PgArray) v).getArray();
+			}
+		} else {
+			return createPrimitiveConverter(type);
+		}
+	}
+
+	// Have its own method so that Postgres can support primitives that super class doesn't support in the future
+	private JDBCFieldConverter createPrimitiveConverter(LogicalType type) {
+		return super.createConverter(type);
+	}
+
 }

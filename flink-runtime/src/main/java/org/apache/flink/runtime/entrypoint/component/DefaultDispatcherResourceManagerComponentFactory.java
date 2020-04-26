@@ -71,7 +71,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * Abstract class which implements the creation of the {@link DispatcherResourceManagerComponent} components.
@@ -137,7 +137,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				10,
 				Time.milliseconds(50L));
 
-			final ExecutorService executor = WebMonitorEndpoint.createExecutorService(
+			final ScheduledExecutorService executor = WebMonitorEndpoint.createExecutorService(
 				configuration.getInteger(RestOptions.SERVER_NUM_THREADS),
 				configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),
 				"DispatcherRestEndpoint");

@@ -30,7 +30,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -53,24 +53,24 @@ public class ProcTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase
 				joinProcessFunc);
 		testHarness.open();
 		testHarness.setProcessingTime(1);
-		testHarness.processElement1(record(1L, "1a1"));
+		testHarness.processElement1(insertRecord(1L, "1a1"));
 		assertEquals(1, testHarness.numProcessingTimeTimers());
 
 		testHarness.setProcessingTime(2);
-		testHarness.processElement1(record(2L, "2a2"));
+		testHarness.processElement1(insertRecord(2L, "2a2"));
 		// timers for key = 1 and key = 2
 		assertEquals(2, testHarness.numProcessingTimeTimers());
 
 		testHarness.setProcessingTime(3);
-		testHarness.processElement1(record(1L, "1a3"));
+		testHarness.processElement1(insertRecord(1L, "1a3"));
 		assertEquals(4, testHarness.numKeyedStateEntries());
 		// The number of timers won't increase.
 		assertEquals(2, testHarness.numProcessingTimeTimers());
 
-		testHarness.processElement2(record(1L, "1b3"));
+		testHarness.processElement2(insertRecord(1L, "1b3"));
 
 		testHarness.setProcessingTime(4);
-		testHarness.processElement2(record(2L, "2b4"));
+		testHarness.processElement2(insertRecord(2L, "2b4"));
 		// The number of states should be doubled.
 		assertEquals(8, testHarness.numKeyedStateEntries());
 		assertEquals(4, testHarness.numProcessingTimeTimers());
@@ -78,25 +78,25 @@ public class ProcTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase
 		// Test for -10 boundary (13 - 10 = 3).
 		// The left row (key = 1) with timestamp = 1 will be eagerly removed here.
 		testHarness.setProcessingTime(13);
-		testHarness.processElement2(record(1L, "1b13"));
+		testHarness.processElement2(insertRecord(1L, "1b13"));
 
 		// Test for +20 boundary (13 + 20 = 33).
 		testHarness.setProcessingTime(33);
 		assertEquals(4, testHarness.numKeyedStateEntries());
 		assertEquals(2, testHarness.numProcessingTimeTimers());
 
-		testHarness.processElement1(record(1L, "1a33"));
-		testHarness.processElement1(record(2L, "2a33"));
+		testHarness.processElement1(insertRecord(1L, "1a33"));
+		testHarness.processElement1(insertRecord(2L, "2a33"));
 		// The left row (key = 2) with timestamp = 2 will be eagerly removed here.
-		testHarness.processElement2(record(2L, "2b33"));
+		testHarness.processElement2(insertRecord(2L, "2b33"));
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(1L, "1a1", 1L, "1b3"));
-		expectedOutput.add(record(1L, "1a3", 1L, "1b3"));
-		expectedOutput.add(record(2L, "2a2", 2L, "2b4"));
-		expectedOutput.add(record(1L, "1a3", 1L, "1b13"));
-		expectedOutput.add(record(1L, "1a33", 1L, "1b13"));
-		expectedOutput.add(record(2L, "2a33", 2L, "2b33"));
+		expectedOutput.add(insertRecord(1L, "1a1", 1L, "1b3"));
+		expectedOutput.add(insertRecord(1L, "1a3", 1L, "1b3"));
+		expectedOutput.add(insertRecord(2L, "2a2", 2L, "2b4"));
+		expectedOutput.add(insertRecord(1L, "1a3", 1L, "1b13"));
+		expectedOutput.add(insertRecord(1L, "1a33", 1L, "1b13"));
+		expectedOutput.add(insertRecord(2L, "2a33", 2L, "2b33"));
 
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 		testHarness.close();
@@ -113,18 +113,18 @@ public class ProcTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase
 		testHarness.open();
 
 		testHarness.setProcessingTime(1);
-		testHarness.processElement1(record(1L, "1a1"));
+		testHarness.processElement1(insertRecord(1L, "1a1"));
 
 		testHarness.setProcessingTime(2);
-		testHarness.processElement1(record(2L, "2a2"));
+		testHarness.processElement1(insertRecord(2L, "2a2"));
 
 		testHarness.setProcessingTime(3);
-		testHarness.processElement1(record(1L, "1a3"));
+		testHarness.processElement1(insertRecord(1L, "1a3"));
 		assertEquals(4, testHarness.numKeyedStateEntries());
 		assertEquals(2, testHarness.numProcessingTimeTimers());
 
 		// All the right rows will not be cached.
-		testHarness.processElement2(record(1L, "1b3"));
+		testHarness.processElement2(insertRecord(1L, "1b3"));
 		assertEquals(4, testHarness.numKeyedStateEntries());
 		assertEquals(2, testHarness.numProcessingTimeTimers());
 
@@ -132,13 +132,13 @@ public class ProcTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase
 
 		// Meets a.proctime <= b.proctime - 5.
 		// This row will only be joined without being cached (7 >= 7 - 5).
-		testHarness.processElement2(record(2L, "2b7"));
+		testHarness.processElement2(insertRecord(2L, "2b7"));
 		assertEquals(4, testHarness.numKeyedStateEntries());
 		assertEquals(2, testHarness.numProcessingTimeTimers());
 
 		testHarness.setProcessingTime(12);
 		// The left row (key = 1) with timestamp = 1 will be eagerly removed here.
-		testHarness.processElement2(record(1L, "1b12"));
+		testHarness.processElement2(insertRecord(1L, "1b12"));
 
 		// We add a delay (relativeWindowSize / 2) for cleaning up state.
 		// No timers will be triggered here.
@@ -159,8 +159,8 @@ public class ProcTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase
 		assertEquals(0, testHarness.numProcessingTimeTimers());
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(2L, "2a2", 2L, "2b7"));
-		expectedOutput.add(record(1L, "1a3", 1L, "1b12"));
+		expectedOutput.add(insertRecord(2L, "2a2", 2L, "2b7"));
+		expectedOutput.add(insertRecord(1L, "1a3", 1L, "1b12"));
 
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 		testHarness.close();

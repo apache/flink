@@ -28,9 +28,9 @@ import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.SqlTimestamp;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.types.RowKind;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
 
@@ -40,36 +40,69 @@ import static org.apache.flink.table.dataformat.BinaryString.fromString;
 public class StreamRecordUtils {
 
 	/**
-	 * Receives a object array, generates an acc BaseRow based on the array, wraps the BaseRow in a StreamRecord.
-	 *
-	 * @param fields input object array
-	 * @return generated StreamRecord
+	 * Creates n new {@link StreamRecord} of {@link BaseRow} based on the given fields array
+	 * and the give RowKind.
 	 */
-	public static StreamRecord<BaseRow> record(Object... fields) {
-		return new StreamRecord<>(baserow(fields));
-	}
-
-	/**
-	 * Receives a object array, generates a retract BaseRow based on the array, wraps the BaseRow in a StreamRecord.
-	 *
-	 * @param fields input object array
-	 * @return generated StreamRecord
-	 */
-	public static StreamRecord<BaseRow> retractRecord(Object... fields) {
+	public static StreamRecord<BaseRow> record(RowKind rowKind, Object... fields) {
 		BaseRow row = baserow(fields);
-		BaseRowUtil.setRetract(row);
+		row.setRowKind(rowKind);
 		return new StreamRecord<>(row);
 	}
 
 	/**
-	 * Receives a object array, generates a delete BaseRow based on the array, wraps the BaseRow in a StreamRecord.
+	 * Creates n new {@link StreamRecord} of {@link BaseRow} based on the given fields array
+	 * and a default INSERT RowKind.
+	 *
+	 * @param fields input object array
+	 * @return generated StreamRecord
+	 */
+	public static StreamRecord<BaseRow> insertRecord(Object... fields) {
+		return new StreamRecord<>(baserow(fields));
+	}
+
+	/**
+	 * Creates n new {@link StreamRecord} of {@link BinaryRow} based on the given fields array
+	 * and the given RowKind.
+	 */
+	public static StreamRecord<BaseRow> binaryRecord(RowKind rowKind, Object... fields) {
+		BinaryRow row = binaryrow(fields);
+		row.setRowKind(rowKind);
+		return new StreamRecord<>(row);
+	}
+
+	/**
+	 * Creates n new {@link StreamRecord} of {@link BaseRow} based on the given fields array
+	 * and a default UPDATE_BEFORE RowKind.
+	 *
+	 * @param fields input object array
+	 * @return generated StreamRecord
+	 */
+	public static StreamRecord<BaseRow> updateBeforeRecord(Object... fields) {
+		BaseRow row = baserow(fields);
+		row.setRowKind(RowKind.UPDATE_BEFORE);
+		return new StreamRecord<>(row);
+	}
+
+	/**
+	 * Creates n new {@link StreamRecord} of {@link BaseRow} based on the given fields array
+	 * and a default UPDATE_AFTER RowKind.
+	 */
+	public static StreamRecord<BaseRow> updateAfterRecord(Object... fields) {
+		BaseRow row = baserow(fields);
+		row.setRowKind(RowKind.UPDATE_AFTER);
+		return new StreamRecord<>(row);
+	}
+
+	/**
+	 * Creates n new {@link StreamRecord} of {@link BaseRow} based on the given fields array
+	 * and a default DELETE RowKind.
 	 *
 	 * @param fields input object array
 	 * @return generated StreamRecord
 	 */
 	public static StreamRecord<BaseRow> deleteRecord(Object... fields) {
 		BaseRow row = baserow(fields);
-		BaseRowUtil.setRetract(row);
+		row.setRowKind(RowKind.DELETE);
 		return new StreamRecord<>(row);
 	}
 
@@ -144,15 +177,6 @@ public class StreamRecordUtils {
 
 		writer.complete();
 		return row;
-	}
-
-	/**
-	 * Generate a retraction BinaryRow based on the given object fields.
-	 */
-	public static BinaryRow retractBinaryRow(Object... fields) {
-		BinaryRow br = binaryrow(fields);
-		BaseRowUtil.setRetract(br);
-		return br;
 	}
 
 	private StreamRecordUtils() {

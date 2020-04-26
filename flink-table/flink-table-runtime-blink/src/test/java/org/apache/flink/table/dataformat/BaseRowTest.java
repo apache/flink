@@ -25,6 +25,7 @@ import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -199,9 +200,9 @@ public class BaseRowTest {
 		assertEquals(18, row.getArity());
 
 		// test header
-		assertEquals(0, row.getHeader());
-		row.setHeader((byte) 1);
-		assertEquals(1, row.getHeader());
+		assertEquals(RowKind.INSERT, row.getRowKind());
+		row.setRowKind(RowKind.DELETE);
+		assertEquals(RowKind.DELETE, row.getRowKind());
 
 		// test get
 		assertTrue(row.getBoolean(0));

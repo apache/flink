@@ -24,7 +24,6 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
-import org.apache.flink.streaming.api.transformations.ShuffleMode
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -72,6 +71,8 @@ import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
+
+import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -505,7 +506,8 @@ abstract class TableTestUtil(
     TestingTableEnvironment.create(setting, catalogManager, tableConfig)
   val tableEnv: TableEnvironment = testingTableEnv
   tableEnv.getConfig.getConfiguration.setString(
-    ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.PIPELINED.toString)
+    ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
+    GlobalDataExchangeMode.ALL_EDGES_PIPELINED.toString)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
   env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)

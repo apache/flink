@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.types.RowKind;
+
 /**
  * Wrap row to a updatable Generic Row.
  */
@@ -42,13 +44,13 @@ public final class UpdatableRow implements BaseRow {
 	}
 
 	@Override
-	public byte getHeader() {
-		return row.getHeader();
+	public RowKind getRowKind() {
+		return row.getRowKind();
 	}
 
 	@Override
-	public void setHeader(byte header) {
-		row.setHeader(header);
+	public void setRowKind(RowKind kind) {
+		row.setRowKind(kind);
 	}
 
 	@Override

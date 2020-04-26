@@ -77,7 +77,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
 
 		this.kubernetesJobManagerSpecification =
-			KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+			KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);
 	}
 
 	@Test
@@ -215,7 +215,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 	@Test
 	public void testExistingHadoopConfigMap() throws IOException {
 		flinkConfig.set(KubernetesConfigOptions.HADOOP_CONF_CONFIG_MAP, EXISTING_HADOOP_CONF_CONFIG_MAP);
-		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);
 
 		assertFalse(kubernetesJobManagerSpecification.getAccompanyingResources().stream()
 			.anyMatch(resource -> resource.getMetadata().getName().equals(HadoopConfMountDecorator.getHadoopConfConfigMapName(CLUSTER_ID))));
@@ -228,7 +228,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 	public void testHadoopConfConfigMap() throws IOException {
 		setHadoopConfDirEnv();
 		generateHadoopConfFileItems();
-		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);
 
 		final ConfigMap resultConfigMap = (ConfigMap) kubernetesJobManagerSpecification.getAccompanyingResources()
 			.stream()
@@ -248,7 +248,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 	@Test
 	public void testEmptyHadoopConfDirectory() throws IOException {
 		setHadoopConfDirEnv();
-		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.createJobManagerComponent(kubernetesJobManagerParameters);
+		kubernetesJobManagerSpecification = KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);
 
 		assertFalse(kubernetesJobManagerSpecification.getAccompanyingResources().stream()
 			.anyMatch(resource -> resource.getMetadata().getName().equals(HadoopConfMountDecorator.getHadoopConfConfigMapName(CLUSTER_ID))));

@@ -77,6 +77,9 @@ public class PartitionPathUtils {
 	 * @return An escaped, valid partition name.
 	 */
 	public static String generatePartitionPath(LinkedHashMap<String, String> partitionSpec) {
+		if (partitionSpec.isEmpty()) {
+			return "";
+		}
 		StringBuilder suffixBuf = new StringBuilder();
 		int i = 0;
 		for (Map.Entry<String, String> e : partitionSpec.entrySet()) {

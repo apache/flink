@@ -130,11 +130,7 @@ public class StreamGraphGenerator {
 
 	private String jobName = DEFAULT_JOB_NAME;
 
-	/**
-	 * If there are some stream edges that can not be chained and the shuffle mode of edge is not
-	 * specified, translate these edges into {@code BLOCKING} result partition type.
-	 */
-	private boolean blockingConnectionsBetweenChains = false;
+	private GlobalDataExchangeMode globalDataExchangeMode = GlobalDataExchangeMode.ALL_EDGES_PIPELINED;
 
 	// This is used to assign a unique ID to iteration source/sink
 	protected static Integer iterationIdCounter = 0;
@@ -190,8 +186,8 @@ public class StreamGraphGenerator {
 		return this;
 	}
 
-	public StreamGraphGenerator setBlockingConnectionsBetweenChains(boolean blockingConnectionsBetweenChains) {
-		this.blockingConnectionsBetweenChains = blockingConnectionsBetweenChains;
+	public StreamGraphGenerator setGlobalDataExchangeMode(GlobalDataExchangeMode globalDataExchangeMode) {
+		this.globalDataExchangeMode = globalDataExchangeMode;
 		return this;
 	}
 
@@ -207,7 +203,7 @@ public class StreamGraphGenerator {
 		streamGraph.setUserArtifacts(userArtifacts);
 		streamGraph.setTimeCharacteristic(timeCharacteristic);
 		streamGraph.setJobName(jobName);
-		streamGraph.setBlockingConnectionsBetweenChains(blockingConnectionsBetweenChains);
+		streamGraph.setGlobalDataExchangeMode(globalDataExchangeMode);
 
 		alreadyTransformed = new HashMap<>();
 

@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.docs.rest;
+package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.blob.TransientBlobKey;
-import org.apache.flink.runtime.blob.TransientBlobService;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * No-op implementation of {@link TransientBlobService} used by the {@link RestAPIDocGenerator}.
+ * No-op implementation of {@link TransientBlobService}.
  */
-enum NoOpTransientBlobService implements TransientBlobService {
+public enum NoOpTransientBlobService implements TransientBlobService {
 	INSTANCE;
 
 	@Override
