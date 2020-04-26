@@ -31,6 +31,7 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.factories.TableSinkFactory
+import org.apache.flink.table.filesystem.FileSystemTableFactory
 import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -264,6 +265,7 @@ object PartitionableSinkITCase {
       partitionColumns: Array[String]): Unit = {
     val properties = new DescriptorProperties()
     properties.putString("supports-grouping", grouping.toString)
+    properties.putString(FileSystemTableFactory.SINK_SHUFFLE_BY_PARTITION.key(), "true")
     properties.putString(CONNECTOR_TYPE, "TestPartitionableSink")
     partitionColumns.zipWithIndex.foreach { case (part, i) =>
       properties.putString("partition-column." + i, part)
