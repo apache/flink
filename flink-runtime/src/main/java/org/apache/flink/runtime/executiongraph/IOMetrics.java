@@ -35,6 +35,11 @@ public class IOMetrics implements Serializable {
 	protected long numBytesIn;
 	protected long numBytesOut;
 
+	protected float usageInputFloatingBuffers;
+	protected float usageInputExclusiveBuffers;
+	protected float usageOutPool;
+	protected boolean isBackPressured;
+
 	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesIn, Meter bytesOut) {
 		this.numRecordsIn = recordsIn.getCount();
 		this.numRecordsOut = recordsOut.getCount();
@@ -51,6 +56,25 @@ public class IOMetrics implements Serializable {
 		this.numBytesOut = numBytesOut;
 		this.numRecordsIn = numRecordsIn;
 		this.numRecordsOut = numRecordsOut;
+		}
+
+	public IOMetrics(
+			long numBytesIn,
+			long numBytesOut,
+			long numRecordsIn,
+			long numRecordsOut,
+			float usageInputFloatingBuffers,
+			float usageInputExclusiveBuffers,
+			float usageOutPool,
+			boolean isBackPressured) {
+		this.numBytesIn = numBytesIn;
+		this.numBytesOut = numBytesOut;
+		this.numRecordsIn = numRecordsIn;
+		this.numRecordsOut = numRecordsOut;
+		this.usageInputFloatingBuffers = usageInputFloatingBuffers;
+		this.usageInputExclusiveBuffers = usageInputExclusiveBuffers;
+		this.usageOutPool = usageOutPool;
+		this.isBackPressured = isBackPressured;
 	}
 
 	public long getNumRecordsIn() {
@@ -67,5 +91,21 @@ public class IOMetrics implements Serializable {
 
 	public long getNumBytesOut() {
 		return numBytesOut;
+	}
+
+	public float getUsageInputFloatingBuffers() {
+		return usageInputFloatingBuffers;
+	}
+
+	public float getUsageInputExclusiveBuffers() {
+		return usageInputExclusiveBuffers;
+	}
+
+	public float getUsageOutPool() {
+		return usageOutPool;
+	}
+
+	public boolean isBackPressured() {
+		return isBackPressured;
 	}
 }
