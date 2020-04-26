@@ -173,12 +173,12 @@ Flink 利用投影下推功能，通过在表扫描时过滤不必要的字段�
 
 ### 读取时进行矢量优化
 
-当满足以下条件时，将自动使用该优化：
+当满足以下条件时，将自动启用该优化：
 
 - 格式：ORC 或者 Parquet。
 - 没有复杂数据类型的列, 譬如 hive 类型中的: List、Map、Struct、Union。
 
-此功能默认打开。如果有问题，可以选择使用以下配置选项关闭矢量优化：
+此功能默认打开。如有问题，可以选择使用以下配置选项关闭矢量优化：
 
 {% highlight bash %}
 table.exec.hive.fallback-mapred-reader=true
