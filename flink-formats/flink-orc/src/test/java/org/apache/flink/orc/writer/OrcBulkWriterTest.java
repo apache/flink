@@ -57,8 +57,6 @@ public class OrcBulkWriterTest {
 		final OrcBulkWriterFactory<Record> writer = new OrcBulkWriterFactory<>(
 			new RecordVectorizer(schema), writerProps, new Configuration());
 
-		writer.withUserMetadata(OrcBulkWriterTestUtil.getUserMetadataItems());
-
 		StreamingFileSink<Record> sink = StreamingFileSink
 			.forBulkFormat(new Path(outDir.toURI()), writer)
 			.withBucketCheckInterval(10000)

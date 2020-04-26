@@ -61,8 +61,6 @@ public class OrcBulkWriterITCase extends TestLogger {
 		final OrcBulkWriterFactory<Record> factory = new OrcBulkWriterFactory<>(
 			new RecordVectorizer(schema), writerProps, new Configuration());
 
-		factory.withUserMetadata(OrcBulkWriterTestUtil.getUserMetadataItems());
-
 		env.setParallelism(1);
 		env.enableCheckpointing(100);
 

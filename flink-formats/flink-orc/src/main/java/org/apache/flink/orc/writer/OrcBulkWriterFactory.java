@@ -26,12 +26,10 @@ import org.apache.flink.orc.vector.Vectorizer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.OrcFile;
-import org.apache.orc.OrcProto;
 import org.apache.orc.impl.WriterImpl;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -61,7 +59,6 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
 	private final Map<String, String> confMap;
 
 	private OrcFile.WriterOptions writerOptions;
-	private List<OrcProto.UserMetadataItem> userMetadata;
 
 	/**
 	 * Creates a new OrcBulkWriterFactory using the provided Vectorizer
@@ -104,22 +101,12 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
 		}
 	}
 
-	/**
-	 * Writes the provided user metadata to the
-	 * output ORC file.
-	 *
-	 * @param userMetadata a list of user metadata
-	 */
-	public void withUserMetadata(List<OrcProto.UserMetadataItem> userMetadata) {
-		this.userMetadata = userMetadata;
-	}
-
 	@Override
 	public BulkWriter<T> create(FSDataOutputStream out) throws IOException {
 		OrcFile.WriterOptions opts = getWriterOptions();
 		opts.physicalWriter(new PhysicalWriterImpl(out, opts));
 
-		return new OrcBulkWriter<>(vectorizer, userMetadata, new WriterImpl(null, FIXED_PATH, opts));
+		return new OrcBulkWriter<>(vectorizer, new WriterImpl(null, FIXED_PATH, opts));
 	}
 
 	private OrcFile.WriterOptions getWriterOptions() {

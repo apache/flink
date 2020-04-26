@@ -22,11 +22,10 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.orc.vector.Vectorizer;
 
-import org.apache.orc.OrcProto;
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.Writer;
 
 import java.io.IOException;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -40,31 +39,32 @@ public class OrcBulkWriter<T> implements BulkWriter<T> {
 
 	private final Writer writer;
 	private final Vectorizer<T> vectorizer;
+	private final VectorizedRowBatch rowBatch;
 
-	private transient List<OrcProto.UserMetadataItem> userMetadata;
-
-	OrcBulkWriter(Vectorizer<T> vectorizer, List<OrcProto.UserMetadataItem> userMetadata, Writer writer) {
+	OrcBulkWriter(Vectorizer<T> vectorizer, Writer writer) {
 		this.vectorizer = checkNotNull(vectorizer);
 		this.writer = checkNotNull(writer);
-		this.userMetadata = userMetadata;
+		this.rowBatch = vectorizer.getSchema().createRowBatch();
 
-		this.vectorizer.initBatch();
+		// Configure the vectorizer with the writer so that users can add
+		// metadata on the fly through the Vectorizer#vectorize(...) method.
+		this.vectorizer.setWriter(this.writer);
 	}
 
 	@Override
 	public void addElement(T element) throws IOException {
-		vectorizer.vectorize(element);
+		vectorizer.vectorize(element, rowBatch);
 	}
 
 	@Override
 	public void flush() throws IOException {
-		writer.addRowBatch(vectorizer.getRowBatch());
-		writer.appendUserMetadata(userMetadata);
+		writer.addRowBatch(rowBatch);
 	}
 
 	@Override
 	public void finish() throws IOException {
-		vectorizer.reset();
+		rowBatch.reset();
 		writer.close();
 	}
+
 }

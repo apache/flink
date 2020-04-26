@@ -19,19 +19,22 @@
 package org.apache.flink.orc.vector;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.orc.writer.OrcBulkWriter;
 
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.TypeDescription;
+import org.apache.orc.Writer;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class provides an abstracted set of methods to handle the lifecycle of {@link VectorizedRowBatch}.
  *
- * <p>Developers have to extend this class and override the vectorize() method with the logic
+ * <p>Users have to extend this class and override the vectorize() method with the logic
  * to transform the element to a {@link VectorizedRowBatch}.
  *
  * @param <T> The type of the element
@@ -39,18 +42,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public abstract class Vectorizer<T> implements Serializable {
 
-	protected transient VectorizedRowBatch rowBatch;
-
 	private final TypeDescription schema;
+
+	private transient Writer writer;
 
 	public Vectorizer(final String schema) {
 		checkNotNull(schema);
 		this.schema = TypeDescription.fromString(schema);
-		this.rowBatch = this.schema.createRowBatch();
-	}
-
-	public void initBatch() {
-		this.rowBatch = this.schema.createRowBatch();
 	}
 
 	/**
@@ -63,22 +61,26 @@ public abstract class Vectorizer<T> implements Serializable {
 	}
 
 	/**
-	 * Provides the VectorizedRowBatch containing the
-	 * ColumnVectors of the input elements.
+	 * Users are not supposed to use this method since this is intended to be used only by the {@link OrcBulkWriter}.
 	 *
-	 * @return vectorized row batch
+	 * @param writer the underlying ORC Writer.
 	 */
-	public VectorizedRowBatch getRowBatch() {
-		return this.rowBatch;
+	public void setWriter(Writer writer) {
+		this.writer = writer;
 	}
 
 	/**
-	 * Calls reset on the VectorizedRowBatch instance.
+	 * Adds arbitrary user metadata to the outgoing ORC file.
+	 *
+	 * <p>Users who want to dynamically add new metadata either based on either the input
+	 * or from an external system can do so by calling <code>addUserMetadata(...)</code>
+	 * inside the overridden vectorize() method.
+	 *
+	 * @param key a key to label the data with.
+	 * @param value the contents of the metadata.
 	 */
-	public void reset() {
-		if (this.rowBatch != null) {
-			this.rowBatch.reset();
-		}
+	public void addUserMetadata(String key, ByteBuffer value) {
+		this.writer.addUserMetadata(key, value);
 	}
 
 	/**
@@ -86,8 +88,9 @@ public abstract class Vectorizer<T> implements Serializable {
 	 * sets them in the exposed VectorizedRowBatch.
 	 *
 	 * @param element The input element
+	 * @param batch The batch to write the ColumnVectors
 	 * @throws IOException if there is an error while transforming the input.
 	 */
-	public abstract void vectorize(T element) throws IOException;
+	public abstract void vectorize(T element, VectorizedRowBatch batch) throws IOException;
 
 }

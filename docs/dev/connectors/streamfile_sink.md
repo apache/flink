@@ -207,15 +207,15 @@ input.addSink(sink)
 #### ORC Format
  
 To enable the data to be bulk encoded in ORC format, Flink offers [OrcBulkWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/orc/writers/OrcBulkWriterFactory.html) 
-which takes a user implementation of [Vectorizer]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/orc/vector/Vectorizer.html).
+which takes a concrete implementation of [Vectorizer]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/orc/vector/Vectorizer.html).
 
-Like any other columnar format that encodes data in bulk fashion, Flink's `OrcBulkWriter` writes a batch of input elements. It uses 
+Like any other columnar format that encodes data in bulk fashion, Flink's `OrcBulkWriter` writes the input elements in batches. It uses 
 ORC's `VectorizedRowBatch` to achieve this. 
 
 Since the input element has to be transformed to a `VectorizedRowBatch`, users have to extend the abstract `Vectorizer` 
-class and override the `vectorize(T element)` method. The base class already exposes an instance of `VectorizedRowBatch` 
-to be used by the child implementations so users just have to write the logic to transform the input `element` to 
-`ColumnVectors` and set them in the exposed `VectorizedRowBatch` instance inside the overridden method.
+class and override the `vectorize(T element, VectorizedRowBatch batch)` method. As you can see, the method provides an 
+instance of `VectorizedRowBatch` to be used directly by the users so users just have to write the logic to transform the 
+input `element` to `ColumnVectors` and set them in the provided `VectorizedRowBatch` instance.
 
 For example, if the input element is of type `Person` which looks like: 
 
@@ -249,10 +249,10 @@ public class PersonVectorizer extends Vectorizer<Person> implements Serializable
 		super(schema);
 	}
 	@Override
-	public void vectorize(Person element) throws IOException {
-		BytesColumnVector nameColVector = (BytesColumnVector) rowBatch.cols[0];
-		LongColumnVector ageColVector = (LongColumnVector) rowBatch.cols[1];
-		int row = rowBatch.size++;
+	public void vectorize(Person element, VectorizedRowBatch batch) throws IOException {
+		BytesColumnVector nameColVector = (BytesColumnVector) batch.cols[0];
+		LongColumnVector ageColVector = (LongColumnVector) batch.cols[1];
+		int row = batch.size++;
 		nameColVector.setVal(row, element.getName().getBytes(StandardCharsets.UTF_8));
 		ageColVector.vector[row] = element.getAge();
 	}
@@ -267,11 +267,11 @@ import org.apache.hadoop.hive.ql.exec.vector.{BytesColumnVector, LongColumnVecto
 
 class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
-  override def vectorize(element: Person): Unit = {
-    val nameColVector = rowBatch.cols(0).asInstanceOf[BytesColumnVector]
-    val ageColVector = rowBatch.cols(1).asInstanceOf[LongColumnVector]
-    nameColVector.setVal(rowBatch.size + 1, element.getName.getBytes(StandardCharsets.UTF_8))
-    ageColVector.vector(rowBatch.size + 1) = element.getAge
+  override def vectorize(element: Person, batch: VectorizedRowBatch): Unit = {
+    val nameColVector = batch.cols(0).asInstanceOf[BytesColumnVector]
+    val ageColVector = batch.cols(1).asInstanceOf[LongColumnVector]
+    nameColVector.setVal(batch.size + 1, element.getName.getBytes(StandardCharsets.UTF_8))
+    ageColVector.vector(batch.size + 1) = element.getAge
   }
 
 }
@@ -364,6 +364,43 @@ val writerFactory = new OrcBulkWriterFactory(
 </div> 
 
 The complete list of ORC writer properties can be found [here](https://orc.apache.org/docs/hive-config.html).
+
+Users who want to add user metadata to the ORC files can do so by calling `addUserMetadata(...)` inside the overriding 
+`vectorize(...)` method.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+public class PersonVectorizer extends Vectorizer<Person> implements Serializable {	
+	@Override
+	public void vectorize(Person element, VectorizedRowBatch batch) throws IOException {
+		...
+		String metadataKey = ...;
+		ByteBuffer metadataValue = ...;
+		this.addUserMetadata(metadataKey, metadataValue);
+	}
+}
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
+
+  override def vectorize(element: Person, batch: VectorizedRowBatch): Unit = {
+    ...
+    val metadataKey: String = ...
+    val metadataValue: ByteBuffer = ...
+    addUserMetadata(metadataKey, metadataValue)
+  }
+
+}
+
+{% endhighlight %}
+</div>
+</div>
 
 #### Hadoop SequenceFile format
 

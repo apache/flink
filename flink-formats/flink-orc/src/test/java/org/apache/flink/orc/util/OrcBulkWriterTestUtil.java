@@ -20,14 +20,12 @@ package org.apache.flink.orc.util;
 
 import org.apache.flink.orc.data.Record;
 
-import com.google.protobuf.ByteString;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.orc.CompressionKind;
 import org.apache.orc.OrcFile;
-import org.apache.orc.OrcProto;
 import org.apache.orc.Reader;
 import org.apache.orc.RecordReader;
 
@@ -47,8 +45,8 @@ import static org.junit.Assert.assertTrue;
  */
 public class OrcBulkWriterTestUtil {
 
-	private static final String USER_METADATA_KEY = "userKey";
-	private static final ByteBuffer USER_METADATA_VALUE = ByteBuffer.wrap("hello".getBytes());
+	public static final String USER_METADATA_KEY = "userKey";
+	public static final ByteBuffer USER_METADATA_VALUE = ByteBuffer.wrap("hello".getBytes());
 
 	public static void validate(File files, List<Record> expected) throws IOException {
 		final File[] buckets = files.listFiles();
@@ -75,17 +73,6 @@ public class OrcBulkWriterTestUtil {
 			assertEquals(3, results.size());
 			assertEquals(results, expected);
 		}
-	}
-
-	public static List<OrcProto.UserMetadataItem> getUserMetadataItems() {
-		List<OrcProto.UserMetadataItem> userMetadata = new ArrayList<>();
-
-		userMetadata.add(OrcProto.UserMetadataItem.newBuilder()
-			.setName(USER_METADATA_KEY)
-			.setValue(ByteString.copyFrom(USER_METADATA_VALUE))
-			.build());
-
-		return userMetadata;
 	}
 
 	private static List<Record> getResults(Reader reader) throws IOException {

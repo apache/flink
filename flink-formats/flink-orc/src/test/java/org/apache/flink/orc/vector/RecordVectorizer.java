@@ -19,9 +19,11 @@
 package org.apache.flink.orc.vector;
 
 import org.apache.flink.orc.data.Record;
+import org.apache.flink.orc.util.OrcBulkWriterTestUtil;
 
 import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -40,13 +42,16 @@ public class RecordVectorizer extends Vectorizer<Record> implements Serializable
 	}
 
 	@Override
-	public void vectorize(Record element) throws IOException {
-		BytesColumnVector stringVector = (BytesColumnVector) rowBatch.cols[0];
-		LongColumnVector intColVector = (LongColumnVector) rowBatch.cols[1];
+	public void vectorize(Record element, VectorizedRowBatch batch) throws IOException {
+		BytesColumnVector stringVector = (BytesColumnVector) batch.cols[0];
+		LongColumnVector intColVector = (LongColumnVector) batch.cols[1];
 
-		int row = rowBatch.size++;
+		int row = batch.size++;
+
 		stringVector.setVal(row, element.getName().getBytes(StandardCharsets.UTF_8));
 		intColVector.vector[row] = element.getAge();
+
+		this.addUserMetadata(OrcBulkWriterTestUtil.USER_METADATA_KEY, OrcBulkWriterTestUtil.USER_METADATA_VALUE);
 	}
 
 }
