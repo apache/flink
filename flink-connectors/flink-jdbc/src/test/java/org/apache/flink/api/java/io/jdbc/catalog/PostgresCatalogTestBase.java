@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io.jdbc.catalog;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.logical.DecimalType;
 
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules;
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule;
@@ -174,6 +175,7 @@ public class PostgresCatalogTestBase {
 //				.field("timestamptz", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4))
 				.field("date", DataTypes.DATE())
 				.field("time", DataTypes.TIME(0))
+				.field("default_numeric", DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18))
 				.build(),
 			"int integer, " +
 				"bytea bytea, " +
@@ -190,7 +192,8 @@ public class PostgresCatalogTestBase {
 				"timestamp timestamp(5), " +
 //				"timestamptz timestamptz(4), " +
 				"date date," +
-				"time time(0)",
+				"time time(0), " +
+				"default_numeric numeric ",
 			"1," +
 				"'2'," +
 				"3," +
@@ -206,7 +209,8 @@ public class PostgresCatalogTestBase {
 				"'2016-06-22 19:10:25'," +
 //				"'2006-06-22 19:10:25'," +
 				"'2015-01-01'," +
-				"'00:51:02.746572'"
+				"'00:51:02.746572', " +
+				"500"
 		);
 	}
 
@@ -221,6 +225,7 @@ public class PostgresCatalogTestBase {
 				.field("real_arr", DataTypes.ARRAY(DataTypes.FLOAT()))
 				.field("double_precision_arr", DataTypes.ARRAY(DataTypes.DOUBLE()))
 				.field("numeric_arr", DataTypes.ARRAY(DataTypes.DECIMAL(10, 5)))
+				.field("numeric_arr_default", DataTypes.ARRAY(DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18)))
 				.field("boolean_arr", DataTypes.ARRAY(DataTypes.BOOLEAN()))
 				.field("text_arr", DataTypes.ARRAY(DataTypes.STRING()))
 				.field("char_arr", DataTypes.ARRAY(DataTypes.CHAR(1)))
@@ -239,6 +244,7 @@ public class PostgresCatalogTestBase {
 				"real_arr real[], " +
 				"double_precision_arr double precision[], " +
 				"numeric_arr numeric(10, 5)[], " +
+				"numeric_arr_default numeric[], " +
 				"boolean_arr boolean[], " +
 				"text_arr text[], " +
 				"char_arr char[], " +
@@ -256,6 +262,7 @@ public class PostgresCatalogTestBase {
 					"'{5.5,6.6,7.7}'," +
 					"'{6.6,7.7,8.8}'," +
 					"'{7.7,8.8,9.9}'," +
+					"'{8.8,9.9,10.10}'," +
 					"'{true,false,true}'," +
 					"'{a,b,c}'," +
 					"'{b,c,d}'," +
