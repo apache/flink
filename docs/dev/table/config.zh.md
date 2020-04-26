@@ -87,7 +87,7 @@ configuration.set_string("table.exec.mini-batch.size", "5000");
 
 ### 执行选项
 
-以下选项可用于调整查询执行的性能。
+以下选项可用于优化查询执行的性能。
 
 {% include generated/execution_config_configuration.html %}
 
