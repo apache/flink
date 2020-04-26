@@ -37,7 +37,7 @@ import java.util.Map;
  * <p>Example:
  * <pre>{@code
  *    EnvironmentSettings.newInstance()
- *      .useOldPlanner()
+ *      .useBlinkPlanner()
  *      .inStreamingMode()
  *      .withBuiltInCatalogName("default_catalog")
  *      .withBuiltInDatabaseName("default_database")
@@ -166,9 +166,8 @@ public class EnvironmentSettings {
 		private boolean isStreamingMode = true;
 
 		/**
-		 * Sets the old Flink planner as the required module.
-		 *
-		 * <p>This is the default behavior.
+		 * Sets the old Flink planner as the required module. By default, {@link #useBlinkPlanner()}
+		 * is enabled.
 		 */
 		public Builder useOldPlanner() {
 			this.plannerClass = OLD_PLANNER_FACTORY;
@@ -177,8 +176,9 @@ public class EnvironmentSettings {
 		}
 
 		/**
-		 * Sets the Blink planner as the required module. By default, {@link #useOldPlanner()} is
-		 * enabled.
+		 * Sets the Blink planner as the required module.
+		 *
+		 * <p>This is the default behavior.
 		 */
 		public Builder useBlinkPlanner() {
 			this.plannerClass = BLINK_PLANNER_FACTORY;
@@ -191,7 +191,7 @@ public class EnvironmentSettings {
 		 *
 		 * <p>A planner will be discovered automatically, if there is only one planner available.
 		 *
-		 * <p>By default, {@link #useOldPlanner()} is enabled.
+		 * <p>By default, {@link #useBlinkPlanner()} is enabled.
 		 */
 		public Builder useAnyPlanner() {
 			this.plannerClass = null;
