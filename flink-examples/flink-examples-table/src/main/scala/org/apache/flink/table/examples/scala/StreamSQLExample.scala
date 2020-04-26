@@ -43,7 +43,7 @@ object StreamSQLExample {
   def main(args: Array[String]): Unit = {
 
     val params = ParameterTool.fromArgs(args)
-    val planner = if (params.has("planner")) params.get("planner") else "flink"
+    val planner = if (params.has("planner")) params.get("planner") else "blink"
 
     // set up execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
