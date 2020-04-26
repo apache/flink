@@ -41,13 +41,6 @@ public class FunctionDescriptor implements Descriptor {
 		return this;
 	}
 
-	public FunctionDescriptor fromPython(String fullyQualifiedName) {
-		from = FunctionDescriptorValidator.FROM_VALUE_PYTHON;
-		this.fullyQualifiedName = fullyQualifiedName;
-		this.classInstance = null;
-		return this;
-	}
-
 	/**
 	 * Converts this descriptor into a set of properties.
 	 */

@@ -31,7 +31,6 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -155,7 +154,7 @@ public class ExecutionContext<ClusterID> {
 		this.flinkConfig = flinkConfig;
 
 		if (hasPythonFunction(environment)) {
-			dependencies = addPythonFunctionDependency(dependencies);
+			dependencies = addPythonDependency(dependencies);
 		}
 
 		// create class loader
@@ -716,19 +715,20 @@ public class ExecutionContext<ClusterID> {
 				f.getDescriptor().toProperties().get(FunctionDescriptorValidator.FROM)));
 	}
 
-	private List<URL> addPythonFunctionDependency(List<URL> dependencies) {
+	private List<URL> addPythonDependency(List<URL> dependencies) {
 		List<URL> newDependencies = new ArrayList<>(dependencies);
-		URL location = PythonFunctionRunner.class.getProtectionDomain().getCodeSource().getLocation();
 		try {
+			URL location = Class.forName(
+				"org.apache.flink.python.PythonFunctionRunner",
+				false,
+				Thread.currentThread().getContextClassLoader())
+				.getProtectionDomain().getCodeSource().getLocation();
 			if (Paths.get(location.toURI()).toFile().isFile()) {
 				newDependencies.add(location);
 			} else {
-				LOG.warn(
-					"Python UDF detected but flink-python jar not found. " +
-						"If you starts SQL-Client via `sql-client.sh`, " +
-						"please add the flink-python jar via `-j` command option manually.");
+				throw new FlinkException("flink-python module detected but is not a jar file: " + location + ".");
 			}
-		} catch (URISyntaxException e) {
+		} catch (URISyntaxException | ClassNotFoundException | FlinkException e) {
 			LOG.warn("Python UDF detected but flink-python jar not found. " +
 				"If you starts SQL-Client via `sql-client.sh`, " +
 				"please add the flink-python jar via `-j` command option manually.", e);

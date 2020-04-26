@@ -28,12 +28,12 @@ import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
 import org.apache.flink.table.descriptors.HierarchyDescriptorValidator;
 import org.apache.flink.table.descriptors.LiteralValueValidator;
 import org.apache.flink.table.descriptors.PythonFunctionValidator;
+import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -119,22 +119,7 @@ public class FunctionService {
 				break;
 			case FunctionDescriptorValidator.FROM_VALUE_PYTHON:
 				String fullyQualifiedName = properties.getString(PythonFunctionValidator.FULLY_QUALIFIED_NAME);
-				try {
-					Class pythonFunctionFactory = Class.forName(
-						"org.apache.flink.client.python.PythonFunctionFactory",
-						true,
-						Thread.currentThread().getContextClassLoader());
-					instance = pythonFunctionFactory.getMethod(
-						"getPythonFunction",
-						String.class,
-						ReadableConfig.class)
-						.invoke(null, fullyQualifiedName, config);
-				} catch (IllegalAccessException | ClassNotFoundException | NoSuchMethodException |
-						InvocationTargetException e) {
-					throw new IllegalStateException(
-						String.format(
-							"Instantiating python function '%s' failed.", fullyQualifiedName), e);
-				}
+				instance = PythonFunctionUtils.getPythonFunction(fullyQualifiedName, config);
 				break;
 			default:
 				throw new ValidationException("Unsupported function descriptor: " + properties);
