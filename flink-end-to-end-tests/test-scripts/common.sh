@@ -591,6 +591,13 @@ function setup_flink_slf4j_metric_reporter() {
   set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
 }
 
+function setup_flink_influxdb_metric_reporter() {
+  INTERVAL="${1:-1 SECONDS}"
+  add_optional_plugin "metrics-influxdb"
+  set_config_key "metrics.reporter.influxdb.factory.class" "org.apache.flink.metrics.influxdb.InfluxdbReporterFactory"
+  set_config_key "metrics.reporter.influxdb.interval" "${INTERVAL}"
+}
+
 function get_job_metric {
   local job_id=$1
   local metric_name=$2
