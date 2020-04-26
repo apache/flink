@@ -78,11 +78,14 @@ public class FileSystemTableSink implements
 	/**
 	 * Construct a file system table sink.
 	 *
+	 * @param isBounded whether the input of sink is bounded.
 	 * @param schema schema of the table.
 	 * @param path directory path of the file system table.
 	 * @param partitionKeys partition keys of the table.
 	 * @param defaultPartName The default partition name in case the dynamic partition column value
 	 *                        is null/empty string.
+	 * @param rollingFileSize the maximum part file size before rolling.
+	 * @param rollingTimeInterval the maximum time duration a part file can stay open before rolling.
 	 * @param formatProperties format properties.
 	 */
 	public FileSystemTableSink(
@@ -366,8 +369,7 @@ public class FileSystemTableSink implements
 	}
 
 	/**
-	 * Table {@link RollingPolicy}, now it is a {@link CheckpointRollingPolicy}.
-	 * Because partition commit is hard to support false.
+	 * Table {@link RollingPolicy}, it extends {@link CheckpointRollingPolicy} for bulk writers.
 	 */
 	private static class TableRollingPolicy extends CheckpointRollingPolicy<BaseRow, String> {
 
