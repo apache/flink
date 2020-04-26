@@ -23,11 +23,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-SQL 是数据分析最广泛使用的语言。Flink Table API 和 SQL 使用户能够以更少的时间和精力定义高效的流分析应用程序。而且，Flink Table API 和 SQL 是有效优化过的，它集成了许多查询优化和算子实现。但并不是所有的优化都是默认开启的，因此对于某些工作负载，可以通过打开某些选项来提高性能。
+SQL 是数据分析中使用最广泛的语言。Flink Table API 和 SQL 使用户能够以更少的时间和精力定义高效的流分析应用程序。而且，Flink Table API 和 SQL 是有效优化过的，它集成了许多查询优化和算子优化。但并不是所有的优化都是默认开启的，因此对于某些工作负载，可以通过打开某些选项来提高性能。
 
-这里我们将介绍一些实用的优化选项以及流式聚合的内部原理，它们在某些情况下能带来很大改进。
+在这一页，我们将介绍一些实用的优化选项以及流式聚合的内部原理，它们在某些情况下能带来很大的提升。
 
-<span class="label label-danger">注意</span> 目前，这里提到的优化选项仅支持 Blink 计划器。
+<span class="label label-danger">注意</span> 目前，这一页提到的优化选项仅支持 Blink planner。
 
 <span class="label label-danger">注意</span> 目前，流聚合优化仅支持 [无界聚合]({{ site.baseurl }}/zh/dev/table/sql/queries.html#aggregations)。[窗口聚合]({{ site.baseurl }}/zh/dev/table/sql/queries.html#group-windows) 优化将在未来支持。
 
@@ -38,17 +38,17 @@ SQL 是数据分析最广泛使用的语言。Flink Table API 和 SQL 使用户�
 
 <a name="minibatch-aggregation"></a>
 
-## 微批聚合
+## MiniBatch 聚合
 
-微批聚合的核心思想是将一组输入的数据缓存在聚合算子内部的缓冲区中。当输入的数据被触发处理时，每个键只需一个操作即可访问状态。这样可以大大减少状态开销并获得更好的吞吐量。但是，这可能会增加一些延迟，因为它会缓冲一些记录而不是立即处理它们。这是吞吐量和延迟之间的权衡。
+MiniBatch 聚合的核心思想是将一组输入的数据缓存在聚合算子内部的缓冲区中。当输入的数据被触发处理时，每个键只需一个操作即可访问状态。这样可以大大减少状态开销并获得更好的吞吐量。但是，这可能会增加一些延迟，因为它会缓冲一些记录而不是立即处理它们。这是吞吐量和延迟之间的权衡。
 
-下图说明了微批聚合如何减少状态操作。
+下图说明了 MiniBatch 聚合如何减少状态操作。
 
 <div style="text-align: center">
   <img src="{{ site.baseurl }}/fig/table-streaming/minibatch_agg.png" width="50%" height="50%" />
 </div>
 
-默认情况下微批优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{site.baseurl}}/zh/dev/table/config.html＃execution-options)页面。
+默认情况下 MiniBatch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{site.baseurl}}/zh/dev/table/config.html＃execution-options)页面。
 
 以下示例显示如何启用这些选项。
 
@@ -98,9 +98,9 @@ configuration.set_string("table.exec.mini-batch.size", "5000"); # the maximum nu
 
 <a name="local-global-aggregation"></a>
 
-## 本地全局聚合
+## Local-Global 聚合
 
-本地全局聚合是为解决数据倾斜问题提出的，通过将一组聚合分为两个阶段，首先在上游进行本地聚合，然后在下游进行全局聚合，类似于 MapReduce 中的 Combine + Reduce 模式。例如，就以下 SQL 而言：
+Local-Global 聚合是为解决数据倾斜问题提出的，通过将一组聚合分为两个阶段，首先在上游进行本地聚合，然后在下游进行全局聚合，类似于 MapReduce 中的 Combine + Reduce 模式。例如，就以下 SQL 而言：
 
 {% highlight sql %}
 SELECT color, sum(id)
@@ -108,16 +108,16 @@ FROM T
 GROUP BY color
 {% endhighlight %}
 
-数据流中的记录可能会倾斜，因此某些聚合算子的实例必须比其他实例处理更多的记录，这会导致 hotspot。本地聚合可以将一定数量具有相同 key 的输入数据累加到单个累加器中。全局聚合将仅接收 reduce 后的累加器，而不是大量的原始输入数据。这可以大大减少网络 shuffle 和状态访问的成本。每次本地聚合累积的输入数据量基于微批间隔。这意味着本地全局聚合依赖于启用了微批优化。
+数据流中的记录可能会倾斜，因此某些聚合算子的实例必须比其他实例处理更多的记录，这会导致 hotspot。本地聚合可以将一定数量具有相同 key 的输入数据累加到单个累加器中。全局聚合将仅接收 reduce 后的累加器，而不是大量的原始输入数据。这可以大大减少网络 shuffle 和状态访问的成本。每次本地聚合累积的输入数据量基于 mini-batch 间隔。这意味着 local-global 聚合依赖于启用了 mini-batch 优化。
 
-下图显示了本地全局聚合如何提高性能。
+下图显示了 Local-Global 聚合如何提高性能。
 
 <div style="text-align: center">
   <img src="{{ site.baseurl }}/fig/table-streaming/local_agg.png" width="70%" height="70%" />
 </div>
 
 
-以下示例显示如何启用本地全局聚合。
+以下示例显示如何启用Local-Global 聚合。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -168,9 +168,9 @@ configuration.set_string("table.optimizer.agg-phase-strategy", "TWO_PHASE"); # e
 
 <a name="split-distinct-aggregation"></a>
 
-## 拆分不同的聚合
+## 拆分 distinct 聚合
 
-本地全局优化可有效消除常规聚合的数据倾斜，例如 SUM、COUNT、MAX、MIN、AVG。但是在处理不同的聚合时，其性能并不令人满意。
+Local-Global 优化可有效消除常规聚合的数据倾斜，例如 SUM、COUNT、MAX、MIN、AVG。但是在处理 distinct 聚合时，其性能并不令人满意。
 
 例如，如果我们要分析今天有多少唯一用户登录。我们可能有以下查询：
 
@@ -180,11 +180,11 @@ FROM T
 GROUP BY day
 {% endhighlight %}
 
-如果唯一键（即 user_id）的值稀疏，则 COUNT DISTINCT 不适合 reduce 操作。即使启用了本地全局优化也没有太大帮助。因为累加器仍然包含几乎所有原始记录，并且全局聚合将成为瓶颈（大多数繁重的累加器由一个任务处理，即同一天）。
+如果唯一键（即 user_id）的值稀疏，则 COUNT DISTINCT 不适合 reduce 操作。即使启用了 local-global 优化也没有太大帮助。因为累加器仍然包含几乎所有原始记录，并且全局聚合将成为瓶颈（大多数繁重的累加器由一个任务处理，即同一天）。
 
-这个优化的想法是将不同的聚合（例如 `COUNT(DISTINCT col)`）分为两个级别。第一次聚合由 group key 和额外的 bucket key 进行 shuffle。bucket key 是使用 `HASH_CODE(distinct_key) % BUCKET_NUM` 计算的。`BUCKET_NUM` 默认为1024，可以通过 `table.optimizer.distinct-agg.split.bucket-num` 选项进行配置。第二次聚合是由原始 group key 进行 shuffle，并使用 `SUM` 聚合来自不同 buckets 的 COUNT DISTINCT 值。由于相同的唯一键将仅在同一 bucket 中计算，因此转换是等效的。bucket key 充当附加 group key 的角色，以分担 group key 中 hotspot 的负担。bucket key 使 job 具有可伸缩性来解决不同聚合中的数据倾斜/hotspot。
+这个优化的想法是将不同的聚合（例如 `COUNT(DISTINCT col)`）分为两个级别。第一次聚合由 group key 和额外的 bucket key 进行 shuffle。bucket key 是使用 `HASH_CODE(distinct_key) % BUCKET_NUM` 计算的。`BUCKET_NUM` 默认为1024，可以通过 `table.optimizer.distinct-agg.split.bucket-num` 选项进行配置。第二次聚合是由原始 group key 进行 shuffle，并使用 `SUM` 聚合来自不同 buckets 的 COUNT DISTINCT 值。由于相同的唯一键将仅在同一 bucket 中计算，因此转换是等效的。bucket key 充当附加 group key 的角色，以分担 group key 中热点的负担。bucket key 使 job 具有可伸缩性来解决不同聚合中的数据倾斜/热点。
 
-拆分不同的聚合后，以上查询将被自动重写为以下查询：
+拆分 distinct 聚合后，以上查询将被自动重写为以下查询：
 
 {% highlight sql %}
 SELECT day, SUM(cnt)
@@ -197,7 +197,7 @@ GROUP BY day
 {% endhighlight %}
 
 
-下图显示了拆分不同聚合如何提高性能（假设颜色表示 days，字母表示 user_id）。
+下图显示了拆分 distinct 聚合如何提高性能（假设颜色表示 days，字母表示 user_id）。
 
 <div style="text-align: center">
   <img src="{{ site.baseurl }}/fig/table-streaming/distinct_split.png" width="70%" height="70%" />
@@ -207,7 +207,7 @@ GROUP BY day
 
 <span class="label label-danger">注意</span> 但是，当前，拆分优化不支持包含用户定义的 AggregateFunction 聚合。
 
-以下示例显示了如何启用拆分非重复聚合优化。
+以下示例显示了如何启用拆分 distinct 聚合优化。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -246,9 +246,9 @@ t_env.get_config()        # access high-level configuration
 
 <a name="use-filter-modifier-on-distinct-aggregates"></a>
 
-## 在不同的聚合上使用 FILTER 修改器
+## 在 distinct 聚合上使用 FILTER 修改器
 
-在某些情况下，用户可能需要从不同维度计算 UV（unique visitor）的数量，例如来自 Android 的 UV、iPhone 的 UV、Web 的 UV 和总 UV。很多人会选择 `CASE WHEN`，例如：
+在某些情况下，用户可能需要从不同维度计算 UV（独立访客）的数量，例如来自 Android 的 UV、iPhone 的 UV、Web 的 UV 和总 UV。很多人会选择 `CASE WHEN`，例如：
 
 {% highlight sql %}
 SELECT
@@ -260,7 +260,7 @@ FROM T
 GROUP BY day
 {% endhighlight %}
 
-但是，在这种情况下，建议使用 `FILTER` 语法而不是 CASE WHEN。因为 `FILTER` 更符合 SQL 标准，并且能获得更多的性能改进。`FILTER` 是用于聚合函数的修饰符，用于限制聚合中使用的值。将上面的示例替换为 `FILTER` 修饰符，如下所示：
+但是，在这种情况下，建议使用 `FILTER` 语法而不是 CASE WHEN。因为 `FILTER` 更符合 SQL 标准，并且能获得更多的性能提升。`FILTER` 是用于聚合函数的修饰符，用于限制聚合中使用的值。将上面的示例替换为 `FILTER` 修饰符，如下所示：
 
 {% highlight sql %}
 SELECT
@@ -272,7 +272,7 @@ FROM T
 GROUP BY day
 {% endhighlight %}
 
-Flink SQL 优化器可以识别相同唯一键上的不同过滤器参数。例如，在上面的示例中，三个 COUNT DISTINCT 都在 `user_id` 一列上。Flink 可以只使用一个共享状态实例，而不是三个状态实例，以减少状态访问和状态大小。在某些工作负载中，这可以显着提高性能。
+Flink SQL 优化器可以识别相同唯一键上的不同过滤器参数。例如，在上面的示例中，三个 COUNT DISTINCT 都在 `user_id` 一列上。Flink 可以只使用一个共享状态实例，而不是三个状态实例，以减少状态访问和状态大小。在某些工作负载下，可以获得显著的性能提升。
 
 
 {% top %}
