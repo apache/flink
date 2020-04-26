@@ -21,7 +21,9 @@ package org.apache.flink.sql.parser.hive.ddl;
 import org.apache.flink.sql.parser.hive.impl.ParseException;
 
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
@@ -37,5 +39,18 @@ public class SqlAlterHiveDatabaseProps extends SqlAlterHiveDatabase {
 	@Override
 	protected AlterHiveDatabaseOp getAlterOp() {
 		return AlterHiveDatabaseOp.CHANGE_PROPS;
+	}
+
+	@Override
+	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+		super.unparse(writer, leftPrec, rightPrec);
+		writer.keyword("DBPROPERTIES");
+		SqlWriter.Frame withFrame = writer.startList("(", ")");
+		for (SqlNode property : originPropList) {
+			printIndent(writer);
+			property.unparse(writer, leftPrec, rightPrec);
+		}
+		writer.newlineAndIndent();
+		writer.endList(withFrame);
 	}
 }

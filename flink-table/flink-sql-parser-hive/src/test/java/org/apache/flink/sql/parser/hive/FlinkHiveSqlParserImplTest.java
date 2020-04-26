@@ -61,47 +61,30 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 	@Test
 	public void testCreateDatabase() {
 		sql("create database db1")
-				.ok("CREATE DATABASE `DB1` WITH (\n" +
-						"  'is_generic' = 'false'\n" +
-						")");
+				.ok("CREATE DATABASE `DB1`");
 		sql("create database db1 comment 'comment db1' location '/path/to/db1'")
 				.ok("CREATE DATABASE `DB1`\n" +
-						"COMMENT 'comment db1' WITH (\n" +
-						"  'is_generic' = 'false',\n" +
-						"  'database.location_uri' = '/path/to/db1'\n" +
-						")");
+						"COMMENT 'comment db1'\n" +
+						"LOCATION '/path/to/db1'");
 		sql("create database db1 with dbproperties ('k1'='v1','k2'='v2')")
-				.ok("CREATE DATABASE `DB1` WITH (\n" +
+				.ok("CREATE DATABASE `DB1` WITH DBPROPERTIES (\n" +
 						"  'k1' = 'v1',\n" +
-						"  'k2' = 'v2',\n" +
-						"  'is_generic' = 'false'\n" +
+						"  'k2' = 'v2'\n" +
 						")");
 	}
 
 	@Test
 	public void testAlterDatabase() {
 		sql("alter database db1 set dbproperties('k1'='v1')")
-				.ok("ALTER DATABASE `DB1` SET (\n" +
-						"  'k1' = 'v1',\n" +
-						"  'alter.database.op' = 'CHANGE_PROPS'\n" +
+				.ok("ALTER DATABASE `DB1` SET DBPROPERTIES (\n" +
+						"  'k1' = 'v1'\n" +
 						")");
 		sql("alter database db1 set location '/new/path'")
-				.ok("ALTER DATABASE `DB1` SET (\n" +
-						"  'alter.database.op' = 'CHANGE_LOCATION',\n" +
-						"  'database.location_uri' = '/new/path'\n" +
-						")");
+				.ok("ALTER DATABASE `DB1` SET LOCATION '/new/path'");
 		sql("alter database db1 set owner user user1")
-				.ok("ALTER DATABASE `DB1` SET (\n" +
-						"  'alter.database.op' = 'CHANGE_OWNER',\n" +
-						"  'database.owner.type' = 'user',\n" +
-						"  'database.owner.name' = 'USER1'\n" +
-						")");
+				.ok("ALTER DATABASE `DB1` SET OWNER USER `USER1`");
 		sql("alter database db1 set owner role role1")
-				.ok("ALTER DATABASE `DB1` SET (\n" +
-						"  'alter.database.op' = 'CHANGE_OWNER',\n" +
-						"  'database.owner.type' = 'role',\n" +
-						"  'database.owner.name' = 'ROLE1'\n" +
-						")");
+				.ok("ALTER DATABASE `DB1` SET OWNER ROLE `ROLE1`");
 	}
 
 	@Test

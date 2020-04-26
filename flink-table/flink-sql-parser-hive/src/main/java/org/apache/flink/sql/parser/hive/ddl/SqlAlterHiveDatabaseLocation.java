@@ -24,6 +24,7 @@ import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase.DATABASE_LOCATION_URI;
@@ -33,16 +34,26 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase.DATABAS
  */
 public class SqlAlterHiveDatabaseLocation extends SqlAlterHiveDatabase {
 
+	private final SqlCharStringLiteral location;
+
 	public SqlAlterHiveDatabaseLocation(SqlParserPos pos, SqlIdentifier databaseName, SqlCharStringLiteral location) {
 		super(pos, databaseName, new SqlNodeList(pos));
 		getPropertyList().add(new SqlTableOption(
 				SqlLiteral.createCharString(DATABASE_LOCATION_URI, location.getParserPosition()),
 				location,
 				location.getParserPosition()));
+		this.location = location;
 	}
 
 	@Override
 	protected AlterHiveDatabaseOp getAlterOp() {
 		return AlterHiveDatabaseOp.CHANGE_LOCATION;
+	}
+
+	@Override
+	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+		super.unparse(writer, leftPrec, rightPrec);
+		writer.keyword("LOCATION");
+		location.unparse(writer, leftPrec, rightPrec);
 	}
 }
