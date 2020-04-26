@@ -346,6 +346,7 @@ class TableEnvironment(object):
     def list_tables(self):
         """
         Gets the names of all tables and views in the current database of the current catalog.
+        It returns both temporary and permanent tables and views.
 
         :return: List of table and view names in the current database of the current catalog.
         :rtype: list[str]
@@ -356,6 +357,7 @@ class TableEnvironment(object):
     def list_views(self):
         """
         Gets the names of all views in the current database of the current catalog.
+        It returns both temporary and permanent views.
 
         :return: List of view names in the current database of the current catalog.
         :rtype: list[str]
