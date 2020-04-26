@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.filesystem.FileSystemTableFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecSink
-import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.sinks.PartitionableTableSink
 
 import org.apache.calcite.plan.RelOptRule
@@ -53,14 +53,19 @@ class StreamExecSinkRule extends ConverterRule(
             val dynamicPartIndices =
               dynamicPartFields.map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
 
-            if (partitionSink.configurePartitionGrouping(false)) {
-              throw new TableException("Partition grouping in stream mode is not supported yet!")
-            }
+            val shuffleEnable = sinkNode
+                .catalogTable
+                .getProperties
+                .get(FileSystemTableFactory.SINK_SHUFFLE_BY_PARTITION.key())
 
-            if (!partitionSink.isInstanceOf[DataStreamTableSink[_]]) {
+            if (shuffleEnable != null && shuffleEnable.toBoolean) {
               requiredTraitSet = requiredTraitSet.plus(
                 FlinkRelDistribution.hash(dynamicPartIndices
                     .map(Integer.valueOf), requireStrict = false))
+            }
+
+            if (partitionSink.configurePartitionGrouping(false)) {
+              throw new TableException("Partition grouping in stream mode is not supported yet!")
             }
           }
         case _ => throw new TableException("We need PartitionableTableSink to write data to" +
