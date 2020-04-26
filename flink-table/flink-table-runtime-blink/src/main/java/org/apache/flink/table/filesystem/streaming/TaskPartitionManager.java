@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.table.descriptors.FileSystemValidator;
 import org.apache.flink.table.filesystem.streaming.trigger.PartitionCommitTrigger;
 import org.apache.flink.util.StringUtils;
 
@@ -64,8 +63,8 @@ public class TaskPartitionManager {
 			RuntimeContext runtimeContext,
 			Map<String, String> properties) throws Exception {
 		this.partCommitTrigger = PartitionCommitTrigger.createTrigger(
-				properties.get(FileSystemValidator.CONNECTOR_SINK_PARTITION_COMMIT_TRIGGER),
-				properties.get(FileSystemValidator.CONNECTOR_SINK_PARTITION_COMMIT_TRIGGER_CLASS),
+				properties.get(FileSystemStreamingSink.CONNECTOR_SINK_PARTITION_COMMIT_TRIGGER),
+				properties.get(FileSystemStreamingSink.CONNECTOR_SINK_PARTITION_COMMIT_TRIGGER_CLASS),
 				runtimeContext.getUserCodeClassLoader());
 
 		this.cpIdToWatermarkState = context.getOperatorStateStore().getListState(CP_ID_WATERMARK_STATE_DESC);

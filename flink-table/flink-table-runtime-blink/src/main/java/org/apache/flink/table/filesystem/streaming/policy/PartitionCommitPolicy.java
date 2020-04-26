@@ -20,8 +20,8 @@ package org.apache.flink.table.filesystem.streaming.policy;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.table.descriptors.FileSystemValidator;
 import org.apache.flink.table.filesystem.TableMetaStoreFactory;
+import org.apache.flink.table.filesystem.streaming.FileSystemStreamingSink;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -46,7 +46,8 @@ public interface PartitionCommitPolicy extends Serializable {
 			TableMetaStoreFactory.TableMetaStore metaStore) throws Exception;
 
 	static List<PartitionCommitPolicy> createCommitChain(Map<String, String> properties) {
-		String policy = properties.get(FileSystemValidator.CONNECTOR_SINK_PARTITION_COMMIT_POLICY);
+		String policy = properties.get(
+				FileSystemStreamingSink.CONNECTOR_SINK_PARTITION_COMMIT_POLICY);
 		if (policy == null) {
 			return Collections.emptyList();
 		}
@@ -57,7 +58,7 @@ public interface PartitionCommitPolicy extends Serializable {
 					return new MetastoreCommitPolicy();
 				case "success-file":
 					String fileName = properties.get(
-							FileSystemValidator.CONNECTOR_SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
+							FileSystemStreamingSink.CONNECTOR_SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME);
 					return new SuccessFileCommitPolicy(fileName == null ? "_SUCCESS" : fileName);
 				default:
 					throw new UnsupportedOperationException("Unsupported policy: " + name);

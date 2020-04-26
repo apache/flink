@@ -84,6 +84,7 @@ public class HiveTableFactory implements TableSourceFactory, TableSinkFactory {
 
 		if (!isGeneric) {
 			return new HiveTableSink(
+					context.isBounded(),
 					new JobConf(hiveConf),
 					context.getObjectIdentifier().toObjectPath(),
 					table);

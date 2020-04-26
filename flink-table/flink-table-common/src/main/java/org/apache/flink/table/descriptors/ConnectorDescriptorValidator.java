@@ -48,11 +48,6 @@ public abstract class ConnectorDescriptorValidator implements DescriptorValidato
 	 */
 	public static final String CONNECTOR_VERSION = "connector.version";
 
-	/**
-	 * Key for describing the parallelism of the sink.
-	 */
-	public static final String CONNECTOR_SINK_PARALLELISM = "connector.sink.parallelism";
-
 	@Override
 	public void validate(DescriptorProperties properties) {
 		properties.validateString(CONNECTOR_TYPE, false, 1);

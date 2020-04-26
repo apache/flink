@@ -19,7 +19,6 @@
 package org.apache.flink.table.filesystem.streaming;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -27,10 +26,15 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.table.descriptors.FileSystemValidator;
+import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.filesystem.FileSystemOutputFormat;
+import org.apache.flink.table.filesystem.FileSystemTableFactory;
+import org.apache.flink.table.filesystem.FileSystemTableSink.ProjectionBulkFactory;
+import org.apache.flink.table.filesystem.FileSystemTableSink.TableBucketAssigner;
+import org.apache.flink.table.filesystem.FileSystemTableSink.TableRollingPolicy;
 import org.apache.flink.table.filesystem.PartitionComputer;
 import org.apache.flink.table.filesystem.PartitionPathUtils;
+import org.apache.flink.table.filesystem.RowDataPartitionComputer;
 import org.apache.flink.table.filesystem.TableMetaStoreFactory;
 import org.apache.flink.table.filesystem.streaming.policy.PartitionCommitPolicy;
 
@@ -42,13 +46,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * File system sink for streaming jobs.
  */
-public class FileSystemStreamingSink<T> extends StreamingFileSink<T>
+public class FileSystemStreamingSink extends StreamingFileSink<BaseRow>
 		implements CheckpointedFunction, CheckpointListener {
 
 	private static final long DEFAULT_BUCKET_CHECK_INTERVAL = 60L * 1000L;
 
+	public static final String CONNECTOR_SINK_PARTITION_COMMIT_POLICY =
+			"sink.partition-commit.policy";
+	public static final String CONNECTOR_SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
+			"sink.partition-commit.success-file.name";
+	public static final String CONNECTOR_SINK_PARTITION_COMMIT_TRIGGER =
+			"sink.partition-commit.trigger";
+	public static final String CONNECTOR_SINK_PARTITION_COMMIT_TRIGGER_CLASS =
+			"sink.partition-commit.trigger.class";
+
 	private final TableMetaStoreFactory msFactory;
-	private final PartitionComputer<T> computer;
+	private final PartitionComputer<BaseRow> computer;
 	private final Map<String, String> properties;
 
 	private transient boolean hasPartCommitter;
@@ -56,20 +69,9 @@ public class FileSystemStreamingSink<T> extends StreamingFileSink<T>
 	private transient GlobalPartitionCommitter partitionCommitter;
 
 	private FileSystemStreamingSink(
-			RowFormatBuilder<T, ?, ?> bucketsBuilder,
+			BulkFormatBuilder<BaseRow, ?, ?> bucketsBuilder,
 			TableMetaStoreFactory msFactory,
-			PartitionComputer<T> computer,
-			Map<String, String> properties) {
-		super(bucketsBuilder, DEFAULT_BUCKET_CHECK_INTERVAL);
-		this.msFactory = msFactory;
-		this.computer = computer;
-		this.properties = properties;
-	}
-
-	private FileSystemStreamingSink(
-			BulkFormatBuilder<T, ?, ?> bucketsBuilder,
-			TableMetaStoreFactory msFactory,
-			PartitionComputer<T> computer,
+			PartitionComputer<BaseRow> computer,
 			Map<String, String> properties) {
 		super(bucketsBuilder, DEFAULT_BUCKET_CHECK_INTERVAL);
 		this.msFactory = msFactory;
@@ -92,7 +94,7 @@ public class FileSystemStreamingSink<T> extends StreamingFileSink<T>
 	}
 
 	@Override
-	public void invoke(T value, Context context) throws Exception {
+	public void invoke(BaseRow value, Context context) throws Exception {
 		super.invoke(value, context);
 		String partition = PartitionPathUtils.generatePartitionPath(
 				this.computer.generatePartValues(value));
@@ -123,89 +125,73 @@ public class FileSystemStreamingSink<T> extends StreamingFileSink<T>
 	/**
 	 * Builder to build {@link FileSystemOutputFormat}.
 	 */
-	public static class Builder<T> {
+	public static class Builder {
 
 		private Path basePath;
 		private String[] partitionColumns;
-		private BulkWriter.Factory<T> bulkFormatWriterFactory;
-		private Encoder<T> rowFormatEncoder;
+		private BulkWriter.Factory<BaseRow> bulkFormatWriterFactory;
 		private TableMetaStoreFactory metaStoreFactory;
 
-		private PartitionComputer<T> computer;
+		private RowDataPartitionComputer computer;
 
 		private Map<String, String> properties;
 
-		public Builder<T> setPartitionColumns(String[] partitionColumns) {
+		public Builder setPartitionColumns(String[] partitionColumns) {
 			this.partitionColumns = partitionColumns;
 			return this;
 		}
 
-		public Builder<T> enableBulkFormat(BulkWriter.Factory<T> bulkFormatWriterFactory) {
+		public Builder setBulkFormat(BulkWriter.Factory<BaseRow> bulkFormatWriterFactory) {
 			this.bulkFormatWriterFactory = bulkFormatWriterFactory;
 			return this;
 		}
 
-		public Builder<T> enableRowFormat(Encoder<T> rowFormatEncoder) {
-			this.rowFormatEncoder = rowFormatEncoder;
-			return this;
-		}
-
-		public Builder<T> setMetaStoreFactory(TableMetaStoreFactory metaStoreFactory) {
+		public Builder setMetaStoreFactory(TableMetaStoreFactory metaStoreFactory) {
 			this.metaStoreFactory = metaStoreFactory;
 			return this;
 		}
 
-		public Builder<T> setBasePath(Path basePath) {
+		public Builder setBasePath(Path basePath) {
 			this.basePath = basePath;
 			return this;
 		}
 
-		public Builder<T> setPartitionComputer(PartitionComputer<T> computer) {
+		public Builder setPartitionComputer(RowDataPartitionComputer computer) {
 			this.computer = computer;
 			return this;
 		}
 
-		public Builder<T> setProperties(Map<String, String> properties) {
+		public Builder setProperties(Map<String, String> properties) {
 			this.properties = properties;
 			return this;
 		}
 
-		public FileSystemStreamingSink<T> build() {
+		public FileSystemStreamingSink build() {
 			checkNotNull(partitionColumns, "partitionColumns should not be null");
 			checkNotNull(metaStoreFactory, "metaStoreFactory should not be null");
 			checkNotNull(basePath, "tmpPath should not be null");
 			checkNotNull(computer, "partitionComputer should not be null");
 
-			TableBucketAssigner<T> assigner = new TableBucketAssigner<>(computer);
-			TableRollingPolicy<T> rollingPolicy = new TableRollingPolicy<>(
+			TableBucketAssigner assigner = new TableBucketAssigner(computer);
+			TableRollingPolicy rollingPolicy = new TableRollingPolicy(
+					true, // partition commit assume rolling on checkpoint.
 					Long.parseLong(properties.getOrDefault(
-							FileSystemValidator.CONNECTOR_SINK_ROLLING_POLICY_FILE_SIZE, "0")),
+							FileSystemTableFactory.SINK_ROLLING_POLICY_FILE_SIZE.key(),
+							String.valueOf(Long.MAX_VALUE))),
 					Long.parseLong(properties.getOrDefault(
-							FileSystemValidator.CONNECTOR_SINK_ROLLING_POLICY_TIME_INTERVAL, "0"))
+							FileSystemTableFactory.SINK_ROLLING_POLICY_TIME_INTERVAL.key(),
+							String.valueOf(Long.MAX_VALUE)))
 			);
 
-			if (this.rowFormatEncoder != null && this.bulkFormatWriterFactory != null) {
-				throw new UnsupportedOperationException("Can not set both bulkFormat and rowFormat.");
-			} else if (this.rowFormatEncoder != null) {
-				return new FileSystemStreamingSink<>(
-						StreamingFileSink.forRowFormat(basePath, rowFormatEncoder)
-								.withBucketAssigner(assigner)
-								.withRollingPolicy(rollingPolicy),
-						metaStoreFactory,
-						computer,
-						properties);
-			} else if (this.bulkFormatWriterFactory != null) {
-				return new FileSystemStreamingSink<>(
-						StreamingFileSink.forBulkFormat(basePath, bulkFormatWriterFactory)
-								.withBucketAssigner(assigner)
-								.withRollingPolicy(rollingPolicy),
-						metaStoreFactory,
-						computer,
-						properties);
-			} else {
-				throw new UnsupportedOperationException(
-						"Should set a rowFormatEncoder or bulkFormatWriterFactory.");
-			}
+			return new FileSystemStreamingSink(
+					StreamingFileSink.forBulkFormat(
+							basePath,
+							new ProjectionBulkFactory(bulkFormatWriterFactory, computer))
+							.withBucketAssigner(assigner)
+							.withRollingPolicy(rollingPolicy),
+					metaStoreFactory,
+					computer,
+					properties);
 		}
 	}
 }

@@ -21,7 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.DataFormatConverters;
-import org.apache.flink.table.filesystem.BaseRowPartitionComputer;
+import org.apache.flink.table.filesystem.RowDataPartitionComputer;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.types.DataType;
@@ -34,14 +34,14 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 
 /**
- * A BaseRowPartitionComputer that converts Flink objects to Hive objects before computing the partition value strings.
+ * A {@link RowDataPartitionComputer} that converts Flink objects to Hive objects before computing the partition value strings.
  */
-public class HiveBaseRowPartitionComputer extends BaseRowPartitionComputer {
+public class HiveRowDataPartitionComputer extends RowDataPartitionComputer {
 
 	private final DataFormatConverters.DataFormatConverter[] partitionConverters;
 	private final HiveObjectConversion[] partColConversions;
 
-	public HiveBaseRowPartitionComputer(
+	public HiveRowDataPartitionComputer(
 			HiveShim hiveShim,
 			String defaultPartValue,
 			String[] columnNames,

@@ -35,6 +35,6 @@ public class MetastoreCommitPolicy implements PartitionCommitPolicy {
 			Path partitionPath,
 			FileSystem fileSystem,
 			TableMetaStoreFactory.TableMetaStore metaStore) throws Exception {
-		metaStore.createPartition(partitionSpec, partitionPath);
+		metaStore.createOrAlterPartition(partitionSpec, partitionPath);
 	}
 }

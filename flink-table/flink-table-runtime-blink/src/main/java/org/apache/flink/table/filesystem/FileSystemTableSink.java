@@ -344,11 +344,11 @@ public class FileSystemTableSink implements
 	/**
 	 * Table bucket assigner, wrap {@link PartitionComputer}.
 	 */
-	private static class TableBucketAssigner implements BucketAssigner<BaseRow, String> {
+	public static class TableBucketAssigner implements BucketAssigner<BaseRow, String> {
 
 		private final PartitionComputer<BaseRow> computer;
 
-		private TableBucketAssigner(PartitionComputer<BaseRow> computer) {
+		public TableBucketAssigner(PartitionComputer<BaseRow> computer) {
 			this.computer = computer;
 		}
 
@@ -371,13 +371,13 @@ public class FileSystemTableSink implements
 	/**
 	 * Table {@link RollingPolicy}, it extends {@link CheckpointRollingPolicy} for bulk writers.
 	 */
-	private static class TableRollingPolicy extends CheckpointRollingPolicy<BaseRow, String> {
+	public static class TableRollingPolicy extends CheckpointRollingPolicy<BaseRow, String> {
 
 		private final boolean rollOnCheckpoint;
 		private final long rollingFileSize;
 		private final long rollingTimeInterval;
 
-		private TableRollingPolicy(
+		public TableRollingPolicy(
 				boolean rollOnCheckpoint,
 				long rollingFileSize,
 				long rollingTimeInterval) {
@@ -428,12 +428,15 @@ public class FileSystemTableSink implements
 		}
 	}
 
-	private static class ProjectionBulkFactory implements BulkWriter.Factory<BaseRow> {
+	/**
+	 * Projection bulk writer factory, exclude partition fields.
+	 */
+	public static class ProjectionBulkFactory implements BulkWriter.Factory<BaseRow> {
 
 		private final BulkWriter.Factory<BaseRow> factory;
 		private final RowDataPartitionComputer computer;
 
-		private ProjectionBulkFactory(BulkWriter.Factory<BaseRow> factory, RowDataPartitionComputer computer) {
+		public ProjectionBulkFactory(BulkWriter.Factory<BaseRow> factory, RowDataPartitionComputer computer) {
 			this.factory = factory;
 			this.computer = computer;
 		}
