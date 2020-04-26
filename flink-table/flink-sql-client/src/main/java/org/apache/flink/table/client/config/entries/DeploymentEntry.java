@@ -19,8 +19,10 @@
 package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.client.cli.CliFrontendParser;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import org.apache.commons.cli.CommandLine;
@@ -150,7 +152,9 @@ public class DeploymentEntry extends ConfigEntry {
 	 * Creates a new deployment entry enriched with additional properties that are prefixed with
 	 * {@link Environment#DEPLOYMENT_ENTRY}.
 	 */
-	public static DeploymentEntry enrich(DeploymentEntry deployment, Map<String, String> prefixedProperties) {
+	public static DeploymentEntry enrich(
+			DeploymentEntry deployment,
+			Map<String, String> prefixedProperties) throws SqlExecutionException {
 		final Map<String, String> enrichedProperties = new HashMap<>(deployment.asMap());
 
 		prefixedProperties.forEach((k, v) -> {
@@ -161,7 +165,11 @@ public class DeploymentEntry extends ConfigEntry {
 		});
 
 		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putProperties(enrichedProperties);
+		try {
+			properties.putProperties(enrichedProperties);
+		} catch (ValidationException e) {
+			throw new SqlExecutionException("Failed to enrich properties", e);
+		}
 
 		return new DeploymentEntry(properties);
 	}

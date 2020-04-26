@@ -27,6 +27,7 @@ import org.apache.flink.table.client.config.entries.FunctionEntry;
 import org.apache.flink.table.client.config.entries.ModuleEntry;
 import org.apache.flink.table.client.config.entries.TableEntry;
 import org.apache.flink.table.client.config.entries.ViewEntry;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 
@@ -276,7 +277,7 @@ public class Environment {
 	public static Environment enrich(
 			Environment env,
 			Map<String, String> properties,
-			Map<String, ViewEntry> views) {
+			Map<String, ViewEntry> views) throws SqlExecutionException {
 		final Environment enrichedEnv = new Environment();
 
 		enrichedEnv.modules = new LinkedHashMap<>(env.getModules());

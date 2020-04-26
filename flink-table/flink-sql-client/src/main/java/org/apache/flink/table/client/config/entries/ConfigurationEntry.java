@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.client.config.entries;
 
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.config.ConfigUtil;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.HashMap;
@@ -63,7 +65,9 @@ public class ConfigurationEntry extends ConfigEntry {
 		return new ConfigurationEntry(properties);
 	}
 
-	public static ConfigurationEntry enrich(ConfigurationEntry configuration, Map<String, String> prefixedProperties) {
+	public static ConfigurationEntry enrich(
+			ConfigurationEntry configuration,
+			Map<String, String> prefixedProperties) throws SqlExecutionException {
 		final Map<String, String> enrichedProperties = new HashMap<>(configuration.asMap());
 
 		prefixedProperties.forEach((k, v) -> {
@@ -74,7 +78,11 @@ public class ConfigurationEntry extends ConfigEntry {
 		});
 
 		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putProperties(enrichedProperties);
+		try {
+			properties.putProperties(enrichedProperties);
+		} catch (ValidationException e) {
+			throw new SqlExecutionException("Failed to enrich properties", e);
+		}
 
 		return new ConfigurationEntry(properties);
 	}

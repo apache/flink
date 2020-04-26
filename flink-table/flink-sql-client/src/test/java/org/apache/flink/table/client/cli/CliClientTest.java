@@ -213,9 +213,9 @@ public class CliClientTest extends TestLogger {
 	}
 
 	@Test
-	public void testInvalidateValue() throws Exception {
+	public void testSetSessionPropertyWithException() throws Exception {
 		Executor executor = mock(Executor.class);
-		doThrow(new ValidationException("Property 'parallelism' must be a integer value but was: 10a"))
+		doThrow(new SqlExecutionException("Property 'parallelism' must be a integer value but was: 10a"))
 			.when(executor).setSessionProperty(any(), any(), any());
 		InputStream inputStream = new ByteArrayInputStream("set execution.parallelism = 10a;\n".getBytes());
 		CliClient cliClient = null;
@@ -226,6 +226,26 @@ public class CliClientTest extends TestLogger {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 			cliClient.open();
 			verify(executor).setSessionProperty(any(), any(), any());
+		} finally {
+			if (cliClient != null) {
+				cliClient.close();
+			}
+		}
+	}
+
+	@Test
+	public void testRestSessionPropertiesWithException() throws Exception {
+		Executor executor = mock(Executor.class);
+		doThrow(new SqlExecutionException("Failed to reset.")).when(executor).resetSessionProperties(any());
+		InputStream inputStream = new ByteArrayInputStream("reset;\n".getBytes());
+		CliClient cliClient = null;
+		SessionContext sessionContext = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(sessionContext);
+
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
+			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
+			cliClient.open();
+			verify(executor).resetSessionProperties(any());
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();

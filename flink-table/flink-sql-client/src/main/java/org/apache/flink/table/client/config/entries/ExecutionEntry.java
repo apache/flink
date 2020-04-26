@@ -22,8 +22,11 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import org.slf4j.Logger;
@@ -376,7 +379,9 @@ public class ExecutionEntry extends ConfigEntry {
 	 * Creates a new execution entry enriched with additional properties that are prefixed with
 	 * {@link Environment#EXECUTION_ENTRY}.
 	 */
-	public static ExecutionEntry enrich(ExecutionEntry execution, Map<String, String> prefixedProperties) {
+	public static ExecutionEntry enrich(
+			ExecutionEntry execution,
+			Map<String, String> prefixedProperties) throws SqlExecutionException {
 		final Map<String, String> enrichedProperties = new HashMap<>(execution.asMap());
 
 		prefixedProperties.forEach((k, v) -> {
@@ -387,7 +392,11 @@ public class ExecutionEntry extends ConfigEntry {
 		});
 
 		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putProperties(enrichedProperties);
+		try {
+			properties.putProperties(enrichedProperties);
+		} catch (ValidationException e) {
+			throw new SqlExecutionException("Failed to enrich properties", e);
+		}
 
 		return new ExecutionEntry(properties);
 	}
