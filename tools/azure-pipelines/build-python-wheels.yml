@@ -25,16 +25,21 @@ jobs:
       - script: STAGE=compile ${{parameters.environment}} ./tools/azure_controller.sh compile
         displayName: Build
 
-      # upload artifacts for building wheels
-      - task: PublishPipelineArtifact@1
-        inputs:
-          path: $(CACHE_FLINK_DIR)
-          artifact: FlinkCompileCacheDir-${{parameters.stage_name}}
-
       - script: |
           VERSION=$(mvn --file pom.xml org.apache.maven.plugins:maven-help-plugin:3.1.0:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "##vso[task.setvariable variable=VERSION;isOutput=true]$VERSION"
         name: set_version
+
+      - script: |
+          cd $(Pipeline.Workspace)
+          tar czf $(Pipeline.Workspace)/flink.tar.gz flink_cache/flink-dist/target/flink-$(set_version.VERSION)-bin/flink-$(set_version.VERSION)
+        displayName: Compress in tgz
+
+      # upload artifacts for building wheels
+      - task: PublishPipelineArtifact@1
+        inputs:
+          targetPath: $(Pipeline.Workspace)/flink.tar.gz
+          artifactName: FlinkCompileCacheDir-${{parameters.stage_name}}
 
   - job: build_wheels
     dependsOn: compile_${{parameters.stage_name}}
@@ -52,9 +57,10 @@ jobs:
       # download artifacts
       - task: DownloadPipelineArtifact@2
         inputs:
-          path: $(CACHE_FLINK_DIR)
+          path: $(Pipeline.Workspace)
           artifact: FlinkCompileCacheDir-${{parameters.stage_name}}
       - script: |
+          tar zxf $(Pipeline.Workspace)/flink.tar.gz -C $(Pipeline.Workspace)
           mkdir -p flink-dist/target/flink-$(VERSION)-bin
           ln -snf $(CACHE_FLINK_DIR)/flink-dist/target/flink-$(VERSION)-bin/flink-$(VERSION) `pwd`/flink-dist/target/flink-$(VERSION)-bin/flink-$(VERSION)
         displayName: Recreate 'flink-dist/target' symlink
