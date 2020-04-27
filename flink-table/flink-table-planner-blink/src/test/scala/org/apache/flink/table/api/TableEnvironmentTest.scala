@@ -160,6 +160,102 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteSqlWithDropTemporaryTableIfExists(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TEMPORARY TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array[String]("tbl1")))
+
+    val tableResult2 = tableEnv.executeSql("DROP TEMPORARY TABLE IF EXISTS tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array.empty[String]))
+
+    val tableResult3 = tableEnv.executeSql("DROP TEMPORARY TABLE IF EXISTS tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array.empty[String]))
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testExecuteSqlWithDropTemporaryTableTwice(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TEMPORARY TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array[String]("tbl1")))
+
+    val tableResult2 = tableEnv.executeSql("DROP TEMPORARY TABLE tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array.empty[String]))
+
+    // fail the case
+    tableEnv.executeSql("DROP TEMPORARY TABLE tbl1")
+  }
+
+  @Test
+  def testDropTemporaryTableWithFullPath(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TEMPORARY TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array[String]("tbl1")))
+
+    val tableResult2 = tableEnv.executeSql(
+      "DROP TEMPORARY TABLE default_catalog.default_database.tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array.empty[String]))
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testDropTemporaryTableWithInvalidPath(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TEMPORARY TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array[String]("tbl1")))
+
+    // fail the case
+    tableEnv.executeSql(
+      "DROP TEMPORARY TABLE invalid_catalog.invalid_database.tbl1")
+  }
+
+  @Test
   def testExecuteSqlWithCreateAlterDropDatabase(): Unit = {
     val tableResult1 = tableEnv.executeSql("CREATE DATABASE db1 COMMENT 'db1_comment'")
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
