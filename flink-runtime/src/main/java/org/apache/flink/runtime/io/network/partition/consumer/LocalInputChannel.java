@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
@@ -65,6 +66,12 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	private volatile ResultSubpartitionView subpartitionView;
 
 	private volatile boolean isReleased;
+
+	/** The latest already triggered checkpoint id which would be updated during {@link #spillInflightBuffers(long, ChannelStateWriter)}.*/
+	private long lastRequestedCheckpointId = -1;
+
+	/** The current received checkpoint id from the network. */
+	private long receivedCheckpointId = -1;
 
 	public LocalInputChannel(
 		SingleInputGate inputGate,
@@ -167,6 +174,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	}
 
 	@Override
+	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) {
+		this.lastRequestedCheckpointId = checkpointId;
+	}
+
+	@Override
 	Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
 		checkError();
 
@@ -198,9 +210,17 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			}
 		}
 
-		numBytesIn.inc(next.buffer().getSize());
+		Buffer buffer = next.buffer();
+		CheckpointBarrier notifyReceivedBarrier = parseCheckpointBarrierOrNull(buffer);
+		if (notifyReceivedBarrier != null) {
+			receivedCheckpointId = notifyReceivedBarrier.getId();
+		} else if (receivedCheckpointId < lastRequestedCheckpointId && buffer.isBuffer()) {
+			inputGate.getBufferReceivedListener().notifyBufferReceived(buffer.retainBuffer(), channelInfo);
+		}
+
+		numBytesIn.inc(buffer.getSize());
 		numBuffersIn.inc();
-		return Optional.of(new BufferAndAvailability(next.buffer(), next.isDataAvailable(), next.buffersInBacklog()));
+		return Optional.of(new BufferAndAvailability(buffer, next.isDataAvailable(), next.buffersInBacklog()));
 	}
 
 	@Override
