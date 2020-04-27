@@ -26,6 +26,10 @@ TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/${TEST_
 FLINK_LIB_DIR=${FLINK_DIR}/lib
 JOB_ID="00000000000000000000000000000000"
 
+#
+# NOTE: This script requires at least Bash version >= 4. Mac OS in 2020 still ships 3.x
+#
+
 function ha_cleanup() {
   stop_watchdogs
   kill_all 'StandaloneJobClusterEntryPoint'
