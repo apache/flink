@@ -597,15 +597,32 @@ abstract class TableEnvImpl(
   private def executeOperation(operation: Operation): TableResult = {
     operation match {
       case createTableOperation: CreateTableOperation =>
-        catalogManager.createTable(
-          createTableOperation.getCatalogTable,
-          createTableOperation.getTableIdentifier,
-          createTableOperation.isIgnoreIfExists)
+        if (createTableOperation.isTemporary) {
+          catalogManager.createTemporaryTable(
+            createTableOperation.getCatalogTable,
+            createTableOperation.getTableIdentifier,
+            createTableOperation.isIgnoreIfExists
+          )
+        } else {
+          catalogManager.createTable(
+            createTableOperation.getCatalogTable,
+            createTableOperation.getTableIdentifier,
+            createTableOperation.isIgnoreIfExists)
+        }
         TableResultImpl.TABLE_RESULT_OK
       case dropTableOperation: DropTableOperation =>
-        catalogManager.dropTable(
-          dropTableOperation.getTableIdentifier,
-          dropTableOperation.isIfExists)
+        if (dropTableOperation.isTemporary) {
+          val dropped = catalogManager.dropTemporaryTable(dropTableOperation.getTableIdentifier)
+          if (!dropped && !dropTableOperation.isIfExists) {
+            throw new ValidationException(String.format(
+              "Temporary table with identifier '%s' doesn't exist",
+              dropTableOperation.getTableIdentifier.asSummaryString()))
+          }
+        } else {
+          catalogManager.dropTable(
+            dropTableOperation.getTableIdentifier,
+            dropTableOperation.isIfExists)
+        }
         TableResultImpl.TABLE_RESULT_OK
       case alterTableOperation: AlterTableOperation =>
         val catalog = getCatalogOrThrowException(
