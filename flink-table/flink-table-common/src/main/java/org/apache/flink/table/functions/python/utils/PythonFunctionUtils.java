@@ -28,7 +28,7 @@ import java.lang.reflect.InvocationTargetException;
  * Utilities for creating PythonFunction.
  */
 @Internal
-public enum  PythonFunctionUtils {
+public enum PythonFunctionUtils {
 	;
 
 	public static PythonFunction getPythonFunction(String fullyQualifiedName, ReadableConfig config) {

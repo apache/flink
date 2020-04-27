@@ -153,7 +153,7 @@ public class ExecutionContext<ClusterID> {
 
 		this.flinkConfig = flinkConfig;
 
-		if (hasPythonFunction(environment)) {
+		if (containsPythonFunction(environment)) {
 			dependencies = addPythonDependency(dependencies);
 		}
 
@@ -709,7 +709,7 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	private boolean hasPythonFunction(Environment environment) {
+	private boolean containsPythonFunction(Environment environment) {
 		return environment.getFunctions().values().stream().anyMatch(f ->
 			FunctionDescriptorValidator.FROM_VALUE_PYTHON.equals(
 				f.getDescriptor().toProperties().get(FunctionDescriptorValidator.FROM)));
@@ -725,13 +725,11 @@ public class ExecutionContext<ClusterID> {
 				.getProtectionDomain().getCodeSource().getLocation();
 			if (Paths.get(location.toURI()).toFile().isFile()) {
 				newDependencies.add(location);
-			} else {
-				throw new FlinkException("flink-python module detected but is not a jar file: " + location + ".");
 			}
-		} catch (URISyntaxException | ClassNotFoundException | FlinkException e) {
-			LOG.warn("Python UDF detected but flink-python jar not found. " +
-				"If you starts SQL-Client via `sql-client.sh`, " +
-				"please add the flink-python jar via `-j` command option manually.", e);
+		} catch (URISyntaxException | ClassNotFoundException e) {
+			throw new SqlExecutionException("Python UDF detected but flink-python jar not found. " +
+				"If you starts SQL-Client via `sql-client.sh`, please add the flink-python jar " +
+				"via `-j` command option manually.", e);
 		}
 		return newDependencies;
 	}

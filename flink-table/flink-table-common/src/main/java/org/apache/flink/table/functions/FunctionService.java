@@ -122,7 +122,9 @@ public class FunctionService {
 				instance = PythonFunctionUtils.getPythonFunction(fullyQualifiedName, config);
 				break;
 			default:
-				throw new ValidationException("Unsupported function descriptor: " + properties);
+				throw new ValidationException(String.format(
+						"Unsupported function descriptor: %s",
+						properties.getString(FunctionDescriptorValidator.FROM)));
 		}
 
 		if (!UserDefinedFunction.class.isAssignableFrom(instance.getClass())) {
