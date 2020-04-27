@@ -450,6 +450,7 @@ public class ExecutionContext<ClusterID> {
 		final boolean noInheritedState = sessionState == null;
 		// Step 0.0 Initialize the table configuration.
 		final TableConfig config = new TableConfig();
+		config.addConfiguration(flinkConfig);
 		environment.getConfiguration().asMap().forEach((k, v) ->
 				config.getConfiguration().setString(k, v));
 		config.setSqlDialect(environment.getExecution().getSqlDialect());
@@ -525,7 +526,6 @@ public class ExecutionContext<ClusterID> {
 			CatalogManager catalogManager,
 			ModuleManager moduleManager,
 			FunctionCatalog functionCatalog) {
-		config.addConfiguration(flinkConfig);
 		if (environment.getExecution().isStreamingPlanner()) {
 			streamExecEnv = createStreamExecutionEnvironment();
 			execEnv = null;
