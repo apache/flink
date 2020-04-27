@@ -331,46 +331,13 @@ public class PipelinedSubpartitionWithReadViewTest {
 		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options));
 		subpartition.add(barrierBuffer, true);
 		assertEquals(2, availablityListener.getNumNotifications());
-		assertEquals(1, availablityListener.getNumPriorityEvents());
+		assertEquals(0, availablityListener.getNumPriorityEvents());
 
 		List<Buffer> inflight = subpartition.requestInflightBufferSnapshot();
 		assertEquals(Arrays.asList(1, 2, 3), inflight.stream().map(Buffer::getSize).collect(Collectors.toList()));
 		inflight.forEach(Buffer::recycleBuffer);
 
 		assertNextEvent(readView, barrierBuffer.getWrittenBytes(), CheckpointBarrier.class, true, 2, false, true);
-		assertNextBuffer(readView, 1, true, 1, false, true);
-		assertNextBuffer(readView, 2, false, 0, false, true);
-		assertNextBuffer(readView, 3, false, 0, false, true);
-		assertNoNextBuffer(readView);
-	}
-
-	@Test
-	public void testBarrierConsumedByAvailabilityListener() throws Exception {
-		availablityListener.consumePriorityEvents();
-
-		subpartition.add(createFilledFinishedBufferConsumer(1));
-		assertEquals(0, availablityListener.getNumNotifications());
-		assertEquals(0, availablityListener.getNumPriorityEvents());
-
-		subpartition.add(createFilledFinishedBufferConsumer(2));
-		assertEquals(1, availablityListener.getNumNotifications());
-		assertEquals(0, availablityListener.getNumPriorityEvents());
-
-		subpartition.add(createFilledFinishedBufferConsumer(3));
-		assertEquals(1, availablityListener.getNumNotifications());
-		assertEquals(0, availablityListener.getNumPriorityEvents());
-
-		CheckpointOptions options = new CheckpointOptions(
-			CheckpointType.CHECKPOINT,
-			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}));
-		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options));
-		subpartition.add(barrierBuffer, true);
-		assertEquals(1, availablityListener.getNumNotifications());
-		assertEquals(1, availablityListener.getNumPriorityEvents());
-
-		List<Buffer> inflight = subpartition.requestInflightBufferSnapshot();
-		assertEquals(Arrays.asList(), inflight.stream().map(Buffer::getSize).collect(Collectors.toList()));
-
 		assertNextBuffer(readView, 1, true, 1, false, true);
 		assertNextBuffer(readView, 2, false, 0, false, true);
 		assertNextBuffer(readView, 3, false, 0, false, true);
