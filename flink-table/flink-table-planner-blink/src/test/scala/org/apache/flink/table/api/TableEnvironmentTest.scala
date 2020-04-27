@@ -138,6 +138,28 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteSqlWithCreateDropTemporaryTable(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TEMPORARY TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array[String]("tbl1")))
+
+    val tableResult2 = tableEnv.executeSql("DROP TEMPORARY TABLE tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assert(tableEnv.listTables().sameElements(Array.empty[String]))
+  }
+
+  @Test
   def testExecuteSqlWithCreateAlterDropDatabase(): Unit = {
     val tableResult1 = tableEnv.executeSql("CREATE DATABASE db1 COMMENT 'db1_comment'")
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
