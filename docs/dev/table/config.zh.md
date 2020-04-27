@@ -22,20 +22,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-默认情况下，Table & SQL API 已经预先配置为在产生准确结果的同时性能也可接受。
+Table 和 SQL API 的默认配置能够确保结果准确，同时也提供可接受的性能。
 
-根据 Table 程序的要求，可能需要调整特定的参数用于优化。例如，无界流程序可能需要保证所需的状态大小是有上限的(请参阅 [流式概念](./streaming/query_configuration.html)).
+根据 Table 程序的需求，可能需要调整特定的参数用于优化。例如，无界流程序可能需要保证所需的状态是有限的(请参阅 [流式概念](./streaming/query_configuration.html)).
 
 * This will be replaced by the TOC
 {:toc}
 
 ### 概览
 
-在每个 TableEnvironment 中，`TableConfig` 提供用于配置当前会话的选项。
+在每个 TableEnvironment 中，`TableConfig` 提供用于当前会话的配置项。
 
-对于常见或者重要的配置选项，`TableConfig` 提供带有详细注释的 `getters` 和 `setters` 方法。
+对于常见或者重要的配置项，`TableConfig` 提供带有详细注释的 `getters` 和 `setters` 方法。
 
-对于更加高级的配置，用户可以直接访问底层的键值 map 对象。以下章节列举了所有可用于调整 Flink Table & SQL API 程序的选项。
+对于更加高级的配置，用户可以直接访问底层的 key-value 配置项。以下章节列举了所有可用于调整 Flink Table 和 SQL API 程序的配置项。
 
 <span class="label label-danger">注意</span> 因为配置项会在执行操作的不同时间点被读取，所以推荐在实例化 TableEnvironment 后尽早地设置配置项。
 
@@ -83,16 +83,16 @@ configuration.set_string("table.exec.mini-batch.size", "5000");
 </div>
 </div>
 
-<span class="label label-danger">注意</span> 目前，键值选项仅被 Blink planner 支持。
+<span class="label label-danger">注意</span> 目前，key-value 配置项仅被 Blink planner 支持。
 
-### 执行选项
+### 执行配置
 
 以下选项可用于优化查询执行的性能。
 
 {% include generated/execution_config_configuration.html %}
 
-### 优化器选项
+### 优化器配置
 
-以下选项可以用于调整查询优化器的行为以获得更好的执行计划。
+以下配置可以用于调整查询优化器的行为以获得更好的执行计划。
 
 {% include generated/optimizer_config_configuration.html %}
