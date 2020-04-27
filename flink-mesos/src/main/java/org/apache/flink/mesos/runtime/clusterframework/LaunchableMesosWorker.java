@@ -236,6 +236,19 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		//configure task manager hostname property if hostname override property is supplied
 		Option<String> taskManagerHostnameOption = params.getTaskManagerHostname();
 
+		//configure task manager labels
+		Option<Map<String, String>> taskManagerLabels = params.getTaskManagerLabels();
+		if (taskManagerLabels.isDefined()) {
+			Protos.Labels.Builder labelsBuilder = Protos.Labels.newBuilder();
+			for (Map.Entry<String, String> entry: taskManagerLabels.get().entrySet()) {
+				Protos.Label.Builder labelBuilder = Protos.Label.newBuilder();
+				labelBuilder.setKey(entry.getKey());
+				labelBuilder.setValue(entry.getValue());
+				labelsBuilder.addLabels(labelBuilder);
+			}
+			taskInfo.setLabels(labelsBuilder);
+		}
+
 		if (taskManagerHostnameOption.isDefined()) {
 			// replace the TASK_ID pattern by the actual task id value of the Mesos task
 			final String taskManagerHostname = MesosTaskManagerParameters.TASK_ID_PATTERN

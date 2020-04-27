@@ -35,6 +35,7 @@ import org.apache.mesos.Protos;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 import scala.Option;
@@ -131,6 +132,13 @@ public class MesosTaskManagerParameters {
 				"Example: az:eu-west-1a,series:t2")
 			.build());
 
+	public static final ConfigOption<Map<String, String>> MESOS_RM_TASKS_LABELS =
+		key("mesos.resourcemanager.tasks.labels")
+			.mapType()
+			.noDefaultValue()
+			.withDescription("The labels to be set for TaskManager. Specified as key:value pairs separated by commas. " +
+				"For example, key1:value1,key2:value2.");
+
 	/**
 	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Mesos containerizer.
 	 */
@@ -166,6 +174,8 @@ public class MesosTaskManagerParameters {
 
 	private final List<String> uris;
 
+	private final Option<Map<String, String>> taskManagerLabels;
+
 	public MesosTaskManagerParameters(
 			int gpus,
 			int disk,
@@ -179,6 +189,7 @@ public class MesosTaskManagerParameters {
 			String command,
 			Option<String> bootstrapCommand,
 			Option<String> taskManagerHostname,
+			Option<Map<String, String>> taskManagerLabels,
 			List<String> uris) {
 
 		this.gpus = gpus;
@@ -193,6 +204,7 @@ public class MesosTaskManagerParameters {
 		this.command = Preconditions.checkNotNull(command);
 		this.bootstrapCommand = Preconditions.checkNotNull(bootstrapCommand);
 		this.taskManagerHostname = Preconditions.checkNotNull(taskManagerHostname);
+		this.taskManagerLabels = Preconditions.checkNotNull(taskManagerLabels);
 		this.uris = Preconditions.checkNotNull(uris);
 	}
 
@@ -290,6 +302,13 @@ public class MesosTaskManagerParameters {
 	}
 
 	/**
+	 * Get the taskManager labels.
+	 */
+	public Option<Map<String, String>> getTaskManagerLabels() {
+		return taskManagerLabels;
+	}
+
+	/**
 	 * Get custom artifact URIs.
 	 */
 	public List<String> uris() {
@@ -373,6 +392,9 @@ public class MesosTaskManagerParameters {
 		//obtain Task Manager Host Name from the configuration
 		Option<String> taskManagerHostname = Option.apply(flinkConfig.getString(MESOS_TM_HOSTNAME));
 
+		//obtain Task Manager labels from the configuration
+		Option<Map<String, String>> taskManagerLabels = Option.apply(flinkConfig.getOptional(MESOS_RM_TASKS_LABELS).orElse(Collections.emptyMap()));
+
 		//obtain command-line from the configuration
 		String tmCommand = flinkConfig.getString(MESOS_TM_CMD);
 		Option<String> tmBootstrapCommand = Option.apply(flinkConfig.getString(MESOS_TM_BOOTSTRAP_CMD));
@@ -390,6 +412,7 @@ public class MesosTaskManagerParameters {
 			tmCommand,
 			tmBootstrapCommand,
 			taskManagerHostname,
+			taskManagerLabels,
 			uris);
 	}
 
