@@ -19,11 +19,13 @@
 
 package org.apache.flink.table.client.gateway.local;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
@@ -84,6 +86,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.CATALOGS_ENVIRONMENT_FILE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -102,6 +105,7 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+	private static final String DEFAULTS_SIMPLE_ENVIRONMENT_FILE = "test-sql-client-simple.yaml";
 
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
@@ -484,6 +488,56 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test(timeout = 90_000L)
+	public void testStreamQueryCancel() throws Exception {
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "changelog");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		final LocalExecutor executor = createModifiedExecutor(
+				DEFAULTS_SIMPLE_ENVIRONMENT_FILE, clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		try {
+			// create an unbounded source
+			String ddl = "CREATE TABLE MyRandomSource (\n" +
+					"  a INT,\n" +
+					"  b BIGINT\n" +
+					") WITH (\n" +
+					"  'connector.type' = 'random'\n" +
+					")";
+			executor.executeUpdate("test-session", ddl);
+
+			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT * FROM MyRandomSource");
+			final JobID jobId = JobID.fromHexString(desc.getResultId());
+
+			assertFalse(desc.isMaterialized());
+
+			JobStatus jobStatus1 = getJobStatus(executor, sessionId, jobId);
+
+			assertNotEquals(JobStatus.CANCELED, jobStatus1);
+
+			executor.cancelQuery(sessionId, desc.getResultId());
+
+			JobStatus jobStatus2 = null;
+			// wait up to 30 seconds
+			for (int i = 0; i < 300; ++i) {
+				jobStatus2 = getJobStatus(executor, sessionId, jobId);
+				if (jobStatus2 != JobStatus.CANCELED) {
+					Thread.sleep(100);
+				} else {
+					break;
+				}
+			}
+			assertEquals(JobStatus.CANCELED, jobStatus2);
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test(timeout = 90_000L)
 	public void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
@@ -644,6 +698,57 @@ public class LocalExecutorITCase extends TestLogger {
 			expectedResults.add("57,ABC");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test(timeout = 90_000L)
+	public void testBatchQueryCancel() throws Exception {
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		final LocalExecutor executor = createModifiedExecutor(
+				DEFAULTS_SIMPLE_ENVIRONMENT_FILE, clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		try {
+			// create a bounded source, which will send a record per second until 100000000 records.
+			String ddl = "CREATE TABLE MyRandomSource (\n" +
+					"  a INT,\n" +
+					"  b BIGINT\n" +
+					") WITH (\n" +
+					"  'connector.type' = 'random',\n" +
+					"  'random.limit' = '100000000',\n" +
+					"  'random.interval' = '1000'\n" +
+					")";
+			executor.executeUpdate("test-session", ddl);
+
+			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT * FROM MyRandomSource");
+			final JobID jobId = JobID.fromHexString(desc.getResultId());
+			assertTrue(desc.isMaterialized());
+
+			JobStatus jobStatus1 = getJobStatus(executor, sessionId, jobId);
+
+			assertNotEquals(JobStatus.CANCELED, jobStatus1);
+
+			executor.cancelQuery(sessionId, desc.getResultId());
+
+			JobStatus jobStatus2 = null;
+			// wait up to 30 seconds
+			for (int i = 0; i < 300; ++i) {
+				jobStatus2 = getJobStatus(executor, sessionId, jobId);
+				if (jobStatus2 != JobStatus.CANCELED) {
+					Thread.sleep(100);
+				} else {
+					break;
+				}
+			}
+			assertEquals(JobStatus.CANCELED, jobStatus2);
 		} finally {
 			executor.closeSession(sessionId);
 		}
@@ -1303,5 +1408,22 @@ public class LocalExecutorITCase extends TestLogger {
 			}
 		}
 		return actualResults;
+	}
+
+	private JobStatus getJobStatus(LocalExecutor executor, String sessionId, JobID jobId) {
+		final ExecutionContext<?> context = executor.getExecutionContext(sessionId);
+		return getJobStatusInternal(context, jobId);
+	}
+
+	private <T> JobStatus getJobStatusInternal(ExecutionContext<T> context, JobID jobId) {
+		try (final ClusterDescriptor<T> clusterDescriptor = context.createClusterDescriptor()) {
+			// retrieve existing cluster
+			ClusterClient<T> clusterClient = clusterDescriptor.retrieve(context.getClusterId()).getClusterClient();
+			return clusterClient.getJobStatus(jobId).get();
+		} catch (SqlExecutionException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not locate a cluster.", e);
+		}
 	}
 }

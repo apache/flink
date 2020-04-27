@@ -20,3 +20,4 @@ org.apache.flink.table.client.gateway.local.DependencyTest$TestCatalogFactory
 org.apache.flink.table.client.gateway.local.DependencyTest$TestHiveCatalogFactory
 org.apache.flink.table.client.gateway.local.DependencyTest$TestModuleFactory
 org.apache.flink.table.client.gateway.local.ExecutionContextTest$TestClassLoaderCatalogFactory
+org.apache.flink.table.client.gateway.utils.source.random.RandomSourceFactory
