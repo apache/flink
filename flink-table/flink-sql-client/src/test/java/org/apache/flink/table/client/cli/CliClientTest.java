@@ -23,7 +23,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.cli.utils.TerminalUtils.MockOutputStream;
 import org.apache.flink.table.client.config.Environment;
@@ -66,10 +65,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the {@link CliClient}.
@@ -214,43 +209,26 @@ public class CliClientTest extends TestLogger {
 
 	@Test
 	public void testSetSessionPropertyWithException() throws Exception {
-		Executor executor = mock(Executor.class);
-		doThrow(new SqlExecutionException("Property 'parallelism' must be a integer value but was: 10a"))
-			.when(executor).setSessionProperty(any(), any(), any());
-		InputStream inputStream = new ByteArrayInputStream("set execution.parallelism = 10a;\n".getBytes());
-		CliClient cliClient = null;
-		SessionContext sessionContext = new SessionContext("test-session", new Environment());
-		String sessionId = executor.openSession(sessionContext);
-
-		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
-			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
-			cliClient.open();
-			verify(executor).setSessionProperty(any(), any(), any());
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
-		}
+		TestingExecutor executor = new TestingExecutorBuilder()
+				.setSessionPropertiesFunction((ignored1, ignored2, ignored3) -> {
+					throw new SqlExecutionException("Property 'parallelism' must be a integer value but was: 10a");
+				})
+				.build();
+		String output = testExecuteSql(executor, "set execution.parallelism = 10a;");
+		assertThat(executor.getNumSetSessionPropertyCalls(), is(1));
+		assertTrue(output.contains("Property 'parallelism' must be a integer value but was: 10a"));
 	}
 
 	@Test
-	public void testRestSessionPropertiesWithException() throws Exception {
-		Executor executor = mock(Executor.class);
-		doThrow(new SqlExecutionException("Failed to reset.")).when(executor).resetSessionProperties(any());
-		InputStream inputStream = new ByteArrayInputStream("reset;\n".getBytes());
-		CliClient cliClient = null;
-		SessionContext sessionContext = new SessionContext("test-session", new Environment());
-		String sessionId = executor.openSession(sessionContext);
-
-		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
-			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
-			cliClient.open();
-			verify(executor).resetSessionProperties(any());
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
-		}
+	public void testResetSessionPropertiesWithException() throws Exception {
+		TestingExecutor executor = new TestingExecutorBuilder()
+				.resetSessionPropertiesFunction((ignored1) -> {
+					throw new SqlExecutionException("Failed to reset.");
+				})
+				.build();
+		String output = testExecuteSql(executor, "reset;");
+		assertThat(executor.getNumResetSessionPropertiesCalls(), is(1));
+		assertTrue(output.contains("Failed to reset."));
 	}
 
 	@Test
