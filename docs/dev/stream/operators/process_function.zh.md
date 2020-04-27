@@ -31,11 +31,11 @@ under the License.
 `ProcessFunction` 是一种低级别的流处理操作，基于它用户可以访问所有（非循环）流应用程序的基本构建块：
 
    -事件（流元素）
-   -状态（容错，一致行，仅在 keyed stream 上）
+   -状态（容错，一致性，仅在 keyed stream 上）
    -计时器（事件时间和处理时间，仅在 keyed stream 上）
 
 可以将 `ProcessFunction` 视为一种可以访问 keyed state 和计时器的 `FlatMapFunction`。
-Flink 对每一个收到的元素调用调用这一函数。
+Flink 为收到的输入流中的每个事件都调用该函数来进行处理。
 
 对于容错，与其它有状态的函数类似，`ProcessFunction` 可以通过 `RuntimeContext` 
 访问 Flink 的 [keyed state]({{ site.baseurl }}/zh/dev/stream/state/state.html)，
@@ -77,7 +77,7 @@ stream.keyBy(...).process(new MyProcessFunction())
 在下面的例子中，`KeyedProcessFunction` 维护每个键的计数，并且每次超过一分钟（事件时间）
 没有更新时输出一次（键，计数）对。
 
-  - 计数，键和最后修改时间存储在 ValueState 中，它由键隐式限定范围。
+  - 计数，键和最后修改时间存储在 `ValueState` 中，它由键隐式限定范围。
   - 对于每条记录，`KeyedProcessFunction` 递增计数器并设置最后修改时间。
   - 对于每条记录，该函数还会注册了一个一分钟后（事件时间）的回调函数。
   - 在每次回调时，它会根据注册的时间和最后修改时间进行比较，如果正好差一分钟则
