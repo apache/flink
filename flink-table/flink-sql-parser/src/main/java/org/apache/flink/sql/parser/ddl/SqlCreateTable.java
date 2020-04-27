@@ -75,6 +75,8 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	private final SqlTableLike tableLike;
 
+	private final boolean isTemporary;
+
 	public SqlCreateTable(
 			SqlParserPos pos,
 			SqlIdentifier tableName,
@@ -85,7 +87,8 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			SqlNodeList partitionKeyList,
 			@Nullable SqlWatermark watermark,
 			@Nullable SqlCharStringLiteral comment,
-			@Nullable SqlTableLike tableLike) {
+			@Nullable SqlTableLike tableLike,
+			boolean isTemporary) {
 		super(OPERATOR, pos, false, false);
 		this.tableName = requireNonNull(tableName, "tableName should not be null");
 		this.columnList = requireNonNull(columnList, "columnList should not be null");
@@ -96,6 +99,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		this.watermark = watermark;
 		this.comment = comment;
 		this.tableLike = tableLike;
+		this.isTemporary = isTemporary;
 	}
 
 	@Override
@@ -147,6 +151,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	public boolean isIfNotExists() {
 		return ifNotExists;
+	}
+
+	public boolean isTemporary() {
+		return isTemporary;
 	}
 
 	@Override
@@ -255,7 +263,11 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			SqlWriter writer,
 			int leftPrec,
 			int rightPrec) {
-		writer.keyword("CREATE TABLE");
+		writer.keyword("CREATE");
+		if (isTemporary()) {
+			writer.keyword("TEMPORARY");
+		}
+		writer.keyword("TABLE");
 		tableName.unparse(writer, leftPrec, rightPrec);
 		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
 		for (SqlNode column : columnList) {

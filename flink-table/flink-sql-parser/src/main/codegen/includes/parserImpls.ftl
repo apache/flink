@@ -578,7 +578,7 @@ SqlNodeList TableProperties():
     {  return new SqlNodeList(proList, span.end(this)); }
 }
 
-SqlCreate SqlCreateTable(Span s, boolean replace) :
+SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 {
     final SqlParserPos startPos = s.pos();
     SqlIdentifier tableName;
@@ -638,7 +638,8 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
                 partitionColumns,
                 watermark,
                 comment,
-                tableLike);
+                tableLike,
+                isTemporary);
     }
 }
 
@@ -699,7 +700,7 @@ SqlTableLikeOption SqlTableLikeOption():
     }
 }
 
-SqlDrop SqlDropTable(Span s, boolean replace) :
+SqlDrop SqlDropTable(Span s, boolean replace, boolean isTemporary) :
 {
     SqlIdentifier tableName = null;
     boolean ifExists = false;
@@ -716,7 +717,7 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
     tableName = CompoundIdentifier()
 
     {
-         return new SqlDropTable(s.pos(), tableName, ifExists);
+         return new SqlDropTable(s.pos(), tableName, ifExists, isTemporary);
     }
 }
 
@@ -1194,7 +1195,7 @@ SqlCreate SqlCreateExtended(Span s, boolean replace) :
     (
         create = SqlCreateCatalog(s, replace)
         |
-        create = SqlCreateTable(s, replace)
+        create = SqlCreateTable(s, replace, isTemporary)
         |
         create = SqlCreateView(s, replace, isTemporary)
         |
@@ -1217,7 +1218,7 @@ SqlDrop SqlDropExtended(Span s, boolean replace) :
         <TEMPORARY> { isTemporary = true; }
     ]
     (
-        drop = SqlDropTable(s, replace)
+        drop = SqlDropTable(s, replace, isTemporary)
         |
         drop = SqlDropView(s, replace, isTemporary)
         |

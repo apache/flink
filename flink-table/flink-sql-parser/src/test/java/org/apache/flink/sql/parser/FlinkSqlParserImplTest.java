@@ -606,6 +606,27 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateTemporaryTable() {
+		final String sql = "create temporary table source_table(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c string\n" +
+			") with (\n" +
+			"  'x' = 'y',\n" +
+			"  'abc' = 'def'\n" +
+			")";
+		final String expected = "CREATE TEMPORARY TABLE `SOURCE_TABLE` (\n" +
+			"  `A`  INTEGER,\n" +
+			"  `B`  BIGINT,\n" +
+			"  `C`  STRING\n" +
+			") WITH (\n" +
+			"  'x' = 'y',\n" +
+			"  'abc' = 'def'\n" +
+			")";
+		sql(sql).ok(expected);
+	}
+
+	@Test
 	public void testDropTable() {
 		final String sql = "DROP table catalog1.db1.tbl1";
 		final String expected = "DROP TABLE `CATALOG1`.`DB1`.`TBL1`";
@@ -616,6 +637,20 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	public void testDropIfExists() {
 		final String sql = "DROP table IF EXISTS catalog1.db1.tbl1";
 		final String expected = "DROP TABLE IF EXISTS `CATALOG1`.`DB1`.`TBL1`";
+		sql(sql).ok(expected);
+	}
+
+	@Test
+	public void testTemporaryDropTable() {
+		final String sql = "DROP temporary table catalog1.db1.tbl1";
+		final String expected = "DROP TEMPORARY TABLE `CATALOG1`.`DB1`.`TBL1`";
+		sql(sql).ok(expected);
+	}
+
+	@Test
+	public void testDropTemporaryIfExists() {
+		final String sql = "DROP temporary table IF EXISTS catalog1.db1.tbl1";
+		final String expected = "DROP TEMPORARY TABLE IF EXISTS `CATALOG1`.`DB1`.`TBL1`";
 		sql(sql).ok(expected);
 	}
 
