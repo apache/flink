@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -71,21 +70,18 @@ public class WorkerSpecContainerResourceAdapter {
 		containerMemoryToContainerResource = new HashMap<>();
 	}
 
-	@VisibleForTesting
 	Optional<Resource> tryComputeContainerResource(final WorkerResourceSpec workerResourceSpec) {
 		return Optional.ofNullable(workerSpecToContainerResource.computeIfAbsent(
 			Preconditions.checkNotNull(workerResourceSpec),
 			this::createAndMapContainerResource));
 	}
 
-	@VisibleForTesting
 	Set<WorkerResourceSpec> getWorkerSpecs(final Resource containerResource, final MatchingStrategy matchingStrategy) {
 		return getEquivalentContainerResource(containerResource, matchingStrategy).stream()
 			.flatMap(resource -> containerResourceToWorkerSpecs.getOrDefault(resource, Collections.emptySet()).stream())
 			.collect(Collectors.toSet());
 	}
 
-	@VisibleForTesting
 	Set<Resource> getEquivalentContainerResource(final Resource containerResource, final MatchingStrategy matchingStrategy) {
 		// Yarn might ignore the requested vcores, depending on its configurations.
 		// In such cases, we should also not matching vcores.
