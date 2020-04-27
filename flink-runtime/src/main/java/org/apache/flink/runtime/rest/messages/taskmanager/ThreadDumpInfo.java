@@ -30,7 +30,7 @@ import java.util.Objects;
 /**
  * Class containing thread dump information.
  */
-public class ThreadDumpInfo implements ResponseBody, Serializable {
+public final class ThreadDumpInfo implements ResponseBody, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	public static final String FIELD_NAME_THREAD_INFOS = "threadInfos";
