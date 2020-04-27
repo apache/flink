@@ -18,15 +18,20 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
@@ -53,6 +58,7 @@ import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -68,6 +74,7 @@ import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtil
 import static org.apache.flink.runtime.io.network.partition.InputGateFairnessTest.setupInputGate;
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -447,6 +454,42 @@ public class LocalInputChannelTest {
 
 		localChannel.releaseAllResources();
 		localChannel.resumeConsumption();
+	}
+
+	@Test
+	public void testCheckpointingInflightData() throws Exception {
+		SingleInputGate inputGate = new SingleInputGateBuilder().build();
+		List<Buffer> receivedBuffers = new ArrayList<>();
+		inputGate.registerBufferReceivedListener(new BufferReceivedListener() {
+			@Override
+			public void notifyBufferReceived(Buffer buffer, InputChannelInfo channelInfo) {
+				receivedBuffers.add(buffer);
+			}
+
+			@Override
+			public void notifyBarrierReceived(CheckpointBarrier barrier, InputChannelInfo channelInfo) {}
+		});
+
+		ResultPartition parent = PartitionTestUtils.createPartition(
+			ResultPartitionType.PIPELINED,
+			NoOpFileChannelManager.INSTANCE);
+		ResultSubpartition subpartition = parent.getAllPartitions()[0];
+		ResultSubpartitionView subpartitionView = subpartition.createReadView(() -> {});
+
+		TestingResultPartitionManager partitionManager = new TestingResultPartitionManager(subpartitionView);
+		LocalInputChannel channel = createLocalInputChannel(inputGate, partitionManager);
+		channel.requestSubpartition(0);
+
+		channel.spillInflightBuffers(0L, ChannelStateWriter.NO_OP);
+		assertEquals(receivedBuffers, Collections.emptyList());
+
+		// add 1 buffer + 1 event and check that this buffer has also been propagated to ChannelStateWriter
+		subpartition.add(BufferBuilderTestUtils.createFilledFinishedBufferConsumer(1));
+		Optional<InputChannel.BufferAndAvailability> bufferAndAvailability = channel.getNextBuffer();
+		assertTrue(bufferAndAvailability.isPresent());
+		subpartition.add(BufferBuilderTestUtils.createEventBufferConsumer(33, Buffer.DataType.EVENT_BUFFER));
+		assertTrue(channel.getNextBuffer().isPresent());
+		assertEquals(receivedBuffers, Collections.singletonList(bufferAndAvailability.get().buffer()));
 	}
 
 	// ---------------------------------------------------------------------------------------------
