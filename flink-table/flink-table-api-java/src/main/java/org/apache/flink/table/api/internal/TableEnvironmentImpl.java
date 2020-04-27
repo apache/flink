@@ -124,6 +124,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
@@ -972,7 +974,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			Optional<CatalogManager.TableLookupResult> result =
 					catalogManager.getTable(describeTableOperation.getSqlIdentifier());
 			if (result.isPresent()) {
-				return buildShowResult(new String[]{ result.get().getTable().getSchema().toString() });
+				TableSchema schema = result.get().getTable().getSchema();
+				String[][] rows = Stream.concat(
+					schema.getTableColumns()
+						.stream()
+							.map((c) -> new String[]{
+								c.getName(),
+								c.isGenerated() ? "NULL" : c.getType().getLogicalType().toString(),
+								c.getExpr().orElse("NULL")}),
+					schema.getWatermarkSpecs()
+						.stream()
+							.map((w) -> new String[]{
+								"WATERMARK",
+								"NULL",
+								w.getWatermarkExpr()
+							})
+				).toArray(String[][]::new);
+
+				return buildShowResult(new String[]{"name", "type", "expr"}, rows);
 			} else {
 				throw new ValidationException(String.format(
 						"Tables or views with the identifier '%s' doesn't exist",
@@ -986,10 +1005,22 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	private TableResult buildShowResult(String[] objects) {
+		return buildShowResult(
+				new String[]{"result"},
+				Arrays.stream(objects).map((c) -> new String[]{c}).toArray(String[][]::new));
+	}
+
+	private TableResult buildShowResult(String[] headers, String[][] rows) {
 		return TableResultImpl.builder()
 				.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-				.tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
-				.data(Arrays.stream(objects).map(Row::of).collect(Collectors.toList()))
+				.tableSchema(
+					TableSchema.builder().fields(
+						headers,
+						IntStream
+							.range(0, headers.length)
+							.mapToObj(i -> DataTypes.STRING())
+							.toArray(DataType[]::new)).build())
+				.data(Arrays.stream(rows).map(Row::of).collect(Collectors.toList()))
 				.build();
 	}
 
