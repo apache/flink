@@ -22,29 +22,22 @@ import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 
-import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.validate.SqlConformance;
 
-import java.io.Reader;
-
 /**
- * A SqlParserImplFactory that creates the parser according to SqlConformance.
+ * A util method to create SqlParserImplFactory according to SqlConformance.
  */
-public class FlinkSqlParserImplFactory implements SqlParserImplFactory {
+public class FlinkSqlParserFactories {
 
-	private final SqlConformance conformance;
-
-	public FlinkSqlParserImplFactory(SqlConformance conformance) {
-		this.conformance = conformance;
+	private FlinkSqlParserFactories() {
 	}
 
-	@Override
-	public SqlAbstractParserImpl getParser(Reader stream) {
+	public static SqlParserImplFactory create(SqlConformance conformance) {
 		if (conformance == FlinkSqlConformance.HIVE) {
-			return FlinkHiveSqlParserImpl.FACTORY.getParser(stream);
+			return FlinkHiveSqlParserImpl.FACTORY;
 		} else {
-			return FlinkSqlParserImpl.FACTORY.getParser(stream);
+			return FlinkSqlParserImpl.FACTORY;
 		}
 	}
 }

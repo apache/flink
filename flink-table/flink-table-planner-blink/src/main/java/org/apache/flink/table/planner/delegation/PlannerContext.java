@@ -243,7 +243,7 @@ public class PlannerContext {
 					SqlConformance conformance = getSqlConformance();
 					return SqlParser
 							.configBuilder()
-							.setParserFactory(new FlinkSqlParserImplFactory(conformance))
+							.setParserFactory(FlinkSqlParserFactories.create(conformance))
 							.setConformance(conformance)
 							.setLex(Lex.JAVA)
 							.setIdentifierMaxLength(256)
