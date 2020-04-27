@@ -178,7 +178,7 @@ public class NettyShuffleEnvironmentOptions {
 	 */
 	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
 	public static final ConfigOption<Integer> NETWORK_MAX_BUFFERS_PER_CHANNEL =
-			key("taskmanager.network.max-buffers-per-channel")
+			key("taskmanager.network.memory.max-buffers-per-channel")
 					.defaultValue(Integer.MAX_VALUE)
 					.withDescription("Number of max buffers that can be used for each channel. If a channel exceeds the number of max" +
 							" buffers, it will make the task become unavailable, cause the back pressure and block the data processing. This" +
