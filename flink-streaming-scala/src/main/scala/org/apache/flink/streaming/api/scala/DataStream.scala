@@ -436,6 +436,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * Note: This method works only on single field keys.
    */
+  @deprecated("Use [[DataStream.partitionCustom(Partitioner, Function1)]] instead")
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataStream[T] =
     asScalaStream(stream.partitionCustom(partitioner, field))
 
@@ -446,6 +447,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * Note: This method works only on single field keys.
    */
+  @deprecated("Use [[DataStream.partitionCustom(Partitioner, Function1)]] instead")
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: String)
         : DataStream[T] =
     asScalaStream(stream.partitionCustom(partitioner, field))
