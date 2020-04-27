@@ -714,6 +714,91 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   }
 
   @Test
+  def testTemporaryTableMaskPermanentTableWithSameName(): Unit = {
+    val sourceData = List(
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3))
+
+    val permanentTable =
+      """
+        |CREATE TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  d int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val temporaryTable =
+      """
+        |CREATE TEMPORARY TABLE T1(
+        |  a int,
+        |  b varchar,
+        |  c int,
+        |  d as c+1
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val sinkTable =
+      """
+        |CREATE TABLE T2(
+        |  a int,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+
+    val permanentData = List(
+      toRow(1, "1000", 2),
+      toRow(2, "1", 3),
+      toRow(3, "2000", 4),
+      toRow(1, "2", 2),
+      toRow(2, "3000", 3))
+
+    val temporaryData = List(
+      toRow(1, "1000", 3),
+      toRow(2, "1", 4),
+      toRow(3, "2000", 5),
+      toRow(1, "2", 3),
+      toRow(2, "3000", 4))
+
+    tableEnv.executeSql(permanentTable)
+    tableEnv.executeSql(temporaryTable)
+    tableEnv.executeSql(sinkTable)
+
+    TestCollectionTableFactory.initData(sourceData)
+
+    val query = "SELECT a, b, d FROM T1"
+
+    tableEnv.sqlQuery(query).insertInto("T2")
+    execJob("testJob")
+    // temporary table T1 masks permanent table T1
+    assertEquals(temporaryData.sorted, TestCollectionTableFactory.RESULT.sorted)
+
+    TestCollectionTableFactory.reset()
+    TestCollectionTableFactory.initData(sourceData)
+
+    val dropTemporaryTable =
+      """
+        |DROP TEMPORARY TABLE IF EXISTS T1
+      """.stripMargin
+    tableEnv.executeSql(dropTemporaryTable)
+    tableEnv.sqlQuery(query).insertInto("T2")
+    execJob("testJob")
+    // now we only have permanent view T1
+    assertEquals(permanentData.sorted, TestCollectionTableFactory.RESULT.sorted)
+  }
+
+  @Test
   def testDropTableWithFullPath(): Unit = {
     val ddl1 =
       """

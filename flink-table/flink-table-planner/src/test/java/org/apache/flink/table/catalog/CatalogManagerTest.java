@@ -35,7 +35,6 @@ import static org.apache.flink.table.catalog.CatalogStructureBuilder.database;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.root;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.table;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -153,16 +152,14 @@ public class CatalogManagerTest extends TestLogger {
 
 	}
 
-	@Test
+	@Test(expected = ValidationException.class)
 	public void testDropTemporaryNonExistingTable() throws Exception {
 		CatalogManager manager = root()
 			.builtin(
 				database(BUILTIN_DEFAULT_DATABASE_NAME, table("test")))
 			.build();
 
-		boolean dropped = manager.dropTemporaryTable(manager.qualifyIdentifier(UnresolvedIdentifier.of("test")));
-
-		assertThat(dropped, is(false));
+		manager.dropTemporaryTable(manager.qualifyIdentifier(UnresolvedIdentifier.of("test")), false);
 	}
 
 	@Test
@@ -174,9 +171,7 @@ public class CatalogManagerTest extends TestLogger {
 			.temporaryTable(identifier)
 			.build();
 
-		boolean dropped = manager.dropTemporaryTable(manager.qualifyIdentifier(UnresolvedIdentifier.of("test")));
-
-		assertThat(dropped, is(true));
+		manager.dropTemporaryTable(manager.qualifyIdentifier(UnresolvedIdentifier.of("test")), false);
 	}
 
 	@Test

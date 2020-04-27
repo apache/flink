@@ -75,7 +75,6 @@ class BatchTableEnvironmentTest extends TableTestBase {
     util.verifyTable(sqlTable2, expected2)
   }
 
-
   @Test
   def testExecuteSqlWithCreateDropTable(): Unit = {
     val util = batchTestUtil()
@@ -107,6 +106,30 @@ class BatchTableEnvironmentTest extends TableTestBase {
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertFalse(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
       .tableExists(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")))
+  }
+
+  @Test
+  def testExecuteSqlWithCreateDropTemporaryTable(): Unit = {
+    val util = batchTestUtil()
+
+    val createTableStmt =
+      """
+        |CREATE TEMPORARY TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'true'
+        |)
+      """.stripMargin
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    assert(util.tableEnv.listTables().sameElements(Array[String]("tbl1")))
+
+    val tableResult2 = util.tableEnv.executeSql("DROP TEMPORARY TABLE tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assert(util.tableEnv.listTables().sameElements(Array.empty[String]))
   }
 
   @Test
