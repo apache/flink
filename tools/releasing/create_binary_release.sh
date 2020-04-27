@@ -94,9 +94,7 @@ make_python_release() {
   cd flink-python/
   # use lint-python.sh script to create a python environment.
   dev/lint-python.sh -s basic
-  set +eu
   source dev/.conda/bin/activate
-  set -eu
   pip install -r dev/dev-requirements.txt
   python setup.py sdist
   conda deactivate
@@ -112,6 +110,9 @@ make_python_release() {
 
   cp ${pyflink_actual_name} "${RELEASE_DIR}/${pyflink_release_name}"
 
+  wheel_packages_num=0
+  # py35,py36,py37 for mac and linux (6 wheel packages)
+  NEEDED_WHEEL_PACKAGES_NUM=6
   # RM need to move the downloaded wheel packages from Azure CI to the directory of flink-python/dist manually.
   for wheel_file in *.whl; do
     if [[ ! ${wheel_file} =~ ^apache_flink-$PYFLINK_VERSION- ]]; then
@@ -119,7 +120,12 @@ make_python_release() {
         exit 1
     fi
     cp ${wheel_file} "${RELEASE_DIR}/${wheel_file}"
+    wheel_packages_num=$((wheel_packages_num+1))
   done
+  if [[ ${wheel_packages_num} != ${NEEDED_WHEEL_PACKAGES_NUM} ]]; then
+    echo -e "\033[31;1mThe wheel packages num ${wheel_packages_num} is not consistent with needed num ${NEEDED_WHEEL_PACKAGES_NUM}!\033[0m"
+    exit 1
+  fi
 
   cd ${RELEASE_DIR}
 
