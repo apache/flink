@@ -53,7 +53,7 @@ public class HiveSimpleUDFTest {
 	@Test
 	public void testBooleanUDF() {
 		HiveSimpleUDF udf = init(BooleanUDF.class, new DataType[]{ DataTypes.INT()});
-		assertTrue((boolean)udf.eval(1));
+		assertTrue((boolean) udf.eval(1));
 	}
 
 	@Test
@@ -65,7 +65,7 @@ public class HiveSimpleUDFTest {
 	@Test
 	public void testIntUDF() {
 		HiveSimpleUDF udf = init(IntUDF.class, new DataType[]{ DataTypes.INT()});
-		assertEquals((int)udf.eval(3), 3);
+		assertEquals((int) udf.eval(3), 3);
 	}
 
 	@Test
@@ -256,7 +256,15 @@ public class HiveSimpleUDFTest {
 		return udf;
 	}
 
-	public final static class BooleanUDF extends UDF {
+	/**
+	 * Boolean Test UDF.
+	 */
+	public static class BooleanUDF extends UDF {
+		/**
+		 *
+		 * @param content input
+		 * @return
+		 */
 		public boolean evaluate(int content) {
 			if (content == 1) {
 				return true;
@@ -266,19 +274,43 @@ public class HiveSimpleUDFTest {
 		}
 	}
 
-	public final static class FloatUDF extends UDF {
+	/**
+	 * Float Test UDF.
+	 */
+	public static class FloatUDF extends UDF {
+		/**
+		 *
+		 * @param content input
+		 * @return
+		 */
 		public float evaluate(float content) {
 			return content;
 		}
 	}
 
-	public final static class IntUDF extends UDF {
+	/**
+	 * Int Test UDF.
+	 */
+	public static class IntUDF extends UDF {
+		/**
+		 *
+		 * @param content input
+		 * @return
+		 */
 		public int evaluate(int content) {
 			return content;
 		}
 	}
 
-	public final static class StringUDF extends UDF {
+	/**
+	 * String Test UDF.
+	 */
+	public static class StringUDF extends UDF {
+		/**
+		 *
+		 * @param content input
+		 * @return
+		 */
 		public String evaluate(String content) {
 			return content;
 		}
