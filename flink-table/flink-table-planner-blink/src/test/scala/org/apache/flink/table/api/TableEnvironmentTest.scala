@@ -728,11 +728,11 @@ class TableEnvironmentTest {
     val sourceDDL =
       """
         |CREATE TABLE T1(
-        |  a int,
+        |  a int not null,
         |  b varchar,
         |  c int,
         |  ts AS to_timestamp(b),
-        |  WATERMARK FOR ts AS ts
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -1001,20 +1001,20 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
     checkData(
       util.Arrays.asList(
-        Row.of("a", "INT", "NULL"),
-        Row.of("b", "STRING", "NULL"),
-        Row.of("c", "INT", "NULL"),
-        Row.of("ts", "NULL", "TO_TIMESTAMP(`b`)"),
-        Row.of("WATERMARK", "NULL", "`ts`")).iterator(),
+        Row.of("a", "INT NOT NULL", "(NULL)"),
+        Row.of("b", "STRING", "(NULL)"),
+        Row.of("c", "INT", "(NULL)"),
+        Row.of("ts", "TIMESTAMP(3)", "TO_TIMESTAMP(`b`)"),
+        Row.of("WATERMARK", "(NULL)", "`ts` - INTERVAL '1' SECOND")).iterator(),
       tableResult1.collect())
 
     val tableResult2 = tableEnv.executeSql("describe T2")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     checkData(
       util.Arrays.asList(
-        Row.of("d", "INT", "NULL"),
-        Row.of("e", "STRING", "NULL"),
-        Row.of("f", "INT", "NULL")).iterator(),
+        Row.of("d", "INT NOT NULL", "(NULL)"),
+        Row.of("e", "STRING", "(NULL)"),
+        Row.of("f", "INT", "(NULL)")).iterator(),
       tableResult2.collect())
 
     // temporary view T2(x, y) masks permanent view T2(d, e, f)
@@ -1028,8 +1028,8 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
     checkData(
       util.Arrays.asList(
-        Row.of("x", "INT", "NULL"),
-        Row.of("y", "STRING", "NULL")).iterator(),
+        Row.of("x", "INT NOT NULL", "(NULL)"),
+        Row.of("y", "STRING", "(NULL)")).iterator(),
       tableResult3.collect())
   }
 

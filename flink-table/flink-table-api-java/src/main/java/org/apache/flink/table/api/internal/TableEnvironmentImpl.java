@@ -980,13 +980,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 						.stream()
 							.map((c) -> new String[]{
 								c.getName(),
-								c.isGenerated() ? "NULL" : c.getType().getLogicalType().toString(),
-								c.getExpr().orElse("NULL")}),
+								c.getType().getLogicalType().toString(),
+								c.getExpr().orElse("(NULL)")}),
 					schema.getWatermarkSpecs()
 						.stream()
 							.map((w) -> new String[]{
 								"WATERMARK",
-								"NULL",
+								"(NULL)",
 								w.getWatermarkExpr()
 							})
 				).toArray(String[][]::new);
