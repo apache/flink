@@ -57,7 +57,7 @@ public class UnalignedCheckpointITCase extends TestLogger {
 
 	@Rule
 	public final Timeout timeout = Timeout.builder()
-		.withTimeout(90, TimeUnit.SECONDS)
+		.withTimeout(300, TimeUnit.SECONDS)
 		.build();
 
 	@Test
