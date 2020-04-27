@@ -237,7 +237,8 @@ public class SqlToOperationConverter {
 		return new CreateTableOperation(
 			identifier,
 			catalogTable,
-			sqlCreateTable.isIfNotExists());
+			sqlCreateTable.isIfNotExists(),
+			sqlCreateTable.isTemporary());
 	}
 
 	/** Convert DROP TABLE statement. */
@@ -245,7 +246,7 @@ public class SqlToOperationConverter {
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlDropTable.fullTableName());
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
-		return new DropTableOperation(identifier, sqlDropTable.getIfExists());
+		return new DropTableOperation(identifier, sqlDropTable.getIfExists(), sqlDropTable.isTemporary());
 	}
 
 	/** convert ALTER TABLE statement. */

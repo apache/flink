@@ -549,14 +549,24 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	public boolean dropTemporaryTable(String path) {
 		UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-		return catalogManager.dropTemporaryTable(identifier);
+		try {
+			catalogManager.dropTemporaryTable(identifier, false);
+			return true;
+		} catch (ValidationException e) {
+			return false;
+		}
 	}
 
 	@Override
 	public boolean dropTemporaryView(String path) {
 		UnresolvedIdentifier unresolvedIdentifier = parser.parseIdentifier(path);
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-		return catalogManager.dropTemporaryView(identifier);
+		try {
+			catalogManager.dropTemporaryView(identifier, false);
+			return true;
+		} catch (ValidationException e) {
+			return false;
+		}
 	}
 
 	@Override
@@ -658,16 +668,29 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	private TableResult executeOperation(Operation operation) {
 		if (operation instanceof CreateTableOperation) {
 			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
-			catalogManager.createTable(
-					createTableOperation.getCatalogTable(),
-					createTableOperation.getTableIdentifier(),
-					createTableOperation.isIgnoreIfExists());
+			if (createTableOperation.isTemporary()) {
+				catalogManager.createTemporaryTable(
+						createTableOperation.getCatalogTable(),
+						createTableOperation.getTableIdentifier(),
+						createTableOperation.isIgnoreIfExists());
+			} else {
+				catalogManager.createTable(
+						createTableOperation.getCatalogTable(),
+						createTableOperation.getTableIdentifier(),
+						createTableOperation.isIgnoreIfExists());
+			}
 			return TableResultImpl.TABLE_RESULT_OK;
 		} else if (operation instanceof DropTableOperation) {
 			DropTableOperation dropTableOperation = (DropTableOperation) operation;
-			catalogManager.dropTable(
-					dropTableOperation.getTableIdentifier(),
-					dropTableOperation.isIfExists());
+			if (dropTableOperation.isTemporary()) {
+				catalogManager.dropTemporaryTable(
+						dropTableOperation.getTableIdentifier(),
+						dropTableOperation.isIfExists());
+			} else {
+				catalogManager.dropTable(
+						dropTableOperation.getTableIdentifier(),
+						dropTableOperation.isIfExists());
+			}
 			return TableResultImpl.TABLE_RESULT_OK;
 		} else if (operation instanceof AlterTableOperation) {
 			AlterTableOperation alterTableOperation = (AlterTableOperation) operation;
@@ -710,12 +733,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof DropViewOperation) {
 			DropViewOperation dropViewOperation = (DropViewOperation) operation;
 			if (dropViewOperation.isTemporary()) {
-				boolean dropped = catalogManager.dropTemporaryView(dropViewOperation.getViewIdentifier());
-				if (!dropped && !dropViewOperation.isIfExists()) {
-					throw new ValidationException(String.format(
-							"Temporary views with identifier '%s' doesn't exist",
-							dropViewOperation.getViewIdentifier().asSummaryString()));
-				}
+				catalogManager.dropTemporaryView(
+						dropViewOperation.getViewIdentifier(),
+						dropViewOperation.isIfExists());
 			} else {
 				catalogManager.dropTable(
 						dropViewOperation.getViewIdentifier(),
@@ -921,7 +941,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 						tableSource,
 						sourceSinkTable.getTableSink().get(),
 						!IS_STREAM_TABLE);
-					catalogManager.dropTemporaryTable(objectIdentifier);
+					catalogManager.dropTemporaryTable(objectIdentifier, false);
 					catalogManager.createTemporaryTable(sourceAndSink, objectIdentifier, false);
 				}
 			} else {
@@ -948,7 +968,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					// wrapper contains only sink (not source)
 					ConnectorCatalogTable sourceAndSink = ConnectorCatalogTable
 						.sourceAndSink(sourceSinkTable.getTableSource().get(), tableSink, !IS_STREAM_TABLE);
-					catalogManager.dropTemporaryTable(objectIdentifier);
+					catalogManager.dropTemporaryTable(objectIdentifier, false);
 					catalogManager.createTemporaryTable(sourceAndSink, objectIdentifier, false);
 				}
 			} else {
