@@ -50,9 +50,9 @@ public class WorkerSpecContainerResourceAdapter {
 	private final int maxMemMB;
 	private final int minVcore;
 	private final int maxVcore;
-	private final Map<WorkerResourceSpec, Resource> workerSpecToContainerResource;
-	private final Map<Resource, Set<WorkerResourceSpec>> containerResourceToWorkerSpecs;
-	private final Map<Integer, Set<Resource>> containerMemoryToContainerResource;
+	private final Map<WorkerResourceSpec, InternalContainerResource> workerSpecToContainerResource;
+	private final Map<InternalContainerResource, Set<WorkerResourceSpec>> containerResourceToWorkerSpecs;
+	private final Map<Integer, Set<InternalContainerResource>> containerMemoryToContainerResource;
 
 	WorkerSpecContainerResourceAdapter(
 		final Configuration flinkConfig,
@@ -71,52 +71,65 @@ public class WorkerSpecContainerResourceAdapter {
 	}
 
 	Optional<Resource> tryComputeContainerResource(final WorkerResourceSpec workerResourceSpec) {
-		return Optional.ofNullable(workerSpecToContainerResource.computeIfAbsent(
+		final InternalContainerResource internalContainerResource = workerSpecToContainerResource.computeIfAbsent(
 			Preconditions.checkNotNull(workerResourceSpec),
-			this::createAndMapContainerResource));
+			this::createAndMapContainerResource);
+		if (internalContainerResource != null) {
+			return Optional.of(internalContainerResource.toResource());
+		} else {
+			return Optional.empty();
+		}
 	}
 
 	Set<WorkerResourceSpec> getWorkerSpecs(final Resource containerResource, final MatchingStrategy matchingStrategy) {
-		return getEquivalentContainerResource(containerResource, matchingStrategy).stream()
+		final InternalContainerResource internalContainerResource = new InternalContainerResource(containerResource);
+		return getEquivalentInternalContainerResource(internalContainerResource, matchingStrategy).stream()
 			.flatMap(resource -> containerResourceToWorkerSpecs.getOrDefault(resource, Collections.emptySet()).stream())
 			.collect(Collectors.toSet());
 	}
 
 	Set<Resource> getEquivalentContainerResource(final Resource containerResource, final MatchingStrategy matchingStrategy) {
+		final InternalContainerResource internalContainerResource = new InternalContainerResource(containerResource);
+		return getEquivalentInternalContainerResource(internalContainerResource, matchingStrategy).stream()
+			.map(InternalContainerResource::toResource)
+			.collect(Collectors.toSet());
+	}
+
+	private Set<InternalContainerResource> getEquivalentInternalContainerResource(final InternalContainerResource internalContainerResource, final MatchingStrategy matchingStrategy) {
 		// Yarn might ignore the requested vcores, depending on its configurations.
 		// In such cases, we should also not matching vcores.
-		final Set<Resource> equivalentContainerResources;
+		final Set<InternalContainerResource> equivalentInternalContainerResources;
 		switch (matchingStrategy) {
 			case MATCH_VCORE:
-				equivalentContainerResources = Collections.singleton(containerResource);
+				equivalentInternalContainerResources = Collections.singleton(internalContainerResource);
 				break;
 			case IGNORE_VCORE:
 			default:
-				equivalentContainerResources = containerMemoryToContainerResource
-					.getOrDefault(containerResource.getMemory(), Collections.emptySet());
+				equivalentInternalContainerResources = containerMemoryToContainerResource
+					.getOrDefault(internalContainerResource.memory, Collections.emptySet());
 				break;
 		}
-		return equivalentContainerResources;
+		return equivalentInternalContainerResources;
 	}
 
 	@Nullable
-	private Resource createAndMapContainerResource(final WorkerResourceSpec workerResourceSpec) {
+	private InternalContainerResource createAndMapContainerResource(final WorkerResourceSpec workerResourceSpec) {
 		final TaskExecutorProcessSpec taskExecutorProcessSpec =
 			TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(flinkConfig, workerResourceSpec);
-		final Resource containerResource = Resource.newInstance(
+		final InternalContainerResource internalContainerResource = new InternalContainerResource(
 			normalize(taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes(), minMemMB),
 			normalize(taskExecutorProcessSpec.getCpuCores().getValue().intValue(), minVcore));
 
-		if (resourceWithinMaxAllocation(containerResource)) {
-			containerResourceToWorkerSpecs.computeIfAbsent(containerResource, ignored -> new HashSet<>())
+		if (resourceWithinMaxAllocation(internalContainerResource)) {
+			containerResourceToWorkerSpecs.computeIfAbsent(internalContainerResource, ignored -> new HashSet<>())
 				.add(workerResourceSpec);
-			containerMemoryToContainerResource.computeIfAbsent(containerResource.getMemory(), ignored -> new HashSet<>())
-				.add(containerResource);
-			return containerResource;
+			containerMemoryToContainerResource.computeIfAbsent(internalContainerResource.memory, ignored -> new HashSet<>())
+				.add(internalContainerResource);
+			return internalContainerResource;
 		} else {
 			LOG.warn("Requested container resource {} exceeds yarn max allocation {}. Will not allocate resource.",
-				containerResource,
-				Resource.newInstance(maxMemMB, maxVcore));
+				internalContainerResource,
+				new InternalContainerResource(maxMemMB, maxVcore));
 			return null;
 		}
 	}
@@ -128,12 +141,60 @@ public class WorkerSpecContainerResourceAdapter {
 		return MathUtils.divideRoundUp(value, unitValue) * unitValue;
 	}
 
-	boolean resourceWithinMaxAllocation(final Resource resource) {
-		return resource.getMemory() <= maxMemMB && resource.getVirtualCores() <= maxVcore;
+	boolean resourceWithinMaxAllocation(final InternalContainerResource resource) {
+		return resource.memory <= maxMemMB && resource.vcores <= maxVcore;
 	}
 
 	enum MatchingStrategy {
 		MATCH_VCORE,
 		IGNORE_VCORE
+	}
+
+	/**
+	 * An {@link InternalContainerResource} corresponds to a {@link Resource}.
+	 * This class is for {@link WorkerSpecContainerResourceAdapter} internal usages only, to overcome the problem that
+	 * hash codes are calculated inconsistently across different {@link Resource} implementations.
+	 */
+	private static final class InternalContainerResource {
+		private final int memory;
+		private final int vcores;
+
+		private InternalContainerResource(final int memory, final int vcores) {
+			this.memory = memory;
+			this.vcores = vcores;
+		}
+
+		private InternalContainerResource(final Resource resource) {
+			this(
+				Preconditions.checkNotNull(resource).getMemory(),
+				Preconditions.checkNotNull(resource).getVirtualCores());
+		}
+
+		private Resource toResource() {
+			return Resource.newInstance(memory, vcores);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == this) {
+				return true;
+			} else if (obj instanceof InternalContainerResource) {
+				final InternalContainerResource other = (InternalContainerResource) obj;
+				return this.memory == other.memory && this.vcores == other.vcores;
+			}
+			return false;
+		}
+
+		@Override
+		public int hashCode() {
+			int result = Integer.hashCode(memory);
+			result = 31 * result + Integer.hashCode(vcores);
+			return result;
+		}
+
+		@Override
+		public String toString() {
+			return "<memory:" + memory + ", vCores:" + vcores + ">";
+		}
 	}
 }
