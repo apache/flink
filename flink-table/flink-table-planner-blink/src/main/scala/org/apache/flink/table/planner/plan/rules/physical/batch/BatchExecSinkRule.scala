@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.filesystem.FileSystemTableFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
@@ -53,9 +54,16 @@ class BatchExecSinkRule extends ConverterRule(
             val dynamicPartIndices =
               dynamicPartFields.map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
 
-            requiredTraitSet = requiredTraitSet.plus(
-              FlinkRelDistribution.hash(dynamicPartIndices
-                  .map(Integer.valueOf), requireStrict = false))
+            val shuffleEnable = sinkNode
+                .catalogTable
+                .getProperties
+                .get(FileSystemTableFactory.SINK_SHUFFLE_BY_PARTITION.key())
+
+            if (shuffleEnable != null && shuffleEnable.toBoolean) {
+              requiredTraitSet = requiredTraitSet.plus(
+                FlinkRelDistribution.hash(dynamicPartIndices
+                    .map(Integer.valueOf), requireStrict = false))
+            }
 
             if (partitionSink.configurePartitionGrouping(true)) {
               // default to asc.
