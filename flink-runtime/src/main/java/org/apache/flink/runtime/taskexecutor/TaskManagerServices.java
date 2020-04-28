@@ -69,7 +69,7 @@ public class TaskManagerServices {
 	private final KvStateService kvStateService;
 	private final BroadcastVariableManager broadcastVariableManager;
 	private final TaskSlotTable<Task> taskSlotTable;
-	private final JobManagerTable jobManagerTable;
+	private final JobTable jobTable;
 	private final JobLeaderService jobLeaderService;
 	private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
 	private final TaskEventDispatcher taskEventDispatcher;
@@ -83,7 +83,7 @@ public class TaskManagerServices {
 		KvStateService kvStateService,
 		BroadcastVariableManager broadcastVariableManager,
 		TaskSlotTable<Task> taskSlotTable,
-		JobManagerTable jobManagerTable,
+		JobTable jobTable,
 		JobLeaderService jobLeaderService,
 		TaskExecutorLocalStateStoresManager taskManagerStateStore,
 		TaskEventDispatcher taskEventDispatcher,
@@ -96,7 +96,7 @@ public class TaskManagerServices {
 		this.kvStateService = Preconditions.checkNotNull(kvStateService);
 		this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
 		this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
-		this.jobManagerTable = Preconditions.checkNotNull(jobManagerTable);
+		this.jobTable = Preconditions.checkNotNull(jobTable);
 		this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
 		this.taskManagerStateStore = Preconditions.checkNotNull(taskManagerStateStore);
 		this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
@@ -135,8 +135,8 @@ public class TaskManagerServices {
 		return taskSlotTable;
 	}
 
-	public JobManagerTable getJobManagerTable() {
-		return jobManagerTable;
+	public JobTable getJobTable() {
+		return jobTable;
 	}
 
 	public JobLeaderService getJobLeaderService() {
@@ -208,6 +208,12 @@ public class TaskManagerServices {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
+		try {
+			jobTable.close();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
 		taskEventDispatcher.clearAll();
 
 		if (exception != null) {
@@ -267,7 +273,7 @@ public class TaskManagerServices {
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
 			taskManagerServicesConfiguration.getPageSize());
 
-		final JobManagerTable jobManagerTable = new DefaultJobManagerTable();
+		final JobTable jobTable = DefaultJobTable.create();
 
 		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
 
@@ -294,7 +300,7 @@ public class TaskManagerServices {
 			kvStateService,
 			broadcastVariableManager,
 			taskSlotTable,
-			jobManagerTable,
+			jobTable,
 			jobLeaderService,
 			taskStateManager,
 			taskEventDispatcher,

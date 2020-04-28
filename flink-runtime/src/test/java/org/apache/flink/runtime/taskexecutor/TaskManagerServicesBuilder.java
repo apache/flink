@@ -50,7 +50,7 @@ public class TaskManagerServicesBuilder {
 	private KvStateService kvStateService;
 	private BroadcastVariableManager broadcastVariableManager;
 	private TaskSlotTable<Task> taskSlotTable;
-	private JobManagerTable jobManagerTable;
+	private JobTable jobTable;
 	private JobLeaderService jobLeaderService;
 	private TaskExecutorLocalStateStoresManager taskStateManager;
 	private TaskEventDispatcher taskEventDispatcher;
@@ -64,7 +64,7 @@ public class TaskManagerServicesBuilder {
 		broadcastVariableManager = new BroadcastVariableManager();
 		taskEventDispatcher = new TaskEventDispatcher();
 		taskSlotTable = TestingTaskSlotTable.<Task>newBuilder().closeAsyncReturns(CompletableFuture.completedFuture(null)).build();
-		jobManagerTable = new DefaultJobManagerTable();
+		jobTable = DefaultJobTable.create();
 		jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 		taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
 		ioExecutor = TestingUtils.defaultExecutor();
@@ -100,8 +100,8 @@ public class TaskManagerServicesBuilder {
 		return this;
 	}
 
-	public TaskManagerServicesBuilder setJobManagerTable(JobManagerTable jobManagerTable) {
-		this.jobManagerTable = jobManagerTable;
+	public TaskManagerServicesBuilder setJobTable(JobTable jobTable) {
+		this.jobTable = jobTable;
 		return this;
 	}
 
@@ -129,7 +129,7 @@ public class TaskManagerServicesBuilder {
 			kvStateService,
 			broadcastVariableManager,
 			taskSlotTable,
-			jobManagerTable,
+			jobTable,
 			jobLeaderService,
 			taskStateManager,
 			taskEventDispatcher,

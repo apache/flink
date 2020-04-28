@@ -151,14 +151,17 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			}).build();
 
-		final JobManagerConnection jobManagerConnection = TaskSubmissionTestEnvironment.createJobManagerConnection(
-			jobId, jobMasterGateway, rpc, new NoOpTaskManagerActions(), timeout);
-
-		final JobManagerTable jobManagerTable = new DefaultJobManagerTable();
-		jobManagerTable.put(jobId, jobManagerConnection.getResourceID(), jobManagerConnection);
+		final DefaultJobTable jobTable = DefaultJobTable.create();
+		TaskSubmissionTestEnvironment.registerJobMasterConnection(
+			jobTable,
+			jobId,
+			rpc,
+			jobMasterGateway,
+			new NoOpTaskManagerActions(),
+			timeout);
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setJobManagerTable(jobManagerTable)
+			.setJobTable(jobTable)
 			.setShuffleEnvironment(new NettyShuffleEnvironmentBuilder().build())
 			.setTaskSlotTable(createTaskSlotTable())
 			.build();
