@@ -84,5 +84,15 @@ export class TaskManagerService {
       );
   }
 
+  /**
+   * Load TM thread dump
+   */
+  loadThreadDump(taskManagerId: string) {
+    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`, {
+      responseType: 'text',
+      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
+    });
+  }
+
   constructor(private httpClient: HttpClient) {}
 }

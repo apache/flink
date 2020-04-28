@@ -16,35 +16,42 @@
  * limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { TaskManagerDetailInterface } from 'interfaces';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { ChangeDetectorRef, Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { TaskManagerService } from 'services';
+import { first } from 'rxjs/operators';
+import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+import { TaskManagerDetailInterface } from 'interfaces';
 
 @Component({
-  selector: 'flink-task-manager-status',
-  templateUrl: './task-manager-status.component.html',
-  styleUrls: ['./task-manager-status.component.less'],
+  selector: 'flink-task-manager-thread-dump',
+  templateUrl: './task-manager-thread-dump.component.html',
+  styleUrls: ['./task-manager-thread-dump.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TaskManagerStatusComponent implements OnInit, OnDestroy {
-  @Input() isLoading = true;
-  listOfNavigation = [{ path: 'metrics', title: 'Metrics' }, { path: 'log-list', title: 'Log' }, { path: 'thread-dump', title: 'Thread Dump' }];
+export class TaskManagerThreadDumpComponent implements OnInit {
+  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+  dump = '';
   taskManagerDetail: TaskManagerDetailInterface;
-  private destroy$ = new Subject();
+
+  reload() {
+    if (this.taskManagerDetail) {
+      this.taskManagerService.loadThreadDump(this.taskManagerDetail.id).subscribe(data => {
+          this.monacoEditorComponent.layout();
+          this.dump = data;
+          this.cdr.markForCheck();
+        }, () => {
+        this.cdr.markForCheck();
+      });
+    }
+  }
 
   constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$.pipe(takeUntil(this.destroy$)).subscribe(data => {
+  ngOnInit() {
+    this.taskManagerService.taskManagerDetail$.pipe(first()).subscribe(data => {
       this.taskManagerDetail = data;
+      this.reload();
       this.cdr.markForCheck();
     });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

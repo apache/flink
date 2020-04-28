@@ -23,6 +23,7 @@ import { TaskManagerLogListComponent } from './log-list/task-manager-log-list.co
 import { TaskManagerComponent } from './task-manager.component';
 import { TaskManagerListComponent } from './list/task-manager-list.component';
 import { TaskManagerMetricsComponent } from './metrics/task-manager-metrics.component';
+import { TaskManagerThreadDumpComponent } from './thread-dump/task-manager-thread-dump.component';
 
 const routes: Routes = [
   {
@@ -45,6 +46,13 @@ const routes: Routes = [
         component: TaskManagerLogListComponent,
         data: {
           path: 'log-list'
+        }
+      },
+      {
+        path: 'thread-dump',
+        component: TaskManagerThreadDumpComponent,
+        data: {
+          path: 'thread-dump'
         }
       },
       {
