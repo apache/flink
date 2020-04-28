@@ -110,6 +110,7 @@ DEFAULT_ENV_JAVA_OPTS=""                            # Optional JVM args
 DEFAULT_ENV_JAVA_OPTS_JM=""                         # Optional JVM args (JobManager)
 DEFAULT_ENV_JAVA_OPTS_TM=""                         # Optional JVM args (TaskManager)
 DEFAULT_ENV_JAVA_OPTS_HS=""                         # Optional JVM args (HistoryServer)
+DEFAULT_ENV_JAVA_OPTS_CLI=""                        # Optional JVM args (Client)
 DEFAULT_ENV_SSH_OPTS=""                             # Optional SSH parameters running in cluster mode
 DEFAULT_YARN_CONF_DIR=""                            # YARN Configuration Directory, if necessary
 DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Directory, if necessary
@@ -117,9 +118,6 @@ DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Direc
 ########################################################################################################################
 # CONFIG KEYS: The default values can be overwritten by the following keys in conf/flink-conf.yaml
 ########################################################################################################################
-
-KEY_JOBM_MEM_SIZE="jobmanager.heap.size"
-KEY_JOBM_MEM_MB="jobmanager.heap.mb"
 
 KEY_TASKM_COMPUTE_NUMA="taskmanager.compute.numa"
 
@@ -133,146 +131,10 @@ KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_JAVA_OPTS_JM="env.java.opts.jobmanager"
 KEY_ENV_JAVA_OPTS_TM="env.java.opts.taskmanager"
 KEY_ENV_JAVA_OPTS_HS="env.java.opts.historyserver"
+KEY_ENV_JAVA_OPTS_CLI="env.java.opts.client"
 KEY_ENV_SSH_OPTS="env.ssh.opts"
 KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
-
-########################################################################################################################
-# MEMORY SIZE UNIT
-########################################################################################################################
-
-BYTES_UNITS=("b" "bytes")
-KILO_BYTES_UNITS=("k" "kb" "kibibytes")
-MEGA_BYTES_UNITS=("m" "mb" "mebibytes")
-GIGA_BYTES_UNITS=("g" "gb" "gibibytes")
-TERA_BYTES_UNITS=("t" "tb" "tebibytes")
-
-hasUnit() {
-    text=$1
-
-    trimmed=$(echo -e "${text}" | tr -d '[:space:]')
-
-    if [ -z "$trimmed" -o "$trimmed" == " " ]; then
-        echo "$trimmed is an empty- or whitespace-only string"
-	exit 1
-    fi
-
-    len=${#trimmed}
-    pos=0
-
-    while [ $pos -lt $len ]; do
-	current=${trimmed:pos:1}
-	if [[ ! $current < '0' ]] && [[ ! $current > '9' ]]; then
-	    let pos+=1
-	else
-	    break
-	fi
-    done
-
-    number=${trimmed:0:pos}
-
-    unit=${trimmed:$pos}
-    unit=$(echo -e "${unit}" | tr -d '[:space:]')
-    unit=$(echo -e "${unit}" | tr '[A-Z]' '[a-z]')
-
-    [[ ! -z "$unit" ]]
-}
-
-parseBytes() {
-    text=$1
-
-    trimmed=$(echo -e "${text}" | tr -d '[:space:]')
-
-    if [ -z "$trimmed" -o "$trimmed" == " " ]; then
-        echo "$trimmed is an empty- or whitespace-only string"
-	exit 1
-    fi
-
-    len=${#trimmed}
-    pos=0
-
-    while [ $pos -lt $len ]; do
-	current=${trimmed:pos:1}
-	if [[ ! $current < '0' ]] && [[ ! $current > '9' ]]; then
-	    let pos+=1
-	else
-	    break
-	fi
-    done
-
-    number=${trimmed:0:pos}
-
-    unit=${trimmed:$pos}
-    unit=$(echo -e "${unit}" | tr -d '[:space:]')
-    unit=$(echo -e "${unit}" | tr '[A-Z]' '[a-z]')
-
-    if [ -z "$number" ]; then
-        echo "text does not start with a number"
-        exit 1
-    fi
-
-    local multiplier
-    if [ -z "$unit" ]; then
-        multiplier=1
-    else
-        if matchesAny $unit "${BYTES_UNITS[*]}"; then
-            multiplier=1
-        elif matchesAny $unit "${KILO_BYTES_UNITS[*]}"; then
-                multiplier=1024
-        elif matchesAny $unit "${MEGA_BYTES_UNITS[*]}"; then
-                multiplier=`expr 1024 \* 1024`
-        elif matchesAny $unit "${GIGA_BYTES_UNITS[*]}"; then
-                multiplier=`expr 1024 \* 1024 \* 1024`
-        elif matchesAny $unit "${TERA_BYTES_UNITS[*]}"; then
-                multiplier=`expr 1024 \* 1024 \* 1024 \* 1024`
-        else
-            echo "[ERROR] Memory size unit $unit does not match any of the recognized units"
-            exit 1
-        fi
-    fi
-
-    ((result=$number * $multiplier))
-
-    if [ $[result / multiplier] != "$number" ]; then
-        echo "[ERROR] The value $text cannot be re represented as 64bit number of bytes (numeric overflow)."
-        exit 1
-    fi
-
-    echo "$result"
-}
-
-matchesAny() {
-    str=$1
-    variants=$2
-
-    for s in ${variants[*]}; do
-        if [ $str == $s ]; then
-            return 0
-        fi
-    done
-
-    return 1
-}
-
-getKibiBytes() {
-    bytes=$1
-    echo "$(($bytes >>10))"
-}
-
-getMebiBytes() {
-    bytes=$1
-    echo "$(($bytes >> 20))"
-}
-
-getGibiBytes() {
-    bytes=$1
-    echo "$(($bytes >> 30))"
-}
-
-getTebiBytes() {
-    bytes=$1
-    echo "$(($bytes >> 40))"
-}
 
 ########################################################################################################################
 # PATHS AND CONFIG
@@ -364,16 +226,6 @@ fi
 
 IS_NUMBER="^[0-9]+$"
 
-# Define FLINK_JM_HEAP if it is not already set
-if [ -z "${FLINK_JM_HEAP}" ]; then
-    FLINK_JM_HEAP=$(readFromConfig ${KEY_JOBM_MEM_SIZE} 0 "${YAML_CONF}")
-fi
-
-# Try read old config key, if new key not exists
-if [ "${FLINK_JM_HEAP}" == 0 ]; then
-    FLINK_JM_HEAP_MB=$(readFromConfig ${KEY_JOBM_MEM_MB} 0 "${YAML_CONF}")
-fi
-
 # Verify that NUMA tooling is available
 command -v numactl >/dev/null 2>&1
 if [[ $? -ne 0 ]]; then
@@ -430,6 +282,12 @@ if [ -z "${FLINK_ENV_JAVA_OPTS_HS}" ]; then
     FLINK_ENV_JAVA_OPTS_HS="$( echo "${FLINK_ENV_JAVA_OPTS_HS}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
+if [ -z "${FLINK_ENV_JAVA_OPTS_CLI}" ]; then
+    FLINK_ENV_JAVA_OPTS_CLI=$(readFromConfig ${KEY_ENV_JAVA_OPTS_CLI} "${DEFAULT_ENV_JAVA_OPTS_CLI}" "${YAML_CONF}")
+    # Remove leading and ending double quotes (if present) of value
+    FLINK_ENV_JAVA_OPTS_CLI="$( echo "${FLINK_ENV_JAVA_OPTS_CLI}" | sed -e 's/^"//'  -e 's/"$//' )"
+fi
+
 if [ -z "${FLINK_SSH_OPTS}" ]; then
     FLINK_SSH_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" "${YAML_CONF}")
 fi
@@ -458,7 +316,7 @@ fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.
 # DO NOT USE FOR MEMORY SETTINGS! Use conf/flink-conf.yaml with keys
-# KEY_JOBM_MEM_SIZE and TaskManagerOptions#TOTAL_PROCESS_MEMORY for that!
+# JobManagerOptions#TOTAL_PROCESS_MEMORY and TaskManagerOptions#TOTAL_PROCESS_MEMORY for that!
 if [ -z "${JVM_ARGS}" ]; then
     JVM_ARGS=""
 fi
@@ -618,10 +476,11 @@ TMSlaves() {
 runBashJavaUtilsCmd() {
     local cmd=$1
     local conf_dir=$2
-    local class_path="${3:-$FLINK_BIN_DIR/bash-java-utils.jar:`findFlinkDistJar`}"
+    local class_path=$3
+    local dynamic_args=${@:4}
     class_path=`manglePathList ${class_path}`
 
-    local output=`${JAVA_RUN} -classpath ${class_path} org.apache.flink.runtime.util.BashJavaUtils ${cmd} --configDir ${conf_dir} 2>&1 | tail -n 1000`
+    local output=`${JAVA_RUN} -classpath ${class_path} org.apache.flink.runtime.util.bash.BashJavaUtils ${cmd} --configDir ${conf_dir} $dynamic_args 2>&1 | tail -n 1000`
     if [[ $? -ne 0 ]]; then
         echo "[ERROR] Cannot run BashJavaUtils to execute command ${cmd}." 1>&2
         # Print the output in case the user redirect the log to console.
@@ -632,17 +491,43 @@ runBashJavaUtilsCmd() {
     echo "$output"
 }
 
-extractExecutionParams() {
-    local output=$1
+extractExecutionResults() {
+    local output="$1"
+    local expected_lines="$2"
     local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
+    local execution_results
+    local num_lines
 
-    local execution_config=`echo "$output" | tail -n 1`
-    if ! [[ $execution_config =~ ^${EXECUTION_PREFIX}.* ]]; then
-        echo "[ERROR] Unexpected result: $execution_config" 1>&2
-        echo "[ERROR] The last line of the BashJavaUtils outputs is expected to be the execution result, following the prefix '${EXECUTION_PREFIX}'" 1>&2
+    execution_results=$(echo "${output}" | grep ${EXECUTION_PREFIX})
+    num_lines=$(echo "${execution_results}" | wc -l)
+    if [[ ${num_lines} -ne ${expected_lines} ]]; then
+        echo "[ERROR] The execution results has unexpected number of lines, expected: ${expected_lines}, actual: ${num_lines}." 1>&2
+        echo "[ERROR] An execution result line is expected following the prefix '${EXECUTION_PREFIX}'" 1>&2
         echo "$output" 1>&2
         exit 1
     fi
 
-    echo ${execution_config} | sed "s/$EXECUTION_PREFIX//"
+    echo "${execution_results//${EXECUTION_PREFIX}/}"
+}
+
+extractLoggingOutputs() {
+    local output="$1"
+    local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
+
+    echo "${output}" | grep -v ${EXECUTION_PREFIX}
+}
+
+parseJmJvmArgsAndExportLogs() {
+  java_utils_output=$(runBashJavaUtilsCmd GET_JM_RESOURCE_PARAMS "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "$@")
+  logging_output=$(extractLoggingOutputs "${java_utils_output}")
+  jvm_params=$(extractExecutionResults "${java_utils_output}" 1)
+  export JVM_ARGS="${JVM_ARGS} ${jvm_params}"
+
+  export FLINK_INHERITED_LOGS="
+$FLINK_INHERITED_LOGS
+
+JM_RESOURCE_PARAMS extraction logs:
+jvm_params: $jvm_params
+logs: $logging_output
+"
 }

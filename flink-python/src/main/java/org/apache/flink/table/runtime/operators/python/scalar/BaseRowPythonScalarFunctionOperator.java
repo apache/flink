@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * The Python {@link ScalarFunction} operator for the blink planner.
@@ -70,7 +71,7 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractBaseRowPythonSc
 		byte[] rawUdfResult;
 		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
 			BaseRow input = forwardedInputQueue.poll();
-			reuseJoinedRow.setHeader(input.getHeader());
+			reuseJoinedRow.setRowKind(input.getRowKind());
 			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
 			BaseRow udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
 			baseRowWrapper.collect(reuseJoinedRow.replace(input, udfResult));
@@ -80,13 +81,16 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractBaseRowPythonSc
 	@Override
 	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
+			PythonEnvironmentManager pythonEnvironmentManager,
+			Map<String, String> jobOptions) {
 		return new BaseRowPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
 			scalarFunctions,
 			pythonEnvironmentManager,
 			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType);
+			userDefinedFunctionOutputType,
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 }

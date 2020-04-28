@@ -66,8 +66,7 @@ import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -82,8 +81,6 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.FunctionUtils;
 
-import akka.actor.ActorSystem;
-import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -209,14 +206,14 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	public CompletableFuture<URI> getRestAddress() {
 		synchronized (lock) {
-			checkState(running, "MiniCluster is not yet running.");
+			checkState(running, "MiniCluster is not yet running or has already been shut down.");
 			return webMonitorLeaderRetriever.getLeaderFuture().thenApply(FunctionUtils.uncheckedFunction(addressLeaderIdTuple -> new URI(addressLeaderIdTuple.f0)));
 		}
 	}
 
 	public ClusterInformation getClusterInformation() {
 		synchronized (lock) {
-			checkState(running, "MiniCluster is not yet running.");
+			checkState(running, "MiniCluster is not yet running or has already been shut down.");
 			return new ClusterInformation("localhost", blobServer.getPort());
 		}
 	}
@@ -261,26 +258,40 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				// bring up all the RPC services
 				LOG.info("Starting RPC Service(s)");
 
-				AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
-
 				final RpcServiceFactory dispatcherResourceManagreComponentRpcServiceFactory;
 
 				if (useSingleRpcService) {
 					// we always need the 'commonRpcService' for auxiliary calls
-					commonRpcService = createRpcService(akkaRpcServiceConfig, false, null);
+					commonRpcService = createLocalRpcService(configuration);
 					final CommonRpcServiceFactory commonRpcServiceFactory = new CommonRpcServiceFactory(commonRpcService);
 					taskManagerRpcServiceFactory = commonRpcServiceFactory;
 					dispatcherResourceManagreComponentRpcServiceFactory = commonRpcServiceFactory;
 				} else {
-					// we always need the 'commonRpcService' for auxiliary calls
-					commonRpcService = createRpcService(akkaRpcServiceConfig, true, null);
 
 					// start a new service per component, possibly with custom bind addresses
+					final String jobManagerExternalAddress = miniClusterConfiguration.getJobManagerExternalAddress();
+					final String taskManagerExternalAddress = miniClusterConfiguration.getTaskManagerExternalAddress();
+					final String jobManagerExternalPortRange = miniClusterConfiguration.getJobManagerExternalPortRange();
+					final String taskManagerExternalPortRange = miniClusterConfiguration.getTaskManagerExternalPortRange();
 					final String jobManagerBindAddress = miniClusterConfiguration.getJobManagerBindAddress();
 					final String taskManagerBindAddress = miniClusterConfiguration.getTaskManagerBindAddress();
 
-					dispatcherResourceManagreComponentRpcServiceFactory = new DedicatedRpcServiceFactory(akkaRpcServiceConfig, jobManagerBindAddress);
-					taskManagerRpcServiceFactory = new DedicatedRpcServiceFactory(akkaRpcServiceConfig, taskManagerBindAddress);
+					dispatcherResourceManagreComponentRpcServiceFactory =
+						new DedicatedRpcServiceFactory(
+							configuration,
+							jobManagerExternalAddress,
+							jobManagerExternalPortRange,
+							jobManagerBindAddress);
+					taskManagerRpcServiceFactory =
+						new DedicatedRpcServiceFactory(
+							configuration,
+							taskManagerExternalAddress,
+							taskManagerExternalPortRange,
+							taskManagerBindAddress);
+
+					// we always need the 'commonRpcService' for auxiliary calls
+					// bind to the JobManager address with port 0
+					commonRpcService = createRemoteRpcService(configuration, jobManagerBindAddress, 0);
 				}
 
 				RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(
@@ -405,8 +416,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	}
 
 	@Nonnull
-	private DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory() {
-		return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(StandaloneResourceManagerFactory.INSTANCE);
+	DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory() {
+		return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(StandaloneResourceManagerFactory.getInstance());
 	}
 
 	@VisibleForTesting
@@ -675,7 +686,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	@VisibleForTesting
 	protected CompletableFuture<DispatcherGateway> getDispatcherGatewayFuture() {
 		synchronized (lock) {
-			checkState(running, "MiniCluster is not yet running.");
+			checkState(running, "MiniCluster is not yet running or has already been shut down.");
 			return dispatcherGatewayRetriever.getFuture();
 		}
 	}
@@ -710,39 +721,58 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	protected MetricRegistryImpl createMetricRegistry(Configuration config) {
 		return new MetricRegistryImpl(
 			MetricRegistryConfiguration.fromConfiguration(config),
-			ReporterSetup.fromConfiguration(config));
+			ReporterSetup.fromConfiguration(config, null));
 	}
 
 	/**
-	 * Factory method to instantiate the RPC service.
+	 * Factory method to instantiate the remote RPC service.
 	 *
-	 * @param akkaRpcServiceConfig
-	 *            The default RPC timeout for asynchronous "ask" requests.
-	 * @param remoteEnabled
-	 *            True, if the RPC service should be reachable from other (remote) RPC services.
-	 * @param bindAddress
-	 *            The address to bind the RPC service to. Only relevant when "remoteEnabled" is true.
-	 *
+	 * @param configuration Flink configuration.
+	 * @param bindAddress The address to bind the RPC service to.
+	 * @param bindPort The port range to bind the RPC service to.
 	 * @return The instantiated RPC service
 	 */
-	protected RpcService createRpcService(
-			AkkaRpcServiceConfiguration akkaRpcServiceConfig,
-			boolean remoteEnabled,
-			String bindAddress) {
+	protected RpcService createRemoteRpcService(
+			Configuration configuration,
+			String bindAddress,
+			int bindPort) throws Exception {
+		return AkkaRpcServiceUtils.remoteServiceBuilder(configuration, bindAddress, String.valueOf(bindPort))
+			.withBindAddress(bindAddress)
+			.withBindPort(bindPort)
+			.withCustomConfig(AkkaUtils.testDispatcherConfig())
+			.createAndStart();
+	}
 
-		final Config akkaConfig;
+	/**
+	 * Factory method to instantiate the remote RPC service.
+	 *
+	 * @param configuration Flink configuration.
+	 * @param externalAddress The external address to access the RPC service.
+	 * @param externalPortRange The external port range to access the RPC service.
+	 * @param bindAddress The address to bind the RPC service to.
+	 * @return The instantiated RPC service
+	 */
+	protected RpcService createRemoteRpcService(
+		Configuration configuration,
+		String externalAddress,
+		String externalPortRange,
+		String bindAddress) throws Exception {
+		return AkkaRpcServiceUtils.remoteServiceBuilder(configuration, externalAddress, externalPortRange)
+			.withBindAddress(bindAddress)
+			.withCustomConfig(AkkaUtils.testDispatcherConfig())
+			.createAndStart();
+	}
 
-		if (remoteEnabled) {
-			akkaConfig = AkkaUtils.getAkkaConfig(akkaRpcServiceConfig.getConfiguration(), bindAddress, 0);
-		} else {
-			akkaConfig = AkkaUtils.getAkkaConfig(akkaRpcServiceConfig.getConfiguration());
-		}
-
-		final Config effectiveAkkaConfig = AkkaUtils.testDispatcherConfig().withFallback(akkaConfig);
-
-		final ActorSystem actorSystem = AkkaUtils.createActorSystem(effectiveAkkaConfig);
-
-		return new AkkaRpcService(actorSystem, akkaRpcServiceConfig);
+	/**
+	 * Factory method to instantiate the local RPC service.
+	 *
+	 * @param configuration Flink configuration.
+	 * @return The instantiated RPC service
+	 */
+	protected RpcService createLocalRpcService(Configuration configuration) throws Exception {
+		return AkkaRpcServiceUtils.localServiceBuilder(configuration)
+			.withCustomConfig(AkkaUtils.testDispatcherConfig())
+			.createAndStart();
 	}
 
 	// ------------------------------------------------------------------------
@@ -878,7 +908,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 * Internal factory for {@link RpcService}.
 	 */
 	protected interface RpcServiceFactory {
-		RpcService createRpcService();
+		RpcService createRpcService() throws Exception;
 	}
 
 	/**
@@ -903,17 +933,26 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 */
 	protected class DedicatedRpcServiceFactory implements RpcServiceFactory {
 
-		private final AkkaRpcServiceConfiguration akkaRpcServiceConfig;
-		private final String jobManagerBindAddress;
+		private final Configuration configuration;
+		private final String externalAddress;
+		private final String externalPortRange;
+		private final String bindAddress;
 
-		DedicatedRpcServiceFactory(AkkaRpcServiceConfiguration akkaRpcServiceConfig, String jobManagerBindAddress) {
-			this.akkaRpcServiceConfig = akkaRpcServiceConfig;
-			this.jobManagerBindAddress = jobManagerBindAddress;
+		DedicatedRpcServiceFactory(
+				Configuration configuration,
+				String externalAddress,
+				String externalPortRange,
+				String bindAddress) {
+			this.configuration = configuration;
+			this.externalAddress = externalAddress;
+			this.externalPortRange = externalPortRange;
+			this.bindAddress = bindAddress;
 		}
 
 		@Override
-		public RpcService createRpcService() {
-			final RpcService rpcService = MiniCluster.this.createRpcService(akkaRpcServiceConfig, true, jobManagerBindAddress);
+		public RpcService createRpcService() throws Exception {
+			final RpcService rpcService = MiniCluster.this.createRemoteRpcService(
+				configuration, externalAddress, externalPortRange, bindAddress);
 
 			synchronized (lock) {
 				rpcServices.add(rpcService);

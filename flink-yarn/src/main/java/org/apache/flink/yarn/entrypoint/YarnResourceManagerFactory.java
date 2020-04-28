@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerImpl;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ActiveResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.yarn.YarnResourceManager;
 import org.apache.flink.yarn.YarnWorkerNode;
 
@@ -50,7 +52,7 @@ public class YarnResourceManagerFactory extends ActiveResourceManagerFactory<Yar
 	}
 
 	@Override
-	public ResourceManager<YarnWorkerNode> createActiveResourceManager(
+	public ResourceManager<YarnWorkerNode> createResourceManager(
 			Configuration configuration,
 			ResourceID resourceId,
 			RpcService rpcService,
@@ -59,26 +61,28 @@ public class YarnResourceManagerFactory extends ActiveResourceManagerFactory<Yar
 			FatalErrorHandler fatalErrorHandler,
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) throws Exception {
-		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
-		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
-			rmServicesConfiguration,
-			highAvailabilityServices,
-			rpcService.getScheduledExecutor());
+			ResourceManagerMetricGroup resourceManagerMetricGroup,
+			ResourceManagerRuntimeServices resourceManagerRuntimeServices) {
 
 		return new YarnResourceManager(
 			rpcService,
-			getEndpointId(),
 			resourceId,
 			configuration,
 			System.getenv(),
 			highAvailabilityServices,
 			heartbeatServices,
-			rmRuntimeServices.getSlotManager(),
-			rmRuntimeServices.getJobLeaderIdService(),
+			resourceManagerRuntimeServices.getSlotManager(),
+			ResourceManagerPartitionTrackerImpl::new,
+			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
 			fatalErrorHandler,
 			webInterfaceUrl,
 			resourceManagerMetricGroup);
+	}
+
+	@Override
+	protected ResourceManagerRuntimeServicesConfiguration createResourceManagerRuntimeServicesConfiguration(
+		Configuration configuration) throws ConfigurationException {
+		return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration, YarnWorkerResourceSpecFactory.INSTANCE);
 	}
 }

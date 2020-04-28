@@ -61,12 +61,10 @@ class KafkaDescriptorTests(PyFlinkTestCase):
         self.assertEqual(expected, properties)
 
     def test_properties(self):
-        kafka = Kafka().properties({"zookeeper.connect": "localhost:2181",
-                                    "bootstrap.servers": "localhost:9092"})
+        kafka = Kafka().properties({"bootstrap.servers": "localhost:9092"})
 
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
-                    'connector.properties.zookeeper.connect': 'localhost:2181',
                     'connector.properties.bootstrap.servers': 'localhost:9092',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
@@ -766,7 +764,7 @@ class SchemaDescriptorTests(PyFlinkTestCase):
             .field("int_field", DataTypes.INT())\
             .field("long_field", DataTypes.BIGINT())\
             .field("string_field", DataTypes.STRING())\
-            .field("timestamp_field", DataTypes.TIMESTAMP())\
+            .field("timestamp_field", DataTypes.TIMESTAMP(3))\
             .field("time_field", DataTypes.TIME())\
             .field("date_field", DataTypes.DATE())\
             .field("double_field", DataTypes.DOUBLE())\

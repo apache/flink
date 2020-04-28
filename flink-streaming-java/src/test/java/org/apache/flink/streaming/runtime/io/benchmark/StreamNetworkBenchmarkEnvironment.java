@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumab
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
@@ -221,14 +222,14 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	}
 
 	private InputGate createInputGate(TaskManagerLocation senderLocation) throws Exception {
-		InputGate[] gates = new InputGate[partitionIds.length];
+		IndexedInputGate[] gates = new IndexedInputGate[partitionIds.length];
 		for (int gateIndex = 0; gateIndex < gates.length; ++gateIndex) {
 			final InputGateDeploymentDescriptor gateDescriptor = createInputGateDeploymentDescriptor(
 				senderLocation,
 				gateIndex,
 				location);
 
-			final InputGate gate = createInputGateWithMetrics(gateFactory, gateDescriptor, gateIndex);
+			final IndexedInputGate gate = createInputGateWithMetrics(gateFactory, gateDescriptor, gateIndex);
 
 			gate.setup();
 			gates[gateIndex] = gate;
@@ -261,13 +262,14 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			channelDescriptors);
 	}
 
-	private InputGate createInputGateWithMetrics(
+	private IndexedInputGate createInputGateWithMetrics(
 		SingleInputGateFactory gateFactory,
 		InputGateDeploymentDescriptor gateDescriptor,
-		int channelIndex) {
+		int gateIndex) {
 
 		final SingleInputGate singleGate = gateFactory.create(
-			"receiving task[" + channelIndex + "]",
+			"receiving task[" + gateIndex + "]",
+			gateIndex,
 			gateDescriptor,
 			SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
 			InputChannelTestUtils.newUnregisteredInputChannelMetrics());

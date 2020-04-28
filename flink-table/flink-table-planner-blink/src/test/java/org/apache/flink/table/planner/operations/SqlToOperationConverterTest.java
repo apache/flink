@@ -64,7 +64,9 @@ import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
@@ -77,8 +79,11 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
 /**
  * Test cases for {@link SqlToOperationConverter}.
@@ -101,6 +106,9 @@ public class SqlToOperationConverterTest {
 			catalogManager,
 			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
 			new ArrayList<>());
+
+	@Rule
+	public ExpectedException exceptionRule = ExpectedException.none();
 
 	@Before
 	public void before() throws TableAlreadyExistException, DatabaseNotExistException {
@@ -246,8 +254,8 @@ public class SqlToOperationConverterTest {
 			"    'connector' = 'kafka', \n" +
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
-		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
-		final CalciteParser parser = getParserBySqlDialect(SqlDialect.HIVE);
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
 		Operation operation = parse(sql, planner, parser);
 		assert operation instanceof CreateTableOperation;
 		CreateTableOperation op = (CreateTableOperation) operation;
@@ -265,8 +273,8 @@ public class SqlToOperationConverterTest {
 
 	@Test(expected = SqlConversionException.class)
 	public void testCreateTableWithPkUniqueKeys() {
-		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
-		final CalciteParser parser = getParserBySqlDialect(SqlDialect.HIVE);
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
 		final String sql = "CREATE TABLE tbl1 (\n" +
 			"  a bigint,\n" +
 			"  b varchar, \n" +
@@ -361,6 +369,32 @@ public class SqlToOperationConverterTest {
 		final Map<String, String> expectedStaticPartitions = new HashMap<>();
 		expectedStaticPartitions.put("a", "1");
 		assertEquals(expectedStaticPartitions, sinkModifyOperation.getStaticPartitions());
+	}
+
+	@Test
+	public void testSqlInsertWithDynamicTableOptions() {
+		final String sql = "insert into t1 /*+ OPTIONS('k1'='v1', 'k2'='v2') */\n"
+				+ "select a, b, c, d from t2";
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+		Operation operation = parse(sql, planner, parser);
+		assert operation instanceof CatalogSinkModifyOperation;
+		CatalogSinkModifyOperation sinkModifyOperation = (CatalogSinkModifyOperation) operation;
+		Map<String, String> dynamicOptions = sinkModifyOperation.getDynamicOptions();
+		assertNotNull(dynamicOptions);
+		assertThat(dynamicOptions.size(), is(2));
+		assertThat(dynamicOptions.toString(), is("{k1=v1, k2=v2}"));
+	}
+
+	@Test
+	public void testDynamicTableWithInvalidOptions() {
+		final String sql = "select * from t1 /*+ OPTIONS('opt1', 'opt2') */";
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+		exceptionRule.expect(AssertionError.class);
+		exceptionRule.expectMessage("Hint [OPTIONS] only support "
+				+ "non empty key value options");
+		parse(sql, planner, parser);
 	}
 
 	@Test // TODO: tweak the tests when FLINK-13604 is fixed.

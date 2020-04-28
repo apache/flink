@@ -128,6 +128,8 @@ public class XmlResponsesSaxParser {
     public XmlResponsesSaxParser() throws SdkClientException {
         // Ensure we can load the XML Reader.
         try {
+            // Need to explicitly enable Sax' NAMESPACES_FEATURE (default true) in JAXP (default false)!
+            SAX_PARSER_FACTORY.setNamespaceAware(true);
             xr = SAX_PARSER_FACTORY.newSAXParser().getXMLReader();
             disableExternalResourceFetching(xr);
         } catch (SAXException | ParserConfigurationException e) {

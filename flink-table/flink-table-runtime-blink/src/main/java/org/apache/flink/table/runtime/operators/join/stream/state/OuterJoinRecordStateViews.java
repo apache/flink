@@ -37,7 +37,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateViews.createTtlConfig;
+import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -53,9 +53,8 @@ public final class OuterJoinRecordStateViews {
 			String stateName,
 			JoinInputSideSpec inputSideSpec,
 			BaseRowTypeInfo recordType,
-			long retentionTime,
-			boolean stateCleaningEnabled) {
-		StateTtlConfig ttlConfig = createTtlConfig(retentionTime, stateCleaningEnabled);
+			long retentionTime) {
+		StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
 		if (inputSideSpec.hasUniqueKey()) {
 			if (inputSideSpec.joinKeyContainsUniqueKey()) {
 				return new OuterJoinRecordStateViews.JoinKeyContainsUniqueKey(ctx, stateName, recordType, ttlConfig);
@@ -86,7 +85,7 @@ public final class OuterJoinRecordStateViews {
 			ValueStateDescriptor<Tuple2<BaseRow, Integer>> recordStateDesc = new ValueStateDescriptor<>(
 				stateName,
 				valueTypeInfo);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
+			if (ttlConfig.isEnabled()) {
 				recordStateDesc.enableTimeToLive(ttlConfig);
 			}
 			this.recordState = ctx.getState(recordStateDesc);
@@ -157,7 +156,7 @@ public final class OuterJoinRecordStateViews {
 				stateName,
 				uniqueKeyType,
 				valueTypeInfo);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
+			if (ttlConfig.isEnabled()) {
 				recordStateDesc.enableTimeToLive(ttlConfig);
 			}
 			this.recordState = ctx.getMapState(recordStateDesc);
@@ -213,7 +212,7 @@ public final class OuterJoinRecordStateViews {
 				stateName,
 				recordType,
 				tupleTypeInfo);
-			if (!ttlConfig.equals(StateTtlConfig.DISABLED)) {
+			if (ttlConfig.isEnabled()) {
 				recordStateDesc.enableTimeToLive(ttlConfig);
 			}
 			this.recordState = ctx.getMapState(recordStateDesc);

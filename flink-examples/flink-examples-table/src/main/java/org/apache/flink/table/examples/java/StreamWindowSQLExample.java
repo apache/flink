@@ -19,7 +19,6 @@
 package org.apache.flink.table.examples.java;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
@@ -41,16 +40,9 @@ import java.io.IOException;
 public class StreamWindowSQLExample {
 
 	public static void main(String[] args) throws Exception {
-
 		// set up execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		// use blink planner in streaming mode,
-		// because watermark statement is only available in blink planner.
-		EnvironmentSettings settings = EnvironmentSettings.newInstance()
-			.useBlinkPlanner()
-			.inStreamingMode()
-			.build();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 		// write source data into temporary file and get the absolute path
 		String contents = "1,beer,3,2019-12-12 00:00:01\n" +
@@ -87,8 +79,9 @@ public class StreamWindowSQLExample {
 		Table result = tEnv.sqlQuery(query);
 		tEnv.toAppendStream(result, Row.class).print();
 
-		// submit the job
-		tEnv.execute("Streaming Window SQL Job");
+		// after the table program is converted to DataStream program,
+		// we must use `env.execute()` to submit the job.
+		env.execute("Streaming Window SQL Job");
 
 		// should output:
 		// 2019-12-12 00:00:00.000,3,10,3

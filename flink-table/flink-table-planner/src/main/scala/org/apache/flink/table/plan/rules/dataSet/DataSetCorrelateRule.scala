@@ -25,7 +25,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetCorrelate
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
-import org.apache.flink.table.plan.util.CorrelateUtil
+import org.apache.flink.table.plan.util.{CorrelateUtil, PythonUtil}
 
 class DataSetCorrelateRule
   extends ConverterRule(
@@ -40,9 +40,13 @@ class DataSetCorrelateRule
 
       right match {
         // right node is a table function
-        case scan: FlinkLogicalTableFunctionScan => true
+        // return true if right node is a non python table function
+        case scan: FlinkLogicalTableFunctionScan => PythonUtil.isNonPythonCall(scan.getCall)
         // a filter is pushed above the table function
-        case calc: FlinkLogicalCalc if CorrelateUtil.getTableFunctionScan(calc).isDefined => true
+        // return true if the table function is non python table function.
+        case calc: FlinkLogicalCalc =>
+          val scan = CorrelateUtil.getTableFunctionScan(calc)
+          scan.isDefined && PythonUtil.isNonPythonCall(scan.get.getCall)
         case _ => false
       }
     }

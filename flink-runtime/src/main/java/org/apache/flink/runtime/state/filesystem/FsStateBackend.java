@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -93,7 +93,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * parameters from the Flink configuration. For example, if the backend if configured in the application
  * without a default savepoint directory, it will pick up a default savepoint directory specified in the
  * Flink configuration of the running job/cluster. That behavior is implemented via the
- * {@link #configure(Configuration, ClassLoader)} method.
+ * {@link #configure(ReadableConfig, ClassLoader)} method.
  */
 @PublicEvolving
 public class FsStateBackend extends AbstractFileStateBackend implements ConfigurableStateBackend {
@@ -355,17 +355,17 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * @param original The state backend to re-configure
 	 * @param configuration The configuration
 	 */
-	private FsStateBackend(FsStateBackend original, Configuration configuration, ClassLoader classLoader) {
+	private FsStateBackend(FsStateBackend original, ReadableConfig configuration, ClassLoader classLoader) {
 		super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
 
 		// if asynchronous snapshots were configured, use that setting,
 		// else check the configuration
 		this.asynchronousSnapshots = original.asynchronousSnapshots.resolveUndefined(
-				configuration.getBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS));
+				configuration.get(CheckpointingOptions.ASYNC_SNAPSHOTS));
 
 		final int sizeThreshold = original.fileStateThreshold >= 0 ?
 				original.fileStateThreshold :
-				configuration.getInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD);
+				configuration.get(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD);
 
 		if (sizeThreshold >= 0 && sizeThreshold <= MAX_FILE_STATE_THRESHOLD) {
 			this.fileStateThreshold = sizeThreshold;
@@ -383,7 +383,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 
 		final int bufferSize = original.writeBufferSize >= 0 ?
 			original.writeBufferSize :
-			configuration.getInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE);
+			configuration.get(CheckpointingOptions.FS_WRITE_BUFFER_SIZE);
 
 		this.writeBufferSize = Math.max(bufferSize, this.fileStateThreshold);
 	}
@@ -471,7 +471,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
-	public FsStateBackend configure(Configuration config, ClassLoader classLoader) {
+	public FsStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
 		return new FsStateBackend(this, config, classLoader);
 	}
 

@@ -127,6 +127,10 @@ public abstract class OrcInputFormat<T> extends FileInputFormat<T> {
 			this.reader.close();
 		}
 		this.reader = null;
+	}
+
+	@Override
+	public void closeInputFormat() throws IOException{
 		this.schema = null;
 	}
 

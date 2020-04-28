@@ -317,7 +317,6 @@ tables:
       topic: TaxiRides
       startup-mode: earliest-offset
       properties:
-        zookeeper.connect: localhost:2181
         bootstrap.servers: localhost:9092
         group.id: testGroup
     format:
@@ -352,31 +351,42 @@ Both `connector` and `format` allow to define a property version (which is curre
 {% top %}
 
 ### User-defined Functions
+The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes or Python files.
 
-The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes.
+In order to provide a Java/Scala user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
 
-In order to provide a user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
+In order to provide a Python user-defined function, you need to write a Python function and decorate it with the `pyflink.table.udf.udf` or `pyflink.table.udf.udtf` decorator (see [Python UDFs]({{ site.baseurl }}/dev/table/python/python_udfs.html)). One or more functions can then be placed into a Python file. The Python file and related dependencies need to be specified via the configuration (see [Python Configuration]({{ site.baseurl }}/dev/table/python/python_config.html)) in environment file or the command line options (see [Command Line Usage]({{ site.baseurl }}/ops/cli.html#usage)).
 
 All functions must be declared in an environment file before being called. For each item in the list of `functions`, one must specify
 
 - a `name` under which the function is registered,
-- the source of the function using `from` (restricted to be `class` for now),
+- the source of the function using `from` (restricted to be `class` (Java/Scala UDF) or `python` (Python UDF) for now),
+
+The Java/Scala UDF must specify:
+
 - the `class` which indicates the fully qualified class name of the function and an optional list of `constructor` parameters for instantiation.
+
+The Python UDF must specify:
+
+- the `fully-qualified-name` which indicates the fully qualified name, i.e the "[module name].[object name]" of the function.
 
 {% highlight yaml %}
 functions:
-  - name: ...               # required: name of the function
-    from: class             # required: source of the function (can only be "class" for now)
-    class: ...              # required: fully qualified class name of the function
-    constructor:            # optional: constructor parameters of the function class
-      - ...                 # optional: a literal parameter with implicit type
-      - class: ...          # optional: full class name of the parameter
-        constructor:        # optional: constructor parameters of the parameter's class
-          - type: ...       # optional: type of the literal parameter
-            value: ...      # optional: value of the literal parameter
+  - name: java_udf               # required: name of the function
+    from: class                  # required: source of the function
+    class: ...                   # required: fully qualified class name of the function
+    constructor:                 # optional: constructor parameters of the function class
+      - ...                      # optional: a literal parameter with implicit type
+      - class: ...               # optional: full class name of the parameter
+        constructor:             # optional: constructor parameters of the parameter's class
+          - type: ...            # optional: type of the literal parameter
+            value: ...           # optional: value of the literal parameter
+  - name: python_udf             # required: name of the function
+    from: python                 # required: source of the function 
+    fully-qualified-name: ...    # required: fully qualified class name of the function      
 {% endhighlight %}
 
-Make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
+For Java/Scala UDF, make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
 
 #### Constructor Parameters
 
@@ -483,7 +493,6 @@ tables:
       version: "0.11"
       topic: OutputTopic
       properties:
-        zookeeper.connect: localhost:2181
         bootstrap.servers: localhost:9092
         group.id: testGroup
     format:

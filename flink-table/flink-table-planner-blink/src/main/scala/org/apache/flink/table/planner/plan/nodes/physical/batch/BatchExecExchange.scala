@@ -41,6 +41,8 @@ import org.apache.calcite.rel.{RelDistribution, RelNode, RelWriter}
 
 import java.util
 
+import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
+
 import scala.collection.JavaConversions._
 
 /**
@@ -92,7 +94,7 @@ class BatchExecExchange(
       case Some(mode) if mode eq ShuffleMode.BATCH => mode
       case _ =>
         if (tableConf.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
-            .equalsIgnoreCase(ShuffleMode.BATCH.toString)) {
+            .equalsIgnoreCase(GlobalDataExchangeMode.ALL_EDGES_BLOCKING.toString)) {
           ShuffleMode.BATCH
         } else {
           ShuffleMode.UNDEFINED

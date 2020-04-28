@@ -45,7 +45,6 @@ Apache Flink is an open source platform for distributed stream and batch data pr
 
 The API references list and explain all features of Flink's APIs.
 
-* [Basic API Concepts](dev/api_concepts.html)
 * [DataStream API](dev/datastream_api.html)
 * [DataSet API](dev/batch/index.html)
 * [Table API &amp; SQL](dev/table/index.html)

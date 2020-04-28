@@ -41,6 +41,7 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
@@ -53,6 +54,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -133,7 +135,7 @@ public class ClientTest extends TestLogger {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestEager.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -145,7 +147,7 @@ public class ClientTest extends TestLogger {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetRuntime.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -157,7 +159,7 @@ public class ClientTest extends TestLogger {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAccumulator.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
@@ -169,12 +171,48 @@ public class ClientTest extends TestLogger {
 			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAllAccumulator.class.getName()).build();
 			final Configuration configuration = fromPackagedProgram(prg, 1, true);
 
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(clusterClient, plan), configuration, prg, false, false);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
 			assertEquals(
 					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
 					e.getCause().getMessage());
+		}
+	}
+
+	@Test(expected = FlinkRuntimeException.class)
+	public void testMultiExecuteWithEnforcingSingleJobExecution() throws Throwable {
+		try {
+			launchMultiExecuteJob(true);
+		} catch (Exception e) {
+			if (e instanceof ProgramInvocationException) {
+				throw e.getCause();
+			}
+		}
+		fail("Test should have failed due to multiple execute() calls.");
+	}
+
+	@Test
+	public void testMultiExecuteWithoutEnforcingSingleJobExecution() throws ProgramInvocationException {
+		launchMultiExecuteJob(false);
+	}
+
+	private void launchMultiExecuteJob(final boolean enforceSingleJobExecution) throws ProgramInvocationException {
+		try (final ClusterClient<?> clusterClient =
+					new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster())) {
+
+			final PackagedProgram program = PackagedProgram.newBuilder()
+					.setEntryPointClassName(TestMultiExecute.class.getName())
+					.build();
+
+			final Configuration configuration = fromPackagedProgram(program, 1, false);
+
+			ClientUtils.executeProgram(
+					new TestExecutorServiceLoader(clusterClient, plan),
+					configuration,
+					program,
+					enforceSingleJobExecution,
+					false);
 		}
 	}
 
@@ -218,7 +256,7 @@ public class ClientTest extends TestLogger {
 		try {
 			final ClusterClient<?> client = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 			final Configuration configuration = fromPackagedProgram(packagedProgramMock, 1, true);
-			ClientUtils.executeProgram(new TestExecutorServiceLoader(client, plan), configuration, packagedProgramMock);
+			ClientUtils.executeProgram(new TestExecutorServiceLoader(client, plan), configuration, packagedProgramMock, false, false);
 			fail("Creating the local execution environment should not be possible");
 		}
 		catch (InvalidProgramException e) {
@@ -234,7 +272,7 @@ public class ClientTest extends TestLogger {
 			.build();
 
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-		Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, 1, true);
+		Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, new Configuration(), 1, true);
 		OptimizedPlan op = optimizer.compile(plan);
 		assertNotNull(op);
 
@@ -292,6 +330,23 @@ public class ClientTest extends TestLogger {
 		public static void main(String[] args) throws Exception {
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.fromElements(1, 2).collect();
+		}
+	}
+
+	/**
+	 * Test job with multiple execute() calls.
+	 */
+	public static final class TestMultiExecute {
+
+		public static void main(String[] args) throws Exception {
+			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+			for (int i = 0; i < 2; i++) {
+				env.fromElements(1, 2).output(new DiscardingOutputFormat<>());
+				JobClient jc = env.executeAsync();
+
+				jc.getJobExecutionResult(TestMultiExecute.class.getClassLoader());
+			}
 		}
 	}
 

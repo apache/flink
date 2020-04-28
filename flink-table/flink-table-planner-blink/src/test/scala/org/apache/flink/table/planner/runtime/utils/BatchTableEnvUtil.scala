@@ -248,7 +248,7 @@ object BatchTableEnvUtil {
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
     val fields = fieldNames.map((f: Array[String]) => f.map(ExpressionParser.parseExpression))
-    TableTestUtil.registerDataStream(
+    TableTestUtil.createTemporaryView(
       tEnv,
       name,
       boundedStream,

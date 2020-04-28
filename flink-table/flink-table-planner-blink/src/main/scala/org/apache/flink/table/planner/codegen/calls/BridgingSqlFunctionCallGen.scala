@@ -36,7 +36,7 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.utils.ExtractionUtils
 import org.apache.flink.table.types.extraction.utils.ExtractionUtils.{createMethodSignatureString, isAssignable, isMethodInvokable, primitiveToWrapper}
 import org.apache.flink.table.types.inference.TypeInferenceUtil
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.util.Preconditions
@@ -252,8 +252,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     val enrichedTypes = enrichedDataTypes.map(_.getLogicalType)
     operandTypes.zip(enrichedTypes).foreach { case (operandType, enrichedType) =>
       // check that the logical type has not changed during the enrichment
-      // a nullability mismatch is acceptable if the enriched type can handle it
-      if (operandType != enrichedType && operandType.copy(true) != enrichedType) {
+      if (!supportsAvoidingCast(operandType, enrichedType)) {
         throw new CodeGenException(
           s"Mismatch of function's argument data type '$enrichedType' and actual " +
             s"argument type '$operandType'.")
@@ -295,8 +294,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     : Unit = {
     val enrichedType = enrichedDataType.getLogicalType
     // check that the logical type has not changed during the enrichment
-    // a nullability mismatch is acceptable if the output type can handle it
-    if (returnType != enrichedType && returnType != enrichedType.copy(true)) {
+    if (!supportsAvoidingCast(enrichedType, returnType)) {
       throw new CodeGenException(
         s"Mismatch of expected output data type '$returnType' and function's " +
           s"output type '$enrichedType'.")

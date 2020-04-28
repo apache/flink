@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
@@ -34,10 +33,7 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.QueryConfig;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -66,6 +62,7 @@ import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
+import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
 import org.apache.flink.table.factories.BatchTableSinkFactory;
 import org.apache.flink.table.factories.BatchTableSourceFactory;
 import org.apache.flink.table.factories.CatalogFactory;
@@ -84,7 +81,6 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.delegation.ExecutorBase;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
@@ -98,7 +94,10 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -153,6 +152,10 @@ public class ExecutionContext<ClusterID> {
 		this.originalSessionContext = originalSessionContext;
 
 		this.flinkConfig = flinkConfig;
+
+		if (containsPythonFunction(environment)) {
+			dependencies = addPythonDependency(dependencies);
+		}
 
 		// create class loader
 		classLoader = ClientUtils.buildUserCodeClassLoader(
@@ -247,18 +250,6 @@ public class ExecutionContext<ClusterID> {
 		}
 	}
 
-	public QueryConfig getQueryConfig() {
-		if (streamExecEnv != null) {
-			final StreamQueryConfig config = new StreamQueryConfig();
-			final long minRetention = environment.getExecution().getMinStateRetention();
-			final long maxRetention = environment.getExecution().getMaxStateRetention();
-			config.withIdleStateRetentionTime(Time.milliseconds(minRetention), Time.milliseconds(maxRetention));
-			return config;
-		} else {
-			return new BatchQueryConfig();
-		}
-	}
-
 	public TableEnvironment getTableEnvironment() {
 		return tableEnv;
 	}
@@ -272,25 +263,15 @@ public class ExecutionContext<ClusterID> {
 	}
 
 	public Pipeline createPipeline(String name) {
-		if (streamExecEnv != null) {
-			// special case for Blink planner to apply batch optimizations
-			// note: it also modifies the ExecutionConfig!
-			if (isBlinkPlanner(executor.getClass())) {
-				return ((ExecutorBase) executor).getStreamGraph(name);
+		return wrapClassLoader(() -> {
+			if (streamExecEnv != null) {
+				StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
+				return streamTableEnv.getPipeline(name);
+			} else {
+				BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) tableEnv;
+				return batchTableEnv.getPipeline(name);
 			}
-			return streamExecEnv.getStreamGraph(name);
-		} else {
-			return execEnv.createProgramPlan(name);
-		}
-	}
-
-	private boolean isBlinkPlanner(Class<? extends Executor> executorClass) {
-		try {
-			return ExecutorBase.class.isAssignableFrom(executorClass);
-		} catch (NoClassDefFoundError ignore) {
-			// blink planner might not be on the class path
-			return false;
-		}
+		});
 	}
 
 	/** Returns a builder for this {@link ExecutionContext}. */
@@ -304,6 +285,11 @@ public class ExecutionContext<ClusterID> {
 			List<CustomCommandLine> commandLines) {
 		return new Builder(defaultEnv, sessionContext, dependencies, configuration,
 				serviceLoader, commandLineOptions, commandLines);
+	}
+
+	/** Close resources associated with this ExecutionContext, e.g. catalogs. */
+	public void close() {
+		wrapClassLoader(() -> getCatalogs().values().forEach(Catalog::close));
 	}
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -337,7 +323,7 @@ public class ExecutionContext<ClusterID> {
 				commandLine);
 
 		try {
-			final ProgramOptions programOptions = new ProgramOptions(commandLine);
+			final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 			final ExecutionConfigAccessor executionConfigAccessor = ExecutionConfigAccessor.fromProgramOptions(programOptions, dependencies);
 			executionConfigAccessor.applyToConfiguration(executionConfig);
 		} catch (CliArgsException e) {
@@ -406,7 +392,8 @@ public class ExecutionContext<ClusterID> {
 							tableEnv.getCurrentDatabase(),
 							name),
 					CatalogTableImpl.fromProperties(sinkProperties),
-					tableEnv.getConfig().getConfiguration()));
+					tableEnv.getConfig().getConfiguration(),
+					!environment.getExecution().inStreamingMode()));
 		} else if (environment.getExecution().isBatchPlanner()) {
 			final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
 				TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
@@ -461,19 +448,22 @@ public class ExecutionContext<ClusterID> {
 	private void initializeTableEnvironment(@Nullable SessionState sessionState) {
 		final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
 		final boolean noInheritedState = sessionState == null;
+		// Step 0.0 Initialize the table configuration.
+		final TableConfig config = new TableConfig();
+		config.addConfiguration(flinkConfig);
+		environment.getConfiguration().asMap().forEach((k, v) ->
+				config.getConfiguration().setString(k, v));
+		config.setSqlDialect(environment.getExecution().getSqlDialect());
+
 		if (noInheritedState) {
 			//--------------------------------------------------------------------------------------------------------------
 			// Step.1 Create environments
 			//--------------------------------------------------------------------------------------------------------------
-			// Step 1.0 Initialize the table configuration.
-			final TableConfig config = new TableConfig();
-			environment.getConfiguration().asMap().forEach((k, v) ->
-					config.getConfiguration().setString(k, v));
 
-			// Step 1.1 Initialize the ModuleManager if required.
+			// Step 1.0 Initialize the ModuleManager if required.
 			final ModuleManager moduleManager = new ModuleManager();
 
-			// Step 1.2 Initialize the CatalogManager if required.
+			// Step 1.1 Initialize the CatalogManager if required.
 			final CatalogManager catalogManager = CatalogManager.newBuilder()
 				.classLoader(classLoader)
 				.config(config.getConfiguration())
@@ -484,11 +474,11 @@ public class ExecutionContext<ClusterID> {
 						settings.getBuiltInDatabaseName()))
 				.build();
 
-			// Step 1.3 Initialize the FunctionCatalog if required.
+			// Step 1.2 Initialize the FunctionCatalog if required.
 			final FunctionCatalog functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager);
 
-			// Step 1.4 Set up session state.
-			this.sessionState = SessionState.of(config, catalogManager, moduleManager, functionCatalog);
+			// Step 1.3 Set up session state.
+			this.sessionState = SessionState.of(catalogManager, moduleManager, functionCatalog);
 
 			// Must initialize the table environment before actually the
 			createTableEnvironment(settings, config, catalogManager, moduleManager, functionCatalog);
@@ -523,7 +513,7 @@ public class ExecutionContext<ClusterID> {
 			this.sessionState = sessionState;
 			createTableEnvironment(
 					settings,
-					sessionState.config,
+					config,
 					sessionState.catalogManager,
 					sessionState.moduleManager,
 					sessionState.functionCatalog);
@@ -649,7 +639,11 @@ public class ExecutionContext<ClusterID> {
 	private void registerFunctions() {
 		Map<String, FunctionDefinition> functions = new LinkedHashMap<>();
 		environment.getFunctions().forEach((name, entry) -> {
-			final UserDefinedFunction function = FunctionService.createFunction(entry.getDescriptor(), classLoader, false);
+			final UserDefinedFunction function = FunctionService.createFunction(
+				entry.getDescriptor(),
+				classLoader,
+				false,
+				getTableEnvironment().getConfig().getConfiguration());
 			functions.put(name, function);
 		});
 		registerFunctions(functions);
@@ -713,6 +707,31 @@ public class ExecutionContext<ClusterID> {
 				"Invalid temporal table '" + temporalTableEntry.getName() + "' over table '" +
 					temporalTableEntry.getHistoryTable() + ".\nCause: " + e.getMessage());
 		}
+	}
+
+	private boolean containsPythonFunction(Environment environment) {
+		return environment.getFunctions().values().stream().anyMatch(f ->
+			FunctionDescriptorValidator.FROM_VALUE_PYTHON.equals(
+				f.getDescriptor().toProperties().get(FunctionDescriptorValidator.FROM)));
+	}
+
+	private List<URL> addPythonDependency(List<URL> dependencies) {
+		List<URL> newDependencies = new ArrayList<>(dependencies);
+		try {
+			URL location = Class.forName(
+				"org.apache.flink.python.PythonFunctionRunner",
+				false,
+				Thread.currentThread().getContextClassLoader())
+				.getProtectionDomain().getCodeSource().getLocation();
+			if (Paths.get(location.toURI()).toFile().isFile()) {
+				newDependencies.add(location);
+			}
+		} catch (URISyntaxException | ClassNotFoundException e) {
+			throw new SqlExecutionException("Python UDF detected but flink-python jar not found. " +
+				"If you starts SQL-Client via `sql-client.sh`, please add the flink-python jar " +
+				"via `-j` command option manually.", e);
+		}
+		return newDependencies;
 	}
 
 	//~ Inner Class -------------------------------------------------------------------------------
@@ -783,28 +802,24 @@ public class ExecutionContext<ClusterID> {
 
 	/** Represents the state that should be reused in one session. **/
 	public static class SessionState {
-		public final TableConfig config;
 		public final CatalogManager catalogManager;
 		public final ModuleManager moduleManager;
 		public final FunctionCatalog functionCatalog;
 
 		private SessionState(
-				TableConfig config,
 				CatalogManager catalogManager,
 				ModuleManager moduleManager,
 				FunctionCatalog functionCatalog) {
-			this.config = config;
 			this.catalogManager = catalogManager;
 			this.moduleManager = moduleManager;
 			this.functionCatalog = functionCatalog;
 		}
 
 		public static SessionState of(
-				TableConfig config,
 				CatalogManager catalogManager,
 				ModuleManager moduleManager,
 				FunctionCatalog functionCatalog) {
-			return new SessionState(config, catalogManager, moduleManager, functionCatalog);
+			return new SessionState(catalogManager, moduleManager, functionCatalog);
 		}
 	}
 }

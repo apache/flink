@@ -23,7 +23,7 @@ from py4j.java_gateway import java_import
 
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
-from pyflink.table import TableSink
+from pyflink.table.sinks import TableSink
 from pyflink.table.types import _to_java_type
 from pyflink.util import utils
 

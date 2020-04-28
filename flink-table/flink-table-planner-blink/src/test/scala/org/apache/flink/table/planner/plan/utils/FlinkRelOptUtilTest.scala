@@ -41,7 +41,7 @@ class FlinkRelOptUtilTest {
 
   @Before
   def before(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
+    val settings = EnvironmentSettings.newInstance().build()
     val tEnv = TableEnvironmentImpl.create(settings)
     BatchTableEnvUtil.registerCollection(
       tEnv,

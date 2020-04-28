@@ -139,8 +139,16 @@ public final class StringUtils {
 		if (array instanceof long[]) {
 			return Arrays.toString((long[]) array);
 		}
-		if (array instanceof Object[]) {
-			return Arrays.toString((Object[]) array);
+		// for array of byte array
+		if (array instanceof byte[][]) {
+			byte[][] b = (byte[][]) array;
+			String[] strs = new String[b.length];
+
+			for (int i = 0; i < b.length; i++) {
+				strs[i] = Arrays.toString(b[i]);
+			}
+
+			return Arrays.toString(strs);
 		}
 		if (array instanceof byte[]) {
 			return Arrays.toString((byte[]) array);
@@ -159,6 +167,9 @@ public final class StringUtils {
 		}
 		if (array instanceof short[]) {
 			return Arrays.toString((short[]) array);
+		}
+		if (array instanceof Object[]) {
+			return Arrays.toString((Object[]) array);
 		}
 
 		if (array.getClass().isArray()) {

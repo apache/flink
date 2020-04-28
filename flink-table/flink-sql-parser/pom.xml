@@ -39,23 +39,42 @@ under the License.
 
 	<dependencies>
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-annotations</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
 			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.21:
+				"mvn dependency:tree" as of Calcite 1.22.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.21.0:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.15.0:compile
-				[INFO] |  \- com.google.guava:guava:jar:19.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.22.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.16.0:compile
+				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
 
 				Dependencies that are not needed for how we use Calcite right now.
 				-->
 				<exclusion>
 					<groupId>org.apache.calcite.avatica</groupId>
 					<artifactId>avatica-metrics</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.calcite.avatica</groupId>
+					<artifactId>avatica-server</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-io</groupId>
+					<artifactId>commons-io</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.google.protobuf</groupId>
@@ -141,6 +160,10 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<exclusion>
+					<groupId>org.apache.calcite.avatica</groupId>
+					<artifactId>avatica-server</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
 					<artifactId>jackson-core</artifactId>
 				</exclusion>
@@ -155,6 +178,23 @@ under the License.
 			</exclusions>
 			<scope>test</scope>
 			<type>test-jar</type>
+		</dependency>
+		<!-- Because Calcite tests use Junit5 and we extend from its SqlParserTest,
+			 we need the Junit5 runner. -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>5.5.2</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- As we switched to JUnit5 runner to use the Calcite tests infrastructure we need
+		 	 to add this dependency to make our own Junit4 tests compatible with the Junit5
+		 	 environment.-->
+		<dependency>
+			<groupId>org.junit.vintage</groupId>
+			<artifactId>junit-vintage-engine</artifactId>
+			<version>5.5.2</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 

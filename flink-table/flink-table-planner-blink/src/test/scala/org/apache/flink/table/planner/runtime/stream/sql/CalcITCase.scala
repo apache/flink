@@ -66,7 +66,7 @@ class CalcITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val expected = List("0|1,1,1")
+    val expected = List("+I(1,1,1)")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -99,7 +99,7 @@ class CalcITCase extends StreamingTestBase {
     result.addSink(sink)
     env.execute()
 
-    val expected = List("0|Hello,Worlds,1","0|Hello again,Worlds,2")
+    val expected = List("+I(Hello,Worlds,1)","+I(Hello again,Worlds,2)")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

@@ -104,7 +104,3 @@ The following options can be used to tune the performance of the query execution
 The following options can be used to adjust the behavior of the query optimizer to get a better execution plan.
 
 {% include generated/optimizer_config_configuration.html %}
-
-### Python Options
-
-{% include generated/python_configuration.html %}

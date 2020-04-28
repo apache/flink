@@ -46,6 +46,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -249,6 +250,17 @@ public class DataFormatConverters {
 					return new PojoConverter((PojoTypeInfo) compositeType, fieldTypes);
 				}
 			case RAW:
+				if (logicalType instanceof RawType) {
+					final RawType<?> rawType = (RawType<?>) logicalType;
+					if (clazz == BinaryGeneric.class) {
+						return BinaryGenericConverter.INSTANCE;
+					} else {
+						return new GenericConverter<>(rawType.getTypeSerializer());
+					}
+				}
+
+				// legacy
+
 				TypeInformation typeInfo = logicalType instanceof LegacyTypeInformationType ?
 						((LegacyTypeInformationType) logicalType).getTypeInformation() :
 						((TypeInformationRawType) logicalType).getTypeInformation();
@@ -1118,7 +1130,7 @@ public class DataFormatConverters {
 		T[] toExternalImpl(BaseArray value) {
 			return (isEleIndentity && value instanceof GenericArray) ?
 					genericArrayToJavaArray((GenericArray) value, elementType) :
-					binaryArrayToJavaArray((BinaryArray) value, elementType, componentClass, elementConverter);
+					baseArrayToJavaArray(value, elementType, componentClass, elementConverter);
 		}
 
 		@Override
@@ -1153,7 +1165,7 @@ public class DataFormatConverters {
 		}
 	}
 
-	private static <T> T[] binaryArrayToJavaArray(BinaryArray value, LogicalType elementType,
+	private static <T> T[] baseArrayToJavaArray(BaseArray value, LogicalType elementType,
 			Class<T> componentClass, DataFormatConverter<Object, T> elementConverter) {
 		int size = value.numElements();
 		T[] values = (T[]) Array.newInstance(componentClass, size);
@@ -1259,8 +1271,8 @@ public class DataFormatConverters {
 
 		private Map binaryMapToMap(BinaryMap value) {
 			Map<Object, Object> map = new HashMap<>();
-			Object[] keys = binaryArrayToJavaArray(value.keyArray(), keyType, keyComponentClass, keyConverter);
-			Object[] values = binaryArrayToJavaArray(value.valueArray(), valueType, valueComponentClass, valueConverter);
+			Object[] keys = baseArrayToJavaArray(value.keyArray(), keyType, keyComponentClass, keyConverter);
+			Object[] values = baseArrayToJavaArray(value.valueArray(), valueType, valueComponentClass, valueConverter);
 			for (int i = 0; i < value.numElements(); i++) {
 				map.put(keys[i], values[i]);
 			}

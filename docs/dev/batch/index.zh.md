@@ -1,7 +1,7 @@
 ---
 title: "Flink DataSet API 编程指南"
 nav-id: batch
-nav-title: Batch (DataSet API)
+nav-title: DataSet API
 nav-parent_id: dev
 nav-pos: 30
 nav-show_overview: true
@@ -2122,8 +2122,6 @@ Passing Parameters to Functions
 -------------------
 
 Parameters can be passed to functions using either the constructor or the `withParameters(Configuration)` method. The parameters are serialized as part of the function object and shipped to all parallel task instances.
-
-Check also the [best practices guide on how to pass command line arguments to functions]({{ site.baseurl }}/dev/best_practices.html#parsing-command-line-arguments-and-passing-them-around-in-your-flink-application).
 
 #### Via Constructor
 

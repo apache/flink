@@ -26,13 +26,13 @@ import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.runtime.state.{VoidNamespace, VoidNamespaceSerializer}
 import org.apache.flink.streaming.api.SimpleTimerService
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, InternalTimer, Triggerable, TwoInputStreamOperator}
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.runtime.types.CRow
 
 /**
   * An abstract [[TwoInputStreamOperator]] that allows its subclasses to clean
   * up their state based on a TTL. This TTL should be specified in the provided
-  * [[StreamQueryConfig]].
+  * [[TableConfig]].
   *
   * For each known key, this operator registers a timer (in processing time) to
   * fire after the TTL expires. When the timer fires, the subclass can decide which
@@ -51,13 +51,11 @@ import org.apache.flink.table.runtime.types.CRow
   */
 @Internal
 abstract class BaseTwoInputStreamOperatorWithStateRetention(
-    queryConfig: StreamQueryConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
   extends AbstractStreamOperator[CRow]
   with TwoInputStreamOperator[CRow, CRow, CRow]
   with Triggerable[Any, VoidNamespace] {
-
-  private val minRetentionTime: Long = queryConfig.getMinIdleStateRetentionTime
-  private val maxRetentionTime: Long = queryConfig.getMaxIdleStateRetentionTime
 
   private val CLEANUP_TIMESTAMP = "cleanup-timestamp"
   private val TIMERS_STATE_NAME = "timers"

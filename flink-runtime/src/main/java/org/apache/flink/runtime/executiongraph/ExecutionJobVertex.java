@@ -447,18 +447,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return getAggregateJobVertexState(num, parallelism);
 	}
 
-	private String generateDebugString() {
-
-		return "ExecutionJobVertex" +
-				"(" + jobVertex.getName() + " | " + jobVertex.getID() + ")" +
-				"{" +
-				"parallelism=" + parallelism +
-				", maxParallelism=" + getMaxParallelism() +
-				", maxParallelismConfigured=" + maxParallelismConfigured +
-				'}';
-	}
-
-
 	//---------------------------------------------------------------------------------------------
 
 	public void connectToPredecessors(Map<IntermediateDataSetID, IntermediateResult> intermediateDataSets) throws JobException {

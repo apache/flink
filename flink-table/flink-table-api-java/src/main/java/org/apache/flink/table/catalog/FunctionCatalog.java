@@ -66,8 +66,8 @@ public final class FunctionCatalog {
 	private final CatalogManager catalogManager;
 	private final ModuleManager moduleManager;
 
-	private final Map<String, FunctionDefinition> tempSystemFunctions = new LinkedHashMap<>();
-	private final Map<ObjectIdentifier, FunctionDefinition> tempCatalogFunctions = new LinkedHashMap<>();
+	private final Map<String, CatalogFunction> tempSystemFunctions = new LinkedHashMap<>();
+	private final Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions = new LinkedHashMap<>();
 
 	/**
 	 * Temporary utility until the new type inference is fully functional. It needs to be set by the planner.
@@ -94,28 +94,18 @@ public final class FunctionCatalog {
 			String name,
 			FunctionDefinition definition,
 			boolean ignoreIfExists) {
-		final String normalizedName = FunctionIdentifier.normalizeName(name);
+		registerTemporarySystemFunction(name, new InlineCatalogFunction(definition), ignoreIfExists);
+	}
 
-		if (definition instanceof UserDefinedFunction) {
-			try {
-				UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
-			} catch (Throwable t) {
-				throw new ValidationException(
-					String.format(
-						"Could not register temporary system function '%s' due to implementation errors.",
-						name),
-					t);
-			}
-		}
-
-		if (!tempSystemFunctions.containsKey(normalizedName)) {
-			tempSystemFunctions.put(normalizedName, definition);
-		} else if (!ignoreIfExists) {
-			throw new ValidationException(
-				String.format(
-					"Could not register temporary system function. A function named '%s' does already exist.",
-					name));
-		}
+	/**
+	 * Registers a uninstantiated temporary system function.
+	 */
+	public void registerTemporarySystemFunction(
+			String name,
+			String fullyQualifiedName,
+			FunctionLanguage language,
+			boolean ignoreIfExists) {
+		registerTemporarySystemFunction(name, new CatalogFunctionImpl(fullyQualifiedName, language), ignoreIfExists);
 	}
 
 	/**
@@ -125,16 +115,16 @@ public final class FunctionCatalog {
 			String name,
 			boolean ignoreIfNotExist) {
 		final String normalizedName = FunctionIdentifier.normalizeName(name);
-		final FunctionDefinition definition = tempSystemFunctions.remove(normalizedName);
+		final CatalogFunction function = tempSystemFunctions.remove(normalizedName);
 
-		if (definition == null && !ignoreIfNotExist) {
+		if (function == null && !ignoreIfNotExist) {
 			throw new ValidationException(
 				String.format(
 					"Could not drop temporary system function. A function named '%s' doesn't exist.",
 					name));
 		}
 
-		return definition != null;
+		return function != null;
 	}
 
 	/**
@@ -144,23 +134,31 @@ public final class FunctionCatalog {
 			UnresolvedIdentifier unresolvedIdentifier,
 			FunctionDefinition definition,
 			boolean ignoreIfExists) {
+		registerTemporaryCatalogFunction(unresolvedIdentifier, new InlineCatalogFunction(definition), ignoreIfExists);
+	}
+
+	/**
+	 * Registers a uninstantiated temporary catalog function.
+	 */
+	public void registerTemporaryCatalogFunction(
+			UnresolvedIdentifier unresolvedIdentifier,
+			CatalogFunction catalogFunction,
+			boolean ignoreIfExists) {
 		final ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 		final ObjectIdentifier normalizedIdentifier = FunctionIdentifier.normalizeObjectIdentifier(identifier);
 
-		if (definition instanceof UserDefinedFunction) {
-			try {
-				UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
-			} catch (Throwable t) {
-				throw new ValidationException(
-					String.format(
-						"Could not register temporary catalog function '%s' due to implementation errors.",
-						identifier.asSummaryString()),
-					t);
-			}
+		try {
+			validateAndPrepareFunction(catalogFunction);
+		} catch (Throwable t) {
+			throw new ValidationException(
+				String.format(
+					"Could not register temporary catalog function '%s' due to implementation errors.",
+					identifier.asSummaryString()),
+				t);
 		}
 
 		if (!tempCatalogFunctions.containsKey(normalizedIdentifier)) {
-			tempCatalogFunctions.put(normalizedIdentifier, definition);
+			tempCatalogFunctions.put(normalizedIdentifier, catalogFunction);
 		} else if (!ignoreIfExists) {
 			throw new ValidationException(
 				String.format(
@@ -177,7 +175,7 @@ public final class FunctionCatalog {
 			boolean ignoreIfNotExist) {
 		final ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 		final ObjectIdentifier normalizedIdentifier = FunctionIdentifier.normalizeObjectIdentifier(identifier);
-		final FunctionDefinition definition = tempCatalogFunctions.remove(normalizedIdentifier);
+		final CatalogFunction definition = tempCatalogFunctions.remove(normalizedIdentifier);
 
 		if (definition == null && !ignoreIfNotExist) {
 			throw new ValidationException(
@@ -444,51 +442,6 @@ public final class FunctionCatalog {
 		);
 	}
 
-	public <T> void registerTempCatalogTableFunction(
-			ObjectIdentifier oi,
-			TableFunction<T> function,
-			TypeInformation<T> resultType) {
-		UserDefinedFunctionHelper.prepareInstance(config, function);
-
-		registerTempCatalogFunction(
-			oi,
-			new TableFunctionDefinition(
-				oi.getObjectName(),
-				function,
-				resultType)
-		);
-	}
-
-	public <T, ACC> void registerTempCatalogAggregateFunction(
-			ObjectIdentifier oi,
-			UserDefinedAggregateFunction<T, ACC> function,
-			TypeInformation<T> resultType,
-			TypeInformation<ACC> accType) {
-		UserDefinedFunctionHelper.prepareInstance(config, function);
-
-		final FunctionDefinition definition;
-		if (function instanceof AggregateFunction) {
-			definition = new AggregateFunctionDefinition(
-				oi.getObjectName(),
-				(AggregateFunction<?, ?>) function,
-				resultType,
-				accType);
-		} else if (function instanceof TableAggregateFunction) {
-			definition = new TableAggregateFunctionDefinition(
-				oi.getObjectName(),
-				(TableAggregateFunction<?, ?>) function,
-				resultType,
-				accType);
-		} else {
-			throw new TableException("Unknown function class: " + function.getClass());
-		}
-
-		registerTempCatalogFunction(
-			oi,
-			definition
-		);
-	}
-
 	/**
 	 * Drop a temporary catalog function.
 	 *
@@ -500,7 +453,7 @@ public final class FunctionCatalog {
 	public void dropTempCatalogFunction(ObjectIdentifier identifier, boolean ignoreIfNotExist) {
 		ObjectIdentifier normalizedName = FunctionIdentifier.normalizeObjectIdentifier(identifier);
 
-		FunctionDefinition fd = tempCatalogFunctions.remove(normalizedName);
+		CatalogFunction fd = tempCatalogFunctions.remove(normalizedName);
 
 		if (fd == null && !ignoreIfNotExist) {
 			throw new ValidationException(String.format("Temporary catalog function %s doesn't exist", identifier));
@@ -512,7 +465,12 @@ public final class FunctionCatalog {
 	 */
 	@Deprecated
 	private void registerTempSystemFunction(String name, FunctionDefinition functionDefinition) {
-		tempSystemFunctions.put(FunctionIdentifier.normalizeName(name), functionDefinition);
+		// This method is called by the interface which uses the old type inference,
+		// e.g. TableEnvironment#registerFunction
+		// In this case the UDF is wrapped by ScalarFunctionDefinition, TableFunctionDefinition, etc.
+		// The raw UDFs will be validated and cleaned before being wrapped, so just put them to the map
+		// in this method.
+		tempSystemFunctions.put(FunctionIdentifier.normalizeName(name), new InlineCatalogFunction(functionDefinition));
 	}
 
 	/**
@@ -520,7 +478,39 @@ public final class FunctionCatalog {
 	 */
 	@Deprecated
 	private void registerTempCatalogFunction(ObjectIdentifier oi, FunctionDefinition functionDefinition) {
-		tempCatalogFunctions.put(FunctionIdentifier.normalizeObjectIdentifier(oi), functionDefinition);
+		// This method is called by the interface which uses the old type inference,
+		// but there is no TableEnvironment-level public API uses this method now.
+		// In this case the UDFs are wrapped by ScalarFunctionDefinition, TableFunctionDefinition, etc.
+		// The raw UDFs will be validated and cleaned before being wrapped, so just put them to the map
+		// in this method.
+		tempCatalogFunctions.put(
+			FunctionIdentifier.normalizeObjectIdentifier(oi), new InlineCatalogFunction(functionDefinition));
+	}
+
+	private void registerTemporarySystemFunction(
+			String name,
+			CatalogFunction function,
+			boolean ignoreIfExists) {
+		final String normalizedName = FunctionIdentifier.normalizeName(name);
+
+		try {
+			validateAndPrepareFunction(function);
+		} catch (Throwable t) {
+			throw new ValidationException(
+				String.format(
+					"Could not register temporary system function '%s' due to implementation errors.",
+					name),
+				t);
+		}
+
+		if (!tempSystemFunctions.containsKey(normalizedName)) {
+			tempSystemFunctions.put(normalizedName, function);
+		} else if (!ignoreIfExists) {
+			throw new ValidationException(
+				String.format(
+					"Could not register temporary system function. A function named '%s' does already exist.",
+					name));
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -557,13 +547,13 @@ public final class FunctionCatalog {
 		// 1. Temporary functions
 		// 2. Catalog functions
 		ObjectIdentifier normalizedIdentifier = FunctionIdentifier.normalizeObjectIdentifier(oi);
-		FunctionDefinition potentialResult = tempCatalogFunctions.get(normalizedIdentifier);
+		CatalogFunction potentialResult = tempCatalogFunctions.get(normalizedIdentifier);
 
 		if (potentialResult != null) {
 			return Optional.of(
 				new FunctionLookup.Result(
 					FunctionIdentifier.of(oi),
-					potentialResult
+					getFunctionDefinition(oi.getObjectName(), potentialResult)
 				)
 			);
 		}
@@ -577,13 +567,13 @@ public final class FunctionCatalog {
 					new ObjectPath(oi.getDatabaseName(), oi.getObjectName()));
 
 				FunctionDefinition fd;
-				if (catalog.getFunctionDefinitionFactory().isPresent()) {
+				if (catalog.getFunctionDefinitionFactory().isPresent() &&
+					catalogFunction.getFunctionLanguage() != FunctionLanguage.PYTHON) {
 					fd = catalog.getFunctionDefinitionFactory().get()
 						.createFunctionDefinition(oi.getObjectName(), catalogFunction);
 				} else {
 					// TODO update the FunctionDefinitionUtil once we drop the old function stack in DDL
-					fd = FunctionDefinitionUtil.createFunctionDefinition(
-						oi.getObjectName(), catalogFunction.getClassName());
+					fd = getFunctionDefinition(oi.getObjectName(), catalogFunction);
 				}
 
 				return Optional.of(
@@ -608,7 +598,7 @@ public final class FunctionCatalog {
 			return Optional.of(
 				new FunctionLookup.Result(
 					FunctionIdentifier.of(funcName),
-					tempSystemFunctions.get(normalizedName))
+					getFunctionDefinition(normalizedName, tempSystemFunctions.get(normalizedName)))
 			);
 		}
 
@@ -621,5 +611,91 @@ public final class FunctionCatalog {
 		return candidate.map(fd ->
 			Optional.of(new FunctionLookup.Result(FunctionIdentifier.of(funcName), fd)
 		)).orElseGet(() -> resolvePreciseFunctionReference(oi));
+	}
+
+	@SuppressWarnings("unchecked")
+	private void validateAndPrepareFunction(CatalogFunction function) throws ClassNotFoundException {
+		// If the input is instance of UserDefinedFunction, it means it uses the new type inference.
+		// In this situation the UDF have not been validated and cleaned, so we need to validate it
+		// and clean its closure here.
+		// If the input is instance of `ScalarFunctionDefinition`, `TableFunctionDefinition` and so on,
+		// it means it uses the old type inference. We assume that they have been validated before being
+		// wrapped.
+		if (function instanceof InlineCatalogFunction &&
+			((InlineCatalogFunction) function).getDefinition() instanceof UserDefinedFunction) {
+
+			FunctionDefinition definition = ((InlineCatalogFunction) function).getDefinition();
+			UserDefinedFunctionHelper.prepareInstance(config, (UserDefinedFunction) definition);
+		} else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
+			ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+			UserDefinedFunctionHelper.validateClass(
+				(Class<? extends UserDefinedFunction>) contextClassLoader.loadClass(function.getClassName()));
+		}
+	}
+
+	private FunctionDefinition getFunctionDefinition(String name, CatalogFunction function) {
+		if (function instanceof InlineCatalogFunction) {
+			// The instantiated UDFs have been validated and cleaned when registering, just return them
+			// directly.
+			return ((InlineCatalogFunction) function).getDefinition();
+		}
+		// Currently the uninstantiated functions are all from sql and catalog that use the old type inference,
+		// so using FunctionDefinitionUtil to instantiate them and wrap them with `ScalarFunctionDefinition`,
+		// `TableFunctionDefinition`, etc. If the new type inference is fully functional, this should be
+		// changed to use `UserDefinedFunctionHelper#instantiateFunction`.
+		return FunctionDefinitionUtil.createFunctionDefinition(
+			name, function.getClassName(), function.getFunctionLanguage(), config);
+	}
+
+	/**
+	 * The CatalogFunction which holds a instantiated UDF.
+	 */
+	private static class InlineCatalogFunction implements CatalogFunction {
+
+		private final FunctionDefinition definition;
+
+		InlineCatalogFunction(FunctionDefinition definition) {
+			this.definition = definition;
+		}
+
+		@Override
+		public String getClassName() {
+			// Not all instantiated UDFs have a class name, such as Python Lambda UDF. Even if the UDF
+			// has a class name, there is no guarantee that the new UDF object constructed from the
+			// class name is the same as the UDF held by this object. To reduce the chance of making
+			// mistakes, UnsupportedOperationException is thrown here.
+			throw new UnsupportedOperationException(
+				"This CatalogFunction is a InlineCatalogFunction. This method should not be called.");
+		}
+
+		@Override
+		public CatalogFunction copy() {
+			return new InlineCatalogFunction(definition);
+		}
+
+		@Override
+		public Optional<String> getDescription() {
+			return Optional.empty();
+		}
+
+		@Override
+		public Optional<String> getDetailedDescription() {
+			return Optional.empty();
+		}
+
+		@Override
+		public boolean isGeneric() {
+			throw new UnsupportedOperationException(
+				"This CatalogFunction is a InlineCatalogFunction. This method should not be called.");
+		}
+
+		@Override
+		public FunctionLanguage getFunctionLanguage() {
+			return FunctionLanguage.JAVA;
+		}
+
+		public FunctionDefinition getDefinition() {
+			return definition;
+		}
 	}
 }

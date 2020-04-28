@@ -28,7 +28,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.runtime.harness.HarnessTestBase.TestingBaseRowKeySelector
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.HEAP_BACKEND
 import org.apache.flink.table.runtime.operators.join.temporal.BaseTwoInputStreamOperatorWithStateRetention
-import org.apache.flink.table.runtime.util.StreamRecordUtils.record
+import org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.{Description, TypeSafeMatcher}
@@ -63,8 +63,8 @@ class AbstractTwoInputStreamOperatorWithTTLTest
     operatorUnderTest = new StubOperatorWithStateTTL(minRetentionTime, maxRetentionTime)
     testHarness = createTestHarness(operatorUnderTest)
     testHarness.open()
-    recordAForFirstKey = record(1L: JLong, "hello")
-    recordBForFirstKey = record(1L: JLong, "world")
+    recordAForFirstKey = insertRecord(1L: JLong, "hello")
+    recordBForFirstKey = insertRecord(1L: JLong, "world")
   }
 
   @After

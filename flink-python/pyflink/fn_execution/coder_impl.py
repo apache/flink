@@ -19,23 +19,28 @@
 import datetime
 import decimal
 import struct
-import pyarrow as pa
+from typing import Any
+from typing import Generator
+from typing import List
 
-from apache_beam.coders.coder_impl import StreamCoderImpl
+import pandas as pd
+import pyarrow as pa
+from apache_beam.coders.coder_impl import StreamCoderImpl, create_InputStream, create_OutputStream
 
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.table import Row
+from pyflink.table.types import Row, DataType, LocalZonedTimestampType
 
 
 class FlattenRowCoderImpl(StreamCoderImpl):
 
     def __init__(self, field_coders):
         self._field_coders = field_coders
-        self._filed_count = len(field_coders)
-        self._leading_complete_bytes_num = self._filed_count // 8
-        self._remaining_bits_num = self._filed_count % 8
+        self._field_count = len(field_coders)
+        self._leading_complete_bytes_num = self._field_count // 8
+        self._remaining_bits_num = self._field_count % 8
         self.null_mask_search_table = self.generate_null_mask_search_table()
         self.null_byte_search_table = (0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
+        self.data_out_stream = create_OutputStream()
 
     @staticmethod
     def generate_null_mask_search_table():
@@ -51,21 +56,30 @@ class FlattenRowCoderImpl(StreamCoderImpl):
 
         return tuple(null_mask)
 
-    def encode_to_stream(self, value, out_stream, nested):
-        self.write_null_mask(value, out_stream)
+    def encode_to_stream(self, iter_value, out_stream, nested):
         field_coders = self._field_coders
-        for i in range(self._filed_count):
-            item = value[i]
-            if item is not None:
-                field_coders[i].encode_to_stream(item, out_stream, nested)
+        data_out_stream = self.data_out_stream
+        for value in iter_value:
+            self._write_null_mask(value, data_out_stream)
+            for i in range(self._field_count):
+                item = value[i]
+                if item is not None:
+                    field_coders[i].encode_to_stream(item, data_out_stream, nested)
+            out_stream.write_var_int64(data_out_stream.size())
+            out_stream.write(data_out_stream.get())
+            data_out_stream._clear()
 
     def decode_from_stream(self, in_stream, nested):
-        null_mask = self.read_null_mask(in_stream)
-        field_coders = self._field_coders
-        return [None if null_mask[idx] else field_coders[idx].decode_from_stream(
-            in_stream, nested) for idx in range(0, self._filed_count)]
+        while in_stream.size() > 0:
+            in_stream.read_var_int64()
+            yield self._decode_one_row_from_stream(in_stream, nested)
 
-    def write_null_mask(self, value, out_stream):
+    def _decode_one_row_from_stream(self, in_stream: create_InputStream, nested: bool) -> List:
+        null_mask = self._read_null_mask(in_stream)
+        return [None if null_mask[idx] else self._field_coders[idx].decode_from_stream(
+            in_stream, nested) for idx in range(0, self._field_count)]
+
+    def _write_null_mask(self, value, out_stream):
         field_pos = 0
         null_byte_search_table = self.null_byte_search_table
         remaining_bits_num = self._remaining_bits_num
@@ -84,7 +98,7 @@ class FlattenRowCoderImpl(StreamCoderImpl):
                     b |= null_byte_search_table[i]
             out_stream.write_byte(b)
 
-    def read_null_mask(self, in_stream):
+    def _read_null_mask(self, in_stream):
         null_mask = []
         null_mask_search_table = self.null_mask_search_table
         remaining_bits_num = self._remaining_bits_num
@@ -106,8 +120,16 @@ class RowCoderImpl(FlattenRowCoderImpl):
     def __init__(self, field_coders):
         super(RowCoderImpl, self).__init__(field_coders)
 
+    def encode_to_stream(self, value, out_stream, nested):
+        field_coders = self._field_coders
+        self._write_null_mask(value, out_stream)
+        for i in range(self._field_count):
+            item = value[i]
+            if item is not None:
+                field_coders[i].encode_to_stream(item, out_stream, nested)
+
     def decode_from_stream(self, in_stream, nested):
-        return Row(*super(RowCoderImpl, self).decode_from_stream(in_stream, nested))
+        return Row(*self._decode_one_row_from_stream(in_stream, nested))
 
     def __repr__(self):
         return 'RowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
@@ -117,17 +139,24 @@ class TableFunctionRowCoderImpl(StreamCoderImpl):
 
     def __init__(self, flatten_row_coder):
         self._flatten_row_coder = flatten_row_coder
-        self._field_count = flatten_row_coder._filed_count
+        self._field_count = flatten_row_coder._field_count
 
-    def encode_to_stream(self, value, out_stream, nested):
-        if value is None:
+    def encode_to_stream(self, iter_value, out_stream, nested):
+        for value in iter_value:
+            if value:
+                if self._field_count == 1:
+                    value = self._create_tuple_result(value)
+                self._flatten_row_coder.encode_to_stream(value, out_stream, nested)
+            out_stream.write_var_int64(1)
             out_stream.write_byte(0x00)
-        else:
-            self._flatten_row_coder.encode_to_stream(value if self._field_count != 1 else (value,),
-                                                     out_stream, nested)
 
     def decode_from_stream(self, in_stream, nested):
         return self._flatten_row_coder.decode_from_stream(in_stream, nested)
+
+    @staticmethod
+    def _create_tuple_result(value: List) -> Generator:
+        for result in value:
+            yield (result,)
 
     def __repr__(self):
         return 'TableFunctionRowCoderImpl[%s]' % repr(self._flatten_row_coder)
@@ -208,7 +237,7 @@ class TinyIntCoderImpl(StreamCoderImpl):
         return struct.unpack('b', in_stream.read(1))[0]
 
 
-class SmallIntImpl(StreamCoderImpl):
+class SmallIntCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
         out_stream.write(struct.pack('>h', value))
@@ -378,23 +407,41 @@ class TimestampCoderImpl(StreamCoderImpl):
         return datetime.datetime.utcfromtimestamp(second).replace(microsecond=microsecond)
 
 
+class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
+
+    def __init__(self, precision, timezone):
+        super(LocalZonedTimestampCoderImpl, self).__init__(precision)
+        self.timezone = timezone
+
+    def internal_to_timestamp(self, milliseconds, nanoseconds):
+        return self.timezone.localize(
+            super(LocalZonedTimestampCoderImpl, self).internal_to_timestamp(
+                milliseconds, nanoseconds))
+
+
 class ArrowCoderImpl(StreamCoderImpl):
 
-    def __init__(self, schema):
+    def __init__(self, schema, row_type, timezone):
         self._schema = schema
+        self._field_types = row_type.field_types()
+        self._timezone = timezone
         self._resettable_io = ResettableIO()
         self._batch_reader = ArrowCoderImpl._load_from_stream(self._resettable_io)
         self._batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
+        self.data_out_stream = create_OutputStream()
+        self._resettable_io.set_output_stream(self.data_out_stream)
 
-    def encode_to_stream(self, cols, out_stream, nested):
-        self._resettable_io.set_output_stream(out_stream)
-        self._batch_writer.write_batch(self._create_batch(cols))
+    def encode_to_stream(self, iter_cols, out_stream, nested):
+        data_out_stream = self.data_out_stream
+        for cols in iter_cols:
+            self._batch_writer.write_batch(self._create_batch(cols))
+            out_stream.write_var_int64(data_out_stream.size())
+            out_stream.write(data_out_stream.get())
+            data_out_stream._clear()
 
     def decode_from_stream(self, in_stream, nested):
-        self._resettable_io.set_input_bytes(in_stream.read_all())
-        # there is only arrow batch in the underlying input stream
-        table = pa.Table.from_batches([next(self._batch_reader)])
-        return [c.to_pandas(date_as_object=True) for c in table.itercolumns()]
+        while in_stream.size() > 0:
+            yield self._decode_one_batch_from_stream(in_stream)
 
     @staticmethod
     def _load_from_stream(stream):
@@ -411,8 +458,61 @@ class ArrowCoderImpl(StreamCoderImpl):
                             "pyarrow.Array (%s)."
                 raise RuntimeError(error_msg % (s.dtype, t), e)
 
-        arrays = [create_array(cols[i], self._schema.types[i]) for i in range(0, len(self._schema))]
+        arrays = [create_array(
+            ArrowCoderImpl.tz_convert_to_internal(cols[i], self._field_types[i], self._timezone),
+            self._schema.types[i]) for i in range(0, len(self._schema))]
         return pa.RecordBatch.from_arrays(arrays, self._schema)
+
+    def _decode_one_batch_from_stream(self, in_stream: create_InputStream) -> List:
+        self._resettable_io.set_input_bytes(in_stream.read_all(True))
+        # there is only one arrow batch in the underlying input stream
+        table = pa.Table.from_batches([next(self._batch_reader)])
+        return [ArrowCoderImpl.tz_convert_from_internal(
+            c.to_pandas(date_as_object=True), t, self._timezone)
+            for c, t in zip(table.itercolumns(), self._field_types)]
+
+    @staticmethod
+    def tz_convert_from_internal(s: pd.Series, t: DataType, local_tz) -> pd.Series:
+        """
+        Converts the timestamp series from internal according to the specified local timezone.
+
+        Returns the same series if the series is not a timestamp series. Otherwise,
+        returns a converted series.
+        """
+        if type(t) == LocalZonedTimestampType:
+            return s.dt.tz_localize(local_tz)
+        else:
+            return s
+
+    @staticmethod
+    def tz_convert_to_internal(s: pd.Series, t: DataType, local_tz) -> pd.Series:
+        """
+        Converts the timestamp series to internal according to the specified local timezone.
+        """
+        from pandas.api.types import is_datetime64_dtype, is_datetime64tz_dtype
+        if type(t) == LocalZonedTimestampType:
+            if is_datetime64_dtype(s.dtype):
+                return s.dt.tz_localize(None)
+            elif is_datetime64tz_dtype(s.dtype):
+                return s.dt.tz_convert(local_tz).dt.tz_localize(None)
+        return s
 
     def __repr__(self):
         return 'ArrowCoderImpl[%s]' % self._schema
+
+
+class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
+    def __init__(self, value_coder):
+        self._value_coder = value_coder
+
+    def encode_to_stream(self, value, out: create_OutputStream, nested: bool) -> Any:
+        self._value_coder.encode_to_stream(value, out, nested)
+
+    def decode_from_stream(self, in_stream: create_InputStream, nested: bool) -> Any:
+        return self._value_coder.decode_from_stream(in_stream, nested)
+
+    def get_estimated_size_and_observables(self, value: Any, nested=False):
+        return 0, []
+
+    def __repr__(self):
+        return 'PassThroughLengthPrefixCoderImpl[%s]' % self._value_coder

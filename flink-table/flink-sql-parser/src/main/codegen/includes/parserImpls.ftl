@@ -80,7 +80,7 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
 }
 
 /**
-* Parse a "Show Catalogs" metadata query command.
+* Parse a "Show DATABASES" metadata query command.
 */
 SqlShowDatabases SqlShowDatabases() :
 {
@@ -107,7 +107,9 @@ SqlUseDatabase SqlUseDatabase() :
 
 /**
 * Parses a create database statement.
-* CREATE DATABASE database_name [COMMENT database_comment] [WITH (property_name=property_value, ...)];
+* <pre>CREATE DATABASE database_name
+*       [COMMENT database_comment]
+*       [WITH (property_name=property_value, ...)].</pre>
 */
 SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 {
@@ -119,7 +121,10 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 }
 {
     <DATABASE> { startPos = getPos(); }
-    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+    [
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { ifNotExists = true; }
+    ]
     databaseName = CompoundIdentifier()
     [ <COMMENT> <QUOTED_STRING>
         {
@@ -201,23 +206,25 @@ SqlDescribeDatabase SqlDescribeDatabase() :
 
 }
 
-SqlCreate SqlCreateFunction(Span s, boolean replace) :
+SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
 {
     SqlIdentifier functionIdentifier = null;
     SqlCharStringLiteral functionClassName = null;
     String functionLanguage = null;
     boolean ifNotExists = false;
-    boolean isTemporary = false;
     boolean isSystemFunction = false;
 }
 {
-    [ <TEMPORARY>   {isTemporary = true;}
-        [ <SYSTEM>   { isSystemFunction = true; } ]
+    [
+        <SYSTEM> {isSystemFunction = true;}
     ]
 
     <FUNCTION>
 
-    [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+    [
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { ifNotExists = true; }
+    ]
 
     functionIdentifier = CompoundIdentifier()
 
@@ -232,6 +239,8 @@ SqlCreate SqlCreateFunction(Span s, boolean replace) :
             <SCALA> { functionLanguage = "SCALA"; }
         |
             <SQL>   { functionLanguage = "SQL"; }
+        |
+            <PYTHON>   { functionLanguage = "PYTHON"; }
         )
     ]
     {
@@ -240,20 +249,18 @@ SqlCreate SqlCreateFunction(Span s, boolean replace) :
     }
 }
 
-SqlDrop SqlDropFunction(Span s, boolean replace) :
+SqlDrop SqlDropFunction(Span s, boolean replace, boolean isTemporary) :
 {
     SqlIdentifier functionIdentifier = null;
     boolean ifExists = false;
-    boolean isTemporary = false;
     boolean isSystemFunction = false;
 }
 {
-    [ <TEMPORARY> {isTemporary = true;}
-        [  <SYSTEM>   { isSystemFunction = true; }  ]
-    ]
+    [ <SYSTEM>   { isSystemFunction = true; } ]
+
     <FUNCTION>
 
-    [ <IF> <EXISTS> { ifExists = true; } ]
+    [ LOOKAHEAD(2) <IF> <EXISTS> { ifExists = true; } ]
 
     functionIdentifier = CompoundIdentifier()
 
@@ -281,7 +288,7 @@ SqlAlterFunction SqlAlterFunction() :
 
     <FUNCTION> { startPos = getPos(); }
 
-    [ <IF> <EXISTS> { ifExists = true; } ]
+    [ LOOKAHEAD(2) <IF> <EXISTS> { ifExists = true; } ]
 
     functionIdentifier = CompoundIdentifier()
 
@@ -296,6 +303,8 @@ SqlAlterFunction SqlAlterFunction() :
             <SCALA> { functionLanguage = "SCALA"; }
         |
             <SQL>   { functionLanguage = "SQL"; }
+        |
+            <PYTHON>   { functionLanguage = "PYTHON"; }
         )
     ]
     {
@@ -564,6 +573,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     SqlWatermark watermark = null;
     SqlNodeList columnList = SqlNodeList.EMPTY;
 	SqlCharStringLiteral comment = null;
+	SqlTableLike tableLike = null;
 
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
@@ -594,16 +604,15 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     }]
     [
         <PARTITIONED> <BY>
-        partitionColumns = ParenthesizedSimpleIdentifierList() {
-            if (!((FlinkSqlConformance) this.conformance).allowCreatePartitionedTable()) {
-                throw SqlUtil.newContextException(getPos(),
-                    ParserResource.RESOURCE.createPartitionedTableIsOnlyAllowedForHive());
-            }
-        }
+        partitionColumns = ParenthesizedSimpleIdentifierList()
     ]
     [
         <WITH>
         propertyList = TableProperties()
+    ]
+    [
+        <LIKE>
+        tableLike = SqlTableLike(getPos())
     ]
     {
         return new SqlCreateTable(startPos.plus(getPos()),
@@ -614,7 +623,65 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
                 propertyList,
                 partitionColumns,
                 watermark,
-                comment);
+                comment,
+                tableLike);
+    }
+}
+
+SqlTableLike SqlTableLike(SqlParserPos startPos):
+{
+    final List<SqlTableLikeOption> likeOptions = new ArrayList<SqlTableLikeOption>();
+    SqlIdentifier tableName;
+    SqlTableLikeOption likeOption;
+}
+{
+    tableName = CompoundIdentifier()
+    [
+        <LPAREN>
+        (
+            likeOption = SqlTableLikeOption()
+            {
+                likeOptions.add(likeOption);
+            }
+        )+
+        <RPAREN>
+    ]
+    {
+        return new SqlTableLike(
+            startPos.plus(getPos()),
+            tableName,
+            likeOptions
+        );
+    }
+}
+
+SqlTableLikeOption SqlTableLikeOption():
+{
+    MergingStrategy mergingStrategy;
+    FeatureOption featureOption;
+}
+{
+    (
+        <INCLUDING> { mergingStrategy = MergingStrategy.INCLUDING; }
+    |
+        <EXCLUDING> { mergingStrategy = MergingStrategy.EXCLUDING; }
+    |
+        <OVERWRITING> { mergingStrategy = MergingStrategy.OVERWRITING; }
+    )
+    (
+        <ALL> { featureOption = FeatureOption.ALL;}
+    |
+        <CONSTRAINTS> { featureOption = FeatureOption.CONSTRAINTS;}
+    |
+        <GENERATED> { featureOption = FeatureOption.GENERATED;}
+    |
+        <OPTIONS> { featureOption = FeatureOption.OPTIONS;}
+    |
+        <PARTITIONS> { featureOption = FeatureOption.PARTITIONS;}
+    )
+
+    {
+        return new SqlTableLikeOption(mergingStrategy, featureOption);
     }
 }
 
@@ -677,7 +744,7 @@ SqlNode RichSqlInsert() :
         keywordList = new SqlNodeList(keywords, s.addAll(keywords).pos());
         extendedKeywordList = new SqlNodeList(extendedKeywords, s.addAll(extendedKeywords).pos());
     }
-    table = CompoundIdentifier()
+    table = TableRefWithHintsOpt()
     [
         LOOKAHEAD(5)
         [ <EXTEND> ]
@@ -733,17 +800,26 @@ void PartitionSpecCommaList(SqlNodeList list) :
 }
 
 /**
-* Parses a create view or replace existing view statement.
-*   CREATE [OR REPLACE] VIEW view_name [ (field1, field2 ...) ] AS select_statement
+* Parses a create view or temporary view statement.
+*   CREATE [OR REPLACE] [TEMPORARY] VIEW [IF NOT EXISTS] view_name [ (field1, field2 ...) ]
+*   AS select_statement
+* We only support [IF NOT EXISTS] semantic in Flink although the parser supports [OR REPLACE] grammar.
+* See: FLINK-17067
 */
-SqlCreate SqlCreateView(Span s, boolean replace) : {
+SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
     SqlIdentifier viewName;
     SqlCharStringLiteral comment = null;
     SqlNode query;
     SqlNodeList fieldList = SqlNodeList.EMPTY;
+    boolean ifNotExists = false;
 }
 {
     <VIEW>
+
+    [
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { ifNotExists = true; }
+    ]
     viewName = CompoundIdentifier()
     [
         fieldList = ParenthesizedSimpleIdentifierList()
@@ -756,17 +832,18 @@ SqlCreate SqlCreateView(Span s, boolean replace) : {
     <AS>
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, comment);
+        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, isTemporary, ifNotExists, comment);
     }
 }
 
-SqlDrop SqlDropView(Span s, boolean replace) :
+SqlDrop SqlDropView(Span s, boolean replace, boolean isTemporary) :
 {
     SqlIdentifier viewName = null;
     boolean ifExists = false;
 }
 {
     <VIEW>
+
     (
         <IF> <EXISTS> { ifExists = true; }
     |
@@ -774,7 +851,7 @@ SqlDrop SqlDropView(Span s, boolean replace) :
     )
     viewName = CompoundIdentifier()
     {
-        return new SqlDropView(s.pos(), viewName, ifExists);
+        return new SqlDropView(s.pos(), viewName, ifExists, isTemporary);
     }
 }
 
@@ -806,7 +883,7 @@ SqlTypeNameSpec ExtendedSqlBasicTypeName() :
         }
     )
     {
-        return new ExtendedSqlBasicTypeNameSpec(typeAlias, typeName, precision, getPos());
+        return new SqlAlienSystemTypeNameSpec(typeAlias, typeName, precision, getPos());
     }
 }
 
@@ -875,7 +952,6 @@ SqlTypeNameSpec SqlMapTypeName() :
 {
     SqlDataTypeSpec keyType;
     SqlDataTypeSpec valType;
-    boolean nullable = true;
 }
 {
     <MAP>
@@ -886,6 +962,24 @@ SqlTypeNameSpec SqlMapTypeName() :
     <GT>
     {
         return new SqlMapTypeNameSpec(keyType, valType, getPos());
+    }
+}
+
+/** Parses a SQL raw type such as {@code RAW('org.my.Class', 'sW3Djsds...')}. */
+SqlTypeNameSpec SqlRawTypeName() :
+{
+    SqlNode className;
+    SqlNode serializerString;
+}
+{
+    <RAW>
+    <LPAREN>
+    className = StringLiteral()
+    <COMMA>
+    serializerString = StringLiteral()
+    <RPAREN>
+    {
+        return new SqlRawTypeNameSpec(className, serializerString, getPos());
     }
 }
 
@@ -1071,5 +1165,53 @@ void TableApiIdentifierSegment(List<String> names, List<SqlParserPos> positions)
         if (positions != null) {
             positions.add(pos);
         }
+    }
+}
+
+SqlCreate SqlCreateExtended(Span s, boolean replace) :
+{
+    final SqlCreate create;
+    boolean isTemporary = false;
+}
+{
+    [
+        <TEMPORARY> { isTemporary = true; }
+    ]
+    (
+        create = SqlCreateCatalog(s, replace)
+        |
+        create = SqlCreateTable(s, replace)
+        |
+        create = SqlCreateView(s, replace, isTemporary)
+        |
+        create = SqlCreateDatabase(s, replace)
+        |
+        create = SqlCreateFunction(s, replace, isTemporary)
+    )
+    {
+        return create;
+    }
+}
+
+SqlDrop SqlDropExtended(Span s, boolean replace) :
+{
+    final SqlDrop drop;
+    boolean isTemporary = false;
+}
+{
+    [
+        <TEMPORARY> { isTemporary = true; }
+    ]
+    (
+        drop = SqlDropTable(s, replace)
+        |
+        drop = SqlDropView(s, replace, isTemporary)
+        |
+        drop = SqlDropDatabase(s, replace)
+        |
+        drop = SqlDropFunction(s, replace, isTemporary)
+    )
+    {
+        return drop;
     }
 }

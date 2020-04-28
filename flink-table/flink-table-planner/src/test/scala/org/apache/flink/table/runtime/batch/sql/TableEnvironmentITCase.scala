@@ -20,23 +20,33 @@ package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.core.fs.FileSystem
+import org.apache.flink.table.api.TableEnvironmentITCase
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
-import org.junit.Assert.assertEquals
+
+import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit._
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
+import scala.io.Source
 
 @RunWith(classOf[Parameterized])
 class TableEnvironmentITCase(
     configMode: TableConfigMode)
   extends TableProgramsCollectionTestBase(configMode) {
+
+  private val _tempFolder = new TemporaryFolder()
+
+  @Rule
+  def tempFolder: TemporaryFolder = _tempFolder
 
   @Test
   def testSQLTable(): Unit = {
@@ -45,7 +55,7 @@ class TableEnvironmentITCase(
     val tEnv = BatchTableEnvironment.create(env, config)
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds, 'a, 'b, 'c)
+    tEnv.createTemporaryView("MyTable", ds, 'a, 'b, 'c)
 
     val sqlQuery = "SELECT * FROM MyTable WHERE a > 9"
 
@@ -131,10 +141,127 @@ class TableEnvironmentITCase(
 
     val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
     tEnv.sqlUpdate(sql)
-    env.execute()
+    tEnv.execute("job name")
 
     val expected = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+  }
+
+  @Test
+  def testSqlUpdateAndToDataSetWithDataSetSource(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+    MemoryTableSourceSinkUtil.clear()
+
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("sourceTable", t)
+
+    val fieldNames = Array("d", "e", "f")
+    val fieldTypes = tEnv.scan("sourceTable").getSchema.getFieldTypes
+    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
+
+    val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
+    tEnv.sqlUpdate(sql)
+
+    try {
+      env.execute("job name")
+      fail("Should not happen")
+    } catch {
+      case e: RuntimeException =>
+        assertTrue(e.getMessage.contains("No data sinks have been created yet."))
+      case  _ =>
+        fail("Should not happen")
+    }
+
+    val result = tEnv.sqlQuery("SELECT c, b, a FROM sourceTable").select('a.avg, 'b.sum, 'c.count)
+
+    val resultFile = _tempFolder.newFile().getAbsolutePath
+    result.toDataSet[(Integer, Long, Long)]
+      .writeAsCsv(resultFile, writeMode=FileSystem.WriteMode.OVERWRITE)
+
+    tEnv.execute("job name")
+    val expected1 = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+    // the DataSet has not been executed
+    assertEquals("", Source.fromFile(resultFile).mkString)
+
+    env.execute("job")
+    val expected2 = "2,5,3\n"
+    val actual = Source.fromFile(resultFile).mkString
+    assertEquals(expected2, actual)
+    // does not trigger the table program execution again
+    assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+  }
+
+  @Test
+  def testSqlUpdateAndToDataSetWithTableSource(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+    MemoryTableSourceSinkUtil.clear()
+    tEnv.registerTableSource("sourceTable", TableEnvironmentITCase.getPersonCsvTableSource)
+
+    val fieldNames = Array("d", "e", "f", "g")
+    val fieldTypes = tEnv.scan("sourceTable").getSchema.getFieldTypes
+    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
+
+    val sql = "INSERT INTO targetTable SELECT * FROM sourceTable where id > 7"
+    tEnv.sqlUpdate(sql)
+
+    val result = tEnv.sqlQuery("SELECT id as a, score as b FROM sourceTable")
+      .select('a.count, 'b.avg)
+
+    val resultFile = _tempFolder.newFile().getAbsolutePath
+    result.toDataSet[(Long, Double)]
+      .writeAsCsv(resultFile, writeMode=FileSystem.WriteMode.OVERWRITE)
+
+    tEnv.execute("job name")
+    val expected1 = List("Kelly,8,2.34,Williams")
+    assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+    // the DataSet has not been executed
+    assertEquals("", Source.fromFile(resultFile).mkString)
+
+    env.execute("job")
+    val expected2 = "8,24.953750000000003\n"
+    val actual = Source.fromFile(resultFile).mkString
+    assertEquals(expected2, actual)
+    // does not trigger the table program execution again
+    assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+  }
+
+  @Test
+  def testToDataSetAndSqlUpdate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+    MemoryTableSourceSinkUtil.clear()
+
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("sourceTable", t)
+
+    val fieldNames = Array("d", "e", "f")
+    val fieldTypes = tEnv.scan("sourceTable").getSchema.getFieldTypes
+    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
+
+    val result = tEnv.sqlQuery("SELECT c, b, a FROM sourceTable").select('a.avg, 'b.sum, 'c.count)
+    val resultFile = _tempFolder.newFile().getAbsolutePath
+    result.toDataSet[(Integer, Long, Long)]
+      .writeAsCsv(resultFile, writeMode=FileSystem.WriteMode.OVERWRITE)
+
+    val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
+    tEnv.sqlUpdate(sql)
+
+    env.execute("job")
+    val expected1 = "2,5,3\n"
+    val actual = Source.fromFile(resultFile).mkString
+    assertEquals(expected1, actual)
+
+    tEnv.execute("job name")
+    val expected2 = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    assertEquals(expected2.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+    // does not trigger the DataSet program execution again
+    assertEquals(expected1, Source.fromFile(resultFile).mkString)
   }
 
 }

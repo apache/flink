@@ -268,6 +268,11 @@ public abstract class FlinkPreparingTableBase extends Prepare.AbstractPreparingT
 		}
 	}
 
+	@Override
+	public List<ImmutableBitSet> getKeys() {
+		return statistic.getKeys();
+	}
+
 	/**
 	 * Returns unique keySets of current table.
 	 */

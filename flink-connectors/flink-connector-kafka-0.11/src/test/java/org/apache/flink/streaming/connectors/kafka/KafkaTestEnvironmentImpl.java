@@ -134,7 +134,6 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		LOG.info("ZK and KafkaServer started.");
 
 		standardProps = new Properties();
-		standardProps.setProperty("zookeeper.connect", zookeeperConnectionString);
 		standardProps.setProperty("bootstrap.servers", brokerConnectionString);
 		standardProps.setProperty("group.id", "flink-tests");
 		standardProps.setProperty("enable.auto.commit", "false");
@@ -393,8 +392,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		kafkaProperties.put("advertised.host.name", KAFKA_HOST);
 		kafkaProperties.put("broker.id", Integer.toString(brokerId));
 		kafkaProperties.put("log.dir", tmpFolder.toString());
-		kafkaProperties.put("zookeeper.connect", zookeeperConnectionString);
 		kafkaProperties.put("message.max.bytes", String.valueOf(50 * 1024 * 1024));
+		kafkaProperties.put("zookeeper.connect", zookeeperConnectionString);
 		kafkaProperties.put("replica.fetch.max.bytes", String.valueOf(50 * 1024 * 1024));
 		kafkaProperties.put("transaction.max.timeout.ms", Integer.toString(1000 * 60 * 60 * 2)); // 2hours
 

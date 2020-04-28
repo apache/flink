@@ -54,6 +54,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -95,6 +96,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -199,7 +201,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	private final ResultPartitionWriter[] consumableNotifyingPartitionWriters;
 
-	private final InputGate[] inputGates;
+	private final IndexedInputGate[] inputGates;
 
 	/** Connection to the task manager. */
 	private final TaskManagerActions taskManagerActions;
@@ -286,8 +288,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		AllocationID slotAllocationId,
 		int subtaskIndex,
 		int attemptNumber,
-		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
-		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
+		List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
+		List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
 		int targetSlotNumber,
 		MemoryManager memManager,
 		IOManager ioManager,
@@ -385,14 +387,15 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			resultPartitionConsumableNotifier);
 
 		// consumed intermediate result partitions
-		final InputGate[] gates = shuffleEnvironment.createInputGates(
-			taskShuffleContext,
-			this,
-			inputGateDeploymentDescriptors).toArray(new InputGate[] {});
+		final IndexedInputGate[] gates = shuffleEnvironment.createInputGates(
+				taskShuffleContext,
+				this,
+				inputGateDeploymentDescriptors)
+			.toArray(new IndexedInputGate[0]);
 
-		this.inputGates = new InputGate[gates.length];
+		this.inputGates = new IndexedInputGate[gates.length];
 		int counter = 0;
-		for (InputGate gate : gates) {
+		for (IndexedInputGate gate : gates) {
 			inputGates[counter++] = new InputGateWithMetrics(gate, metrics.getIOMetricGroup().getNumBytesInCounter());
 		}
 
@@ -751,6 +754,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			// an exception was thrown as a side effect of cancelling
 			// ----------------------------------------------------------------
 
+			t = ExceptionUtils.enrichTaskManagerOutOfMemoryError(t);
+
 			try {
 				// check if the exception is unrecoverable
 				if (ExceptionUtils.isJvmFatalError(t) ||
@@ -820,7 +825,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				this.invokable = null;
 
 				// free the network resources
-				releaseNetworkResources();
+				releaseResources();
 
 				// free memory resources
 				if (invokable != null) {
@@ -873,10 +878,10 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	}
 
 	/**
-	 * Releases network resources before task exits. We should also fail the partition to release if the task
+	 * Releases resources before task exits. We should also fail the partition to release if the task
 	 * has failed, is canceled, or is being canceled at the moment.
 	 */
-	private void releaseNetworkResources() {
+	private void releaseResources() {
 		LOG.debug("Release task {} network resources (state: {}).", taskNameWithSubtask, getExecutionState());
 
 		for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
@@ -887,6 +892,11 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		}
 
 		closeNetworkResources();
+		try {
+			taskStateManager.close();
+		} catch (Exception e) {
+			LOG.error("Failed to close task state manager for task {}.", taskNameWithSubtask, e);
+		}
 	}
 
 	/**
@@ -1054,7 +1064,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 						// case the canceling could not continue
 
 						// The canceller calls cancel and interrupts the executing thread once
-						Runnable canceler = new TaskCanceler(LOG, this :: closeNetworkResources, invokable, executingThread, taskNameWithSubtask);
+						Runnable canceler = new TaskCanceler(LOG, this::closeNetworkResources, invokable, executingThread, taskNameWithSubtask);
 
 						Thread cancelThread = new Thread(
 								executingThread.getThreadGroup(),

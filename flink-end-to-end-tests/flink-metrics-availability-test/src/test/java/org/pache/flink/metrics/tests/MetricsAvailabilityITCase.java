@@ -76,8 +76,7 @@ public class MetricsAvailabilityITCase extends TestLogger {
 
 	@Rule
 	public final FlinkResource dist = new LocalStandaloneFlinkResourceFactory()
-		.create(FlinkResourceSetup.builder().build())
-		.get();
+		.create(FlinkResourceSetup.builder().build());
 
 	@Nullable
 	private static ScheduledExecutorService scheduledExecutorService = null;

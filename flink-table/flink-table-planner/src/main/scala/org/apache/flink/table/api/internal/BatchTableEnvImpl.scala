@@ -21,9 +21,14 @@ package org.apache.flink.table.api.internal
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.dag.Pipeline
 import org.apache.flink.api.java.io.DiscardingOutputFormat
+import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.apache.flink.api.java.utils.PlanGenerator
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.configuration.DeploymentOptions
+import org.apache.flink.core.execution.DetachedJobExecutionResult
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{CalciteConfig, FlinkTypeFactory}
 import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogManager}
@@ -43,11 +48,16 @@ import org.apache.flink.table.sources.{BatchTableSource, InputFormatTableSource,
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.FieldInfoUtils.{getFieldsInfo, validateInputTypeInfo}
+import org.apache.flink.table.util.DummyNoOpOperator
 import org.apache.flink.table.utils.TableConnectorUtils
 import org.apache.flink.types.Row
+import org.apache.flink.util.ExceptionUtils
+import org.apache.flink.util.Preconditions.checkNotNull
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
+
+import _root_.java.util.{ArrayList => JArrayList, Collections => JCollections}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -63,6 +73,8 @@ abstract class BatchTableEnvImpl(
     catalogManager: CatalogManager,
     moduleManager: ModuleManager)
   extends TableEnvImpl(config, catalogManager, moduleManager) {
+
+  private val bufferedSinks = new JArrayList[DataSink[_]]
 
   private[flink] val optimizer = new BatchOptimizer(
     () => config.getPlannerConfig.unwrap(classOf[CalciteConfig]).orElse(CalciteConfig.DEFAULT),
@@ -123,25 +135,36 @@ abstract class BatchTableEnvImpl(
       table: Table,
       sink: TableSink[T]): Unit = {
 
+    val batchTableEnv = createDummyBatchTableEnv()
     sink match {
       case batchSink: BatchTableSink[T] =>
         val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
           .asInstanceOf[TypeInformation[T]]
         // translate the Table into a DataSet and provide the type that the TableSink expects.
         val result: DataSet[T] = translate(table)(outputType)
+        // create a dummy NoOpOperator, which holds dummy DummyExecutionEnvironment as context.
+        // NoOpOperator will be ignored in OperatorTranslation
+        // when translating DataSet to Operator, while its input can be translated normally.
+        val dummyOp = new DummyNoOpOperator(batchTableEnv.execEnv, result, result.getType)
         // Give the DataSet to the TableSink to emit it.
-        batchSink.emitDataSet(result)
+        val dataSink = batchSink.consumeDataSet(dummyOp)
+        bufferedSinks.add(dataSink)
       case boundedSink: OutputFormatTableSink[T] =>
         val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
           .asInstanceOf[TypeInformation[T]]
         // translate the Table into a DataSet and provide the type that the TableSink expects.
         val result: DataSet[T] = translate(table)(outputType)
+        // create a dummy NoOpOperator, which holds DummyExecutionEnvironment as context.
+        // NoOpOperator will be ignored in OperatorTranslation
+        // when translating DataSet to Operator, while its input can be translated normally.
+        val dummyOp = new DummyNoOpOperator(batchTableEnv.execEnv, result, result.getType)
         // use the OutputFormat to consume the DataSet.
-        val dataSink = result.output(boundedSink.getOutputFormat)
-        dataSink.name(
+        val dataSink = dummyOp.output(boundedSink.getOutputFormat)
+        val dataSinkWithName = dataSink.name(
           TableConnectorUtils.generateRuntimeName(
             boundedSink.getClass,
             boundedSink.getTableSchema.getFieldNames))
+        bufferedSinks.add(dataSinkWithName)
       case _ =>
         throw new TableException(
           "BatchTableSink or OutputFormatTableSink required to emit batch Table.")
@@ -215,10 +238,64 @@ abstract class BatchTableEnvImpl(
 
   override def explain(table: Table): String = explain(table: Table, extended = false)
 
-  override def execute(jobName: String): JobExecutionResult = execEnv.execute(jobName)
+  override def execute(jobName: String): JobExecutionResult = {
+    val plan = createPipelineAndClearBuffer(jobName)
+
+    val configuration = execEnv.getConfiguration
+    checkNotNull(configuration.get(DeploymentOptions.TARGET),
+      "No execution.target specified in your configuration file.")
+
+    val executorFactory = execEnv.getExecutorServiceLoader.getExecutorFactory(configuration)
+    checkNotNull(executorFactory,
+      "Cannot find compatible factory for specified execution.target (=%s)",
+      configuration.get(DeploymentOptions.TARGET))
+
+    val jobClientFuture = executorFactory.getExecutor(configuration).execute(plan, configuration)
+    try {
+      val jobClient = jobClientFuture.get
+      if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+        jobClient.getJobExecutionResult(execEnv.getUserCodeClassLoader).get
+      } else {
+        new DetachedJobExecutionResult(jobClient.getJobID)
+      }
+    } catch {
+      case t: Throwable =>
+        ExceptionUtils.rethrow(t)
+        // make javac happy, this code path will not be reached
+        null
+    }
+  }
+
+  /**
+    * This method is used for sql client to submit job.
+    */
+  def getPipeline(jobName: String): Pipeline = {
+    createPipelineAndClearBuffer(jobName)
+  }
 
   override def explain(extended: Boolean): String = {
     throw new TableException("This method is unsupported in old planner.")
+  }
+
+  /**
+    * Translate the buffered sinks to Plan, and clear the buffer.
+    *
+    * <p>The buffer will be clear even if the `translate` fails. In most cases,
+    * the failure is not retryable (e.g. type mismatch, can't generate physical plan).
+    * If the buffer is not clear after failure, the following `translate` will also fail.
+    */
+  private def createPipelineAndClearBuffer(jobName: String): Pipeline = {
+    try {
+      val generator = new PlanGenerator(
+        bufferedSinks,
+        execEnv.getConfig,
+        execEnv.getParallelism,
+        JCollections.emptyList(),
+        jobName)
+      generator.generate()
+    } finally {
+      bufferedSinks.clear()
+    }
   }
 
   protected def asQueryOperation[T](dataSet: DataSet[T], fields: Option[Array[Expression]])
@@ -240,7 +317,7 @@ abstract class BatchTableEnvImpl(
     tableOperation
   }
 
-  private def checkNoTimeAttributes[T](f: Array[Expression]) = {
+  private def checkNoTimeAttributes[T](f: Array[Expression]): Unit = {
     if (f.exists(f =>
       f.accept(new ApiExpressionDefaultVisitor[Boolean] {
 
@@ -296,7 +373,7 @@ abstract class BatchTableEnvImpl(
         execEnv.configure(
           config.getConfiguration,
           Thread.currentThread().getContextClassLoader)
-        val plan = node.translateToPlan(this, new BatchQueryConfig)
+        val plan = node.translateToPlan(this)
         val conversion =
           getConversionMapper(
             plan.getType,
@@ -329,4 +406,7 @@ abstract class BatchTableEnvImpl(
 
     TableSchema.builder().fields(originalNames, fieldTypes).build()
   }
+
+  protected def createDummyBatchTableEnv(): BatchTableEnvImpl
+
 }

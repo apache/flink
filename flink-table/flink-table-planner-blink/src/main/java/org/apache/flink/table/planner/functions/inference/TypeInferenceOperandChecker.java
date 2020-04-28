@@ -44,11 +44,13 @@ import org.apache.calcite.sql.validate.SqlValidatorNamespace;
 
 import java.util.List;
 
+import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.adaptArguments;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createInvalidCallException;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createInvalidInputException;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createUnexpectedException;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 
 /**
  * A {@link SqlOperandTypeChecker} backed by {@link TypeInference}.
@@ -142,11 +144,14 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
 		final List<SqlNode> operands = callBinding.operands();
 		for (int i = 0; i < operands.size(); i++) {
 			final LogicalType expectedType = expectedDataTypes.get(i).getLogicalType();
-			final RelDataType expectedRelDataType = flinkTypeFactory.createFieldTypeFromLogicalType(expectedType);
+			final LogicalType argumentType = toLogicalType(callBinding.getOperandType(i));
 
-			final SqlNode castedOperand = castTo(operands.get(i), expectedRelDataType);
-			callBinding.getCall().setOperand(i, castedOperand);
-			updateInferredType(callBinding.getValidator(), castedOperand, expectedRelDataType);
+			if (!supportsAvoidingCast(argumentType, expectedType)) {
+				final RelDataType expectedRelDataType = flinkTypeFactory.createFieldTypeFromLogicalType(expectedType);
+				final SqlNode castedOperand = castTo(operands.get(i), expectedRelDataType);
+				callBinding.getCall().setOperand(i, castedOperand);
+				updateInferredType(callBinding.getValidator(), castedOperand, expectedRelDataType);
+			}
 		}
 	}
 

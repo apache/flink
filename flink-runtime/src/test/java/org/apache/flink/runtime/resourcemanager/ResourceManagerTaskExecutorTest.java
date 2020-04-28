@@ -28,6 +28,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -153,16 +154,17 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 		StandaloneResourceManager resourceManager =
 			new StandaloneResourceManager(
 				rpcService,
-				ResourceManager.RESOURCE_MANAGER_NAME + UUID.randomUUID(),
 				resourceManagerResourceID,
 				highAvailabilityServices,
 				heartbeatServices,
 				slotManager,
+				NoOpResourceManagerPartitionTracker::get,
 				jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
 				fatalErrorHandler,
 				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
-				Time.minutes(5L));
+				Time.minutes(5L),
+				RpcUtils.INF_TIMEOUT);
 
 		resourceManager.start();
 

@@ -64,6 +64,8 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -120,8 +122,7 @@ public class WebFrontendITCase extends TestLogger {
 	@Test
 	public void getFrontPage() throws Exception {
 		String fromHTTP = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/index.html");
-		String text = "Apache Flink Web Dashboard";
-		assertTrue("Startpage should contain " + text, fromHTTP.contains(text));
+		assertThat(fromHTTP, containsString("Apache Flink Web Dashboard"));
 	}
 
 	private int getRestPort() {
@@ -195,11 +196,24 @@ public class WebFrontendITCase extends TestLogger {
 
 		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
 		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/log");
-		assertTrue(logs.contains("job manager log"));
+		assertThat(logs, containsString("job manager log"));
 
 		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
 		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/stdout");
-		assertTrue(logs.contains("job manager out"));
+		assertThat(logs, containsString("job manager out"));
+	}
+
+	@Test
+	public void getCustomLogFiles() throws Exception {
+		WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
+
+		String customFileName = "test.log";
+		final String logDir = logFiles.logFile.getParent();
+		final String expectedLogContent = "job manager custom log";
+		FileUtils.writeStringToFile(new File(logDir, customFileName), expectedLogContent);
+
+		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/logs/" + customFileName);
+		assertThat(logs, containsString(expectedLogContent));
 	}
 
 	@Test
@@ -217,11 +231,11 @@ public class WebFrontendITCase extends TestLogger {
 		//we check for job manager log files, since no separate taskmanager logs exist
 		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
 		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/log");
-		assertTrue(logs.contains("job manager log"));
+		assertThat(logs, containsString("job manager log"));
 
 		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
 		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/stdout");
-		assertTrue(logs.contains("job manager out"));
+		assertThat(logs, containsString("job manager out"));
 	}
 
 	@Test

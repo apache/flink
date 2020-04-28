@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, TableFunction}
 import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.util.DummyExecutionEnvironment
 
 import _root_.scala.reflect.ClassTag
 
@@ -69,11 +70,6 @@ class BatchTableEnvironmentImpl(
     wrap[T](translate(table))(ClassTag.AnyRef.asInstanceOf[ClassTag[T]])
   }
 
-  override def toDataSet[T: TypeInformation](
-    table: Table, queryConfig: BatchQueryConfig): DataSet[T] = {
-    wrap[T](translate(table))(ClassTag.AnyRef.asInstanceOf[ClassTag[T]])
-  }
-
   override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
     registerTableFunctionInternal(name, tf)
   }
@@ -84,14 +80,6 @@ class BatchTableEnvironmentImpl(
   : Unit = {
     registerAggregateFunctionInternal[T, ACC](name, f)
   }
-
-  override def sqlUpdate(stmt: String, config: BatchQueryConfig): Unit = sqlUpdate(stmt)
-
-  override def insertInto(
-    table: Table,
-    queryConfig: BatchQueryConfig,
-    sinkPath: String,
-    sinkPathContinued: String*): Unit = insertInto(table, sinkPath, sinkPathContinued: _*)
 
   override def createTemporaryView[T](
       path: String,
@@ -104,6 +92,15 @@ class BatchTableEnvironmentImpl(
       dataSet: DataSet[T],
       fields: Expression*): Unit = {
     createTemporaryView(path, fromDataSet(dataSet, fields: _*))
+  }
+
+  override protected def createDummyBatchTableEnv(): BatchTableEnvImpl = {
+    new BatchTableEnvironmentImpl(
+      new ExecutionEnvironment(new DummyExecutionEnvironment(execEnv.getJavaEnv)),
+      config,
+      catalogManager,
+      moduleManager
+    )
   }
 }
 

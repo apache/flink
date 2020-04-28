@@ -1,5 +1,5 @@
 ---
-title: "Troubleshooting"
+title: "常见问题"
 nav-parent_id: ops_mem
 nav-pos: 4
 ---
@@ -27,48 +27,43 @@ under the License.
 
 ## IllegalConfigurationException
 
-If you see an *IllegalConfigurationException* thrown from *TaskExecutorProcessUtils*, it usually indicates
-that there is either an invalid configuration value (e.g. negative memory size, fraction that is greater than 1, etc.)
-or configuration conflicts. Check the documentation chapters related to the [memory components](mem_setup.html#detailed-memory-model)
-mentioned in the exception message.
+如果遇到从 *TaskExecutorProcessUtils* 抛出的 *IllegalConfigurationException* 异常，这通常说明您的配置参数中存在无效值（例如内存大小为负数、占比大于 1 等）或者配置冲突。
+请根据异常信息，确认[内存模型详解](mem_detail.html)中与出错的内存部分对应章节的内容。
 
 ## OutOfMemoryError: Java heap space
 
-The exception usually indicates that the JVM heap is too small. You can try to increase the JVM heap size
-by increasing [total memory](mem_setup.html#configure-total-memory) or [task heap memory](mem_setup.html#task-operator-heap-memory).
+该异常说明 JVM 的堆空间过小。
+可以通过增大[总内存](mem_setup.html#配置总内存)或[任务堆内存](mem_setup.html#任务算子堆内存)的方法来增大 JVM 堆空间。
 
-<span class="label label-info">Note</span> You can also increase the [framework heap memory](mem_detail.html#framework-memory) but this option
-is advanced and should only be changed if you are sure that the Flink framework itself needs more memory.
+<span class="label label-info">提示</span> 也可以增大[框架堆内存](mem_detail.html#框架内存)。这是一个进阶配置，只有在确认是 Flink 框架自身需要更多内存时才应该去调整。
 
 ## OutOfMemoryError: Direct buffer memory
 
-The exception usually indicates that the JVM *direct memory* limit is too small or that there is a *direct memory leak*.
-Check whether user code or other external dependencies use the JVM *direct memory* and that it is properly accounted for.
-You can try to increase its limit by adjusting [direct off-heap memory](mem_setup.html#detailed-memory-model).
-See also [how to configure off-heap memory](mem_setup.html#configure-off-heap-memory-direct-or-native) and
-the [JVM arguments](mem_detail.html#jvm-parameters) which Flink sets.
+该异常通常说明 JVM 的*直接内存*限制过小，或者存在*直接内存泄漏（Direct Memory Leak）*。
+请确认用户代码及外部依赖中是否使用了 JVM *直接内存*，以及如果使用了直接内存，是否配置了足够的内存空间。
+可以通过调整[堆外内存](mem_detail.html)来增大直接内存限制。
+请同时参考[如何配置堆外内存](mem_setup.html#配置堆外内存直接内存或本地内存))以及 Flink 设置的 [JVM 参数](mem_detail.html#jvm-参数)。
 
 ## OutOfMemoryError: Metaspace
 
-The exception usually indicates that [JVM metaspace limit](mem_detail.html#jvm-parameters) is configured too small.
-You can try to increase the [JVM metaspace option](../config.html#taskmanager-memory-jvm-metaspace-size).
+该异常说明 [JVM Metaspace 限制](mem_detail.html#jvm-参数)过小。
+可以尝试调整 [JVM Metaspace 参数](../config.html#taskmanager-memory-jvm-metaspace-size)。
 
 ## IOException: Insufficient number of network buffers
 
-The exception usually indicates that the size of the configured [network memory](mem_setup.html#detailed-memory-model)
-is not big enough. You can try to increase the *network memory* by adjusting the following options:
+该异常通常说明[网络内存](mem_detail.html)过小。
+可以通过调整以下配置参数增大*网络内存*：
 * [`taskmanager.memory.network.min`](../config.html#taskmanager-memory-network-min)
 * [`taskmanager.memory.network.max`](../config.html#taskmanager-memory-network-max)
 * [`taskmanager.memory.network.fraction`](../config.html#taskmanager-memory-network-fraction)
 
-## Container Memory Exceeded
+## 容器（Container）内存超用
 
-If a task executor container tries to allocate memory beyond its requested size (Yarn, Mesos or Kubernetes),
-this usually indicates that Flink has not reserved enough native memory. You can observe this either by using an external
-monitoring system or from the error messages when a container gets killed by the deployment environment.
+如果 TaskExecutor 容器尝试分配超过其申请大小的内存（Yarn、Mesos 或 Kubernetes），这通常说明 Flink 没有预留出足够的本地内存。
+可以通过外部监控系统或者容器被部署环境杀掉时的错误信息判断是否存在容器内存超用。
 
-If [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend) is used and the memory controlling is disabled,
-you can try to increase the [managed memory](mem_setup.html#managed-memory).
+如果使用了 [RocksDBStateBackend](../state/state_backends.html#rocksdbstatebackend) 且没有开启内存控制，也可以尝试增大[托管内存](mem_setup.html#托管内存)。
 
-Alternatively, you can increase the [JVM overhead](mem_setup.html#detailed-memory-model).
-See also [how to configure memory for containers](mem_tuning.html#configure-memory-for-containers).
+此外，还可以尝试增大 [JVM 开销](mem_detail.html)。
+
+请参考[如何配置容器内存](mem_tuning.html#容器container的内存配置)。

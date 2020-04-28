@@ -1,0 +1,72 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.runtime.arrow.writers;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.dataformat.TypeGetterSetters;
+
+import org.apache.arrow.vector.complex.StructVector;
+
+/**
+ * {@link ArrowFieldWriter} for Row.
+ */
+@Internal
+public final class RowWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
+
+	private final ArrowFieldWriter<TypeGetterSetters>[] fieldsWriters;
+	private final GenericRow nullRow;
+
+	public RowWriter(StructVector structVector, ArrowFieldWriter<TypeGetterSetters>[] fieldsWriters) {
+		super(structVector);
+		this.fieldsWriters = fieldsWriters;
+		this.nullRow = new GenericRow(fieldsWriters.length);
+	}
+
+	@Override
+	public void doWrite(T value, int ordinal) {
+		TypeGetterSetters row;
+		if (value.isNullAt(ordinal)) {
+			row = nullRow;
+			((StructVector) getValueVector()).setNull(getCount());
+		} else {
+			row = value.getRow(ordinal, fieldsWriters.length);
+			((StructVector) getValueVector()).setIndexDefined(getCount());
+		}
+		for (int i = 0; i < fieldsWriters.length; i++) {
+			fieldsWriters[i].write(row, i);
+		}
+	}
+
+	@Override
+	public void finish() {
+		super.finish();
+		for (ArrowFieldWriter<?> fieldsWriter : fieldsWriters) {
+			fieldsWriter.finish();
+		}
+	}
+
+	@Override
+	public void reset() {
+		super.reset();
+		for (ArrowFieldWriter<?> fieldsWriter : fieldsWriters) {
+			fieldsWriter.reset();
+		}
+	}
+}

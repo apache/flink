@@ -1,5 +1,5 @@
 flink-python
-Copyright 2014-2019 The Apache Software Foundation
+Copyright 2014-2020 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -20,13 +20,13 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.grpc:grpc-protobuf:1.21.0
 - io.grpc:grpc-stub:1.21.0
 - io.grpc:grpc-testing:1.21.0
-- io.netty:netty-buffer:4.1.27.Final
+- io.netty:netty-buffer:4.1.44.Final
 - io.netty:netty-buffer:4.1.34.Final
 - io.netty:netty-codec:4.1.34.Final
 - io.netty:netty-codec-http:4.1.34.Final
 - io.netty:netty-codec-http2:4.1.34.Final
 - io.netty:netty-codec-socks:4.1.34.Final
-- io.netty:netty-common:4.1.27.Final
+- io.netty:netty-common:4.1.44.Final
 - io.netty:netty-common:4.1.34.Final
 - io.netty:netty-handler:4.1.34.Final
 - io.netty:netty-handler-proxy:4.1.34.Final
@@ -59,7 +59,6 @@ See bundled license files for details
 - com.google.protobuf:protobuf-java:3.7.1
 - com.google.protobuf:protobuf-java-util:3.7.1
 - com.google.auth:google-auth-library-credentials:0.13.0
-- cloudpickle:1.2.2
 
 This project bundles the following dependencies under the MIT license. (https://opensource.org/licenses/MIT)
 See bundled license files for details.

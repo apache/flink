@@ -55,8 +55,7 @@ object FlinkBatchRuleSets {
     */
   val EXPAND_PLAN_RULES: RuleSet = RuleSets.ofList(
     LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER,
-    LogicalCorrelateToJoinFromTemporalTableRule.WITHOUT_FILTER,
-    TableScanRule.INSTANCE)
+    LogicalCorrelateToJoinFromTemporalTableRule.WITHOUT_FILTER)
 
   val POST_EXPAND_CLEAN_UP_RULES: RuleSet = RuleSets.ofList(
     EnumerableToLogicalTableScan.INSTANCE)
@@ -65,7 +64,6 @@ object FlinkBatchRuleSets {
     * Convert table references before query decorrelation.
     */
   val TABLE_REF_RULES: RuleSet = RuleSets.ofList(
-    TableScanRule.INSTANCE,
     EnumerableToLogicalTableScan.INSTANCE
   )
 
@@ -368,6 +366,7 @@ object FlinkBatchRuleSets {
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
+    PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT
   )

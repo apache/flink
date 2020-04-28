@@ -822,13 +822,18 @@ Table API 和 SQL 查询会被翻译成 [DataStream]({{ site.baseurl }}/zh/dev/d
 1. 优化逻辑执行计划
 2. 翻译成 DataStream 或 DataSet 程序
 
-Table API 或者 SQL 查询在下列情况下会被翻译：
+对于 Streaming 而言，Table API 或者 SQL 查询在下列情况下会被翻译：
+
+* 当 `TableEnvironment.execute()` 被调用时。`Table` （通过 `Table.insertInto()` 输出给 `TableSink`）和 SQL （通过调用 `TableEnvironment.sqlUpdate()`）会先被缓存到 `TableEnvironment` 中，每个 sink 会被单独优化。执行计划将包括多个独立的有向无环子图。
+* `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。转换完成后，它就成为一个普通的 DataStream 程序，并且会在调用 `StreamExecutionEnvironment.execute()` 的时候被执行。
+
+对于 Batch 而言，Table API 或者 SQL 查询在下列情况下会被翻译：
 
 * `Table` 被输出给 `TableSink`，即当调用 `Table.insertInto()` 时。
 * SQL 更新语句执行时，即，当调用 `TableEnvironment.sqlUpdate()` 时。
-* `Table` 被转换成 `DataStream` 或者 `DataSet` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。
+* `Table` 被转换成 `DataSet` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。
 
-翻译完成后，Table API 或者 SQL 查询会被当做普通的 DataStream 或 DataSet 程序对待并且会在调用 `StreamExecutionEnvironment.execute()` 或 `ExecutionEnvironment.execute()` 的时候被执行。
+翻译完成后，Table API 或者 SQL 查询会被当做普通的 DataSet 程序对待并且会在调用 `ExecutionEnvironment.execute()` 的时候被执行。
 
 </div>
 
@@ -838,17 +843,10 @@ Table API 或者 SQL 查询在下列情况下会被翻译：
 1. 优化逻辑执行计划
 2. 翻译成 DataStream 程序
 
-TableEnvironment 和 StreamTableEnvironment 翻译查询的方式不同。
+Table API 或者 SQL 查询在下列情况下会被翻译：
 
-对于 `TableEnvironment`，Table API 和 SQL 查询会在调用 `TableEnvironment.execute()` 时被翻译，因为 `TableEnvironment` 会将多 sink 优化成一张有向无环图。
-
-而对于 `StreamTableEnvironment`，当下列情况发生时，Table API 和 SQL 查询才会被翻译：
-
-* `Table 被发送至`TableSink`，即，当 `Table.insertInto()` 被调用时。
-* SQL 更新语句执行时，即，当调用 `TableEnvironment.sqlUpdate()` 时。
-* `Table` 被转换成 `DataStream` 时。
-
-翻译完成后，Table API 或者 SQL 查询会被当做普通的 DataStream 程序对待并且会在调用 `TableEnvironment.execute()` 或者 `StreamExecutionEnvironment.execute()` 的时候被执行。
+* 当 `TableEnvironment.execute()` 被调用时。`Table` （通过 `Table.insertInto()` 输出给 `TableSink`）和 SQL （通过调用 `TableEnvironment.sqlUpdate()`）会先被缓存到 `TableEnvironment` 中，所有的 sink 会被优化成一张有向无环图。
+* `Table` 被转换成 `DataStream` 时（参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api)）。转换完成后，它就成为一个普通的 DataStream 程序，并且会在调用 `StreamExecutionEnvironment.execute()` 的时候被执行。
 
 </div>
 </div>
@@ -951,6 +949,8 @@ val table2: Table = tableEnv.fromDataStream(stream, 'myLong, 'myString)
 </div>
 
 {% top %}
+
+<a name="convert-a-table-into-a-datastream"></a>
 
 ### 将表转换成 DataStream 或 DataSet
 

@@ -57,6 +57,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionInfo;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
@@ -83,6 +84,7 @@ import org.apache.flink.runtime.registration.RegistrationConnectionListener;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
+import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -117,11 +119,12 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
@@ -133,6 +136,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -145,6 +149,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -175,12 +180,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private final BlobCacheService blobCacheService;
 
 	/** The address to metric query service on this Task Manager. */
+	@Nullable
 	private final String metricQueryServiceAddress;
 
 	// --------- TaskManager services --------
 
 	/** The connection information of this task manager. */
-	private final TaskManagerLocation taskManagerLocation;
+	private final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation;
 
 	private final TaskManagerMetricGroup taskManagerMetricGroup;
 
@@ -192,6 +198,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	/** The kvState registration service in the task manager. */
 	private final KvStateService kvStateService;
+
+	private final Executor ioExecutor;
 
 	// --------- job manager connections -----------
 
@@ -246,7 +254,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			TaskManagerServices taskExecutorServices,
 			HeartbeatServices heartbeatServices,
 			TaskManagerMetricGroup taskManagerMetricGroup,
-			String metricQueryServiceAddress,
+			@Nullable String metricQueryServiceAddress,
 			BlobCacheService blobCacheService,
 			FatalErrorHandler fatalErrorHandler,
 			TaskExecutorPartitionTracker partitionTracker,
@@ -263,16 +271,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.partitionTracker = partitionTracker;
 		this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
 		this.blobCacheService = checkNotNull(blobCacheService);
-		this.metricQueryServiceAddress = checkNotNull(metricQueryServiceAddress);
+		this.metricQueryServiceAddress = metricQueryServiceAddress;
 		this.backPressureSampleService = checkNotNull(backPressureSampleService);
 
 		this.taskSlotTable = taskExecutorServices.getTaskSlotTable();
 		this.jobManagerTable = taskExecutorServices.getJobManagerTable();
 		this.jobLeaderService = taskExecutorServices.getJobLeaderService();
-		this.taskManagerLocation = taskExecutorServices.getTaskManagerLocation();
+		this.unresolvedTaskManagerLocation = taskExecutorServices.getUnresolvedTaskManagerLocation();
 		this.localStateStoresManager = taskExecutorServices.getTaskManagerStateStore();
 		this.shuffleEnvironment = taskExecutorServices.getShuffleEnvironment();
 		this.kvStateService = taskExecutorServices.getKvStateService();
+		this.ioExecutor = taskExecutorServices.getIOExecutor();
 		this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 
 		this.jobManagerConnections = new HashMap<>(4);
@@ -283,7 +292,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.resourceManagerConnection = null;
 		this.currentRegistrationTimeoutId = null;
 
-		final ResourceID resourceId = taskExecutorServices.getTaskManagerLocation().getResourceID();
+		final ResourceID resourceId = taskExecutorServices.getUnresolvedTaskManagerLocation().getResourceID();
 		this.jobManagerHeartbeatManager = createJobManagerHeartbeatManager(heartbeatServices, resourceId);
 		this.resourceManagerHeartbeatManager = createResourceManagerHeartbeatManager(heartbeatServices, resourceId);
 	}
@@ -307,6 +316,26 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	@Override
 	public CompletableFuture<Boolean> canBeReleased() {
 		return CompletableFuture.completedFuture(shuffleEnvironment.getPartitionsOccupyingLocalResources().isEmpty());
+	}
+
+	@Override
+	public CompletableFuture<Collection<LogInfo>> requestLogList(Time timeout) {
+		return CompletableFuture.supplyAsync(() -> {
+			final String logDir = taskManagerConfiguration.getTaskManagerLogDir();
+			if (logDir != null) {
+				final File[] logFiles = new File(logDir).listFiles();
+
+				if (logFiles == null) {
+					throw new CompletionException(new FlinkException(String.format("There isn't a log file in TaskExecutor’s log dir %s.", logDir)));
+				}
+
+				return Arrays.stream(logFiles)
+						.filter(File::isFile)
+						.map(logFile -> new LogInfo(logFile.getName(), logFile.length()))
+						.collect(Collectors.toList());
+			}
+			return Collections.emptyList();
+		}, ioExecutor);
 	}
 
 	// ------------------------------------------------------------------------
@@ -751,6 +780,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		// TODO: Maybe it's better to return an Acknowledge here to notify the JM about the success/failure with an Exception
 	}
 
+	@Override
+	public CompletableFuture<Acknowledge> releaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease, Time timeout) {
+		partitionTracker.stopTrackingAndReleaseClusterPartitions(dataSetsToRelease);
+		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
+
 	// ----------------------------------------------------------------------
 	// Heartbeat RPC
 	// ----------------------------------------------------------------------
@@ -900,11 +935,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, Time timeout) {
-		log.debug("Request file {} upload.", fileType);
-
+	public CompletableFuture<TransientBlobKey> requestFileUploadByType(FileType fileType, Time timeout) {
 		final String filePath;
-
 		switch (fileType) {
 			case LOG:
 				filePath = taskManagerConfiguration.getTaskManagerLogPath();
@@ -915,29 +947,19 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			default:
 				filePath = null;
 		}
+		return requestFileUploadByFilePath(filePath, fileType.toString());
+	}
 
-		if (filePath != null && !filePath.isEmpty()) {
-			final File file = new File(filePath);
-
-			if (file.exists()) {
-				final TransientBlobCache transientBlobService = blobCacheService.getTransientBlobService();
-				final TransientBlobKey transientBlobKey;
-				try (FileInputStream fileInputStream = new FileInputStream(file)) {
-					transientBlobKey = transientBlobService.putTransient(fileInputStream);
-				} catch (IOException e) {
-					log.debug("Could not upload file {}.", fileType, e);
-					return FutureUtils.completedExceptionally(new FlinkException("Could not upload file " + fileType + '.', e));
-				}
-
-				return CompletableFuture.completedFuture(transientBlobKey);
-			} else {
-				log.debug("The file {} does not exist on the TaskExecutor {}.", fileType, getResourceID());
-				return FutureUtils.completedExceptionally(new FlinkException("The file " + fileType + " does not exist on the TaskExecutor."));
-			}
+	@Override
+	public CompletableFuture<TransientBlobKey> requestFileUploadByName(String fileName, Time timeout) {
+		final String filePath;
+		final String logDir = taskManagerConfiguration.getTaskManagerLogDir();
+		if (StringUtils.isNullOrWhitespaceOnly(logDir) || StringUtils.isNullOrWhitespaceOnly(fileName)) {
+			filePath = null;
 		} else {
-			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileType, getResourceID());
-			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileType + " is not available on the TaskExecutor."));
+			filePath = new File(logDir, new File(fileName).getName()).getPath();
 		}
+		return requestFileUploadByFilePath(filePath, fileName);
 	}
 
 	@Override
@@ -1035,7 +1057,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
 			getAddress(),
 			getResourceID(),
-			taskManagerLocation.dataPort(),
+			unresolvedTaskManagerLocation.getDataPort(),
 			hardwareDescription,
 			taskManagerConfiguration.getDefaultSlotResourceProfile(),
 			taskManagerConfiguration.getTotalResourceProfile()
@@ -1647,12 +1669,38 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		return jmConnection != null && Objects.equals(jmConnection.getJobMasterId(), jobMasterId);
 	}
 
+	private CompletableFuture<TransientBlobKey> requestFileUploadByFilePath(String filePath, String fileTag) {
+		log.debug("Received file upload request for file {}", fileTag);
+		if (!StringUtils.isNullOrWhitespaceOnly(filePath)) {
+			return CompletableFuture.supplyAsync(() -> {
+				final File file = new File(filePath);
+				if (file.exists()) {
+					final TransientBlobCache transientBlobService = blobCacheService.getTransientBlobService();
+					final TransientBlobKey transientBlobKey;
+					try (FileInputStream fileInputStream = new FileInputStream(file)) {
+						transientBlobKey = transientBlobService.putTransient(fileInputStream);
+					} catch (IOException e) {
+						log.debug("Could not upload file {}.", fileTag, e);
+						throw new CompletionException(new FlinkException("Could not upload file " + fileTag + '.', e));
+					}
+					return transientBlobKey;
+				} else {
+					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID());
+					throw new CompletionException(new FlinkException("The file " + fileTag + " does not exist on the TaskExecutor."));
+				}
+			}, ioExecutor);
+		} else {
+			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileTag, getResourceID());
+			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileTag + " is not available on the TaskExecutor."));
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Properties
 	// ------------------------------------------------------------------------
 
 	public ResourceID getResourceID() {
-		return taskManagerLocation.getResourceID();
+		return unresolvedTaskManagerLocation.getResourceID();
 	}
 
 	// ------------------------------------------------------------------------
@@ -1755,11 +1803,15 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					// filter out outdated connections
 					//noinspection ObjectEquality
 					if (resourceManagerConnection == connection) {
-						establishResourceManagerConnection(
-							resourceManagerGateway,
-							resourceManagerId,
-							taskExecutorRegistrationId,
-							clusterInformation);
+						try {
+							establishResourceManagerConnection(
+								resourceManagerGateway,
+								resourceManagerId,
+								taskExecutorRegistrationId,
+								clusterInformation);
+						} catch (Throwable t) {
+							log.error("Establishing Resource Manager connection in Task Executor failed", t);
+						}
 					}
 				});
 		}

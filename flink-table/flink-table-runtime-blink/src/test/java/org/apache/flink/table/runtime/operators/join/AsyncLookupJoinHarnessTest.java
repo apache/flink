@@ -64,7 +64,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.dataformat.BinaryString.fromString;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /**
  * Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}.
@@ -98,11 +98,11 @@ public class AsyncLookupJoinHarnessTest {
 		testHarness.open();
 
 		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.processElement(record(1, "a"));
-			testHarness.processElement(record(2, "b"));
-			testHarness.processElement(record(3, "c"));
-			testHarness.processElement(record(4, "d"));
-			testHarness.processElement(record(5, "e"));
+			testHarness.processElement(insertRecord(1, "a"));
+			testHarness.processElement(insertRecord(2, "b"));
+			testHarness.processElement(insertRecord(3, "c"));
+			testHarness.processElement(insertRecord(4, "d"));
+			testHarness.processElement(insertRecord(5, "e"));
 		}
 
 		// wait until all async collectors in the buffer have been emitted out.
@@ -112,10 +112,10 @@ public class AsyncLookupJoinHarnessTest {
 		}
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(1, "a", 1, "Julian"));
-		expectedOutput.add(record(3, "c", 3, "Jark"));
-		expectedOutput.add(record(3, "c", 3, "Jackson"));
-		expectedOutput.add(record(4, "d", 4, "Fabian"));
+		expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+		expectedOutput.add(insertRecord(3, "c", 3, "Jark"));
+		expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+		expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
 
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
@@ -129,11 +129,11 @@ public class AsyncLookupJoinHarnessTest {
 		testHarness.open();
 
 		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.processElement(record(1, "a"));
-			testHarness.processElement(record(2, "b"));
-			testHarness.processElement(record(3, "c"));
-			testHarness.processElement(record(4, "d"));
-			testHarness.processElement(record(5, "e"));
+			testHarness.processElement(insertRecord(1, "a"));
+			testHarness.processElement(insertRecord(2, "b"));
+			testHarness.processElement(insertRecord(3, "c"));
+			testHarness.processElement(insertRecord(4, "d"));
+			testHarness.processElement(insertRecord(5, "e"));
 		}
 
 		// wait until all async collectors in the buffer have been emitted out.
@@ -143,9 +143,9 @@ public class AsyncLookupJoinHarnessTest {
 		}
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(1, "a", 1, "Julian"));
-		expectedOutput.add(record(3, "c", 3, "Jackson"));
-		expectedOutput.add(record(4, "d", 4, "Fabian"));
+		expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+		expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+		expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
 
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
@@ -159,11 +159,11 @@ public class AsyncLookupJoinHarnessTest {
 		testHarness.open();
 
 		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.processElement(record(1, "a"));
-			testHarness.processElement(record(2, "b"));
-			testHarness.processElement(record(3, "c"));
-			testHarness.processElement(record(4, "d"));
-			testHarness.processElement(record(5, "e"));
+			testHarness.processElement(insertRecord(1, "a"));
+			testHarness.processElement(insertRecord(2, "b"));
+			testHarness.processElement(insertRecord(3, "c"));
+			testHarness.processElement(insertRecord(4, "d"));
+			testHarness.processElement(insertRecord(5, "e"));
 		}
 
 		// wait until all async collectors in the buffer have been emitted out.
@@ -173,12 +173,12 @@ public class AsyncLookupJoinHarnessTest {
 		}
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(1, "a", 1, "Julian"));
-		expectedOutput.add(record(2, "b", null, null));
-		expectedOutput.add(record(3, "c", 3, "Jark"));
-		expectedOutput.add(record(3, "c", 3, "Jackson"));
-		expectedOutput.add(record(4, "d", 4, "Fabian"));
-		expectedOutput.add(record(5, "e", null, null));
+		expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+		expectedOutput.add(insertRecord(2, "b", null, null));
+		expectedOutput.add(insertRecord(3, "c", 3, "Jark"));
+		expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+		expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
+		expectedOutput.add(insertRecord(5, "e", null, null));
 
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
@@ -192,11 +192,11 @@ public class AsyncLookupJoinHarnessTest {
 		testHarness.open();
 
 		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.processElement(record(1, "a"));
-			testHarness.processElement(record(2, "b"));
-			testHarness.processElement(record(3, "c"));
-			testHarness.processElement(record(4, "d"));
-			testHarness.processElement(record(5, "e"));
+			testHarness.processElement(insertRecord(1, "a"));
+			testHarness.processElement(insertRecord(2, "b"));
+			testHarness.processElement(insertRecord(3, "c"));
+			testHarness.processElement(insertRecord(4, "d"));
+			testHarness.processElement(insertRecord(5, "e"));
 		}
 
 		// wait until all async collectors in the buffer have been emitted out.
@@ -206,11 +206,11 @@ public class AsyncLookupJoinHarnessTest {
 		}
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record(1, "a", 1, "Julian"));
-		expectedOutput.add(record(2, "b", null, null));
-		expectedOutput.add(record(3, "c", 3, "Jackson"));
-		expectedOutput.add(record(4, "d", 4, "Fabian"));
-		expectedOutput.add(record(5, "e", null, null));
+		expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+		expectedOutput.add(insertRecord(2, "b", null, null));
+		expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+		expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
+		expectedOutput.add(insertRecord(5, "e", null, null));
 
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}

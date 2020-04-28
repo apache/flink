@@ -23,6 +23,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -34,6 +36,9 @@ public interface NetworkClientHandler extends ChannelHandler {
 
 	void removeInputChannel(RemoteInputChannel inputChannel);
 
+	@Nullable
+	RemoteInputChannel getInputChannel(InputChannelID inputChannelId);
+
 	void cancelRequestFor(InputChannelID inputChannelId);
 
 	/**
@@ -44,4 +49,11 @@ public interface NetworkClientHandler extends ChannelHandler {
 	 * @param inputChannel The input channel with unannounced credits.
 	 */
 	void notifyCreditAvailable(final RemoteInputChannel inputChannel);
+
+	/**
+	 * Resumes data consumption from the producer after an exactly once checkpoint.
+	 *
+	 * @param inputChannel The input channel to resume data consumption.
+	 */
+	void resumeConsumption(RemoteInputChannel inputChannel);
 }

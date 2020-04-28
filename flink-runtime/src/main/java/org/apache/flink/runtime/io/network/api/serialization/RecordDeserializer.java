@@ -22,6 +22,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * Interface for turning sequences of memory segments into records.
@@ -63,4 +64,12 @@ public interface RecordDeserializer<T extends IOReadableWritable> {
 	void clear();
 
 	boolean hasUnfinishedData();
+
+	/**
+	 * Gets the unconsumed buffer which needs to be persisted in unaligned checkpoint scenario.
+	 *
+	 * <p>Note that the unconsumed buffer might be null if the whole buffer was already consumed
+	 * before and there are no partial length or data remained in the end of buffer.
+	 */
+	Optional<Buffer> getUnconsumedBuffer() throws IOException;
 }

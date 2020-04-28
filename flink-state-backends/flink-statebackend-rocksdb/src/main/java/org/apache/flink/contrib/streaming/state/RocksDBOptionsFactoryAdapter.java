@@ -18,7 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
@@ -57,7 +57,7 @@ final class RocksDBOptionsFactoryAdapter implements ConfigurableRocksDBOptionsFa
 	}
 
 	@Override
-	public RocksDBOptionsFactory configure(Configuration configuration) {
+	public RocksDBOptionsFactory configure(ReadableConfig configuration) {
 		if (optionsFactory instanceof ConfigurableOptionsFactory) {
 			final OptionsFactory reconfigured = ((ConfigurableOptionsFactory) optionsFactory).configure(configuration);
 			return reconfigured == optionsFactory ? this : new RocksDBOptionsFactoryAdapter(reconfigured);

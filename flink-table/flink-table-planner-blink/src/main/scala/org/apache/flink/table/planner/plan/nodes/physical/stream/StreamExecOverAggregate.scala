@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, OverAggregateUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.over._
@@ -63,14 +62,6 @@ class StreamExecOverAggregate(
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode) = true
-
-  override def consumesRetractions = true
-
-  override def producesRetractions: Boolean = false
 
   override def requireWatermark: Boolean = {
     if (logicWindow.groups.size() != 1
@@ -171,14 +162,6 @@ class StreamExecOverAggregate(
 
     val inputDS = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-
-    val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(input)
-
-    if (inputIsAccRetract) {
-      throw new TableException(
-          "Retraction on Over window aggregation is not supported yet. " +
-            "Note: Over window aggregation should not follow a non-windowed GroupBy aggregation.")
-    }
 
     if (!logicWindow.groups.get(0).keys.isEmpty && tableConfig.getMinIdleStateRetentionTime < 0) {
       LOG.warn(

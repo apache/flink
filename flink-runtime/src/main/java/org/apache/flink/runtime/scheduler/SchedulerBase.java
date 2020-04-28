@@ -54,7 +54,6 @@ import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.executiongraph.failover.NoOpFailoverStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
@@ -62,6 +61,7 @@ import org.apache.flink.runtime.executiongraph.restart.RestartStrategyResolving;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -132,9 +132,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	private final ExecutionGraph executionGraph;
 
-	private final SchedulingTopology<?, ?> schedulingTopology;
-
-	private final FailoverTopology<?, ?> failoverTopology;
+	private final SchedulingTopology schedulingTopology;
 
 	private final InputsLocationsRetriever inputsLocationsRetriever;
 
@@ -222,7 +220,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker));
 		this.schedulingTopology = executionGraph.getSchedulingTopology();
-		this.failoverTopology = executionGraph.getFailoverTopology();
 
 		this.inputsLocationsRetriever = new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
 	}
@@ -287,7 +284,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 	 * execution graph and accessors should be preferred over direct access:
 	 * <ul>
 	 *     <li>{@link #getSchedulingTopology()}
-	 *     <li>{@link #getFailoverTopology()}
 	 *     <li>{@link #getInputsLocationsRetriever()}
 	 *     <li>{@link #getExecutionVertex(ExecutionVertexID)}
 	 *     <li>{@link #getExecutionVertexId(ExecutionAttemptID)}
@@ -384,11 +380,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		executionGraph.failJob(cause);
 	}
 
-	protected final FailoverTopology<?, ?> getFailoverTopology() {
-		return failoverTopology;
-	}
-
-	protected final SchedulingTopology<?, ?> getSchedulingTopology() {
+	protected final SchedulingTopology getSchedulingTopology() {
 		return schedulingTopology;
 	}
 
@@ -623,11 +615,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 			throw new RuntimeException(e);
 		}
 
-		final ExecutionVertexID producerVertexId = getExecutionVertexIdOrThrow(partitionId.getProducerId());
-		scheduleOrUpdateConsumersInternal(producerVertexId, partitionId);
+		scheduleOrUpdateConsumersInternal(partitionId.getPartitionId());
 	}
 
-	protected void scheduleOrUpdateConsumersInternal(ExecutionVertexID producerVertexId, ResultPartitionID resultPartitionId) {
+	protected void scheduleOrUpdateConsumersInternal(IntermediateResultPartitionID resultPartitionId) {
 	}
 
 	@Override

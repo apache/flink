@@ -87,7 +87,7 @@ LogicalIntersect(all=[false])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(type=[RecordType(VARCHAR(2147483647) c)], tuples=[[]], values=[c])
+Values(tuples=[[]], values=[c])
 ]]>
     </Resource>
   </TestCase>
@@ -107,7 +107,7 @@ LogicalIntersect(all=[false])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(type=[RecordType(VARCHAR(2147483647) c)], tuples=[[]], values=[c])
+Values(tuples=[[]], values=[c])
 ]]>
     </Resource>
   </TestCase>
@@ -210,7 +210,7 @@ LogicalMinus(all=[false])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(type=[RecordType(VARCHAR(2147483647) c)], tuples=[[]], values=[c])
+Values(tuples=[[]], values=[c])
 ]]>
     </Resource>
   </TestCase>

@@ -79,8 +79,8 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 		TestUtils.copyDirectory(distributionDirectory, tmp);
 
 		distribution = new FlinkDistribution(tmp);
-		for (JarMove jarMove : setup.getJarMoveOperations()) {
-			distribution.moveJar(jarMove);
+		for (JarOperation jarOperation : setup.getJarOperations()) {
+			distribution.performJarOperation(jarOperation);
 		}
 		if (setup.getConfig().isPresent()) {
 			distribution.appendConfiguration(setup.getConfig().get());

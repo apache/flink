@@ -44,12 +44,14 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -184,18 +186,6 @@ public class OrcTableSourceTest {
 		Expression pred2 = new EqualTo(
 			new PlannerResolvedFieldReference("string1", Types.STRING),
 			new Literal("hello", Types.STRING));
-		// unsupported predicate
-		Expression unsupportedPred = new EqualTo(
-			new GetCompositeField(
-				new ItemAt(
-					new PlannerResolvedFieldReference(
-						"list",
-						ObjectArrayTypeInfo.getInfoFor(
-							Types.ROW_NAMED(new String[] {"int1", "string1"}, Types.INT, Types.STRING))),
-					new Literal(1, Types.INT)),
-				"int1"),
-			new Literal(1, Types.INT)
-			);
 		// invalid predicate
 		Expression invalidPred = new EqualTo(
 			new PlannerResolvedFieldReference("long1", Types.LONG),
@@ -206,7 +196,7 @@ public class OrcTableSourceTest {
 		ArrayList<Expression> preds = new ArrayList<>();
 		preds.add(pred1);
 		preds.add(pred2);
-		preds.add(unsupportedPred);
+		preds.add(unsupportedPred());
 		preds.add(invalidPred);
 
 		// apply predicates on TableSource
@@ -242,6 +232,34 @@ public class OrcTableSourceTest {
 		// ensure filter pushdown is correct
 		assertTrue(spyTS.isFilterPushedDown());
 		assertFalse(orc.isFilterPushedDown());
+	}
+
+	private Expression unsupportedPred() {
+		return new EqualTo(
+			new GetCompositeField(
+				new ItemAt(
+					new PlannerResolvedFieldReference(
+						"list",
+						ObjectArrayTypeInfo.getInfoFor(
+							Types.ROW_NAMED(new String[] {"int1", "string1"}, Types.INT, Types.STRING))),
+					new Literal(1, Types.INT)),
+				"int1"),
+			new Literal(1, Types.INT)
+		);
+	}
+
+	@Test
+	public void testUnsupportedPredOnly() {
+		OrcTableSource orc = OrcTableSource.builder()
+				.path(getPath(TEST_FILE_NESTED))
+				.forOrcSchema(TEST_SCHEMA_NESTED)
+				.build();
+
+		// apply predicates on TableSource
+		OrcTableSource projected = (OrcTableSource) orc.applyPredicate(
+				Collections.singletonList(unsupportedPred()));
+
+		assertNotEquals(orc.explainSource(), projected.explainSource());
 	}
 
 	@Test

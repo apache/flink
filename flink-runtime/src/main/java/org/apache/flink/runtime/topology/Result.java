@@ -34,5 +34,5 @@ public interface Result<VID extends VertexID, RID extends ResultID,
 
 	V getProducer();
 
-	Iterable<V> getConsumers();
+	Iterable<? extends V> getConsumers();
 }

@@ -53,6 +53,7 @@ if [[ "${HADOOP_INTEGRATION}" = "with-hadoop" ]]; then
     run_test "Run Mesos WordCount test" "$END_TO_END_DIR/test-scripts/test_mesos_wordcount.sh"
     run_test "Run Mesos multiple submission test" "$END_TO_END_DIR/test-scripts/test_mesos_multiple_submissions.sh"
 fi
+run_test "Running Flink over NAT end-to-end test" "$END_TO_END_DIR/test-scripts/test_nat.sh" "skip_check_exceptions"
 
 printf "\n[PASS] All tests passed\n"
 exit 0

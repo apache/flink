@@ -19,7 +19,6 @@
 package org.apache.flink.sql.parser;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.List;
@@ -28,7 +27,10 @@ import java.util.List;
  * Type used during tests.
  */
 public class Fixture {
-	private final RelDataTypeFactory typeFactory;
+	private final TestRelDataTypeFactory typeFactory;
+
+	static final String RAW_TYPE_INT_CLASS = "java.lang.Integer";
+	static final String RAW_TYPE_INT_SERIALIZER_STRING = "<Serializer Snapshot>";
 
 	final RelDataType char1Type;
 	final RelDataType char33Type;
@@ -56,8 +58,9 @@ public class Fixture {
 	final RelDataType timestampWithLocalTimeZoneType;
 	final RelDataType timestamp3WithLocalTimeZoneType;
 	final RelDataType nullType;
+	final RelDataType rawTypeOfInteger;
 
-	Fixture(RelDataTypeFactory typeFactory) {
+	Fixture(TestRelDataTypeFactory typeFactory) {
 		this.typeFactory = typeFactory;
 		this.char1Type = typeFactory.createSqlType(SqlTypeName.CHAR);
 		this.char33Type = typeFactory.createSqlType(SqlTypeName.CHAR, 33);
@@ -87,6 +90,7 @@ public class Fixture {
 		this.timestamp3WithLocalTimeZoneType =
 			typeFactory.createSqlType(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, 3);
 		this.nullType = typeFactory.createSqlType(SqlTypeName.NULL);
+		this.rawTypeOfInteger = typeFactory.createRawType(RAW_TYPE_INT_CLASS, RAW_TYPE_INT_SERIALIZER_STRING);
 	}
 
 	public RelDataType createSqlType(SqlTypeName sqlTypeName, int precision) {
@@ -107,6 +111,10 @@ public class Fixture {
 
 	public RelDataType createStructType(List<RelDataType> keyTypes, List<String> names) {
 		return typeFactory.createStructType(keyTypes, names);
+	}
+
+	public RelDataType createRawType(String className, String serializerString) {
+		return typeFactory.createRawType(className, serializerString);
 	}
 
 	public RelDataType nullable(RelDataType type) {

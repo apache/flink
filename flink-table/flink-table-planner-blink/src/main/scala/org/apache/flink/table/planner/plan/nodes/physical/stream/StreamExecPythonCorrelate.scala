@@ -26,6 +26,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.{RexNode, RexProgram}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCorrelate
 
 /**
@@ -50,6 +51,10 @@ class StreamExecPythonCorrelate(
     outputRowType,
     joinType)
   with CommonPythonCorrelate {
+
+  if (condition.isDefined) {
+    throw new TableException("Currently Python correlate does not support conditions in left join.")
+  }
 
   def copy(
       traitSet: RelTraitSet,
@@ -76,7 +81,7 @@ class StreamExecPythonCorrelate(
       scan,
       "StreamExecPythonCorrelate",
       outputRowType,
-      planner.getTableConfig.getConfiguration,
+      getConfig(planner.getExecEnv, planner.getTableConfig),
       joinType)
   }
 }

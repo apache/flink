@@ -50,7 +50,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 	private final long iterationWaitTime;
 	private final boolean shouldWait;
 
-	public StreamIterationHead(Environment env) {
+	public StreamIterationHead(Environment env) throws Exception {
 		super(env);
 		final String iterationId = getConfiguration().getIterationId();
 		if (iterationId == null || iterationId.length() == 0) {

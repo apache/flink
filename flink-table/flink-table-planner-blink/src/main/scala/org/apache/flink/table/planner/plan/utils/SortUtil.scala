@@ -46,8 +46,7 @@ object SortUtil {
     if (fetch != null) {
       getLimitStart(offset) + RexLiteral.intValue(fetch)
     } else {
-      // TODO return Long.MaxValue when providing FlinkRelMdRowCount on Sort ?
-      Integer.MAX_VALUE
+      Long.MaxValue
     }
   }
 

@@ -28,12 +28,16 @@ public class Constants {
 	public static final String APPS_API_VERSION = "apps/v1";
 
 	public static final String CONFIG_FILE_LOGBACK_NAME = "logback.xml";
-
 	public static final String CONFIG_FILE_LOG4J_NAME = "log4j.properties";
 
 	public static final String FLINK_CONF_VOLUME = "flink-config-volume";
-
 	public static final String CONFIG_MAP_PREFIX = "flink-config-";
+
+	public static final String HADOOP_CONF_VOLUME = "hadoop-config-volume";
+	public static final String HADOOP_CONF_CONFIG_MAP_PREFIX = "hadoop-config-";
+	public static final String HADOOP_CONF_DIR_IN_POD = "/opt/hadoop/conf";
+	public static final String ENV_HADOOP_CONF_DIR = "HADOOP_CONF_DIR";
+	public static final String ENV_HADOOP_HOME = "HADOOP_HOME";
 
 	public static final String FLINK_REST_SERVICE_SUFFIX = "-rest";
 
@@ -48,8 +52,14 @@ public class Constants {
 	public static final String LABEL_COMPONENT_TASK_MANAGER = "taskmanager";
 
 	// Use fixed port in kubernetes, it needs to be exposed.
+	public static final int REST_PORT = 8081;
 	public static final int BLOB_SERVER_PORT = 6124;
 	public static final int TASK_MANAGER_RPC_PORT = 6122;
+
+	public static final String JOB_MANAGER_RPC_PORT_NAME = "jobmanager-rpc";
+	public static final String BLOB_SERVER_PORT_NAME = "blobserver";
+	public static final String REST_PORT_NAME = "rest";
+	public static final String TASK_MANAGER_RPC_PORT_NAME = "taskmanager-rpc";
 
 	public static final String RESOURCE_NAME_MEMORY = "memory";
 
@@ -64,4 +74,8 @@ public class Constants {
 	public static final String ENV_FLINK_POD_IP_ADDRESS = "_POD_IP_ADDRESS";
 
 	public static final String POD_IP_FIELD_PATH = "status.podIP";
+
+	public static final String HEADLESS_SERVICE_CLUSTER_IP = "None";
+
+	public static final int MAXIMUM_CHARACTERS_OF_CLUSTER_ID = 45;
 }

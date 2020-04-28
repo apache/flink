@@ -537,7 +537,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   /**
     * Adds a reusable TimeZone to the member area of the generated class.
     */
-  def addReusableTimeZone(): String = {
+  def addReusableSessionTimeZone(): String = {
     val zoneID = TimeZone.getTimeZone(tableConfig.getLocalTimeZone).getID
     val stmt =
       s"""private static final java.util.TimeZone $DEFAULT_TIMEZONE_TERM =

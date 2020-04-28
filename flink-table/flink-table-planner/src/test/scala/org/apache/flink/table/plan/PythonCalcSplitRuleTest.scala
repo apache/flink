@@ -440,7 +440,7 @@ class PythonCalcSplitRuleTest extends TableTestBase {
     util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
     util.tableEnv.registerFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
 
-    val resultTable = table.select("pandasFunc1(a, b), pyFunc1(a, c) + 1")
+    val resultTable = table.select("pandasFunc1(a, b), pyFunc1(a, c) + 1, a + 1")
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -451,9 +451,9 @@ class PythonCalcSplitRuleTest extends TableTestBase {
           streamTableNode(table),
           term("select", "a", "c", "pandasFunc1(a, b) AS f0")
         ),
-        term("select", "f0", "pyFunc1(a, c) AS f1")
+        term("select", "a", "f0", "pyFunc1(a, c) AS f1")
       ),
-      term("select",  "f0 AS _c0", "+(f1, 1) AS _c1")
+      term("select",  "f0 AS _c0", "+(f1, 1) AS _c1", "+(a, 1) AS _c2")
     )
 
     util.verifyTable(resultTable, expected)
@@ -480,6 +480,79 @@ class PythonCalcSplitRuleTest extends TableTestBase {
         term("select", "pyFunc1(a, f0) AS f0")
       ),
       term("select",  "+(f0, 1) AS _c0")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testPythonFunctionWithCompositeInputs(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, (Int, Int))]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
+
+    val resultTable = table.select('a, 'b, 'c.flatten()).select("a, pyFunc1(a, c$_1), b")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(table),
+          term("select", "a", "b", "c._1 AS f0")
+        ),
+        term("select", "a", "b", "pyFunc1(a, f0) AS f0")
+      ),
+      term("select", "a", "f0 AS _c1", "b")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testChainingPythonFunctionWithCompositeInputs(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, (Int, Int))]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
+
+    val resultTable = table.select('a, 'b, 'c.flatten())
+      .select("a, pyFunc1(a, pyFunc1(b, c$_1)), b")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(table),
+          term("select", "a", "b", "c._1 AS f0")
+        ),
+        term("select", "a", "b", "pyFunc1(a, pyFunc1(b, f0)) AS f0")
+      ),
+      term("select", "a", "f0 AS _c1", "b")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testPandasFunctionWithCompositeInputs(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, (Int, Int))]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
+
+    val resultTable = table.select('a, 'b, 'c.flatten())
+      .select("pandasFunc1(a, c$_1)")
+
+    val expected = unaryNode(
+      "DataStreamPythonCalc",
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(table),
+        term("select", "a", "c._1 AS f0")
+      ),
+      term("select", "pandasFunc1(a, f0) AS _c0")
     )
 
     util.verifyTable(resultTable, expected)

@@ -22,6 +22,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.KubernetesTestBase;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -42,13 +43,27 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 	protected static final String POD_NAME = "taskmanager-pod-1";
 	private static final String DYNAMIC_PROPERTIES = "";
 
-	protected static final int TOTAL_PROCESS_MEMORY = 1024;
+	protected static final int TOTAL_PROCESS_MEMORY = 1184;
 	protected static final double TASK_MANAGER_CPU = 2.0;
 
 	protected final Map<String, String> customizedEnvs = new HashMap<String, String>() {
 		{
 			put("key1", "value1");
 			put("key2", "value2");
+		}
+	};
+
+	protected final Map<String, String> userLabels = new HashMap<String, String>() {
+		{
+			put("label1", "value1");
+			put("label2", "value2");
+		}
+	};
+
+	protected final Map<String, String> nodeSelector = new HashMap<String, String>() {
+		{
+			put("env", "production");
+			put("disk", "ssd");
 		}
 	};
 
@@ -69,14 +84,14 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(TOTAL_PROCESS_MEMORY + "m"));
 		customizedEnvs.forEach((k, v) ->
 				flinkConfig.setString(ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + k, v));
+		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_LABELS, userLabels);
+		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_NODE_SELECTOR, nodeSelector);
 
 		taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(flinkConfig);
-		containeredTaskManagerParameters = ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec,
-				flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS));
+		containeredTaskManagerParameters = ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
 		kubernetesTaskManagerParameters = new KubernetesTaskManagerParameters(
 				flinkConfig,
 				POD_NAME,
-				TOTAL_PROCESS_MEMORY,
 				DYNAMIC_PROPERTIES,
 				containeredTaskManagerParameters);
 	}

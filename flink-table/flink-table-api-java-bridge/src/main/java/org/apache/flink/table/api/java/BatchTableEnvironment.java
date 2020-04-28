@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -31,10 +30,10 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.descriptors.BatchTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.sinks.TableSink;
 
 import java.lang.reflect.Constructor;
 
@@ -92,21 +91,94 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	/**
 	 * Converts the given {@link DataSet} into a {@link Table} with specified field names.
 	 *
-	 * Example:
+	 * <p>There are two modes for mapping original fields to the fields of the {@link Table}:
+	 *
+	 * <p>1. Reference input fields by name:
+	 * All fields in the schema definition are referenced by name
+	 * (and possibly renamed using an alias (as). In this mode, fields can be reordered and
+	 * projected out. This mode can be used for any input type, including POJOs.
+	 *
+	 * <p>Example:
 	 *
 	 * <pre>
 	 * {@code
 	 *   DataSet<Tuple2<String, Long>> set = ...
-	 *   Table tab = tableEnv.fromDataSet(set, "a, b");
+	 *   // use the original 'f0' field and give a better name to the 'f1' field
+	 *   Table table = tableEnv.fromTable(set, "f0, f1 as name");
+	 * }
+	 * </pre>
+	 *
+	 * <p>2. Reference input fields by position:
+	 * In this mode, fields are simply renamed. This mode can only be
+	 * used if the input type has a defined field order (tuple, case class, Row) and none of
+	 * the {@code fields} references a field of the input type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   // renames the original fields as 'a' and 'b'
+	 *   Table table = tableEnv.fromDataSet(set, "a, b");
 	 * }
 	 * </pre>
 	 *
 	 * @param dataSet The {@link DataSet} to be converted.
-	 * @param fields The field names of the resulting {@link Table}.
+	 * @param fields The fields expressions to map original fields of the DataSet to the fields of the {@link Table}.
+	 * @param <T> The type of the {@link DataSet}.
+	 * @return The converted {@link Table}.
+	 * @deprecated use {@link #fromDataSet(DataSet, Expression...)}
+	 */
+	@Deprecated
+	<T> Table fromDataSet(DataSet<T> dataSet, String fields);
+
+	/**
+	 * Converts the given {@link DataSet} into a {@link Table} with specified field names.
+	 *
+	 * <p>There are two modes for mapping original fields to the fields of the {@link Table}:
+	 *
+	 * <p>1. Reference input fields by name:
+	 * All fields in the schema definition are referenced by name
+	 * (and possibly renamed using an alias (as). In this mode, fields can be reordered and
+	 * projected out. This mode can be used for any input type, including POJOs.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   Table table = tableEnv.fromDataSet(
+	 *      set,
+	 *      $("f1"), // reorder and use the original field
+	 *      $("f0").as("name") // reorder and give the original field a better name
+	 *   );
+	 * }
+	 * </pre>
+	 *
+	 * <p>2. Reference input fields by position:
+	 * In this mode, fields are simply renamed. This mode can only be
+	 * used if the input type has a defined field order (tuple, case class, Row) and none of
+	 * the {@code fields} references a field of the input type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   Table table = tableEnv.fromDataSet(
+	 *      set,
+	 *      $("a"), // renames the first field to 'a'
+	 *      $("b") // renames the second field to 'b'
+	 *   );
+	 * }
+	 * </pre>
+	 *
+	 * @param dataSet The {@link DataSet} to be converted.
+	 * @param fields The fields expressions to map original fields of the DataSet to the fields of the {@link Table}.
 	 * @param <T> The type of the {@link DataSet}.
 	 * @return The converted {@link Table}.
 	 */
-	<T> Table fromDataSet(DataSet<T> dataSet, String fields);
+	<T> Table fromDataSet(DataSet<T> dataSet, Expression... fields);
 
 	/**
 	 * Creates a view from the given {@link DataSet}.
@@ -152,11 +224,34 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 * Creates a view from the given {@link DataSet} in a given path with specified field names.
 	 * Registered views can be referenced in SQL queries.
 	 *
+	 * <p>There are two modes for mapping original fields to the fields of the View:
+	 *
+	 * <p>1. Reference input fields by name:
+	 * All fields in the schema definition are referenced by name
+	 * (and possibly renamed using an alias (as). In this mode, fields can be reordered and
+	 * projected out. This mode can be used for any input type, including POJOs.
+	 *
 	 * <p>Example:
 	 *
 	 * <pre>
 	 * {@code
 	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   // use the original 'f0' field and give a better name to the 'f1' field
+	 *   tableEnv.registerDataSet("myTable", set, "f0, f1 as name");
+	 * }
+	 * </pre>
+	 *
+	 * <p>2. Reference input fields by position:
+	 * In this mode, fields are simply renamed. This mode can only be
+	 * used if the input type has a defined field order (tuple, case class, Row) and none of the {@code fields}
+	 * references a field of the input type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   // renames the original fields as 'a' and 'b'
 	 *   tableEnv.registerDataSet("myTable", set, "a, b");
 	 * }
 	 * </pre>
@@ -170,7 +265,7 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 *
 	 * @param name The name under which the {@link DataSet} is registered in the catalog.
 	 * @param dataSet The {@link DataSet} to register.
-	 * @param fields The field names of the registered view.
+	 * @param fields The fields expressions to map original fields of the DataSet to the fields of the View.
 	 * @param <T> The type of the {@link DataSet} to register.
 	 * @deprecated use {@link #createTemporaryView(String, DataSet, String)}
 	 */
@@ -181,11 +276,34 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 * Creates a view from the given {@link DataSet} in a given path with specified field names.
 	 * Registered views can be referenced in SQL queries.
 	 *
+	 * <p>There are two modes for mapping original fields to the fields of the View:
+	 *
+	 * <p>1. Reference input fields by name:
+	 * All fields in the schema definition are referenced by name
+	 * (and possibly renamed using an alias (as). In this mode, fields can be reordered and
+	 * projected out. This mode can be used for any input type, including POJOs.
+	 *
 	 * <p>Example:
 	 *
 	 * <pre>
 	 * {@code
 	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   // use the original 'f0' field and give a better name to the 'f1' field
+	 *   tableEnv.createTemporaryView("cat.db.myTable", set, "f0, f1 as name");
+	 * }
+	 * </pre>
+	 *
+	 * <p>2. Reference input fields by position:
+	 * In this mode, fields are simply renamed. This mode can only be
+	 * used if the input type has a defined field order (tuple, case class, Row) and none of the {@code fields}
+	 * references a field of the input type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   // renames the original fields as 'a' and 'b'
 	 *   tableEnv.createTemporaryView("cat.db.myTable", set, "a, b");
 	 * }
 	 * </pre>
@@ -197,10 +315,68 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 * @param path The path under which the view is created.
 	 *             See also the {@link TableEnvironment} class description for the format of the path.
 	 * @param dataSet The {@link DataSet} out of which to create the view.
-	 * @param fields The field names of the registered view.
+	 * @param fields The fields expressions to map original fields of the DataSet to the fields of the View.
+	 * @param <T> The type of the {@link DataSet}.
+	 * @deprecated use {@link #createTemporaryView(String, DataSet, Expression...)}
+	 */
+	@Deprecated
+	<T> void createTemporaryView(String path, DataSet<T> dataSet, String fields);
+
+	/**
+	 * Creates a view from the given {@link DataSet} in a given path with specified field names.
+	 * Registered views can be referenced in SQL queries.
+	 *
+	 * <p>There are two modes for mapping original fields to the fields of the View:
+	 *
+	 * <p>1. Reference input fields by name:
+	 * All fields in the schema definition are referenced by name
+	 * (and possibly renamed using an alias (as). In this mode, fields can be reordered and
+	 * projected out. This mode can be used for any input type, including POJOs.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   tableEnv.createTemporaryView(
+	 *      "cat.db.myTable",
+	 *      set,
+	 *      $("f1"), // reorder and use the original field
+	 *      $("f0").as("name") // reorder and give the original field a better name
+	 *   );
+	 * }
+	 * </pre>
+	 *
+	 * <p>2. Reference input fields by position:
+	 * In this mode, fields are simply renamed. This mode can only be
+	 * used if the input type has a defined field order (tuple, case class, Row) and none of
+	 * the {@code fields} references a field of the input type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   DataSet<Tuple2<String, Long>> set = ...
+	 *   tableEnv.createTemporaryView(
+	 *      "cat.db.myTable",
+	 *      set,
+	 *      $("a"), // renames the first field to 'a'
+	 *      $("b") // renames the second field to 'b'
+	 *   );
+	 * }
+	 * </pre>
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again you can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param path The path under which the view is created.
+	 *             See also the {@link TableEnvironment} class description for the format of the path.
+	 * @param dataSet The {@link DataSet} out of which to create the view.
+	 * @param fields The fields expressions to map original fields of the DataSet to the fields of the View.
 	 * @param <T> The type of the {@link DataSet}.
 	 */
-	<T> void createTemporaryView(String path, DataSet<T> dataSet, String fields);
+	<T> void createTemporaryView(String path, DataSet<T> dataSet, Expression... fields);
 
 	/**
 	 * Converts the given {@link Table} into a {@link DataSet} of a specified type.
@@ -235,84 +411,6 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 * @return The converted {@link DataSet}.
 	 */
 	<T> DataSet<T> toDataSet(Table table, TypeInformation<T> typeInfo);
-
-	/**
-	 * Converts the given {@link Table} into a {@link DataSet} of a specified type.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataSet} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataSet} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param clazz The class of the type of the resulting {@link DataSet}.
-	 * @param queryConfig The configuration for the query to generate.
-	 * @param <T> The type of the resulting {@link DataSet}.
-	 * @return The converted {@link DataSet}.
-	 */
-	<T> DataSet<T> toDataSet(Table table, Class<T> clazz, BatchQueryConfig queryConfig);
-
-	/**
-	 * Converts the given {@link Table} into a {@link DataSet} of a specified type.
-	 *
-	 * <p>The fields of the {@link Table} are mapped to {@link DataSet} fields as follows:
-	 * <ul>
-	 *     <li>{@link org.apache.flink.types.Row} and {@link org.apache.flink.api.java.tuple.Tuple}
-	 *     types: Fields are mapped by position, field types must match.</li>
-	 *     <li>POJO {@link DataSet} types: Fields are mapped by field name, field types must match.</li>
-	 * </ul>
-	 *
-	 * @param table The {@link Table} to convert.
-	 * @param typeInfo The {@link TypeInformation} that specifies the type of the resulting {@link DataSet}.
-	 * @param queryConfig The configuration for the query to generate.
-	 * @param <T> The type of the resulting {@link DataSet}.
-	 * @return The converted {@link DataSet}.
-	 */
-	<T> DataSet<T> toDataSet(Table table, TypeInformation<T> typeInfo, BatchQueryConfig queryConfig);
-
-	/**
-	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
-	 * NOTE: Currently only SQL INSERT statements are supported.
-	 *
-	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
-	 * A {@link Table} is automatically registered when its {@link Table#toString()} method is
-	 * called, for example when it is embedded into a String.
-	 * Hence, SQL queries can directly reference a {@link Table} as follows:
-	 *
-	 * <pre>
-	 * {@code
-	 *   // register the configured table sink into which the result is inserted.
-	 *   tEnv.registerTableSink("sinkTable", configuredSink);
-	 *   Table sourceTable = ...
-	 *   String tableName = sourceTable.toString();
-	 *   // sourceTable is not registered to the table environment
-	 *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName", config);
-	 * }
-	 * </pre>
-	 *
-	 * @param stmt The SQL statement to evaluate.
-	 * @param config The {@link BatchQueryConfig} to use.
-	 */
-	void sqlUpdate(String stmt, BatchQueryConfig config);
-
-	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
-	 *
-	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
-	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-	 *
-	 * @param table The Table to write to the sink.
-	 * @param queryConfig The {@link BatchQueryConfig} to use.
-	 * @param sinkPath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
-	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
-	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
-	 *        {@link Table} is written.
-	 * @deprecated use {@link #insertInto(String, Table)}
-	 */
-	@Deprecated
-	void insertInto(Table table, BatchQueryConfig queryConfig, String sinkPath, String... sinkPathContinued);
 
 	/**
 	 * Creates a temporary table from a descriptor.

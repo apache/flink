@@ -31,11 +31,11 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.ACCUMULATE_MSG;
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.RETRACT_MSG;
 import static org.apache.flink.table.dataformat.util.BaseRowUtil.isAccumulateMsg;
+import static org.apache.flink.table.dataformat.util.BaseRowUtil.isRetractMsg;
 
 /**
  * Aggregate Function used for the groupby (without window) aggregate.
@@ -65,9 +65,9 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 	private final RecordCounter recordCounter;
 
 	/**
-	 * Whether this operator will generate retraction.
+	 * Whether this operator will generate UPDATE_BEFORE messages.
 	 */
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 
 	/**
 	 * Reused output row.
@@ -94,7 +94,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 	 * @param indexOfCountStar The index of COUNT(*) in the aggregates.
 	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain retraction messages.
 	 *                          We make sure there is a COUNT(*) if input stream contains retraction.
-	 * @param generateRetraction Whether this operator will generate retraction.
+	 * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
 	 */
 	public GroupAggFunction(
 			long minRetentionTime,
@@ -103,13 +103,13 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 			GeneratedRecordEqualiser genRecordEqualiser,
 			LogicalType[] accTypes,
 			int indexOfCountStar,
-			boolean generateRetraction) {
+			boolean generateUpdateBefore) {
 		super(minRetentionTime, maxRetentionTime);
 		this.genAggsHandler = genAggsHandler;
 		this.genRecordEqualiser = genRecordEqualiser;
 		this.accTypes = accTypes;
 		this.recordCounter = RecordCounter.of(indexOfCountStar);
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 	}
 
 	@Override
@@ -141,6 +141,12 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 		boolean firstRow;
 		BaseRow accumulators = accState.value();
 		if (null == accumulators) {
+			// Don't create a new accumulator for a retraction message. This
+			// might happen if the retraction message is the first message for the
+			// key or after a state clean up.
+			if (isRetractMsg(input)) {
+				return;
+			}
 			firstRow = true;
 			accumulators = function.createAccumulators();
 		} else {
@@ -182,15 +188,20 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 					return;
 				} else {
 					// retract previous result
-					if (generateRetraction) {
-						// prepare retraction message for previous row
-						resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
+					if (generateUpdateBefore) {
+						// prepare UPDATE_BEFORE message for previous row
+						resultRow.replace(currentKey, prevAggValue).setRowKind(RowKind.UPDATE_BEFORE);
 						out.collect(resultRow);
 					}
+					// prepare UPDATE_AFTER message for new row
+					resultRow.replace(currentKey, newAggValue).setRowKind(RowKind.UPDATE_AFTER);
 				}
+			} else {
+				// this is the first, output new result
+				// prepare INSERT message for new row
+				resultRow.replace(currentKey, newAggValue).setRowKind(RowKind.INSERT);
 			}
-			// emit the new result
-			resultRow.replace(currentKey, newAggValue).setHeader(ACCUMULATE_MSG);
+
 			out.collect(resultRow);
 
 		} else {
@@ -198,7 +209,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 			// sent out a delete message
 			if (!firstRow) {
 				// prepare delete message for previous row
-				resultRow.replace(currentKey, prevAggValue).setHeader(RETRACT_MSG);
+				resultRow.replace(currentKey, prevAggValue).setRowKind(RowKind.DELETE);
 				out.collect(resultRow);
 			}
 			// and clear all state

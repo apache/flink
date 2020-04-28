@@ -32,7 +32,6 @@ import org.apache.flink.runtime.blob.TestingBlobStore;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -47,8 +46,6 @@ import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
@@ -78,7 +75,6 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -103,8 +99,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	private static final Time timeout = Time.seconds(10L);
 
 	private static TestingRpcService rpcService;
-
-	private static MetricRegistryImpl metricRegistry;
 
 	private JobID jobId;
 
@@ -179,8 +173,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		assertThat(storedHABlobFuture.get(), equalTo(permanentBlobKey));
 
 		fatalErrorHandler = new TestingFatalErrorHandler();
-
-		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 	}
 
 	private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob() throws Exception {
@@ -199,15 +191,10 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 		final MemoryArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
-
-		metricRegistry.startQueryService(rpcService, new ResourceID("mqs"));
-		final String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
-
 		dispatcher = new TestingDispatcher(
 			rpcService,
-			Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
 			DispatcherId.generate(),
-			Collections.emptyList(),
+			new DefaultDispatcherBootstrap(Collections.emptyList()),
 			new DispatcherServices(
 				configuration,
 				highAvailabilityServices,
@@ -217,7 +204,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 				archivedExecutionGraphStore,
 				fatalErrorHandler,
 				VoidHistoryServerArchivist.INSTANCE,
-				metricQueryServiceAddress,
+				null,
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				jobGraphWriter,
 				jobManagerRunnerFactory));
@@ -242,10 +229,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	public static void teardownClass() throws ExecutionException, InterruptedException {
 		if (rpcService != null) {
 			rpcService.stopService().get();
-		}
-
-		if (metricRegistry != null) {
-			metricRegistry.shutdown().get();
 		}
 	}
 

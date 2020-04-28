@@ -264,8 +264,6 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO
-  @Ignore("After implement BatchExecHashJoin")
   @Test
   def testCalcJoin(): Unit = {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
@@ -279,8 +277,6 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO
-  @Ignore("Implicit type converter")
   @Test
   def testAdvancedDataTypes(): Unit = {
 
@@ -315,8 +311,6 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO
-  @Ignore("Implicit type converter")
   @Test
   def testNumericAutocastInArithmetic() {
     val table = BatchTableEnvUtil.fromElements(tEnv,
@@ -455,8 +449,6 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  // TODO
-  @Ignore("Type question, should be fixed later.")
   def testRowType(): Unit = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Jack#22"))
@@ -636,14 +628,12 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  // TODO
-  @Ignore("Type question, should be fixed later.")
   def testSplitFieldsOnCustomType(): Unit = {
     tEnv.getConfig.setMaxGeneratedCodeLength(1) // splits fields
 
-    val ds = CollectionBatchExecTable.getCustomTypeDataSet(tEnv, "i, l, s")
-      .filter('s.like("%a%") && 's.charLength() > 12)
-      .select('i, 'l, 's.charLength())
+    val ds = CollectionBatchExecTable.getCustomTypeDataSet(tEnv, "myInt, myLong, myString")
+      .filter('myString.like("%a%") && 'myString.charLength() > 12)
+      .select('myInt, 'myLong, 'myString.charLength())
 
     val expected = "3,3,25\n" + "3,5,14\n"
     val results = executeQuery(ds)

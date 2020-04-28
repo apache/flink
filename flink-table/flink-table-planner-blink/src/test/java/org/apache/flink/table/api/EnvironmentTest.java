@@ -40,9 +40,7 @@ public class EnvironmentTest {
 	@Test
 	public void testPassingExecutionParameters() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(
-			env,
-			EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build());
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 		tEnv.getConfig().addConfiguration(
 			new Configuration()

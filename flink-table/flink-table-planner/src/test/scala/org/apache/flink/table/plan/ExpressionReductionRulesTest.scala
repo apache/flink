@@ -574,6 +574,7 @@ object DeterministicNullFunc extends ScalarFunction {
   override def isDeterministic = true
 }
 
+@SerialVersionUID(1L)
 object DeterministicPythonFunc extends ScalarFunction with PythonFunction {
 
   def eval(): Long = 1L

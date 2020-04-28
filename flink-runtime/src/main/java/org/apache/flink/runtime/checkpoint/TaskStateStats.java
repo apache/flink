@@ -121,14 +121,6 @@ public class TaskStateStats implements Serializable {
 	}
 
 	/**
-	 * @return Total buffered bytes during alignment over all subtasks or <code>-1</code> if the
-	 * runtime did not report this..
-	 */
-	public long getAlignmentBuffered() {
-		return summaryStats.getAlignmentBufferedStats().getSum();
-	}
-
-	/**
 	 * Returns the duration of this checkpoint at the task/operator calculated
 	 * as the time since triggering until the latest acknowledged subtask
 	 * or <code>-1</code> if no subtask was acknowledged yet.
@@ -176,7 +168,6 @@ public class TaskStateStats implements Serializable {
 		private MinMaxAvgStats ackTimestamp = new MinMaxAvgStats();
 		private MinMaxAvgStats syncCheckpointDuration = new MinMaxAvgStats();
 		private MinMaxAvgStats asyncCheckpointDuration = new MinMaxAvgStats();
-		private MinMaxAvgStats alignmentBuffered = new MinMaxAvgStats();
 		private MinMaxAvgStats alignmentDuration = new MinMaxAvgStats();
 		private MinMaxAvgStats checkpointStartDelay = new MinMaxAvgStats();
 
@@ -185,7 +176,6 @@ public class TaskStateStats implements Serializable {
 			ackTimestamp.add(subtaskStats.getAckTimestamp());
 			syncCheckpointDuration.add(subtaskStats.getSyncCheckpointDuration());
 			asyncCheckpointDuration.add(subtaskStats.getAsyncCheckpointDuration());
-			alignmentBuffered.add(subtaskStats.getAlignmentBuffered());
 			alignmentDuration.add(subtaskStats.getAlignmentDuration());
 			checkpointStartDelay.add(subtaskStats.getCheckpointStartDelay());
 		}
@@ -204,10 +194,6 @@ public class TaskStateStats implements Serializable {
 
 		public MinMaxAvgStats getAsyncCheckpointDurationStats() {
 			return asyncCheckpointDuration;
-		}
-
-		public MinMaxAvgStats getAlignmentBufferedStats() {
-			return alignmentBuffered;
 		}
 
 		public MinMaxAvgStats getAlignmentDurationStats() {

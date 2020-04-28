@@ -139,9 +139,9 @@ SELECT TUMBLE_END(newrowtime, INTERVAL '30' SECOND), long, sum(`int`) FROM (
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_END($0)], long=[$1], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
-   +- LogicalProject($f0=[TUMBLE(TUMBLE_ROWTIME($0), 30000:INTERVAL SECOND)], long=[$1], int=[$2])
+   +- LogicalProject($f0=[$TUMBLE(TUMBLE_ROWTIME($0), 30000:INTERVAL SECOND)], long=[$1], int=[$2])
       +- LogicalAggregate(group=[{0, 1}], int=[SUM($2)])
-         +- LogicalProject($f0=[TUMBLE($0, 10000:INTERVAL SECOND)], long=[$1], int=[$2])
+         +- LogicalProject($f0=[$TUMBLE($0, 10000:INTERVAL SECOND)], long=[$1], int=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -229,7 +229,7 @@ GROUP BY long, TUMBLE(rowtime, INTERVAL '0.1' SECOND)
       <![CDATA[
 LogicalProject(EXPR$0=[$2], long=[$0])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MIN($2)])
-   +- LogicalProject(long=[$1], $f1=[TUMBLE($0, 100:INTERVAL SECOND)], rowtime=[$0])
+   +- LogicalProject(long=[$1], $f1=[$TUMBLE($0, 100:INTERVAL SECOND)], rowtime=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -279,7 +279,7 @@ FROM MyTable1
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_END($0)], long=[$1], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
-   +- LogicalProject($f0=[TUMBLE($0, 10000:INTERVAL SECOND)], long=[$1], int=[$2])
+   +- LogicalProject($f0=[$TUMBLE($0, 10000:INTERVAL SECOND)], long=[$1], int=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -305,7 +305,7 @@ HAVING QUARTER(TUMBLE_END(rowtime, INTERVAL '1' SECOND)) = 1
 LogicalProject(EXPR$0=[$2], long=[$0])
 +- LogicalFilter(condition=[=(EXTRACT(FLAG(QUARTER), TUMBLE_END($1)), 1)])
    +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MIN($2)])
-      +- LogicalProject(long=[$1], $f1=[TUMBLE($0, 1000:INTERVAL SECOND)], rowtime=[$0])
+      +- LogicalProject(long=[$1], $f1=[$TUMBLE($0, 1000:INTERVAL SECOND)], rowtime=[$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
@@ -334,7 +334,7 @@ FROM MyTable1
       <![CDATA[
 LogicalProject(rowtime=[TUMBLE_END($1)], long=[$0], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)])
-   +- LogicalProject(long=[$1], $f1=[TUMBLE($0, 100:INTERVAL SECOND)], int=[$2])
+   +- LogicalProject(long=[$1], $f1=[$TUMBLE($0, 100:INTERVAL SECOND)], int=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>

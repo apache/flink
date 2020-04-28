@@ -43,9 +43,12 @@ import org.jline.terminal.impl.DumbTerminal;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,13 +57,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the {@link CliClient}.
@@ -72,13 +73,13 @@ public class CliClientTest extends TestLogger {
 	private static final String SELECT_STATEMENT = "SELECT * FROM MyOtherTable";
 
 	@Test
-	public void testUpdateSubmission() {
+	public void testUpdateSubmission() throws Exception {
 		verifyUpdateSubmission(INSERT_INTO_STATEMENT, false, false);
 		verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, false, false);
 	}
 
 	@Test
-	public void testFailedUpdateSubmission() {
+	public void testFailedUpdateSubmission() throws Exception {
 		// fail at executor
 		verifyUpdateSubmission(INSERT_INTO_STATEMENT, true, true);
 		verifyUpdateSubmission(INSERT_OVERWRITE_STATEMENT, true, true);
@@ -101,8 +102,11 @@ public class CliClientTest extends TestLogger {
 
 	@Test
 	public void testUseNonExistingDB() throws Exception {
-		Executor executor = mock(Executor.class);
-		doThrow(new SqlExecutionException("mocked exception")).when(executor).useDatabase(any(), any());
+		TestingExecutor executor = new TestingExecutorBuilder()
+			.setUseDatabaseConsumer((ignored1, ignored2) -> {
+				throw new SqlExecutionException("mocked exception");
+			})
+			.build();
 		InputStream inputStream = new ByteArrayInputStream("use db;\n".getBytes());
 		// don't care about the output
 		OutputStream outputStream = new OutputStream() {
@@ -115,9 +119,10 @@ public class CliClientTest extends TestLogger {
 
 		CliClient cliClient = null;
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor);
+			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
+
 			cliClient.open();
-			verify(executor).useDatabase(any(), any());
+			assertThat(executor.getNumUseDatabaseCalls(), is(1));
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();
@@ -127,8 +132,12 @@ public class CliClientTest extends TestLogger {
 
 	@Test
 	public void testUseNonExistingCatalog() throws Exception {
-		Executor executor = mock(Executor.class);
-		doThrow(new SqlExecutionException("mocked exception")).when(executor).useCatalog(any(), any());
+		TestingExecutor executor = new TestingExecutorBuilder()
+			.setUseCatalogConsumer((ignored1, ignored2) -> {
+				throw new SqlExecutionException("mocked exception");
+			})
+			.build();
+
 		InputStream inputStream = new ByteArrayInputStream("use catalog cat;\n".getBytes());
 		// don't care about the output
 		OutputStream outputStream = new OutputStream() {
@@ -141,9 +150,39 @@ public class CliClientTest extends TestLogger {
 		String sessionId = executor.openSession(sessionContext);
 
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor);
+			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 			cliClient.open();
-			verify(executor).useCatalog(any(), any());
+			assertThat(executor.getNumUseCatalogCalls(), is(1));
+		} finally {
+			if (cliClient != null) {
+				cliClient.close();
+			}
+		}
+	}
+
+	@Test
+	public void testHistoryFile() throws Exception {
+		final SessionContext context = new SessionContext("test-session", new Environment());
+		final MockExecutor mockExecutor = new MockExecutor();
+		String sessionId = mockExecutor.openSession(context);
+
+		InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
+		// don't care about the output
+		OutputStream outputStream = new OutputStream() {
+			@Override
+			public void write(int b) throws IOException {
+			}
+		};
+
+		CliClient cliClient = null;
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+			Path historyFilePath = File.createTempFile("history", "tmp").toPath();
+			cliClient = new CliClient(terminal, sessionId, mockExecutor, historyFilePath);
+			cliClient.open();
+			List<String> content = Files.readAllLines(historyFilePath);
+			assertEquals(2, content.size());
+			assertTrue(content.get(0).contains("help"));
+			assertTrue(content.get(1).contains("use catalog cat"));
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();
@@ -153,7 +192,7 @@ public class CliClientTest extends TestLogger {
 
 	// --------------------------------------------------------------------------------------------
 
-	private void verifyUpdateSubmission(String statement, boolean failExecution, boolean testFailure) {
+	private void verifyUpdateSubmission(String statement, boolean failExecution, boolean testFailure) throws Exception {
 		final SessionContext context = new SessionContext("test-session", new Environment());
 
 		final MockExecutor mockExecutor = new MockExecutor();
@@ -162,7 +201,11 @@ public class CliClientTest extends TestLogger {
 
 		CliClient cli = null;
 		try {
-			cli = new CliClient(TerminalUtils.createDummyTerminal(), sessionId, mockExecutor);
+			cli = new CliClient(
+					TerminalUtils.createDummyTerminal(),
+					sessionId,
+					mockExecutor,
+					File.createTempFile("history", "tmp").toPath());
 			if (testFailure) {
 				assertFalse(cli.submitUpdate(statement));
 			} else {

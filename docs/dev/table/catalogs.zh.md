@@ -22,44 +22,135 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Catalogs provide metadata, such as databases, tables, partitions, views, and functions and information needed to access data stored in a database or other external systems.
+Catalog 提供了元数据信息，例如数据库、表、分区、视图以及数据库或其他外部系统中存储的函数和信息。
 
-One of the most crucial aspects of data processing is managing metadata.
-It may be transient metadata like temporary tables, or UDFs registered against the table environment.
-Or permanent metadata, like that in a Hive Metastore. Catalogs provide a unified API for managing metadata and making it accessible from the Table API and SQL Queries. 
+数据处理最关键的方面之一是管理元数据。
+元数据可以是临时的，例如临时表、或者通过 TableEnvironment 注册的 UDF。
+元数据也可以是持久化的，例如 Hive Metastore 中的元数据。Catalog 提供了一个统一的API，用于管理元数据，并使其可以从 Table API 和 SQL 查询语句中来访问。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Catalog Types
+## Catalog 类型
 
 ### GenericInMemoryCatalog
 
-The `GenericInMemoryCatalog` is an in-memory implementation of a catalog. All objects will be available only for the lifetime of the session.
+`GenericInMemoryCatalog` 是基于内存实现的 Catalog，所有元数据只在 session 的生命周期内可用。
+
+### JDBCCatalog
+
+The `JDBCCatalog` enables users to connect Flink to relational databases over JDBC protocol.
+
+#### PostgresCatalog
+
+`PostgresCatalog` is the only implementation of JDBC Catalog at the moment.
+
+#### Usage of JDBCCatalog
+
+Set a `JDBCatalog` with the following parameters:
+
+- name: required, name of the catalog
+- default database: required, default database to connect to
+- username: required, username of Postgres account
+- password: required, password of the account
+- base url: required, should be of format "jdbc:postgresql://<ip>:<port>", and should not contain database name here
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+
+EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+TableEnvironment tableEnv = TableEnvironment.create(settings);
+
+String name            = "mypg";
+String defaultDatabase = "mydb";
+String username        = "...";
+String password        = "...";
+String baseUrl         = "..."
+
+JDBCCatalog catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl);
+tableEnv.registerCatalog("mypg", catalog);
+
+// set the JDBCCatalog as the current catalog of the session
+tableEnv.useCatalog("mypg");
+{% endhighlight %}
+</div>
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+
+val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+val tableEnv = TableEnvironment.create(settings)
+
+val name            = "mypg"
+val defaultDatabase = "mydb"
+val username        = "..."
+val password        = "..."
+val baseUrl         = "..."
+
+val catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl)
+tableEnv.registerCatalog("mypg", catalog)
+
+// set the JDBCCatalog as the current catalog of the session
+tableEnv.useCatalog("mypg")
+{% endhighlight %}
+</div>
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE CATALOG mypg WITH(
+    'type'='jdbc',
+    'default-database'='...',
+    'username'='...',
+    'password'='...',
+    'base-url'='...'
+);
+
+USE CATALOG mypg;
+{% endhighlight %}
+</div>
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+
+execution:
+    planner: blink
+    ...
+    current-catalog: mypg  # set the JDBCCatalog as the current catalog of the session
+    current-database: mydb
+    
+catalogs:
+   - name: mypg
+     type: jdbc
+     default-database: mydb
+     username: ...
+     password: ...
+     base-url: ...
+{% endhighlight %}
+</div>
+</div>
+
 
 ### HiveCatalog
 
-The `HiveCatalog` serves two purposes; as persistent storage for pure Flink metadata, and as an interface for reading and writing existing Hive metadata. 
-Flink's [Hive documentation]({{ site.baseurl }}/dev/table/hive/index.html) provides full details on setting up the catalog and interfacing with an existing Hive installation.
+`HiveCatalog` 有两个用途：作为原生 Flink 元数据的持久化存储，以及作为读写现有 Hive 元数据的接口。 
+Flink 的 [Hive 文档]({{ site.baseurl }}/zh/dev/table/hive/index.html) 提供了有关设置 `HiveCatalog` 以及访问现有 Hive 元数据的详细信息。
 
 
-{% warn %} The Hive Metastore stores all meta-object names in lower case. This is unlike `GenericInMemoryCatalog` which is case-sensitive
+<span class="label label-danger">警告</span> Hive Metastore 以小写形式存储所有元数据对象名称。而 `GenericInMemoryCatalog` 区分大小写。
 
-### User-Defined Catalog
+### 用户自定义 Catalog
 
-Catalogs are pluggable and users can develop custom catalogs by implementing the `Catalog` interface.
-To use custom catalogs in SQL CLI, users should develop both a catalog and its corresponding catalog factory by implementing the `CatalogFactory` interface.
+Catalog 是可扩展的，用户可以通过实现 `Catalog` 接口来开发自定义 Catalog。
+想要在 SQL CLI 中使用自定义 Catalog，用户除了需要实现自定义的 Catalog 之外，还需要为这个 Catalog 实现对应的 `CatalogFactory` 接口。
 
-The catalog factory defines a set of properties for configuring the catalog when the SQL CLI bootstraps.
-The set of properties will be passed to a discovery service where the service tries to match the properties to a `CatalogFactory` and initiate a corresponding catalog instance.
+`CatalogFactory` 定义了一组属性，用于 SQL CLI 启动时配置 Catalog。
+这组属性集将传递给发现服务，在该服务中，服务会尝试将属性关联到 `CatalogFactory` 并初始化相应的 Catalog 实例。
 
-## How to Create and Register Flink Tables to Catalog
+## 如何创建 Flink 表并将其注册到 Catalog
 
-### Using SQL DDL
+### 使用 SQL DDL
 
-Users can use SQL DDL to create tables in catalogs in both Table API and SQL.
+用户可以使用 DDL 通过 Table API 或者 SQL Client 在 Catalog 中创建表。
 
-For Table API:
+使用 Table API：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -84,7 +175,7 @@ tableEnv.listTables(); // should return the tables in current catalog and databa
 </div>
 </div>
 
-For SQL Client:
+使用 SQL Client：
 
 {% highlight sql %}
 // the catalog should have been registered via yaml file
@@ -96,11 +187,11 @@ Flink SQL> SHOW TABLES;
 mytable
 {% endhighlight %}
 
-For detailed information, please check out [Flink SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
+更多详细信息，请参考[Flink SQL CREATE DDL]({{ site.baseurl }}/zh/dev/table/sql/create.html)。
 
-### Using Java/Scala/Python API
+### 使用 Java/Scala/Python API
 
-Users can use Java, Scala, or Python API to create catalog tables programmatically.
+用户可以用编程的方式使用Java、Scala 或者 Python API 来创建 Catalog 表。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -142,11 +233,11 @@ List<String> tables = catalog.listTables("mydb"); // tables should contain "myta
 
 ## Catalog API
 
-Note: only catalog program APIs are listed here. Users can achieve many of the same funtionalities with SQL DDL.
-For detailed DDL information, please refer to [SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
+注意：这里只列出了编程方式的 Catalog API，用户可以使用 SQL DDL 实现许多相同的功能。
+关于 DDL 的详细信息请参考 [SQL CREATE DDL]({{ site.baseurl }}/zh/dev/table/sql/create.html)。
 
 
-### Database operations
+### 数据库操作
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
@@ -172,7 +263,7 @@ catalog.listDatabases("mycatalog");
 </div>
 </div>
 
-### Table operations
+### 表操作
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
@@ -201,7 +292,7 @@ catalog.listTables("mydb");
 </div>
 </div>
 
-### View operations
+### 视图操作
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
@@ -231,7 +322,7 @@ catalog.listViews("mydb");
 </div>
 
 
-### Partition operations
+### 分区操作
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
@@ -272,7 +363,7 @@ catalog.listPartitions(new ObjectPath("mydb", "mytable"), Arrays.asList(epr1, ..
 </div>
 
 
-### Function operations
+### 函数操作
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
@@ -299,12 +390,12 @@ catalog.listFunctions("mydb");
 </div>
 
 
-## Table API and SQL for Catalog
+## 通过 Table API 和 SQL Client 操作 Catalog
 
-### Registering a Catalog
+### 注册 Catalog
 
-Users have access to a default in-memory catalog named `default_catalog`, that is always created by default. This catalog by default has a single database called `default_database`.
-Users can also register additional catalogs into an existing Flink session.
+用户可以访问默认创建的内存 Catalog `default_catalog`，这个 Catalog 默认拥有一个默认数据库 `default_database`。
+用户也可以注册其他的 Catalog 到现有的 Flink 会话中。
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -314,8 +405,8 @@ tableEnv.registerCatalog(new CustomCatalog("myCatalog"));
 </div>
 <div data-lang="YAML" markdown="1">
 
-All catalogs defined using YAML must provide a `type` property that specifies the type of catalog. 
-The following types are supported out of the box.
+使用 YAML 定义的 Catalog 必须提供 `type` 属性，以表示指定的 Catalog 类型。
+以下几种类型可以直接使用。
 
 <table class="table table-bordered">
   <thead>
@@ -345,9 +436,9 @@ catalogs:
 </div>
 </div>
 
-### Changing the Current Catalog And Database
+### 修改当前的 Catalog 和数据库
 
-Flink will always search for tables, views, and UDF's in the current catalog and database. 
+Flink 始终在当前的 Catalog 和数据库中寻找表、视图和 UDF。 
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -364,7 +455,7 @@ Flink SQL> USE myDB;
 </div>
 </div>
 
-Metadata from catalogs that are not the current catalog are accessible by providing fully qualified names in the form `catalog.database.object`.
+通过提供全限定名 `catalog.database.object` 来访问不在当前 Catalog 中的元数据信息。
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -379,7 +470,7 @@ Flink SQL> SELECT * FROM not_the_current_catalog.not_the_current_db.my_table;
 </div>
 </div>
 
-### List Available Catalogs
+### 列出可用的 Catalog
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -395,7 +486,7 @@ Flink SQL> show catalogs;
 </div>
 
 
-### List Available Databases
+### 列出可用的数据库
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -410,7 +501,7 @@ Flink SQL> show databases;
 </div>
 </div>
 
-### List Available Tables
+### 列出可用的表
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">

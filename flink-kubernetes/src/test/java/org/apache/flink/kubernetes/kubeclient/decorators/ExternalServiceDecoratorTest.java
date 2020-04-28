@@ -35,7 +35,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -65,26 +64,30 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 		final Map<String, String> expectedLabels = getCommonLabels();
 		assertEquals(expectedLabels, restService.getMetadata().getLabels());
 
-		assertEquals("LoadBalancer", restService.getSpec().getType());
+		assertEquals(KubernetesConfigOptions.ServiceExposedType.LoadBalancer.name(), restService.getSpec().getType());
 
-		List<ServicePort> expectedServicePorts = Collections.singletonList(
+		final List<ServicePort> expectedServicePorts = Collections.singletonList(
 			new ServicePortBuilder()
-				.withName("rest-port")
+				.withName(Constants.REST_PORT_NAME)
 				.withPort(REST_PORT)
+				.withNewTargetPort(Integer.valueOf(REST_BIND_PORT))
 				.build());
 		assertEquals(expectedServicePorts, restService.getSpec().getPorts());
 
 		expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
+		expectedLabels.putAll(userLabels);
 		assertEquals(expectedLabels, restService.getSpec().getSelector());
 	}
 
 	@Test
 	public void testSetServiceExposedType() throws IOException {
-		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE, "NodePort");
-		List<HasMetadata> resources = this.externalServiceDecorator.buildAccompanyingKubernetesResources();
-		assertEquals("NodePort", ((Service) resources.get(0)).getSpec().getType());
+		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE, KubernetesConfigOptions.ServiceExposedType.NodePort);
+		final List<HasMetadata> resources = this.externalServiceDecorator.buildAccompanyingKubernetesResources();
+		assertEquals(KubernetesConfigOptions.ServiceExposedType.NodePort.name(),
+			((Service) resources.get(0)).getSpec().getType());
 
-		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE, "ClusterIP");
-		assertTrue(this.externalServiceDecorator.buildAccompanyingKubernetesResources().isEmpty());
+		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE, KubernetesConfigOptions.ServiceExposedType.ClusterIP);
+		final List<HasMetadata> servicesWithClusterIP = this.externalServiceDecorator.buildAccompanyingKubernetesResources();
+		assertEquals(KubernetesConfigOptions.ServiceExposedType.ClusterIP.name(), ((Service) servicesWithClusterIP.get(0)).getSpec().getType());
 	}
 }

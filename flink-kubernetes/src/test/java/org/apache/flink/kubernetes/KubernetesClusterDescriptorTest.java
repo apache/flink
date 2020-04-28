@@ -31,17 +31,11 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
-import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
-import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
-import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServiceBuilder;
-import io.fabric8.kubernetes.api.model.ServiceStatusBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
@@ -51,7 +45,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the {@link KubernetesClusterDescriptor}.
  */
-public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
+public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 	private static final String MOCK_SERVICE_HOST_NAME = "mock-host-name-of-service";
 	private static final String MOCK_SERVICE_IP = "192.168.0.1";
 
@@ -62,7 +56,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 	public void setup() throws Exception {
 		super.setup();
 
-		mockGetRestServiceWithLoadBalancer(MOCK_SERVICE_HOST_NAME, MOCK_SERVICE_IP);
+		mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer(MOCK_SERVICE_HOST_NAME, MOCK_SERVICE_IP));
 	}
 
 	@Test
@@ -154,35 +148,8 @@ public class KubernetesClusterDescriptorTest extends KubernetesTestBase {
 
 		assertEquals(CLUSTER_ID, clusterClient.getClusterId());
 		// Both HA and non-HA mode, the web interface should always be the Kubernetes exposed service address.
-		assertEquals(String.format("http://%s:8081", MOCK_SERVICE_IP), clusterClient.getWebInterfaceURL());
+		assertEquals(String.format("http://%s:%d", MOCK_SERVICE_IP, REST_PORT), clusterClient.getWebInterfaceURL());
 
 		return clusterClient;
-	}
-
-	private void mockGetRestServiceWithLoadBalancer(String hostname, String ip) {
-		final String restServiceName = KubernetesUtils.getRestServiceName(CLUSTER_ID);
-
-		final String path = String.format("/api/v1/namespaces/%s/services/%s", NAMESPACE, restServiceName);
-		server.expect()
-			.get()
-			.withPath(path)
-			.andReturn(200, buildMockRestService(hostname, ip))
-			.always();
-	}
-
-	private Service buildMockRestService(String hostname, String ip) {
-		final Service service = new ServiceBuilder()
-			.editOrNewMetadata()
-				.withName(KubernetesUtils.getRestServiceName(CLUSTER_ID))
-				.endMetadata()
-			.editOrNewSpec()
-				.endSpec()
-			.build();
-
-		service.setStatus(new ServiceStatusBuilder()
-			.withLoadBalancer(new LoadBalancerStatus(Collections.singletonList(
-				new LoadBalancerIngress(hostname, ip)))).build());
-
-		return service;
 	}
 }

@@ -20,9 +20,13 @@ package org.apache.flink.kubernetes.kubeclient.parameters;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -38,8 +42,6 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 
 	private final String podName;
 
-	private final int taskManagerMemoryMB;
-
 	private final String dynamicProperties;
 
 	private final ContaineredTaskManagerParameters containeredTaskManagerParameters;
@@ -47,24 +49,41 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 	public KubernetesTaskManagerParameters(
 			Configuration flinkConfig,
 			String podName,
-			int taskManagerMemoryMB,
 			String dynamicProperties,
 			ContaineredTaskManagerParameters containeredTaskManagerParameters) {
 		super(flinkConfig);
 		this.podName = checkNotNull(podName);
-		this.taskManagerMemoryMB = taskManagerMemoryMB;
 		this.dynamicProperties = checkNotNull(dynamicProperties);
 		this.containeredTaskManagerParameters = checkNotNull(containeredTaskManagerParameters);
 	}
 
 	@Override
 	public Map<String, String> getLabels() {
-		return KubernetesUtils.getTaskManagerLabels(getClusterId());
+		final Map<String, String> labels = new HashMap<>();
+		labels.putAll(flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_LABELS).orElse(Collections.emptyMap()));
+		labels.putAll(KubernetesUtils.getTaskManagerLabels(getClusterId()));
+		return Collections.unmodifiableMap(labels);
+	}
+
+	@Override
+	public Map<String, String> getNodeSelector() {
+		return Collections.unmodifiableMap(
+			flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_NODE_SELECTOR).orElse(Collections.emptyMap()));
 	}
 
 	@Override
 	public Map<String, String> getEnvironments() {
 		return this.containeredTaskManagerParameters.taskManagerEnv();
+	}
+
+	@Override
+	public Map<String, String> getAnnotations() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS).orElse(Collections.emptyMap());
+	}
+
+	@Override
+	public List<Map<String, String>> getTolerations() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.TASK_MANAGER_TOLERATIONS).orElse(Collections.emptyList());
 	}
 
 	public String getTaskManagerMainContainerName() {
@@ -76,7 +95,7 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 	}
 
 	public int getTaskManagerMemoryMB() {
-		return taskManagerMemoryMB;
+		return containeredTaskManagerParameters.getTaskExecutorProcessSpec().getTotalProcessMemorySize().getMebiBytes();
 	}
 
 	public double getTaskManagerCPU() {

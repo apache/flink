@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -27,11 +28,13 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.util.function.FunctionWithException;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.function.Function;
 
 /**
  * Builder to create a {@link StreamTaskMailboxTestHarness} to test {@link MultipleInputStreamTask}.
@@ -42,7 +45,7 @@ public class MultipleInputStreamTaskTestHarnessBuilder<OUT> extends StreamTaskMa
 	private final ArrayList<Integer> inputChannelsPerGate = new ArrayList<>();
 
 	public MultipleInputStreamTaskTestHarnessBuilder(
-			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+			FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
 			TypeInformation<OUT> outputType) {
 		super(taskFactory, outputType);
 	}
@@ -52,6 +55,14 @@ public class MultipleInputStreamTaskTestHarnessBuilder<OUT> extends StreamTaskMa
 	}
 
 	public MultipleInputStreamTaskTestHarnessBuilder<OUT> addInput(TypeInformation<?> inputType, int inputChannels) {
+		return addInput(inputType, inputChannels, null);
+	}
+
+	public MultipleInputStreamTaskTestHarnessBuilder<OUT> addInput(
+			TypeInformation<?> inputType,
+			int inputChannels,
+			@Nullable KeySelector<?, ?> keySelector) {
+		streamConfig.setStatePartitioner(inputSerializers.size(), keySelector);
 		inputSerializers.add(inputType.createSerializer(executionConfig));
 		inputChannelsPerGate.add(inputChannels);
 		return this;
@@ -72,9 +83,10 @@ public class MultipleInputStreamTaskTestHarnessBuilder<OUT> extends StreamTaskMa
 		for (int i = 0; i < inputSerializers.size(); i++) {
 			TypeSerializer<?> inputSerializer = inputSerializers.get(i);
 			inputGates[i] = new StreamTestSingleInputGate<>(
-					inputChannelsPerGate.get(i),
-					bufferSize,
-					inputSerializer);
+				inputChannelsPerGate.get(i),
+				i,
+				inputSerializer,
+				bufferSize);
 
 			StreamEdge streamEdge = new StreamEdge(
 				sourceVertexDummy,

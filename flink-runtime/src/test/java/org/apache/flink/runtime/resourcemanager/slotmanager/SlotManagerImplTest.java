@@ -34,6 +34,7 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -48,7 +49,6 @@ import org.apache.flink.util.CoreMatchers;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
-import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Test;
@@ -58,7 +58,6 @@ import javax.annotation.Nonnull;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -96,6 +95,14 @@ import static org.junit.Assert.fail;
 public class SlotManagerImplTest extends TestLogger {
 
 	private static final FlinkException TEST_EXCEPTION = new FlinkException("Test exception");
+
+	private static final WorkerResourceSpec WORKER_RESOURCE_SPEC = new WorkerResourceSpec.Builder()
+		.setCpuCores(100.0)
+		.setTaskHeapMemoryMB(10000)
+		.setTaskOffHeapMemoryMB(10000)
+		.setNetworkMemoryMB(10000)
+		.setManagedMemoryMB(10000)
+		.build();
 
 	/**
 	 * Tests that we can register task manager and their slots at the slot manager.
@@ -200,7 +207,7 @@ public class SlotManagerImplTest extends TestLogger {
 			resourceProfile,
 			"localhost");
 
-		CompletableFuture<ResourceProfile> allocateResourceFuture = new CompletableFuture<>();
+		CompletableFuture<WorkerResourceSpec> allocateResourceFuture = new CompletableFuture<>();
 		ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
 			.setAllocateResourceConsumer(allocateResourceFuture::complete)
 			.build();
@@ -209,7 +216,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 			slotManager.registerSlotRequest(slotRequest);
 
-			assertThat(allocateResourceFuture.get(), is(equalTo(resourceProfile)));
+			allocateResourceFuture.get();
 		}
 	}
 
@@ -227,9 +234,7 @@ public class SlotManagerImplTest extends TestLogger {
 			"localhost");
 
 		ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceFunction(value -> {
-				throw new ResourceManagerException("Test exception");
-			})
+			.setAllocateResourceFunction(value -> false)
 			.build();
 
 		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
@@ -442,7 +447,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final AtomicInteger numberAllocateResourceFunctionCalls = new AtomicInteger(0);
 		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceConsumer(resourceProfile -> numberAllocateResourceFunctionCalls.incrementAndGet())
+			.setAllocateResourceConsumer(ignored -> numberAllocateResourceFunctionCalls.incrementAndGet())
 			.build();
 		final AllocationID allocationId = new AllocationID();
 		final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1.0, 2);
@@ -497,7 +502,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final AtomicInteger allocateResourceCalls = new AtomicInteger(0);
 		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceConsumer(resourceProfile -> allocateResourceCalls.incrementAndGet())
+			.setAllocateResourceConsumer(ignored -> allocateResourceCalls.incrementAndGet())
 			.build();
 		final AllocationID allocationId = new AllocationID();
 		final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1.0, 2);
@@ -540,7 +545,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final AtomicInteger allocateResourceCalls = new AtomicInteger(0);
 		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceConsumer(resourceProfile -> allocateResourceCalls.incrementAndGet())
+			.setAllocateResourceConsumer(ignored -> allocateResourceCalls.incrementAndGet())
 			.build();
 		final AllocationID allocationId = new AllocationID();
 		final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1.0, 2);
@@ -683,6 +688,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
 		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
 			.setSlotRequestTimeout(Time.milliseconds(allocationTimeout))
 			.build()) {
 
@@ -903,6 +909,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
 		try (final SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder()
+			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
 			.setTaskManagerTimeout(Time.of(taskManagerTimeout, TimeUnit.MILLISECONDS))
 			.build()) {
 
@@ -971,6 +978,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final SlotReport initialSlotReport = new SlotReport(slotStatus);
 
 		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
 			.setTaskManagerTimeout(taskManagerTimeout)
 			.build()) {
 
@@ -1293,7 +1301,14 @@ public class SlotManagerImplTest extends TestLogger {
 	}
 
 	private SlotManagerImpl createSlotManager(ResourceManagerId resourceManagerId, ResourceActions resourceManagerActions) {
-		SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder().build();
+		return createSlotManager(resourceManagerId, resourceManagerActions, 1);
+	}
+
+	private SlotManagerImpl createSlotManager(ResourceManagerId resourceManagerId, ResourceActions resourceManagerActions, int numSlotsPerWorker) {
+		SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder()
+			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
+			.setNumSlotsPerWorker(numSlotsPerWorker)
+			.build();
 		slotManager.start(resourceManagerId, Executors.directExecutor(), resourceManagerActions);
 		return slotManager;
 	}
@@ -1308,15 +1323,16 @@ public class SlotManagerImplTest extends TestLogger {
 		final AtomicInteger resourceRequests = new AtomicInteger(0);
 		final TestingResourceActions testingResourceActions = new TestingResourceActionsBuilder()
 			.setAllocateResourceFunction(
-				convert(ignored -> {
+				ignored -> {
 					resourceRequests.incrementAndGet();
-					return numberSlots;
-				}))
+					return true;
+				})
 			.build();
 
 		try (final SlotManagerImpl slotManager = createSlotManager(
 			ResourceManagerId.generate(),
-			testingResourceActions)) {
+			testingResourceActions,
+			numberSlots)) {
 
 			final JobID jobId = new JobID();
 			assertThat(slotManager.registerSlotRequest(createSlotRequest(jobId)), is(true));
@@ -1340,10 +1356,8 @@ public class SlotManagerImplTest extends TestLogger {
 	@Test
 	public void testFailingAllocationReturnsPendingTaskManagerSlot() throws Exception {
 		final int numberSlots = 2;
-		final TestingResourceActions resourceActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceFunction(convert(value -> numberSlots))
-			.build();
-		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions)) {
+		final TestingResourceActions resourceActions = new TestingResourceActionsBuilder().build();
+		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions, numberSlots)) {
 			final JobID jobId = new JobID();
 
 			final SlotRequest slotRequest = createSlotRequest(jobId);
@@ -1365,12 +1379,11 @@ public class SlotManagerImplTest extends TestLogger {
 	@Test
 	public void testPendingTaskManagerSlotCompletion() throws Exception {
 		final int numberSlots = 3;
-		final TestingResourceActions resourceActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceFunction(convert(value -> numberSlots))
-			.build();
-		final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 100);
+		final TestingResourceActions resourceActions = new TestingResourceActionsBuilder().build();
+		final ResourceProfile resourceProfile =
+			SlotManagerImpl.generateDefaultSlotResourceProfile(WORKER_RESOURCE_SPEC, numberSlots);
 
-		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions)) {
+		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions, numberSlots)) {
 			final JobID jobId = new JobID();
 			assertThat(slotManager.registerSlotRequest(createSlotRequest(jobId, resourceProfile)), is(true));
 
@@ -1406,11 +1419,9 @@ public class SlotManagerImplTest extends TestLogger {
 	@Test
 	public void testRegistrationOfDifferentSlot() throws Exception {
 		final int numberSlots = 1;
-		final TestingResourceActions resourceActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceFunction(convert(value -> numberSlots))
-			.build();
+		final TestingResourceActions resourceActions = new TestingResourceActionsBuilder().build();
 
-		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions)) {
+		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions, numberSlots)) {
 			final JobID jobId = new JobID();
 			final ResourceProfile requestedSlotProfile = ResourceProfile.fromResources(1.0, 1);
 
@@ -1441,11 +1452,9 @@ public class SlotManagerImplTest extends TestLogger {
 	@Test
 	public void testOnlyFreeSlotsCanFulfillPendingTaskManagerSlot() throws Exception {
 		final int numberSlots = 1;
-		final TestingResourceActions resourceActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceFunction(convert(value -> numberSlots))
-			.build();
+		final TestingResourceActions resourceActions = new TestingResourceActionsBuilder().build();
 
-		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions)) {
+		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions, numberSlots)) {
 			final JobID jobId = new JobID();
 			assertThat(slotManager.registerSlotRequest(createSlotRequest(jobId)), is(true));
 
@@ -1460,19 +1469,6 @@ public class SlotManagerImplTest extends TestLogger {
 			assertThat(slotManager.getNumberPendingTaskManagerSlots(), is(numberSlots));
 			assertThat(slotManager.getNumberAssignedPendingTaskManagerSlots(), is(1));
 		}
-	}
-
-	private static FunctionWithException<ResourceProfile, Collection<ResourceProfile>, ResourceManagerException> convert(FunctionWithException<ResourceProfile, Integer, ResourceManagerException> function) {
-		return (ResourceProfile resourceProfile) -> {
-			final int slots = function.apply(resourceProfile);
-
-			final ArrayList<ResourceProfile> result = new ArrayList<>(slots);
-			for (int i = 0; i < slots; i++) {
-				result.add(resourceProfile);
-			}
-
-			return result;
-		};
 	}
 
 	/**
@@ -1554,5 +1550,28 @@ public class SlotManagerImplTest extends TestLogger {
 		final TaskExecutorConnection firstTaskExecutorConnection = createTaskExecutorConnection(taskExecutorGateway);
 		final SlotReport firstSlotReport = createSlotReport(firstTaskExecutorConnection.getResourceID(), 2);
 		slotManager.registerTaskManager(firstTaskExecutorConnection, firstSlotReport);
+	}
+
+	@Test
+	public void testGenerateDefaultSlotProfile() {
+		final int numSlots = 5;
+		final ResourceProfile resourceProfile = ResourceProfile.newBuilder()
+			.setCpuCores(1.0)
+			.setTaskHeapMemoryMB(1)
+			.setTaskOffHeapMemoryMB(2)
+			.setNetworkMemoryMB(3)
+			.setManagedMemoryMB(4)
+			.build();
+		final WorkerResourceSpec workerResourceSpec = new WorkerResourceSpec.Builder()
+			.setCpuCores(1.0 * numSlots)
+			.setTaskHeapMemoryMB(1 * numSlots)
+			.setTaskOffHeapMemoryMB(2 * numSlots)
+			.setNetworkMemoryMB(3 * numSlots)
+			.setManagedMemoryMB(4 * numSlots)
+			.build();
+
+		assertThat(
+			SlotManagerImpl.generateDefaultSlotResourceProfile(workerResourceSpec, numSlots),
+			is(resourceProfile));
 	}
 }

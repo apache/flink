@@ -19,8 +19,8 @@
 package org.apache.flink.table.api.java.internal;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
@@ -65,6 +64,7 @@ import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -212,9 +212,14 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	@Override
 	public <T> Table fromDataStream(DataStream<T> dataStream, String fields) {
 		List<Expression> expressions = ExpressionParser.parseExpressionList(fields);
+		return fromDataStream(dataStream, expressions.toArray(new Expression[0]));
+	}
+
+	@Override
+	public <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields) {
 		JavaDataStreamQueryOperation<T> queryOperation = asQueryOperation(
 			dataStream,
-			Optional.of(expressions));
+			Optional.of(Arrays.asList(fields)));
 
 		return createTable(queryOperation);
 	}
@@ -236,6 +241,14 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	@Override
 	public <T> void createTemporaryView(String path, DataStream<T> dataStream, String fields) {
+		createTemporaryView(path, fromDataStream(dataStream, fields));
+	}
+
+	@Override
+	public <T> void createTemporaryView(
+			String path,
+			DataStream<T> dataStream,
+			Expression... fields) {
 		createTemporaryView(path, fromDataStream(dataStream, fields));
 	}
 
@@ -270,28 +283,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	}
 
 	@Override
-	public <T> DataStream<T> toAppendStream(
-			Table table,
-			Class<T> clazz,
-			StreamQueryConfig queryConfig) {
-		tableConfig.setIdleStateRetentionTime(
-			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
-			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
-		return toAppendStream(table, clazz);
-	}
-
-	@Override
-	public <T> DataStream<T> toAppendStream(
-			Table table,
-			TypeInformation<T> typeInfo,
-			StreamQueryConfig queryConfig) {
-		tableConfig.setIdleStateRetentionTime(
-			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
-			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
-		return toAppendStream(table, typeInfo);
-	}
-
-	@Override
 	public <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, Class<T> clazz) {
 		TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
 		return toRetractStream(table, typeInfo);
@@ -307,46 +298,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	}
 
 	@Override
-	public <T> DataStream<Tuple2<Boolean, T>> toRetractStream(
-			Table table,
-			Class<T> clazz,
-			StreamQueryConfig queryConfig) {
-		tableConfig.setIdleStateRetentionTime(
-			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
-			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
-		return toRetractStream(table, clazz);
-	}
-
-	@Override
-	public <T> DataStream<Tuple2<Boolean, T>> toRetractStream(
-			Table table,
-			TypeInformation<T> typeInfo,
-			StreamQueryConfig queryConfig) {
-		tableConfig.setIdleStateRetentionTime(
-			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
-			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
-		return toRetractStream(table, typeInfo);
-	}
-
-	@Override
 	public StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor) {
 		return (StreamTableDescriptor) super.connect(connectorDescriptor);
-	}
-
-	@Override
-	public void sqlUpdate(String stmt, StreamQueryConfig config) {
-		tableConfig.setIdleStateRetentionTime(
-			Time.milliseconds(config.getMinIdleStateRetentionTime()),
-			Time.milliseconds(config.getMaxIdleStateRetentionTime()));
-		sqlUpdate(stmt);
-	}
-
-	@Override
-	public void insertInto(Table table, StreamQueryConfig queryConfig, String sinkPath, String... sinkPathContinued) {
-		tableConfig.setIdleStateRetentionTime(
-			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
-			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
-		insertInto(table, sinkPath, sinkPathContinued);
 	}
 
 	/**
@@ -355,6 +308,13 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	@Internal
 	public StreamExecutionEnvironment execEnv() {
 		return executionEnvironment;
+	}
+
+	/**
+	 * This method is used for sql client to submit job.
+	 */
+	public Pipeline getPipeline(String jobName) {
+		return execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
 	}
 
 	private <T> DataStream<T> toDataStream(Table table, OutputConversionModifyOperation modifyOperation) {
@@ -370,17 +330,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	protected void validateTableSource(TableSource<?> tableSource) {
 		super.validateTableSource(tableSource);
 		validateTimeCharacteristic(TableSourceValidation.hasRowtimeAttribute(tableSource));
-	}
-
-	@Override
-	protected boolean isEagerOperationTranslation() {
-		return true;
-	}
-
-	@Override
-	public String explain(boolean extended) {
-		// throw exception directly, because the operations to explain are always empty
-		throw new TableException("'explain' method without any tables is unsupported in StreamTableEnvironment.");
 	}
 
 	private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {

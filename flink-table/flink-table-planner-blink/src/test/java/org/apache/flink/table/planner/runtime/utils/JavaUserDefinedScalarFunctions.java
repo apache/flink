@@ -219,9 +219,8 @@ public class JavaUserDefinedScalarFunctions {
 			return i + j;
 		}
 
-		@Override
-		public TypeInformation<?> getResultType(Class<?>[] signature) {
-			return BasicTypeInfo.INT_TYPE_INFO;
+		public String eval(String a) {
+			return a;
 		}
 
 		@Override

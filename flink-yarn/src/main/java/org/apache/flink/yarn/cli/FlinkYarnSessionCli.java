@@ -355,7 +355,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			if (!MemorySize.MemoryUnit.hasUnit(jmMemoryVal)) {
 				jmMemoryVal += "m";
 			}
-			effectiveConfiguration.setString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jmMemoryVal);
+			effectiveConfiguration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse(jmMemoryVal));
 		}
 
 		if (commandLine.hasOption(tmMemory.getOpt())) {

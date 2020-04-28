@@ -20,9 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.testutils.logging.TestLoggerResource;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -47,8 +45,10 @@ import org.slf4j.event.Level;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
@@ -85,13 +85,13 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 	@Test(timeout = 60000)
 	public void testDetachedMode() throws Exception {
-		runTest(this::runDetachedModeTest);
+		runTest(() -> runDetachedModeTest(Collections.emptyMap()));
 	}
 
 	/**
 	 * Test regular operation, including command line parameter parsing.
 	 */
-	void runDetachedModeTest() throws Exception {
+	void runDetachedModeTest(Map<String, String> securityProperties) throws Exception {
 		runTest(() -> {
 			LOG.info("Starting testDetachedMode()");
 
@@ -116,11 +116,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			args.add("-tm");
 			args.add("1024m");
 
-			if (SecureTestEnvironment.getTestKeytab() != null) {
-				args.add("-D" + SecurityOptions.KERBEROS_LOGIN_KEYTAB.key() + "=" + SecureTestEnvironment.getTestKeytab());
-			}
-			if (SecureTestEnvironment.getHadoopServicePrincipal() != null) {
-				args.add("-D" + SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + "=" + SecureTestEnvironment.getHadoopServicePrincipal());
+			if (securityProperties != null) {
+				for (Map.Entry<String, String> property : securityProperties.entrySet()) {
+					args.add("-D" + property.getKey() + "=" + property.getValue());
+				}
 			}
 
 			args.add("--name");

@@ -56,7 +56,6 @@ public class BaseRowHarnessAssertor {
 		this(typeInfos, new StringComparator());
 	}
 
-
 	/**
 	 * Compare the two queues containing operator/task output by converting them to an array first.
 	 * Asserts two converted array should be same.
@@ -105,7 +104,17 @@ public class BaseRowHarnessAssertor {
 
 		for (Object ex : expected) {
 			if (ex instanceof StreamRecord) {
-				expectedRecords.add((GenericRow) ((StreamRecord) ex).getValue());
+				BaseRow row = (BaseRow) ((StreamRecord) ex).getValue();
+				if (row instanceof GenericRow) {
+					expectedRecords.add((GenericRow) row);
+				} else {
+					GenericRow genericRow = BaseRowUtil.toGenericRow(
+						row,
+						Arrays.stream(typeInfos)
+							.map(TypeInfoLogicalTypeConverter::fromTypeInfoToLogicalType)
+							.toArray(LogicalType[]::new));
+					expectedRecords.add(genericRow);
+				}
 			}
 		}
 

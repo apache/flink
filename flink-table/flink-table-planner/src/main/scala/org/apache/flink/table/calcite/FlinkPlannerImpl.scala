@@ -19,6 +19,7 @@
 package org.apache.flink.table.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
+import org.apache.flink.sql.parser.dql.{SqlShowCatalogs, SqlShowDatabases, SqlShowFunctions, SqlShowTables}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogReader
 
@@ -46,7 +47,7 @@ import scala.collection.JavaConverters._
   * The main difference is that we do not create a new RelOptPlanner in the ready() method.
   */
 class FlinkPlannerImpl(
-    config: FrameworkConfig,
+    val config: FrameworkConfig,
     val catalogReaderSupplier: JFunction[JBoolean, CatalogReader],
     planner: RelOptPlanner,
     val typeFactory: FlinkTypeFactory)
@@ -120,7 +121,11 @@ class FlinkPlannerImpl(
         || sqlNode.getKind == SqlKind.INSERT
         || sqlNode.getKind == SqlKind.CREATE_FUNCTION
         || sqlNode.getKind == SqlKind.DROP_FUNCTION
-        || sqlNode.getKind == SqlKind.OTHER_DDL) {
+        || sqlNode.getKind == SqlKind.OTHER_DDL
+        || sqlNode.isInstanceOf[SqlShowCatalogs]
+        || sqlNode.isInstanceOf[SqlShowDatabases]
+        || sqlNode.isInstanceOf[SqlShowTables]
+        || sqlNode.isInstanceOf[SqlShowFunctions]) {
         return sqlNode
       }
       validator.validate(sqlNode)

@@ -51,7 +51,7 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.UUID;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -214,7 +214,6 @@ public class MiniDispatcherTest extends TestLogger {
 	private MiniDispatcher createMiniDispatcher(ClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		return new MiniDispatcher(
 			rpcService,
-			UUID.randomUUID().toString(),
 			DispatcherId.generate(),
 			new DispatcherServices(
 				configuration,
@@ -229,7 +228,7 @@ public class MiniDispatcherTest extends TestLogger {
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				highAvailabilityServices.getJobGraphStore(),
 				testingJobManagerRunnerFactory),
-			jobGraph,
+			new DefaultDispatcherBootstrap(Collections.singletonList(jobGraph)),
 			executionMode);
 	}
 

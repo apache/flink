@@ -134,35 +134,12 @@ object TimestampModifier extends ScalarFunction {
 </div>
 
 <div data-lang="python" markdown="1">
-<span class="label label-info">Note</span> Python 3.5+ and apache-beam==2.19.0 are required to run the Python scalar function.
+In order to define a Python scalar function, one can extend the base class `ScalarFunction` in `pyflink.table.udf` and implement an evaluation method. The behavior of a Python scalar function is determined by the evaluation method which is named `eval`.
 
-<span class="label label-info">Note</span> By default PyFlink uses the command “python” to run the python udf workers. Before starting cluster, run the following command to confirm that it meets the requirements:
-
-{% highlight bash %}
-$ python --version
-# the version printed here must be 3.5+
-$ python -m pip install apache-beam==2.19.0
-{% endhighlight %}
-
-It supports to use both Java/Scala scalar functions and Python scalar functions in Python Table API and SQL. In order to define a Python scalar function, one can extend the base class `ScalarFunction` in `pyflink.table.udf` and implement an evaluation method. The behavior of a Python scalar function is determined by the evaluation method. An evaluation method must be named `eval`. Evaluation method can also support variable arguments, such as `eval(*args)`.
-
-The following example shows how to define your own Java and Python hash code functions, register them in the TableEnvironment, and call them in a query. Note that you can configure your scalar function via a constructor before it is registered:
+The following example shows how to define your own Python hash code function, register it in the TableEnvironment, and call it in a query. Note that you can configure your scalar function via a constructor before it is registered:
 
 {% highlight python %}
-'''
-Java code:
-
-// The Java class must have a public no-argument constructor and can be founded in current Java classloader.
-public class HashCode extends ScalarFunction {
-  private int factor = 12;
-
-  public int eval(String s) {
-      return s.hashCode() * factor;
-  }
-}
-'''
-
-class PyHashCode(ScalarFunction):
+class HashCode(ScalarFunction):
   def __init__(self):
     self.factor = 12
 
@@ -171,128 +148,18 @@ class PyHashCode(ScalarFunction):
 
 table_env = BatchTableEnvironment.create(env)
 
-# register the Java function
-table_env.register_java_function("hashCode", "my.java.function.HashCode")
-
 # register the Python function
-table_env.register_function("py_hash_code", udf(PyHashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+table_env.register_function("hash_code", udf(HashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
 # use the function in Python Table API
-my_table.select("string, bigint, string.hashCode(), hashCode(string), bigint.py_hash_code(), py_hash_code(bigint)")
+my_table.select("string, bigint, string.hash_code(), hash_code(string)")
 
 # use the function in SQL API
-table_env.sql_query("SELECT string, bigint, hashCode(string), py_hash_code(bigint) FROM MyTable")
+table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 {% endhighlight %}
 
-There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`. The following example shows the different ways to define a Python scalar function which takes two columns of bigint as input parameters and returns the sum of them as the result.
-
-{% highlight python %}
-# option 1: extending the base class `ScalarFunction`
-class Add(ScalarFunction):
-  def eval(self, i, j):
-    return i + j
-
-add = udf(Add(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
-
-# option 2: Python function
-@udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
-def add(i, j):
-  return i + j
-
-# option 3: lambda function
-add = udf(lambda i, j: i + j, [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
-
-# option 4: callable function
-class CallableAdd(object):
-  def __call__(self, i, j):
-    return i + j
-
-add = udf(CallableAdd(), [DataTypes.BIGINT(), DataTypes.BIGINT()], DataTypes.BIGINT())
-
-# option 5: partial function
-def partial_add(i, j, k):
-  return i + j + k
-
-add = udf(functools.partial(partial_add, k=1), [DataTypes.BIGINT(), DataTypes.BIGINT()],
-          DataTypes.BIGINT())
-
-# register the Python function
-table_env.register_function("add", add)
-# use the function in Python Table API
-my_table.select("add(a, b)")
-{% endhighlight %}
-
-If the python scalar function depends on third-party dependencies, you can specify the dependencies with the following table APIs or through <a href="{{ site.baseurl }}/ops/cli.html#usage">command line</a> directly when submitting the job.
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-left">Description</th>
-    </tr>
-  </thead>
-
-  <tbody>
-    <tr>
-      <td><strong>add_python_file(file_path)</strong></td>
-      <td>
-        <p>Adds python file dependencies which could be python files, python packages or local directories. They will be added to the PYTHONPATH of the python UDF worker.</p>
-{% highlight python %}
-table_env.add_python_file(file_path)
-{% endhighlight %}
-      </td>
-    </tr>
-    <tr>
-      <td><strong>set_python_requirements(requirements_file_path, requirements_cache_dir=None)</strong></td>
-      <td>
-        <p>Specifies a requirements.txt file which defines the third-party dependencies. These dependencies will be installed to a temporary directory and added to the PYTHONPATH of the python UDF worker. For the dependencies which could not be accessed in the cluster, a directory which contains the installation packages of these dependencies could be specified using the parameter "requirements_cached_dir". It will be uploaded to the cluster to support offline installation.</p>
-{% highlight python %}
-# commands executed in shell
-echo numpy==1.16.5 > requirements.txt
-pip download -d cached_dir -r requirements.txt --no-binary :all:
-
-# python code
-table_env.set_python_requirements("requirements.txt", "cached_dir")
-{% endhighlight %}
-        <p>Please make sure the installation packages matches the platform of the cluster and the python version used. These packages will be installed using pip, so also make sure the version of Pip (version >= 7.1.0) and the version of SetupTools (version >= 37.0.0).</p>
-      </td>
-    </tr>
-    <tr>
-      <td><strong>add_python_archive(archive_path, target_dir=None)</strong></td>
-      <td>
-        <p>Adds a python archive file dependency. The file will be extracted to the working directory of python UDF worker. If the parameter "target_dir" is specified, the archive file will be extracted to a directory named "target_dir". Otherwise, the archive file will be extracted to a directory with the same name of the archive file.</p>
-{% highlight python %}
-# command executed in shell
-# assert the relative path of python interpreter is py_env/bin/python
-zip -r py_env.zip py_env
-
-# python code
-table_env.add_python_archive("py_env.zip")
-# or
-table_env.add_python_archive("py_env.zip", "myenv")
-
-# the files contained in the archive file can be accessed in UDF
-def my_udf():
-    with open("myenv/py_env/data/data.txt") as f:
-        ...
-{% endhighlight %}
-        <p>Please make sure the uploaded python environment matches the platform that the cluster is running on. Currently only zip-format is supported. i.e. zip, jar, whl, egg, etc.</p>
-      </td>
-    </tr>
-    <tr>
-      <td><strong>set_python_executable(python_exec)</strong></td>
-      <td>
-        <p>Sets the path of the python interpreter which is used to execute the python udf workers, e.g., "/usr/local/bin/python3".</p>
-{% highlight python %}
-table_env.add_python_archive("py_env.zip")
-table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
-{% endhighlight %}
-        <p>Please make sure that the specified environment matches the platform that the cluster is running on.</p>
-      </td>
-    </tr>
-  </tbody>
-</table>
-
+There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`.
+Please refer to the [Python Scalar Function]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html#scalar-functions) documentation for more details.
 </div>
 </div>
 
@@ -303,14 +170,15 @@ Table Functions
 
 Similar to a user-defined scalar function, a user-defined table function takes zero, one, or multiple scalar values as input parameters. However in contrast to a scalar function, it can return an arbitrary number of rows as output instead of a single value. The returned rows may consist of one or more columns. 
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
 In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. Evaluation methods can also support variable arguments, such as `eval(String... strs)`. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
 
 In the Table API, a table function is used with `.joinLateral` or `.leftOuterJoinLateral`. The `joinLateral` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoinLateral` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
 
 The following example shows how to define table-valued function, register it in the TableEnvironment, and call it in a query. Note that you can configure your table function via a constructor before it is registered: 
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
 {% highlight java %}
 // The generic type "Tuple2<String, Integer>" determines the schema of the returned table as (String, Integer).
 public class Split extends TableFunction<Tuple2<String, Integer>> {
@@ -349,6 +217,13 @@ tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(s
 </div>
 
 <div data-lang="scala" markdown="1">
+
+In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. Evaluation methods can also support variable arguments, such as `eval(String... strs)`. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
+
+In the Table API, a table function is used with `.joinLateral` or `.leftOuterJoinLateral`. The `joinLateral` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoinLateral` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
+
+The following example shows how to define table-valued function, register it in the TableEnvironment, and call it in a query. Note that you can configure your table function via a constructor before it is registered: 
+
 {% highlight scala %}
 // The generic type "(String, Int)" determines the schema of the returned table as (String, Integer).
 class Split(separator: String) extends TableFunction[(String, Int)] {
@@ -380,53 +255,51 @@ tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(s
 </div>
 
 <div data-lang="python" markdown="1">
+In order to define a Python table function, one can extend the base class `TableFunction` in `pyflink.table.udtf` and Implement an evaluation method. The behavior of a Python table function is determined by the evaluation method which is named eval.
+
+In the Python Table API, a Python table function is used with `.join_lateral` or `.left_outer_join_lateral`. The `join_lateral` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `left_outer_join_lateral` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
+
+<span class="label label-info">Note</span> Currently, Python UDTF is supported in old planner both under streaming and batch mode while is only supported under streaming mode in Blink planner.
+
+The following example shows how to define a Python table function, registered it in the TableEnvironment, and call it in a query. Note that you can configure your table function via a constructor before it is registered:
+
 {% highlight python %}
-'''
-Java code:
+class Split(TableFunction):
+    def eval(self, string):
+        for s in string.split(" "):
+            yield s, len(s)
 
-// The generic type "Tuple2<String, Integer>" determines the schema of the returned table as (String, Integer).
-// The java class must have a public no-argument constructor and can be founded in current java classloader.
-public class Split extends TableFunction<Tuple2<String, Integer>> {
-    private String separator = " ";
-    
-    public void eval(String str) {
-        for (String s : str.split(separator)) {
-            // use collect(...) to emit a row
-            collect(new Tuple2<String, Integer>(s, s.length()));
-        }
-    }
-}
-'''
-
-table_env = BatchTableEnvironment.create(env)
+env = StreamExecutionEnvironment.get_execution_environment()
+table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# Register the java function.
-table_env.register_java_function("split", "my.java.function.Split")
+# register the Python Table Function
+table_env.register_function("split", udtf(Split(), DataTypes.STRING(), [DataTypes.STRING(), DataTypes.INT()]))
 
-# Use the table function in the Python Table API. "as" specifies the field names of the table.
-my_table.join_lateral("split(a) as (word, length)").select("a, word, length")
-my_table.left_outer_join_lateral("split(a) as (word, length)").select("a, word, length")
+# use the Python Table Function in Python Table API
+my_table.join_lateral("split(a) as (word, length)")
+my_table.left_outer_join_lateral("split(a) as (word, length)")
 
-# Register the python function.
-
-# Use the table function in SQL with LATERAL and TABLE keywords.
-# CROSS JOIN a table function (equivalent to "join" in Table API).
+# use the Python Table function in SQL API
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
-# LEFT JOIN a table function (equivalent to "left_outer_join" in Table API).
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
+
 {% endhighlight %}
+
+There are many ways to define a Python table function besides extending the base class `TableFunction`.
+Please refer to the [Python Table Function]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html#table-functions) documentation for more details.
+
 </div>
 </div>
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 Please note that POJO types do not have a deterministic field order. Therefore, you cannot rename the fields of POJO returned by a table function using `AS`.
 
 By default the result type of a `TableFunction` is determined by Flink’s automatic type extraction facilities. This works well for basic types and simple POJOs but might be wrong for more complex, custom, or composite types. In such a case, the type of the result can be manually specified by overriding `TableFunction#getResultType()` which returns its `TypeInformation`.
 
 The following example shows an example of a `TableFunction` that returns a `Row` type which requires explicit type information. We define that the returned table type should be `RowTypeInfo(String, Integer)` by overriding `TableFunction#getResultType()`.
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
 {% highlight java %}
 public class CustomTypeSplit extends TableFunction<Row> {
     public void eval(String str) {
@@ -447,6 +320,12 @@ public class CustomTypeSplit extends TableFunction<Row> {
 </div>
 
 <div data-lang="scala" markdown="1">
+Please note that POJO types do not have a deterministic field order. Therefore, you cannot rename the fields of POJO returned by a table function using `AS`.
+
+By default the result type of a `TableFunction` is determined by Flink’s automatic type extraction facilities. This works well for basic types and simple POJOs but might be wrong for more complex, custom, or composite types. In such a case, the type of the result can be manually specified by overriding `TableFunction#getResultType()` which returns its `TypeInformation`.
+
+The following example shows an example of a `TableFunction` that returns a `Row` type which requires explicit type information. We define that the returned table type should be `RowTypeInfo(String, Integer)` by overriding `TableFunction#getResultType()`.
+
 {% highlight scala %}
 class CustomTypeSplit extends TableFunction[Row] {
   def eval(str: String): Unit = {

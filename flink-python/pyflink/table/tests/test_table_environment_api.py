@@ -15,7 +15,15 @@
 # #  See the License for the specific language governing permissions and
 # # limitations under the License.
 ################################################################################
+import glob
 import os
+import pathlib
+import sys
+
+from py4j.protocol import Py4JJavaError
+
+from pyflink.find_flink_home import _find_flink_source_root
+from pyflink.java_gateway import get_gateway
 
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
@@ -28,9 +36,58 @@ from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
     PyFlinkBlinkBatchTableTestCase
 from pyflink.util.exceptions import TableException
+from pyflink.util.utils import get_j_env_configuration
 
 
-class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
+class TableEnvironmentTest(object):
+
+    def test_set_sys_executable_for_local_mode(self):
+        jvm = get_gateway().jvm
+        actual_executable = get_j_env_configuration(self.t_env) \
+            .getString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), None)
+        self.assertEqual(sys.executable, actual_executable)
+
+    def test_explain(self):
+        schema = RowType()\
+            .add('a', DataTypes.INT())\
+            .add('b', DataTypes.STRING())\
+            .add('c', DataTypes.STRING())
+        t_env = self.t_env
+        t = t_env.from_elements([], schema)
+        result = t.select("1 + a, b, c")
+
+        actual = t_env.explain(result)
+
+        assert isinstance(actual, str)
+
+    def test_explain_with_extended(self):
+        schema = RowType() \
+            .add('a', DataTypes.INT()) \
+            .add('b', DataTypes.STRING()) \
+            .add('c', DataTypes.STRING())
+        t_env = self.t_env
+        t = t_env.from_elements([], schema)
+        result = t.select("1 + a, b, c")
+
+        actual = t_env.explain(result, True)
+
+        assert isinstance(actual, str)
+
+    def test_register_java_function(self):
+        t_env = self.t_env
+
+        t_env.register_java_function("scalar_func",
+                                     "org.apache.flink.table.expressions.utils.RichFunc0")
+        t_env.register_java_function(
+            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
+        t_env.register_java_function("table_func", "org.apache.flink.table.utils.TableFunc1")
+
+        actual = t_env.list_user_defined_functions()
+        expected = ['scalar_func', 'agg_func', 'table_func']
+        self.assert_equals(actual, expected)
+
+
+class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCase):
 
     def test_register_table_source_scan(self):
         t_env = self.t_env
@@ -167,32 +224,6 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         expected = ['1,Hi,Hello']
         self.assert_equals(actual, expected)
 
-    def test_explain(self):
-        schema = RowType()\
-            .add('a', DataTypes.INT())\
-            .add('b', DataTypes.STRING())\
-            .add('c', DataTypes.STRING())
-        t_env = self.t_env
-        t = t_env.from_elements([], schema)
-        result = t.select("1 + a, b, c")
-
-        actual = t_env.explain(result)
-
-        assert isinstance(actual, str)
-
-    def test_explain_with_extended(self):
-        schema = RowType() \
-            .add('a', DataTypes.INT()) \
-            .add('b', DataTypes.STRING()) \
-            .add('c', DataTypes.STRING())
-        t_env = self.t_env
-        t = t_env.from_elements([], schema)
-        result = t.select("1 + a, b, c")
-
-        actual = t_env.explain(result, True)
-
-        assert isinstance(actual, str)
-
     def test_explain_with_multi_sinks(self):
         t_env = self.t_env
         source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
@@ -208,54 +239,8 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         t_env.sql_update("insert into sink1 select * from %s where a > 100" % source)
         t_env.sql_update("insert into sink2 select * from %s where a < 100" % source)
 
-        with self.assertRaises(TableException):
-            t_env.explain(extended=True)
-
-    def test_sql_query(self):
-        t_env = self.t_env
-        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "sinks",
-            source_sink_utils.TestAppendSink(field_names, field_types))
-
-        result = t_env.sql_query("select a + 1, b, c from %s" % source)
-        result.insert_into("sinks")
-        self.t_env.execute("test")
-        actual = source_sink_utils.results()
-
-        expected = ['2,Hi,Hello', '3,Hello,Hello']
-        self.assert_equals(actual, expected)
-
-    def test_sql_update(self):
-        t_env = self.t_env
-        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "sinks",
-            source_sink_utils.TestAppendSink(field_names, field_types))
-
-        t_env.sql_update("insert into sinks select * from %s" % source)
-        self.t_env.execute("test_sql_job")
-
-        actual = source_sink_utils.results()
-        expected = ['1,Hi,Hello', '2,Hello,Hello']
-        self.assert_equals(actual, expected)
-
-    def test_register_java_function(self):
-        t_env = self.t_env
-
-        t_env.register_java_function("scalar_func",
-                                     "org.apache.flink.table.expressions.utils.RichFunc0")
-        t_env.register_java_function(
-            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
-        t_env.register_java_function("table_func", "org.apache.flink.table.utils.TableFunc1")
-
-        actual = t_env.list_user_defined_functions()
-        expected = ['scalar_func', 'agg_func', 'table_func']
-        self.assert_equals(actual, expected)
+        actual = t_env.explain(extended=True)
+        assert isinstance(actual, str)
 
     def test_create_table_environment(self):
         table_config = TableConfig()
@@ -282,6 +267,24 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         self.assertEqual(
             planner.getClass().getName(),
             "org.apache.flink.table.planner.delegation.StreamPlanner")
+
+        t_env = StreamTableEnvironment.create(
+            environment_settings=EnvironmentSettings.new_instance().build())
+
+        planner = t_env._j_tenv.getPlanner()
+
+        self.assertEqual(
+            planner.getClass().getName(),
+            "org.apache.flink.table.planner.delegation.StreamPlanner")
+
+        t_env = StreamTableEnvironment.create(
+            environment_settings=EnvironmentSettings.new_instance().use_old_planner().build())
+
+        planner = t_env._j_tenv.getPlanner()
+
+        self.assertEqual(
+            planner.getClass().getName(),
+            "org.apache.flink.table.planner.StreamPlanner")
 
     def test_table_environment_with_blink_planner(self):
         self.env.set_parallelism(1)
@@ -316,36 +319,71 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
         self.assert_equals(results, ['2,hi,hello\n', '3,hello,hello\n'])
 
+    def test_set_jars(self):
+        self.verify_set_java_dependencies("pipeline.jars")
 
-class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
+    def test_set_classpaths(self):
+        self.verify_set_java_dependencies("pipeline.classpaths")
 
-    def test_explain(self):
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = []
-        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
-        t_env = self.t_env
-        t_env.register_table_source("Source", csv_source)
-        source = t_env.scan("Source")
-        result = source.alias("a, b, c").select("1 + a, b, c")
+    def verify_set_java_dependencies(self, config_key):
+        original_class_loader = \
+            get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        try:
+            jar_urls = []
+            func1_class_name = "org.apache.flink.python.util.TestScalarFunction1"
+            func2_class_name = "org.apache.flink.python.util.TestScalarFunction2"
+            func1_jar_pattern = "flink-python/target/func1/flink-python*-tests.jar"
+            func2_jar_pattern = "flink-python/target/func2/flink-python*-tests.jar"
+            self.ensure_jar_not_loaded(func1_class_name, func1_jar_pattern)
+            self.ensure_jar_not_loaded(func2_class_name, func2_jar_pattern)
+            jar_urls.extend(self.get_jar_url(func1_jar_pattern))
+            jar_urls.extend(self.get_jar_url(func2_jar_pattern))
 
-        actual = t_env.explain(result)
+            # test set the "pipeline.jars" multiple times
+            self.t_env.get_config().get_configuration().set_string(config_key, ";".join(jar_urls))
+            first_class_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
 
-        self.assertIsInstance(actual, str)
+            self.t_env.get_config().get_configuration().set_string(config_key, jar_urls[0])
+            self.t_env.get_config().get_configuration().set_string(config_key, ";".join(jar_urls))
+            second_class_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
 
-    def test_explain_with_extended(self):
-        schema = RowType() \
-            .add('a', DataTypes.INT()) \
-            .add('b', DataTypes.STRING()) \
-            .add('c', DataTypes.STRING())
-        t_env = self.t_env
-        t = t_env.from_elements([], schema)
-        result = t.select("1 + a, b, c")
+            self.assertEqual(first_class_loader, second_class_loader)
 
-        actual = t_env.explain(result, True)
+            source = self.t_env.from_elements([(1, "Hi"), (2, "Hello")], ["a", "b"])
+            self.t_env.register_java_function("func1", func1_class_name)
+            self.t_env.register_java_function("func2", func2_class_name)
+            table_sink = source_sink_utils.TestAppendSink(
+                ["a", "b"], [DataTypes.STRING(), DataTypes.STRING()])
+            self.t_env.register_table_sink("sink", table_sink)
+            source.select("func1(a, b), func2(a, b)").insert_into("sink")
+            self.t_env.execute("test")
+            actual = source_sink_utils.results()
+            expected = ['1 and Hi,1 or Hi', '2 and Hello,2 or Hello']
+            self.assert_equals(actual, expected)
+        finally:
+            get_gateway().jvm.Thread.currentThread().setContextClassLoader(original_class_loader)
 
-        assert isinstance(actual, str)
+    def ensure_jar_not_loaded(self, func_class_name, jar_filename_pattern):
+        test_jars = glob.glob(os.path.join(_find_flink_source_root(), jar_filename_pattern))
+        if not test_jars:
+            self.fail("'%s' is not available. Please compile the test jars first."
+                      % jar_filename_pattern)
+        try:
+            self.t_env.register_java_function("func", func_class_name)
+        except Py4JJavaError:
+            pass
+        else:
+            self.fail("The scalar function '%s' should not be able to be loaded. Please remove "
+                      "the '%s' from the classpath of the PythonGatewayServer process." %
+                      (func_class_name, jar_filename_pattern))
+
+    @staticmethod
+    def get_jar_url(jar_filename_pattern):
+        test_jars = glob.glob(os.path.join(_find_flink_source_root(), jar_filename_pattern))
+        return [pathlib.Path(jar_path).as_uri() for jar_path in test_jars]
+
+
+class BatchTableEnvironmentTests(TableEnvironmentTest, PyFlinkBatchTableTestCase):
 
     def test_explain_with_multi_sinks(self):
         t_env = self.t_env
@@ -364,19 +402,6 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
 
         with self.assertRaises(TableException):
             t_env.explain(extended=True)
-
-    def test_register_java_function(self):
-        t_env = self.t_env
-
-        t_env.register_java_function("scalar_func",
-                                     "org.apache.flink.table.expressions.utils.RichFunc0")
-        t_env.register_java_function(
-            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
-        t_env.register_java_function("table_func", "org.apache.flink.table.utils.TableFunc1")
-
-        actual = t_env.list_user_defined_functions()
-        expected = ['scalar_func', 'agg_func', 'table_func']
-        self.assert_equals(actual, expected)
 
     def test_create_table_environment(self):
         table_config = TableConfig()

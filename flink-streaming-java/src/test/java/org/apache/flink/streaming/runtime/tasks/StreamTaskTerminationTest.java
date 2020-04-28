@@ -227,7 +227,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 
 		private boolean isRunning;
 
-		public BlockingStreamTask(Environment env) {
+		public BlockingStreamTask(Environment env) throws Exception {
 			super(env);
 		}
 

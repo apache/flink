@@ -29,12 +29,12 @@ import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 import org.slf4j.Logger;
@@ -65,7 +65,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 	private GeneratedRecordComparator generatedSortKeyComparator;
 	protected Comparator<BaseRow> sortKeyComparator;
 
-	private final boolean generateRetraction;
+	private final boolean generateUpdateBefore;
 	protected final boolean outputRankNumber;
 	protected final BaseRowTypeInfo inputRowType;
 	protected final KeySelector<BaseRow, BaseRow> sortKeySelector;
@@ -93,7 +93,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 			BaseRowKeySelector sortKeySelector,
 			RankType rankType,
 			RankRange rankRange,
-			boolean generateRetraction,
+			boolean generateUpdateBefore,
 			boolean outputRankNumber) {
 		super(minRetentionTime, maxRetentionTime);
 		// TODO support RANK and DENSE_RANK
@@ -129,7 +129,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 			throw new UnsupportedOperationException(WITHOUT_RANK_END_UNSUPPORTED_MSG);
 		}
 		this.generatedSortKeyComparator = generatedSortKeyComparator;
-		this.generateRetraction = generateRetraction;
+		this.generateUpdateBefore = generateUpdateBefore;
 		this.inputRowType = inputRowType;
 		this.outputRankNumber = outputRankNumber;
 		this.sortKeySelector = sortKeySelector;
@@ -243,38 +243,49 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 				"topn.cache.size", () -> heapSize);
 	}
 
-	protected void collect(Collector<BaseRow> out, BaseRow inputRow) {
-		BaseRowUtil.setAccumulate(inputRow);
-		out.collect(inputRow);
-	}
-
-	/**
-	 * This is similar to [[retract()]] but always send retraction message regardless of generateRetraction is true or
-	 * not.
-	 */
-	protected void delete(Collector<BaseRow> out, BaseRow inputRow) {
-		BaseRowUtil.setRetract(inputRow);
-		out.collect(inputRow);
-	}
-
-	/**
-	 * This is with-row-number version of above delete() method.
-	 */
-	protected void delete(Collector<BaseRow> out, BaseRow inputRow, long rank) {
+	protected void collectInsert(Collector<BaseRow> out, BaseRow inputRow, long rank) {
 		if (isInRankRange(rank)) {
-			out.collect(createOutputRow(inputRow, rank, BaseRowUtil.RETRACT_MSG));
+			out.collect(createOutputRow(inputRow, rank, RowKind.INSERT));
 		}
 	}
 
-	protected void collect(Collector<BaseRow> out, BaseRow inputRow, long rank) {
+	protected void collectInsert(Collector<BaseRow> out, BaseRow inputRow) {
+		inputRow.setRowKind(RowKind.INSERT);
+		out.collect(inputRow);
+	}
+
+	protected void collectDelete(Collector<BaseRow> out, BaseRow inputRow, long rank) {
 		if (isInRankRange(rank)) {
-			out.collect(createOutputRow(inputRow, rank, BaseRowUtil.ACCUMULATE_MSG));
+			out.collect(createOutputRow(inputRow, rank, RowKind.DELETE));
 		}
 	}
 
-	protected void retract(Collector<BaseRow> out, BaseRow inputRow, long rank) {
-		if (generateRetraction && isInRankRange(rank)) {
-			out.collect(createOutputRow(inputRow, rank, BaseRowUtil.RETRACT_MSG));
+	protected void collectDelete(Collector<BaseRow> out, BaseRow inputRow) {
+		inputRow.setRowKind(RowKind.DELETE);
+		out.collect(inputRow);
+	}
+
+	protected void collectUpdateAfter(Collector<BaseRow> out, BaseRow inputRow, long rank) {
+		if (isInRankRange(rank)) {
+			out.collect(createOutputRow(inputRow, rank, RowKind.UPDATE_AFTER));
+		}
+	}
+
+	protected void collectUpdateAfter(Collector<BaseRow> out, BaseRow inputRow) {
+		inputRow.setRowKind(RowKind.UPDATE_AFTER);
+		out.collect(inputRow);
+	}
+
+	protected void collectUpdateBefore(Collector<BaseRow> out, BaseRow inputRow, long rank) {
+		if (generateUpdateBefore && isInRankRange(rank)) {
+			out.collect(createOutputRow(inputRow, rank, RowKind.UPDATE_BEFORE));
+		}
+	}
+
+	protected void collectUpdateBefore(Collector<BaseRow> out, BaseRow inputRow) {
+		if (generateUpdateBefore) {
+			inputRow.setRowKind(RowKind.UPDATE_BEFORE);
+			out.collect(inputRow);
 		}
 	}
 
@@ -291,16 +302,16 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunctionWithClean
 		return rankStart > 1;
 	}
 
-	private BaseRow createOutputRow(BaseRow inputRow, long rank, byte header) {
+	private BaseRow createOutputRow(BaseRow inputRow, long rank, RowKind rowKind) {
 		if (outputRankNumber) {
 			GenericRow rankRow = new GenericRow(1);
 			rankRow.setField(0, rank);
 
 			outputRow.replace(inputRow, rankRow);
-			outputRow.setHeader(header);
+			outputRow.setRowKind(rowKind);
 			return outputRow;
 		} else {
-			inputRow.setHeader(header);
+			inputRow.setRowKind(rowKind);
 			return inputRow;
 		}
 	}

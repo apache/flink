@@ -88,11 +88,11 @@ public class BufferBuilderTestUtils {
 		return bufferConsumer;
 	}
 
-	public static BufferConsumer createEventBufferConsumer(int size) {
+	public static BufferConsumer createEventBufferConsumer(int size, Buffer.DataType dataType) {
 		return new BufferConsumer(
 			MemorySegmentFactory.allocateUnpooledSegment(size),
 			FreeingBufferRecycler.INSTANCE,
-			false);
+			dataType);
 	}
 
 	public static Buffer buildBufferWithAscendingInts(int bufferSize, int numInts, int nextValue) {
@@ -101,7 +101,7 @@ public class BufferBuilderTestUtils {
 			seg.putIntLittleEndian(4 * i, nextValue++);
 		}
 
-		return new NetworkBuffer(seg, MemorySegment::free, true, 4 * numInts);
+		return new NetworkBuffer(seg, MemorySegment::free, Buffer.DataType.DATA_BUFFER, 4 * numInts);
 	}
 
 	public static void validateBufferWithAscendingInts(Buffer buffer, int numInts, int nextValue) {
@@ -118,7 +118,7 @@ public class BufferBuilderTestUtils {
 
 	public static Buffer buildSomeBuffer(int size) {
 		final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(size);
-		return new NetworkBuffer(seg, MemorySegment::free, true, size);
+		return new NetworkBuffer(seg, MemorySegment::free, Buffer.DataType.DATA_BUFFER, size);
 	}
 
 	public static BufferBuilder createEmptyBufferBuilder(int bufferSize) {

@@ -182,11 +182,11 @@ public class NettyShuffleEnvironmentConfiguration {
 		boolean localTaskManagerCommunication,
 		InetAddress taskManagerAddress) {
 
-		final int dataport = getDataport(configuration);
+		final int dataBindPort = getDataBindPort(configuration);
 
 		final int pageSize = ConfigurationParserUtils.getPageSize(configuration);
 
-		final NettyConfig nettyConfig = createNettyConfig(configuration, localTaskManagerCommunication, taskManagerAddress, dataport);
+		final NettyConfig nettyConfig = createNettyConfig(configuration, localTaskManagerCommunication, taskManagerAddress, dataBindPort);
 
 		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(
 			configuration,
@@ -238,12 +238,21 @@ public class NettyShuffleEnvironmentConfiguration {
 	 * @param configuration configuration object
 	 * @return the data port
 	 */
-	private static int getDataport(Configuration configuration) {
-		final int dataport = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
-		ConfigurationParserUtils.checkConfigParameter(dataport >= 0, dataport, NettyShuffleEnvironmentOptions.DATA_PORT.key(),
-			"Leave config parameter empty or use 0 to let the system choose a port automatically.");
-
-		return dataport;
+	private static int getDataBindPort(Configuration configuration) {
+		final int dataBindPort;
+		if (configuration.contains(NettyShuffleEnvironmentOptions.DATA_BIND_PORT)) {
+			dataBindPort = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_BIND_PORT);
+			ConfigurationParserUtils.checkConfigParameter(
+				dataBindPort >= 0, dataBindPort, NettyShuffleEnvironmentOptions.DATA_BIND_PORT.key(),
+				"Leave config parameter empty to fallback to '" +
+					NettyShuffleEnvironmentOptions.DATA_PORT.key() + "' automatically.");
+		} else {
+			dataBindPort = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
+			ConfigurationParserUtils.checkConfigParameter(
+				dataBindPort >= 0, dataBindPort, NettyShuffleEnvironmentOptions.DATA_PORT.key(),
+				"Leave config parameter empty or use 0 to let the system choose a port automatically.");
+		}
+		return dataBindPort;
 	}
 
 	/**

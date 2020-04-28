@@ -94,7 +94,7 @@ public class TaskManagerOptions {
 				" or if it has been quarantined by another actor system.");
 
 	/**
-	 * The config parameter defining the task manager's hostname.
+	 * The external address of the network interface where the TaskManager is exposed.
 	 * Overrides {@link #HOST_BIND_POLICY} automatic address binding.
 	 */
 	@Documentation.Section({Documentation.Sections.COMMON_HOST_PORT, Documentation.Sections.ALL_TASK_MANAGER})
@@ -102,10 +102,19 @@ public class TaskManagerOptions {
 		key("taskmanager.host")
 			.stringType()
 			.noDefaultValue()
-			.withDescription("The address of the network interface that the TaskManager binds to." +
-				" This option can be used to define explicitly a binding address. Because" +
-				" different TaskManagers need different values for this option, usually it is specified in an" +
+			.withDescription("The external address of the network interface where the TaskManager is exposed." +
+				" Because different TaskManagers need different values for this option, usually it is specified in an" +
 				" additional non-shared TaskManager-specific config file.");
+
+	/**
+	 * The local address of the network interface that the task manager binds to.
+	 */
+	public static final ConfigOption<String> BIND_HOST =
+		key("taskmanager.bind-host")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("The local address of the network interface that the task manager binds to. If not" +
+				" configured, '0.0.0.0' will be used.");
 
 	/**
 	 * The default network port range the task manager expects incoming IPC connections. The {@code "0"} means that
@@ -116,15 +125,28 @@ public class TaskManagerOptions {
 		key("taskmanager.rpc.port")
 			.stringType()
 			.defaultValue("0")
-			.withDescription("The task manager’s IPC port. Accepts a list of ports (“50100,50101”), ranges" +
-				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
-				" collisions when multiple TaskManagers are running on the same machine.");
+			.withDescription("The external RPC port where the TaskManager is exposed. Accepts a list of ports" +
+				" (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a" +
+				" range of ports to avoid collisions when multiple TaskManagers are running on the same machine.");
+
+
+	/**
+	 * The local port that the task manager binds to.
+	 */
+	public static final ConfigOption<Integer> RPC_BIND_PORT =
+		key("taskmanager.rpc.bind-port")
+			.intType()
+			.noDefaultValue()
+			.withDescription("The local RPC port that the TaskManager binds to. If not configured, the external port" +
+				" (configured by '" + RPC_PORT.key() + "') will be used.");
 
 	/**
 	 * The initial registration backoff between two consecutive registration attempts. The backoff
 	 * is doubled for each new registration attempt until it reaches the maximum registration backoff.
+	 *
+	 * @deprecated use {@link ClusterOptions#INITIAL_REGISTRATION_TIMEOUT} instead
 	 */
-	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+	@Deprecated
 	public static final ConfigOption<Duration> INITIAL_REGISTRATION_BACKOFF =
 		key("taskmanager.registration.initial-backoff")
 			.durationType()
@@ -135,8 +157,10 @@ public class TaskManagerOptions {
 
 	/**
 	 * The maximum registration backoff between two consecutive registration attempts.
+	 *
+	 * @deprecated use {@link ClusterOptions#MAX_REGISTRATION_TIMEOUT} instead
 	 */
-	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+	@Deprecated
 	public static final ConfigOption<Duration> REGISTRATION_MAX_BACKOFF =
 		key("taskmanager.registration.max-backoff")
 			.durationType()
@@ -147,8 +171,10 @@ public class TaskManagerOptions {
 
 	/**
 	 * The backoff after a registration has been refused by the job manager before retrying to connect.
+	 *
+	 * @deprecated use {@link ClusterOptions#REFUSED_REGISTRATION_DELAY} instead
 	 */
-	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+	@Deprecated
 	public static final ConfigOption<Duration> REFUSED_REGISTRATION_BACKOFF =
 		key("taskmanager.registration.refused-backoff")
 			.durationType()
@@ -415,7 +441,7 @@ public class TaskManagerOptions {
 	public static final ConfigOption<MemorySize> JVM_METASPACE =
 		key("taskmanager.memory.jvm-metaspace.size")
 			.memoryType()
-			.defaultValue(MemorySize.parse("96m"))
+			.defaultValue(MemorySize.parse("256m"))
 			.withDescription("JVM Metaspace Size for the TaskExecutors.");
 
 	/**
@@ -505,22 +531,6 @@ public class TaskManagerOptions {
 			.withDeprecatedKeys("timerservice.exceptional.shutdown.timeout")
 			.withDescription("Time we wait for the timers in milliseconds to finish all pending timer threads" +
 				" when the stream task is cancelled.");
-
-	/**
-	 * The maximum number of bytes that a checkpoint alignment may buffer.
-	 * If the checkpoint alignment buffers more than the configured amount of
-	 * data, the checkpoint is aborted (skipped).
-	 *
-	 * <p>The default value of {@code -1} indicates that there is no limit.
-	 */
-	@Documentation.ExcludeFromDocumentation("With flow control, there is no alignment spilling any more")
-	public static final ConfigOption<Long> TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT =
-			key("task.checkpoint.alignment.max-size")
-			.longType()
-			.defaultValue(-1L)
-			.withDescription("The maximum number of bytes that a checkpoint alignment may buffer. If the checkpoint" +
-				" alignment buffers more than the configured amount of data, the checkpoint is aborted (skipped)." +
-				" A value of -1 indicates that there is no limit.");
 
 	// ------------------------------------------------------------------------
 

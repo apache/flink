@@ -54,11 +54,9 @@ By default no operator is disabled.</td>
         </tr>
         <tr>
             <td><h5>table.exec.shuffle-mode</h5><br> <span class="label label-primary">Batch</span></td>
-            <td style="word-wrap: break-word;">"batch"</td>
+            <td style="word-wrap: break-word;">"ALL_EDGES_BLOCKING"</td>
             <td>String</td>
-            <td>Sets exec shuffle mode. Only batch or pipeline can be set.
-batch: the job will run stage by stage. 
-pipeline: the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when the sender holds resource to wait to send data to the receiver.</td>
+            <td>Sets exec shuffle mode.<br />Accepted values are:<ul><li><span markdown="span">`ALL_EDGES_BLOCKING`</span>: All edges will use blocking shuffle.</li><li><span markdown="span">`FORWARD_EDGES_PIPELINED`</span>: Forward edges will use pipelined shuffle, others blocking.</li><li><span markdown="span">`POINTWISE_EDGES_PIPELINED`</span>: Pointwise edges will use pipelined shuffle, others blocking. Pointwise edges include forward and rescale edges.</li><li><span markdown="span">`ALL_EDGES_PIPELINED`</span>: All edges will use pipelined shuffle.</li><li><span markdown="span">`batch`</span>: the same as <span markdown="span">`ALL_EDGES_BLOCKING`</span>. Deprecated.</li><li><span markdown="span">`pipelined`</span>: the same as <span markdown="span">`ALL_EDGES_PIPELINED`</span>. Deprecated.</li></ul>Note: Blocking shuffle means data will be fully produced before sent to consumer tasks. Pipelined shuffle means data will be sent to consumer tasks once produced.</td>
         </tr>
         <tr>
             <td><h5>table.exec.sort.async-merge-enabled</h5><br> <span class="label label-primary">Batch</span></td>

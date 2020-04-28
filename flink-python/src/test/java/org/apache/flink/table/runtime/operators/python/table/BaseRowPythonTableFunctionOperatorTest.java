@@ -25,17 +25,18 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughPythonTableFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.Collection;
+import java.util.Map;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.baserow;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryrow;
@@ -58,7 +59,9 @@ public class BaseRowPythonTableFunctionOperatorTest
 		if (accumulateMsg) {
 			return baserow(fields);
 		} else {
-			return BaseRowUtil.setRetract(baserow(fields));
+			BaseRow row = baserow(fields);
+			row.setRowKind(RowKind.DELETE);
+			return row;
 		}
 	}
 
@@ -94,12 +97,13 @@ public class BaseRowPythonTableFunctionOperatorTest
 		@Override
 		public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
+			PythonEnvironmentManager pythonEnvironmentManager,
+			Map<String, String> jobOptions) {
 			return new PassThroughPythonTableFunctionRunner<BaseRow>(resultReceiver) {
 				@Override
 				public BaseRow copy(BaseRow element) {
 					BaseRow row = binaryrow(element.getLong(0));
-					row.setHeader(element.getHeader());
+					row.setRowKind(element.getRowKind());
 					return row;
 				}
 

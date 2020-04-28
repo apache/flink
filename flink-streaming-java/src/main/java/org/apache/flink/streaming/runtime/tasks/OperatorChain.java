@@ -24,10 +24,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -47,6 +45,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -248,17 +247,13 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 	}
 
-	public void broadcastCheckpointBarrier(long id, long timestamp, CheckpointOptions checkpointOptions) throws IOException {
-		CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp, checkpointOptions);
-		for (RecordWriterOutput<?> streamOutput : streamOutputs) {
-			streamOutput.broadcastEvent(barrier);
-		}
+	public void broadcastEvent(AbstractEvent event) throws IOException {
+		broadcastEvent(event, false);
 	}
 
-	public void broadcastCheckpointCancelMarker(long id) throws IOException {
-		CancelCheckpointMarker barrier = new CancelCheckpointMarker(id);
+	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
 		for (RecordWriterOutput<?> streamOutput : streamOutputs) {
-			streamOutput.broadcastEvent(barrier);
+			streamOutput.broadcastEvent(event, isPriorityEvent);
 		}
 	}
 
@@ -282,15 +277,14 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	/**
-	 * Executes {@link StreamOperator#initializeState()} followed by {@link StreamOperator#open()}
-	 * of each operator in the chain of this {@link StreamTask}. State initialization and opening
-	 * happens from <b>tail to head</b> operator in the chain, contrary to {@link StreamOperator#close()}
-	 * which happens <b>head to tail</b>(see {@link #closeOperators(StreamTaskActionExecutor)}).
+	 * Initialize state and open all operators in the chain from <b>tail to head</b>,
+	 * contrary to {@link StreamOperator#close()} which happens <b>head to tail</b>
+	 * (see {@link #closeOperators(StreamTaskActionExecutor)}).
 	 */
-	protected void initializeStateAndOpenOperators() throws Exception {
+	protected void initializeStateAndOpenOperators(StreamTaskStateInitializer streamTaskStateInitializer) throws Exception {
 		for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
 			StreamOperator<?> operator = operatorWrapper.getStreamOperator();
-			operator.initializeState();
+			operator.initializeState(streamTaskStateInitializer);
 			operator.open();
 		}
 	}
@@ -298,7 +292,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	/**
 	 * Closes all operators in a chain effect way. Closing happens from <b>head to tail</b> operator
 	 * in the chain, contrary to {@link StreamOperator#open()} which happens <b>tail to head</b>
-	 * (see {@link #initializeStateAndOpenOperators()}).
+	 * (see {@link #initializeStateAndOpenOperators(StreamTaskStateInitializer)}).
 	 */
 	protected void closeOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
 		if (headOperatorWrapper != null) {
@@ -542,6 +536,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			operator,
 			processingTimeService,
 			containingTask.getMailboxExecutorFactory().createExecutor(operatorConfig.getChainIndex()));
+	}
+
+	@Nullable
+	StreamOperator<?> getTailOperator() {
+		return (tailOperatorWrapper == null) ? null : tailOperatorWrapper.getStreamOperator();
 	}
 
 	// ------------------------------------------------------------------------

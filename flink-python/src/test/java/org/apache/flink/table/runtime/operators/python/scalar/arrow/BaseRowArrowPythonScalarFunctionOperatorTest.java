@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.ArrowWriter;
@@ -38,11 +37,14 @@ import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFuncti
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughArrowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.util.Collection;
+import java.util.Map;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.baserow;
 
@@ -75,7 +77,9 @@ public class BaseRowArrowPythonScalarFunctionOperatorTest
 		if (accumulateMsg) {
 			return baserow(fields);
 		} else {
-			return BaseRowUtil.setRetract(baserow(fields));
+			BaseRow row = baserow(fields);
+			row.setRowKind(RowKind.DELETE);
+			return row;
 		}
 	}
 
@@ -111,7 +115,8 @@ public class BaseRowArrowPythonScalarFunctionOperatorTest
 		@Override
 		public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager) {
+			PythonEnvironmentManager pythonEnvironmentManager,
+			Map<String, String> jobOptions) {
 			return new PassThroughArrowPythonScalarFunctionRunner<BaseRow>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
@@ -119,10 +124,12 @@ public class BaseRowArrowPythonScalarFunctionOperatorTest
 				pythonEnvironmentManager,
 				userDefinedFunctionInputType,
 				userDefinedFunctionOutputType,
-				getPythonConfig().getMaxArrowBatchSize()) {
+				getPythonConfig().getMaxArrowBatchSize(),
+				jobOptions,
+				PythonTestUtils.createMockFlinkMetricContainer()) {
 				@Override
 				public ArrowWriter<BaseRow> createArrowWriter() {
-					return ArrowUtils.createBaseRowArrowWriter(root);
+					return ArrowUtils.createBaseRowArrowWriter(root, getInputType());
 				}
 			};
 		}

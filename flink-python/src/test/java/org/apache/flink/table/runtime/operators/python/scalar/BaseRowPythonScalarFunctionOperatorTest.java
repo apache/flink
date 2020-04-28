@@ -29,17 +29,19 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.util.Collection;
+import java.util.Map;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.baserow;
 
@@ -78,7 +80,9 @@ public class BaseRowPythonScalarFunctionOperatorTest
 		if (accumulateMsg) {
 			return baserow(fields);
 		} else {
-			return BaseRowUtil.setRetract(baserow(fields));
+			BaseRow row = baserow(fields);
+			row.setRowKind(RowKind.DELETE);
+			return row;
 		}
 	}
 
@@ -115,14 +119,17 @@ public class BaseRowPythonScalarFunctionOperatorTest
 		@Override
 		public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 				FnDataReceiver<byte[]> resultReceiver,
-				PythonEnvironmentManager pythonEnvironmentManager) {
+				PythonEnvironmentManager pythonEnvironmentManager,
+				Map<String, String> jobOptions) {
 			return new PassThroughPythonScalarFunctionRunner<BaseRow>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
 				pythonEnvironmentManager,
 				userDefinedFunctionInputType,
-				userDefinedFunctionOutputType) {
+				userDefinedFunctionOutputType,
+				jobOptions,
+				PythonTestUtils.createMockFlinkMetricContainer()) {
 				@Override
 				public TypeSerializer<BaseRow> getInputTypeSerializer() {
 					return (BaseRowSerializer) PythonTypeUtils.toBlinkTypeSerializer(getInputType());

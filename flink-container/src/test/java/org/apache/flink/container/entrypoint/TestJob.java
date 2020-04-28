@@ -28,7 +28,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 
 /**
- * Test job which is used for {@link ClassPathJobGraphRetrieverTest}.
+ * Test job which is used for {@link ClassPathPackagedProgramRetrieverTest}.
  */
 public class TestJob {
 

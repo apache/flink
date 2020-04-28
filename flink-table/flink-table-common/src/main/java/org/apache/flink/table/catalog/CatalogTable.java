@@ -46,4 +46,11 @@ public interface CatalogTable extends CatalogBaseTable {
 	 * @return a map of properties
 	 */
 	Map<String, String> toProperties();
+
+	/**
+	 * Returns a copy of this {@code CatalogTable} with given table options {@code options}.
+	 *
+	 * @return a new copy of this table with replaced table options
+	 */
+	CatalogTable copy(Map<String, String> options);
 }

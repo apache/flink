@@ -73,7 +73,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 DataStream<String> input = ...;
 
 final StreamingFileSink<String> sink = StreamingFileSink
-    .forRowFormat(new Path(outputPath), new SimpleStringEncoder<>("UTF-8"))
+    .forRowFormat(new Path(outputPath), new SimpleStringEncoder<String>("UTF-8"))
     .withRollingPolicy(
         DefaultRollingPolicy.builder()
             .withRolloverInterval(TimeUnit.MINUTES.toMillis(15))

@@ -35,7 +35,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregat
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
+import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTraitDef, RelModifiedMonotonicity}
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
@@ -51,6 +51,9 @@ import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
+
 import java.time.Duration
 import java.util
 
@@ -128,10 +131,6 @@ object AggregateUtil extends Enumeration {
       require(auxGroupCalls.isEmpty,
         "AUXILIARY_GROUP aggCalls should be empty when groupSet is empty")
     }
-    if (agg.indicator) {
-      require(auxGroupCalls.isEmpty,
-        "AUXILIARY_GROUP aggCalls should be empty when indicator is true")
-    }
 
     val auxGrouping = auxGroupCalls.map(_.getArgList.head.toInt).toArray
     require(auxGrouping.length + otherAggCalls.length == aggCalls.length)
@@ -168,6 +167,31 @@ object AggregateUtil extends Enumeration {
         outputIndex += aggBuffers.length
     }
     map
+  }
+
+  def deriveAggregateInfoList(
+      aggNode: StreamPhysicalRel,
+      aggCalls: Seq[AggregateCall],
+      grouping: Array[Int]): AggregateInfoList = {
+    val input = aggNode.getInput(0)
+    // need to call `retract()` if input contains update or delete
+    val modifyKindSetTrait = input.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
+    val needRetraction = if (modifyKindSetTrait == null) {
+      // FlinkChangelogModeInferenceProgram is not applied yet, false as default
+      false
+    } else {
+      !modifyKindSetTrait.modifyKindSet.isInsertOnly
+    }
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(aggNode.getCluster.getMetadataQuery)
+    val monotonicity = fmq.getRelModifiedMonotonicity(aggNode)
+    val needRetractionArray = AggregateUtil.getNeedRetractions(
+      grouping.length, needRetraction, monotonicity, aggCalls)
+    AggregateUtil.transformToStreamAggregateInfoList(
+      aggCalls,
+      input.getRowType,
+      needRetractionArray,
+      needInputCount = needRetraction,
+      isStateBackendDataViews = true)
   }
 
   def transformToBatchAggregateFunctions(

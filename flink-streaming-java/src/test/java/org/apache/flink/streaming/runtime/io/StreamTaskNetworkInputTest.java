@@ -86,7 +86,6 @@ public class StreamTaskNetworkInputTest {
 		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				new MockInputGate(1, buffers, false),
-				new EmptyBufferStorage(),
 				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
 			LongSerializer.INSTANCE,
 			ioManager,
@@ -104,7 +103,7 @@ public class StreamTaskNetworkInputTest {
 
 		int numInputChannels = 2;
 		LongSerializer inSerializer = LongSerializer.INSTANCE;
-		StreamTestSingleInputGate inputGate = new StreamTestSingleInputGate<>(numInputChannels, 1024, inSerializer);
+		StreamTestSingleInputGate inputGate = new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
 
 		TestRecordDeserializer[] deserializers = new TestRecordDeserializer[numInputChannels];
 		for (int i = 0; i < deserializers.length; i++) {
@@ -116,7 +115,6 @@ public class StreamTaskNetworkInputTest {
 		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				inputGate.getInputGate(),
-				new EmptyBufferStorage(),
 				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
 			inSerializer,
 			new StatusWatermarkValve(1, output),

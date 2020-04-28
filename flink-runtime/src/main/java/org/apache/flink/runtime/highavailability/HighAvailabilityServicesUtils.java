@@ -34,7 +34,6 @@ import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaSe
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientHAServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
@@ -94,22 +93,16 @@ public class HighAvailabilityServicesUtils {
 			case NONE:
 				final Tuple2<String, Integer> hostnamePort = getJobManagerAddress(configuration);
 
-				final String jobManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
-					hostnamePort.f0,
-					hostnamePort.f1,
-					JobMaster.JOB_MANAGER_NAME,
-					addressResolution,
-					configuration);
 				final String resourceManagerRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
 					hostnamePort.f0,
 					hostnamePort.f1,
-					ResourceManager.RESOURCE_MANAGER_NAME,
+					AkkaRpcServiceUtils.createWildcardName(ResourceManager.RESOURCE_MANAGER_NAME),
 					addressResolution,
 					configuration);
 				final String dispatcherRpcUrl = AkkaRpcServiceUtils.getRpcUrl(
 					hostnamePort.f0,
 					hostnamePort.f1,
-					Dispatcher.DISPATCHER_NAME,
+					AkkaRpcServiceUtils.createWildcardName(Dispatcher.DISPATCHER_NAME),
 					addressResolution,
 					configuration);
 				final String webMonitorAddress = getWebMonitorAddress(
@@ -119,7 +112,6 @@ public class HighAvailabilityServicesUtils {
 				return new StandaloneHaServices(
 					resourceManagerRpcUrl,
 					dispatcherRpcUrl,
-					jobManagerRpcUrl,
 					webMonitorAddress);
 			case ZOOKEEPER:
 				BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(configuration);

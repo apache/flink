@@ -28,6 +28,7 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -200,7 +201,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 
 		final PythonEnvironmentManager environmentManager =
 			new ProcessPythonEnvironmentManager(
-				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
+				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
 				new String[] {System.getProperty("java.io.tmpdir")},
 				new HashMap<>());
 
@@ -210,7 +211,9 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			pythonFunctionInfos,
 			environmentManager,
 			inputType,
-			outputType);
+			outputType,
+			Collections.emptyMap(),
+			PythonTestUtils.createMockFlinkMetricContainer());
 	}
 
 	private AbstractGeneralPythonScalarFunctionRunner<Row> createUDFRunner(
@@ -225,7 +228,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 
 		final PythonEnvironmentManager environmentManager =
 			new ProcessPythonEnvironmentManager(
-				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
+				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
 				new String[] {System.getProperty("java.io.tmpdir")},
 				new HashMap<>());
 
@@ -236,7 +239,9 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			environmentManager,
 			rowType,
 			rowType,
-			jobBundleFactory) {
+			Collections.emptyMap(),
+			jobBundleFactory,
+			PythonTestUtils.createMockFlinkMetricContainer()) {
 			@Override
 			public TypeSerializer<Row> getInputTypeSerializer() {
 				return (RowSerializer) PythonTypeUtils.toFlinkTypeSerializer(getInputType());

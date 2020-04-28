@@ -65,7 +65,7 @@ mvn clean install -DskipTests -Dfast
 cd flink-python; python setup.py sdist bdist_wheel
 {% endhighlight %}
 
-<span class="label label-info">注意事项</span> 构建PyFlink需要Python3.5及以上的版本.
+<span class="label label-info">注意事项</span> 构建PyFlink需要Python的版本为3.5, 3.6 或者 3.7.
 
 构建好的源码发布包和wheel包位于`./flink-python/dist/`目录下。它们均可使用pip安装,比如:
 

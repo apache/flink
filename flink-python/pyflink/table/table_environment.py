@@ -16,13 +16,14 @@
 # limitations under the License.
 ################################################################################
 import os
+import sys
 import tempfile
 import warnings
 from abc import ABCMeta, abstractmethod
 
 from py4j.java_gateway import get_java_class, get_method
 
-from pyflink.common.dependency_manager import DependencyManager
+from pyflink.common import JobExecutionResult
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
 from pyflink.table.table_config import TableConfig
@@ -33,6 +34,7 @@ from pyflink.table import Table
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter
 from pyflink.util import utils
+from pyflink.util.utils import get_j_env_configuration, is_local_deployment
 
 __all__ = [
     'BatchTableEnvironment',
@@ -79,9 +81,10 @@ class TableEnvironment(object):
         self._j_tenv = j_tenv
         self._is_blink_planner = TableEnvironment._judge_blink_planner(j_tenv)
         self._serializer = serializer
-        self._dependency_manager = DependencyManager(self.get_config().get_configuration(),
-                                                     self._get_j_env())
-        self._dependency_manager.load_from_env(os.environ)
+        # When running in MiniCluster, launch the Python UDF worker using the Python executable
+        # specified by sys.executable if users have not specified it explicitly via configuration
+        # python.executable.
+        self._set_python_executable_for_local_executor()
 
     @staticmethod
     def _judge_blink_planner(j_tenv):
@@ -476,6 +479,20 @@ class TableEnvironment(object):
         j_table = self._j_tenv.sqlQuery(query)
         return Table(j_table)
 
+    def execute_sql(self, stmt):
+        """
+        Execute the given single statement, and return the execution result.
+
+        The statement can be DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE.
+        For DML and DQL, this method returns TableResult once the job has been submitted.
+        For DDL and DCL statements, TableResult is returned once the operation has finished.
+
+        :return content for DQL/SHOW/DESCRIBE/EXPLAIN,
+                the affected row count for `DML` (-1 means unknown),
+                or a string message ("OK") for other statements.
+        """
+        return self._j_tenv.executeSql(stmt)
+
     def sql_update(self, stmt):
         """
         Evaluates a SQL statement such as INSERT, UPDATE or DELETE or a DDL statement
@@ -522,7 +539,6 @@ class TableEnvironment(object):
             ...     'connector.type' = 'kafka',
             ...     'update-mode' = 'append',
             ...     'connector.topic' = 'xxx',
-            ...     'connector.properties.zookeeper.connect' = 'localhost:2181',
             ...     'connector.properties.bootstrap.servers' = 'localhost:9092'
             ... )
             ... '''
@@ -770,8 +786,7 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.10.0
         """
-        self._j_tenv.registerFunction(name, function.java_user_defined_function(
-            self._is_blink_planner, self.get_config()._j_table_config))
+        self._j_tenv.registerFunction(name, function.java_user_defined_function())
 
     def create_temporary_view(self, view_path, table):
         """
@@ -804,7 +819,15 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.10.0
         """
-        self._dependency_manager.add_python_file(file_path)
+        jvm = get_gateway().jvm
+        python_files = self.get_config().get_configuration().get_string(
+            jvm.PythonOptions.PYTHON_FILES.key(), None)
+        if python_files is not None:
+            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([python_files, file_path])
+        else:
+            python_files = file_path
+        self.get_config().get_configuration().set_string(
+            jvm.PythonOptions.PYTHON_FILES.key(), python_files)
 
     def set_python_requirements(self, requirements_file_path, requirements_cache_dir=None):
         """
@@ -842,8 +865,13 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.10.0
         """
-        self._dependency_manager.set_python_requirements(requirements_file_path,
-                                                         requirements_cache_dir)
+        jvm = get_gateway().jvm
+        python_requirements = requirements_file_path
+        if requirements_cache_dir is not None:
+            python_requirements = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
+                [python_requirements, requirements_cache_dir])
+        self.get_config().get_configuration().set_string(
+            jvm.PythonOptions.PYTHON_REQUIREMENTS.key(), python_requirements)
 
     def add_python_archive(self, archive_path, target_dir=None):
         """
@@ -898,7 +926,19 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.10.0
         """
-        self._dependency_manager.add_python_archive(archive_path, target_dir)
+        jvm = get_gateway().jvm
+        if target_dir is not None:
+            archive_path = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
+                [archive_path, target_dir])
+        python_archives = self.get_config().get_configuration().get_string(
+            jvm.PythonOptions.PYTHON_ARCHIVES.key(), None)
+        if python_archives is not None:
+            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join(
+                [python_archives, archive_path])
+        else:
+            python_files = archive_path
+        self.get_config().get_configuration().set_string(
+            jvm.PythonOptions.PYTHON_ARCHIVES.key(), python_files)
 
     def execute(self, job_name):
         """
@@ -919,8 +959,14 @@ class TableEnvironment(object):
 
         :param job_name: Desired name of the job.
         :type job_name: str
+        :return: The result of the job execution, containing elapsed time and accumulators.
         """
-        self._j_tenv.execute(job_name)
+        jvm = get_gateway().jvm
+        jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
+        classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
+        self._add_jars_to_j_env_config(jars_key)
+        self._add_jars_to_j_env_config(classpaths_key)
+        return JobExecutionResult(self._j_tenv.execute(job_name))
 
     def from_elements(self, elements, schema=None, verify_schema=True):
         """
@@ -1061,6 +1107,25 @@ class TableEnvironment(object):
         finally:
             os.unlink(temp_file.name)
 
+    def _set_python_executable_for_local_executor(self):
+        jvm = get_gateway().jvm
+        j_config = get_j_env_configuration(self)
+        if not j_config.containsKey(jvm.PythonOptions.PYTHON_EXECUTABLE.key()) \
+                and is_local_deployment(j_config):
+            j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
+
+    def _add_jars_to_j_env_config(self, config_key):
+        jvm = get_gateway().jvm
+        jar_urls = self.get_config().get_configuration().get_string(config_key, None)
+        if jar_urls is not None:
+            # normalize and remove duplicates
+            jar_urls_set = set([jvm.java.net.URL(url).toString() for url in jar_urls.split(";")])
+            j_configuration = get_j_env_configuration(self)
+            if j_configuration.containsKey(config_key):
+                for url in j_configuration.getString(config_key).split(";"):
+                    jar_urls_set.add(url)
+            j_configuration.setString(config_key, ";".join(jar_urls_set))
+
     @abstractmethod
     def _get_j_env(self):
         pass
@@ -1073,7 +1138,10 @@ class StreamTableEnvironment(TableEnvironment):
         super(StreamTableEnvironment, self).__init__(j_tenv)
 
     def _get_j_env(self):
-        return self._j_tenv.execEnv()
+        if self._is_blink_planner:
+            return self._j_tenv.getPlanner().getExecEnv()
+        else:
+            return self._j_tenv.getPlanner().getExecutionEnvironment()
 
     def get_config(self):
         """
@@ -1120,26 +1188,27 @@ class StreamTableEnvironment(TableEnvironment):
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
     @staticmethod
-    def create(stream_execution_environment, table_config=None, environment_settings=None):
+    def create(stream_execution_environment=None, table_config=None, environment_settings=None):
         """
-        Creates a :class:`~pyflink.table.TableEnvironment` for a
-        :class:`~pyflink.datastream.StreamExecutionEnvironment`.
+        Creates a :class:`~pyflink.table.StreamTableEnvironment`.
 
         Example:
         ::
 
+            # create with StreamExecutionEnvironment.
             >>> env = StreamExecutionEnvironment.get_execution_environment()
-            # create without optional parameters.
             >>> table_env = StreamTableEnvironment.create(env)
-            # create with TableConfig
+            # create with StreamExecutionEnvironment and TableConfig.
             >>> table_config = TableConfig()
             >>> table_config.set_null_check(False)
             >>> table_env = StreamTableEnvironment.create(env, table_config)
-            # create with EnvrionmentSettings
+            # create with StreamExecutionEnvironment and EnvironmentSettings.
             >>> environment_settings = EnvironmentSettings.new_instance().use_blink_planner() \\
             ...     .build()
             >>> table_env = StreamTableEnvironment.create(
             ...     env, environment_settings=environment_settings)
+            # create with EnvironmentSettings.
+            >>> table_env = StreamTableEnvironment.create(environment_settings=environment_settings)
 
 
         :param stream_execution_environment: The
@@ -1156,7 +1225,18 @@ class StreamTableEnvironment(TableEnvironment):
                  configuration.
         :rtype: pyflink.table.StreamTableEnvironment
         """
-        if table_config is not None and environment_settings is not None:
+        if stream_execution_environment is None and \
+                table_config is None and \
+                environment_settings is None:
+            raise ValueError("No argument found, the param 'stream_execution_environment' "
+                             "or 'environment_settings' is required.")
+        elif stream_execution_environment is None and \
+                table_config is not None and \
+                environment_settings is None:
+            raise ValueError("Only the param 'table_config' is found, "
+                             "the param 'stream_execution_environment' is also required.")
+        if table_config is not None and \
+                environment_settings is not None:
             raise ValueError("The param 'table_config' and "
                              "'environment_settings' cannot be used at the same time")
 
@@ -1169,9 +1249,13 @@ class StreamTableEnvironment(TableEnvironment):
             if not environment_settings.is_streaming_mode():
                 raise ValueError("The environment settings for StreamTableEnvironment must be "
                                  "set to streaming mode.")
-            j_tenv = gateway.jvm.StreamTableEnvironment.create(
-                stream_execution_environment._j_stream_execution_environment,
-                environment_settings._j_environment_settings)
+            if stream_execution_environment is None:
+                j_tenv = gateway.jvm.TableEnvironment.create(
+                    environment_settings._j_environment_settings)
+            else:
+                j_tenv = gateway.jvm.StreamTableEnvironment.create(
+                    stream_execution_environment._j_stream_execution_environment,
+                    environment_settings._j_environment_settings)
         else:
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
                 stream_execution_environment._j_stream_execution_environment)

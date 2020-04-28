@@ -23,7 +23,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.apache.flink.table.api.{TableSchema, Types, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, TableSchema, Types, ValidationException}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
@@ -37,13 +37,13 @@ import java.util.Collections
 
 class TableSourceValidationTest extends TableTestBase{
 
+  val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+  val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
+  val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
+
   @Test(expected = classOf[ValidationException])
   def testUnresolvedSchemaField(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val schema = new TableSchema(
       Array("id", "name", "amount", "value"),
       Array(Types.LONG, Types.STRING, Types.INT, Types.DOUBLE))
@@ -58,11 +58,6 @@ class TableSourceValidationTest extends TableTestBase{
 
   @Test(expected = classOf[ValidationException])
   def testNonMatchingFieldTypes(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val schema = new TableSchema(
       Array("id", "name", "amount"),
       Array(Types.LONG, Types.INT, Types.INT))
@@ -77,11 +72,6 @@ class TableSourceValidationTest extends TableTestBase{
 
   @Test(expected = classOf[ValidationException])
   def testMappingToUnknownField(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val schema = new TableSchema(
       Array("id", "name", "amount"),
       Array(Types.LONG, Types.STRING, Types.DOUBLE))
@@ -95,11 +85,6 @@ class TableSourceValidationTest extends TableTestBase{
 
   @Test(expected = classOf[ValidationException])
   def testMappingWithInvalidFieldType(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val schema = new TableSchema(
       Array("id", "name", "amount"),
       Array(Types.LONG, Types.STRING, Types.DOUBLE))
@@ -113,11 +98,6 @@ class TableSourceValidationTest extends TableTestBase{
 
   @Test(expected = classOf[ValidationException])
   def testNonTimestampProctimeField(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val schema = new TableSchema(
       Array("id", "name", "amount", "ptime"),
       Array(Types.LONG, Types.STRING, Types.INT, Types.LONG))
@@ -136,10 +116,6 @@ class TableSourceValidationTest extends TableTestBase{
     expectedException
       .expectMessage(
         "Found a rowtime attribute for field 'rowtime' but it does not exist in the Table")
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
 
     val schema = new TableSchema(
       Array("id", "name", "amount"),
@@ -163,9 +139,6 @@ class TableSourceValidationTest extends TableTestBase{
       .expectMessage(
         "Found a proctime attribute for field 'proctime' but it does not exist in the Table")
 
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
-
     val schema = new TableSchema(
       Array("id", "name", "amount"),
       Array(Types.LONG, Types.STRING, Types.INT))
@@ -183,11 +156,6 @@ class TableSourceValidationTest extends TableTestBase{
 
   @Test(expected = classOf[ValidationException])
   def testNonTimestampRowtimeField(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val schema = new TableSchema(
       Array("id", "name", "amount", "rtime"),
       Array(Types.LONG, Types.STRING, Types.INT, Types.LONG))
@@ -203,11 +171,6 @@ class TableSourceValidationTest extends TableTestBase{
 
   @Test(expected = classOf[ValidationException])
   def testFieldRowtimeAndProctime(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val schema = new TableSchema(
       Array("id", "name", "amount", "time"),
       Array(Types.LONG, Types.STRING, Types.INT, Types.SQL_TIMESTAMP))
@@ -224,11 +187,6 @@ class TableSourceValidationTest extends TableTestBase{
 
   @Test(expected = classOf[ValidationException])
   def testUnknownTimestampExtractorArgField(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val schema = new TableSchema(
       Array("id", "name", "amount", "rtime"),
       Array(Types.LONG, Types.STRING, Types.INT, Types.SQL_TIMESTAMP))
@@ -253,11 +211,6 @@ class TableSourceValidationTest extends TableTestBase{
 
   @Test(expected = classOf[ValidationException])
   def testFailingTimestampExtractorValidation(): Unit = {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val fieldNames = Array("id", "name", "amount")
     val rowType = new RowTypeInfo(
       Array(Types.LONG, Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],

@@ -101,6 +101,22 @@ function revert_flink_dir() {
     CURL_SSL_ARGS=""
 }
 
+function setup_flink_shaded_zookeeper() {
+  local version=$1
+  # if it is already in lib we don't have to do anything
+  if ! [ -e "${FLINK_DIR}"/lib/flink-shaded-zookeeper-${version}* ]; then
+    if ! [ -e "${FLINK_DIR}"/opt/flink-shaded-zookeeper-${version}* ]; then
+      echo "Could not find ZK ${version} in opt or lib."
+      exit 1
+    else
+      # contents of 'opt' must not be changed since it is not backed up in common.sh#backup_flink_dir
+      # it is fine to delete jars from 'lib' since it is backed up and will be restored after the test
+      rm "${FLINK_DIR}"/lib/flink-shaded-zookeeper-*
+      cp "${FLINK_DIR}"/opt/flink-shaded-zookeeper-${version}* "${FLINK_DIR}/lib"
+    fi
+  fi
+}
+
 function add_optional_lib() {
     local lib_name=$1
     cp "$FLINK_DIR/opt/flink-${lib_name}"*".jar" "$FLINK_DIR/lib"
@@ -151,7 +167,7 @@ function create_ha_config() {
 
     jobmanager.rpc.address: localhost
     jobmanager.rpc.port: 6123
-    jobmanager.heap.size: 1024m
+    jobmanager.memory.process.size: 1024m
     taskmanager.memory.process.size: 1024m
     taskmanager.numberOfTaskSlots: ${TASK_SLOTS_PER_TM_HA}
 
@@ -336,6 +352,7 @@ function check_logs_for_errors {
       | grep -v "Error while loading kafka-version.properties :null" \
       | grep -v "Failed Elasticsearch item request" \
       | grep -v "[Terror] modules" \
+      | grep -v "HeapDumpOnOutOfMemoryError" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files:"
@@ -385,12 +402,14 @@ function check_logs_for_exceptions {
 function check_logs_for_non_empty_out_files {
   echo "Checking for non-empty .out files..."
   # exclude reflective access warnings as these are expected (and currently unavoidable) on Java 9
+  # exclude message about JAVA_TOOL_OPTIONS being set (https://bugs.openjdk.java.net/browse/JDK-8039152)
   if grep -ri -v \
     -e "WARNING: An illegal reflective access" \
     -e "WARNING: Illegal reflective access"\
     -e "WARNING: Please consider reporting"\
     -e "WARNING: Use --illegal-access"\
     -e "WARNING: All illegal access"\
+    -e "Picked up JAVA_TOOL_OPTIONS"\
     $FLINK_DIR/log/*.out\
    | grep "." \
    > /dev/null; then
@@ -567,8 +586,8 @@ function kill_random_taskmanager {
 
 function setup_flink_slf4j_metric_reporter() {
   INTERVAL="${1:-1 SECONDS}"
-  add_optional_lib "metrics-slf4j"
-  set_config_key "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
+  add_optional_plugin "metrics-slf4j"
+  set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
   set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
 }
 
@@ -715,7 +734,8 @@ function wait_for_restart_to_complete {
     local expected_num_restarts=$((current_num_restarts + 1))
 
     echo "Waiting for restart to happen"
-    while ! [[ ${current_num_restarts} -eq ${expected_num_restarts} ]]; do
+    while [[ ${current_num_restarts} -lt ${expected_num_restarts} ]]; do
+        echo "Still waiting for restarts. Expected: $expected_num_restarts Current: $current_num_restarts"
         sleep 5
         current_num_restarts=$(get_job_metric ${jobid} "fullRestarts")
         if [[ -z ${current_num_restarts} ]]; then

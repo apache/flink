@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -136,9 +138,6 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 			} else {
 				if (checkpointedInputGate.isFinished()) {
 					checkState(checkpointedInputGate.getAvailableFuture().isDone(), "Finished BarrierHandler should be available");
-					if (!checkpointedInputGate.isEmpty()) {
-						throw new IllegalStateException("Trailing data in checkpoint barrier handler.");
-					}
 					return InputStatus.END_OF_INPUT;
 				}
 				return InputStatus.NOTHING_AVAILABLE;
@@ -198,6 +197,30 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 	}
 
 	@Override
+	public CompletableFuture<Void> prepareSnapshot(
+			ChannelStateWriter channelStateWriter,
+			long checkpointId) throws IOException {
+		for (int channelIndex = 0; channelIndex < recordDeserializers.length; channelIndex++) {
+			final InputChannel channel = checkpointedInputGate.getChannel(channelIndex);
+
+			// Assumption for retrieving buffers = one concurrent checkpoint
+			recordDeserializers[channelIndex].getUnconsumedBuffer().ifPresent(buffer ->
+				channelStateWriter.addInputData(
+					checkpointId,
+					channel.getChannelInfo(),
+					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
+					buffer));
+
+			channelStateWriter.addInputData(
+				checkpointId,
+				channel.getChannelInfo(),
+				ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
+				checkpointedInputGate.requestInflightBuffers(checkpointId, channelIndex).toArray(new Buffer[0]));
+		}
+		return checkpointedInputGate.getAllBarriersReceivedFuture(checkpointId);
+	}
+
+	@Override
 	public void close() throws IOException {
 		// release the deserializers . this part should not ever fail
 		for (int channelIndex = 0; channelIndex < recordDeserializers.length; channelIndex++) {
@@ -205,7 +228,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 		}
 
 		// cleanup the resources of the checkpointed input gate
-		checkpointedInputGate.cleanup();
+		checkpointedInputGate.close();
 	}
 
 	private void releaseDeserializer(int channelIndex) {

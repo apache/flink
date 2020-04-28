@@ -19,14 +19,22 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -45,7 +53,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class InputChannel {
 
-	protected final int channelIndex;
+	/** The info of the input channel to identify it globally within a task. */
+	protected final InputChannelInfo channelInfo;
 
 	protected final ResultPartitionID partitionId;
 
@@ -87,7 +96,7 @@ public abstract class InputChannel {
 		checkArgument(initial >= 0 && initial <= max);
 
 		this.inputGate = checkNotNull(inputGate);
-		this.channelIndex = channelIndex;
+		this.channelInfo = new InputChannelInfo(inputGate.getGateIndex(), channelIndex);
 		this.partitionId = checkNotNull(partitionId);
 
 		this.initialBackoff = initial;
@@ -102,13 +111,30 @@ public abstract class InputChannel {
 	// Properties
 	// ------------------------------------------------------------------------
 
-	int getChannelIndex() {
-		return channelIndex;
+	/**
+	 * Returns the index of this channel within its {@link SingleInputGate}.
+	 */
+	public int getChannelIndex() {
+		return channelInfo.getInputChannelIdx();
+	}
+
+	/**
+	 * Returns the info of this channel, which uniquely identifies the channel in respect to its operator instance.
+	 */
+	public InputChannelInfo getChannelInfo() {
+		return channelInfo;
 	}
 
 	public ResultPartitionID getPartitionId() {
 		return partitionId;
 	}
+
+	/**
+	 * After sending a {@link org.apache.flink.runtime.io.network.api.CheckpointBarrier} of
+	 * exactly-once mode, the upstream will be blocked and become unavailable. This method
+	 * tries to unblock the corresponding upstream and resume data consumption.
+	 */
+	public abstract void resumeConsumption();
 
 	/**
 	 * Notifies the owning {@link SingleInputGate} that this channel became non-empty.
@@ -124,6 +150,10 @@ public abstract class InputChannel {
 	 */
 	protected void notifyChannelNonEmpty() {
 		inputGate.notifyChannelNonEmpty(this);
+	}
+
+	public List<Buffer> requestInflightBuffers(long checkpointId) throws IOException {
+		return Collections.emptyList();
 	}
 
 	// ------------------------------------------------------------------------
@@ -255,6 +285,23 @@ public abstract class InputChannel {
 	}
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Parses the buffer as an event and returns the {@link CheckpointBarrier} if the event is indeed a barrier or
+	 * returns null in all other cases.
+	 */
+	@Nullable
+	protected CheckpointBarrier parseCheckpointBarrierOrNull(Buffer buffer) throws IOException {
+		if (buffer.isBuffer()) {
+			return null;
+		}
+
+		AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
+		// reset the buffer because it would be deserialized again in SingleInputGate while getting next buffer.
+		// we can further improve to avoid double deserialization in the future.
+		buffer.setReaderIndex(0);
+		return event.getClass() == CheckpointBarrier.class ? (CheckpointBarrier) event : null;
+	}
 
 	/**
 	 * A combination of a {@link Buffer} and a flag indicating availability of further buffers,

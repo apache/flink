@@ -125,9 +125,6 @@ under the License.
 			<directory>../flink-python/bin/</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
-			<excludes>
-				<exclude>pyflink-udf-runner.sh</exclude>
-			</excludes>
 		</fileSet>
 
 		<!-- copy SQL client -->

@@ -21,11 +21,13 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
@@ -41,11 +43,23 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	ContextEnvironment(
+	private final boolean suppressSysout;
+
+	private final boolean enforceSingleJobExecution;
+
+	private int jobCounter;
+
+	public ContextEnvironment(
 			final PipelineExecutorServiceLoader executorServiceLoader,
 			final Configuration configuration,
-			final ClassLoader userCodeClassLoader) {
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution,
+			final boolean suppressSysout) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
+		this.suppressSysout = suppressSysout;
+		this.enforceSingleJobExecution = enforceSingleJobExecution;
+
+		this.jobCounter = 0;
 	}
 
 	@Override
@@ -81,11 +95,21 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobClient executeAsync(String jobName) throws Exception {
+		validateAllowedExecution();
 		final JobClient jobClient = super.executeAsync(jobName);
 
-		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		if (!suppressSysout) {
+			System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		}
 
 		return jobClient;
+	}
+
+	private void validateAllowedExecution() {
+		if (enforceSingleJobExecution && jobCounter > 0) {
+			throw new FlinkRuntimeException("Cannot have more than one execute() or executeAsync() call in a single environment.");
+		}
+		jobCounter++;
 	}
 
 	@Override
@@ -95,11 +119,22 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static void setAsContext(ContextEnvironmentFactory factory) {
+	public static void setAsContext(
+			final PipelineExecutorServiceLoader executorServiceLoader,
+			final Configuration configuration,
+			final ClassLoader userCodeClassLoader,
+			final boolean enforceSingleJobExecution,
+			final boolean suppressSysout) {
+		ExecutionEnvironmentFactory factory = () -> new ContextEnvironment(
+			executorServiceLoader,
+			configuration,
+			userCodeClassLoader,
+			enforceSingleJobExecution,
+			suppressSysout);
 		initializeContextEnvironment(factory);
 	}
 
-	public static void unsetContext() {
+	public static void unsetAsContext() {
 		resetContextEnvironment();
 	}
 }

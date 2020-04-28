@@ -29,7 +29,6 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.util.Preconditions;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +50,7 @@ public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest
 	 * Creates the state server.
 	 *
 	 * <p>The server is instantiated using reflection by the
-	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateServer(InetAddress, Iterator, int, int, KvStateRegistry, KvStateRequestStats)
+	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateServer(String, Iterator, int, int, KvStateRegistry, KvStateRequestStats)
 	 * QueryableStateUtils.createKvStateServer(InetAddress, Iterator, int, int, KvStateRegistry, KvStateRequestStats)}.
 	 *
 	 * <p>The server needs to be started via {@link #start()} in order to bind
@@ -65,7 +64,7 @@ public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest
 	 * @param stats the statistics collector.
 	 */
 	public KvStateServerImpl(
-			final InetAddress bindAddress,
+			final String bindAddress,
 			final Iterator<Integer> bindPortIterator,
 			final Integer numEventLoopThreads,
 			final Integer numQueryThreads,

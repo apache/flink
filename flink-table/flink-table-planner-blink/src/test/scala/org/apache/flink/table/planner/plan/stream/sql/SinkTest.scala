@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
@@ -35,9 +36,40 @@ class SinkTest extends TableTestBase {
   val INT = new IntType()
 
   @Test
-  def testAppendSink(): Unit = {
+  def testExceptionForAppendSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val appendSink = util.createAppendTableSink(Array("a"), Array(LONG))
+    util.writeToSink(table, appendSink, "appendSink")
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("AppendStreamTableSink doesn't support consuming update " +
+      "changes which is produced by node GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
+    util.verifyPlanWithTrait()
+  }
+
+  @Test
+  def testExceptionForOverAggregate(): Unit = {
+    val table = util.tableEnv.sqlQuery("SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
+    util.tableEnv.createTemporaryView("TempTable", table)
+
+    val retractSink = util.createRetractTableSink(Array("cnt"), Array(LONG))
+    util.writeToSink(table, retractSink, "retractSink1")
+
+    val table2 = util.tableEnv.sqlQuery(
+      "SELECT cnt, SUM(cnt) OVER (ORDER BY PROCTIME()) FROM TempTable")
+    val retractSink2 = util.createRetractTableSink(Array("cnt", "total"), Array(LONG, LONG))
+    util.writeToSink(table2, retractSink2, "retractSink2")
+
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("OverAggregate doesn't support consuming update changes " +
+      "which is produced by node GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
+    util.verifyPlanWithTrait()
+  }
+
+  @Test
+  def testAppendSink(): Unit = {
+    val table = util.tableEnv.sqlQuery("SELECT a + b, c FROM MyTable")
+    val appendSink = util.createAppendTableSink(Array("d", "c"), Array(LONG, STRING))
     util.writeToSink(table, appendSink, "appendSink")
     util.verifyPlanWithTrait()
   }
@@ -87,6 +119,21 @@ class SinkTest extends TableTestBase {
     val upsertSink = util.createUpsertTableSink(Array(), Array("a1", "b", "c1"),
       Array(INT, LONG, STRING))
     util.writeToSink(table, upsertSink, "upsertSink")
+    util.verifyPlanWithTrait()
+  }
+
+  @Test
+  def testUpsertSinkWithFilter(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM (SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a)
+        |WHERE cnt < 10
+        |""".stripMargin
+    val table = util.tableEnv.sqlQuery(sql)
+    val upsertSink = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
+    util.writeToSink(table, upsertSink, "upsertSink")
+    // a filter after aggregation, the Aggregation and Calc should produce UPDATE_BEFORE
     util.verifyPlanWithTrait()
   }
 

@@ -34,6 +34,7 @@ import org.apache.flink.types.Row;
 import org.jline.utils.AttributedString;
 import org.junit.Test;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +93,11 @@ public class CliResultViewTest {
 		Thread resultViewRunner = null;
 		CliClient cli = null;
 		try {
-			cli = new CliClient(TerminalUtils.createDummyTerminal(), sessionId, executor);
+			cli = new CliClient(
+					TerminalUtils.createDummyTerminal(),
+					sessionId,
+					executor,
+					File.createTempFile("history", "tmp").toPath());
 			resultViewRunner = new Thread(new TestingCliResultView(cli, descriptor, isTableMode));
 			resultViewRunner.start();
 		} finally {

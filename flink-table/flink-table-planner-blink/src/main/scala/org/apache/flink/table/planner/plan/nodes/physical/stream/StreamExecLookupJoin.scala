@@ -58,14 +58,6 @@ class StreamExecLookupJoin(
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
-
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {

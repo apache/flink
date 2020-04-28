@@ -19,48 +19,52 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.TableFunction;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Describes a relational operation that was created from applying a {@link TableFunction}.
  */
 @Internal
-public class CalculatedQueryOperation<T> implements QueryOperation {
+public class CalculatedQueryOperation implements QueryOperation {
 
-	private final TableFunction<T> tableFunction;
-	private final List<ResolvedExpression> parameters;
-	private final TypeInformation<T> resultType;
+	private final FunctionDefinition functionDefinition;
+	private final @Nullable FunctionIdentifier functionIdentifier;
+	private final List<ResolvedExpression> arguments;
 	private final TableSchema tableSchema;
 
 	public CalculatedQueryOperation(
-			TableFunction<T> tableFunction,
-			List<ResolvedExpression> parameters,
-			TypeInformation<T> resultType,
+			FunctionDefinition functionDefinition,
+			@Nullable FunctionIdentifier functionIdentifier,
+			List<ResolvedExpression> arguments,
 			TableSchema tableSchema) {
-		this.tableFunction = tableFunction;
-		this.parameters = parameters;
-		this.resultType = resultType;
+		this.functionDefinition = functionDefinition;
+		this.functionIdentifier = functionIdentifier;
+		this.arguments = arguments;
 		this.tableSchema = tableSchema;
 	}
 
-	public TableFunction<T> getTableFunction() {
-		return tableFunction;
+	public FunctionDefinition getFunctionDefinition() {
+		return functionDefinition;
 	}
 
-	public List<ResolvedExpression> getParameters() {
-		return parameters;
+	public Optional<FunctionIdentifier> getFunctionIdentifier() {
+		return Optional.ofNullable(functionIdentifier);
 	}
 
-	public TypeInformation<T> getResultType() {
-		return resultType;
+	public List<ResolvedExpression> getArguments() {
+		return arguments;
 	}
 
 	@Override
@@ -71,8 +75,12 @@ public class CalculatedQueryOperation<T> implements QueryOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("function", tableFunction);
-		args.put("parameters", parameters);
+		if (functionIdentifier != null) {
+			args.put("function", functionIdentifier);
+		} else {
+			args.put("function", functionDefinition.toString());
+		}
+		args.put("arguments", arguments);
 
 		return OperationUtils.formatWithChildren("CalculatedTable", args, getChildren(), Operation::asSummaryString);
 	}

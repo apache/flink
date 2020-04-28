@@ -174,24 +174,14 @@ public class CliFrontend {
 		LOG.info("Running 'run' command.");
 
 		final Options commandOptions = CliFrontendParser.getRunCommandOptions();
+		final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, true);
-
-		final ProgramOptions programOptions = new ProgramOptions(commandLine);
+		final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		// evaluate help flag
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
 			CliFrontendParser.printHelpForRun(customCommandLines);
 			return;
-		}
-
-		if (!programOptions.isPython()) {
-			// Java program should be specified a JAR file
-			if (programOptions.getJarFilePath() == null) {
-				throw new CliArgsException("Java program should be specified a JAR file.");
-			}
 		}
 
 		final PackagedProgram program;
@@ -236,23 +226,19 @@ public class CliFrontend {
 	 *
 	 * @param args Command line arguments for the info action.
 	 */
-	protected void info(String[] args) throws CliArgsException, FileNotFoundException, ProgramInvocationException {
+	protected void info(String[] args) throws Exception {
 		LOG.info("Running 'info' command.");
 
 		final Options commandOptions = CliFrontendParser.getInfoCommandOptions();
 
 		final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, true);
 
-		final ProgramOptions programOptions = new ProgramOptions(commandLine);
+		final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
 		// evaluate help flag
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
 			CliFrontendParser.printHelpForInfo();
 			return;
-		}
-
-		if (programOptions.getJarFilePath() == null) {
-			throw new CliArgsException("The program JAR file was not specified.");
 		}
 
 		// -------- build the packaged program -------------
@@ -268,7 +254,10 @@ public class CliFrontend {
 
 			LOG.info("Creating program plan dump");
 
-			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, parallelism, true);
+			final Configuration effectiveConfiguration =
+					getEffectiveConfiguration(commandLine, programOptions, program.getJobJarAndDependencies());
+
+			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, effectiveConfiguration, parallelism, true);
 			String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
 
 			if (jsonPlan != null) {
@@ -304,10 +293,7 @@ public class CliFrontend {
 		LOG.info("Running 'list' command.");
 
 		final Options commandOptions = CliFrontendParser.getListCommandOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+		final CommandLine commandLine = getCommandLine(commandOptions, args, false);
 
 		ListOptions listOptions = new ListOptions(commandLine);
 
@@ -427,8 +413,7 @@ public class CliFrontend {
 		LOG.info("Running 'stop-with-savepoint' command.");
 
 		final Options commandOptions = CliFrontendParser.getStopCommandOptions();
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+		final CommandLine commandLine = getCommandLine(commandOptions, args, false);
 
 		final StopOptions stopOptions = new StopOptions(commandLine);
 		if (stopOptions.isPrintHelp()) {
@@ -474,10 +459,7 @@ public class CliFrontend {
 		LOG.info("Running 'cancel' command.");
 
 		final Options commandOptions = CliFrontendParser.getCancelCommandOptions();
-
-		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
-
-		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+		final CommandLine commandLine = getCommandLine(commandOptions, args, false);
 
 		CancelOptions cancelOptions = new CancelOptions(commandLine);
 
@@ -548,6 +530,11 @@ public class CliFrontend {
 
 			logAndSysout("Cancelled job " + jobId + '.');
 		}
+	}
+
+	public CommandLine getCommandLine(final Options commandOptions, final String[] args, final boolean stopAtNonOptions) throws CliArgsException {
+		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+		return CliFrontendParser.parse(commandLineOptions, args, stopAtNonOptions);
 	}
 
 	/**
@@ -661,7 +648,7 @@ public class CliFrontend {
 	// --------------------------------------------------------------------------------------------
 
 	protected void executeProgram(final Configuration configuration, final PackagedProgram program) throws ProgramInvocationException {
-		ClientUtils.executeProgram(DefaultExecutorServiceLoader.INSTANCE, configuration, program);
+		ClientUtils.executeProgram(DefaultExecutorServiceLoader.INSTANCE, configuration, program, false, false);
 	}
 
 	/**
@@ -669,31 +656,17 @@ public class CliFrontend {
 	 *
 	 * @return A PackagedProgram (upon success)
 	 */
-	PackagedProgram buildProgram(final ProgramOptions runOptions) throws FileNotFoundException, ProgramInvocationException {
+	PackagedProgram buildProgram(final ProgramOptions runOptions)
+			throws FileNotFoundException, ProgramInvocationException, CliArgsException {
+		runOptions.validate();
+
 		String[] programArgs = runOptions.getProgramArgs();
 		String jarFilePath = runOptions.getJarFilePath();
 		List<URL> classpaths = runOptions.getClasspaths();
 
 		// Get assembler class
 		String entryPointClass = runOptions.getEntryPointClassName();
-		File jarFile = null;
-		if (runOptions.isPython()) {
-			// If the job is specified a jar file
-			if (jarFilePath != null) {
-				jarFile = getJarFile(jarFilePath);
-			}
-
-			// If the job is Python Shell job, the entry point class name is PythonGateWayServer.
-			// Otherwise, the entry point class of python job is PythonDriver
-			if (entryPointClass == null) {
-				entryPointClass = "org.apache.flink.client.python.PythonDriver";
-			}
-		} else {
-			if (jarFilePath == null) {
-				throw new IllegalArgumentException("Java program should be specified a JAR file.");
-			}
-			jarFile = getJarFile(jarFilePath);
-		}
+		File jarFile = jarFilePath != null ? getJarFile(jarFilePath) : null;
 
 		return PackagedProgram.newBuilder()
 			.setJarFile(jarFile)
@@ -1021,6 +994,7 @@ public class CliFrontend {
 
 	public static List<CustomCommandLine> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {
 		List<CustomCommandLine> customCommandLines = new ArrayList<>();
+		customCommandLines.add(new ExecutorCLI(configuration));
 
 		//	Command line interface of the YARN session, with a special initialization here
 		//	to prefix all options with y/yarn.
@@ -1035,8 +1009,6 @@ public class CliFrontend {
 		} catch (NoClassDefFoundError | Exception e) {
 			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
 		}
-
-		customCommandLines.add(new ExecutorCLI(configuration));
 
 		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
 		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.

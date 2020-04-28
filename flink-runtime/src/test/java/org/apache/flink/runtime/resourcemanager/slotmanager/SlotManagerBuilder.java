@@ -20,6 +20,9 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 /** Builder for {@link SlotManagerImpl}. */
@@ -30,6 +33,9 @@ public class SlotManagerBuilder {
 	private Time slotRequestTimeout;
 	private Time taskManagerTimeout;
 	private boolean waitResultConsumedBeforeRelease;
+	private WorkerResourceSpec defaultWorkerResourceSpec;
+	private int numSlotsPerWorker;
+	private SlotManagerMetricGroup slotManagerMetricGroup;
 
 	private SlotManagerBuilder() {
 		this.slotMatchingStrategy = AnyMatchingSlotMatchingStrategy.INSTANCE;
@@ -38,6 +44,9 @@ public class SlotManagerBuilder {
 		this.slotRequestTimeout = TestingUtils.infiniteTime();
 		this.taskManagerTimeout = TestingUtils.infiniteTime();
 		this.waitResultConsumedBeforeRelease = true;
+		this.defaultWorkerResourceSpec = WorkerResourceSpec.ZERO;
+		this.numSlotsPerWorker = 1;
+		this.slotManagerMetricGroup = UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
 	}
 
 	public static SlotManagerBuilder newBuilder() {
@@ -74,13 +83,34 @@ public class SlotManagerBuilder {
 		return this;
 	}
 
+	public SlotManagerBuilder setDefaultWorkerResourceSpec(WorkerResourceSpec defaultWorkerResourceSpec) {
+		this.defaultWorkerResourceSpec = defaultWorkerResourceSpec;
+		return this;
+	}
+
+	public SlotManagerBuilder setNumSlotsPerWorker(int numSlotsPerWorker) {
+		this.numSlotsPerWorker = numSlotsPerWorker;
+		return this;
+	}
+
+	public SlotManagerBuilder setSlotManagerMetricGroup(SlotManagerMetricGroup slotManagerMetricGroup) {
+		this.slotManagerMetricGroup = slotManagerMetricGroup;
+		return this;
+	}
+
 	public SlotManagerImpl build() {
-		return new SlotManagerImpl(
-			slotMatchingStrategy,
-			scheduledExecutor,
+		final SlotManagerConfiguration slotManagerConfiguration = new SlotManagerConfiguration(
 			taskManagerRequestTimeout,
 			slotRequestTimeout,
 			taskManagerTimeout,
-			waitResultConsumedBeforeRelease);
+			waitResultConsumedBeforeRelease,
+			slotMatchingStrategy,
+			defaultWorkerResourceSpec,
+			numSlotsPerWorker);
+
+		return new SlotManagerImpl(
+			scheduledExecutor,
+			slotManagerConfiguration,
+			slotManagerMetricGroup);
 	}
 }

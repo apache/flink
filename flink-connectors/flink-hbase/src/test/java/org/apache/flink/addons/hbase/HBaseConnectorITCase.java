@@ -66,6 +66,7 @@ import java.util.Map;
 import scala.Option;
 
 import static org.apache.flink.addons.hbase.util.PlannerType.OLD_PLANNER;
+import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
@@ -287,7 +288,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
 
 		DataStream<Row> ds = execEnv.fromCollection(testData1).returns(testTypeInfo1);
-		tEnv.registerDataStream("src", ds);
+		tEnv.createTemporaryView("src", ds);
 		tEnv.registerTableSink("hbase", tableSink);
 
 		String query = "INSERT INTO hbase SELECT ROW(f1c1), ROW(f2c1, f2c2), rowkey, ROW(f3c1, f3c2, f3c3) FROM src";
@@ -342,7 +343,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
 
 		DataStream<Row> ds = execEnv.fromCollection(testData1).returns(testTypeInfo1);
-		tEnv.registerDataStream("src", ds);
+		tEnv.createTemporaryView("src", ds);
 
 		// register hbase table
 		String quorum = getZookeeperQuorum();
@@ -428,7 +429,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
 		// prepare a source table
 		DataStream<Row> ds = streamEnv.fromCollection(testData2).returns(testTypeInfo2);
-		Table in = streamTableEnv.fromDataStream(ds, "a, b, c");
+		Table in = streamTableEnv.fromDataStream(ds, $("a"), $("b"), $("c"));
 		streamTableEnv.registerTable("src", in);
 
 		Map<String, String> tableProperties = hbaseTableProperties();
@@ -469,11 +470,11 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		// prepare a source table
 		String srcTableName = "src";
 		DataStream<Row> ds = streamEnv.fromCollection(testData2).returns(testTypeInfo2);
-		Table in = streamTableEnv.fromDataStream(ds, "a, b, c, proc.proctime");
+		Table in = streamTableEnv.fromDataStream(ds, $("a"), $("b"), $("c"), $("proc").proctime());
 		streamTableEnv.registerTable(srcTableName, in);
 
 		Map<String, String> tableProperties = hbaseTableProperties();
-		TableSource source = TableFactoryService
+		TableSource<?> source = TableFactoryService
 			.find(HBaseTableFactory.class, tableProperties)
 			.createTableSource(tableProperties);
 		streamTableEnv.registerTableSource("hbaseLookup", source);

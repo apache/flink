@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -316,7 +317,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		}
 
 		@Override
-		public SyncFailureInducingStateBackend configure(Configuration config, ClassLoader classLoader) {
+		public SyncFailureInducingStateBackend configure(ReadableConfig configuration, ClassLoader classLoader) {
 			// retain this instance, no re-configuration!
 			return this;
 		}
@@ -368,7 +369,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		}
 
 		@Override
-		public AsyncFailureInducingStateBackend configure(Configuration config, ClassLoader classLoader) {
+		public AsyncFailureInducingStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
 			// retain this instance, no re-configuration!
 			return this;
 		}
@@ -469,7 +470,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	 */
 	public static final class TestStreamTask extends OneInputStreamTask<Object, Object> {
 
-		public TestStreamTask(Environment env) {
+		public TestStreamTask(Environment env) throws Exception {
 			super(env);
 		}
 

@@ -24,18 +24,19 @@ import org.apache.flink.api.common.state._
 import org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerContext
 import org.apache.flink.streaming.api.windowing.triggers.{Trigger, TriggerResult}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
-import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.runtime.triggers.StateCleaningCountTrigger.Sum
 
 /**
   * A [[Trigger]] that fires once the count of elements in a pane reaches the given count
   * or the cleanup timer is triggered.
   */
-class StateCleaningCountTrigger(queryConfig: StreamQueryConfig, maxCount: Long)
+class StateCleaningCountTrigger(
+    minRetentionTime: Long,
+    maxRetentionTime: Long,
+    maxCount: Long)
   extends Trigger[Any, GlobalWindow] {
 
-  protected val minRetentionTime: Long = queryConfig.getMinIdleStateRetentionTime
-  protected val maxRetentionTime: Long = queryConfig.getMaxIdleStateRetentionTime
   protected val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
   private val stateDesc =
@@ -47,8 +48,8 @@ class StateCleaningCountTrigger(queryConfig: StreamQueryConfig, maxCount: Long)
   override def canMerge = false
 
   override def toString: String = "CountTriggerGlobalWindowithCleanupState(" +
-    "minIdleStateRetentionTime=" + queryConfig.getMinIdleStateRetentionTime + ", " +
-    "maxIdleStateRetentionTime=" + queryConfig.getMaxIdleStateRetentionTime + ", " +
+    "minIdleStateRetentionTime=" + minRetentionTime + ", " +
+    "maxIdleStateRetentionTime=" + maxRetentionTime + ", " +
     "maxCount=" + maxCount + ")"
 
   override def onElement(
@@ -120,11 +121,14 @@ object StateCleaningCountTrigger {
   /**
     * Create a [[StateCleaningCountTrigger]] instance.
     *
-    * @param queryConfig query configuration.
+    * @param config table configuration.
     * @param maxCount The count of elements at which to fire.
     */
-  def of(queryConfig: StreamQueryConfig, maxCount: Long): StateCleaningCountTrigger =
-    new StateCleaningCountTrigger(queryConfig, maxCount)
+  def of(config: TableConfig, maxCount: Long): StateCleaningCountTrigger =
+    new StateCleaningCountTrigger(
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime,
+      maxCount)
 
   class Sum extends ReduceFunction[JLong] {
     override def reduce(value1: JLong, value2: JLong): JLong = value1 + value2

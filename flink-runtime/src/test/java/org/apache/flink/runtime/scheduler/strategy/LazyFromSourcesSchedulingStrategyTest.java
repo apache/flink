@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.util.TestLogger;
@@ -28,13 +26,16 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  * Unit tests for {@link LazyFromSourcesSchedulingStrategy}.
@@ -250,7 +251,7 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 		final TestingSchedulingResultPartition partition1 = producer1.getProducedResults().iterator().next();
 
 		schedulingStrategy.onExecutionStateChange(producer1.getId(), ExecutionState.RUNNING);
-		schedulingStrategy.onPartitionConsumable(producer1.getId(), new ResultPartitionID(partition1.getId(), new ExecutionAttemptID()));
+		schedulingStrategy.onPartitionConsumable(partition1.getId());
 
 		assertLatestScheduledVerticesAreEqualTo(consumers);
 	}
@@ -351,9 +352,13 @@ public class LazyFromSourcesSchedulingStrategyTest extends TestLogger {
 	}
 
 	private void assertLatestScheduledVerticesAreEqualTo(final List<TestingSchedulingExecutionVertex> expected) {
-		assertEquals(
-			idsFromVertices(expected),
-			idsFromDeploymentOptions(testingSchedulerOperation.getLatestScheduledVertices()));
+		final List<List<ExecutionVertexDeploymentOption>> deploymentOptions = testingSchedulerOperation.getScheduledVertices();
+		assertThat(expected.size(), lessThanOrEqualTo(deploymentOptions.size()));
+		for (int i = 0; i < expected.size(); i++) {
+			assertEquals(
+				idsFromVertices(Collections.singletonList(expected.get(expected.size() - i - 1))),
+				idsFromDeploymentOptions(deploymentOptions.get(deploymentOptions.size() - i - 1)));
+		}
 	}
 
 	private static List<ExecutionVertexID> idsFromVertices(final List<TestingSchedulingExecutionVertex> vertices) {

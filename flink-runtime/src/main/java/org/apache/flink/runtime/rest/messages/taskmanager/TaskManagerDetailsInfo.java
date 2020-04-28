@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.rest.messages.ResourceProfileInfo;
 import org.apache.flink.runtime.rest.messages.json.ResourceIDDeserializer;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.util.Preconditions;
@@ -49,6 +50,8 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			@JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,
 			@JsonProperty(FIELD_NAME_NUMBER_SLOTS) int numberSlots,
 			@JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS) int numberAvailableSlots,
+			@JsonProperty(FIELD_NAME_TOTAL_RESOURCE) ResourceProfileInfo totalResource,
+			@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE) ResourceProfileInfo freeResource,
 			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
 			@JsonProperty(FIELD_NAME_METRICS) TaskManagerMetricsInfo taskManagerMetrics) {
 		super(
@@ -58,6 +61,8 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			lastHeartbeat,
 			numberSlots,
 			numberAvailableSlots,
+			totalResource,
+			freeResource,
 			hardwareDescription);
 
 		this.taskManagerMetrics = Preconditions.checkNotNull(taskManagerMetrics);
@@ -71,6 +76,8 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			taskManagerInfo.getLastHeartbeat(),
 			taskManagerInfo.getNumberSlots(),
 			taskManagerInfo.getNumberAvailableSlots(),
+			taskManagerInfo.getTotalResource(),
+			taskManagerInfo.getFreeResource(),
 			taskManagerInfo.getHardwareDescription(),
 			taskManagerMetrics);
 	}

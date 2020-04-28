@@ -61,8 +61,7 @@ abstract class ExpressionTestBase {
   // (originalExpr, optimizedExpr, expectedResult)
   private val testExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
   private val env = StreamExecutionEnvironment.createLocalEnvironment(4)
-  private val setting = EnvironmentSettings.newInstance()
-    .useBlinkPlanner().inStreamingMode().build()
+  private val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
   // use impl class instead of interface class to avoid
   // "Static methods in interface require -target:jvm-1.8"
   private val tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
@@ -87,7 +86,7 @@ abstract class ExpressionTestBase {
   @Before
   def prepare(): Unit = {
     val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
-    tEnv.registerDataStream(tableName, ds)
+    tEnv.createTemporaryView(tableName, ds)
     functions.foreach(f => tEnv.registerFunction(f._1, f._2))
 
     // prepare RelBuilder

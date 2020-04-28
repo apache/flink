@@ -199,6 +199,7 @@ public class SchedulerTestingUtils {
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			false,
 			false,
+			false,
 			0);
 
 		jobGraph.setSnapshotSettings(new JobCheckpointingSettings(

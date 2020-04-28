@@ -1,7 +1,7 @@
 ---
 title: "Java Lambda 表达式"
-nav-parent_id: api-concepts
-nav-pos: 20
+nav-parent_id: streaming
+nav-pos: 300
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

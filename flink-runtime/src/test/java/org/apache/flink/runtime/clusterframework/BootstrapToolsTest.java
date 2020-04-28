@@ -23,10 +23,10 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -174,7 +174,7 @@ public class BootstrapToolsTest extends TestLogger {
 			new MemorySize(333), // jvmMetaspaceSize
 			new MemorySize(0)); // jvmOverheadSize
 		final ContaineredTaskManagerParameters containeredParams =
-			new ContaineredTaskManagerParameters(taskExecutorProcessSpec, 4, new HashMap<String, String>());
+			new ContaineredTaskManagerParameters(taskExecutorProcessSpec, new HashMap<String, String>());
 
 		// no logging, with/out krb5
 		final String java = "$JAVA_HOME/bin/java";
@@ -392,7 +392,7 @@ public class BootstrapToolsTest extends TestLogger {
 							CheckedSupplier.unchecked(() -> {
 								cyclicBarrier.await();
 
-								return BootstrapTools.startActorSystem(
+								return BootstrapTools.startRemoteActorSystem(
 									new Configuration(),
 									"localhost",
 									"0",
@@ -420,7 +420,7 @@ public class BootstrapToolsTest extends TestLogger {
 
 		try {
 			final int port = portOccupier.getLocalPort();
-			BootstrapTools.startActorSystem(new Configuration(), "0.0.0.0", port, LOG);
+			BootstrapTools.startRemoteActorSystem(new Configuration(), "0.0.0.0", String.valueOf(port), LOG);
 			fail("Expected to fail with a BindException");
 		} catch (Exception e) {
 			assertThat(ExceptionUtils.findThrowable(e, BindException.class).isPresent(), is(true));
@@ -475,63 +475,11 @@ public class BootstrapToolsTest extends TestLogger {
 	}
 
 	@Test
-	public void testHeapCutoff() {
-		Configuration conf = new Configuration();
-		conf.setFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO, 0.15F);
-		conf.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 384);
-
-		Assert.assertEquals(616, BootstrapTools.calculateHeapSize(1000, conf));
-		Assert.assertEquals(8500, BootstrapTools.calculateHeapSize(10000, conf));
-
-		// test different configuration
-		Assert.assertEquals(3400, BootstrapTools.calculateHeapSize(4000, conf));
-
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key(), "1000");
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.1");
-		Assert.assertEquals(3000, BootstrapTools.calculateHeapSize(4000, conf));
-
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.5");
-		Assert.assertEquals(2000, BootstrapTools.calculateHeapSize(4000, conf));
-
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "1");
-		Assert.assertEquals(0, BootstrapTools.calculateHeapSize(4000, conf));
-
-		// test also deprecated keys
-		conf = new Configuration();
-		conf.setDouble(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, 0.15);
-		conf.setInteger(ConfigConstants.YARN_HEAP_CUTOFF_MIN, 384);
-
-		Assert.assertEquals(616, BootstrapTools.calculateHeapSize(1000, conf));
-		Assert.assertEquals(8500, BootstrapTools.calculateHeapSize(10000, conf));
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void illegalArgument() {
-		final Configuration conf = new Configuration();
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "1.1");
-		BootstrapTools.calculateHeapSize(4000, conf);
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void illegalArgumentNegative() {
-		final Configuration conf = new Configuration();
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "-0.01");
-		BootstrapTools.calculateHeapSize(4000, conf);
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void tooMuchCutoff() {
-		final Configuration conf = new Configuration();
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "6000");
-		BootstrapTools.calculateHeapSize(4000, conf);
-	}
-
-	@Test
 	public void testGetEnvironmentVariables() {
 		Configuration testConf = new Configuration();
 		testConf.setString("containerized.master.env.LD_LIBRARY_PATH", "/usr/lib/native");
 
-		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+		Map<String, String> res = ConfigurationUtils.getPrefixedKeyValuePairs("containerized.master.env.", testConf);
 
 		Assert.assertEquals(1, res.size());
 		Map.Entry<String, String> entry = res.entrySet().iterator().next();
@@ -544,7 +492,7 @@ public class BootstrapToolsTest extends TestLogger {
 		Configuration testConf = new Configuration();
 		testConf.setString("containerized.master.env.", "/usr/lib/native");
 
-		Map<String, String> res = BootstrapTools.getEnvironmentVariables("containerized.master.env.", testConf);
+		Map<String, String> res = ConfigurationUtils.getPrefixedKeyValuePairs("containerized.master.env.", testConf);
 
 		Assert.assertEquals(0, res.size());
 	}

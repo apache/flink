@@ -49,14 +49,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
- * The function could handle update input stream. It is a fast version of {@link RetractableTopNFunction} which only hold
- * top n data in state, and keep sorted map in heap.
+ * A TopN function could handle updating stream. It is a fast version of {@link RetractableTopNFunction}
+ * which only hold top n data in state, and keep sorted map in heap.
  * However, the function only works in some special scenarios:
  * 1. sort field collation is ascending and its mono is decreasing, or sort field collation is descending and its mono
  * is increasing
  * 2. input data has unique keys and unique key must contain partition key
- * 3. input stream could not contain delete record or retract record
+ * 3. input stream could not contain DELETE record or UPDATE_BEFORE record
  */
 public class UpdatableTopNFunction extends AbstractTopNFunction implements CheckpointedFunction {
 
@@ -96,11 +98,11 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 			BaseRowKeySelector sortKeySelector,
 			RankType rankType,
 			RankRange rankRange,
-			boolean generateRetraction,
+			boolean generateUpdateBefore,
 			boolean outputRankNumber,
 			long cacheSize) {
 		super(minRetentionTime, maxRetentionTime, inputRowType, generatedRecordComparator, sortKeySelector, rankType,
-				rankRange, generateRetraction, outputRankNumber);
+				rankRange, generateUpdateBefore, outputRankNumber);
 		this.rowKeyType = rowKeySelector.getProducedType();
 		this.cacheSize = cacheSize;
 		this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
@@ -249,8 +251,8 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 				int rank = rankAndInnerRank.f0;
 				int innerRank = rankAndInnerRank.f1;
 				rowKeyMap.put(rowKey, new RankRow(inputRowSer.copy(inputRow), innerRank, true));
-				retract(out, oldRow.row, rank); // retract old record
-				collect(out, inputRow, rank);
+				collectUpdateBefore(out, oldRow.row, rank); // retract old record
+				collectUpdateAfter(out, inputRow, rank);
 				return;
 			}
 
@@ -267,7 +269,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 			// emit records
 			emitRecordsWithRowNumber(sortKey, inputRow, out, oldSortKey, oldRow, oldRank);
 		} else if (checkSortKeyInBufferRange(sortKey, buffer)) {
-			// it is an unique record but is in the topN, insert sort key into buffer
+			// it is a new record but is in the topN, insert sort key into buffer
 			int size = buffer.put(sortKey, rowKey);
 			rowKeyMap.put(rowKey, new RankRow(inputRowSer.copy(inputRow), size, true));
 
@@ -310,62 +312,72 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 	private void emitRecordsWithRowNumber(BaseRow sortKey, BaseRow inputRow, Collector<BaseRow> out, BaseRow oldSortKey,
 			RankRow oldRow, int oldRank) throws Exception {
 
-		int oldInnerRank = oldRow == null ? -1 : oldRow.innerRank;
 		Iterator<Map.Entry<BaseRow, Collection<BaseRow>>> iterator = buffer.entrySet().iterator();
-		int curRank = 0;
+		int currentRank = 0;
+		BaseRow currentRow = null;
 		// whether we have found the sort key in the buffer
 		boolean findsSortKey = false;
-		while (iterator.hasNext() && isInRankEnd(curRank)) {
+
+		while (iterator.hasNext() && isInRankEnd(currentRank)) {
 			Map.Entry<BaseRow, Collection<BaseRow>> entry = iterator.next();
 			BaseRow curSortKey = entry.getKey();
 			Collection<BaseRow> rowKeys = entry.getValue();
 			// meet its own sort key
 			if (!findsSortKey && curSortKey.equals(sortKey)) {
-				curRank += rowKeys.size();
-				if (oldRow != null) {
-					retract(out, oldRow.row, oldRank);
-				}
-				collect(out, inputRow, curRank);
+				currentRank += rowKeys.size();
+				currentRow = inputRow;
 				findsSortKey = true;
 			} else if (findsSortKey) {
 				if (oldSortKey == null) {
 					// this is a new row, emit updates for all rows in the topn
 					Iterator<BaseRow> rowKeyIter = rowKeys.iterator();
-					while (rowKeyIter.hasNext() && isInRankEnd(curRank)) {
-						curRank += 1;
+					while (rowKeyIter.hasNext() && isInRankEnd(currentRank)) {
 						BaseRow rowKey = rowKeyIter.next();
 						RankRow prevRow = rowKeyMap.get(rowKey);
-						retract(out, prevRow.row, curRank - 1);
-						collect(out, prevRow.row, curRank);
+						collectUpdateBefore(out, prevRow.row, currentRank);
+						collectUpdateAfter(out, currentRow, currentRank);
+						currentRow = prevRow.row;
+						currentRank += 1;
 					}
 				} else {
-					// current sort key is higher than old sort key,
-					// the rank of current record is changed, need to update the following rank
 					int compare = sortKeyComparator.compare(curSortKey, oldSortKey);
 					if (compare <= 0) {
+						// current sort key is higher than old sort key,
+						// the rank of current record is changed, need to update the following rank
 						Iterator<BaseRow> rowKeyIter = rowKeys.iterator();
-						int curInnerRank = 0;
-						while (rowKeyIter.hasNext() && isInRankEnd(curRank)) {
-							curRank += 1;
-							curInnerRank += 1;
-							if (compare == 0 && curInnerRank >= oldInnerRank) {
-								// match to the previous position
-								return;
-							}
-
+						while (rowKeyIter.hasNext() && currentRank < oldRank) {
 							BaseRow rowKey = rowKeyIter.next();
 							RankRow prevRow = rowKeyMap.get(rowKey);
-							retract(out, prevRow.row, curRank - 1);
-							collect(out, prevRow.row, curRank);
+							collectUpdateBefore(out, prevRow.row, currentRank);
+							collectUpdateAfter(out, currentRow, currentRank);
+							currentRow = prevRow.row;
+							currentRank += 1;
 						}
 					} else {
-						// current sort key is smaller than old sort key, the rank is not changed, so skip
-						return;
+						// current sort key is smaller than old sort key,
+						// the following rank is not changed, so skip
+						break;
 					}
 				}
 			} else {
-				curRank += rowKeys.size();
+				currentRank += rowKeys.size();
 			}
+		}
+		if (isInRankEnd(currentRank)) {
+			if (oldRow == null) {
+				// input is a new record, and there is no enough elements in Top-N
+				// so emit INSERT message for the new record.
+				collectInsert(out, currentRow, currentRank);
+			} else {
+				// input is an update record, current we reach the old rank position of
+				// the old record, so emit UPDATE_BEFORE and UPDATE_AFTER for this rank number
+				checkArgument(currentRank == oldRank);
+				collectUpdateBefore(out, oldRow.row, oldRank);
+				collectUpdateAfter(out, currentRow, currentRank);
+			}
+			// this is either a new record within top-n range or an update record,
+			// so top-n elements don't overflow, there is no need to remove records out of Top-N
+			return;
 		}
 
 		// remove the records associated to the sort key which is out of topN
@@ -406,24 +418,25 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 				// row content may change, so we need to update row in map
 				rowKeyMap.put(rowKey, new RankRow(inputRowSer.copy(inputRow), oldRow.innerRank, true));
 			}
-			// row content may change, so a retract is needed
-			retract(out, oldRow.row, oldRow.innerRank);
-			collect(out, inputRow);
+			// row content may change, so a UPDATE_BEFORE is needed
+			collectUpdateBefore(out, oldRow.row);
+			collectUpdateAfter(out, inputRow);
 		} else if (checkSortKeyInBufferRange(sortKey, buffer)) {
-			// it is an unique record but is in the topN, insert sort key into buffer
+			// it is an new record but is in the topN, insert sort key into buffer
 			int size = buffer.put(sortKey, rowKey);
 			rowKeyMap.put(rowKey, new RankRow(inputRowSer.copy(inputRow), size, true));
-			collect(out, inputRow);
 			// remove retired element
 			if (buffer.getCurrentTopNum() > rankEnd) {
 				BaseRow lastRowKey = buffer.removeLast();
 				if (lastRowKey != null) {
 					RankRow lastRow = rowKeyMap.remove(lastRowKey);
 					dataState.remove(lastRowKey);
-					// always send a retraction message
-					delete(out, lastRow.row);
+					// always send a delete message
+					collectDelete(out, lastRow.row);
 				}
 			}
+			// new record in the TopN, send INSERT message
+			collectInsert(out, inputRow);
 		}
 	}
 

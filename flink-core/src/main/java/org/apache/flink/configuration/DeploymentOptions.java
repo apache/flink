@@ -20,6 +20,8 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.List;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
@@ -46,4 +48,12 @@ public class DeploymentOptions {
 					.defaultValue(false)
 					.withDescription("If the job is submitted in attached mode, perform a best-effort cluster shutdown " +
 							"when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.");
+
+	public static final ConfigOption<List<String>> JOB_LISTENERS =
+			key("execution.job-listeners")
+					.stringType()
+					.asList()
+					.noDefaultValue()
+					.withDescription("Custom JobListeners to be registered with the execution environment." +
+							" The registered listeners cannot have constructors with arguments.");
 }

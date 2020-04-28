@@ -74,10 +74,6 @@ class BatchExecSortAggRule
     val input: RelNode = call.rel(1)
     val inputRowType = input.getRowType
 
-    if (agg.indicator) {
-      throw new UnsupportedOperationException("Not support group sets aggregate now.")
-    }
-
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
 
     val (_, aggBufferTypes, aggFunctions) = AggregateUtil.transformToBatchAggregateFunctions(
@@ -124,6 +120,17 @@ class BatchExecSortAggRule
       } else {
         (Seq(FlinkRelDistribution.SINGLETON), RelCollations.EMPTY)
       }
+      // Remove the global agg call filters because the
+      // filter is already done by local aggregation.
+      val aggCallsWithoutFilter = aggCallsWithoutAuxGroupCalls.map {
+        aggCall =>
+          if (aggCall.filterArg > 0) {
+            aggCall.copy(aggCall.getArgList, -1, aggCall.getCollation)
+          } else {
+            aggCall
+          }
+      }
+      val globalAggCallToAggFunction = aggCallsWithoutFilter.zip(aggFunctions)
       globalDistributions.foreach { globalDistribution =>
         val requiredTraitSet = localSortAgg.getTraitSet
           .replace(globalDistribution)
@@ -140,7 +147,7 @@ class BatchExecSortAggRule
           newLocalInput.getRowType,
           globalGroupSet,
           globalAuxGroupSet,
-          aggCallToAggFunction,
+          globalAggCallToAggFunction,
           isMerge = true)
         call.transformTo(globalSortAgg)
       }

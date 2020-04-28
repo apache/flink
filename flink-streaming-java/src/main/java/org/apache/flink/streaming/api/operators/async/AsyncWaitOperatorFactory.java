@@ -19,15 +19,13 @@ package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 /**
  * The factory of {@link AsyncWaitOperator}.
@@ -61,7 +59,7 @@ public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFac
 	}
 
 	@Override
-	public StreamOperator createStreamOperator(StreamTask containingTask, StreamConfig config, Output output) {
+	public <T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorParameters<OUT> parameters) {
 		AsyncWaitOperator asyncWaitOperator = new AsyncWaitOperator(
 				asyncFunction,
 				timeout,
@@ -69,8 +67,8 @@ public class AsyncWaitOperatorFactory<IN, OUT> extends AbstractStreamOperatorFac
 				outputMode,
 				processingTimeService,
 				mailboxExecutor);
-		asyncWaitOperator.setup(containingTask, config, output);
-		return asyncWaitOperator;
+		asyncWaitOperator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
+		return (T) asyncWaitOperator;
 	}
 
 	@Override

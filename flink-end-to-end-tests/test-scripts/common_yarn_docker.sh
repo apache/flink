@@ -38,6 +38,9 @@ start_time=$(date +%s)
 
 # make sure we stop our cluster at the end
 function cluster_shutdown {
+  if [ $TRAPPED_EXIT_CODE != 0 ];then
+      debug_copy_and_show_logs
+  fi
   docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml down
   rm $FLINK_TARBALL_DIR/$FLINK_TARBALL
 }
@@ -120,7 +123,6 @@ function start_hadoop_cluster_and_prepare_flink() {
 security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab
 security.kerberos.login.principal: hadoop-user
 slot.request.timeout: 120000
-containerized.heap-cutoff-min: 100
 END
 )
     docker exec master bash -c "echo \"$FLINK_CONFIG\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"

@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -182,6 +183,15 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		}
 
 		return getInputStatus();
+	}
+
+	@Override
+	public CompletableFuture<Void> prepareSnapshot(
+			ChannelStateWriter channelStateWriter,
+			long checkpointId) throws IOException {
+		return CompletableFuture.allOf(
+			input1.prepareSnapshot(channelStateWriter, checkpointId),
+			input2.prepareSnapshot(channelStateWriter, checkpointId));
 	}
 
 	private int selectFirstReadingInputIndex() throws IOException {

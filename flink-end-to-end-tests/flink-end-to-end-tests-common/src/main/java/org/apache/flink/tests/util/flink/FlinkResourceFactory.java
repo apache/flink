@@ -18,8 +18,6 @@
 
 package org.apache.flink.tests.util.flink;
 
-import java.util.Optional;
-
 /**
  * A factory for {@link FlinkResource} implementations.
  */
@@ -28,10 +26,11 @@ public interface FlinkResourceFactory {
 
 	/**
 	 * Returns a {@link FlinkResource} instance. If the instance could not be instantiated (for example, because a
-	 * mandatory parameter was missing), then an empty {@link Optional} should be returned.
+	 * mandatory parameter was missing), then an exception should be thrown.
 	 *
 	 * @param setup setup instructions for the FlinkResource
-	 * @return FlinkResource instance, or an empty Optional if the instance could not be instantiated
+	 * @return FlinkResource instance,
+	 * @throws Exception if the instance could not be instantiated
 	 */
-	Optional<FlinkResource> create(FlinkResourceSetup setup);
+	FlinkResource create(FlinkResourceSetup setup) throws Exception;
 }

@@ -82,6 +82,8 @@ abstract class AbstractExactlyOnceSink[T] extends RichSinkFunction[T] with Check
   protected var globalRetractResults: mutable.Map[Int, ArrayBuffer[String]] = _
   protected var globalUpsertResults: mutable.Map[Int, mutable.Map[String, String]] = _
 
+  def isInitialized: Boolean = globalResults != null
+
   override def initializeState(context: FunctionInitializationContext): Unit = {
     resultsState = context.getOperatorStateStore
       .getListState(new ListStateDescriptor[String]("sink-results", Types.STRING))

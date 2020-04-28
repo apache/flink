@@ -58,6 +58,12 @@ under the License.
 			<artifactId>okhttp</artifactId>
 			<version>3.7.0</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -80,16 +86,6 @@ under the License.
 								</includes>
 							</artifactSet>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-							<relocations combine.children="append">
-								<relocation>
-									<pattern>okhttp3</pattern>
-									<shadedPattern>org.apache.flink.shaded.okhttp3</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>okio</pattern>
-									<shadedPattern>org.apache.flink.shaded.okio</shadedPattern>
-								</relocation>
-							</relocations>
 						</configuration>
 					</execution>
 				</executions>

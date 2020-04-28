@@ -42,9 +42,9 @@ import org.apache.flink.table.planner.calcite.SqlExprToRexConverterImpl;
 import org.apache.flink.table.planner.catalog.FunctionCatalogOperatorTable;
 import org.apache.flink.table.planner.codegen.ExpressionReducer;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.hint.FlinkHintStrategies;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory;
-import org.apache.flink.table.planner.plan.schema.ExpandingPreparingTable;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 
@@ -54,11 +54,8 @@ import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitDef;
-import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
-import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexBuilder;
@@ -159,38 +156,17 @@ public class PlannerContext {
 	 * @return configured rel builder
 	 */
 	public FlinkRelBuilder createRelBuilder(String currentCatalog, String currentDatabase) {
-		FlinkCalciteCatalogReader relOptSchema = createCatalogReader(false, currentCatalog, currentDatabase);
+		FlinkCalciteCatalogReader relOptSchema = createCatalogReader(
+				false,
+				currentCatalog,
+				currentDatabase);
 
-		Context chain = Contexts.chain(
+		Context chain = Contexts.of(
 			context,
-			// We need to overwrite the default scan factory, which does not
-			// expand views. The expandingScanFactory uses the FlinkPlanner to translate a view
-			// into a rel tree, before applying any subsequent rules.
-			Contexts.of(expandingScanFactory(
-					createFlinkPlanner(currentCatalog, currentDatabase).createToRelContext()))
+			// Sets up the ViewExpander explicitly for FlinkRelBuilder.
+			createFlinkPlanner(currentCatalog, currentDatabase).createToRelContext()
 		);
 		return new FlinkRelBuilder(chain, cluster, relOptSchema);
-	}
-
-	/**
-	 * Creates a {@link RelFactories.TableScanFactory} that uses a
-	 * {@link org.apache.calcite.plan.RelOptTable.ViewExpander} to handle
-	 * {@link ExpandingPreparingTable} instances, and falls back to a default
-	 * factory for other tables.
-	 *
-	 * @param viewExpander View expander
-	 * @return Table scan factory
-	 */
-	private static RelFactories.TableScanFactory expandingScanFactory(
-			RelOptTable.ViewExpander viewExpander) {
-		return (cluster, table) -> {
-			if (table instanceof ExpandingPreparingTable) {
-				final RelOptTable.ToRelContext toRelContext =
-					ViewExpanders.toRelContext(viewExpander, cluster);
-				return table.toRel(toRelContext);
-			}
-			return RelFactories.DEFAULT_TABLE_SCAN_FACTORY.createScan(cluster, table);
-		};
 	}
 
 	/**
@@ -293,7 +269,7 @@ public class PlannerContext {
 		return JavaScalaConversionUtil.toJava(calciteConfig.getSqlToRelConverterConfig()).orElseGet(
 				() -> SqlToRelConverter.configBuilder()
 						.withTrimUnusedFields(false)
-						.withConvertTableAccess(true)
+						.withHintStrategyTable(FlinkHintStrategies.createHintStrategyTable())
 						.withInSubQueryThreshold(Integer.MAX_VALUE)
 						.withExpand(false)
 						.withRelBuilderFactory(FlinkRelFactories.FLINK_REL_BUILDER())

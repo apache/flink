@@ -58,16 +58,16 @@ object FlinkRelOptUtil {
     * @param rel                the RelNode to convert
     * @param detailLevel        detailLevel defines detail levels for EXPLAIN PLAN.
     * @param withIdPrefix       whether including ID of RelNode as prefix
-    * @param withRetractTraits  whether including Retraction Traits of RelNode (only apply to
-    * StreamPhysicalRel node at present)
+    * @param withChangelogTraits  whether including changelog traits of RelNode (only applied to
+    *                             StreamPhysicalRel node at present)
     * @param withRowType        whether including output rowType
     * @return explain plan of RelNode
     */
   def toString(
       rel: RelNode,
-      detailLevel: SqlExplainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
+      detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
       withIdPrefix: Boolean = false,
-      withRetractTraits: Boolean = false,
+      withChangelogTraits: Boolean = false,
       withRowType: Boolean = false): String = {
     if (rel == null) {
       return null
@@ -77,7 +77,7 @@ object FlinkRelOptUtil {
       new PrintWriter(sw),
       detailLevel,
       withIdPrefix,
-      withRetractTraits,
+      withChangelogTraits,
       withRowType,
       withTreeStyle = true)
     rel.explain(planWriter)
@@ -134,7 +134,7 @@ object FlinkRelOptUtil {
       // ignore id, only contains RelNode's attributes
       withIdPrefix = false,
       // add retraction traits to digest for StreamPhysicalRel node
-      withRetractTraits = true,
+      withChangelogTraits = true,
       // add row type to digest to avoid corner case that similar
       // expressions have different types
       withRowType = true,

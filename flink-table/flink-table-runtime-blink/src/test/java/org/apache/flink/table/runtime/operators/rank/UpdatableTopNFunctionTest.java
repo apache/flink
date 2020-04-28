@@ -27,8 +27,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /**
  * Tests for {@link UpdatableTopNFunction}.
@@ -36,11 +37,23 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.retractRecor
 public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 
 	@Override
-	protected AbstractTopNFunction createFunction(RankType rankType, RankRange rankRange,
-			boolean generateRetraction, boolean outputRankNumber) {
-		return new UpdatableTopNFunction(minTime.toMilliseconds(), maxTime.toMilliseconds(), inputRowType, rowKeySelector,
-				sortKeyComparator, sortKeySelector, rankType, rankRange, generateRetraction, outputRankNumber,
-				cacheSize);
+	protected AbstractTopNFunction createFunction(
+			RankType rankType,
+			RankRange rankRange,
+			boolean generateUpdateBefore,
+			boolean outputRankNumber) {
+		return new UpdatableTopNFunction(
+			minTime.toMilliseconds(),
+			maxTime.toMilliseconds(),
+			inputRowType,
+			rowKeySelector,
+			sortKeyComparator,
+			sortKeySelector,
+			rankType,
+			rankRange,
+			generateUpdateBefore,
+			outputRankNumber,
+			cacheSize);
 	}
 
 	@Test
@@ -49,24 +62,24 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 				new VariableRankRange(1), true, false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
-		testHarness.processElement(record("book", 2L, 19));
-		testHarness.processElement(record("book", 2L, 18));
-		testHarness.processElement(record("fruit", 1L, 44));
-		testHarness.processElement(record("fruit", 1L, 33));
-		testHarness.processElement(record("fruit", 1L, 22));
+		testHarness.processElement(insertRecord("book", 2L, 19));
+		testHarness.processElement(updateAfterRecord("book", 2L, 18));
+		testHarness.processElement(insertRecord("fruit", 1L, 44));
+		testHarness.processElement(updateAfterRecord("fruit", 1L, 33));
+		testHarness.processElement(updateAfterRecord("fruit", 1L, 22));
 		testHarness.close();
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record("book", 2L, 19));
-		expectedOutput.add(retractRecord("book", 2L, 19));
-		expectedOutput.add(record("book", 2L, 18));
-		expectedOutput.add(record("fruit", 1L, 44));
-		expectedOutput.add(retractRecord("fruit", 1L, 44));
-		expectedOutput.add(record("fruit", 1L, 33));
-		expectedOutput.add(retractRecord("fruit", 1L, 33));
-		expectedOutput.add(record("fruit", 1L, 22));
+		expectedOutput.add(insertRecord("book", 2L, 19));
+		expectedOutput.add(updateBeforeRecord("book", 2L, 19));
+		expectedOutput.add(updateAfterRecord("book", 2L, 18));
+		expectedOutput.add(insertRecord("fruit", 1L, 44));
+		expectedOutput.add(updateBeforeRecord("fruit", 1L, 44));
+		expectedOutput.add(updateAfterRecord("fruit", 1L, 33));
+		expectedOutput.add(updateBeforeRecord("fruit", 1L, 33));
+		expectedOutput.add(updateAfterRecord("fruit", 1L, 22));
 		assertorWithoutRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Override
@@ -76,27 +89,27 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 				new VariableRankRange(1), true, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
-		testHarness.processElement(record("book", 2L, 19));
-		testHarness.processElement(record("book", 2L, 12));
-		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("fruit", 1L, 44));
-		testHarness.processElement(record("fruit", 1L, 33));
-		testHarness.processElement(record("fruit", 1L, 22));
+		testHarness.processElement(insertRecord("book", 2L, 19));
+		testHarness.processElement(updateAfterRecord("book", 2L, 12));
+		testHarness.processElement(updateAfterRecord("book", 2L, 11));
+		testHarness.processElement(insertRecord("fruit", 1L, 44));
+		testHarness.processElement(updateAfterRecord("fruit", 1L, 33));
+		testHarness.processElement(updateAfterRecord("fruit", 1L, 22));
 		testHarness.close();
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record("book", 2L, 19, 1L));
-		expectedOutput.add(retractRecord("book", 2L, 19, 1L));
-		expectedOutput.add(record("book", 2L, 12, 1L));
-		expectedOutput.add(retractRecord("book", 2L, 12, 1L));
-		expectedOutput.add(record("book", 2L, 11, 1L));
-		expectedOutput.add(record("fruit", 1L, 44, 1L));
-		expectedOutput.add(retractRecord("fruit", 1L, 44, 1L));
-		expectedOutput.add(record("fruit", 1L, 33, 1L));
-		expectedOutput.add(retractRecord("fruit", 1L, 33, 1L));
-		expectedOutput.add(record("fruit", 1L, 22, 1L));
+		expectedOutput.add(insertRecord("book", 2L, 19, 1L));
+		expectedOutput.add(updateBeforeRecord("book", 2L, 19, 1L));
+		expectedOutput.add(updateAfterRecord("book", 2L, 12, 1L));
+		expectedOutput.add(updateBeforeRecord("book", 2L, 12, 1L));
+		expectedOutput.add(updateAfterRecord("book", 2L, 11, 1L));
+		expectedOutput.add(insertRecord("fruit", 1L, 44, 1L));
+		expectedOutput.add(updateBeforeRecord("fruit", 1L, 44, 1L));
+		expectedOutput.add(updateAfterRecord("fruit", 1L, 33, 1L));
+		expectedOutput.add(updateBeforeRecord("fruit", 1L, 33, 1L));
+		expectedOutput.add(updateAfterRecord("fruit", 1L, 22, 1L));
 		assertorWithRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -105,66 +118,78 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 				new ConstantRankRange(1, 2), true, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
-		testHarness.processElement(record("book", 2L, 19));
-		testHarness.processElement(record("book", 3L, 16));
-		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("book", 3L, 15));
-		testHarness.processElement(record("book", 4L, 2));
-		testHarness.processElement(record("book", 2L, 1));
+		testHarness.processElement(insertRecord("book", 2L, 19));
+		testHarness.processElement(insertRecord("book", 3L, 16));
+		testHarness.processElement(updateAfterRecord("book", 2L, 11));
+		testHarness.processElement(updateAfterRecord("book", 3L, 15));
+		testHarness.processElement(insertRecord("book", 4L, 2));
+		testHarness.processElement(updateAfterRecord("book", 2L, 1));
 		testHarness.close();
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record("book", 2L, 19, 1L));
-		expectedOutput.add(retractRecord("book", 2L, 19, 1L));
-		expectedOutput.add(record("book", 2L, 19, 2L));
-		expectedOutput.add(record("book", 3L, 16, 1L));
-		expectedOutput.add(retractRecord("book", 3L, 16, 1L));
-		expectedOutput.add(record("book", 3L, 16, 2L));
-		expectedOutput.add(retractRecord("book", 2L, 19, 2L));
-		expectedOutput.add(record("book", 2L, 11, 1L));
-		expectedOutput.add(retractRecord("book", 3L, 16, 2L));
-		expectedOutput.add(record("book", 3L, 15, 2L));
-		expectedOutput.add(retractRecord("book", 3L, 15, 2L));
-		expectedOutput.add(retractRecord("book", 2L, 11, 1L));
-		expectedOutput.add(record("book", 2L, 11, 2L));
-		expectedOutput.add(record("book", 4L, 2, 1L));
-		expectedOutput.add(retractRecord("book", 2L, 11, 2L));
-		expectedOutput.add(retractRecord("book", 4L, 2, 1L));
-		expectedOutput.add(record("book", 2L, 1, 1L));
-		expectedOutput.add(record("book", 4L, 2, 2L));
+		// ("book", 2L, 19)
+		expectedOutput.add(insertRecord("book", 2L, 19, 1L));
+		// ("book", 3L, 16)
+		expectedOutput.add(updateBeforeRecord("book", 2L, 19, 1L));
+		expectedOutput.add(updateAfterRecord("book", 3L, 16, 1L));
+		expectedOutput.add(insertRecord("book", 2L, 19, 2L));
+		// U ("book", 2L, 11)
+		expectedOutput.add(updateBeforeRecord("book", 3L, 16, 1L));
+		expectedOutput.add(updateAfterRecord("book", 2L, 11, 1L));
+		expectedOutput.add(updateBeforeRecord("book", 2L, 19, 2L));
+		expectedOutput.add(updateAfterRecord("book", 3L, 16, 2L));
+		// U ("book", 3L, 15)
+		expectedOutput.add(updateBeforeRecord("book", 3L, 16, 2L));
+		expectedOutput.add(updateAfterRecord("book", 3L, 15, 2L));
+		// ("book", 4L, 2)
+		expectedOutput.add(updateBeforeRecord("book", 2L, 11, 1L));
+		expectedOutput.add(updateAfterRecord("book", 4L, 2, 1L));
+		expectedOutput.add(updateBeforeRecord("book", 3L, 15, 2L));
+		expectedOutput.add(updateAfterRecord("book", 2L, 11, 2L));
+		// U ("book", 2L, 1)
+		expectedOutput.add(updateBeforeRecord("book", 4L, 2, 1L));
+		expectedOutput.add(updateAfterRecord("book", 2L, 1, 1L));
+		expectedOutput.add(updateBeforeRecord("book", 2L, 11, 2L));
+		expectedOutput.add(updateAfterRecord("book", 4L, 2, 2L));
 
 		assertorWithRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
-	public void testSortKeyChangesWhenOutputRankNumberAndNotGenerateRetraction() throws Exception {
+	public void testSortKeyChangesWhenOutputRankNumberAndNotGenerateUpdateBefore() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), false, true);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
-		testHarness.processElement(record("book", 2L, 19));
-		testHarness.processElement(record("book", 3L, 16));
-		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("book", 3L, 15));
-		testHarness.processElement(record("book", 4L, 2));
-		testHarness.processElement(record("book", 2L, 1));
+		testHarness.processElement(insertRecord("book", 2L, 19));
+		testHarness.processElement(insertRecord("book", 3L, 16));
+		testHarness.processElement(updateAfterRecord("book", 2L, 11));
+		testHarness.processElement(updateAfterRecord("book", 3L, 15));
+		testHarness.processElement(insertRecord("book", 4L, 2));
+		testHarness.processElement(updateAfterRecord("book", 2L, 1));
 		testHarness.close();
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record("book", 2L, 19, 1L));
-		expectedOutput.add(record("book", 2L, 19, 2L));
-		expectedOutput.add(record("book", 3L, 16, 1L));
-		expectedOutput.add(record("book", 3L, 16, 2L));
-		expectedOutput.add(record("book", 2L, 11, 1L));
-		expectedOutput.add(record("book", 3L, 15, 2L));
-		expectedOutput.add(record("book", 2L, 11, 2L));
-		expectedOutput.add(record("book", 4L, 2, 1L));
-		expectedOutput.add(record("book", 2L, 1, 1L));
-		expectedOutput.add(record("book", 4L, 2, 2L));
+		// ("book", 2L, 19)
+		expectedOutput.add(insertRecord("book", 2L, 19, 1L));
+		// ("book", 3L, 16)
+		expectedOutput.add(updateAfterRecord("book", 3L, 16, 1L));
+		expectedOutput.add(insertRecord("book", 2L, 19, 2L));
+		// U ("book", 2L, 11)
+		expectedOutput.add(updateAfterRecord("book", 2L, 11, 1L));
+		expectedOutput.add(updateAfterRecord("book", 3L, 16, 2L));
+		// U ("book", 3L, 15)
+		expectedOutput.add(updateAfterRecord("book", 3L, 15, 2L));
+		// ("book", 4L, 2)
+		expectedOutput.add(updateAfterRecord("book", 4L, 2, 1L));
+		expectedOutput.add(updateAfterRecord("book", 2L, 11, 2L));
+		// U ("book", 2L, 1)
+		expectedOutput.add(updateAfterRecord("book", 2L, 1, 1L));
+		expectedOutput.add(updateAfterRecord("book", 4L, 2, 2L));
 
 		assertorWithRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -173,54 +198,54 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 				new ConstantRankRange(1, 2), true, false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
-		testHarness.processElement(record("book", 2L, 19));
-		testHarness.processElement(record("book", 3L, 16));
-		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("book", 3L, 15));
-		testHarness.processElement(record("book", 4L, 2));
-		testHarness.processElement(record("book", 2L, 1));
+		testHarness.processElement(insertRecord("book", 2L, 19));
+		testHarness.processElement(insertRecord("book", 3L, 16));
+		testHarness.processElement(updateAfterRecord("book", 2L, 11));
+		testHarness.processElement(updateAfterRecord("book", 3L, 15));
+		testHarness.processElement(insertRecord("book", 4L, 2));
+		testHarness.processElement(updateAfterRecord("book", 2L, 1));
 		testHarness.close();
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record("book", 2L, 19));
-		expectedOutput.add(record("book", 3L, 16));
-		expectedOutput.add(retractRecord("book", 2L, 19));
-		expectedOutput.add(record("book", 2L, 11));
-		expectedOutput.add(retractRecord("book", 3L, 16));
-		expectedOutput.add(record("book", 3L, 15));
-		expectedOutput.add(record("book", 4L, 2));
-		expectedOutput.add(retractRecord("book", 3L, 15));
-		expectedOutput.add(record("book", 2L, 1));
-		expectedOutput.add(retractRecord("book", 2L, 11));
+		expectedOutput.add(insertRecord("book", 2L, 19));
+		expectedOutput.add(insertRecord("book", 3L, 16));
+		expectedOutput.add(updateBeforeRecord("book", 2L, 19));
+		expectedOutput.add(updateAfterRecord("book", 2L, 11));
+		expectedOutput.add(updateBeforeRecord("book", 3L, 16));
+		expectedOutput.add(updateAfterRecord("book", 3L, 15));
+		expectedOutput.add(deleteRecord("book", 3L, 15));
+		expectedOutput.add(insertRecord("book", 4L, 2));
+		expectedOutput.add(updateBeforeRecord("book", 2L, 11));
+		expectedOutput.add(updateAfterRecord("book", 2L, 1));
 
 		assertorWithRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
-	public void testSortKeyChangesWhenNotOutputRankNumberAndNotGenerateRetraction() throws Exception {
+	public void testSortKeyChangesWhenNotOutputRankNumberAndNotGenerateUpdateBefore() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), false, false);
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
 		testHarness.open();
-		testHarness.processElement(record("book", 2L, 19));
-		testHarness.processElement(record("book", 3L, 16));
-		testHarness.processElement(record("book", 2L, 11));
-		testHarness.processElement(record("book", 3L, 15));
-		testHarness.processElement(record("book", 4L, 2));
-		testHarness.processElement(record("book", 2L, 1));
+		testHarness.processElement(insertRecord("book", 2L, 19));
+		testHarness.processElement(insertRecord("book", 3L, 16));
+		testHarness.processElement(updateAfterRecord("book", 2L, 11));
+		testHarness.processElement(updateAfterRecord("book", 3L, 15));
+		testHarness.processElement(insertRecord("book", 4L, 2));
+		testHarness.processElement(updateAfterRecord("book", 2L, 1));
 		testHarness.close();
 
 		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(record("book", 2L, 19));
-		expectedOutput.add(record("book", 3L, 16));
-		expectedOutput.add(record("book", 2L, 11));
-		expectedOutput.add(record("book", 3L, 15));
-		expectedOutput.add(record("book", 4L, 2));
+		expectedOutput.add(insertRecord("book", 2L, 19));
+		expectedOutput.add(insertRecord("book", 3L, 16));
+		expectedOutput.add(updateAfterRecord("book", 2L, 11));
+		expectedOutput.add(updateAfterRecord("book", 3L, 15));
 		expectedOutput.add(deleteRecord("book", 3L, 15));
-		expectedOutput.add(record("book", 2L, 1));
+		expectedOutput.add(insertRecord("book", 4L, 2));
+		expectedOutput.add(updateAfterRecord("book", 2L, 1));
 
 		assertorWithRowNumber
-				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+				.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 }

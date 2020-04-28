@@ -164,17 +164,16 @@ class Params(Generic[V]):
         import jsonpickle
         return str(jsonpickle.encode(self._param_map, keys=True))
 
-    def load_json(self, json: str) -> 'Params':
+    def load_json(self, json: str) -> None:
         """
         Restores the parameters from the given json. The parameters should be exactly
         the same with the one who was serialized to the input json after the restoration.
 
         :param json: the json String to restore from.
-        :return: the Params.
+        :return: None.
         """
         import jsonpickle
         self._param_map.update(jsonpickle.decode(json, keys=True))
-        return self
 
     @staticmethod
     def from_json(json) -> 'Params':
@@ -184,7 +183,9 @@ class Params(Generic[V]):
         :param json: the json string to load.
         :return: the `Params` loaded from the json string.
         """
-        return Params().load_json(json)
+        ret = Params()
+        ret.load_json(json)
+        return ret
 
     def merge(self, other_params: 'Params') -> 'Params':
         """

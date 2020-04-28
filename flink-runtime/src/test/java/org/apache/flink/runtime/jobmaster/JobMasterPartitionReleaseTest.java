@@ -43,7 +43,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
@@ -186,7 +186,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
 		private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-		private final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+		private final LocalUnresolvedTaskManagerLocation localTaskManagerUnresolvedLocation = new LocalUnresolvedTaskManagerLocation();
 
 		private final CompletableFuture<ResourceID> taskExecutorIdForStopTracking = new CompletableFuture<>();
 		private final CompletableFuture<ResourceID> taskExecutorIdForPartitionRelease = new CompletableFuture<>();
@@ -248,12 +248,12 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
 			rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
-			jobMasterGateway.registerTaskManager(taskExecutorGateway.getAddress(), taskManagerLocation, testingTimeout).get();
+			jobMasterGateway.registerTaskManager(taskExecutorGateway.getAddress(), localTaskManagerUnresolvedLocation, testingTimeout).get();
 
 			final AllocationID allocationId = resourceManagerGateway.takeAllocationId();
 			Collection<SlotOffer> slotOffers = Collections.singleton(new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN));
 
-			jobMasterGateway.offerSlots(taskManagerLocation.getResourceID(), slotOffers, testingTimeout).get();
+			jobMasterGateway.offerSlots(localTaskManagerUnresolvedLocation.getResourceID(), slotOffers, testingTimeout).get();
 		}
 
 		public JobMasterGateway getJobMasterGateway() {
@@ -261,7 +261,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 		}
 
 		public ResourceID getTaskExecutorResourceID() {
-			return taskManagerLocation.getResourceID();
+			return localTaskManagerUnresolvedLocation.getResourceID();
 		}
 
 		public CompletableFuture<ResourceID> getStopTrackingPartitionsTargetResourceId() {

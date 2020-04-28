@@ -26,6 +26,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow, JoinedRow}
+import org.apache.flink.table.functions.FunctionKind
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
@@ -36,6 +37,8 @@ import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.runtime.util.StreamRecordCollector
 import org.apache.flink.table.types.logical.RowType
+
+import org.apache.calcite.sql.SqlKind
 
 import scala.collection.JavaConversions._
 
@@ -65,9 +68,11 @@ object CorrelateCodeGenerator {
 
     // according to the SQL standard, every scalar function should also be a table function
     // but we don't allow that for now
-    if (!rexCall.getOperator.isInstanceOf[BridgingSqlFunction] &&
-        !rexCall.getOperator.isInstanceOf[TableSqlFunction]) {
-      throw new ValidationException("Currently, only table functions can emit rows.")
+    rexCall.getOperator match {
+      case func: BridgingSqlFunction if func.getDefinition.getKind == FunctionKind.TABLE => // ok
+      case _: TableSqlFunction => // ok
+      case _ =>
+        throw new ValidationException("Currently, only table functions can emit rows.")
     }
 
     val swallowInputOnly = if (projectProgram.isDefined) {
@@ -176,7 +181,7 @@ object CorrelateCodeGenerator {
         ctx.addReusableOutputRecord(functionResultType, classOf[GenericRow], nullRowTerm)
         ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
         val header = if (retainHeader) {
-          s"$nullRowTerm.setHeader(${exprGenerator.input1Term}.getHeader());"
+          s"$nullRowTerm.setRowKind(${exprGenerator.input1Term}.getRowKind());"
         } else {
           ""
         }
@@ -194,7 +199,7 @@ object CorrelateCodeGenerator {
         ctx.addReusableOutputRecord(returnType, classOf[GenericRow], outputTerm)
 
         val header = if (retainHeader) {
-          s"$outputTerm.setHeader(${CodeGenUtils.DEFAULT_INPUT1_TERM}.getHeader());"
+          s"$outputTerm.setRowKind(${CodeGenUtils.DEFAULT_INPUT1_TERM}.getRowKind());"
         } else {
           ""
         }
@@ -227,7 +232,7 @@ object CorrelateCodeGenerator {
         ctx.addReusableOutputRecord(returnType, classOf[JoinedRow], joinedRowTerm)
         ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
         val header = if (retainHeader) {
-          s"$joinedRowTerm.setHeader(${exprGenerator.input1Term}.getHeader());"
+          s"$joinedRowTerm.setRowKind(${exprGenerator.input1Term}.getRowKind());"
         } else {
           ""
         }
@@ -306,7 +311,7 @@ object CorrelateCodeGenerator {
       if (swallowInputOnly) {
         // output right only
         val header = if (retainHeader) {
-          s"$udtfInputTerm.setHeader($inputTerm.getHeader());"
+          s"$udtfInputTerm.setRowKind($inputTerm.getRowKind());"
         } else {
           ""
         }
@@ -319,7 +324,7 @@ object CorrelateCodeGenerator {
         collectorCtx.addReusableOutputRecord(resultType, classOf[GenericRow], outputTerm)
 
         val header = if (retainHeader) {
-          s"$outputTerm.setHeader($inputTerm.getHeader());"
+          s"$outputTerm.setRowKind($inputTerm.getRowKind());"
         } else {
           ""
         }
@@ -345,7 +350,7 @@ object CorrelateCodeGenerator {
       collectorCtx.addReusableOutputRecord(resultType, classOf[JoinedRow], joinedRowTerm)
 
       val header = if (retainHeader) {
-        s"$joinedRowTerm.setHeader($inputTerm.getHeader());"
+        s"$joinedRowTerm.setRowKind($inputTerm.getRowKind());"
       } else {
         ""
       }

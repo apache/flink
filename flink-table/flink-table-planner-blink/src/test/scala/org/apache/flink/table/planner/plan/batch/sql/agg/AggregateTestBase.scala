@@ -199,5 +199,14 @@ abstract class AggregateTestBase extends TableTestBase {
     util.verifyPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
   }
 
+  @Test
+  def testGroupByWithConstantKey(): Unit = {
+    val sql =
+      """
+        |SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM MyTable1) t GROUP BY a, c
+      """.stripMargin
+    util.verifyPlan(sql)
+  }
+
   // TODO supports group sets
 }

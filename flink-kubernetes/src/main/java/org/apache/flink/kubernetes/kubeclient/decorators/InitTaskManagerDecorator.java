@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesToleration;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
@@ -55,9 +56,14 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 			.editOrNewMetadata()
 				.withName(kubernetesTaskManagerParameters.getPodName())
 				.withLabels(kubernetesTaskManagerParameters.getLabels())
+				.withAnnotations(kubernetesTaskManagerParameters.getAnnotations())
 				.endMetadata()
 			.editOrNewSpec()
 				.withImagePullSecrets(kubernetesTaskManagerParameters.getImagePullSecrets())
+				.withNodeSelector(kubernetesTaskManagerParameters.getNodeSelector())
+				.withTolerations(kubernetesTaskManagerParameters.getTolerations().stream()
+					.map(e -> KubernetesToleration.fromMap(e).getInternalResource())
+					.collect(Collectors.toList()))
 				.endSpec()
 			.build();
 
@@ -77,11 +83,12 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 		return new ContainerBuilder(container)
 				.withName(kubernetesTaskManagerParameters.getTaskManagerMainContainerName())
 				.withImage(kubernetesTaskManagerParameters.getImage())
-				.withImagePullPolicy(kubernetesTaskManagerParameters.getImagePullPolicy())
+				.withImagePullPolicy(kubernetesTaskManagerParameters.getImagePullPolicy().name())
 				.withResources(resourceRequirements)
 				.withPorts(new ContainerPortBuilder()
-						.withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
-						.build())
+					.withName(Constants.TASK_MANAGER_RPC_PORT_NAME)
+					.withContainerPort(kubernetesTaskManagerParameters.getRPCPort())
+					.build())
 				.withEnv(getCustomizedEnvs())
 				.addNewEnv()
 					.withName(ENV_FLINK_POD_NAME)

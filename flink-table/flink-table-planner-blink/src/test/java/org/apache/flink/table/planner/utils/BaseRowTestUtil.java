@@ -62,14 +62,16 @@ public class BaseRowTestUtil {
 	private static String genericRowToString(GenericRow row, TimeZone tz, boolean withHeader) {
 		StringBuilder sb = new StringBuilder();
 		if (withHeader) {
-			sb.append(row.getHeader()).append("|");
+			sb.append(row.getRowKind().shortString());
 		}
+		sb.append("(");
 		for (int i = 0; i < row.getArity(); i++) {
 			if (i > 0) {
 				sb.append(",");
 			}
 			sb.append(fieldToString(row.getField(i), tz));
 		}
+		sb.append(")");
 		return sb.toString();
 	}
 
@@ -83,7 +85,7 @@ public class BaseRowTestUtil {
 		} else {
 			int fieldNum = baseRow.getArity();
 			GenericRow row = new GenericRow(fieldNum);
-			row.setHeader(baseRow.getHeader());
+			row.setRowKind(baseRow.getRowKind());
 			for (int i = 0; i < fieldNum; i++) {
 				if (baseRow.isNullAt(i)) {
 					row.setField(i, null);

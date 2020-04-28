@@ -33,12 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -50,29 +45,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class KubernetesUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KubernetesUtils.class);
-
-	/**
-	 * Read file content to string.
-	 *
-	 * @param filePath file path
-	 * @return content
-	 */
-	public static String getContentFromFile(String filePath) throws FileNotFoundException {
-		File file = new File(filePath);
-		if (file.exists()) {
-			StringBuilder content = new StringBuilder();
-			String line;
-			try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))){
-				while ((line = reader.readLine()) != null) {
-					content.append(line).append(System.lineSeparator());
-				}
-			} catch (IOException e) {
-				throw new RuntimeException("Error read file content.", e);
-			}
-			return content.toString();
-		}
-		throw new FileNotFoundException("File " + filePath + " not exists.");
-	}
 
 	/**
 	 * Check whether the port config option is a fixed port. If not, the fallback port will be set to configuration.
@@ -143,7 +115,7 @@ public class KubernetesUtils {
 		labels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
 		labels.put(Constants.LABEL_APP_KEY, clusterId);
 		labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
-		return labels;
+		return Collections.unmodifiableMap(labels);
 	}
 
 	/**

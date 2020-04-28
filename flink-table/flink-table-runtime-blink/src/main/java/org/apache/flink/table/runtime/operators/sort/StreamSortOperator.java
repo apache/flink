@@ -37,6 +37,7 @@ import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
+import org.apache.flink.types.RowKind;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,7 +96,7 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 	public void processElement(StreamRecord<BaseRow> element) throws Exception {
 		BaseRow originalInput = element.getValue();
 		BinaryRow input = baseRowSerializer.toBinaryRow(originalInput).copy();
-		BaseRowUtil.setAccumulate(input);
+		input.setRowKind(RowKind.INSERT); // erase RowKind for state updating
 		long count = inputBuffer.getOrDefault(input, 0L);
 		if (BaseRowUtil.isAccumulateMsg(originalInput)) {
 			inputBuffer.put(input, count + 1);

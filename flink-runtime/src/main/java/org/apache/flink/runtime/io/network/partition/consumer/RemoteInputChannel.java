@@ -25,9 +25,11 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
@@ -108,6 +110,13 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	/** Global memory segment provider to request and recycle exclusive buffers (only for credit-based). */
 	@Nonnull
 	private final MemorySegmentProvider memorySegmentProvider;
+
+	/** The latest already triggered checkpoint id which would be updated during {@link #requestInflightBuffers(long)}.*/
+	@GuardedBy("receivedBuffers")
+	private long lastRequestedCheckpointId = -1;
+
+	/** The current received checkpoint id from the network. */
+	private long receivedCheckpointId = -1;
 
 	public RemoteInputChannel(
 		SingleInputGate inputGate,
@@ -204,6 +213,28 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		numBytesIn.inc(next.getSize());
 		numBuffersIn.inc();
 		return Optional.of(new BufferAndAvailability(next, moreAvailable, getSenderBacklog()));
+	}
+
+	@Override
+	public List<Buffer> requestInflightBuffers(long checkpointId) throws IOException {
+		synchronized (receivedBuffers) {
+			checkState(checkpointId > lastRequestedCheckpointId, "Need to request the next checkpointId");
+
+			final List<Buffer> inflightBuffers = new ArrayList<>(receivedBuffers.size());
+			for (Buffer buffer : receivedBuffers) {
+				CheckpointBarrier checkpointBarrier = parseCheckpointBarrierOrNull(buffer);
+				if (checkpointBarrier != null && checkpointBarrier.getId() >= checkpointId) {
+					break;
+				}
+				if (buffer.isBuffer()) {
+					inflightBuffers.add(buffer.retainBuffer());
+				}
+			}
+
+			lastRequestedCheckpointId = checkpointId;
+
+			return inflightBuffers;
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -397,6 +428,16 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		// Nothing to do actually.
 	}
 
+	@Override
+	public void resumeConsumption() {
+		checkState(!isReleased.get(), "Channel released.");
+		checkState(partitionRequestClient != null, "Trying to send event to producer before requesting a queue.");
+
+		// notifies the producer that this channel is ready to
+		// unblock from checkpoint and resume data consumption
+		partitionRequestClient.resumeConsumption(this);
+	}
+
 	// ------------------------------------------------------------------------
 	// Network I/O notifications (called by network I/O thread)
 	// ------------------------------------------------------------------------
@@ -513,8 +554,15 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		boolean recycleBuffer = true;
 
 		try {
+			if (expectedSequenceNumber != sequenceNumber) {
+				onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
+				return;
+			}
 
 			final boolean wasEmpty;
+			final CheckpointBarrier notifyReceivedBarrier;
+			final Buffer notifyReceivedBuffer;
+			final BufferReceivedListener listener = inputGate.getBufferReceivedListener();
 			synchronized (receivedBuffers) {
 				// Similar to notifyBufferAvailable(), make sure that we never add a buffer
 				// after releaseAllResources() released all buffers from receivedBuffers
@@ -523,15 +571,17 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 					return;
 				}
 
-				if (expectedSequenceNumber != sequenceNumber) {
-					onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
-					return;
-				}
-
 				wasEmpty = receivedBuffers.isEmpty();
 				receivedBuffers.add(buffer);
-				recycleBuffer = false;
+
+				if (listener != null && buffer.isBuffer() && receivedCheckpointId < lastRequestedCheckpointId) {
+					notifyReceivedBuffer = buffer.retainBuffer();
+				} else {
+					notifyReceivedBuffer = null;
+				}
+				notifyReceivedBarrier = listener != null ? parseCheckpointBarrierOrNull(buffer) : null;
 			}
+			recycleBuffer = false;
 
 			++expectedSequenceNumber;
 
@@ -541,6 +591,13 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 			if (backlog >= 0) {
 				onSenderBacklog(backlog);
+			}
+
+			if (notifyReceivedBarrier != null) {
+				receivedCheckpointId = notifyReceivedBarrier.getId();
+				listener.notifyBarrierReceived(notifyReceivedBarrier, channelInfo);
+			} else if (notifyReceivedBuffer != null) {
+				listener.notifyBufferReceived(notifyReceivedBuffer, channelInfo);
 			}
 		} finally {
 			if (recycleBuffer) {
