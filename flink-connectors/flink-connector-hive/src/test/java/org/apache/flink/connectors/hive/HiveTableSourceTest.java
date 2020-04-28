@@ -48,6 +48,8 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
 import org.apache.flink.table.planner.runtime.utils.TestingAppendRowDataSink;
+import org.apache.flink.table.planner.runtime.utils.TestingAppendSink;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -71,6 +73,7 @@ import org.junit.runner.RunWith;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -126,10 +129,10 @@ public class HiveTableSourceTest {
 		final String tblName = "test";
 		hiveShell.execute("CREATE TABLE source_db.test ( a INT, b INT, c STRING, d BIGINT, e DOUBLE)");
 		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
-				.addRow(new Object[]{1, 1, "a", 1000L, 1.11})
-				.addRow(new Object[]{2, 2, "b", 2000L, 2.22})
-				.addRow(new Object[]{3, 3, "c", 3000L, 3.33})
-				.addRow(new Object[]{4, 4, "d", 4000L, 4.44})
+				.addRow(new Object[] { 1, 1, "a", 1000L, 1.11 })
+				.addRow(new Object[] { 2, 2, "b", 2000L, 2.22 })
+				.addRow(new Object[] { 3, 3, "c", 3000L, 3.33 })
+				.addRow(new Object[] { 4, 4, "d", 4000L, 4.44 })
 				.commit();
 
 		TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
@@ -532,6 +535,76 @@ public class HiveTableSourceTest {
 		assertEquals(expected, results);
 		job.cancel();
 		StreamTestSink.clear();
+	}
+
+	@Test(timeout = 30000)
+	public void testNonPartitionStreamingSourceWithMapredReader() throws Exception {
+		testNonPartitionStreamingSource(true, "test_mapred_reader");
+	}
+
+	@Test(timeout = 30000)
+	public void testNonPartitionStreamingSourceWithVectorizedReader() throws Exception {
+		testNonPartitionStreamingSource(false, "test_vectorized_reader");
+	}
+
+	private void testNonPartitionStreamingSource(Boolean useMapredReader, String tblName) throws Exception {
+		final String catalogName = "hive";
+		final String dbName = "source_db";
+		hiveShell.execute("CREATE TABLE source_db." + tblName + " (" +
+				"  a INT," +
+				"  b CHAR(1) " +
+				") stored as parquet TBLPROPERTIES (" +
+				"  'streaming-source.enable'='true'," +
+				"  'streaming-source.monitor-interval'='100ms'" +
+				")");
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
+		tEnv.getConfig().getConfiguration().setBoolean(
+				HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, useMapredReader);
+
+		tEnv.registerCatalog(catalogName, hiveCatalog);
+		Table src = tEnv.sqlQuery("select * from hive.source_db." + tblName);
+
+		TestingAppendSink sink = new TestingAppendSink();
+		tEnv.toAppendStream(src, Row.class).addSink(sink);
+		DataStream<RowData> out = tEnv.toAppendStream(src, RowData.class);
+		out.print(); // add print to see streaming reading
+		final JobClient jobClient = env.executeAsync();
+
+		Runnable runnable = () -> {
+			for (int i = 0; i < 3; ++i) {
+				hiveShell.execute("insert into source_db." + tblName + " values (1,'a'), (2,'b')");
+				try {
+					Thread.sleep(2_000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+					break;
+				}
+			}
+		};
+		Thread thread = new Thread(runnable);
+		thread.setDaemon(true);
+		thread.start();
+		// Waiting for writing test data to finish
+		thread.join();
+		// Wait up to 20 seconds for all data to be processed
+		for (int i = 0; i < 20; ++i) {
+			if (sink.getAppendResults().size() == 6) {
+				break;
+			} else {
+				Thread.sleep(1000);
+			}
+		}
+
+		// check the result
+		List<String> actual = new ArrayList<>(JavaScalaConversionUtil.toJava(sink.getAppendResults()));
+		actual.sort(String::compareTo);
+		List<String> expected = Arrays.asList("1,a", "1,a", "1,a", "2,b", "2,b", "2,b");
+		expected.sort(String::compareTo);
+		assertEquals(expected, actual);
+		// cancel the job
+		jobClient.cancel();
 	}
 
 	private void testSourceConfig(boolean fallbackMR, boolean inferParallelism) throws Exception {
