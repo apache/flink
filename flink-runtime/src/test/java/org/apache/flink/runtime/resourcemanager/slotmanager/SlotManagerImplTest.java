@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -688,8 +687,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
-			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
+		try (SlotManager slotManager = createSlotManagerBuilder()
 			.setSlotRequestTimeout(Time.milliseconds(allocationTimeout))
 			.build()) {
 
@@ -817,8 +815,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final ScheduledExecutor mainThreadExecutor = TestingUtils.defaultScheduledExecutor();
 
-		final SlotManagerImpl slotManager = SlotManagerBuilder
-			.newBuilder()
+		final SlotManagerImpl slotManager = createSlotManagerBuilder()
 			.setScheduledExecutor(mainThreadExecutor)
 			.build();
 
@@ -909,8 +906,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (final SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder()
-			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
+		try (final SlotManagerImpl slotManager = createSlotManagerBuilder()
 			.setTaskManagerTimeout(Time.of(taskManagerTimeout, TimeUnit.MILLISECONDS))
 			.build()) {
 
@@ -978,12 +974,9 @@ public class SlotManagerImplTest extends TestLogger {
 		final SlotStatus slotStatus = createEmptySlotStatus(new SlotID(resourceID, 0), ResourceProfile.fromResources(1.0, 1));
 		final SlotReport initialSlotReport = new SlotReport(slotStatus);
 
-		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder()
-			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
+		try (final SlotManager slotManager = createSlotManagerBuilder()
 			.setTaskManagerTimeout(taskManagerTimeout)
-			.build()) {
-
-			slotManager.start(resourceManagerId, Executors.directExecutor(), resourceActions);
+			.buildAndStartWithDirectExec(resourceManagerId, resourceActions)) {
 
 			slotManager.registerTaskManager(taskExecutorConnection, initialSlotReport);
 
@@ -1013,9 +1006,7 @@ public class SlotManagerImplTest extends TestLogger {
 		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
 		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(taskManagerId, taskExecutorGateway);
 
-		try (final SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder().build()) {
-
-			slotManager.start(ResourceManagerId.generate(), Executors.directExecutor(), resourceActions);
+		try (final SlotManagerImpl slotManager = createSlotManager(ResourceManagerId.generate(), resourceActions)) {
 
 			// initially report a single slot as free
 			final SlotID slotId = new SlotID(taskManagerId, 0);
@@ -1510,13 +1501,9 @@ public class SlotManagerImplTest extends TestLogger {
 	 */
 	@Test
 	public void testSpreadOutSlotAllocationStrategy() throws Exception {
-		try (SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder()
+		try (SlotManagerImpl slotManager = createSlotManagerBuilder()
 			.setSlotMatchingStrategy(LeastUtilizationSlotMatchingStrategy.INSTANCE)
-			.build()) {
-			slotManager.start(
-				ResourceManagerId.generate(),
-				Executors.directExecutor(),
-				new TestingResourceActionsBuilder().build());
+			.buildAndStartWithDirectExec(ResourceManagerId.generate(), new TestingResourceActionsBuilder().build())) {
 
 			final List<CompletableFuture<JobID>> requestSlotFutures = new ArrayList<>();
 
