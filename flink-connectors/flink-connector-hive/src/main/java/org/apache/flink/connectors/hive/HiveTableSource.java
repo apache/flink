@@ -23,13 +23,17 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveContinuousMonitoringFunction;
+import org.apache.flink.connectors.hive.read.HiveTableFileInputFormat;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
 import org.apache.flink.connectors.hive.read.TimestampedHiveInputSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
+import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -77,6 +81,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.filesystem.DefaultPartTimeExtractor.toMills;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
@@ -166,10 +171,10 @@ public class HiveTableSource implements
 
 		if (isStreamingSource()) {
 			if (catalogTable.getPartitionKeys().isEmpty()) {
-				throw new UnsupportedOperationException(
-						"Non-partition table does not support streaming read now.");
+				return createStreamSourceForNonPartitionTable(execEnv, typeInfo, inputFormat, allHivePartitions.get(0));
+			} else {
+				return createStreamSourceForPartitionTable(execEnv, typeInfo, inputFormat);
 			}
-			return createStreamSource(execEnv, typeInfo, inputFormat);
 		} else {
 			return createBatchSource(execEnv, typeInfo, inputFormat);
 		}
@@ -214,15 +219,16 @@ public class HiveTableSource implements
 		return source.name(explainSource());
 	}
 
-	private DataStream<RowData> createStreamSource(
+	private DataStream<RowData> createStreamSourceForPartitionTable(
 			StreamExecutionEnvironment execEnv,
 			TypeInformation<RowData> typeInfo,
 			HiveTableInputFormat inputFormat) {
 		final Map<String, String> properties = catalogTable.getOptions();
 
-		String consumeOrder = properties.getOrDefault(
+		String consumeOrderStr = properties.getOrDefault(
 				STREAMING_SOURCE_CONSUME_ORDER.key(),
 				STREAMING_SOURCE_CONSUME_ORDER.defaultValue());
+		ConsumeOrder consumeOrder = ConsumeOrder.getConsumeOrder(consumeOrderStr);
 		String consumeOffset = properties.getOrDefault(
 				STREAMING_SOURCE_CONSUME_START_OFFSET.key(),
 				STREAMING_SOURCE_CONSUME_START_OFFSET.defaultValue());
@@ -256,6 +262,57 @@ public class HiveTableSource implements
 		String sourceName = "HiveMonitoringFunction";
 		SingleOutputStreamOperator<RowData> source = execEnv
 				.addSource(monitoringFunction, sourceName)
+				.transform("Split Reader: " + sourceName, typeInfo, factory);
+
+		return new DataStreamSource<>(source);
+	}
+
+	private DataStream<RowData> createStreamSourceForNonPartitionTable(
+			StreamExecutionEnvironment execEnv,
+			TypeInformation<RowData> typeInfo,
+			HiveTableInputFormat inputFormat,
+			HiveTablePartition hiveTable) {
+		HiveTableFileInputFormat fileInputFormat = new HiveTableFileInputFormat(
+				inputFormat,
+				hiveTable);
+		fileInputFormat.setFilePath(getFilePath());
+
+		final Map<String, String> properties = catalogTable.getOptions();
+
+		String consumeOrderStr = properties.getOrDefault(
+				STREAMING_SOURCE_CONSUME_ORDER.key(),
+				STREAMING_SOURCE_CONSUME_ORDER.defaultValue());
+		ConsumeOrder consumeOrder = ConsumeOrder.getConsumeOrder(consumeOrderStr);
+		if (consumeOrder != ConsumeOrder.CREATE_TIME_ORDER) {
+			throw new UnsupportedOperationException("Unsupported consumer order: " + consumeOrder);
+		}
+
+		String consumeOffset = properties.getOrDefault(
+				STREAMING_SOURCE_CONSUME_START_OFFSET.key(),
+				STREAMING_SOURCE_CONSUME_START_OFFSET.defaultValue());
+		long currentReadTime = Long.MIN_VALUE;
+		if (consumeOffset != null) {
+			currentReadTime = toMills(consumeOffset);
+		}
+
+		String monitorIntervalStr = properties.get(STREAMING_SOURCE_MONITOR_INTERVAL.key());
+		Duration monitorInterval = monitorIntervalStr != null ?
+				TimeUtils.parseDuration(monitorIntervalStr) :
+				STREAMING_SOURCE_MONITOR_INTERVAL.defaultValue();
+
+		ContinuousFileMonitoringFunction<RowData> monitoringFunction =
+				new ContinuousFileMonitoringFunction<>(
+						fileInputFormat,
+						FileProcessingMode.PROCESS_CONTINUOUSLY,
+						execEnv.getParallelism(),
+						monitorInterval.toMillis(),
+						currentReadTime);
+
+		ContinuousFileReaderOperatorFactory<RowData, TimestampedFileInputSplit> factory =
+				new ContinuousFileReaderOperatorFactory<>(fileInputFormat);
+
+		String sourceName = "HiveFileMonitoringFunction";
+		SingleOutputStreamOperator<RowData> source = execEnv.addSource(monitoringFunction, sourceName)
 				.transform("Split Reader: " + sourceName, typeInfo, factory);
 
 		return new DataStreamSource<>(source);
@@ -423,6 +480,21 @@ public class HiveTableSource implements
 			partitionColValues.put(partitionColName, partitionObject);
 		}
 		return new HiveTablePartition(sd, partitionColValues, tableProps);
+	}
+
+	private String getFilePath() {
+		// Please note that the following directly accesses Hive metastore, which is only a temporary workaround.
+		// Ideally, we need to go thru Catalog API to get all info we need here, which requires some major
+		// refactoring. We will postpone this until we merge Blink to Flink.
+		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory
+				.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
+			String dbName = tablePath.getDatabaseName();
+			String tableName = tablePath.getObjectName();
+			Table hiveTable = client.getTable(dbName, tableName);
+			return hiveTable.getSd().getLocation();
+		} catch (TException e) {
+			throw new FlinkHiveException("Failed to get table from hive metaStore", e);
+		}
 	}
 
 	private static List<String> partitionSpecToValues(Map<String, String> spec, List<String> partitionColNames) {
