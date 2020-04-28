@@ -36,9 +36,9 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
 /**
- * Tests the failover region building logic of the {@link RestartPipelinedRegionFailoverStrategy}.
+ * Unit tests for {@link PipelinedRegionComputeUtil}.
  */
-public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogger {
+public class PipelinedRegionComputeUtilTest extends TestLogger {
 
 	/**
 	 * Tests that validates that a graph with single unconnected vertices works correctly.
