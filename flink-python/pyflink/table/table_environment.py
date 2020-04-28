@@ -768,7 +768,17 @@ class TableEnvironment(object):
         gateway = get_gateway()
         java_function = gateway.jvm.Thread.currentThread().getContextClassLoader()\
             .loadClass(function_class_name).newInstance()
-        self._j_tenv.registerFunction(name, java_function)
+        # this is a temporary solution and will be unified later when we use the new type
+        # system(DataType) to replace the old type system(TypeInformation).
+        if self._is_blink_planner and isinstance(self, BatchTableEnvironment):
+            if self._is_table_function(java_function):
+                self._register_table_function(name, java_function)
+            elif self._is_aggregate_function(java_function):
+                self._register_aggregate_function(name, java_function)
+            else:
+                self._j_tenv.registerFunction(name, java_function)
+        else:
+            self._j_tenv.registerFunction(name, java_function)
 
     def register_function(self, name, function):
         """
@@ -800,7 +810,14 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.10.0
         """
-        self._j_tenv.registerFunction(name, function.java_user_defined_function())
+        java_function = function.java_user_defined_function()
+        # this is a temporary solution and will be unified later when we use the new type
+        # system(DataType) to replace the old type system(TypeInformation).
+        if self._is_blink_planner and isinstance(self, BatchTableEnvironment) and \
+                self._is_table_function(java_function):
+            self._register_table_function(name, java_function)
+        else:
+            self._j_tenv.registerFunction(name, java_function)
 
     def create_temporary_view(self, view_path, table):
         """
@@ -1222,6 +1239,42 @@ class TableEnvironment(object):
     @abstractmethod
     def _get_j_env(self):
         pass
+
+    @staticmethod
+    def _is_table_function(java_function):
+        java_function_class = java_function.getClass()
+        j_table_function_class = get_java_class(
+            get_gateway().jvm.org.apache.flink.table.functions.TableFunction)
+        return j_table_function_class.isAssignableFrom(java_function_class)
+
+    @staticmethod
+    def _is_aggregate_function(java_function):
+        java_function_class = java_function.getClass()
+        j_aggregate_function_class = get_java_class(
+            get_gateway().jvm.org.apache.flink.table.functions.UserDefinedAggregateFunction)
+        return j_aggregate_function_class.isAssignableFrom(java_function_class)
+
+    def _register_table_function(self, name, table_function):
+        function_catalog = self._get_function_catalog()
+        gateway = get_gateway()
+        helper = gateway.jvm.org.apache.flink.table.functions.UserDefinedFunctionHelper
+        result_type = helper.getReturnTypeOfTableFunction(table_function)
+        function_catalog.registerTempSystemTableFunction(name, table_function, result_type)
+
+    def _register_aggregate_function(self, name, aggregate_function):
+        function_catalog = self._get_function_catalog()
+        gateway = get_gateway()
+        helper = gateway.jvm.org.apache.flink.table.functions.UserDefinedFunctionHelper
+        result_type = helper.getReturnTypeOfAggregateFunction(aggregate_function)
+        acc_type = helper.getAccumulatorTypeOfAggregateFunction(aggregate_function)
+        function_catalog.registerTempSystemAggregateFunction(
+            name, aggregate_function, result_type, acc_type)
+
+    def _get_function_catalog(self):
+        function_catalog_field = self._j_tenv.getClass().getDeclaredField("functionCatalog")
+        function_catalog_field.setAccessible(True)
+        function_catalog = function_catalog_field.get(self._j_tenv)
+        return function_catalog
 
 
 class StreamTableEnvironment(TableEnvironment):

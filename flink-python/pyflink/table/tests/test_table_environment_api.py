@@ -485,3 +485,19 @@ class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
 
         actual = t_env.explain(extended=True)
         self.assertIsInstance(actual, str)
+
+    def test_register_java_function(self):
+        t_env = self.t_env
+
+        t_env.register_java_function(
+            "scalar_func", "org.apache.flink.table.expressions.utils.RichFunc0")
+
+        t_env.register_java_function(
+            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
+
+        t_env.register_java_function(
+            "table_func", "org.apache.flink.table.utils.TableFunc2")
+
+        actual = t_env.list_user_defined_functions()
+        expected = ['scalar_func', 'agg_func', 'table_func']
+        self.assert_equals(actual, expected)
