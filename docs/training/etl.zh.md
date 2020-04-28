@@ -26,7 +26,7 @@ under the License.
 
 One very common use case for Apache Flink is to implement ETL (extract, transform, load) pipelines
 that take data from one or more sources, perform some transformations and/or enrichments, and
-then store the results somewhere. In this tutorial we are going to look at how to use Flink's
+then store the results somewhere. In this section we are going to look at how to use Flink's
 DataStream API to implement this kind of application.
 
 Note that Flink's [Table and SQL APIs]({% link dev/table/index.zh.md %})
@@ -264,7 +264,7 @@ The output stream now contains a record for each key every time the duration rea
 
 ### (Implicit) State
 
-This is the first example in these tutorials that involves stateful streaming. Though the state is
+This is the first example in this training that involves stateful streaming. Though the state is
 being handled transparently, Flink has to keep track of the maximum duration for each distinct
 key.
 
@@ -410,7 +410,7 @@ keyHasBeenSeen.clear()
 {% endhighlight %}
 
 You might want to do this, for example, after a period of inactivity for a given key. You'll see how
-to use Timers to do this when you learn about `ProcessFunction`s in the tutorial on event-driven
+to use Timers to do this when you learn about `ProcessFunction`s in the section on event-driven
 applications.
 
 There's also a [State Time-to-Live (TTL)]({% link dev/stream/state/state.zh.md

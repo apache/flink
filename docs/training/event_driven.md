@@ -39,7 +39,7 @@ with Flink. It is very similar to a `RichFlatMapFunction`, but with the addition
 
 If you've done the
 [hands-on exercise]({% link training/streaming_analytics.md %}#hands-on)
-in the [Streaming Analytics tutorial]({% link training/streaming_analytics.md %}),
+in the [Streaming Analytics training]({% link training/streaming_analytics.md %}),
 you will recall that it uses a `TumblingEventTimeWindow` to compute the sum of the tips for
 each driver during each hour, like this:
 

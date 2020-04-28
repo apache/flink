@@ -24,8 +24,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The focus of this tutorial is to broadly cover the DataStream API well enough that you will be
-able to get started writing streaming applications. 
+The focus of this training is to broadly cover the DataStream API well enough that you will be able
+to get started writing streaming applications.
 
 * This will be replaced by the TOC
 {:toc}
