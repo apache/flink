@@ -30,7 +30,7 @@ passing functions in a straightforward way without having to declare additional 
 
 This document shows how to use lambda expressions and describes current
 limitations. For a general introduction to the Flink API, please refer to the
-[DataSteam API overview]({{ site.baseurl }}{% link dev/datastream_api.md %})
+[DataSteam API overview]({% link dev/datastream_api.md %})
 
 ### Examples and Limitations
 

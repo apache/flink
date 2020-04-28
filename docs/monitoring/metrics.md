@@ -29,7 +29,7 @@ Flink exposes a metric system that allows gathering and exposing metrics to exte
 
 ## Registering metrics
 
-You can access the metric system from any user function that extends [RichFunction]({{ site.baseurl }}{% link dev/user_defined_functions.md %}#rich-functions) by calling `getRuntimeContext().getMetricGroup()`.
+You can access the metric system from any user function that extends [RichFunction]({% link dev/user_defined_functions.md %}#rich-functions) by calling `getRuntimeContext().getMetricGroup()`.
 This method returns a `MetricGroup` object on which you can create and register new metrics.
 
 ### Metric types
