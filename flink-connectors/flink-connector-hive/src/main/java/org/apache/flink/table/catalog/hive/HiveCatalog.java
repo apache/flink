@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connectors.hive.HiveTableFactory;
+import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.AbstractCatalog;
@@ -249,7 +250,10 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Map<String, String> properties = hiveDatabase.getParameters();
 
-		properties.put(HiveCatalogConfig.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
+		boolean isGeneric = isGenericForGet(properties);
+		if (!isGeneric) {
+			properties.put(SqlCreateHiveDatabase.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
+		}
 
 		return new CatalogDatabaseImpl(properties, hiveDatabase.getDescription());
 	}
@@ -260,7 +264,7 @@ public class HiveCatalog extends AbstractCatalog {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 		checkNotNull(database, "database cannot be null");
 
-		Database hiveDatabase = instantiateHiveDatabase(databaseName, database);
+		Database hiveDatabase = HiveDatabaseUtil.instantiateHiveDatabase(databaseName, database);
 
 		try {
 			client.createDatabase(hiveDatabase);
@@ -273,20 +277,6 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private static Database instantiateHiveDatabase(String databaseName, CatalogDatabase database) {
-
-		Map<String, String> properties = database.getProperties();
-
-		String dbLocationUri = properties.remove(HiveCatalogConfig.DATABASE_LOCATION_URI);
-
-		return new Database(
-			databaseName,
-			database.getComment(),
-			dbLocationUri,
-			properties
-		);
-	}
-
 	@Override
 	public void alterDatabase(String databaseName, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
 			throws DatabaseNotExistException, CatalogException {
@@ -294,7 +284,10 @@ public class HiveCatalog extends AbstractCatalog {
 		checkNotNull(newDatabase, "newDatabase cannot be null");
 
 		// client.alterDatabase doesn't throw any exception if there is no existing database
-		if (!databaseExists(databaseName)) {
+		Database hiveDB;
+		try {
+			hiveDB = getHiveDatabase(databaseName);
+		} catch (DatabaseNotExistException e) {
 			if (!ignoreIfNotExists) {
 				throw new DatabaseNotExistException(getName(), databaseName);
 			}
@@ -302,10 +295,8 @@ public class HiveCatalog extends AbstractCatalog {
 			return;
 		}
 
-		Database newHiveDatabase = instantiateHiveDatabase(databaseName, newDatabase);
-
 		try {
-			client.alterDatabase(databaseName, newHiveDatabase);
+			client.alterDatabase(databaseName, HiveDatabaseUtil.alterDatabase(hiveDB, newDatabase));
 		} catch (TException e) {
 			throw new CatalogException(String.format("Failed to alter database %s", databaseName), e);
 		}
@@ -349,7 +340,8 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private Database getHiveDatabase(String databaseName) throws DatabaseNotExistException {
+	@VisibleForTesting
+	public Database getHiveDatabase(String databaseName) throws DatabaseNotExistException {
 		try {
 			return client.getDatabase(databaseName);
 		} catch (NoSuchObjectException e) {
@@ -543,10 +535,7 @@ public class HiveCatalog extends AbstractCatalog {
 		// Table properties
 		Map<String, String> properties = hiveTable.getParameters();
 
-		// When retrieving a table, a generic table needs explicitly have a key is_generic = true
-		// otherwise, this is a Hive table if 1) the key is missing 2) is_generic = false
-		// this is opposite to creating a table. See instantiateHiveTable()
-		boolean isGeneric = Boolean.parseBoolean(hiveTable.getParameters().getOrDefault(CatalogConfig.IS_GENERIC, "false"));
+		boolean isGeneric = isGenericForGet(hiveTable.getParameters());
 
 		TableSchema tableSchema;
 		// Partition keys
@@ -620,17 +609,7 @@ public class HiveCatalog extends AbstractCatalog {
 			properties.put(HiveCatalogConfig.COMMENT, table.getComment());
 		}
 
-		// When creating a table, A hive table needs explicitly have a key is_generic = false
-		// otherwise, this is a generic table if 1) the key is missing 2) is_generic = true
-		// this is opposite to reading a table and instantiating a CatalogTable. See instantiateCatalogTable()
-		boolean isGeneric;
-		if (!properties.containsKey(CatalogConfig.IS_GENERIC)) {
-			// must be a generic table
-			isGeneric = true;
-			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
-		} else {
-			isGeneric = Boolean.parseBoolean(properties.get(CatalogConfig.IS_GENERIC));
-		}
+		boolean isGeneric = isGenericForCreate(properties);
 
 		// Hive table's StorageDescriptor
 		StorageDescriptor sd = hiveTable.getSd();
@@ -1408,6 +1387,31 @@ public class HiveCatalog extends AbstractCatalog {
 			throw new CatalogException(String.format("Failed to get table stats of table %s 's partition %s",
 													tablePath.getFullName(), String.valueOf(partitionSpec)), e);
 		}
+	}
+
+	static boolean isGenericForCreate(Map<String, String> properties) {
+		// When creating an object, a hive object needs explicitly have a key is_generic = false
+		// otherwise, this is a generic object if 1) the key is missing 2) is_generic = true
+		// this is opposite to reading an object. See getObjectIsGeneric().
+		if (properties == null) {
+			return true;
+		}
+		boolean isGeneric;
+		if (!properties.containsKey(CatalogConfig.IS_GENERIC)) {
+			// must be a generic object
+			isGeneric = true;
+			properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
+		} else {
+			isGeneric = Boolean.parseBoolean(properties.get(CatalogConfig.IS_GENERIC));
+		}
+		return isGeneric;
+	}
+
+	static boolean isGenericForGet(Map<String, String> properties) {
+		// When retrieving an object, a generic object needs explicitly have a key is_generic = true
+		// otherwise, this is a Hive object if 1) the key is missing 2) is_generic = false
+		// this is opposite to creating an object. See createObjectIsGeneric()
+		return properties != null && Boolean.parseBoolean(properties.getOrDefault(CatalogConfig.IS_GENERIC, "false"));
 	}
 
 }

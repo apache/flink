@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.AlterHiveDatabaseOp;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
@@ -45,8 +47,10 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for HiveCatalog on Hive metadata.
@@ -64,6 +68,23 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 	// =====================
 
 	public void testCreateTable_Streaming() throws Exception {
+	}
+
+	@Override
+	@Test
+	public void testAlterDb() throws Exception {
+		// altering Hive DB merges properties, which is different from generic DB
+		CatalogDatabase db = createDb();
+		catalog.createDatabase(db1, db, false);
+
+		CatalogDatabase newDb = createAnotherDb();
+		newDb.getProperties().put(ALTER_DATABASE_OP, AlterHiveDatabaseOp.CHANGE_PROPS.name());
+		catalog.alterDatabase(db1, newDb, false);
+
+		Map<String, String> mergedProps = new HashMap<>(db.getProperties());
+		mergedProps.putAll(newDb.getProperties());
+
+		assertTrue(catalog.getDatabase(db1).getProperties().entrySet().containsAll(mergedProps.entrySet()));
 	}
 
 	@Test
