@@ -35,20 +35,14 @@ import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
 import javax.annotation.Nullable;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
-import java.util.Optional;
-
-import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLibDirectory;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An {@link ApplicationClusterEntryPoint} for Yarn.
@@ -122,21 +116,7 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
 				ClassPathPackagedProgramRetriever
 						.newBuilder(programArguments)
 						.setJobClassName(jobClassName);
-		getUsrLibDir(configuration).ifPresent(retrieverBuilder::setUserLibDirectory);
+		YarnEntrypointUtils.getUsrLibDir(configuration).ifPresent(retrieverBuilder::setUserLibDirectory);
 		return retrieverBuilder.build();
-	}
-
-	private static Optional<File> getUsrLibDir(final Configuration configuration) {
-		final YarnConfigOptions.UserJarInclusion userJarInclusion = configuration
-				.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
-		final Optional<File> userLibDir = tryFindUserLibDirectory();
-
-		checkState(
-				userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED || userLibDir.isPresent(),
-				"The %s is set to %s. But the usrlib directory does not exist.",
-				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key(),
-				YarnConfigOptions.UserJarInclusion.DISABLED);
-
-		return userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ? userLibDir : Optional.empty();
 	}
 }
