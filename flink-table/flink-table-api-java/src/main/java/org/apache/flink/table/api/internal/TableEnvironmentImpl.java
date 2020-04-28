@@ -78,6 +78,7 @@ import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
+import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -142,7 +143,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
 			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, " +
-			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW.";
+			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, SHOW VIEWS.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -521,6 +522,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
+	public String[] listViews() {
+		return catalogManager.listViews()
+			.stream()
+			.sorted()
+			.toArray(String[]::new);
+	}
+
+	@Override
 	public String[] listTemporaryTables() {
 		return catalogManager.listTemporaryTables()
 			.stream()
@@ -795,6 +804,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			return buildShowResult(listTables());
 		} else if (operation instanceof ShowFunctionsOperation) {
 			return buildShowResult(listFunctions());
+		} else if (operation instanceof ShowViewsOperation) {
+			return buildShowResult(listViews());
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
 		}

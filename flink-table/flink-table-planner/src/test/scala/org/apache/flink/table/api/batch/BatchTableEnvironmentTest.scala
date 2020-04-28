@@ -257,6 +257,67 @@ class BatchTableEnvironmentTest extends TableTestBase {
     util.tableEnv.executeSql("select * from MyTable")
   }
 
+  @Test
+  def testExecuteSqlWithCreateDropView(): Unit = {
+    val util = batchTestUtil()
+
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'true'
+        |)
+      """.stripMargin
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    assertTrue(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+      .tableExists(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")))
+
+    val tableResult2 = util.tableEnv.executeSql("CREATE VIEW view1 AS SELECT * FROM tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+    assertTrue(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+      .tableExists(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.view1")))
+
+    val tableResult3 = util.tableEnv.executeSql("DROP VIEW view1")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
+    assertFalse(util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
+      .tableExists(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.view1")))
+  }
+
+  @Test
+  def testExecuteSqlWithShowViews(): Unit = {
+    val util = batchTestUtil()
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val tableResult2 = util.tableEnv.executeSql("CREATE VIEW view1 AS SELECT * FROM tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val tableResult3 = util.tableEnv.executeSql("CREATE TEMPORARY VIEW view2 AS SELECT * FROM tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
+
+    val tableResult4 = util.tableEnv.executeSql("SHOW VIEWS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult4.getResultKind)
+    checkData(
+      util.tableEnv.listViews().map(Row.of(_)).toList.asJava.iterator(),
+      tableResult4.collect())
+  }
+
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
     while (expected.hasNext && actual.hasNext) {
       assertEquals(expected.next(), actual.next())

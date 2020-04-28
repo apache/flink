@@ -129,12 +129,13 @@ abstract class TableEnvImpl(
     "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
       "INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
       "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, DROP FUNCTION, " +
-      "ALTER FUNCTION."
+      "ALTER FUNCTION, CREATE VIEW, DROP VIEW."
   private val UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
     "Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
       "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
       "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, USE CATALOG, USE [CATALOG.]DATABASE, " +
-      "SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS."
+      "SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, " +
+      "SHOW VIEWS."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -495,6 +496,12 @@ abstract class TableEnvImpl(
       .sorted
   }
 
+  override def listViews(): Array[String] = {
+    catalogManager.listViews().asScala
+      .toArray
+      .sorted
+  }
+
   override def listTemporaryTables(): Array[String] = {
     catalogManager.listTemporaryTables().asScala
       .toArray
@@ -557,12 +564,13 @@ abstract class TableEnvImpl(
     val operation = operations.get(0)
     operation match {
       case _: CreateTableOperation | _: DropTableOperation | _: AlterTableOperation |
+           _: CreateViewOperation | _: DropViewOperation |
            _: CreateDatabaseOperation | _: DropDatabaseOperation | _: AlterDatabaseOperation |
            _: CreateCatalogFunctionOperation | _: CreateTempSystemFunctionOperation |
            _: DropCatalogFunctionOperation | _: DropTempSystemFunctionOperation |
            _: AlterCatalogFunctionOperation | _: UseCatalogOperation | _: UseDatabaseOperation |
            _: ShowCatalogsOperation | _: ShowDatabasesOperation | _: ShowTablesOperation |
-           _: ShowFunctionsOperation =>
+           _: ShowFunctionsOperation | _: ShowViewsOperation =>
         executeOperation(operation)
       case _ =>
         throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
@@ -721,6 +729,8 @@ abstract class TableEnvImpl(
             dropViewOperation.isIfExists)
         }
         TableResultImpl.TABLE_RESULT_OK
+      case _: ShowViewsOperation =>
+        buildShowResult(listViews())
       case _ => throw new TableException("Unsupported operation: " + operation)
     }
   }
