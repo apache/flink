@@ -120,6 +120,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.runtime.util.JvmUtils;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -945,6 +946,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			case STDOUT:
 				filePath = taskManagerConfiguration.getTaskManagerStdoutPath();
 				break;
+			case THREAD_DUMP:
+				return putTransientBlobStream(JvmUtils.threadDumpStream(), fileType.toString());
 			default:
 				filePath = null;
 		}
@@ -1701,7 +1704,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 		return CompletableFuture.completedFuture(transientBlobKey);
 	}
-
 
 	// ------------------------------------------------------------------------
 	//  Properties
