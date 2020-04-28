@@ -58,6 +58,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -1305,12 +1306,14 @@ public class SlotManagerImplTest extends TestLogger {
 	}
 
 	private SlotManagerImpl createSlotManager(ResourceManagerId resourceManagerId, ResourceActions resourceManagerActions, int numSlotsPerWorker) {
-		SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder()
-			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
+		SlotManagerImpl slotManager = createSlotManagerBuilder()
 			.setNumSlotsPerWorker(numSlotsPerWorker)
-			.build();
-		slotManager.start(resourceManagerId, Executors.directExecutor(), resourceManagerActions);
+			.buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions);
 		return slotManager;
+	}
+
+	private SlotManagerBuilder createSlotManagerBuilder() {
+		return SlotManagerBuilder.newBuilder().setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC);
 	}
 
 	/**
@@ -1537,6 +1540,83 @@ public class SlotManagerImplTest extends TestLogger {
 			final Set<JobID> jobIds = new HashSet<>(FutureUtils.combineAll(requestSlotFutures).get(10L, TimeUnit.SECONDS));
 			assertThat(jobIds, hasSize(1));
 			assertThat(jobIds, containsInAnyOrder(jobId));
+		}
+	}
+
+	/**
+	 * Test that the slot manager respect the max limitation of the number of slots when allocate new resource.
+	 */
+	@Test
+	public void testMaxSlotLimitAllocateResource() throws Exception {
+		final int numberSlots = 1;
+		final int maxSlotNum = 1;
+
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+		final JobID jobId = new JobID();
+
+		final AtomicInteger resourceRequests = new AtomicInteger(0);
+		ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
+			.setAllocateResourceFunction(
+				ignored -> {
+					resourceRequests.incrementAndGet();
+					return true;
+				})
+			.build();
+
+		try (SlotManagerImpl slotManager = createSlotManagerBuilder()
+			.setNumSlotsPerWorker(numberSlots)
+			.setMaxSlotNum(maxSlotNum)
+			.buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions)) {
+
+			assertTrue("The slot request should be accepted", slotManager.registerSlotRequest(createSlotRequest(jobId)));
+			assertThat(resourceRequests.get(), is(1));
+
+			// The second slot request should not try to allocate a new resource because of the max limitation.
+			assertTrue("The slot request should be accepted", slotManager.registerSlotRequest(createSlotRequest(jobId)));
+			assertThat(resourceRequests.get(), is(1));
+		}
+	}
+
+	/**
+	 * Test that the slot manager release resource when the number of slots exceed max limit when new TaskExecutor registered.
+	 */
+	@Test
+	public void testMaxSlotLimitRegisterResource() throws Exception {
+		final int numberSlots = 1;
+		final int maxSlotNum = 1;
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+
+		final CompletableFuture<InstanceID> releasedResourceFuture = new CompletableFuture<>();
+		ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
+			.setReleaseResourceConsumer((instanceID, e) -> releasedResourceFuture.complete(instanceID))
+			.build();
+
+		final TaskExecutorGateway taskExecutorGateway1 = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+		final TaskExecutorGateway taskExecutorGateway2 = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+		final ResourceID resourceId1 = ResourceID.generate();
+		final ResourceID resourceId2 = ResourceID.generate();
+		final TaskExecutorConnection taskManagerConnection1 = new TaskExecutorConnection(resourceId1, taskExecutorGateway1);
+		final TaskExecutorConnection taskManagerConnection2 = new TaskExecutorConnection(resourceId2, taskExecutorGateway2);
+
+		final SlotID slotId1 = new SlotID(resourceId1, 0);
+		final SlotID slotId2 = new SlotID(resourceId1, 0);
+		final SlotStatus slotStatus1 = new SlotStatus(slotId1, ResourceProfile.UNKNOWN);
+		final SlotStatus slotStatus2 = new SlotStatus(slotId2, ResourceProfile.UNKNOWN);
+		final SlotReport slotReport1 = new SlotReport(Collections.singletonList(slotStatus1));
+		final SlotReport slotReport2 = new SlotReport(Collections.singletonList(slotStatus2));
+
+		try (SlotManagerImpl slotManager = createSlotManagerBuilder()
+			.setNumSlotsPerWorker(numberSlots)
+			.setMaxSlotNum(maxSlotNum)
+			.buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions)) {
+			slotManager.registerTaskManager(taskManagerConnection1, slotReport1);
+			slotManager.registerTaskManager(taskManagerConnection2, slotReport2);
+
+			assertThat("The number registered slots does not equal the expected number.", slotManager.getNumberRegisteredSlots(), is(1));
+			assertNotNull(slotManager.getSlot(slotId1));
+
+			// The second registered task manager should be released.
+			assertThat(releasedResourceFuture.get(), is(equalTo(taskManagerConnection2.getInstanceID())));
 		}
 	}
 
