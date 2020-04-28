@@ -122,9 +122,10 @@ DataStream<Tuple2<String, String>> stream = ...;
 // declare an additional logical field as a processing time attribute
 Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").proctime()");
 
-WindowedTable windowedTable = table.window(Tumble.over(interval(Duration.ofMinutes(10)))
-                                                .on($("user_action_time"))
-                                                .as("userActionWindow"));
+WindowedTable windowedTable = table.window(
+        Tumble.over(interval(Duration.ofMinutes(10)))
+            .on($("user_action_time"))
+            .as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">

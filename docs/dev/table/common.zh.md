@@ -438,10 +438,6 @@ tableEnv.createTemporaryView("exampleView", table);
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table);
 
-// register the view named 'View' in the catalog named 'custom_catalog' in the
-// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
-tableEnv.createTemporaryView("`View`", table);
-
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
 tableEnv.createTemporaryView("`example.View`", table);
@@ -469,10 +465,6 @@ tableEnv.createTemporaryView("exampleView", table)
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table)
-
-// register the view named 'View' in the catalog named 'custom_catalog' in the
-// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
-tableEnv.createTemporaryView("`View`", table)
 
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
@@ -887,7 +879,7 @@ DataStream<Tuple2<Long, String>> stream = ...
 tableEnv.createTemporaryView("myTable", stream);
 
 // register the DataStream as View "myTable2" with fields "myLong", "myString"
-tableEnv.createTemporaryView("myTable2", stream, "myLong, myString");
+tableEnv.createTemporaryView("myTable2", stream, $("myLong"), $("myString"));
 {% endhighlight %}
 </div>
 

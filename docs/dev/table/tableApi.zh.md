@@ -75,7 +75,7 @@ result.print();
 
 The Scala Table API is enabled by importing `org.apache.flink.api.scala._` and `org.apache.flink.table.api.scala._`.
 
-The following example shows how a Scala Table API program is constructed. Table fields are referenced using Scala's String interpolation using a dolar character (`$`).
+The following example shows how a Scala Table API program is constructed. Table fields are referenced using Scala's String interpolation using a dollar character (`$`).
 
 {% highlight scala %}
 import org.apache.flink.api.scala._
@@ -94,7 +94,7 @@ val orders = tEnv.from("Orders") // schema (a, b, c, rowtime)
 
 val result = orders
                .groupBy($"a")
-               .select($"a", $"b".count as $"cnt")
+               .select($"a", $"b".count as "cnt")
                .toDataSet[Row] // conversion to DataSet
                .print()
 {% endhighlight %}
@@ -167,7 +167,7 @@ val orders: Table = tEnv.from("Orders") // schema (a, b, c, rowtime)
 
 val result: Table = orders
         .filter($"a".isNotNull && $"b".isNotNull && $"c".isNotNull)
-        .select($"a".lowerCase() as $"a", $"b", $"rowtime")
+        .select($"a".lowerCase() as "a", $"b", $"rowtime")
         .window(Tumble over 1.hour on $"rowtime" as "hourlyWindow")
         .groupBy($"hourlyWindow", $"a")
         .select($"a", $"hourlyWindow".end as "hour", $"b".avg as "avgBillingAmount")
@@ -679,12 +679,14 @@ Table orders = tableEnv.from("Orders");
 Table result = orders
     .window(Tumble.over(interval(Duration.ofMinutes(5))).on($("rowtime")).as("w")) // define window
     .groupBy($("a"), $("w")) // group by key and window
+    // access window properties and aggregate
     .select(
-        $("a"), $("w").start(),
+        $("a"),
+        $("w").start(),
         $("w").end(),
         $("w").rowtime(),
         $("b").sum().as("d")
-    ); // access window properties and aggregate
+    );
 {% endhighlight %}
       </td>
     </tr>
@@ -699,17 +701,20 @@ Table result = orders
 Table orders = tableEnv.from("Orders");
 Table result = orders
     // define window
-    .window(Over
-      .partitionBy($("a"))
-      .orderBy($("rowtime"))
-      .preceding(UNBOUNDED_RANGE)
-      .following(CURRENT_RANGE)
-      .as("w"))
+    .window(
+        Over
+          .partitionBy($("a"))
+          .orderBy($("rowtime"))
+          .preceding(UNBOUNDED_RANGE)
+          .following(CURRENT_RANGE)
+          .as("w"))
+    // sliding aggregate
     .select(
-        $("a"), $("b").avg().over($("w")),
+        $("a"),
+        $("b").avg().over($("w")),
         $("b").max().over($("w")),
         $("b").min().over($("w"))
-    ); // sliding aggregate
+    );
 {% endhighlight %}
        <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming/time_attributes.html">time attribute</a>.</p>
       </td>
@@ -837,12 +842,13 @@ val result: Table = orders
 val orders: Table = tableEnv.from("Orders")
 val result: Table = orders
     // define window
-    .window(Over
-      partitionBy $"a"
-      orderBy $"rowtime"
-      preceding UNBOUNDED_RANGE
-      following CURRENT_RANGE
-      as "w")
+    .window(
+        Over
+          partitionBy $"a"
+          orderBy $"rowtime"
+          preceding UNBOUNDED_RANGE
+          following CURRENT_RANGE
+          as "w")
     .select($"a", $"b".avg over $"w", $"b".max().over($"w"), $"b".min().over($"w")) // sliding aggregate
 {% endhighlight %}
        <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming/time_attributes.html">time attribute</a>.</p>
@@ -1084,8 +1090,8 @@ Table fullOuterResult = left.fullOuterJoin(right, $("a").isEqual($("d")))
         </ul>
 
 {% highlight java %}
-Table left = tableEnv.fromDataSet(ds1, "a, b, c, ltime.rowtime");
-Table right = tableEnv.fromDataSet(ds2, "d, e, f, rtime.rowtime");
+Table left = tableEnv.fromDataSet(ds1, $("a"), $("b"), $("c"), $("ltime").rowtime());
+Table right = tableEnv.fromDataSet(ds2, $("d"), $("e"), $("f"), $("rtime").rowtime()));
 
 Table result = left.join(right)
   .where(
@@ -1163,7 +1169,7 @@ tableEnv.registerFunction("rates", rates);
 // join with "Orders" based on the time attribute and key
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual("r_currency"))
+    .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")))
 {% endhighlight %}
         <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
       </td>
