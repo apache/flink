@@ -18,22 +18,32 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.PrincipalType;
+import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -109,7 +119,42 @@ public class HiveDialectTest {
 			String newLocation = warehouse + "/db1_new_location";
 			tableEnv.sqlUpdate(String.format("alter database db1 set location '%s'", newLocation));
 			db = hiveCatalog.getHiveDatabase("db1");
-			assertEquals(newLocation, new URI(db.getLocationUri()).getPath());
+			assertEquals(newLocation, locationPath(db.getLocationUri()));
 		}
+	}
+
+	@Test
+	public void testCreateTable() throws Exception {
+		String location = warehouse + "/external_location";
+		tableEnv.sqlUpdate(String.format(
+				"create external table tbl1 (d decimal(10,0),ts timestamp) partitioned by (p string) location '%s' tblproperties('k1'='v1')", location));
+		Table hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl1"));
+		assertEquals(TableType.EXTERNAL_TABLE.toString(), hiveTable.getTableType());
+		assertEquals(1, hiveTable.getPartitionKeysSize());
+		assertEquals(location, locationPath(hiveTable.getSd().getLocation()));
+		assertEquals("v1", hiveTable.getParameters().get("k1"));
+		assertFalse(hiveTable.getParameters().containsKey(SqlCreateHiveTable.TABLE_LOCATION_URI));
+
+		tableEnv.sqlUpdate("create table tbl2 (s struct<ts:timestamp,bin:binary>) stored as orc");
+		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl2"));
+		assertEquals(TableType.MANAGED_TABLE.toString(), hiveTable.getTableType());
+		assertEquals(OrcSerde.class.getName(), hiveTable.getSd().getSerdeInfo().getSerializationLib());
+		assertEquals(OrcInputFormat.class.getName(), hiveTable.getSd().getInputFormat());
+		assertEquals(OrcOutputFormat.class.getName(), hiveTable.getSd().getOutputFormat());
+
+		tableEnv.sqlUpdate("create table tbl3 (m map<timestamp,binary>) partitioned by (p1 bigint,p2 tinyint) " +
+				"row format serde 'org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe'");
+		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl3"));
+		assertEquals(2, hiveTable.getPartitionKeysSize());
+		assertEquals(LazyBinarySerDe.class.getName(), hiveTable.getSd().getSerdeInfo().getSerializationLib());
+
+		tableEnv.sqlUpdate("create table tbl4 (x int,y smallint) row format delimited fields terminated by '|' lines terminated by '\n'");
+		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl4"));
+		assertEquals("|", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.FIELD_DELIM));
+		assertEquals("\n", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.LINE_DELIM));
+	}
+
+	private static String locationPath(String locationURI) throws URISyntaxException {
+		return new URI(locationURI).getPath();
 	}
 }

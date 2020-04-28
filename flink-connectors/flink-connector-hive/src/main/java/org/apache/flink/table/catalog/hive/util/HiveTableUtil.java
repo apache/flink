@@ -33,9 +33,14 @@ import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
+import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
+import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import java.util.ArrayList;
@@ -44,6 +49,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_INFO_PROP_PREFIX;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_LIB_CLASS_NAME;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_INPUT_FORMAT;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_OUTPUT_FORMAT;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Utils to for Hive-backed table.
@@ -53,6 +68,9 @@ public class HiveTableUtil {
 	private static final byte HIVE_CONSTRAINT_ENABLE = 1 << 2;
 	private static final byte HIVE_CONSTRAINT_VALIDATE = 1 << 1;
 	private static final byte HIVE_CONSTRAINT_RELY = 1;
+
+	private static final StorageFormatFactory storageFormatFactory = new StorageFormatFactory();
+	private static final String DEFAULT_HIVE_TABLE_STORAGE_FORMAT = "TextFile";
 
 	private HiveTableUtil() {
 	}
@@ -173,6 +191,77 @@ public class HiveTableUtil {
 			filters.add(str);
 		}
 		return Optional.of(String.join(" and ", filters));
+	}
+
+	/**
+	 * Extract DDL semantics from properties and use it to initiate the table.
+	 */
+	public static void initiateTableFromProperties(Table hiveTable, Map<String, String> properties) {
+		setExternal(hiveTable, properties);
+		setRowFormat(hiveTable.getSd(), properties);
+		setStoredAs(hiveTable.getSd(), properties);
+		setLocation(hiveTable.getSd(), properties);
+	}
+
+	private static void setExternal(Table hiveTable, Map<String, String> properties) {
+		boolean external = Boolean.parseBoolean(properties.remove(TABLE_IS_EXTERNAL));
+		if (external) {
+			hiveTable.setTableType(TableType.EXTERNAL_TABLE.toString());
+			// follow Hive to set this property
+			hiveTable.getParameters().put("EXTERNAL", "TRUE");
+		}
+	}
+
+	private static void setLocation(StorageDescriptor sd, Map<String, String> properties) {
+		String location = properties.remove(TABLE_LOCATION_URI);
+		if (location != null) {
+			sd.setLocation(location);
+		}
+	}
+
+	private static void setRowFormat(StorageDescriptor sd, Map<String, String> properties) {
+		String serdeLib = properties.remove(SERDE_LIB_CLASS_NAME);
+		if (serdeLib != null) {
+			sd.getSerdeInfo().setSerializationLib(serdeLib);
+		}
+		List<String> serdeProps = properties.keySet().stream()
+				.filter(p -> p.startsWith(SERDE_INFO_PROP_PREFIX))
+				.collect(Collectors.toList());
+		for (String prop : serdeProps) {
+			sd.getSerdeInfo().getParameters()
+					.put(prop.substring(SERDE_INFO_PROP_PREFIX.length()), properties.remove(prop));
+		}
+	}
+
+	private static void setStoredAs(StorageDescriptor sd, Map<String, String> properties) {
+		String storageFormat = properties.remove(STORED_AS_FILE_FORMAT);
+		String inputFormat = properties.remove(STORED_AS_INPUT_FORMAT);
+		String outputFormat = properties.remove(STORED_AS_OUTPUT_FORMAT);
+		if (storageFormat == null && inputFormat == null) {
+			return;
+		}
+		if (storageFormat != null) {
+			setStorageFormat(sd, storageFormat);
+		} else {
+			sd.setInputFormat(inputFormat);
+			sd.setOutputFormat(outputFormat);
+		}
+	}
+
+	private static void setStorageFormat(StorageDescriptor sd, String format) {
+		StorageFormatDescriptor storageFormatDescriptor = storageFormatFactory.get(format);
+		checkArgument(storageFormatDescriptor != null, "Unknown storage format " + format);
+		sd.setInputFormat(storageFormatDescriptor.getInputFormat());
+		sd.setOutputFormat(storageFormatDescriptor.getOutputFormat());
+		String serdeLib = storageFormatDescriptor.getSerde();
+		if (serdeLib != null) {
+			sd.getSerdeInfo().setSerializationLib(serdeLib);
+		}
+	}
+
+	public static void setDefaultStorageFormat(StorageDescriptor sd) {
+		sd.getSerdeInfo().setSerializationLib(LazySimpleSerDe.class.getName());
+		setStorageFormat(sd, DEFAULT_HIVE_TABLE_STORAGE_FORMAT);
 	}
 
 	private static class ExpressionExtractor implements ExpressionVisitor<String> {

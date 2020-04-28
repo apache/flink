@@ -92,9 +92,6 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
-import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
-import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
-import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,8 +125,6 @@ public class HiveCatalog extends AbstractCatalog {
 	public static final String DEFAULT_DB = "default";
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveCatalog.class);
-	private static final StorageFormatFactory storageFormatFactory = new StorageFormatFactory();
-	private static final String DEFAULT_HIVE_TABLE_STORAGE_FORMAT = "TextFile";
 
 	// Prefix used to distinguish Flink functions from Hive functions.
 	// It's appended to Flink function's class name
@@ -641,7 +636,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		// Hive table's StorageDescriptor
 		StorageDescriptor sd = hiveTable.getSd();
-		setStorageFormat(sd, properties);
+		HiveTableUtil.setDefaultStorageFormat(sd);
 
 		if (isGeneric) {
 			DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
@@ -653,7 +648,9 @@ public class HiveCatalog extends AbstractCatalog {
 
 			properties.putAll(tableSchemaProps.asMap());
 			properties = maskFlinkProperties(properties);
+			hiveTable.setParameters(properties);
 		} else {
+			HiveTableUtil.initiateTableFromProperties(hiveTable, properties);
 			List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
 			// Table columns and partition keys
 			if (table instanceof CatalogTableImpl) {
@@ -673,6 +670,8 @@ public class HiveCatalog extends AbstractCatalog {
 			} else {
 				sd.setCols(allColumns);
 			}
+			// Table properties
+			hiveTable.getParameters().putAll(properties);
 		}
 
 		if (table instanceof CatalogViewImpl) {
@@ -685,21 +684,7 @@ public class HiveCatalog extends AbstractCatalog {
 			hiveTable.setTableType(TableType.VIRTUAL_VIEW.name());
 		}
 
-		// Table properties
-		hiveTable.setParameters(properties);
-
 		return hiveTable;
-	}
-
-	private static void setStorageFormat(StorageDescriptor sd, Map<String, String> properties) {
-		// TODO: allow user to specify storage format. Simply use text format for now
-		String storageFormatName = DEFAULT_HIVE_TABLE_STORAGE_FORMAT;
-		StorageFormatDescriptor storageFormatDescriptor = storageFormatFactory.get(storageFormatName);
-		checkArgument(storageFormatDescriptor != null, "Unknown storage format " + storageFormatName);
-		sd.setInputFormat(storageFormatDescriptor.getInputFormat());
-		sd.setOutputFormat(storageFormatDescriptor.getOutputFormat());
-		String serdeLib = storageFormatDescriptor.getSerde();
-		sd.getSerdeInfo().setSerializationLib(serdeLib != null ? serdeLib : LazySimpleSerDe.class.getName());
 	}
 
 	/**
@@ -770,7 +755,7 @@ public class HiveCatalog extends AbstractCatalog {
 			}
 		} catch (TException e) {
 			throw new CatalogException(
-				String.format("Failed to create partition %s of table %s", partitionSpec, tablePath));
+				String.format("Failed to create partition %s of table %s", partitionSpec, tablePath), e);
 		}
 	}
 
@@ -900,7 +885,7 @@ public class HiveCatalog extends AbstractCatalog {
 		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
 		checkNotNull(newPartition, "New partition cannot be null");
 
-		boolean isGeneric = Boolean.valueOf(newPartition.getProperties().get(CatalogConfig.IS_GENERIC));
+		boolean isGeneric = isGenericForGet(newPartition.getProperties());
 
 		if (isGeneric) {
 			throw new CatalogException("Currently only supports non-generic CatalogPartition");
@@ -942,8 +927,8 @@ public class HiveCatalog extends AbstractCatalog {
 
 	// make sure both table and partition are generic, or neither is
 	private static void ensureTableAndPartitionMatch(Table hiveTable, CatalogPartition catalogPartition) {
-		boolean tableIsGeneric = Boolean.valueOf(hiveTable.getParameters().get(CatalogConfig.IS_GENERIC));
-		boolean partitionIsGeneric = Boolean.valueOf(catalogPartition.getProperties().get(CatalogConfig.IS_GENERIC));
+		boolean tableIsGeneric = isGenericForGet(hiveTable.getParameters());
+		boolean partitionIsGeneric = isGenericForGet(catalogPartition.getProperties());
 
 		if (tableIsGeneric != partitionIsGeneric) {
 			throw new CatalogException(String.format("Cannot handle %s partition for %s table",

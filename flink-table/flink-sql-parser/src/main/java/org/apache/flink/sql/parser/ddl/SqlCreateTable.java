@@ -389,7 +389,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		}
 	}
 
-	private void printIndent(SqlWriter writer) {
+	protected void printIndent(SqlWriter writer) {
 		writer.sep(",", false);
 		writer.newlineAndIndent();
 		writer.print("  ");
