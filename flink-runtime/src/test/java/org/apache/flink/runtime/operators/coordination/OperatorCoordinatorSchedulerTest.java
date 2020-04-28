@@ -163,6 +163,36 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		assertThat(result, futureFailedWith(TestException.class));
 	}
 
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testDeliveringClientRequestToResponser() throws Exception {
+		final OperatorCoordinator.Provider provider = new TestingCoordinationResponser.Provider(testOperatorId);
+		final DefaultScheduler scheduler = createScheduler(provider);
+
+		final String payload = "testing payload";
+		final TestingCoordinationResponser.Request<String> request =
+			new TestingCoordinationResponser.Request<>(payload);
+		final TestingCoordinationResponser.Response<String> response =
+			(TestingCoordinationResponser.Response<String>)
+				scheduler.deliverCoordinationRequestToCoordinator(testOperatorId, request).get();
+
+		assertEquals(payload, response.getPayload());
+	}
+
+	@Test
+	public void testDeliveringClientRequestToNonResponser() throws Exception {
+		final OperatorCoordinator.Provider provider = new TestingOperatorCoordinator.Provider(testOperatorId);
+		final DefaultScheduler scheduler = createScheduler(provider);
+
+		final String payload = "testing payload";
+		final TestingCoordinationResponser.Request<String> request =
+			new TestingCoordinationResponser.Request<>(payload);
+		final CompletableFuture<CoordinationResponse> future =
+			scheduler.deliverCoordinationRequestToCoordinator(testOperatorId, request);
+
+		assertThat(future, futureFailedWith(IllegalArgumentException.class));
+	}
+
 	// ------------------------------------------------------------------------
 	//  test setups
 	// ------------------------------------------------------------------------
