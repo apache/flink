@@ -125,6 +125,8 @@ import org.apache.flink.runtime.util.JvmUtils;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OptionalConsumer;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.StringUtils;
 
@@ -149,6 +151,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -209,7 +212,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final TaskSlotTable<Task> taskSlotTable;
 
-	private final JobManagerTable jobManagerTable;
+	private final JobTable jobTable;
 
 	private final JobLeaderService jobLeaderService;
 
@@ -275,7 +278,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.backPressureSampleService = checkNotNull(backPressureSampleService);
 
 		this.taskSlotTable = taskExecutorServices.getTaskSlotTable();
-		this.jobManagerTable = taskExecutorServices.getJobManagerTable();
+		this.jobTable = taskExecutorServices.getJobTable();
 		this.jobLeaderService = taskExecutorServices.getJobLeaderService();
 		this.unresolvedTaskManagerLocation = taskExecutorServices.getUnresolvedTaskManagerLocation();
 		this.localStateStoresManager = taskExecutorServices.getTaskManagerStateStore();
@@ -393,13 +396,15 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		closeResourceManagerConnection(cause);
 
-		for (JobManagerConnection jobManagerConnection : jobManagerTable.values()) {
+		for (JobTable.Job job : jobTable.getJobs()) {
 			try {
-				disassociateFromJobManager(jobManagerConnection, cause);
+				closeJob(job, cause);
 			} catch (Throwable t) {
 				jobManagerDisconnectThrowable = ExceptionUtils.firstOrSuppressed(t, jobManagerDisconnectThrowable);
 			}
 		}
+
+		Preconditions.checkState(jobTable.isEmpty());
 
 		final Throwable throwableBeforeTasksCompletion = jobManagerDisconnectThrowable;
 
@@ -498,15 +503,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		try {
 			final JobID jobId = tdd.getJobId();
 			final ExecutionAttemptID executionAttemptID = tdd.getExecutionAttemptId();
-			final JobManagerConnection jobManagerConnection = jobManagerTable.get(jobId);
 
-			if (jobManagerConnection == null) {
+			final JobTable.Connection jobManagerConnection = jobTable.getConnection(jobId).orElseThrow(() -> {
 				final String message = "Could not submit task because there is no JobManager " +
 					"associated for the job " + jobId + '.';
 
 				log.debug(message);
-				throw new TaskSubmissionException(message);
-			}
+				return new TaskSubmissionException(message);
+			});
 
 			if (!Objects.equals(jobManagerConnection.getJobMasterId(), jobMasterId)) {
 				final String message = "Rejecting the task submission because the job manager leader id " +
@@ -876,9 +880,15 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new TaskManagerException(message);
 			}
 
-			allocateSlot(slotId, jobId, allocationId, resourceProfile);
+			final JobTable.Job job = jobTable.getOrCreateJob(jobId, this::createLibraryCacheManager);
 
-			if (jobManagerTable.contains(jobId)) {
+			allocateSlot(
+				slotId,
+				jobId,
+				allocationId,
+				resourceProfile);
+
+			if (job.isConnected()) {
 				offerSlotsToJobManager(jobId);
 			} else {
 				try {
@@ -911,7 +921,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
-	private void allocateSlot(SlotID slotId, JobID jobId, AllocationID allocationId, ResourceProfile resourceProfile) throws SlotAllocationException {
+	private LibraryCacheManager createLibraryCacheManager() {
+		return new BlobLibraryCacheManager(
+			blobCacheService.getPermanentBlobService(),
+			taskManagerConfiguration.getClassLoaderResolveOrder(),
+			taskManagerConfiguration.getAlwaysParentFirstLoaderPatterns());
+	}
+
+	private void allocateSlot(
+			SlotID slotId,
+			JobID jobId,
+			AllocationID allocationId,
+			ResourceProfile resourceProfile) throws SlotAllocationException {
 		if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
 			if (taskSlotTable.allocateSlot(slotId.getSlotNumber(), jobId, allocationId, resourceProfile, taskManagerConfiguration.getTimeout())) {
 				log.info("Allocated slot for {}.", allocationId);
@@ -975,8 +996,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	@Override
 	public void disconnectJobManager(JobID jobId, Exception cause) {
-		closeJobManagerConnection(jobId, cause);
-		jobLeaderService.reconnect(jobId);
+		jobTable.getConnection(jobId).ifPresent(
+			jobManagerConnection -> disconnectAndTryReconnectToJobManager(jobManagerConnection, cause));
+	}
+
+	private void disconnectAndTryReconnectToJobManager(JobTable.Connection jobManagerConnection, Exception cause) {
+		disconnectJobManagerConnection(jobManagerConnection, cause);
+		jobLeaderService.reconnect(jobManagerConnection.getJobId());
 	}
 
 	@Override
@@ -1200,37 +1226,39 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// ------------------------------------------------------------------------
 
 	private void offerSlotsToJobManager(final JobID jobId) {
-		final JobManagerConnection jobManagerConnection = jobManagerTable.get(jobId);
+		jobTable
+			.getConnection(jobId)
+			.ifPresent(this::internalOfferSlotsToJobManager);
+	}
 
-		if (jobManagerConnection == null) {
-			log.debug("There is no job manager connection to the leader of job {}.", jobId);
-		} else {
-			if (taskSlotTable.hasAllocatedSlots(jobId)) {
-				log.info("Offer reserved slots to the leader of job {}.", jobId);
+	private void internalOfferSlotsToJobManager(JobTable.Connection jobManagerConnection) {
+		final JobID jobId = jobManagerConnection.getJobId();
 
-				final JobMasterGateway jobMasterGateway = jobManagerConnection.getJobManagerGateway();
+		if (taskSlotTable.hasAllocatedSlots(jobId)) {
+			log.info("Offer reserved slots to the leader of job {}.", jobId);
 
-				final Iterator<TaskSlot<Task>> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
-				final JobMasterId jobMasterId = jobManagerConnection.getJobMasterId();
+			final JobMasterGateway jobMasterGateway = jobManagerConnection.getJobManagerGateway();
 
-				final Collection<SlotOffer> reservedSlots = new HashSet<>(2);
+			final Iterator<TaskSlot<Task>> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
+			final JobMasterId jobMasterId = jobManagerConnection.getJobMasterId();
 
-				while (reservedSlotsIterator.hasNext()) {
-					SlotOffer offer = reservedSlotsIterator.next().generateSlotOffer();
-					reservedSlots.add(offer);
-				}
+			final Collection<SlotOffer> reservedSlots = new HashSet<>(2);
 
-				CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
-					getResourceID(),
-					reservedSlots,
-					taskManagerConfiguration.getTimeout());
-
-				acceptedSlotsFuture.whenCompleteAsync(
-					handleAcceptedSlotOffers(jobId, jobMasterGateway, jobMasterId, reservedSlots),
-					getMainThreadExecutor());
-			} else {
-				log.debug("There are no unassigned slots for the job {}.", jobId);
+			while (reservedSlotsIterator.hasNext()) {
+				SlotOffer offer = reservedSlotsIterator.next().generateSlotOffer();
+				reservedSlots.add(offer);
 			}
+
+			CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
+				getResourceID(),
+				reservedSlots,
+				taskManagerConfiguration.getTimeout());
+
+			acceptedSlotsFuture.whenCompleteAsync(
+				handleAcceptedSlotOffers(jobId, jobMasterGateway, jobMasterId, reservedSlots),
+				getMainThreadExecutor());
+		} else {
+			log.debug("There are no unassigned slots for the job {}.", jobId);
 		}
 	}
 
@@ -1293,26 +1321,27 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private void establishJobManagerConnection(JobID jobId, final JobMasterGateway jobMasterGateway, JMTMRegistrationSuccess registrationSuccess) {
 
-		if (jobManagerTable.contains(jobId)) {
-			JobManagerConnection oldJobManagerConnection = jobManagerTable.get(jobId);
+		final Optional<JobTable.Connection> optionalConnection = jobTable.getConnection(jobId);
+
+		if (optionalConnection.isPresent()) {
+			JobTable.Connection oldJobManagerConnection = optionalConnection.get();
 
 			if (Objects.equals(oldJobManagerConnection.getJobMasterId(), jobMasterGateway.getFencingToken())) {
 				// we already are connected to the given job manager
 				log.debug("Ignore JobManager gained leadership message for {} because we are already connected to it.", jobMasterGateway.getFencingToken());
 				return;
 			} else {
-				closeJobManagerConnection(jobId, new Exception("Found new job leader for job id " + jobId + '.'));
+				disconnectJobManagerConnection(oldJobManagerConnection, new Exception("Found new job leader for job id " + jobId + '.'));
 			}
 		}
 
 		log.info("Establish JobManager connection for job {}.", jobId);
 
 		ResourceID jobManagerResourceID = registrationSuccess.getResourceID();
-		JobManagerConnection newJobManagerConnection = associateWithJobManager(
+		associateWithJobManager(
 				jobId,
 				jobManagerResourceID,
 				jobMasterGateway);
-		jobManagerTable.put(jobId, jobManagerResourceID, newJobManagerConnection);
 
 		// monitor the job manager as heartbeat target
 		jobManagerHeartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget<AccumulatorReport>() {
@@ -1330,7 +1359,15 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		offerSlotsToJobManager(jobId);
 	}
 
-	private void closeJobManagerConnection(JobID jobId, Exception cause) {
+	private void closeJob(JobTable.Job job, Exception cause) {
+		job.asConnection().ifPresent(
+			jobManagerConnection -> disconnectJobManagerConnection(jobManagerConnection, cause));
+
+		job.close();
+	}
+
+	private void disconnectJobManagerConnection(JobTable.Connection jobManagerConnection, Exception cause) {
+		final JobID jobId = jobManagerConnection.getJobId();
 		if (log.isDebugEnabled()) {
 			log.debug("Close JobManager connection for job {}.", jobId, cause);
 		} else {
@@ -1365,20 +1402,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		// 3. Disassociate from the JobManager
-		JobManagerConnection jobManagerConnection = jobManagerTable.remove(jobId);
-
-		if (jobManagerConnection != null) {
-			try {
-				jobManagerHeartbeatManager.unmonitorTarget(jobManagerConnection.getResourceID());
-				disassociateFromJobManager(jobManagerConnection, cause);
-			} catch (IOException e) {
-				log.warn("Could not properly disassociate from JobManager {}.",
-					jobManagerConnection.getJobManagerGateway().getAddress(), e);
-			}
+		try {
+			jobManagerHeartbeatManager.unmonitorTarget(jobManagerConnection.getResourceId());
+			disassociateFromJobManager(jobManagerConnection, cause);
+		} catch (IOException e) {
+			log.warn("Could not properly disassociate from JobManager {}.",
+				jobManagerConnection.getJobManagerGateway().getAddress(), e);
 		}
+
+		jobManagerConnection.disconnect();
 	}
 
-	private JobManagerConnection associateWithJobManager(
+	private void associateWithJobManager(
 			JobID jobID,
 			ResourceID resourceID,
 			JobMasterGateway jobMasterGateway) {
@@ -1386,15 +1421,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		checkNotNull(resourceID);
 		checkNotNull(jobMasterGateway);
 
+		final JobTable.Job job = jobTable.getOrCreateJob(jobID, this::createLibraryCacheManager);
+
 		TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobMasterGateway);
 
 		CheckpointResponder checkpointResponder = new RpcCheckpointResponder(jobMasterGateway);
 		GlobalAggregateManager aggregateManager = new RpcGlobalAggregateManager(jobMasterGateway);
-
-		final LibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
-			blobCacheService.getPermanentBlobService(),
-			taskManagerConfiguration.getClassLoaderResolveOrder(),
-			taskManagerConfiguration.getAlwaysParentFirstLoaderPatterns());
 
 		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = new RpcResultPartitionConsumableNotifier(
 			jobMasterGateway,
@@ -1405,22 +1437,20 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		registerQueryableState(jobID, jobMasterGateway);
 
-		return new JobManagerConnection(
-			jobID,
+		job.connect(
 			resourceID,
 			jobMasterGateway,
 			taskManagerActions,
 			checkpointResponder,
 			aggregateManager,
-			libraryCacheManager,
 			resultPartitionConsumableNotifier,
 			partitionStateChecker);
 	}
 
-	private void disassociateFromJobManager(JobManagerConnection jobManagerConnection, Exception cause) throws IOException {
+	private void disassociateFromJobManager(JobTable.Connection jobManagerConnection, Exception cause) throws IOException {
 		checkNotNull(jobManagerConnection);
 
-		final JobID jobId = jobManagerConnection.getJobID();
+		final JobID jobId = jobManagerConnection.getJobId();
 
 		// cleanup remaining partitions once all tasks for this job have completed
 		scheduleResultPartitionCleanup(jobId);
@@ -1434,12 +1464,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final KvStateClientProxy kvStateClientProxy = kvStateService.getKvStateClientProxy();
 
 		if (kvStateClientProxy != null) {
-			kvStateClientProxy.updateKvStateLocationOracle(jobManagerConnection.getJobID(), null);
+			kvStateClientProxy.updateKvStateLocationOracle(jobManagerConnection.getJobId(), null);
 		}
 
 		JobMasterGateway jobManagerGateway = jobManagerConnection.getJobManagerGateway();
 		jobManagerGateway.disconnectTaskManager(getResourceID(), cause);
-		jobManagerConnection.getLibraryCacheManager().shutdown();
 	}
 
 	private void scheduleResultPartitionCleanup(JobID jobId) {
@@ -1581,10 +1610,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				log.info("Could not remove job {} from JobLeaderService.", jobId, e);
 			}
 
-			closeJobManagerConnection(
-				jobId,
-				new FlinkException("TaskExecutor " + getAddress() +
-					" has no more allocated slots for job " + jobId + '.'));
+			jobTable.getJob(jobId).ifPresent(
+				job -> closeJob(
+					job,
+					new FlinkException("TaskExecutor " + getAddress() + " has no more allocated slots for job " + jobId + '.')));
 		}
 	}
 
@@ -1605,20 +1634,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	 * Slots which the JobMaster thinks it still owns but which are no longer allocated to it
 	 * will be failed via {@link JobMasterGateway#failSlot}.
 	 *
+	 * @param jobMasterGateway jobMasterGateway to talk to the connected job master
 	 * @param allocatedSlotReport represents the JobMaster's view on the current slot allocation state
 	 */
-	private void syncSlotsWithSnapshotFromJobMaster(AllocatedSlotReport allocatedSlotReport) {
-		JobManagerConnection jobManagerConnection = jobManagerTable.get(allocatedSlotReport.getJobId());
-		if (jobManagerConnection != null) {
-			final JobMasterGateway jobMasterGateway = jobManagerConnection.getJobManagerGateway();
-
-			failNoLongerAllocatedSlots(allocatedSlotReport, jobMasterGateway);
-
-			freeNoLongerUsedSlots(allocatedSlotReport);
-		} else {
-			log.debug("Ignoring allocated slot report from job {} because there is no active leader.",
-					allocatedSlotReport.getJobId());
-		}
+	private void syncSlotsWithSnapshotFromJobMaster(JobMasterGateway jobMasterGateway, AllocatedSlotReport allocatedSlotReport) {
+		failNoLongerAllocatedSlots(allocatedSlotReport, jobMasterGateway);
+		freeNoLongerUsedSlots(allocatedSlotReport);
 	}
 
 	private void failNoLongerAllocatedSlots(AllocatedSlotReport allocatedSlotReport, JobMasterGateway jobMasterGateway) {
@@ -1670,9 +1691,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	private boolean isJobManagerConnectionValid(JobID jobId, JobMasterId jobMasterId) {
-		JobManagerConnection jmConnection = jobManagerTable.get(jobId);
-
-		return jmConnection != null && Objects.equals(jmConnection.getJobMasterId(), jobMasterId);
+		return jobTable
+			.getConnection(jobId)
+			.map(jmConnection -> Objects.equals(jmConnection.getJobMasterId(), jobMasterId))
+			.orElse(false);
 	}
 
 	private CompletableFuture<TransientBlobKey> requestFileUploadByFilePath(String filePath, String fileTag) {
@@ -1794,9 +1816,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			log.info("JobManager for job {} with leader id {} lost leadership.", jobId, jobMasterId);
 
 			runAsync(() ->
-				closeJobManagerConnection(
-					jobId,
-					new Exception("Job leader for job id " + jobId + " lost leadership.")));
+				jobTable
+					.getConnection(jobId)
+					.ifPresent(
+						jobManagerConnection -> disconnectJobManagerConnection(
+							jobManagerConnection,
+							new Exception("Job leader for job id " + jobId + " lost leadership."))));
 		}
 
 		@Override
@@ -1893,43 +1918,44 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			validateRunsInMainThread();
 			log.info("The heartbeat of JobManager with id {} timed out.", resourceID);
 
-			if (jobManagerTable.contains(resourceID)) {
-				JobManagerConnection jobManagerConnection = jobManagerTable.get(resourceID);
-
-				if (jobManagerConnection != null) {
-					closeJobManagerConnection(
-						jobManagerConnection.getJobID(),
-						new TimeoutException("The heartbeat of JobManager with id " + resourceID + " timed out."));
-
-					jobLeaderService.reconnect(jobManagerConnection.getJobID());
-				}
-			}
+			jobTable
+				.getConnection(resourceID)
+				.ifPresent(
+					jobManagerConnection -> disconnectAndTryReconnectToJobManager(
+						jobManagerConnection,
+						new TimeoutException("The heartbeat of JobManager with id " + resourceID + " timed out.")
+					));
 		}
 
 		@Override
 		public void reportPayload(ResourceID resourceID, AllocatedSlotReport allocatedSlotReport) {
 			validateRunsInMainThread();
-			syncSlotsWithSnapshotFromJobMaster(allocatedSlotReport);
+			OptionalConsumer.of(jobTable.getConnection(allocatedSlotReport.getJobId()))
+				.ifPresent(
+					jobManagerConnection -> {
+						syncSlotsWithSnapshotFromJobMaster(jobManagerConnection.getJobManagerGateway(), allocatedSlotReport);
+					})
+				.ifNotPresent(() -> log.debug("Ignoring allocated slot report from job {} because there is no active leader.", allocatedSlotReport.getJobId()));
+
 		}
 
 		@Override
 		public AccumulatorReport retrievePayload(ResourceID resourceID) {
 			validateRunsInMainThread();
-			JobManagerConnection jobManagerConnection = jobManagerTable.get(resourceID);
-			if (jobManagerConnection != null) {
-				JobID jobId = jobManagerConnection.getJobID();
+			return jobTable.getConnection(resourceID).map(
+				jobManagerConnection -> {
+					JobID jobId = jobManagerConnection.getJobId();
 
-				List<AccumulatorSnapshot> accumulatorSnapshots = new ArrayList<>(16);
-				Iterator<Task> allTasks = taskSlotTable.getTasks(jobId);
+					List<AccumulatorSnapshot> accumulatorSnapshots = new ArrayList<>(16);
+					Iterator<Task> allTasks = taskSlotTable.getTasks(jobId);
 
-				while (allTasks.hasNext()) {
-					Task task = allTasks.next();
-					accumulatorSnapshots.add(task.getAccumulatorRegistry().getSnapshot());
+					while (allTasks.hasNext()) {
+						Task task = allTasks.next();
+						accumulatorSnapshots.add(task.getAccumulatorRegistry().getSnapshot());
+					}
+					return new AccumulatorReport(accumulatorSnapshots);
 				}
-				return new AccumulatorReport(accumulatorSnapshots);
-			} else {
-				return new AccumulatorReport(Collections.emptyList());
-			}
+			).orElseGet(() -> new AccumulatorReport(Collections.emptyList()));
 		}
 	}
 

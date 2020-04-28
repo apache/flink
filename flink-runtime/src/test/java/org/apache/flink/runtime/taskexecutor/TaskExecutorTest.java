@@ -59,7 +59,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
-import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
@@ -699,7 +698,6 @@ public class TaskExecutorTest extends TestLogger {
 	@Test
 	public void testJobLeaderDetection() throws Exception {
 		final TaskSlotTable<Task> taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
-		final JobManagerTable jobManagerTable = new DefaultJobManagerTable();
 		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
 		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
@@ -729,7 +727,6 @@ public class TaskExecutorTest extends TestLogger {
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
 			.setTaskSlotTable(taskSlotTable)
-			.setJobManagerTable(jobManagerTable)
 			.setJobLeaderService(jobLeaderService)
 			.setTaskStateManager(localStateStoresManager)
 			.build();
@@ -954,7 +951,6 @@ public class TaskExecutorTest extends TestLogger {
 			.setJobLeaderService(new DefaultJobLeaderService(
 				unresolvedTaskManagerLocation,
 				RetryingRegistrationConfiguration.defaultConfiguration()))
-			.setJobManagerTable(new DefaultJobManagerTable())
 			.setTaskStateManager(createTaskExecutorLocalStateStoresManager())
 			.build();
 	}
@@ -1003,58 +999,6 @@ public class TaskExecutorTest extends TestLogger {
 			.setAllocationId(allocationId)
 			.build();
 		tmGateway.submitTask(tdd, jobMasterGateway.getFencingToken(), timeout).join();
-	}
-
-	/**
-	 * This tests makes sure that duplicate JobMaster gained leadership messages are filtered out
-	 * by the TaskExecutor. See FLINK-7526.
-	 */
-	@Test
-	public void testFilterOutDuplicateJobMasterRegistrations() throws Exception {
-		final CompletableFuture<JobLeaderListener> jobLeaderListenerFuture = new CompletableFuture<>();
-		final TestingJobLeaderService jobLeaderService = TestingJobLeaderService.newBuilder()
-			.setStartConsumer((s, rpcService, highAvailabilityServices, jobLeaderListener) -> jobLeaderListenerFuture.complete(jobLeaderListener))
-			.build();
-
-		final JobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder().setHostname("localhost").build();
-		final JMTMRegistrationSuccess registrationMessage = new JMTMRegistrationSuccess(ResourceID.generate());
-
-		final CompletableFuture<JobManagerConnection> jobManagerConnectionFuture = new CompletableFuture<>();
-		final TestingJobManagerTable jobManagerTableMock = TestingJobManagerTable.newBuilder()
-			.setPutFunction((jobID, resourceID, jobManagerConnection) -> {
-				jobManagerConnectionFuture.complete(jobManagerConnection);
-				return true;
-			})
-			.build();
-
-		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
-
-		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
-			.setJobManagerTable(jobManagerTableMock)
-			.setJobLeaderService(jobLeaderService)
-			.setTaskStateManager(localStateStoresManager)
-			.build();
-
-		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices);
-
-		try {
-			taskExecutor.start();
-			taskExecutor.waitUntilStarted();
-
-			final JobLeaderListener taskExecutorListener = jobLeaderListenerFuture.join();
-
-			taskExecutorListener.jobManagerGainedLeadership(jobId, jobMasterGateway, registrationMessage);
-
-			// duplicate job manager gained leadership message
-			taskExecutorListener.jobManagerGainedLeadership(jobId, jobMasterGateway, registrationMessage);
-
-			JobManagerConnection jobManagerConnection = jobManagerConnectionFuture.join();
-
-			assertEquals(jobMasterGateway, jobManagerConnection.getJobManagerGateway());
-		} finally {
-			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
-		}
 	}
 
 	/**

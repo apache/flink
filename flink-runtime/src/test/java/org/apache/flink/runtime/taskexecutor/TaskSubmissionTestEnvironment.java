@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -56,6 +57,7 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
+import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -150,9 +152,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		}
 
 		this.testingRpcService = testingRpcService;
-		final JobManagerConnection jobManagerConnection = createJobManagerConnection(jobId, jobMasterGateway, testingRpcService, taskManagerActions, timeout);
-		final JobManagerTable jobManagerTable = new DefaultJobManagerTable();
-		jobManagerTable.put(jobId, jobManagerConnection.getResourceID(), jobManagerConnection);
+		final DefaultJobTable jobTable = DefaultJobTable.create();
+		registerJobMasterConnection(jobTable, jobId, testingRpcService, jobMasterGateway, taskManagerActions, timeout);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
 			false,
@@ -162,7 +163,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setShuffleEnvironment(shuffleEnvironment)
 			.setTaskSlotTable(taskSlotTable)
-			.setJobManagerTable(jobManagerTable)
+			.setJobTable(jobTable)
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
@@ -170,6 +171,26 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		taskExecutor.start();
 		taskExecutor.waitUntilStarted();
+	}
+
+	static void registerJobMasterConnection(
+			JobTable jobTable,
+			JobID jobId,
+			RpcService testingRpcService,
+			JobMasterGateway jobMasterGateway,
+			TaskManagerActions taskManagerActions,
+			Time timeout) {
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, () -> ContextClassLoaderLibraryCacheManager.INSTANCE);
+		job.connect(
+			ResourceID.generate(),
+			jobMasterGateway,
+			taskManagerActions,
+			new TestCheckpointResponder(),
+			new TestGlobalAggregateManager(),
+			new RpcResultPartitionConsumableNotifier(jobMasterGateway, testingRpcService.getExecutor(), timeout),
+			TestingPartitionProducerStateChecker.newBuilder()
+				.setPartitionProducerStateFunction((jobID, intermediateDataSetID, resultPartitionID) -> CompletableFuture.completedFuture(ExecutionState.RUNNING))
+				.build());
 	}
 
 	public TestingTaskExecutor getTaskExecutor() {
