@@ -643,6 +643,42 @@ class TableEnvironmentTest {
     tableEnv.executeSql("DROP TEMPORARY VIEW default_catalog.default_database.T2")
   }
 
+  @Test
+  def testExecuteSqlWithShowViews(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val tableResult2 = tableEnv.executeSql("CREATE VIEW view1 AS SELECT * FROM tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val tableResult3 = tableEnv.executeSql("SHOW VIEWS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    checkData(
+      util.Arrays.asList(Row.of("view1")).iterator(),
+      tableResult3.collect())
+
+    val tableResult4 = tableEnv.executeSql("CREATE TEMPORARY VIEW view2 AS SELECT * FROM tbl1")
+    assertEquals(ResultKind.SUCCESS, tableResult4.getResultKind)
+
+    // SHOW VIEWS also shows temporary views
+    val tableResult5 = tableEnv.executeSql("SHOW VIEWS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult5.getResultKind)
+    checkData(
+      util.Arrays.asList(Row.of("view1"), Row.of("view2")).iterator(),
+      tableResult5.collect())
+  }
+
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
     while (expected.hasNext && actual.hasNext) {
       assertEquals(expected.next(), actual.next())

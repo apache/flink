@@ -62,6 +62,8 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def listTables(): Array[String] = ???
 
+  override def listViews(): Array[String] = ???
+
   override def listUserDefinedFunctions(): Array[String] = ???
 
   override def listFunctions(): Array[String] = ???

@@ -795,6 +795,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 		sql(sql).ok(expected);
 	}
 
+	@Test
+	public void testShowViews() {
+		sql("show views").ok("SHOW VIEWS");
+	}
+
 	// Override the test because our ROW field type default is nullable,
 	// which is different with Calcite.
 	@Override
