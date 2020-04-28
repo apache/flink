@@ -796,7 +796,12 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.10.0
         """
-        self._j_tenv.registerFunction(name, function.java_user_defined_function())
+        java_function = function.java_user_defined_function()
+        if self._is_blink_planner and isinstance(self, BatchTableEnvironment) and \
+                self._is_table_function(java_function):
+            self._register_table_function(name, java_function)
+        else:
+            self._j_tenv.registerFunction(name, java_function)
 
     def create_temporary_view(self, view_path, table):
         """
