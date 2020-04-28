@@ -30,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.AbstractDispatcherBootstrap;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
 
 import org.slf4j.Logger;
@@ -137,7 +139,13 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 				.handle((r, t) -> {
 					final ApplicationStatus applicationStatus;
 					if (t != null) {
-						applicationStatus = ApplicationStatus.FAILED;
+
+						final Optional<JobCancellationException> cancellationException =
+								ExceptionUtils.findThrowable(t, JobCancellationException.class);
+
+						applicationStatus = cancellationException.isPresent()
+								? ApplicationStatus.CANCELED
+								: ApplicationStatus.FAILED;
 						LOG.warn("Application {}: ", applicationStatus, t);
 					} else {
 						applicationStatus = ApplicationStatus.SUCCEEDED;
@@ -275,6 +283,15 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 			}
 
 			Optional<SerializedThrowable> serializedThrowable = result.getSerializedThrowable();
+
+			if (result.getApplicationStatus() == ApplicationStatus.CANCELED) {
+				throw new CompletionException(
+						new JobCancellationException(
+								result.getJobId(),
+								"Job was cancelled.",
+								serializedThrowable.orElse(null)));
+			}
+
 			if (serializedThrowable.isPresent()) {
 				Throwable throwable =
 						serializedThrowable
