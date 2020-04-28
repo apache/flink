@@ -59,19 +59,19 @@ public class HiveSimpleUDFTest {
 	@Test
 	public void testFloatUDF() {
 		HiveSimpleUDF udf = init(FloatUDF.class, new DataType[]{ DataTypes.FLOAT()});
-		assertEquals((float) udf.eval(3.0f), 3.0f, 0);
+		assertEquals(3.0f, (float) udf.eval(3.0f), 0);
 	}
 
 	@Test
 	public void testIntUDF() {
 		HiveSimpleUDF udf = init(IntUDF.class, new DataType[]{ DataTypes.INT()});
-		assertEquals((int) udf.eval(3), 3);
+		assertEquals(3, (int) udf.eval(3));
 	}
 
 	@Test
 	public void testStringUDF() {
 		HiveSimpleUDF udf = init(StringUDF.class, new DataType[]{ DataTypes.STRING()});
-		assertEquals(udf.eval("test"), "test");
+		assertEquals("test", udf.eval("test"));
 	}
 
 	@Test
