@@ -1,8 +1,8 @@
 ---
-title: Hands-on Tutorials
-nav-id: tutorials
+title: Hands-on Training
+nav-id: training
 nav-pos: 2
-nav-title: '<i class="fa fa-hand-paper-o title appetizer" aria-hidden="true"></i> Hands-on Tutorials'
+nav-title: '<i class="fa fa-hand-paper-o title appetizer" aria-hidden="true"></i> Hands-on Training'
 nav-parent_id: root
 nav-show_overview: true
 always-expand: true
@@ -29,15 +29,15 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-## Goals and Scope of these Tutorials
+## Goals and Scope of this Training
 
-These tutorials present an introduction to Apache Flink that includes just enough to get you started
+This training presents an introduction to Apache Flink that includes just enough to get you started
 writing scalable streaming ETL, analytics, and event-driven applications, while leaving out a lot of
 (ultimately important) details. The focus is on providing straightforward introductions to Flink's
 APIs for managing state and time, with the expectation that having mastered these fundamentals,
 you'll be much better equipped to pick up the rest of what you need to know from the more detailed
-reference documentation. The links at the end of each page will lead you to where you can learn
-more.
+reference documentation. The links at the end of each section will lead you to where you
+can learn more.
 
 Specifically, you will learn:
 
@@ -47,12 +47,12 @@ Specifically, you will learn:
 - how to build event-driven applications on continuous streams
 - how Flink is able to provide fault-tolerant, stateful stream processing with exactly-once semantics
 
-These tutorials focus on four critical concepts: continuous processing of streaming data, event
+This training focuses on four critical concepts: continuous processing of streaming data, event
 time, stateful stream processing, and state snapshots. This page introduces these concepts.
 
-{% info Note %} Accompanying these tutorials are a set of hands-on exercises that will guide you
-through learning how to work with the concepts being presented. A link to the relevant exercise
-is provided at the end of each tutorial.
+{% info Note %} Accompanying this training is a set of hands-on exercises that will
+guide you through learning how to work with the concepts being presented. A link to the relevant
+exercise is provided at the end of each section.
 
 {% top %}
 

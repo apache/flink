@@ -3,7 +3,7 @@ title: Fault Tolerance via State Snapshots
 nav-id: fault-tolerance
 nav-pos: 6
 nav-title: Fault Tolerance
-nav-parent_id: tutorials
+nav-parent_id: training
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
