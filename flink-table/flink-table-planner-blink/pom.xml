@@ -343,6 +343,7 @@ under the License.
 
 									<!-- flink-table-planner-blink dependencies -->
 									<include>org.apache.flink:flink-sql-parser</include>
+									<include>org.apache.flink:flink-sql-parser-hive</include>
 
 									<!-- flink-table-runtime-blink dependencies -->
 									<include>org.codehaus.janino:*</include>
