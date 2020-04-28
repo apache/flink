@@ -24,6 +24,7 @@ import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ParserConfigOptions;
 import org.apache.flink.table.calcite.CalciteConfig;
 import org.apache.flink.table.calcite.CalciteParser;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
@@ -179,6 +180,9 @@ public class PlanningConfigurationBuilder {
 				.setParserFactory(FlinkSqlParserImpl.FACTORY)
 				.setConformance(getSqlConformance())
 				.setLex(Lex.JAVA)
+				.setCaseSensitive(tableConfig
+					.getConfiguration()
+					.getBoolean(ParserConfigOptions.TABLE_PARSER_CASE_SENSITIVE_ENABLED))
 				.build());
 	}
 

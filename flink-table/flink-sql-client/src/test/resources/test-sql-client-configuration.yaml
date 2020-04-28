@@ -31,3 +31,4 @@ configuration:
   table.exec.spill-compression.enabled: true
   table.exec.spill-compression.block-size: 128kb
   table.optimizer.join-reorder-enabled: true
+  table.parser.case-sensitive-enabled: false
