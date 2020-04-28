@@ -528,7 +528,7 @@ public class PipelinedRegionComputeUtilTest extends TestLogger {
 	}
 
 	@SafeVarargs
-	public static void assertSameRegion(Set<SchedulingExecutionVertex>... regions) {
+	private static void assertSameRegion(Set<SchedulingExecutionVertex>... regions) {
 		checkNotNull(regions);
 		for (int i = 0; i < regions.length; i++) {
 			for (int j = i + 1; i < regions.length; i++) {
@@ -538,7 +538,7 @@ public class PipelinedRegionComputeUtilTest extends TestLogger {
 	}
 
 	@SafeVarargs
-	public static void assertDistinctRegions(Set<SchedulingExecutionVertex>... regions) {
+	private static void assertDistinctRegions(Set<SchedulingExecutionVertex>... regions) {
 		checkNotNull(regions);
 		for (int i = 0; i < regions.length; i++) {
 			for (int j = i + 1; j < regions.length; j++) {
