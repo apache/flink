@@ -59,7 +59,7 @@ public class HiveSimpleUDFTest {
 	@Test
 	public void testFloatUDF() {
 		HiveSimpleUDF udf = init(FloatUDF.class, new DataType[]{ DataTypes.FLOAT()});
-		assertEquals((float) udf.eval(3.0f), 3.0f, 1.0);
+		assertEquals((float) udf.eval(3.0f), 3.0f, 0);
 	}
 
 	@Test
@@ -260,17 +260,8 @@ public class HiveSimpleUDFTest {
 	 * Boolean Test UDF.
 	 */
 	public static class BooleanUDF extends UDF {
-		/**
-		 *
-		 * @param content input
-		 * @return
-		 */
 		public boolean evaluate(int content) {
-			if (content == 1) {
-				return true;
-			} else {
-				return false;
-			}
+			return content == 1;
 		}
 	}
 
@@ -278,11 +269,6 @@ public class HiveSimpleUDFTest {
 	 * Float Test UDF.
 	 */
 	public static class FloatUDF extends UDF {
-		/**
-		 *
-		 * @param content input
-		 * @return
-		 */
 		public float evaluate(float content) {
 			return content;
 		}
@@ -292,11 +278,6 @@ public class HiveSimpleUDFTest {
 	 * Int Test UDF.
 	 */
 	public static class IntUDF extends UDF {
-		/**
-		 *
-		 * @param content input
-		 * @return
-		 */
 		public int evaluate(int content) {
 			return content;
 		}
@@ -306,11 +287,6 @@ public class HiveSimpleUDFTest {
 	 * String Test UDF.
 	 */
 	public static class StringUDF extends UDF {
-		/**
-		 *
-		 * @param content input
-		 * @return
-		 */
 		public String evaluate(String content) {
 			return content;
 		}
