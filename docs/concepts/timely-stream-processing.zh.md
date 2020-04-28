@@ -204,8 +204,7 @@ overlap), and *session windows* (punctuated by a gap of inactivity).
 
 Please check out this [blog
 post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html) for
-additional examples of windows or take a look a [window documentation]({{
-site.baseurl }}{% link dev/stream/operators/windows.zh.md %}) of the DataStream
-API.
+additional examples of windows or take a look a [window documentation]({% link
+dev/stream/operators/windows.zh.md %}) of the DataStream API.
 
 {% top %}

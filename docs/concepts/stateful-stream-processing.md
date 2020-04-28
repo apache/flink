@@ -115,9 +115,9 @@ streams are reset to the point of the state snapshot. Any records that are
 processed as part of the restarted parallel dataflow are guaranteed to not have
 affected the previously checkpointed state.
 
-{% info Note %} By default, checkpointing is disabled. See [Checkpointing]({{
-site.baseurl }}{% link dev/stream/state/checkpointing.md %}) for details on how
-to enable and configure checkpointing.
+{% info Note %} By default, checkpointing is disabled. See [Checkpointing]({%
+link dev/stream/state/checkpointing.md %}) for details on how to enable and
+configure checkpointing.
 
 {% info Note %} For this mechanism to realize its full guarantees, the data
 stream source (such as message queue or broker) needs to be able to rewind the
