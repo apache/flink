@@ -3,8 +3,7 @@ title: Intro to the DataStream API
 nav-id: datastream-api
 nav-pos: 2
 nav-title: Intro to the DataStream API
-nav-parent_id: tutorials
-permalink: /tutorials/datastream_api.html
+nav-parent_id: training
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
