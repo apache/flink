@@ -433,7 +433,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	public void testCoordinatedOperator() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Integer> source =
-				env.addSource(new MockSource(Boundedness.BOUNDED, 1), "TestSource");
+				env.continuousSource(new MockSource(Boundedness.BOUNDED, 1), "TestSource");
 		source.addSink(new DiscardingSink<>());
 
 		StreamGraph streamGraph = env.getStreamGraph();
