@@ -58,14 +58,42 @@ mvn clean install -DskipTests -Dfast
 
 ## Build PyFlink
 
-If you want to build a PyFlink package that can be used for pip installation, you need to build Flink jars first, as described in [Build Flink](#build-flink).
+#### Prerequisites
+
+1. Building Flink
+
+    If you want to build a PyFlink package that can be used for pip installation, you need to build Flink jars first, as described in [Build Flink](#build-flink).
+
+2. Python version(3.5, 3.6 or 3.7) is required
+
+    ```shell
+    $ python --version
+    # the version printed here must be 3.5, 3.6 or 3.7
+    ```
+
+3. Compilers
+    
+    To build any extension modules for Python, you’ll need a C compiler. The details of getting a C compiler varies according to the system used:
+    
+    * **Linux** The GNU C Compiler (gcc) is usually present, or easily available through the package system. On Ubuntu or Debian, for instance, the command sudo apt-get install build-essential will fetch everything you need.
+    
+    * **Mac OS X** To retrieve gcc, one option is to install Apple’s XCode, which can be retrieved from the Mac OS X’s install DVDs or from [https://developer.apple.com/](https://developer.apple.com/).
+
+4. Installing Dependencies
+
+    For building PyFlink, you'll need to install dependencies by following command:
+    
+    ```shell
+    $ python -m pip install -r flink-python/dev/dev-requirements.txt
+    ```
+
+#### Installation
+
 Then go to the root directory of flink source code and run this command to build the sdist package and wheel package:
 
 {% highlight bash %}
 cd flink-python; python setup.py sdist bdist_wheel
 {% endhighlight %}
-
-<span class="label label-info">Note</span> Python version (3.5, 3.6 or 3.7) is required to build PyFlink.
 
 The sdist and wheel package will be found under `./flink-python/dist/`. Either of them could be used for pip installation, such as:
 
