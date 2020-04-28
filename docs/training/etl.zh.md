@@ -3,7 +3,7 @@ title: Data Pipelines & ETL
 nav-id: etl
 nav-pos: 3
 nav-title: Data Pipelines & ETL
-nav-parent_id: tutorials
+nav-parent_id: training
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,10 +26,10 @@ under the License.
 
 One very common use case for Apache Flink is to implement ETL (extract, transform, load) pipelines
 that take data from one or more sources, perform some transformations and/or enrichments, and
-then store the results somewhere. In this tutorial we are going to look at how to use Flink's
+then store the results somewhere. In this section we are going to look at how to use Flink's
 DataStream API to implement this kind of application.
 
-Note that Flink's [Table and SQL APIs]({% link dev/table/index.md %})
+Note that Flink's [Table and SQL APIs]({% link dev/table/index.zh.md %})
 are well suited for many ETL use cases. But regardless of whether you ultimately use
 the DataStream API directly, or not, having a solid understanding the basics presented here will
 prove valuable.
@@ -264,7 +264,7 @@ The output stream now contains a record for each key every time the duration rea
 
 ### (Implicit) State
 
-This is the first example in these tutorials that involves stateful streaming. Though the state is
+This is the first example in this training that involves stateful streaming. Though the state is
 being handled transparently, Flink has to keep track of the maximum duration for each distinct
 key.
 
@@ -293,7 +293,7 @@ Your applications are certainly capable of using state without getting Flink inv
 * **durable**: Flink state is fault-tolerant, i.e., it is automatically checkpointed at regular intervals, and is restored upon failure
 * **vertically scalable**: Flink state can be kept in embedded RocksDB instances that scale by adding more local disk
 * **horizontally scalable**: Flink state is redistributed as your cluster grows and shrinks
-* **queryable**: Flink state can be queried externally via the [Queryable State API]({% link dev/stream/state/queryable_state.md %}).
+* **queryable**: Flink state can be queried externally via the [Queryable State API]({% link dev/stream/state/queryable_state.zh.md %}).
 
 In this section you will learn how to work with Flink's APIs that manage keyed state.
 
@@ -410,17 +410,17 @@ keyHasBeenSeen.clear()
 {% endhighlight %}
 
 You might want to do this, for example, after a period of inactivity for a given key. You'll see how
-to use Timers to do this when you learn about `ProcessFunction`s in the tutorial on event-driven
+to use Timers to do this when you learn about `ProcessFunction`s in the section on event-driven
 applications.
 
-There's also a [State Time-to-Live (TTL)]({% link dev/stream/state/state.md
+There's also a [State Time-to-Live (TTL)]({% link dev/stream/state/state.zh.md
 %}#state-time-to-live-ttl) option that you can configure with the state descriptor that specifies
 when you want the state for stale keys to be automatically cleared.
 
 ### Non-keyed State
 
 It is also possible to work with managed state in non-keyed contexts. This is sometimes called
-[operator state]({% link dev/stream/state/state.md %}#operator-state). The
+[operator state]({% link dev/stream/state/state.zh.md %}#operator-state). The
 interfaces involved are somewhat different, and since it is unusual for user-defined functions to
 need non-keyed state, it is not covered here. This feature is most often used in the implementation
 of sources and sinks. 
@@ -530,7 +530,7 @@ Exercise](https://github.com/apache/flink-training/tree/{% if site.is_stable %}r
 
 ## Further Reading
 
-- [DataStream Transformations]({% link dev/stream/operators/index.md %}#datastream-transformations)
-- [Stateful Stream Processing]({% link concepts/stateful-stream-processing.md %})
+- [DataStream Transformations]({% link dev/stream/operators/index.zh.md %}#datastream-transformations)
+- [Stateful Stream Processing]({% link concepts/stateful-stream-processing.zh.md %})
 
 {% top %}

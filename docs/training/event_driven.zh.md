@@ -3,7 +3,7 @@ title: Event-driven Applications
 nav-id: event-driven
 nav-pos: 5
 nav-title: Event-driven Applications
-nav-parent_id: tutorials
+nav-parent_id: training
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -38,8 +38,8 @@ with Flink. It is very similar to a `RichFlatMapFunction`, but with the addition
 ### Example
 
 If you've done the
-[hands-on exercise]({% link tutorials/streaming_analytics.md %}#hands-on)
-in the [Streaming Analytics tutorial]({% link tutorials/streaming_analytics.md %}),
+[hands-on exercise]({% link training/streaming_analytics.zh.md %}#hands-on)
+in the [Streaming Analytics training]({% link training/streaming_analytics.zh.md %}),
 you will recall that it uses a `TumblingEventTimeWindow` to compute the sum of the tips for
 each driver during each hour, like this:
 
@@ -177,7 +177,7 @@ Things to consider:
 
 * What happens with late events? Events that are behind the watermark (i.e., late) are being
   dropped. If you want to do something better than this, consider using a side output, which is
-  explained in the [next section]({% link tutorials/event_driven.md
+  explained in the [next section]({% link training/event_driven.zh.md
   %}#side-outputs).
 
 * This example uses a `MapState` where the keys are timestamps, and sets a `Timer` for that same
@@ -302,7 +302,7 @@ Exercise](https://github.com/apache/flink-training/tree/{% if site.is_stable %}r
 
 ## Further Reading
 
-- [ProcessFunction]({% link dev/stream/operators/process_function.md %})
-- [Side Outputs]({% link dev/stream/side_output.md %})
+- [ProcessFunction]({% link dev/stream/operators/process_function.zh.md %})
+- [Side Outputs]({% link dev/stream/side_output.zh.md %})
 
 {% top %}

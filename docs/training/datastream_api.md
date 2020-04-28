@@ -3,8 +3,7 @@ title: Intro to the DataStream API
 nav-id: datastream-api
 nav-pos: 2
 nav-title: Intro to the DataStream API
-nav-parent_id: tutorials
-permalink: /tutorials/datastream_api.html
+nav-parent_id: training
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,8 +24,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The focus of this tutorial is to broadly cover the DataStream API well enough that you will be
-able to get started writing streaming applications. 
+The focus of this training is to broadly cover the DataStream API well enough that you will be able
+to get started writing streaming applications.
 
 * This will be replaced by the TOC
 {:toc}
@@ -83,7 +82,7 @@ public class Person {
 Person person = new Person("Fred Flintstone", 35);
 {% endhighlight %}
 
-Flink's serializer [supports schema evolution for POJO types]({% link dev/stream/state/schema_evolution.zh.md %}#pojo-types).
+Flink's serializer [supports schema evolution for POJO types]({% link dev/stream/state/schema_evolution.md %}#pojo-types).
 
 ### Scala tuples and case classes
 
@@ -229,9 +228,9 @@ instructions in the README, do the first exercise:
 ## Further Reading
 
 - [Flink Serialization Tuning Vol. 1: Choosing your Serializer — if you can](https://flink.apache.org/news/2020/04/15/flink-serialization-tuning-vol-1.html)
-- [Anatomy of a Flink Program]({% link dev/api_concepts.zh.md %}#anatomy-of-a-flink-program)
-- [Data Sources]({% link dev/datastream_api.zh.md %}#data-sources)
-- [Data Sinks]({% link dev/datastream_api.zh.md %}#data-sinks)
-- [DataStream Connectors]({% link dev/connectors/index.zh.md %})
+- [Anatomy of a Flink Program]({% link dev/datastream_api.md %}#anatomy-of-a-flink-program)
+- [Data Sources]({% link dev/datastream_api.md %}#data-sources)
+- [Data Sinks]({% link dev/datastream_api.md %}#data-sinks)
+- [DataStream Connectors]({% link dev/connectors/index.md %})
 
 {% top %}
