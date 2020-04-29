@@ -70,6 +70,7 @@ from pyflink.table.sources import TableSource, CsvTableSource
 from pyflink.table.types import DataTypes, UserDefinedType, Row
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.udf import FunctionContext, ScalarFunction
+from pyflink.table.explain_detail import ExplainDetail
 
 __all__ = [
     'TableEnvironment',
@@ -93,5 +94,6 @@ __all__ = [
     'TableSchema',
     'FunctionContext',
     'ScalarFunction',
-    'SqlDialect'
+    'SqlDialect',
+    'ExplainDetail'
 ]

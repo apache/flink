@@ -120,7 +120,7 @@ class StreamPlanner(
     }.filter(Objects.nonNull).asJava
   }
 
-  override def explain(operations: util.List[Operation], extended: Boolean): String = {
+  override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
     require(operations.asScala.nonEmpty, "operations should not be empty")
     val astWithUpdatesAsRetractionTuples = operations.asScala.map {
       case queryOperation: QueryOperation =>

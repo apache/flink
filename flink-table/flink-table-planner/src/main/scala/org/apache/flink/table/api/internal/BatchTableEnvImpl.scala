@@ -217,16 +217,20 @@ abstract class BatchTableEnvImpl(
     * @param extended Flag to include detailed optimizer estimates.
     */
   private[flink] def explain(table: Table, extended: Boolean): String = {
-    explain(JCollections.singletonList(table.getQueryOperation.asInstanceOf[Operation]), extended)
+    explain(
+      JCollections.singletonList(table.getQueryOperation.asInstanceOf[Operation]),
+      getExplainDetails(extended): _*)
   }
 
   override def explain(table: Table): String = explain(table: Table, extended = false)
 
   override def explain(extended: Boolean): String = {
-    explain(bufferedModifyOperations.asScala.map(_.asInstanceOf[Operation]).asJava, extended)
+    explain(
+      bufferedModifyOperations.asScala.map(_.asInstanceOf[Operation]).asJava,
+      getExplainDetails(extended): _*)
   }
 
-   protected def explain(operations: JList[Operation], extended: Boolean): String = {
+  protected def explain(operations: JList[Operation], extraDetails: ExplainDetail*): String = {
     require(operations.asScala.nonEmpty, "operations should not be empty")
     val astList = operations.asScala.map {
       case queryOperation: QueryOperation =>
@@ -285,6 +289,8 @@ abstract class BatchTableEnvImpl(
 
     val env = dataSinks.head.getDataSet.getExecutionEnvironment
     val jasonSqlPlan = env.getExecutionPlan
+    // keep the behavior as before
+    val extended = extraDetails.contains(ExplainDetail.ESTIMATED_COST)
     val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jasonSqlPlan, extended)
 
     s"== Abstract Syntax Tree ==" +
@@ -595,6 +601,14 @@ abstract class BatchTableEnvImpl(
       .toArray
 
     TableSchema.builder().fields(originalNames, fieldTypes).build()
+  }
+
+  private def getExplainDetails(extended: Boolean): Array[ExplainDetail] = {
+    if (extended) {
+      Array(ExplainDetail.ESTIMATED_COST)
+    } else {
+      Array.empty
+    }
   }
 
   protected def createDummyBatchTableEnv(): BatchTableEnvImpl
