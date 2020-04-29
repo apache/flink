@@ -152,9 +152,9 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	@Override
-	public void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
 		for (ResultSubpartition subpartition : subpartitions) {
-			subpartition.initializeState(stateReader);
+			subpartition.readRecoveredState(stateReader);
 		}
 	}
 

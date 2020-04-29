@@ -40,7 +40,7 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 	}
 
 	@Override
-	public void initializeState(ChannelStateReader stateReader) {
+	public void readRecoveredState(ChannelStateReader stateReader) {
 	}
 
 	@Override

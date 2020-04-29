@@ -463,7 +463,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			if (writers != null) {
 				//TODO we should get proper state reader from getEnvironment().getTaskStateManager().getChannelStateReader()
 				for (ResultPartitionWriter writer : writers) {
-					writer.initializeState(ChannelStateReader.NO_OP);
+					writer.readRecoveredState(ChannelStateReader.NO_OP);
 				}
 			}
 		});

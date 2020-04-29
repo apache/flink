@@ -453,7 +453,7 @@ public class ResultPartitionTest {
 		final ChannelStateReader stateReader = ChannelStateReader.NO_OP;
 		try {
 			partition.setup();
-			partition.initializeState(stateReader);
+			partition.readRecoveredState(stateReader);
 
 			for (ResultSubpartition subpartition : partition.getAllPartitions()) {
 				// no buffers are added into the queue for empty states
@@ -513,7 +513,7 @@ public class ResultPartitionTest {
 			Future<Void> result = executor.submit(partitionConsumeTask);
 
 			partition.setup();
-			partition.initializeState(stateReader);
+			partition.readRecoveredState(stateReader);
 
 			// wait the partition consume task finish
 			result.get(20, TimeUnit.SECONDS);
