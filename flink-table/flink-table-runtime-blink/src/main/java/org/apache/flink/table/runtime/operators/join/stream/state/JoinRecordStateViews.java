@@ -26,8 +26,8 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.util.IterableIterator;
 
 import java.util.ArrayList;
@@ -50,7 +50,7 @@ public final class JoinRecordStateViews {
 			RuntimeContext ctx,
 			String stateName,
 			JoinInputSideSpec inputSideSpec,
-			BaseRowTypeInfo recordType,
+			RowDataTypeInfo recordType,
 			long retentionTime) {
 		StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
 		if (inputSideSpec.hasUniqueKey()) {
@@ -70,20 +70,19 @@ public final class JoinRecordStateViews {
 		}
 	}
 
-
 	// ------------------------------------------------------------------------------------
 
 	private static final class JoinKeyContainsUniqueKey implements JoinRecordStateView {
 
-		private final ValueState<BaseRow> recordState;
-		private final List<BaseRow> reusedList;
+		private final ValueState<RowData> recordState;
+		private final List<RowData> reusedList;
 
 		private JoinKeyContainsUniqueKey(
 				RuntimeContext ctx,
 				String stateName,
-				BaseRowTypeInfo recordType,
+				RowDataTypeInfo recordType,
 				StateTtlConfig ttlConfig) {
-			ValueStateDescriptor<BaseRow> recordStateDesc = new ValueStateDescriptor<>(
+			ValueStateDescriptor<RowData> recordStateDesc = new ValueStateDescriptor<>(
 				stateName,
 				recordType);
 			if (ttlConfig.isEnabled()) {
@@ -95,19 +94,19 @@ public final class JoinRecordStateViews {
 		}
 
 		@Override
-		public void addRecord(BaseRow record) throws Exception {
+		public void addRecord(RowData record) throws Exception {
 			recordState.update(record);
 		}
 
 		@Override
-		public void retractRecord(BaseRow record) throws Exception {
+		public void retractRecord(RowData record) throws Exception {
 			recordState.clear();
 		}
 
 		@Override
-		public Iterable<BaseRow> getRecords() throws Exception {
+		public Iterable<RowData> getRecords() throws Exception {
 			reusedList.clear();
-			BaseRow record = recordState.value();
+			RowData record = recordState.value();
 			if (record != null) {
 				reusedList.add(record);
 			}
@@ -118,19 +117,19 @@ public final class JoinRecordStateViews {
 	private static final class InputSideHasUniqueKey implements JoinRecordStateView {
 
 		// stores record in the mapping <UK, Record>
-		private final MapState<BaseRow, BaseRow> recordState;
-		private final KeySelector<BaseRow, BaseRow> uniqueKeySelector;
+		private final MapState<RowData, RowData> recordState;
+		private final KeySelector<RowData, RowData> uniqueKeySelector;
 
 		private InputSideHasUniqueKey(
 				RuntimeContext ctx,
 				String stateName,
-				BaseRowTypeInfo recordType,
-				BaseRowTypeInfo uniqueKeyType,
-				KeySelector<BaseRow, BaseRow> uniqueKeySelector,
+				RowDataTypeInfo recordType,
+				RowDataTypeInfo uniqueKeyType,
+				KeySelector<RowData, RowData> uniqueKeySelector,
 				StateTtlConfig ttlConfig) {
 			checkNotNull(uniqueKeyType);
 			checkNotNull(uniqueKeySelector);
-			MapStateDescriptor<BaseRow, BaseRow> recordStateDesc = new MapStateDescriptor<>(
+			MapStateDescriptor<RowData, RowData> recordStateDesc = new MapStateDescriptor<>(
 				stateName,
 				uniqueKeyType,
 				recordType);
@@ -142,33 +141,33 @@ public final class JoinRecordStateViews {
 		}
 
 		@Override
-		public void addRecord(BaseRow record) throws Exception {
-			BaseRow uniqueKey = uniqueKeySelector.getKey(record);
+		public void addRecord(RowData record) throws Exception {
+			RowData uniqueKey = uniqueKeySelector.getKey(record);
 			recordState.put(uniqueKey, record);
 		}
 
 		@Override
-		public void retractRecord(BaseRow record) throws Exception {
-			BaseRow uniqueKey = uniqueKeySelector.getKey(record);
+		public void retractRecord(RowData record) throws Exception {
+			RowData uniqueKey = uniqueKeySelector.getKey(record);
 			recordState.remove(uniqueKey);
 		}
 
 		@Override
-		public Iterable<BaseRow> getRecords() throws Exception {
+		public Iterable<RowData> getRecords() throws Exception {
 			return recordState.values();
 		}
 	}
 
 	private static final class InputSideHasNoUniqueKey implements JoinRecordStateView {
 
-		private final MapState<BaseRow, Integer> recordState;
+		private final MapState<RowData, Integer> recordState;
 
 		private InputSideHasNoUniqueKey(
 				RuntimeContext ctx,
 				String stateName,
-				BaseRowTypeInfo recordType,
+				RowDataTypeInfo recordType,
 				StateTtlConfig ttlConfig) {
-			MapStateDescriptor<BaseRow, Integer> recordStateDesc = new MapStateDescriptor<>(
+			MapStateDescriptor<RowData, Integer> recordStateDesc = new MapStateDescriptor<>(
 				stateName,
 				recordType,
 				Types.INT);
@@ -179,7 +178,7 @@ public final class JoinRecordStateViews {
 		}
 
 		@Override
-		public void addRecord(BaseRow record) throws Exception {
+		public void addRecord(RowData record) throws Exception {
 			Integer cnt = recordState.get(record);
 			if (cnt != null) {
 				cnt += 1;
@@ -190,7 +189,7 @@ public final class JoinRecordStateViews {
 		}
 
 		@Override
-		public void retractRecord(BaseRow record) throws Exception {
+		public void retractRecord(RowData record) throws Exception {
 			Integer cnt = recordState.get(record);
 			if (cnt != null) {
 				if (cnt > 1) {
@@ -203,11 +202,11 @@ public final class JoinRecordStateViews {
 		}
 
 		@Override
-		public Iterable<BaseRow> getRecords() throws Exception {
-			return new IterableIterator<BaseRow>() {
+		public Iterable<RowData> getRecords() throws Exception {
+			return new IterableIterator<RowData>() {
 
-				private final Iterator<Map.Entry<BaseRow, Integer>> backingIterable = recordState.entries().iterator();
-				private BaseRow record;
+				private final Iterator<Map.Entry<RowData, Integer>> backingIterable = recordState.entries().iterator();
+				private RowData record;
 				private int remainingTimes = 0;
 
 				@Override
@@ -216,13 +215,13 @@ public final class JoinRecordStateViews {
 				}
 
 				@Override
-				public BaseRow next() {
+				public RowData next() {
 					if (remainingTimes > 0) {
 						checkNotNull(record);
 						remainingTimes--;
 						return record;
 					} else {
-						Map.Entry<BaseRow, Integer> entry = backingIterable.next();
+						Map.Entry<RowData, Integer> entry = backingIterable.next();
 						record = entry.getKey();
 						remainingTimes = entry.getValue() - 1;
 						return record;
@@ -230,7 +229,7 @@ public final class JoinRecordStateViews {
 				}
 
 				@Override
-				public Iterator<BaseRow> iterator() {
+				public Iterator<RowData> iterator() {
 					return this;
 				}
 			};

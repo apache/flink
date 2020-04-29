@@ -17,11 +17,11 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -33,31 +33,31 @@ import java.io.IOException;
  */
 public abstract class SortMergeJoinIterator implements Closeable {
 
-	private final Projection<BaseRow, BinaryRow> probeProjection;
-	private final Projection<BaseRow, BinaryRow> bufferedProjection;
+	private final Projection<RowData, BinaryRowData> probeProjection;
+	private final Projection<RowData, BinaryRowData> bufferedProjection;
 	protected final RecordComparator keyComparator;
-	private final MutableObjectIterator<BaseRow> probeIterator;
-	private final MutableObjectIterator<BinaryRow> bufferedIterator;
+	private final MutableObjectIterator<RowData> probeIterator;
+	private final MutableObjectIterator<BinaryRowData> bufferedIterator;
 
-	private BaseRow probeRow;
-	protected BinaryRow probeKey;
-	protected BinaryRow bufferedRow;
-	protected BinaryRow bufferedKey;
+	private RowData probeRow;
+	protected BinaryRowData probeKey;
+	protected BinaryRowData bufferedRow;
+	protected BinaryRowData bufferedKey;
 
-	protected BinaryRow matchKey;
+	protected BinaryRowData matchKey;
 	protected ResettableExternalBuffer matchBuffer;
 	private final int[] nullFilterKeys;
 	private final boolean nullSafe;
 	private final boolean filterAllNulls;
 
 	public SortMergeJoinIterator(
-			BinaryRowSerializer probeSerializer,
-			BinaryRowSerializer bufferedSerializer,
-			Projection<BaseRow, BinaryRow> probeProjection,
-			Projection<BaseRow, BinaryRow> bufferedProjection,
+			BinaryRowDataSerializer probeSerializer,
+			BinaryRowDataSerializer bufferedSerializer,
+			Projection<RowData, BinaryRowData> probeProjection,
+			Projection<RowData, BinaryRowData> bufferedProjection,
 			RecordComparator keyComparator,
-			MutableObjectIterator<BaseRow> probeIterator,
-			MutableObjectIterator<BinaryRow> bufferedIterator,
+			MutableObjectIterator<RowData> probeIterator,
+			MutableObjectIterator<BinaryRowData> bufferedIterator,
 			ResettableExternalBuffer buffer,
 			boolean[] filterNulls) throws IOException {
 		this.probeProjection = probeProjection;
@@ -86,7 +86,7 @@ public abstract class SortMergeJoinIterator implements Closeable {
 		return bufferedRow != null;
 	}
 
-	private boolean shouldFilter(BinaryRow key) {
+	private boolean shouldFilter(BinaryRowData key) {
 		return NullAwareJoinHelper.shouldFilter(nullSafe, filterAllNulls, nullFilterKeys, key);
 	}
 
@@ -122,11 +122,11 @@ public abstract class SortMergeJoinIterator implements Closeable {
 		matchBuffer.complete();
 	}
 
-	public BaseRow getProbeRow() {
+	public RowData getProbeRow() {
 		return probeRow;
 	}
 
-	public BinaryRow getMatchKey() {
+	public BinaryRowData getMatchKey() {
 		return matchKey;
 	}
 

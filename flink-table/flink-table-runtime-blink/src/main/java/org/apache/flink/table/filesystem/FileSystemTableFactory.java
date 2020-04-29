@@ -20,7 +20,7 @@ package org.apache.flink.table.filesystem;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryService;
@@ -50,8 +50,8 @@ import static org.apache.flink.table.descriptors.Schema.SCHEMA;
  * <p>Migrate to new source/sink interface after FLIP-95 is ready.
  */
 public class FileSystemTableFactory implements
-		TableSourceFactory<BaseRow>,
-		TableSinkFactory<BaseRow> {
+		TableSourceFactory<RowData>,
+		TableSinkFactory<RowData> {
 
 	public static final String CONNECTOR_VALUE = "filesystem";
 
@@ -123,7 +123,7 @@ public class FileSystemTableFactory implements
 	}
 
 	@Override
-	public TableSource<BaseRow> createTableSource(TableSourceFactory.Context context) {
+	public TableSource<RowData> createTableSource(TableSourceFactory.Context context) {
 		DescriptorProperties properties = new DescriptorProperties();
 		properties.putProperties(context.getTable().getProperties());
 
@@ -136,7 +136,7 @@ public class FileSystemTableFactory implements
 	}
 
 	@Override
-	public TableSink<BaseRow> createTableSink(TableSinkFactory.Context context) {
+	public TableSink<RowData> createTableSink(TableSinkFactory.Context context) {
 		DescriptorProperties properties = new DescriptorProperties();
 		properties.putProperties(context.getTable().getProperties());
 

@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStream
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, OverAggregateUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.over._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
@@ -61,7 +61,7 @@ class StreamExecOverAggregate(
     logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = {
     if (logicWindow.groups.size() != 1
@@ -137,7 +137,7 @@ class StreamExecOverAggregate(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val tableConfig = planner.getTableConfig
 
     if (logicWindow.groups.size > 1) {
@@ -161,7 +161,7 @@ class StreamExecOverAggregate(
     }
 
     val inputDS = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
     if (!logicWindow.groups.get(0).keys.isEmpty && tableConfig.getMinIdleStateRetentionTime < 0) {
       LOG.warn(
@@ -253,12 +253,12 @@ class StreamExecOverAggregate(
     }
 
     val partitionKeys: Array[Int] = overWindow.keys.toArray
-    val inputTypeInfo = BaseRowTypeInfo.of(inRowType)
+    val inputTypeInfo = RowDataTypeInfo.of(inRowType)
 
-    val selector = KeySelectorUtil.getBaseRowSelector(partitionKeys, inputTypeInfo)
+    val selector = KeySelectorUtil.getRowDataSelector(partitionKeys, inputTypeInfo)
 
-    val returnTypeInfo = BaseRowTypeInfo.of(outRowType)
-      .asInstanceOf[BaseRowTypeInfo]
+    val returnTypeInfo = RowDataTypeInfo.of(outRowType)
+      .asInstanceOf[RowDataTypeInfo]
     // partitioned aggregation
 
     val operator = new KeyedProcessOperator(overProcessFunction)
@@ -300,7 +300,7 @@ class StreamExecOverAggregate(
       isRowsClause: Boolean,
       tableConfig: TableConfig,
       relBuilder: RelBuilder,
-      nullCheck: Boolean): KeyedProcessFunction[BaseRow, BaseRow, BaseRow] = {
+      nullCheck: Boolean): KeyedProcessFunction[RowData, RowData, RowData] = {
 
     val needRetraction = false
     val aggInfoList = transformToStreamAggregateInfoList(
@@ -379,7 +379,7 @@ class StreamExecOverAggregate(
       precedingOffset: Long,
       tableConfig: TableConfig,
       relBuilder: RelBuilder,
-      nullCheck: Boolean): KeyedProcessFunction[BaseRow, BaseRow, BaseRow] = {
+      nullCheck: Boolean): KeyedProcessFunction[RowData, RowData, RowData] = {
 
     val needRetraction = true
     val aggInfoList = transformToStreamAggregateInfoList(

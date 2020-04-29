@@ -21,26 +21,26 @@ package org.apache.flink.table.runtime.operators.aggregate;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.isAccumulateMsg;
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.isRetractMsg;
+import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
+import static org.apache.flink.table.data.util.RowDataUtil.isRetractMsg;
 
 /**
  * Aggregate Function used for the groupby (without window) aggregate.
  */
-public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseRow, BaseRow, BaseRow> {
+public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<RowData, RowData, RowData> {
 
 	private static final long serialVersionUID = -4767158666069797704L;
 
@@ -50,7 +50,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 	private final GeneratedAggsHandleFunction genAggsHandler;
 
 	/**
-	 * The code generated equaliser used to equal BaseRow.
+	 * The code generated equaliser used to equal RowData.
 	 */
 	private final GeneratedRecordEqualiser genRecordEqualiser;
 
@@ -72,16 +72,16 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 	/**
 	 * Reused output row.
 	 */
-	private transient JoinedRow resultRow = null;
+	private transient JoinedRowData resultRow = null;
 
 	// function used to handle all aggregates
 	private transient AggsHandleFunction function = null;
 
-	// function used to equal BaseRow
+	// function used to equal RowData
 	private transient RecordEqualiser equaliser = null;
 
 	// stores the accumulators
-	private transient ValueState<BaseRow> accState = null;
+	private transient ValueState<RowData> accState = null;
 
 	/**
 	 * Creates a {@link GroupAggFunction}.
@@ -89,7 +89,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 	 * @param minRetentionTime minimal state idle retention time.
 	 * @param maxRetentionTime maximal state idle retention time.
 	 * @param genAggsHandler The code generated function used to handle aggregates.
-	 * @param genRecordEqualiser The code generated equaliser used to equal BaseRow.
+	 * @param genRecordEqualiser The code generated equaliser used to equal RowData.
 	 * @param accTypes The accumulator types.
 	 * @param indexOfCountStar The index of COUNT(*) in the aggregates.
 	 *                          -1 when the input doesn't contain COUNT(*), i.e. doesn't contain retraction messages.
@@ -121,25 +121,25 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 		// instantiate equaliser
 		equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
 
-		BaseRowTypeInfo accTypeInfo = new BaseRowTypeInfo(accTypes);
-		ValueStateDescriptor<BaseRow> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
+		RowDataTypeInfo accTypeInfo = new RowDataTypeInfo(accTypes);
+		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
 		accState = getRuntimeContext().getState(accDesc);
 
 		initCleanupTimeState("GroupAggregateCleanupTime");
 
-		resultRow = new JoinedRow();
+		resultRow = new JoinedRowData();
 	}
 
 	@Override
-	public void processElement(BaseRow input, Context ctx, Collector<BaseRow> out) throws Exception {
+	public void processElement(RowData input, Context ctx, Collector<RowData> out) throws Exception {
 		long currentTime = ctx.timerService().currentProcessingTime();
 		// register state-cleanup timer
 		registerProcessingCleanupTimer(ctx, currentTime);
 
-		BaseRow currentKey = ctx.getCurrentKey();
+		RowData currentKey = ctx.getCurrentKey();
 
 		boolean firstRow;
-		BaseRow accumulators = accState.value();
+		RowData accumulators = accState.value();
 		if (null == accumulators) {
 			// Don't create a new accumulator for a retraction message. This
 			// might happen if the retraction message is the first message for the
@@ -156,7 +156,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 		// set accumulators to handler first
 		function.setAccumulators(accumulators);
 		// get previous aggregate result
-		BaseRow prevAggValue = function.getValue();
+		RowData prevAggValue = function.getValue();
 
 		// update aggregate result and set to the newRow
 		if (isAccumulateMsg(input)) {
@@ -167,7 +167,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 			function.retract(input);
 		}
 		// get current aggregate result
-		BaseRow newAggValue = function.getValue();
+		RowData newAggValue = function.getValue();
 
 		// get accumulator
 		accumulators = function.getAccumulators();
@@ -180,7 +180,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 
 			// if this was not the first row and we have to emit retractions
 			if (!firstRow) {
-				if (!stateCleaningEnabled && equaliser.equalsWithoutHeader(prevAggValue, newAggValue)) {
+				if (!stateCleaningEnabled && equaliser.equals(prevAggValue, newAggValue)) {
 					// newRow is the same as before and state cleaning is not enabled.
 					// We do not emit retraction and acc message.
 					// If state cleaning is enabled, we have to emit messages to prevent too early
@@ -220,7 +220,7 @@ public class GroupAggFunction extends KeyedProcessFunctionWithCleanupState<BaseR
 	}
 
 	@Override
-	public void onTimer(long timestamp, OnTimerContext ctx, Collector<BaseRow> out) throws Exception {
+	public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out) throws Exception {
 		if (stateCleaningEnabled) {
 			cleanupState(accState);
 			function.cleanup();

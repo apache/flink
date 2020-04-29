@@ -18,24 +18,24 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.annotation.Experimental
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDeduplicate.TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.operators.deduplicate.{DeduplicateKeepFirstRowFunction, DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepFirstRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.configuration.ConfigOptions.key
 
 import java.lang.{Boolean => JBoolean}
 import java.util
@@ -57,7 +57,7 @@ class StreamExecDeduplicate(
     val keepLastRow: Boolean)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
   def getUniqueKeys: Array[Int] = uniqueKeys
 
@@ -96,12 +96,12 @@ class StreamExecDeduplicate(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
 
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
-    val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]
+    val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val tableConfig = planner.getTableConfig
     val generateInsert = tableConfig.getConfiguration
@@ -138,7 +138,7 @@ class StreamExecDeduplicate(
       } else {
         new DeduplicateKeepFirstRowFunction(minRetentionTime)
       }
-      new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](processFunction)
+      new KeyedProcessOperator[RowData, RowData, RowData](processFunction)
     }
     val ret = new OneInputTransformation(
       inputTransform,
@@ -152,7 +152,7 @@ class StreamExecDeduplicate(
       ret.setMaxParallelism(1)
     }
 
-    val selector = KeySelectorUtil.getBaseRowSelector(uniqueKeys, rowTypeInfo)
+    val selector = KeySelectorUtil.getRowDataSelector(uniqueKeys, rowTypeInfo)
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)
     ret

@@ -25,16 +25,16 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.dataformat.util.BinaryRowUtil;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.binary.BinaryRowDataUtil;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.operators.sort.BufferedKVExternalSorter;
 import org.apache.flink.table.runtime.operators.sort.IntNormalizedKeyComputer;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -46,20 +46,20 @@ import java.io.EOFException;
 /**
  * Test for Hash aggregation of (select f0, sum(f1) from T).
  */
-public class SumHashAggTestOperator extends AbstractStreamOperator<BaseRow>
-		implements OneInputStreamOperator<BaseRow, BaseRow> {
+public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
+		implements OneInputStreamOperator<RowData, RowData> {
 
 	private final long memorySize;
 	private final LogicalType[] keyTypes = new LogicalType[] {new IntType()};
 	private final LogicalType[] aggBufferTypes = new LogicalType[] {new IntType(), new BigIntType()};
 
-	private transient BinaryRow currentKey;
+	private transient BinaryRowData currentKey;
 	private transient BinaryRowWriter currentKeyWriter;
 
 	private transient BufferedKVExternalSorter sorter;
 	private transient BytesHashMap aggregateMap;
 
-	private transient BinaryRow emptyAggBuffer;
+	private transient BinaryRowData emptyAggBuffer;
 
 	public SumHashAggTestOperator(long memorySize) throws Exception {
 		this.memorySize = memorySize;
@@ -72,9 +72,9 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<BaseRow>
 				getOwner(), getMemoryManager(), memorySize,
 				keyTypes, aggBufferTypes);
 
-		currentKey = new BinaryRow(1);
+		currentKey = new BinaryRowData(1);
 		currentKeyWriter = new BinaryRowWriter(currentKey);
-		emptyAggBuffer = new BinaryRow(1);
+		emptyAggBuffer = new BinaryRowData(1);
 
 		// for null value
 		BinaryRowWriter emptyAggBufferWriter = new BinaryRowWriter(emptyAggBuffer);
@@ -84,8 +84,8 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<BaseRow>
 	}
 
 	@Override
-	public void processElement(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow in1 = element.getValue();
+	public void processElement(StreamRecord<RowData> element) throws Exception {
+		RowData in1 = element.getValue();
 
 		// project key from input
 		currentKeyWriter.reset();
@@ -98,7 +98,7 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<BaseRow>
 
 		// look up output buffer using current group key
 		BytesHashMap.LookupInfo lookupInfo = aggregateMap.lookup(currentKey);
-		BinaryRow currentAggBuffer = lookupInfo.getValue();
+		BinaryRowData currentAggBuffer = lookupInfo.getValue();
 
 		if (!lookupInfo.isFound()) {
 
@@ -110,8 +110,8 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<BaseRow>
 				if (sorter == null) {
 					sorter = new BufferedKVExternalSorter(
 							getIOManager(),
-							new BinaryRowSerializer(keyTypes.length),
-							new BinaryRowSerializer(aggBufferTypes.length),
+							new BinaryRowDataSerializer(keyTypes.length),
+							new BinaryRowDataSerializer(aggBufferTypes.length),
 							new IntNormalizedKeyComputer(), new IntRecordComparator(),
 							getMemoryManager().getPageSize(),
 							getConf());
@@ -146,16 +146,16 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<BaseRow>
 
 	public void endInput() throws Exception {
 
-		StreamRecord<BaseRow> outElement = new StreamRecord<>(null);
-		JoinedRow hashAggOutput = new JoinedRow();
-		GenericRow aggValueOutput = new GenericRow(1);
+		StreamRecord<RowData> outElement = new StreamRecord<>(null);
+		JoinedRowData hashAggOutput = new JoinedRowData();
+		GenericRowData aggValueOutput = new GenericRowData(1);
 
 		if (sorter == null) {
 			// no spilling, output by iterating aggregate map.
 			MutableObjectIterator<BytesHashMap.Entry> iter = aggregateMap.getEntryIterator();
 
-			BinaryRow reuseAggMapKey = new BinaryRow(1);
-			BinaryRow reuseAggBuffer = new BinaryRow(1);
+			BinaryRowData reuseAggMapKey = new BinaryRowData(1);
+			BinaryRowData reuseAggBuffer = new BinaryRowData(1);
 			BytesHashMap.Entry reuseAggMapEntry = new BytesHashMap.Entry(reuseAggMapKey, reuseAggBuffer);
 
 			while (iter.next(reuseAggMapEntry) != null) {
@@ -175,17 +175,17 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<BaseRow>
 			aggregateMap.free(true);
 
 			// fall back to sort based aggregation
-			BinaryRow lastKey = null;
-			JoinedRow fallbackInput = new JoinedRow();
+			BinaryRowData lastKey = null;
+			JoinedRowData fallbackInput = new JoinedRowData();
 			boolean aggSumIsNull = false;
 			long aggSum = -1;
 
 			// free hash map memory, but not release back to memory manager
-			MutableObjectIterator<Tuple2<BinaryRow, BinaryRow>> iterator = sorter.getKVIterator();
-			Tuple2<BinaryRow, BinaryRow> kv;
+			MutableObjectIterator<Tuple2<BinaryRowData, BinaryRowData>> iterator = sorter.getKVIterator();
+			Tuple2<BinaryRowData, BinaryRowData> kv;
 			while ((kv = iterator.next()) != null) {
-				BinaryRow key = kv.f0;
-				BinaryRow value = kv.f1;
+				BinaryRowData key = kv.f0;
+				BinaryRowData value = kv.f1;
 				// prepare input
 				fallbackInput.replace(key, value);
 				if (lastKey == null) {
@@ -194,7 +194,7 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<BaseRow>
 					aggSumIsNull = true;
 					aggSum = -1L;
 				} else if (key.getSizeInBytes() != lastKey.getSizeInBytes() ||
-						!(BinaryRowUtil.byteArrayEquals(
+						!(BinaryRowDataUtil.byteArrayEquals(
 								key.getSegments()[0].getArray(),
 								lastKey.getSegments()[0].getArray(),
 								key.getSizeInBytes()))) {
@@ -241,7 +241,7 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<BaseRow>
 		return getContainingTask();
 	}
 
-	Collector<StreamRecord<BaseRow>> getOutput() {
+	Collector<StreamRecord<RowData>> getOutput() {
 		return output;
 	}
 

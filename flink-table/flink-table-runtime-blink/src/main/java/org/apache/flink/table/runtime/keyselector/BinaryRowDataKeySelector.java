@@ -18,30 +18,30 @@
 
 package org.apache.flink.table.runtime.keyselector;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 
 /**
- * A KeySelector which will extract key from BaseRow. The key type is BinaryRow.
+ * A KeySelector which will extract key from RowData. The key type is BinaryRowData.
  */
-public class BinaryRowKeySelector implements BaseRowKeySelector {
+public class BinaryRowDataKeySelector implements RowDataKeySelector {
 
 	private static final long serialVersionUID = 5375355285015381919L;
 
-	private final BaseRowTypeInfo keyRowType;
+	private final RowDataTypeInfo keyRowType;
 	private final GeneratedProjection generatedProjection;
-	private transient Projection<BaseRow, BinaryRow> projection;
+	private transient Projection<RowData, BinaryRowData> projection;
 
-	public BinaryRowKeySelector(BaseRowTypeInfo keyRowType, GeneratedProjection generatedProjection) {
+	public BinaryRowDataKeySelector(RowDataTypeInfo keyRowType, GeneratedProjection generatedProjection) {
 		this.keyRowType = keyRowType;
 		this.generatedProjection = generatedProjection;
 	}
 
 	@Override
-	public BaseRow getKey(BaseRow value) throws Exception {
+	public RowData getKey(RowData value) throws Exception {
 		if (projection == null) {
 			ClassLoader cl = Thread.currentThread().getContextClassLoader();
 			//noinspection unchecked
@@ -51,7 +51,7 @@ public class BinaryRowKeySelector implements BaseRowKeySelector {
 	}
 
 	@Override
-	public BaseRowTypeInfo getProducedType() {
+	public RowDataTypeInfo getProducedType() {
 		return keyRowType;
 	}
 

@@ -21,21 +21,21 @@ package org.apache.flink.table.runtime.operators.aggregate;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.GeneratedTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.TableAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
-import static org.apache.flink.table.dataformat.util.BaseRowUtil.isAccumulateMsg;
+import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
 
 /**
  * Aggregate Function used for the groupby (without window) table aggregate.
  */
-public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<BaseRow, BaseRow, BaseRow> {
+public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<RowData, RowData, RowData> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -63,7 +63,7 @@ public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<
 	private transient TableAggsHandleFunction function = null;
 
 	// stores the accumulators
-	private transient ValueState<BaseRow> accState = null;
+	private transient ValueState<RowData> accState = null;
 
 	/**
 	 * Creates a {@link GroupTableAggFunction}.
@@ -98,23 +98,23 @@ public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<
 		function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 
-		BaseRowTypeInfo accTypeInfo = new BaseRowTypeInfo(accTypes);
-		ValueStateDescriptor<BaseRow> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
+		RowDataTypeInfo accTypeInfo = new RowDataTypeInfo(accTypes);
+		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
 		accState = getRuntimeContext().getState(accDesc);
 
 		initCleanupTimeState("GroupTableAggregateCleanupTime");
 	}
 
 	@Override
-	public void processElement(BaseRow input, Context ctx, Collector<BaseRow> out) throws Exception {
+	public void processElement(RowData input, Context ctx, Collector<RowData> out) throws Exception {
 		long currentTime = ctx.timerService().currentProcessingTime();
 		// register state-cleanup timer
 		registerProcessingCleanupTimer(ctx, currentTime);
 
-		BaseRow currentKey = ctx.getCurrentKey();
+		RowData currentKey = ctx.getCurrentKey();
 
 		boolean firstRow;
-		BaseRow accumulators = accState.value();
+		RowData accumulators = accState.value();
 		if (null == accumulators) {
 			firstRow = true;
 			accumulators = function.createAccumulators();
@@ -155,7 +155,7 @@ public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<
 	}
 
 	@Override
-	public void onTimer(long timestamp, OnTimerContext ctx, Collector<BaseRow> out) throws Exception {
+	public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out) throws Exception {
 		if (stateCleaningEnabled) {
 			cleanupState(accState);
 			function.cleanup();

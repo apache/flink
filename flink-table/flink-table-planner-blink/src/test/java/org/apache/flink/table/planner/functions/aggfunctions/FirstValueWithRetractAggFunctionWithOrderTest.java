@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.BooleanFirstValueWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.ByteFirstValueWithRetractAggFunction;
@@ -31,7 +32,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetra
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.LongFirstValueWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.ShortFirstValueWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.StringFirstValueWithRetractAggFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
 
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -67,7 +68,7 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Byte, GenericRow> getAggregator() {
+		protected AggregateFunction<Byte, GenericRowData> getAggregator() {
 			return new ByteFirstValueWithRetractAggFunction();
 		}
 	}
@@ -84,7 +85,7 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Short, GenericRow> getAggregator() {
+		protected AggregateFunction<Short, GenericRowData> getAggregator() {
 			return new ShortFirstValueWithRetractAggFunction();
 		}
 	}
@@ -101,7 +102,7 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Integer, GenericRow> getAggregator() {
+		protected AggregateFunction<Integer, GenericRowData> getAggregator() {
 			return new IntFirstValueWithRetractAggFunction();
 		}
 	}
@@ -118,7 +119,7 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Long, GenericRow> getAggregator() {
+		protected AggregateFunction<Long, GenericRowData> getAggregator() {
 			return new LongFirstValueWithRetractAggFunction();
 		}
 	}
@@ -135,7 +136,7 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Float, GenericRow> getAggregator() {
+		protected AggregateFunction<Float, GenericRowData> getAggregator() {
 			return new FloatFirstValueWithRetractAggFunction();
 		}
 	}
@@ -152,7 +153,7 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Double, GenericRow> getAggregator() {
+		protected AggregateFunction<Double, GenericRowData> getAggregator() {
 			return new DoubleFirstValueWithRetractAggFunction();
 		}
 	}
@@ -242,7 +243,7 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Boolean, GenericRow> getAggregator() {
+		protected AggregateFunction<Boolean, GenericRowData> getAggregator() {
 			return new BooleanFirstValueWithRetractAggFunction();
 		}
 	}
@@ -251,24 +252,24 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 	 * Test for DecimalFirstValueWithRetractAggFunction.
 	 */
 	public static final class DecimalFirstValueWithRetractAggFunctionWithOrderTest
-			extends FirstValueWithRetractAggFunctionWithOrderTestBase<Decimal> {
+			extends FirstValueWithRetractAggFunctionWithOrderTestBase<DecimalData> {
 
 		private int precision = 20;
 		private int scale = 6;
 
 		@Override
-		protected List<List<Decimal>> getInputValueSets() {
+		protected List<List<DecimalData>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							Decimal.castFrom("1", precision, scale),
-							Decimal.castFrom("1000.000001", precision, scale),
-							Decimal.castFrom("-1", precision, scale),
-							Decimal.castFrom("-999.998999", precision, scale),
+							DecimalDataUtils.castFrom("1", precision, scale),
+							DecimalDataUtils.castFrom("1000.000001", precision, scale),
+							DecimalDataUtils.castFrom("-1", precision, scale),
+							DecimalDataUtils.castFrom("-999.998999", precision, scale),
 							null,
-							Decimal.castFrom("0", precision, scale),
-							Decimal.castFrom("-999.999", precision, scale),
+							DecimalDataUtils.castFrom("0", precision, scale),
+							DecimalDataUtils.castFrom("-999.999", precision, scale),
 							null,
-							Decimal.castFrom("999.999", precision, scale)
+							DecimalDataUtils.castFrom("999.999", precision, scale)
 					),
 					Arrays.asList(
 							null,
@@ -279,7 +280,7 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 					),
 					Arrays.asList(
 							null,
-							Decimal.castFrom("0", precision, scale)
+							DecimalDataUtils.castFrom("0", precision, scale)
 					)
 			);
 		}
@@ -313,17 +314,17 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected List<Decimal> getExpectedResults() {
+		protected List<DecimalData> getExpectedResults() {
 			return Arrays.asList(
-					Decimal.castFrom("-1", precision, scale),
+					DecimalDataUtils.castFrom("-1", precision, scale),
 					null,
-					Decimal.castFrom("0", precision, scale)
+					DecimalDataUtils.castFrom("0", precision, scale)
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Decimal, GenericRow> getAggregator() {
-			return new DecimalFirstValueWithRetractAggFunction(DecimalTypeInfo.of(precision, scale));
+		protected AggregateFunction<DecimalData, GenericRowData> getAggregator() {
+			return new DecimalFirstValueWithRetractAggFunction(DecimalDataTypeInfo.of(precision, scale));
 		}
 	}
 
@@ -331,19 +332,19 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 	 * Test for StringFirstValueWithRetractAggFunction.
 	 */
 	public static final class StringFirstValueWithRetractAggFunctionWithOrderTest
-			extends FirstValueWithRetractAggFunctionWithOrderTestBase<BinaryString> {
+			extends FirstValueWithRetractAggFunctionWithOrderTestBase<StringData> {
 
 		@Override
-		protected List<List<BinaryString>> getInputValueSets() {
+		protected List<List<StringData>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							BinaryString.fromString("abc"),
-							BinaryString.fromString("def"),
-							BinaryString.fromString("ghi"),
+							StringData.fromString("abc"),
+							StringData.fromString("def"),
+							StringData.fromString("ghi"),
 							null,
-							BinaryString.fromString("jkl"),
+							StringData.fromString("jkl"),
 							null,
-							BinaryString.fromString("zzz")
+							StringData.fromString("zzz")
 					),
 					Arrays.asList(
 							null,
@@ -351,12 +352,12 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 					),
 					Arrays.asList(
 							null,
-							BinaryString.fromString("a")
+							StringData.fromString("a")
 					),
 					Arrays.asList(
-							BinaryString.fromString("x"),
+							StringData.fromString("x"),
 							null,
-							BinaryString.fromString("e")
+							StringData.fromString("e")
 					)
 			);
 		}
@@ -390,17 +391,17 @@ public final class FirstValueWithRetractAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected List<BinaryString> getExpectedResults() {
+		protected List<StringData> getExpectedResults() {
 			return Arrays.asList(
-					BinaryString.fromString("def"),
+					StringData.fromString("def"),
 					null,
-					BinaryString.fromString("a"),
-					BinaryString.fromString("e")
+					StringData.fromString("a"),
+					StringData.fromString("e")
 			);
 		}
 
 		@Override
-		protected AggregateFunction<BinaryString, GenericRow> getAggregator() {
+		protected AggregateFunction<StringData, GenericRowData> getAggregator() {
 			return new StringFirstValueWithRetractAggFunction();
 		}
 	}

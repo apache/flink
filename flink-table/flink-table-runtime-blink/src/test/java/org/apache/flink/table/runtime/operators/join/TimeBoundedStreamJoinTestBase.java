@@ -19,10 +19,10 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
@@ -30,16 +30,16 @@ import org.apache.flink.table.types.logical.VarCharType;
  * Base Test for all subclass of {@link TimeBoundedStreamJoin}.
  */
 abstract class TimeBoundedStreamJoinTestBase {
-	BaseRowTypeInfo rowType = new BaseRowTypeInfo(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH));
+	RowDataTypeInfo rowType = new RowDataTypeInfo(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH));
 
-	private BaseRowTypeInfo outputRowType = new BaseRowTypeInfo(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH),
+	private RowDataTypeInfo outputRowType = new RowDataTypeInfo(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH),
 			new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH));
-	BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(outputRowType.getFieldTypes());
+	RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(outputRowType.getFieldTypes());
 
 	private String funcCode =
 			"public class WindowJoinFunction\n" +
 					"    extends org.apache.flink.api.common.functions.RichFlatJoinFunction {\n" +
-					"  final org.apache.flink.table.dataformat.JoinedRow joinedRow = new org.apache.flink.table.dataformat.JoinedRow();\n" +
+					"  final org.apache.flink.table.data.JoinedRowData joinedRow = new org.apache.flink.table.data.JoinedRowData();\n" +
 
 					"  public WindowJoinFunction(Object[] references) throws Exception {}\n" +
 
@@ -48,8 +48,8 @@ abstract class TimeBoundedStreamJoinTestBase {
 
 					"  @Override\n" +
 					"  public void join(Object _in1, Object _in2, org.apache.flink.util.Collector c) throws Exception {\n" +
-					"    org.apache.flink.table.dataformat.BaseRow in1 = (org.apache.flink.table.dataformat.BaseRow) _in1;\n" +
-					"    org.apache.flink.table.dataformat.BaseRow in2 = (org.apache.flink.table.dataformat.BaseRow) _in2;\n" +
+					"    org.apache.flink.table.data.RowData in1 = (org.apache.flink.table.data.RowData) _in1;\n" +
+					"    org.apache.flink.table.data.RowData in2 = (org.apache.flink.table.data.RowData) _in2;\n" +
 					"    joinedRow.replace(in1,in2);\n" +
 					"    c.collect(joinedRow);\n" +
 					"  }\n" +
@@ -58,7 +58,7 @@ abstract class TimeBoundedStreamJoinTestBase {
 					"  public void close() throws Exception {}\n" +
 					"}\n";
 
-	GeneratedFunction<FlatJoinFunction<BaseRow, BaseRow, BaseRow>> generatedFunction = new GeneratedFunction(
+	GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> generatedFunction = new GeneratedFunction(
 			"WindowJoinFunction", funcCode, new Object[0]);
 
 }

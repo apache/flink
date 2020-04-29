@@ -18,11 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import java.lang.reflect.Method
-import java.util.Collections
-
-import org.apache.calcite.rex.{RexCall, RexCallBinding}
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.functions.UserDefinedFunctionHelper.{SCALAR_EVAL, TABLE_EVAL}
 import org.apache.flink.table.functions.{FunctionKind, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{genToExternalIfNeeded, genToInternalIfNeeded, newName, typeTerm}
@@ -40,6 +36,11 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoid
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.util.Preconditions
+
+import org.apache.calcite.rex.{RexCall, RexCallBinding}
+
+import java.lang.reflect.Method
+import java.util.Collections
 
 /**
  * Generates a call to a user-defined [[ScalarFunction]] or [[TableFunction]].
@@ -173,7 +174,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
         .bindInput(outputType, externalResultTerm)
       val wrappedResult = resultGenerator.generateConverterResultExpression(
         returnType,
-        classOf[GenericRow])
+        classOf[GenericRowData])
       s"""
        |${wrappedResult.code}
        |outputResult(${wrappedResult.resultTerm});

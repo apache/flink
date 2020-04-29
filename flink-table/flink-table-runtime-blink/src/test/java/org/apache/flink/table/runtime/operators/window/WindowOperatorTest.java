@@ -24,10 +24,10 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.dataview.StateDataViewStore;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
@@ -39,10 +39,10 @@ import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.triggers.ElementTriggers;
 import org.apache.flink.table.runtime.operators.window.triggers.EventTimeTriggers;
 import org.apache.flink.table.runtime.operators.window.triggers.ProcessingTimeTriggers;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -60,7 +60,7 @@ import java.util.Collections;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.table.dataformat.BinaryString.fromString;
+import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
@@ -115,7 +115,7 @@ public class WindowOperatorTest {
 			new IntType(),
 			new BigIntType()};
 
-	private BaseRowTypeInfo outputType = new BaseRowTypeInfo(
+	private RowDataTypeInfo outputType = new RowDataTypeInfo(
 			new VarCharType(VarCharType.MAX_LENGTH),
 			new BigIntType(),
 			new BigIntType(),
@@ -127,13 +127,13 @@ public class WindowOperatorTest {
 	private LogicalType[] accTypes = new LogicalType[] { new BigIntType(), new BigIntType() };
 	private LogicalType[] windowTypes = new LogicalType[] { new BigIntType(), new BigIntType(), new BigIntType() };
 	private GenericRowEqualiser equaliser = new GenericRowEqualiser(accTypes, windowTypes);
-	private BinaryRowKeySelector keySelector = new BinaryRowKeySelector(new int[] { 0 }, inputFieldTypes);
-	private TypeInformation<BaseRow> keyType = keySelector.getProducedType();
-	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
+	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(new int[] { 0 }, inputFieldTypes);
+	private TypeInformation<RowData> keyType = keySelector.getProducedType();
+	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(
 			outputType.getFieldTypes(),
 			new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
 
-	private ConcurrentLinkedQueue<Object> doubleRecord(boolean isDouble, StreamRecord<BaseRow> record) {
+	private ConcurrentLinkedQueue<Object> doubleRecord(boolean isDouble, StreamRecord<RowData> record) {
 		ConcurrentLinkedQueue<Object> results = new ConcurrentLinkedQueue<>();
 		results.add(record);
 		if (isDouble) {
@@ -153,7 +153,7 @@ public class WindowOperatorTest {
 				.withEventTime(2)
 				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		testHarness.open();
 
@@ -239,7 +239,7 @@ public class WindowOperatorTest {
 				.withProcessingTime()
 				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -301,7 +301,7 @@ public class WindowOperatorTest {
 				.withEventTime(2)
 				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -388,7 +388,7 @@ public class WindowOperatorTest {
 				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.build();
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -508,7 +508,7 @@ public class WindowOperatorTest {
 				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.build();
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -625,7 +625,7 @@ public class WindowOperatorTest {
 				.withProcessingTime()
 				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -674,7 +674,7 @@ public class WindowOperatorTest {
 				.withEventTime(2)
 				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -748,9 +748,9 @@ public class WindowOperatorTest {
 				.withProcessingTime()
 				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
-		BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
+		RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(
 				outputType.getFieldTypes(), new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -805,7 +805,7 @@ public class WindowOperatorTest {
 				.withEventTime(2)
 				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -855,7 +855,7 @@ public class WindowOperatorTest {
 				.produceUpdates()
 				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -907,8 +907,8 @@ public class WindowOperatorTest {
 				.produceUpdates()
 				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+				new KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData>(
 						operator, keySelector, keyType);
 
 		testHarness.open();
@@ -917,7 +917,7 @@ public class WindowOperatorTest {
 
 		WindowAssigner<TimeWindow> windowAssigner = TumblingWindowAssigner.of(Duration.ofMillis(windowSize));
 		long timestamp = Long.MAX_VALUE - 1750;
-		Collection<TimeWindow> windows = windowAssigner.assignWindows(GenericRow.of(fromString("key2"), 1), timestamp);
+		Collection<TimeWindow> windows = windowAssigner.assignWindows(GenericRowData.of(fromString("key2"), 1), timestamp);
 		TimeWindow window = windows.iterator().next();
 
 		testHarness.processElement(insertRecord("key2", 1, timestamp));
@@ -962,7 +962,7 @@ public class WindowOperatorTest {
 				.produceUpdates()
 				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		testHarness.open();
 
@@ -997,7 +997,7 @@ public class WindowOperatorTest {
 				.countWindow(windowSize)
 				.aggregateAndBuild(getCountWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -1067,7 +1067,7 @@ public class WindowOperatorTest {
 				.countWindow(windowSize, windowSlide)
 				.aggregateAndBuild(getCountWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -1144,7 +1144,7 @@ public class WindowOperatorTest {
 
 		@Override
 		@SuppressWarnings("unchecked")
-		public Collection<TimeWindow> assignWindows(BaseRow element, long timestamp) {
+		public Collection<TimeWindow> assignWindows(RowData element, long timestamp) {
 			int second = element.getInt(1);
 			if (second == 33) {
 				return Collections.singletonList(new TimeWindow(timestamp, timestamp));
@@ -1171,11 +1171,11 @@ public class WindowOperatorTest {
 		private static final long serialVersionUID = 2062031590687738047L;
 
 		@Override
-		public BaseRow getValue(TimeWindow namespace) throws Exception {
+		public RowData getValue(TimeWindow namespace) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
 			}
-			GenericRow row = new GenericRow(5);
+			GenericRowData row = new GenericRowData(5);
 			if (!sumIsNull) {
 				row.setField(0, sum);
 			}
@@ -1197,11 +1197,11 @@ public class WindowOperatorTest {
 		private static final long serialVersionUID = -2634639678371135643L;
 
 		@Override
-		public BaseRow getValue(CountWindow namespace) throws Exception {
+		public RowData getValue(CountWindow namespace) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
 			}
-			GenericRow row = new GenericRow(3);
+			GenericRowData row = new GenericRowData(3);
 			if (!sumIsNull) {
 				row.setField(0, sum);
 			}
@@ -1221,11 +1221,11 @@ public class WindowOperatorTest {
 		private static final long serialVersionUID = 2062031590687738047L;
 
 		@Override
-		public void emitValue(TimeWindow namespace, BaseRow key, Collector<BaseRow> out) throws Exception {
+		public void emitValue(TimeWindow namespace, RowData key, Collector<RowData> out) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
 			}
-			GenericRow row = new GenericRow(5);
+			GenericRowData row = new GenericRowData(5);
 			if (!sumIsNull) {
 				row.setField(0, sum);
 			}
@@ -1251,11 +1251,11 @@ public class WindowOperatorTest {
 		private static final long serialVersionUID = -2634639678371135643L;
 
 		@Override
-		public void emitValue(CountWindow namespace, BaseRow key, Collector<BaseRow> out) throws Exception {
+		public void emitValue(CountWindow namespace, RowData key, Collector<RowData> out) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
 			}
-			GenericRow row = new GenericRow(3);
+			GenericRowData row = new GenericRowData(3);
 			if (!sumIsNull) {
 				row.setField(0, sum);
 			}
@@ -1280,14 +1280,14 @@ public class WindowOperatorTest {
 		long count;
 		boolean countIsNull;
 
-		protected transient JoinedRow result;
+		protected transient JoinedRowData result;
 
 		public void open(StateDataViewStore store) throws Exception {
 			openCalled = true;
-			result = new JoinedRow();
+			result = new JoinedRowData();
 		}
 
-		public void setAccumulators(W namespace, BaseRow acc) throws Exception {
+		public void setAccumulators(W namespace, RowData acc) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
 			}
@@ -1302,7 +1302,7 @@ public class WindowOperatorTest {
 			}
 		}
 
-		public void accumulate(BaseRow inputRow) throws Exception {
+		public void accumulate(RowData inputRow) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
 			}
@@ -1313,7 +1313,7 @@ public class WindowOperatorTest {
 			}
 		}
 
-		public void retract(BaseRow inputRow) throws Exception {
+		public void retract(RowData inputRow) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
 			}
@@ -1324,7 +1324,7 @@ public class WindowOperatorTest {
 			}
 		}
 
-		public void merge(W w, BaseRow otherAcc) throws Exception {
+		public void merge(W w, RowData otherAcc) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
 			}
@@ -1338,21 +1338,21 @@ public class WindowOperatorTest {
 			}
 		}
 
-		public BaseRow createAccumulators() {
+		public RowData createAccumulators() {
 			if (!openCalled) {
 				fail("Open was not called");
 			}
-			GenericRow acc = new GenericRow(2);
+			GenericRowData acc = new GenericRowData(2);
 			acc.setField(0, 0L);
 			acc.setField(1, 0L);
 			return acc;
 		}
 
-		public BaseRow getAccumulators() throws Exception {
+		public RowData getAccumulators() throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
 			}
-			GenericRow row = new GenericRow(2);
+			GenericRowData row = new GenericRowData(2);
 			if (!sumIsNull) {
 				row.setField(0, sum);
 			}
@@ -1388,24 +1388,17 @@ public class WindowOperatorTest {
 		}
 
 		@Override
-		public boolean equals(BaseRow row1, BaseRow row2) {
-			GenericRow left = BaseRowUtil.toGenericRow(row1, fieldTypes);
-			GenericRow right = BaseRowUtil.toGenericRow(row2, fieldTypes);
+		public boolean equals(RowData row1, RowData row2) {
+			GenericRowData left = RowDataUtil.toGenericRow(row1, fieldTypes);
+			GenericRowData right = RowDataUtil.toGenericRow(row2, fieldTypes);
 			return left.equals(right);
-		}
-
-		@Override
-		public boolean equalsWithoutHeader(BaseRow row1, BaseRow row2) {
-			GenericRow left = BaseRowUtil.toGenericRow(row1, fieldTypes);
-			GenericRow right = BaseRowUtil.toGenericRow(row2, fieldTypes);
-			return left.equalsWithoutHeader(right);
 		}
 	}
 
-	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
+	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
 			WindowOperator operator)
 			throws Exception {
-		return new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
+		return new KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData>(
 				operator, keySelector, keyType);
 	}
 

@@ -21,10 +21,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -38,12 +38,12 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
 
-	private final BinaryRowSerializer valueSerializer;
+	private final BinaryRowDataSerializer valueSerializer;
 
 	public static BinaryKVInMemorySortBuffer createBuffer(
 			NormalizedKeyComputer normalizedKeyComputer,
-			BinaryRowSerializer keySerializer,
-			BinaryRowSerializer valueSerializer,
+			BinaryRowDataSerializer keySerializer,
+			BinaryRowDataSerializer valueSerializer,
 			RecordComparator comparator,
 			ArrayList<MemorySegment> recordBufferSegments,
 			long numElements,
@@ -57,8 +57,8 @@ public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
 
 	private BinaryKVInMemorySortBuffer(
 			NormalizedKeyComputer normalizedKeyComputer,
-			BinaryRowSerializer keySerializer,
-			BinaryRowSerializer valueSerializer,
+			BinaryRowDataSerializer keySerializer,
+			BinaryRowDataSerializer valueSerializer,
 			RecordComparator comparator,
 			ArrayList<MemorySegment> recordBufferSegments,
 			MemorySegmentPool memorySegmentPool) throws IOException {
@@ -90,7 +90,7 @@ public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
 		for (int index = 0; index < numElements; index++) {
 			serializer.checkSkipReadForFixLengthPart(recordInputView);
 			long pointer = recordInputView.getReadPosition();
-			BinaryRow row = serializer1.mapFromPages(row1, recordInputView);
+			BinaryRowData row = serializer1.mapFromPages(row1, recordInputView);
 			valueSerializer.checkSkipReadForFixLengthPart(recordInputView);
 			recordInputView.skipBytes(recordInputView.readInt());
 			boolean success = checkNextIndexOffset();
@@ -104,8 +104,8 @@ public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
 	 *
 	 * @return An iterator returning the records in their logical order.
 	 */
-	public final MutableObjectIterator<Tuple2<BinaryRow, BinaryRow>> getIterator() {
-		return new MutableObjectIterator<Tuple2<BinaryRow, BinaryRow>>() {
+	public final MutableObjectIterator<Tuple2<BinaryRowData, BinaryRowData>> getIterator() {
+		return new MutableObjectIterator<Tuple2<BinaryRowData, BinaryRowData>>() {
 			private final int size = size();
 			private int current = 0;
 
@@ -115,7 +115,7 @@ public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
 			private MemorySegment currentIndexSegment = sortIndex.get(0);
 
 			@Override
-			public Tuple2<BinaryRow, BinaryRow> next(Tuple2<BinaryRow, BinaryRow> kv) {
+			public Tuple2<BinaryRowData, BinaryRowData> next(Tuple2<BinaryRowData, BinaryRowData> kv) {
 				if (this.current < this.size) {
 					this.current++;
 					if (this.currentOffset > lastIndexEntryOffset) {
@@ -137,14 +137,14 @@ public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
 			}
 
 			@Override
-			public Tuple2<BinaryRow, BinaryRow> next() {
+			public Tuple2<BinaryRowData, BinaryRowData> next() {
 				throw new RuntimeException("Not support!");
 			}
 		};
 	}
 
-	private Tuple2<BinaryRow, BinaryRow> getRecordFromBuffer(
-			BinaryRow reuseKey, BinaryRow reuseValue, long pointer) throws IOException {
+	private Tuple2<BinaryRowData, BinaryRowData> getRecordFromBuffer(
+			BinaryRowData reuseKey, BinaryRowData reuseValue, long pointer) throws IOException {
 		this.recordBuffer.setReadPosition(pointer);
 		reuseKey = this.serializer.mapFromPages(reuseKey, this.recordBuffer);
 		reuseValue =  this.serializer.mapFromPages(reuseValue, this.recordBuffer);

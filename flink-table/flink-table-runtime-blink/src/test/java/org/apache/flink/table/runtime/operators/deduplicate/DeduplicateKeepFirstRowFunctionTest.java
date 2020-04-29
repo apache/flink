@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.deduplicate;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import org.junit.Test;
 
@@ -35,17 +35,17 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
  */
 public class DeduplicateKeepFirstRowFunctionTest extends DeduplicateFunctionTestBase {
 
-	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
+	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
 			DeduplicateKeepFirstRowFunction func)
 			throws Exception {
-		KeyedProcessOperator<BaseRow, BaseRow, BaseRow> operator = new KeyedProcessOperator<>(func);
+		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(func);
 		return new KeyedOneInputStreamOperatorTestHarness<>(operator, rowKeySelector, rowKeySelector.getProducedType());
 	}
 
 	@Test
 	public void test() throws Exception {
 		DeduplicateKeepFirstRowFunction func = new DeduplicateKeepFirstRowFunction(minTime.toMilliseconds());
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 11));
@@ -62,7 +62,7 @@ public class DeduplicateKeepFirstRowFunctionTest extends DeduplicateFunctionTest
 	@Test
 	public void testWithStateTtl() throws Exception {
 		DeduplicateKeepFirstRowFunction func = new DeduplicateKeepFirstRowFunction(minTime.toMilliseconds());
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 11));

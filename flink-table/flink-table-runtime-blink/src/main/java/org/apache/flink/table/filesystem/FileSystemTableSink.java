@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.OverwritableTableSink;
 import org.apache.flink.table.sinks.PartitionableTableSink;
@@ -58,7 +58,7 @@ import static org.apache.flink.table.filesystem.FileSystemTableFactory.createFor
  * File system {@link TableSink}.
  */
 public class FileSystemTableSink implements
-		AppendStreamTableSink<BaseRow>,
+		AppendStreamTableSink<RowData>,
 		PartitionableTableSink,
 		OverwritableTableSink {
 
@@ -108,7 +108,7 @@ public class FileSystemTableSink implements
 	}
 
 	@Override
-	public final DataStreamSink<BaseRow> consumeDataStream(DataStream<BaseRow> dataStream) {
+	public final DataStreamSink<RowData> consumeDataStream(DataStream<RowData> dataStream) {
 		RowDataPartitionComputer computer = new RowDataPartitionComputer(
 				defaultPartName,
 				schema.getFieldNames(),
@@ -116,7 +116,7 @@ public class FileSystemTableSink implements
 				partitionKeys.toArray(new String[0]));
 
 		if (isBounded) {
-			FileSystemOutputFormat.Builder<BaseRow> builder = new FileSystemOutputFormat.Builder<>();
+			FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
 			builder.setPartitionComputer(computer);
 			builder.setDynamicGrouped(dynamicGrouping);
 			builder.setPartitionColumns(partitionKeys.toArray(new String[0]));
@@ -140,17 +140,17 @@ public class FileSystemTableSink implements
 					rollingFileSize,
 					rollingTimeInterval);
 
-			StreamingFileSink<BaseRow> sink;
+			StreamingFileSink<RowData> sink;
 			if (writer instanceof Encoder) {
 				//noinspection unchecked
 				sink = StreamingFileSink.forRowFormat(
-						path, new ProjectionEncoder((Encoder<BaseRow>) writer, computer))
+						path, new ProjectionEncoder((Encoder<RowData>) writer, computer))
 						.withBucketAssigner(assigner)
 						.withRollingPolicy(rollingPolicy).build();
 			} else {
 				//noinspection unchecked
 				sink = StreamingFileSink.forBulkFormat(
-						path, new ProjectionBulkFactory((BulkWriter.Factory<BaseRow>) writer, computer))
+						path, new ProjectionBulkFactory((BulkWriter.Factory<RowData>) writer, computer))
 						.withBucketAssigner(assigner)
 						.withRollingPolicy(rollingPolicy).build();
 			}
@@ -173,11 +173,11 @@ public class FileSystemTableSink implements
 	}
 
 	@SuppressWarnings("unchecked")
-	private OutputFormatFactory<BaseRow> createOutputFormatFactory() {
+	private OutputFormatFactory<RowData> createOutputFormatFactory() {
 		Object writer = createWriter();
 		return writer instanceof Encoder ?
-				path -> createEncoderOutputFormat((Encoder<BaseRow>) writer, path) :
-				path -> createBulkWriterOutputFormat((BulkWriter.Factory<BaseRow>) writer, path);
+				path -> createEncoderOutputFormat((Encoder<RowData>) writer, path) :
+				path -> createBulkWriterOutputFormat((BulkWriter.Factory<RowData>) writer, path);
 	}
 
 	private Object createWriter() {
@@ -200,8 +200,8 @@ public class FileSystemTableSink implements
 			}
 		};
 
-		Optional<Encoder<BaseRow>> encoder = formatFactory.createEncoder(context);
-		Optional<BulkWriter.Factory<BaseRow>> bulk = formatFactory.createBulkWriterFactory(context);
+		Optional<Encoder<RowData>> encoder = formatFactory.createEncoder(context);
+		Optional<BulkWriter.Factory<RowData>> bulk = formatFactory.createBulkWriterFactory(context);
 
 		if (encoder.isPresent()) {
 			return encoder.get();
@@ -213,14 +213,14 @@ public class FileSystemTableSink implements
 		}
 	}
 
-	private static OutputFormat<BaseRow> createBulkWriterOutputFormat(
-			BulkWriter.Factory<BaseRow> factory,
+	private static OutputFormat<RowData> createBulkWriterOutputFormat(
+			BulkWriter.Factory<RowData> factory,
 			Path path) {
-		return new OutputFormat<BaseRow>() {
+		return new OutputFormat<RowData>() {
 
 			private static final long serialVersionUID = 1L;
 
-			private transient BulkWriter<BaseRow> writer;
+			private transient BulkWriter<RowData> writer;
 
 			@Override
 			public void configure(Configuration parameters) {
@@ -233,7 +233,7 @@ public class FileSystemTableSink implements
 			}
 
 			@Override
-			public void writeRecord(BaseRow record) throws IOException {
+			public void writeRecord(RowData record) throws IOException {
 				writer.addElement(record);
 			}
 
@@ -245,10 +245,10 @@ public class FileSystemTableSink implements
 		};
 	}
 
-	private static OutputFormat<BaseRow> createEncoderOutputFormat(
-			Encoder<BaseRow> encoder,
+	private static OutputFormat<RowData> createEncoderOutputFormat(
+			Encoder<RowData> encoder,
 			Path path) {
-		return new OutputFormat<BaseRow>() {
+		return new OutputFormat<RowData>() {
 
 			private static final long serialVersionUID = 1L;
 
@@ -265,7 +265,7 @@ public class FileSystemTableSink implements
 			}
 
 			@Override
-			public void writeRecord(BaseRow record) throws IOException {
+			public void writeRecord(RowData record) throws IOException {
 				encoder.encode(record, output);
 			}
 
@@ -332,7 +332,7 @@ public class FileSystemTableSink implements
 
 	@Override
 	public DataType getConsumedDataType() {
-		return schema.toRowDataType().bridgedTo(BaseRow.class);
+		return schema.toRowDataType().bridgedTo(RowData.class);
 	}
 
 	@Override
@@ -344,16 +344,16 @@ public class FileSystemTableSink implements
 	/**
 	 * Table bucket assigner, wrap {@link PartitionComputer}.
 	 */
-	private static class TableBucketAssigner implements BucketAssigner<BaseRow, String> {
+	private static class TableBucketAssigner implements BucketAssigner<RowData, String> {
 
-		private final PartitionComputer<BaseRow> computer;
+		private final PartitionComputer<RowData> computer;
 
-		private TableBucketAssigner(PartitionComputer<BaseRow> computer) {
+		private TableBucketAssigner(PartitionComputer<RowData> computer) {
 			this.computer = computer;
 		}
 
 		@Override
-		public String getBucketId(BaseRow element, Context context) {
+		public String getBucketId(RowData element, Context context) {
 			try {
 				return PartitionPathUtils.generatePartitionPath(
 						computer.generatePartValues(element));
@@ -371,7 +371,7 @@ public class FileSystemTableSink implements
 	/**
 	 * Table {@link RollingPolicy}, it extends {@link CheckpointRollingPolicy} for bulk writers.
 	 */
-	private static class TableRollingPolicy extends CheckpointRollingPolicy<BaseRow, String> {
+	private static class TableRollingPolicy extends CheckpointRollingPolicy<RowData, String> {
 
 		private final boolean rollOnCheckpoint;
 		private final long rollingFileSize;
@@ -400,7 +400,7 @@ public class FileSystemTableSink implements
 		@Override
 		public boolean shouldRollOnEvent(
 				PartFileInfo<String> partFileState,
-				BaseRow element) throws IOException {
+				RowData element) throws IOException {
 			return partFileState.getSize() > rollingFileSize;
 		}
 
@@ -412,39 +412,39 @@ public class FileSystemTableSink implements
 		}
 	}
 
-	private static class ProjectionEncoder implements Encoder<BaseRow> {
+	private static class ProjectionEncoder implements Encoder<RowData> {
 
-		private final Encoder<BaseRow> encoder;
+		private final Encoder<RowData> encoder;
 		private final RowDataPartitionComputer computer;
 
-		private ProjectionEncoder(Encoder<BaseRow> encoder, RowDataPartitionComputer computer) {
+		private ProjectionEncoder(Encoder<RowData> encoder, RowDataPartitionComputer computer) {
 			this.encoder = encoder;
 			this.computer = computer;
 		}
 
 		@Override
-		public void encode(BaseRow element, OutputStream stream) throws IOException {
+		public void encode(RowData element, OutputStream stream) throws IOException {
 			encoder.encode(computer.projectColumnsToWrite(element), stream);
 		}
 	}
 
-	private static class ProjectionBulkFactory implements BulkWriter.Factory<BaseRow> {
+	private static class ProjectionBulkFactory implements BulkWriter.Factory<RowData> {
 
-		private final BulkWriter.Factory<BaseRow> factory;
+		private final BulkWriter.Factory<RowData> factory;
 		private final RowDataPartitionComputer computer;
 
-		private ProjectionBulkFactory(BulkWriter.Factory<BaseRow> factory, RowDataPartitionComputer computer) {
+		private ProjectionBulkFactory(BulkWriter.Factory<RowData> factory, RowDataPartitionComputer computer) {
 			this.factory = factory;
 			this.computer = computer;
 		}
 
 		@Override
-		public BulkWriter<BaseRow> create(FSDataOutputStream out) throws IOException {
-			BulkWriter<BaseRow> writer = factory.create(out);
-			return new BulkWriter<BaseRow>() {
+		public BulkWriter<RowData> create(FSDataOutputStream out) throws IOException {
+			BulkWriter<RowData> writer = factory.create(out);
+			return new BulkWriter<RowData>() {
 
 				@Override
-				public void addElement(BaseRow element) throws IOException {
+				public void addElement(RowData element) throws IOException {
 					writer.addElement(computer.projectColumnsToWrite(element));
 				}
 

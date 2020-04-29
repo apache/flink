@@ -21,7 +21,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
@@ -33,7 +33,7 @@ import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchGlobalGroupAggFunction
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.DataType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -61,7 +61,7 @@ class StreamExecGlobalGroupAggregate(
     val globalAggInfoList: AggregateInfoList,
     val partialFinalType: PartialFinalType)
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -106,7 +106,7 @@ class StreamExecGlobalGroupAggregate(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val tableConfig = planner.getTableConfig
 
     if (grouping.length > 0 && tableConfig.getMinIdleStateRetentionTime < 0) {
@@ -116,7 +116,7 @@ class StreamExecGlobalGroupAggregate(
     }
 
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
     val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
 
@@ -171,15 +171,15 @@ class StreamExecGlobalGroupAggregate(
       throw new TableException("Local-Global optimization is only worked in miniBatch mode")
     }
 
-    val inputTypeInfo = inputTransformation.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val selector = KeySelectorUtil.getBaseRowSelector(grouping, inputTypeInfo)
+    val inputTypeInfo = inputTransformation.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val selector = KeySelectorUtil.getRowDataSelector(grouping, inputTypeInfo)
 
     // partitioned aggregation
     val ret = new OneInputTransformation(
       inputTransformation,
       getRelDetailedDescription,
       operator,
-      BaseRowTypeInfo.of(outRowType),
+      RowDataTypeInfo.of(outRowType),
       inputTransformation.getParallelism)
 
     if (inputsContainSingleton()) {

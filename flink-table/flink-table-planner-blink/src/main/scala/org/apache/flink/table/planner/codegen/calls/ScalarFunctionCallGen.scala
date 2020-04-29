@@ -20,8 +20,6 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.table.dataformat.DataFormatConverters
-import org.apache.flink.table.dataformat.DataFormatConverters.getConverterForDataType
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.calls.ScalarFunctionCallGen.prepareFunctionArgs
@@ -142,7 +140,7 @@ object ScalarFunctionCallGen {
 
     val signatureTypes = parameterTypes.zipWithIndex.map {
       case (t: GenericTypeInfo[_], i) =>
-        // we don't trust GenericType, like Row and BaseRow and LocalTime
+        // we don't trust GenericType, like Row and RowData and LocalTime
         val returnType = fromLogicalTypeToDataType(operands(i).resultType)
         if (operands(i).resultType.supportsOutputConversion(t.getTypeClass)) {
           returnType.bridgedTo(t.getTypeClass)

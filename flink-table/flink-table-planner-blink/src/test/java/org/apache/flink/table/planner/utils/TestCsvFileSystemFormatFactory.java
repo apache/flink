@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.DataFormatConverters;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.filesystem.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -69,7 +69,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	@Override
-	public InputFormat<BaseRow, ?> createReader(ReaderContext context) {
+	public InputFormat<RowData, ?> createReader(ReaderContext context) {
 		return new TestRowDataCsvInputFormat(
 				context.getPaths(),
 				context.getSchema(),
@@ -84,20 +84,20 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	@Override
-	public Optional<Encoder<BaseRow>> createEncoder(WriterContext context) {
+	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
 		if (useBulkWriter(context)) {
 			return Optional.empty();
 		}
 
 		DataType[] types = context.getFieldTypesWithoutPartKeys();
-		return Optional.of((baseRow, stream) -> {
-			writeCsvToStream(types, baseRow, stream);
+		return Optional.of((rowData, stream) -> {
+			writeCsvToStream(types, rowData, stream);
 		});
 	}
 
 	private static void writeCsvToStream(
 			DataType[] types,
-			BaseRow baseRow,
+			RowData rowData,
 			OutputStream stream) throws IOException {
 		LogicalType[] fieldTypes = Arrays.stream(types)
 				.map(DataType::getLogicalType)
@@ -105,7 +105,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		DataFormatConverters.DataFormatConverter converter = DataFormatConverters.getConverterForDataType(
 				TypeConversions.fromLogicalToDataType(RowType.of(fieldTypes)));
 
-		Row row = (Row) converter.toExternal(baseRow);
+		Row row = (Row) converter.toExternal(rowData);
 		StringBuilder builder = new StringBuilder();
 		Object o;
 		for (int i = 0; i < row.getArity(); i++) {
@@ -122,7 +122,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	@Override
-	public Optional<BulkWriter.Factory<BaseRow>> createBulkWriterFactory(WriterContext context) {
+	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
 		if (!useBulkWriter(context)) {
 			return Optional.empty();
 		}
@@ -131,7 +131,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		return Optional.of(out -> new CsvBulkWriter(types, out));
 	}
 
-	private static class CsvBulkWriter implements BulkWriter<BaseRow> {
+	private static class CsvBulkWriter implements BulkWriter<RowData> {
 
 		private final DataType[] types;
 		private final OutputStream stream;
@@ -142,7 +142,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		}
 
 		@Override
-		public void addElement(BaseRow element) throws IOException {
+		public void addElement(RowData element) throws IOException {
 			writeCsvToStream(types, element, stream);
 		}
 

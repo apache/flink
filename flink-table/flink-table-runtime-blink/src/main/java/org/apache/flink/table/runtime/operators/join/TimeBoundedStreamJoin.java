@@ -29,9 +29,9 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.util.Collector;
 
 import org.slf4j.Logger;
@@ -49,7 +49,7 @@ import java.util.Map;
  * "L.time between R.time + X and R.time + Y" or "R.time between L.time - Y and L.time - X"
  * X and Y might be negative or positive and X <= Y.
  */
-abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, BaseRow, BaseRow, BaseRow> {
+abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<RowData, RowData, RowData, RowData> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TimeBoundedStreamJoin.class);
 	private final FlinkJoinType joinType;
 	protected final long leftRelativeSize;
@@ -58,20 +58,20 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 	// Minimum interval by which state is cleaned up
 	private final long minCleanUpInterval;
 	protected final long allowedLateness;
-	private final BaseRowTypeInfo leftType;
-	private final BaseRowTypeInfo rightType;
-	private GeneratedFunction<FlatJoinFunction<BaseRow, BaseRow, BaseRow>> genJoinFunc;
+	private final RowDataTypeInfo leftType;
+	private final RowDataTypeInfo rightType;
+	private GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc;
 	private transient OuterJoinPaddingUtil paddingUtil;
 
 	private transient EmitAwareCollector joinCollector;
 
 	// the join function for other conditions
-	private transient FlatJoinFunction<BaseRow, BaseRow, BaseRow> joinFunction;
+	private transient FlatJoinFunction<RowData, RowData, RowData> joinFunction;
 
 	// cache to store rows form the left stream
-	private transient MapState<Long, List<Tuple2<BaseRow, Boolean>>> leftCache;
+	private transient MapState<Long, List<Tuple2<RowData, Boolean>>> leftCache;
 	// cache to store rows from the right stream
-	private transient MapState<Long, List<Tuple2<BaseRow, Boolean>>> rightCache;
+	private transient MapState<Long, List<Tuple2<RowData, Boolean>>> rightCache;
 
 	// state to record the timer on the left stream. 0 means no timer set
 	private transient ValueState<Long> leftTimerState;
@@ -91,9 +91,9 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 			long leftLowerBound,
 			long leftUpperBound,
 			long allowedLateness,
-			BaseRowTypeInfo leftType,
-			BaseRowTypeInfo rightType,
-			GeneratedFunction<FlatJoinFunction<BaseRow, BaseRow, BaseRow>> genJoinFunc) {
+			RowDataTypeInfo leftType,
+			RowDataTypeInfo rightType,
+			GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc) {
 		this.joinType = joinType;
 		this.leftRelativeSize = -leftLowerBound;
 		this.rightRelativeSize = leftUpperBound;
@@ -117,17 +117,17 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 		joinCollector = new EmitAwareCollector();
 
 		// Initialize the data caches.
-		ListTypeInfo<Tuple2<BaseRow, Boolean>> leftRowListTypeInfo = new ListTypeInfo<>(
+		ListTypeInfo<Tuple2<RowData, Boolean>> leftRowListTypeInfo = new ListTypeInfo<>(
 				new TupleTypeInfo<>(leftType, BasicTypeInfo.BOOLEAN_TYPE_INFO));
-		MapStateDescriptor<Long, List<Tuple2<BaseRow, Boolean>>> leftMapStateDescriptor = new MapStateDescriptor<>(
+		MapStateDescriptor<Long, List<Tuple2<RowData, Boolean>>> leftMapStateDescriptor = new MapStateDescriptor<>(
 				"WindowJoinLeftCache",
 				BasicTypeInfo.LONG_TYPE_INFO,
 				leftRowListTypeInfo);
 		leftCache = getRuntimeContext().getMapState(leftMapStateDescriptor);
 
-		ListTypeInfo<Tuple2<BaseRow, Boolean>> rightRowListTypeInfo = new ListTypeInfo<>(
+		ListTypeInfo<Tuple2<RowData, Boolean>> rightRowListTypeInfo = new ListTypeInfo<>(
 				new TupleTypeInfo<>(rightType, BasicTypeInfo.BOOLEAN_TYPE_INFO));
-		MapStateDescriptor<Long, List<Tuple2<BaseRow, Boolean>>> rightMapStateDescriptor = new MapStateDescriptor<>(
+		MapStateDescriptor<Long, List<Tuple2<RowData, Boolean>>> rightMapStateDescriptor = new MapStateDescriptor<>(
 				"WindowJoinRightCache",
 				BasicTypeInfo.LONG_TYPE_INFO,
 				rightRowListTypeInfo);
@@ -148,7 +148,7 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 	}
 
 	@Override
-	public void processElement1(BaseRow leftRow, Context ctx, Collector<BaseRow> out) throws Exception {
+	public void processElement1(RowData leftRow, Context ctx, Collector<RowData> out) throws Exception {
 		joinCollector.setInnerCollector(out);
 		updateOperatorTime(ctx);
 
@@ -166,14 +166,14 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 			// There might be qualifying rows in the cache that the current row needs to be joined with.
 			rightExpirationTime = calExpirationTime(leftOperatorTime, rightRelativeSize);
 			// Join the leftRow with rows from the right cache.
-			Iterator<Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>>> rightIterator = rightCache.iterator();
+			Iterator<Map.Entry<Long, List<Tuple2<RowData, Boolean>>>> rightIterator = rightCache.iterator();
 			while (rightIterator.hasNext()) {
-				Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>> rightEntry = rightIterator.next();
+				Map.Entry<Long, List<Tuple2<RowData, Boolean>>> rightEntry = rightIterator.next();
 				Long rightTime = rightEntry.getKey();
 				if (rightTime >= rightQualifiedLowerBound && rightTime <= rightQualifiedUpperBound) {
-					List<Tuple2<BaseRow, Boolean>> rightRows = rightEntry.getValue();
+					List<Tuple2<RowData, Boolean>> rightRows = rightEntry.getValue();
 					boolean entryUpdated = false;
-					for (Tuple2<BaseRow, Boolean> tuple : rightRows) {
+					for (Tuple2<RowData, Boolean> tuple : rightRows) {
 						joinCollector.reset();
 						joinFunction.join(leftRow, tuple.f0, joinCollector);
 						emitted = emitted || joinCollector.isEmitted();
@@ -193,8 +193,8 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 				// Clean up the expired right cache row, clean the cache while join
 				if (rightTime <= rightExpirationTime) {
 					if (joinType.isRightOuter()) {
-						List<Tuple2<BaseRow, Boolean>> rightRows = rightEntry.getValue();
-						rightRows.forEach((Tuple2<BaseRow, Boolean> tuple) -> {
+						List<Tuple2<RowData, Boolean>> rightRows = rightEntry.getValue();
+						rightRows.forEach((Tuple2<RowData, Boolean> tuple) -> {
 							if (!tuple.f1) {
 								// Emit a null padding result if the right row has never been successfully joined.
 								joinCollector.collect(paddingUtil.padRight(tuple.f0));
@@ -211,7 +211,7 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 			// Operator time of right stream has not exceeded the upper window bound of the current
 			// row. Put it into the left cache, since later coming records from the right stream are
 			// expected to be joined with it.
-			List<Tuple2<BaseRow, Boolean>> leftRowList = leftCache.get(timeForLeftRow);
+			List<Tuple2<RowData, Boolean>> leftRowList = leftCache.get(timeForLeftRow);
 			if (leftRowList == null) {
 				leftRowList = new ArrayList<>(1);
 			}
@@ -228,7 +228,7 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 	}
 
 	@Override
-	public void processElement2(BaseRow rightRow, Context ctx, Collector<BaseRow> out) throws Exception {
+	public void processElement2(RowData rightRow, Context ctx, Collector<RowData> out) throws Exception {
 		joinCollector.setInnerCollector(out);
 		updateOperatorTime(ctx);
 		long timeForRightRow = getTimeForRightStream(ctx, rightRow);
@@ -243,14 +243,14 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 		if (leftExpirationTime < leftQualifiedUpperBound) {
 			leftExpirationTime = calExpirationTime(rightOperatorTime, leftRelativeSize);
 			// Join the rightRow with rows from the left cache.
-			Iterator<Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>>> leftIterator = leftCache.iterator();
+			Iterator<Map.Entry<Long, List<Tuple2<RowData, Boolean>>>> leftIterator = leftCache.iterator();
 			while (leftIterator.hasNext()) {
-				Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>> leftEntry = leftIterator.next();
+				Map.Entry<Long, List<Tuple2<RowData, Boolean>>> leftEntry = leftIterator.next();
 				Long leftTime = leftEntry.getKey();
 				if (leftTime >= leftQualifiedLowerBound && leftTime <= leftQualifiedUpperBound) {
-					List<Tuple2<BaseRow, Boolean>> leftRows = leftEntry.getValue();
+					List<Tuple2<RowData, Boolean>> leftRows = leftEntry.getValue();
 					boolean entryUpdated = false;
-					for (Tuple2<BaseRow, Boolean> tuple : leftRows) {
+					for (Tuple2<RowData, Boolean> tuple : leftRows) {
 						joinCollector.reset();
 						joinFunction.join(tuple.f0, rightRow, joinCollector);
 						emitted = emitted || joinCollector.isEmitted();
@@ -270,8 +270,8 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 
 				if (leftTime <= leftExpirationTime) {
 					if (joinType.isLeftOuter()) {
-						List<Tuple2<BaseRow, Boolean>> leftRows = leftEntry.getValue();
-						leftRows.forEach((Tuple2<BaseRow, Boolean> tuple) -> {
+						List<Tuple2<RowData, Boolean>> leftRows = leftEntry.getValue();
+						leftRows.forEach((Tuple2<RowData, Boolean> tuple) -> {
 							if (!tuple.f1) {
 								// Emit a null padding result if the left row has never been successfully joined.
 								joinCollector.collect(paddingUtil.padLeft(tuple.f0));
@@ -288,7 +288,7 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 			// Operator time of left stream has not exceeded the upper window bound of the current
 			// row. Put it into the right cache, since later coming records from the left stream are
 			// expected to be joined with it.
-			List<Tuple2<BaseRow, Boolean>> rightRowList = rightCache.get(timeForRightRow);
+			List<Tuple2<RowData, Boolean>> rightRowList = rightCache.get(timeForRightRow);
 			if (null == rightRowList) {
 				rightRowList = new ArrayList<>(1);
 			}
@@ -305,7 +305,7 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 	}
 
 	@Override
-	public void onTimer(long timestamp, OnTimerContext ctx, Collector<BaseRow> out) throws Exception {
+	public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out) throws Exception {
 		joinCollector.setInnerCollector(out);
 		updateOperatorTime(ctx);
 		// In the future, we should separate the left and right watermarks. Otherwise, the
@@ -385,33 +385,33 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 	 * @param removeLeft whether to remove the left rows
 	 */
 	private void removeExpiredRows(
-			Collector<BaseRow> collector,
+			Collector<RowData> collector,
 			long expirationTime,
-			MapState<Long, List<Tuple2<BaseRow, Boolean>>> rowCache,
+			MapState<Long, List<Tuple2<RowData, Boolean>>> rowCache,
 			ValueState<Long> timerState,
 			OnTimerContext ctx,
 			boolean removeLeft) throws Exception {
-		Iterator<Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>>> iterator = rowCache.iterator();
+		Iterator<Map.Entry<Long, List<Tuple2<RowData, Boolean>>>> iterator = rowCache.iterator();
 
 		long earliestTimestamp = -1L;
 
 		// We remove all expired keys and do not leave the loop early.
 		// Hence, we do a full pass over the state.
 		while (iterator.hasNext()) {
-			Map.Entry<Long, List<Tuple2<BaseRow, Boolean>>> entry = iterator.next();
+			Map.Entry<Long, List<Tuple2<RowData, Boolean>>> entry = iterator.next();
 			Long rowTime = entry.getKey();
 			if (rowTime <= expirationTime) {
 				if (removeLeft && joinType.isLeftOuter()) {
-					List<Tuple2<BaseRow, Boolean>> rows = entry.getValue();
-					rows.forEach((Tuple2<BaseRow, Boolean> tuple) -> {
+					List<Tuple2<RowData, Boolean>> rows = entry.getValue();
+					rows.forEach((Tuple2<RowData, Boolean> tuple) -> {
 						if (!tuple.f1) {
 							// Emit a null padding result if the row has never been successfully joined.
 							collector.collect(paddingUtil.padLeft(tuple.f0));
 						}
 					});
 				} else if (!removeLeft && joinType.isRightOuter()) {
-					List<Tuple2<BaseRow, Boolean>> rows = entry.getValue();
-					rows.forEach((Tuple2<BaseRow, Boolean> tuple) -> {
+					List<Tuple2<RowData, Boolean>> rows = entry.getValue();
+					rows.forEach((Tuple2<RowData, Boolean> tuple) -> {
 						if (!tuple.f1) {
 							// Emit a null padding result if the row has never been successfully joined.
 							collector.collect(paddingUtil.padRight(tuple.f0));
@@ -454,7 +454,7 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 	 * @param row the target row
 	 * @return time for the target row
 	 */
-	abstract long getTimeForLeftStream(Context ctx, BaseRow row);
+	abstract long getTimeForLeftStream(Context ctx, RowData row);
 
 	/**
 	 * Return the time for the target row from the right stream.
@@ -464,7 +464,7 @@ abstract class TimeBoundedStreamJoin extends KeyedCoProcessFunction<BaseRow, Bas
 	 * @param row the target row
 	 * @return time for the target row
 	 */
-	abstract long getTimeForRightStream(Context ctx, BaseRow row);
+	abstract long getTimeForRightStream(Context ctx, RowData row);
 
 	/**
 	 * Register a proctime or rowtime timer.

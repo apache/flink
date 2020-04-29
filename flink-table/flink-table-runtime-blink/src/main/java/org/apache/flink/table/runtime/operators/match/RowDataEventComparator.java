@@ -19,26 +19,26 @@
 package org.apache.flink.table.runtime.operators.match;
 
 import org.apache.flink.cep.EventComparator;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 
 /**
  * An implementation of {@link EventComparator} based on a generated {@link RecordComparator}.
  */
-public class BaseRowEventComparator implements EventComparator<BaseRow> {
+public class RowDataEventComparator implements EventComparator<RowData> {
 	private static final long serialVersionUID = 1L;
 
 	private final GeneratedRecordComparator generatedComparator;
 
 	private transient RecordComparator comparator;
 
-	public BaseRowEventComparator(GeneratedRecordComparator generatedComparator) {
+	public RowDataEventComparator(GeneratedRecordComparator generatedComparator) {
 		this.generatedComparator = generatedComparator;
 	}
 
 	@Override
-	public int compare(BaseRow row1, BaseRow row2) {
+	public int compare(RowData row1, RowData row2) {
 		if (comparator == null) {
 			comparator = generatedComparator.newInstance(
 				Thread.currentThread().getContextClassLoader());

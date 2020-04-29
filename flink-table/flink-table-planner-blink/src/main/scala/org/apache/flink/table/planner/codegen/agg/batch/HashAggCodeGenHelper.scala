@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.metrics.Gauge
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.{GenericRowData, JoinedRowData, RowData}
 import org.apache.flink.table.expressions.{Expression, _}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull}
@@ -35,7 +36,7 @@ import org.apache.flink.table.planner.plan.utils.SortUtil
 import org.apache.flink.table.runtime.generated.{NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.runtime.operators.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
 import org.apache.flink.table.runtime.operators.sort.BufferedKVExternalSorter
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
@@ -86,13 +87,13 @@ object HashAggCodeGenHelper {
       outputType: RowType,
       aggMapKeyType: RowType,
       aggBufferType: RowType,
-      outputClass: Class[_ <: BaseRow]): (String, String, String) = {
+      outputClass: Class[_ <: RowData]): (String, String, String) = {
     // prepare iteration var terms
     val reuseAggMapKeyTerm = CodeGenUtils.newName("reuseAggMapKey")
     val reuseAggBufferTerm = CodeGenUtils.newName("reuseAggBuffer")
     val reuseAggMapEntryTerm = CodeGenUtils.newName("reuseAggMapEntry")
     // gen code to prepare agg output using agg buffer and key from the aggregate map
-    val binaryRow = classOf[BinaryRow].getName
+    val binaryRow = classOf[BinaryRowData].getName
     val mapEntryTypeTerm = classOf[BytesHashMap.Entry].getCanonicalName
 
     ctx.addReusableOutputRecord(outputType, outputClass, outputTerm)
@@ -217,7 +218,7 @@ object HashAggCodeGenHelper {
     exprCodegen.generateResultExpression(
       initAggBufferExprs,
       aggBufferType,
-      classOf[BinaryRow],
+      classOf[BinaryRowData],
       emptyAggBufferTerm,
       Some(emptyAggBufferWriterTerm)
     )
@@ -303,7 +304,7 @@ object HashAggCodeGenHelper {
       exprCodegen.generateResultExpression(
         getValueExprs,
         valueType,
-        classOf[GenericRow],
+        classOf[GenericRowData],
         aggValueTerm)
     } else {
       new GeneratedExpression(aggBufferTerm, "false", "", aggBufferType)
@@ -401,7 +402,7 @@ object HashAggCodeGenHelper {
       mergeExprs,
       mergeExprIdxToOutputRowPosMap,
       aggBufferTypeWithoutAuxGrouping,
-      classOf[BinaryRow],
+      classOf[BinaryRowData],
       outRow = currentAggBufferTerm,
       outRowWriter = None,
       reusedOutRow = true,
@@ -671,7 +672,7 @@ object HashAggCodeGenHelper {
     val prepareSorterCode = genKVSorterPrepareCode(
       ctx, keyComputerTerm, recordComparatorTerm, groupKeyRowType)
 
-    val binaryRowSerializerTypeTerm = classOf[BinaryRowSerializer].getName
+    val binaryRowSerializerTypeTerm = classOf[BinaryRowDataSerializer].getName
     val sorterTypeTerm = classOf[BufferedKVExternalSorter].getName
     s"""
        |  $prepareSorterCode
@@ -709,7 +710,7 @@ object HashAggCodeGenHelper {
     val lastKeyTerm = CodeGenUtils.newName("lastKey")
     val keyNotEquals = AggCodeGenHelper.genGroupKeyChangedCheckCode(keyTerm, lastKeyTerm)
 
-    val joinedRow = classOf[JoinedRow].getName
+    val joinedRow = classOf[JoinedRowData].getName
     val fallbackInputTerm = ctx.addReusableLocalVariable(joinedRow, "fallbackInput")
     val fallbackInputType = RowType.of(
       (groupKeyRowType.getChildren ++ aggBufferRowType.getChildren).toArray,
@@ -735,9 +736,9 @@ object HashAggCodeGenHelper {
       forHashAgg = true)
 
     val kvPairTerm = CodeGenUtils.newName("kvPair")
-    val kvPairTypeTerm = classOf[JTuple2[BinaryRow, BinaryRow]].getName
+    val kvPairTypeTerm = classOf[JTuple2[BinaryRowData, BinaryRowData]].getName
     val aggBuffTerm = CodeGenUtils.newName("val")
-    val binaryRow = classOf[BinaryRow].getName
+    val binaryRow = classOf[BinaryRowData].getName
 
     s"""
        |  $binaryRow $lastKeyTerm = null;

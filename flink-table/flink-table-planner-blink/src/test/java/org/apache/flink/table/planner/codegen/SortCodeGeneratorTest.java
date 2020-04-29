@@ -29,17 +29,18 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.dataformat.BinaryArray;
-import org.apache.flink.table.dataformat.BinaryGeneric;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.BinaryWriter;
-import org.apache.flink.table.dataformat.DataFormatConverters;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.SqlTimestamp;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RawValueData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryArrayData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
+import org.apache.flink.table.data.util.DataFormatTestUtil;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
+import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.planner.plan.utils.SortUtil;
 import org.apache.flink.table.runtime.generated.GeneratedNormalizedKeyComputer;
@@ -49,9 +50,9 @@ import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.sort.BinaryInMemorySortBuffer;
 import org.apache.flink.table.runtime.operators.sort.ListMemorySegmentPool;
 import org.apache.flink.table.runtime.types.InternalSerializers;
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -86,7 +87,7 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
-import static org.apache.flink.table.utils.BinaryGenericAsserter.equivalent;
+import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -182,8 +183,8 @@ public class SortCodeGeneratorTest {
 		return objects;
 	}
 
-	private BinaryRow row(int i, Object[][] values) {
-		BinaryRow row = new BinaryRow(fields.length);
+	private BinaryRowData row(int i, Object[][] values) {
+		BinaryRowData row = new BinaryRowData(fields.length);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		for (int j = 0; j < fields.length; j++) {
 			Object value = values[j][i];
@@ -199,8 +200,8 @@ public class SortCodeGeneratorTest {
 		return row;
 	}
 
-	private BinaryRow[] getTestData() {
-		BinaryRow[] result = new BinaryRow[RECORD_NUM];
+	private BinaryRowData[] getTestData() {
+		BinaryRowData[] result = new BinaryRowData[RECORD_NUM];
 		Object[][] values = new Object[fields.length][];
 		for (int i = 0; i < fields.length; i++) {
 			values[i] = shuffle(generateValues(types[fields[i]]));
@@ -245,7 +246,7 @@ public class SortCodeGeneratorTest {
 					seeds[i] = rnd.nextDouble() * rnd.nextLong();
 					break;
 				case VARCHAR:
-					seeds[i] = BinaryString.fromString(RandomStringUtils.random(rnd.nextInt(20)));
+					seeds[i] = StringData.fromString(RandomStringUtils.random(rnd.nextInt(20)));
 					break;
 				case DECIMAL:
 					DecimalType decimalType = (DecimalType) type;
@@ -253,32 +254,32 @@ public class SortCodeGeneratorTest {
 							rnd.nextInt()).divide(
 							new BigDecimal(ThreadLocalRandom.current().nextInt(1, 256)),
 							ThreadLocalRandom.current().nextInt(1, 30), BigDecimal.ROUND_HALF_EVEN);
-					seeds[i] = Decimal.fromBigDecimal(decimal, decimalType.getPrecision(), decimalType.getScale());
+					seeds[i] = DecimalData.fromBigDecimal(decimal, decimalType.getPrecision(), decimalType.getScale());
 					break;
 				case TIMESTAMP_WITHOUT_TIME_ZONE:
 					TimestampType timestampType = (TimestampType) type;
 					if (timestampType.getPrecision() <= 3) {
-						seeds[i] = SqlTimestamp.fromEpochMillis(rnd.nextLong());
+						seeds[i] = TimestampData.fromEpochMillis(rnd.nextLong());
 					} else {
-						seeds[i] = SqlTimestamp.fromEpochMillis(rnd.nextLong(), rnd.nextInt(1000000));
+						seeds[i] = TimestampData.fromEpochMillis(rnd.nextLong(), rnd.nextInt(1000000));
 					}
 					break;
 				case ARRAY:
 				case VARBINARY:
 					byte[] bytes = new byte[rnd.nextInt(16) + 1];
 					rnd.nextBytes(bytes);
-					seeds[i] = type instanceof VarBinaryType ? bytes : BinaryArray.fromPrimitiveArray(bytes);
+					seeds[i] = type instanceof VarBinaryType ? bytes : BinaryArrayData.fromPrimitiveArray(bytes);
 					break;
 				case ROW:
 					RowType rowType = (RowType) type;
 					if (rowType.getFields().get(0).getType().getTypeRoot() == INTEGER) {
-						seeds[i] = GenericRow.of(rnd.nextInt());
+						seeds[i] = GenericRowData.of(rnd.nextInt());
 					} else {
-						seeds[i] = GenericRow.of(GenericRow.of(rnd.nextInt()));
+						seeds[i] = GenericRowData.of(GenericRowData.of(rnd.nextInt()));
 					}
 					break;
 				case RAW:
-					seeds[i] = new BinaryGeneric<>(rnd.nextInt());
+					seeds[i] = RawValueData.fromObject(rnd.nextInt());
 					break;
 				default:
 					throw new RuntimeException("Not support!");
@@ -310,17 +311,17 @@ public class SortCodeGeneratorTest {
 			case DOUBLE:
 				return Double.MIN_VALUE;
 			case VARCHAR:
-				return BinaryString.fromString("");
+				return StringData.fromString("");
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) type;
-				return Decimal.fromBigDecimal(new BigDecimal(Integer.MIN_VALUE),
+				return DecimalData.fromBigDecimal(new BigDecimal(Integer.MIN_VALUE),
 						decimalType.getPrecision(), decimalType.getScale());
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return SqlTimestamp.fromEpochMillis(Long.MIN_VALUE);
+				return TimestampData.fromEpochMillis(Long.MIN_VALUE);
 			case ARRAY:
 				byte[] bytes = new byte[rnd.nextInt(7) + 1];
 				rnd.nextBytes(bytes);
-				BinaryArray array = BinaryArray.fromPrimitiveArray(bytes);
+				BinaryArrayData array = BinaryArrayData.fromPrimitiveArray(bytes);
 				for (int i = 0; i < bytes.length; i++) {
 					array.setNullByte(i);
 				}
@@ -330,9 +331,9 @@ public class SortCodeGeneratorTest {
 				rnd.nextBytes(bytes2);
 				return bytes2;
 			case ROW:
-				return GenericRow.of(new Object[]{null});
+				return GenericRowData.of(new Object[]{null});
 			case RAW:
-				return new BinaryGeneric<>(rnd.nextInt());
+				return RawValueData.fromObject(rnd.nextInt());
 			default:
 				throw new RuntimeException("Not support!");
 		}
@@ -355,27 +356,27 @@ public class SortCodeGeneratorTest {
 			case DOUBLE:
 				return 0d;
 			case VARCHAR:
-				return BinaryString.fromString("0");
+				return StringData.fromString("0");
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) type;
-				return Decimal.fromBigDecimal(new BigDecimal(0),
+				return DecimalData.fromBigDecimal(new BigDecimal(0),
 						decimalType.getPrecision(), decimalType.getScale());
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return SqlTimestamp.fromEpochMillis(0);
+				return TimestampData.fromEpochMillis(0);
 			case ARRAY:
 			case VARBINARY:
 				byte[] bytes = new byte[rnd.nextInt(7) + 10];
 				rnd.nextBytes(bytes);
-				return type instanceof VarBinaryType ? bytes : BinaryArray.fromPrimitiveArray(bytes);
+				return type instanceof VarBinaryType ? bytes : BinaryArrayData.fromPrimitiveArray(bytes);
 			case ROW:
 				RowType rowType = (RowType) type;
 				if (rowType.getFields().get(0).getType().getTypeRoot() == INTEGER) {
-					return GenericRow.of(rnd.nextInt());
+					return GenericRowData.of(rnd.nextInt());
 				} else {
-					return GenericRow.of(GenericRow.of(new Object[]{null}));
+					return GenericRowData.of(GenericRowData.of(new Object[]{null}));
 				}
 			case RAW:
-				return new BinaryGeneric<>(rnd.nextInt());
+				return RawValueData.fromObject(rnd.nextInt());
 			default:
 				throw new RuntimeException("Not support!");
 		}
@@ -398,27 +399,27 @@ public class SortCodeGeneratorTest {
 			case DOUBLE:
 				return Double.MAX_VALUE;
 			case VARCHAR:
-				return BinaryString.fromString(RandomStringUtils.random(100));
+				return StringData.fromString(RandomStringUtils.random(100));
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) type;
-				return Decimal.fromBigDecimal(new BigDecimal(Integer.MAX_VALUE),
+				return DecimalData.fromBigDecimal(new BigDecimal(Integer.MAX_VALUE),
 						decimalType.getPrecision(), decimalType.getScale());
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return SqlTimestamp.fromEpochMillis(Long.MAX_VALUE, 999999);
+				return TimestampData.fromEpochMillis(Long.MAX_VALUE, 999999);
 			case ARRAY:
 			case VARBINARY:
 				byte[] bytes = new byte[rnd.nextInt(100) + 100];
 				rnd.nextBytes(bytes);
-				return type instanceof VarBinaryType ? bytes : BinaryArray.fromPrimitiveArray(bytes);
+				return type instanceof VarBinaryType ? bytes : BinaryArrayData.fromPrimitiveArray(bytes);
 			case ROW:
 				RowType rowType = (RowType) type;
 				if (rowType.getFields().get(0).getType().getTypeRoot() == INTEGER) {
-					return GenericRow.of(rnd.nextInt());
+					return GenericRowData.of(rnd.nextInt());
 				} else {
-					return GenericRow.of(GenericRow.of(rnd.nextInt()));
+					return GenericRowData.of(GenericRowData.of(rnd.nextInt()));
 				}
 			case RAW:
-				return new BinaryGeneric<>(rnd.nextInt());
+				return RawValueData.fromObject(rnd.nextInt());
 			default:
 				throw new RuntimeException("Not support!");
 		}
@@ -452,19 +453,19 @@ public class SortCodeGeneratorTest {
 		Tuple2<NormalizedKeyComputer, RecordComparator> tuple2 = getSortBaseWithNulls(
 				this.getClass().getSimpleName(), keyTypes, keys, orders, nullsIsLast);
 
-		BinaryRowSerializer serializer = new BinaryRowSerializer(fieldTypes.length);
+		BinaryRowDataSerializer serializer = new BinaryRowDataSerializer(fieldTypes.length);
 
 		BinaryInMemorySortBuffer sortBuffer = BinaryInMemorySortBuffer.createBuffer(
-				tuple2.f0, (AbstractRowSerializer) serializer, serializer,
+				tuple2.f0, (AbstractRowDataSerializer) serializer, serializer,
 				tuple2.f1, new ListMemorySegmentPool(segments));
 
-		BinaryRow[] dataArray = getTestData();
+		BinaryRowData[] dataArray = getTestData();
 
-		List<BinaryRow> data = Arrays.asList(dataArray.clone());
-		List<BinaryRow> binaryRows = Arrays.asList(dataArray.clone());
+		List<BinaryRowData> data = Arrays.asList(dataArray.clone());
+		List<BinaryRowData> binaryRows = Arrays.asList(dataArray.clone());
 		Collections.shuffle(binaryRows);
 
-		for (BinaryRow row : binaryRows) {
+		for (BinaryRowData row : binaryRows) {
 			if (!sortBuffer.write(row)) {
 				throw new RuntimeException();
 			}
@@ -472,9 +473,9 @@ public class SortCodeGeneratorTest {
 
 		new QuickSort().sort(sortBuffer);
 
-		MutableObjectIterator<BinaryRow> iter = sortBuffer.getIterator();
-		List<BinaryRow> result = new ArrayList<>();
-		BinaryRow row = serializer.createInstance();
+		MutableObjectIterator<BinaryRowData> iter = sortBuffer.getIterator();
+		List<BinaryRowData> result = new ArrayList<>();
+		BinaryRowData row = serializer.createInstance();
 		while ((row = iter.next(row)) != null) {
 			result.add(row.copy());
 		}
@@ -486,10 +487,10 @@ public class SortCodeGeneratorTest {
 				Object first = null;
 				Object second = null;
 				if (!o1.isNullAt(keys[i])) {
-					first = TypeGetterSetters.get(o1, keys[i], keyTypes[i]);
+					first = RowData.get(o1, keys[i], keyTypes[i]);
 				}
 				if (!o2.isNullAt(keys[i])) {
-					second = TypeGetterSetters.get(o2, keys[i], keyTypes[i]);
+					second = RowData.get(o2, keys[i], keyTypes[i]);
 				}
 
 				if (first != null || second != null) {
@@ -505,9 +506,9 @@ public class SortCodeGeneratorTest {
 							return order ? ret : -ret;
 						}
 					} else if (t.getTypeRoot() == LogicalTypeRoot.ARRAY) {
-						BinaryArray leftArray = (BinaryArray) first;
-						BinaryArray rightArray = (BinaryArray) second;
-						int minLength = Math.min(leftArray.numElements(), rightArray.numElements());
+						BinaryArrayData leftArray = (BinaryArrayData) first;
+						BinaryArrayData rightArray = (BinaryArrayData) second;
+						int minLength = Math.min(leftArray.size(), rightArray.size());
 						for (int j = 0; j < minLength; j++) {
 							boolean isNullLeft = leftArray.isNullAt(j);
 							boolean isNullRight = rightArray.isNullAt(j);
@@ -524,9 +525,9 @@ public class SortCodeGeneratorTest {
 								}
 							}
 						}
-						if (leftArray.numElements() < rightArray.numElements()) {
+						if (leftArray.size() < rightArray.size()) {
 							return order ? -1 : 1;
-						} else if (leftArray.numElements() > rightArray.numElements()) {
+						} else if (leftArray.size() > rightArray.size()) {
 							return order ? 1 : -1;
 						}
 					} else if (t.getTypeRoot() == LogicalTypeRoot.VARBINARY) {
@@ -549,8 +550,8 @@ public class SortCodeGeneratorTest {
 							return order ? comp : -comp;
 						}
 					} else if (t.getTypeRoot() == LogicalTypeRoot.RAW) {
-						Integer i1 = BinaryGeneric.getJavaObjectFromBinaryGeneric((BinaryGeneric) first, IntSerializer.INSTANCE);
-						Integer i2 = BinaryGeneric.getJavaObjectFromBinaryGeneric((BinaryGeneric) second, IntSerializer.INSTANCE);
+						Integer i1 = ((RawValueData<Integer>) first).toObject(IntSerializer.INSTANCE);
+						Integer i2 = ((RawValueData<Integer>) second).toObject(IntSerializer.INSTANCE);
 						int comp = Integer.compare(i1, i2);
 						if (comp != 0) {
 							return order ? comp : -comp;
@@ -567,9 +568,9 @@ public class SortCodeGeneratorTest {
 		for (int i = 0; i < data.size(); i++) {
 			builder.append("\n")
 					.append("expect: ")
-					.append(data.get(i).toOriginString(fieldTypes))
+					.append(DataFormatTestUtil.rowDataToString(data.get(i), fieldTypes))
 					.append("; actual: ")
-					.append(result.get(i).toOriginString(fieldTypes));
+					.append(DataFormatTestUtil.rowDataToString(result.get(i), fieldTypes));
 		}
 		builder.append("\n").append("types: ").append(Arrays.asList(fieldTypes));
 		builder.append("\n").append("keys: ").append(Arrays.toString(keys));
@@ -580,15 +581,15 @@ public class SortCodeGeneratorTest {
 				boolean isNull2 = result.get(i).isNullAt(keys[j]);
 				Assert.assertEquals(msg, isNull1, isNull2);
 				if (!isNull1 || !isNull2) {
-					Object o1 = TypeGetterSetters.get(data.get(i), keys[j], keyTypes[j]);
-					Object o2 = TypeGetterSetters.get(result.get(i), keys[j], keyTypes[j]);
+					Object o1 = RowData.get(data.get(i), keys[j], keyTypes[j]);
+					Object o2 = RowData.get(result.get(i), keys[j], keyTypes[j]);
 					if (keyTypes[j] instanceof VarBinaryType) {
 						Assert.assertArrayEquals(msg, (byte[]) o1, (byte[]) o2);
 					} else if (keyTypes[j] instanceof TypeInformationRawType) {
 						assertThat(
 							msg,
-							(BinaryGeneric) o1,
-							equivalent((BinaryGeneric) o2, new BinaryGenericSerializer<>(IntSerializer.INSTANCE)));
+							(RawValueData) o1,
+							equivalent((RawValueData) o2, new RawValueDataSerializer<>(IntSerializer.INSTANCE)));
 					} else {
 						Assert.assertEquals(msg, o1, o2);
 					}

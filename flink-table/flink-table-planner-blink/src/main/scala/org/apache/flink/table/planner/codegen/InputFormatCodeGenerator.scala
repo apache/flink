@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.io.GenericInputFormat
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.planner.codegen.CodeGenUtils.newName
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.GeneratedInput
@@ -51,7 +51,7 @@ object InputFormatCodeGenerator {
     : GeneratedInput[GenericInputFormat[T]] = {
     val funcName = newName(name)
 
-    ctx.addReusableOutputRecord(returnType, classOf[GenericRow], outRecordTerm,
+    ctx.addReusableOutputRecord(returnType, classOf[GenericRowData], outRecordTerm,
                                 Some(outRecordWriterTerm))
 
     val funcCode = j"""
