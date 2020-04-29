@@ -25,9 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.TransientBlobCache;
+import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -160,9 +158,6 @@ public class StreamTaskTerminationTest extends TestLogger {
 
 		final ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 
-		BlobCacheService blobService =
-			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
-
 		final Task task = new Task(
 			jobInformation,
 			taskInformation,
@@ -185,9 +180,8 @@ public class StreamTaskTerminationTest extends TestLogger {
 			mock(CheckpointResponder.class),
 			new NoOpTaskOperatorEventGateway(),
 			new TestGlobalAggregateManager(),
-			blobService,
 			new BlobLibraryCacheManager(
-				blobService.getPermanentBlobService(),
+				VoidPermanentBlobService.INSTANCE,
 				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
 				new String[0]),
 			mock(FileCache.class),

@@ -623,7 +623,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				checkpointResponder,
 				taskOperatorEventGateway,
 				aggregateManager,
-				blobCacheService,
 				libraryCache,
 				fileCache,
 				taskManagerConfiguration,
@@ -880,7 +879,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new TaskManagerException(message);
 			}
 
-			final JobTable.Job job = jobTable.getOrCreateJob(jobId, this::createLibraryCacheManager);
+			final JobTable.Job job = jobTable.getOrCreateJob(jobId, this::createJobServices);
 
 			allocateSlot(
 				slotId,
@@ -921,7 +920,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
-	private LibraryCacheManager createLibraryCacheManager() {
+	private LibraryCacheManager createJobServices(JobID jobId) {
+		blobCacheService.getPermanentBlobService().registerJob(jobId);
+
 		return new BlobLibraryCacheManager(
 			blobCacheService.getPermanentBlobService(),
 			taskManagerConfiguration.getClassLoaderResolveOrder(),
@@ -1364,6 +1365,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			jobManagerConnection -> disconnectJobManagerConnection(jobManagerConnection, cause));
 
 		job.close();
+		blobCacheService.getPermanentBlobService().releaseJob(job.getJobId());
 	}
 
 	private void disconnectJobManagerConnection(JobTable.Connection jobManagerConnection, Exception cause) {
@@ -1421,7 +1423,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		checkNotNull(resourceID);
 		checkNotNull(jobMasterGateway);
 
-		final JobTable.Job job = jobTable.getOrCreateJob(jobID, this::createLibraryCacheManager);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobID, this::createJobServices);
 
 		TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobMasterGateway);
 

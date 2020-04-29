@@ -28,7 +28,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
-import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -219,9 +218,6 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	/** GlobalAggregateManager used to update aggregates on the JobMaster. */
 	private final GlobalAggregateManager aggregateManager;
 
-	/** The BLOB cache, from which the task can request BLOB files. */
-	private final BlobCacheService blobService;
-
 	/** The library cache, from which the task can request its class loader. */
 	private final LibraryCacheManager libraryCache;
 
@@ -304,7 +300,6 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		CheckpointResponder checkpointResponder,
 		TaskOperatorEventGateway operatorCoordinatorEventGateway,
 		GlobalAggregateManager aggregateManager,
-		BlobCacheService blobService,
 		LibraryCacheManager libraryCache,
 		FileCache fileCache,
 		TaskManagerRuntimeInfo taskManagerConfig,
@@ -357,7 +352,6 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		this.aggregateManager = Preconditions.checkNotNull(aggregateManager);
 		this.taskManagerActions = checkNotNull(taskManagerActions);
 
-		this.blobService = Preconditions.checkNotNull(blobService);
 		this.libraryCache = Preconditions.checkNotNull(libraryCache);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
 		this.kvStateService = Preconditions.checkNotNull(kvStateService);
@@ -601,8 +595,6 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			LOG.info("Creating FileSystem stream leak safety net for task {}", this);
 			FileSystemSafetyNet.initializeSafetyNetForThread();
 
-			blobService.getPermanentBlobService().registerJob(jobId);
-
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
 			LOG.info("Loading JAR files for task {}.", this);
@@ -836,7 +828,6 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				// remove all of the tasks library resources
 				libraryCache.unregisterTask(jobId, executionId);
 				fileCache.releaseJob(jobId, executionId);
-				blobService.getPermanentBlobService().releaseJob(jobId);
 
 				// close and de-activate safety net for task thread
 				LOG.info("Ensuring all FileSystem streams are closed for task {}", this);

@@ -21,10 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -194,10 +191,6 @@ public final class TestTaskBuilder {
 			invokable.getName(),
 			taskConfig);
 
-		final BlobCacheService blobCacheService = new BlobCacheService(
-			mock(PermanentBlobCache.class),
-			mock(TransientBlobCache.class));
-
 		final TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 
 		return new Task(
@@ -222,7 +215,6 @@ public final class TestTaskBuilder {
 			new TestCheckpointResponder(),
 			new NoOpTaskOperatorEventGateway(),
 			new TestGlobalAggregateManager(),
-			blobCacheService,
 			libraryCacheManager,
 			mock(FileCache.class),
 			new TestingTaskManagerRuntimeInfo(taskManagerConfig),

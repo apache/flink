@@ -35,7 +35,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /**
  * Default implementation of the {@link JobTable}.
@@ -51,8 +51,8 @@ public final class DefaultJobTable implements JobTable {
 	}
 
 	@Override
-	public Job getOrCreateJob(JobID jobId, Supplier<? extends LibraryCacheManager> libraryCacheManagerSupplier) {
-		return jobs.computeIfAbsent(jobId, missingJobId -> new JobOrConnection(missingJobId, libraryCacheManagerSupplier.get()));
+	public Job getOrCreateJob(JobID jobId, Function<JobID, ? extends LibraryCacheManager> libraryCacheManagerFunction) {
+		return jobs.computeIfAbsent(jobId, missingJobId -> new JobOrConnection(missingJobId, libraryCacheManagerFunction.apply(jobId)));
 	}
 
 	@Override
