@@ -54,15 +54,17 @@ def word_count():
 
     logging.info("Results directory: %s", result_path)
 
-    t_env.connect(FileSystem().path(result_path)) \
-        .with_format(OldCsv()
-                     .field_delimiter(',')
-                     .field("word", DataTypes.STRING())
-                     .field("count", DataTypes.BIGINT())) \
-        .with_schema(Schema()
-                     .field("word", DataTypes.STRING())
-                     .field("count", DataTypes.BIGINT())) \
-        .create_temporary_table("Results")
+    sink_ddl = """
+        create table Results(
+            word VARCHAR,
+            `count` BIGINT
+        ) with (
+            'connector.type' = 'filesystem',
+            'format.type' = 'csv',
+            'connector.path' = '{}'
+        )
+        """.format(result_path)
+    t_env.sql_update(sink_ddl)
 
     elements = [(word, 1) for word in content.split(" ")]
     t_env.from_elements(elements, ["word", "count"]) \
