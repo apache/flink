@@ -24,8 +24,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
 import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.DataFormatConverters;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -83,7 +83,7 @@ public class ParquetRowDataWriterTest {
 			new DecimalType(20, 0));
 
 	@SuppressWarnings("unchecked")
-	private static final DataFormatConverters.DataFormatConverter<BaseRow, Row> CONVERTER =
+	private static final DataFormatConverters.DataFormatConverter<RowData, Row> CONVERTER =
 			DataFormatConverters.getConverterForDataType(
 					TypeConversions.fromLogicalToDataType(ROW_TYPE));
 
@@ -126,9 +126,9 @@ public class ParquetRowDataWriterTest {
 					BigDecimal.valueOf(v)));
 		}
 
-		ParquetWriterFactory<BaseRow> factory = ParquetRowDataBuilder.createWriterFactory(
+		ParquetWriterFactory<RowData> factory = ParquetRowDataBuilder.createWriterFactory(
 				ROW_TYPE, conf, utcTimestamp);
-		BulkWriter<BaseRow> writer = factory.create(path.getFileSystem().create(
+		BulkWriter<RowData> writer = factory.create(path.getFileSystem().create(
 				path, FileSystem.WriteMode.OVERWRITE));
 		for (int i = 0; i < number; i++) {
 			writer.addElement(CONVERTER.toInternal(rows.get(i)));

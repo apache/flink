@@ -18,8 +18,8 @@
 
 package org.apache.flink.formats.parquet.vector;
 
-import org.apache.flink.table.dataformat.SqlTimestamp;
-import org.apache.flink.table.dataformat.vector.Dictionary;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.vector.Dictionary;
 
 import static org.apache.flink.formats.parquet.vector.reader.TimestampColumnReader.decodeInt96ToTimestamp;
 
@@ -60,7 +60,7 @@ public final class ParquetDictionary implements Dictionary {
 	}
 
 	@Override
-	public SqlTimestamp decodeToTimestamp(int id) {
+	public TimestampData decodeToTimestamp(int id) {
 		return decodeInt96ToTimestamp(true, dictionary, id);
 	}
 }

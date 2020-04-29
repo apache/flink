@@ -29,7 +29,7 @@ import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
 import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
 import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.filesystem.FileSystemFormatFactory;
 import org.apache.flink.table.filesystem.PartitionPathUtils;
@@ -49,7 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.apache.flink.table.dataformat.vector.VectorizedColumnBatch.DEFAULT_SIZE;
+import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.filesystem.RowPartitionComputer.restorePartValueFromType;
 
@@ -114,7 +114,7 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	@Override
-	public InputFormat<BaseRow, ?> createReader(ReaderContext context) {
+	public InputFormat<RowData, ?> createReader(ReaderContext context) {
 		DescriptorProperties properties = new DescriptorProperties();
 		properties.putProperties(context.getFormatProperties());
 
@@ -130,7 +130,7 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	@Override
-	public Optional<BulkWriter.Factory<BaseRow>> createBulkWriterFactory(WriterContext context) {
+	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
 		DescriptorProperties properties = new DescriptorProperties();
 		properties.putProperties(context.getFormatProperties());
 
@@ -145,7 +145,7 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	@Override
-	public Optional<Encoder<BaseRow>> createEncoder(WriterContext context) {
+	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
 		return Optional.empty();
 	}
 
@@ -155,10 +155,10 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	/**
-	 * An implementation of {@link ParquetInputFormat} to read {@link BaseRow} records
+	 * An implementation of {@link ParquetInputFormat} to read {@link RowData} records
 	 * from Parquet files.
 	 */
-	public static class ParquetInputFormat extends FileInputFormat<BaseRow> {
+	public static class ParquetInputFormat extends FileInputFormat<RowData> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -232,7 +232,7 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 		}
 
 		@Override
-		public BaseRow nextRecord(BaseRow reuse) {
+		public RowData nextRecord(RowData reuse) {
 			currentReadCount++;
 			return reader.nextRecord();
 		}
