@@ -156,7 +156,9 @@ These configuration values control the way that TaskManagers and JobManagers use
 Flink tries to shield users as much as possible from the complexity of configuring the JVM for data-intensive processing.
 In most cases, users should only need to set the values `taskmanager.memory.process.size` or `taskmanager.memory.flink.size` (depending on how the setup), and possibly adjusting the ratio of JVM heap and Managed Memory via `taskmanager.memory.managed.fraction`. The other options below can be used for performane tuning and fixing memory related errors.
 
-For a detailed explanation of how these options interact, see the [documentation on TaskManager memory configuration]({{site.baseurl}}/ops/memory/mem_setup.html).
+For a detailed explanation of how these options interact,
+see the documentation on [TaskManager]({{site.baseurl}}/ops/memory/mem_setup_tm.html) and
+[JobManager]({{site.baseurl}}/ops/memory/mem_setup_jm.html) memory configurations.
 
 {% include generated/common_memory_section.html %}
 

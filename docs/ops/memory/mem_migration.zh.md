@@ -1,7 +1,7 @@
 ---
 title: "升级指南"
 nav-parent_id: ops_mem
-nav-pos: 5
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
