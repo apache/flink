@@ -62,7 +62,7 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 	 * Prefix for orc-related properties, besides format, start with "orc".
 	 * See more in {@link org.apache.orc.OrcConf}.
 	 */
-	public static final String ORC_PROPERTIES = "format.orc";
+	public static final String ORC_PROPERTIES_PREFIX = "format.orc";
 
 	@Override
 	public Map<String, String> requiredContext() {
@@ -74,7 +74,7 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 	@Override
 	public List<String> supportedProperties() {
 		return Collections.singletonList(
-				ORC_PROPERTIES + ".*"
+				ORC_PROPERTIES_PREFIX + ".*"
 		);
 	}
 
@@ -82,7 +82,7 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 		Properties conf = new Properties();
 		properties.asMap().keySet()
 				.stream()
-				.filter(key -> key.startsWith(ORC_PROPERTIES))
+				.filter(key -> key.startsWith(ORC_PROPERTIES_PREFIX))
 				.forEach(key -> {
 					String value = properties.getString(key);
 					String subKey = key.substring((FORMAT + '.').length());
