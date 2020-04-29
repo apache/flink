@@ -754,6 +754,8 @@ class TableEnvironment(object):
         gateway = get_gateway()
         java_function = gateway.jvm.Thread.currentThread().getContextClassLoader()\
             .loadClass(function_class_name).newInstance()
+        # this is a temporary solution and will be unified later when type problems have been
+        # solved.
         if self._is_blink_planner and isinstance(self, BatchTableEnvironment):
             if self._is_table_function(java_function):
                 self._register_table_function(name, java_function)
