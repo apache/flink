@@ -200,13 +200,13 @@ public class HiveTableUtil {
 	 * from the map after they're used.
 	 */
 	public static void initiateTableFromProperties(Table hiveTable, Map<String, String> properties) {
-		setExternal(hiveTable, properties);
-		setRowFormat(hiveTable.getSd(), properties);
-		setStoredAs(hiveTable.getSd(), properties);
-		setLocation(hiveTable.getSd(), properties);
+		extractExternal(hiveTable, properties);
+		extractRowFormat(hiveTable.getSd(), properties);
+		extractStoredAs(hiveTable.getSd(), properties);
+		extractLocation(hiveTable.getSd(), properties);
 	}
 
-	private static void setExternal(Table hiveTable, Map<String, String> properties) {
+	private static void extractExternal(Table hiveTable, Map<String, String> properties) {
 		boolean external = Boolean.parseBoolean(properties.remove(TABLE_IS_EXTERNAL));
 		if (external) {
 			hiveTable.setTableType(TableType.EXTERNAL_TABLE.toString());
@@ -215,14 +215,14 @@ public class HiveTableUtil {
 		}
 	}
 
-	private static void setLocation(StorageDescriptor sd, Map<String, String> properties) {
+	private static void extractLocation(StorageDescriptor sd, Map<String, String> properties) {
 		String location = properties.remove(TABLE_LOCATION_URI);
 		if (location != null) {
 			sd.setLocation(location);
 		}
 	}
 
-	private static void setRowFormat(StorageDescriptor sd, Map<String, String> properties) {
+	private static void extractRowFormat(StorageDescriptor sd, Map<String, String> properties) {
 		String serdeLib = properties.remove(SERDE_LIB_CLASS_NAME);
 		if (serdeLib != null) {
 			sd.getSerdeInfo().setSerializationLib(serdeLib);
@@ -239,7 +239,7 @@ public class HiveTableUtil {
 		}
 	}
 
-	private static void setStoredAs(StorageDescriptor sd, Map<String, String> properties) {
+	private static void extractStoredAs(StorageDescriptor sd, Map<String, String> properties) {
 		String storageFormat = properties.remove(STORED_AS_FILE_FORMAT);
 		String inputFormat = properties.remove(STORED_AS_INPUT_FORMAT);
 		String outputFormat = properties.remove(STORED_AS_OUTPUT_FORMAT);

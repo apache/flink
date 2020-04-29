@@ -43,9 +43,9 @@ import java.util.stream.Collectors;
  */
 public class SqlCreateHiveTable extends SqlCreateTable {
 
-	public static final String TABLE_LOCATION_URI = "hive.table.location-uri";
-	public static final String TABLE_IS_TEMPORARY = "hive.table.is-temporary";
-	public static final String TABLE_IS_EXTERNAL = "hive.table.is-external";
+	public static final String TABLE_LOCATION_URI = "hive.location-uri";
+	public static final String TABLE_IS_TEMPORARY = "hive.is-temporary";
+	public static final String TABLE_IS_EXTERNAL = "hive.is-external";
 	public static final String PK_CONSTRAINT_NAME = "hive.pk.constraint.name";
 	public static final String PK_CONSTRAINT_TRAIT = "hive.pk.constraint.trait";
 	public static final String NOT_NULL_CONSTRAINT_TRAITS = "hive.not.null.constraint.traits";
@@ -322,7 +322,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 	 */
 	public static class HiveTableStoredAs {
 
-		public static final String STORED_AS_FILE_FORMAT = "hive.stored.as.file.format";
+		public static final String STORED_AS_FILE_FORMAT = "hive.storage.file-format";
 		public static final String STORED_AS_INPUT_FORMAT = "hive.stored.as.input.format";
 		public static final String STORED_AS_OUTPUT_FORMAT = "hive.stored.as.output.format";
 
