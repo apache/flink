@@ -1091,7 +1091,7 @@ class TestingTableEnvironment private(
   }
 
   override def explain(extended: Boolean): String = {
-    planner.explain(bufferedOperations.toList, extended)
+    planner.explain(bufferedOperations.toList, getExplainDetails(extended): _*)
   }
 
   @throws[Exception]

@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
@@ -69,7 +69,7 @@ class StreamPlanner(
     }
   }
 
-  override def explain(operations: util.List[Operation], extended: Boolean): String = {
+  override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
     require(operations.nonEmpty, "operations should not be empty")
     val sinkRelNodes = operations.map {
       case queryOperation: QueryOperation =>
@@ -109,11 +109,12 @@ class StreamPlanner(
 
     sb.append("== Optimized Logical Plan ==")
     sb.append(System.lineSeparator)
-    val (explainLevel, withChangelogTraits) = if (extended) {
-      (SqlExplainLevel.ALL_ATTRIBUTES, true)
+    val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
+      SqlExplainLevel.ALL_ATTRIBUTES
     } else {
-      (SqlExplainLevel.DIGEST_ATTRIBUTES, false)
+      SqlExplainLevel.DIGEST_ATTRIBUTES
     }
+    val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_TRAITS)
     sb.append(ExecNodePlanDumper.dagToString(
       execNodes,
       explainLevel,

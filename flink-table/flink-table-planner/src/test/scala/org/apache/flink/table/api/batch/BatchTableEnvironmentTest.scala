@@ -24,8 +24,7 @@ import org.apache.flink.table.api.{ResultKind, TableException}
 import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.runtime.stream.sql.FunctionITCase.{SimpleScalarFunction, TestUDF}
 import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId}
+import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId, _}
 import org.apache.flink.types.Row
 
 import org.hamcrest.Matchers.containsString
@@ -445,6 +444,64 @@ class BatchTableEnvironmentTest extends TableTestBase {
       "explain plan as xml for select * from MyTable")
     testUnsupportedExplain(util.tableEnv,
       "explain plan as json for select * from MyTable")
+  }
+
+  @Test
+  def testExplainSqlWithSelect(): Unit = {
+    val util = batchTestUtil()
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val actual = util.tableEnv.explainSql("select * from MyTable where a > 10")
+    val expected = readFromResource("testExplainSqlWithSelect1.out")
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainSqlWithInsert(): Unit = {
+    val util = batchTestUtil()
+    val createTableStmt1 =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt1)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE TABLE MySink (
+        |  d bigint,
+        |  e int
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult2 = util.tableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val actual = util.tableEnv.explainSql(
+      "insert into MySink select a, b from MyTable where a > 10")
+    val expected = readFromResource("testExplainSqlWithInsert1.out")
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
   }
 
   private def testUnsupportedExplain(tableEnv: BatchTableEnvironment, explain: String): Unit = {
