@@ -396,7 +396,7 @@ abstract class TableEnvImpl(
             tableSource,
             table.getTableSink.get,
             isBatchTable)
-          catalogManager.dropTemporaryTable(objectIdentifier)
+          catalogManager.dropTemporaryTable(objectIdentifier, false)
           catalogManager.createTemporaryTable(
             sourceAndSink,
             objectIdentifier,
@@ -431,7 +431,7 @@ abstract class TableEnvImpl(
             table.getTableSource.get,
             tableSink,
             isBatchTable)
-          catalogManager.dropTemporaryTable(objectIdentifier)
+          catalogManager.dropTemporaryTable(objectIdentifier, false)
           catalogManager.createTemporaryTable(
             sourceAndSink,
             objectIdentifier,
@@ -511,14 +511,24 @@ abstract class TableEnvImpl(
     val parser = planningConfigurationBuilder.createCalciteParser()
     val unresolvedIdentifier = UnresolvedIdentifier.of(parser.parseIdentifier(path).names: _*)
     val identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
-    catalogManager.dropTemporaryTable(identifier)
+    try {
+      catalogManager.dropTemporaryTable(identifier, false)
+      true
+    } catch {
+      case _: Exception => false
+    }
   }
 
   override def dropTemporaryView(path: String): Boolean = {
     val parser = planningConfigurationBuilder.createCalciteParser()
     val unresolvedIdentifier = UnresolvedIdentifier.of(parser.parseIdentifier(path).names: _*)
     val identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
-    catalogManager.dropTemporaryView(identifier)
+    try {
+      catalogManager.dropTemporaryView(identifier, false)
+      true
+    } catch {
+      case _: Exception => false
+    }
   }
 
   override def listUserDefinedFunctions(): Array[String] = functionCatalog.getUserDefinedFunctions
@@ -612,12 +622,9 @@ abstract class TableEnvImpl(
         TableResultImpl.TABLE_RESULT_OK
       case dropTableOperation: DropTableOperation =>
         if (dropTableOperation.isTemporary) {
-          val dropped = catalogManager.dropTemporaryTable(dropTableOperation.getTableIdentifier)
-          if (!dropped && !dropTableOperation.isIfExists) {
-            throw new ValidationException(String.format(
-              "Temporary table with identifier '%s' doesn't exist",
-              dropTableOperation.getTableIdentifier.asSummaryString()))
-          }
+          catalogManager.dropTemporaryTable(
+            dropTableOperation.getTableIdentifier,
+            dropTableOperation.isIfExists)
         } else {
           catalogManager.dropTable(
             dropTableOperation.getTableIdentifier,
@@ -726,12 +733,9 @@ abstract class TableEnvImpl(
         TableResultImpl.TABLE_RESULT_OK
       case dropViewOperation: DropViewOperation =>
         if (dropViewOperation.isTemporary) {
-          val dropped = catalogManager.dropTemporaryView(dropViewOperation.getViewIdentifier)
-          if (!dropped && !dropViewOperation.isIfExists) {
-            throw new ValidationException(String.format(
-              "Temporary views with identifier '%s' doesn't exist",
-              dropViewOperation.getViewIdentifier.asSummaryString()))
-          }
+          catalogManager.dropTemporaryView(
+            dropViewOperation.getViewIdentifier,
+            dropViewOperation.isIfExists)
         } else {
           catalogManager.dropTable(
             dropViewOperation.getViewIdentifier,

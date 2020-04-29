@@ -548,34 +548,42 @@ public final class CatalogManager {
 	}
 
 	/**
-	 * Drop a temporary table in a given fully qualified path if it exists.
+	 * Drop a temporary table in a given fully qualified path.
 	 *
-	 * @param objectIdentifier The fully qualified path of the table to drop
-	 * @return true if a table with a given identifier existed and was removed, false otherwise
+	 * @param objectIdentifier The fully qualified path of the table to drop.
+	 * @param ignoreIfNotExists If false exception will be thrown if the table to be dropped does not exist.
 	 */
-	public boolean dropTemporaryTable(ObjectIdentifier objectIdentifier) {
-		return dropTemporaryTableInternal(objectIdentifier, (table) -> table instanceof CatalogTable);
+	public void dropTemporaryTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+		dropTemporaryTableInternal(
+				objectIdentifier,
+				(table) -> table instanceof CatalogTable,
+				ignoreIfNotExists);
 	}
 
 	/**
-	 * Drop a temporary view in a given fully qualified path if it exists.
+	 * Drop a temporary view in a given fully qualified path.
 	 *
-	 * @param objectIdentifier potentially unresolved identifier
-	 * @return true if a view with a given identifier existed and was removed, false otherwise
+	 * @param objectIdentifier The fully qualified path of the view to drop.
+	 * @param ignoreIfNotExists If false exception will be thrown if the view to be dropped does not exist.
 	 */
-	public boolean dropTemporaryView(ObjectIdentifier objectIdentifier) {
-		return dropTemporaryTableInternal(objectIdentifier, (table) -> table instanceof CatalogView);
+	public void dropTemporaryView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+		dropTemporaryTableInternal(
+				objectIdentifier,
+				(table) -> table instanceof CatalogView,
+				ignoreIfNotExists);
 	}
 
-	private boolean dropTemporaryTableInternal(
+	private void dropTemporaryTableInternal(
 			ObjectIdentifier objectIdentifier,
-			Predicate<CatalogBaseTable> filter) {
+			Predicate<CatalogBaseTable> filter,
+			boolean ignoreIfNotExists) {
 		CatalogBaseTable catalogBaseTable = temporaryTables.get(objectIdentifier);
 		if (filter.test(catalogBaseTable)) {
 			temporaryTables.remove(objectIdentifier);
-			return true;
-		} else {
-			return false;
+		} else if (!ignoreIfNotExists) {
+			throw new ValidationException(String.format(
+				"Temporary table or view with identifier '%s' does not exist.",
+				objectIdentifier.asSummaryString()));
 		}
 	}
 
