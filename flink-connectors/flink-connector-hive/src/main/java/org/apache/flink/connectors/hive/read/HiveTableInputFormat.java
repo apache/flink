@@ -28,7 +28,7 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -59,7 +59,7 @@ import static org.apache.hadoop.mapreduce.lib.input.FileInputFormat.INPUT_DIR;
  * The HiveTableInputFormat are inspired by the HCatInputFormat and HadoopInputFormatBase.
  * It's used to read from hive partition/non-partition table.
  */
-public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, HiveTableInputSplit> {
+public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, HiveTableInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -210,7 +210,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 			}
 		}
 
-		LOG.info("Use flink parquet ColumnarRow reader.");
+		LOG.info("Use flink parquet ColumnarRowData reader.");
 		return true;
 	}
 
@@ -228,7 +228,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 			}
 		}
 
-		LOG.info("Use flink orc ColumnarRow reader.");
+		LOG.info("Use flink orc ColumnarRowData reader.");
 		return true;
 	}
 
@@ -242,7 +242,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<BaseRow, H
 	}
 
 	@Override
-	public BaseRow nextRecord(BaseRow reuse) throws IOException {
+	public RowData nextRecord(RowData reuse) throws IOException {
 		currentReadCount++;
 		return reader.nextRecord(reuse);
 	}

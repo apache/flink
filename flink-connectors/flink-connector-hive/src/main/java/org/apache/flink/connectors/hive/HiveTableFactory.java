@@ -22,7 +22,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
@@ -44,7 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A table factory implementation for Hive catalog.
  */
 public class HiveTableFactory
-		implements TableSourceFactory<BaseRow>, TableSinkFactory<Row> {
+		implements TableSourceFactory<RowData>, TableSinkFactory<Row> {
 
 	private final HiveConf hiveConf;
 
@@ -63,7 +63,7 @@ public class HiveTableFactory
 	}
 
 	@Override
-	public TableSource<BaseRow> createTableSource(TableSourceFactory.Context context) {
+	public TableSource<RowData> createTableSource(TableSourceFactory.Context context) {
 		CatalogTable table = checkNotNull(context.getTable());
 		Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
