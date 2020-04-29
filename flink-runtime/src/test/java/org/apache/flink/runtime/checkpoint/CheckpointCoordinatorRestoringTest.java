@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -506,7 +507,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 		List<List<Collection<OperatorStateHandle>>> actualOpStatesRaw = new ArrayList<>(newJobVertex2.getParallelism());
 		for (int i = 0; i < newJobVertex2.getParallelism(); i++) {
 
-			List<OperatorID> operatorIDs = newJobVertex2.getOperatorIDs();
+			List<OperatorIDPair> operatorIDs = newJobVertex2.getOperatorIDs();
 
 			KeyGroupsStateHandle originalKeyedStateBackend = generateKeyGroupState(jobVertexID2, newKeyGroupPartitions2.get(i), false);
 			KeyGroupsStateHandle originalKeyedStateRaw = generateKeyGroupState(jobVertexID2, newKeyGroupPartitions2.get(i), true);
@@ -520,7 +521,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			List<Collection<OperatorStateHandle>> allParallelRawOpStates = new ArrayList<>(operatorIDs.size());
 
 			for (int idx = 0; idx < operatorIDs.size(); ++idx) {
-				OperatorID operatorID = operatorIDs.get(idx);
+				OperatorID operatorID = operatorIDs.get(idx).getGeneratedOperatorID();
 				OperatorSubtaskState opState = taskStateHandles.getSubtaskStateByOperatorID(operatorID);
 				Collection<OperatorStateHandle> opStateBackend = opState.getManagedOperatorState();
 				Collection<OperatorStateHandle> opStateRaw = opState.getRawOperatorState();
@@ -827,13 +828,13 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 		for (int i = 0; i < newJobVertex1.getParallelism(); i++) {
 
-			final List<OperatorID> operatorIds = newJobVertex1.getOperatorIDs();
+			final List<OperatorIDPair> operatorIDs = newJobVertex1.getOperatorIDs();
 
 			JobManagerTaskRestore taskRestore = newJobVertex1.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskRestore();
 			Assert.assertEquals(2L, taskRestore.getRestoreCheckpointId());
 			TaskStateSnapshot stateSnapshot = taskRestore.getTaskStateSnapshot();
 
-			OperatorSubtaskState headOpState = stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIds.size() - 1));
+			OperatorSubtaskState headOpState = stateSnapshot.getSubtaskStateByOperatorID(operatorIDs.get(operatorIDs.size() - 1).getGeneratedOperatorID());
 			assertTrue(headOpState.getManagedKeyedState().isEmpty());
 			assertTrue(headOpState.getRawKeyedState().isEmpty());
 
@@ -841,7 +842,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			{
 				int operatorIndexInChain = 2;
 				OperatorSubtaskState opState =
-					stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIndexInChain));
+					stateSnapshot.getSubtaskStateByOperatorID(operatorIDs.get(operatorIndexInChain).getGeneratedOperatorID());
 
 				assertTrue(opState.getManagedOperatorState().isEmpty());
 				assertTrue(opState.getRawOperatorState().isEmpty());
@@ -850,7 +851,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			{
 				int operatorIndexInChain = 1;
 				OperatorSubtaskState opState =
-					stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIndexInChain));
+					stateSnapshot.getSubtaskStateByOperatorID(operatorIDs.get(operatorIndexInChain).getGeneratedOperatorID());
 
 				OperatorStateHandle expectedManagedOpState = generatePartitionableStateHandle(
 					id1.f0, i, 2, 8, false);
@@ -871,7 +872,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			{
 				int operatorIndexInChain = 0;
 				OperatorSubtaskState opState =
-					stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIndexInChain));
+					stateSnapshot.getSubtaskStateByOperatorID(operatorIDs.get(operatorIndexInChain).getGeneratedOperatorID());
 
 				OperatorStateHandle expectedManagedOpState = generatePartitionableStateHandle(
 					id2.f0, i, 2, 8, false);
@@ -895,7 +896,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 		for (int i = 0; i < newJobVertex2.getParallelism(); i++) {
 
-			final List<OperatorID> operatorIds = newJobVertex2.getOperatorIDs();
+			final List<OperatorIDPair> operatorIDs = newJobVertex2.getOperatorIDs();
 
 			JobManagerTaskRestore taskRestore = newJobVertex2.getTaskVertices()[i].getCurrentExecutionAttempt().getTaskRestore();
 			Assert.assertEquals(2L, taskRestore.getRestoreCheckpointId());
@@ -905,7 +906,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			{
 				int operatorIndexInChain = 1;
 				OperatorSubtaskState opState =
-					stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIndexInChain));
+					stateSnapshot.getSubtaskStateByOperatorID(operatorIDs.get(operatorIndexInChain).getGeneratedOperatorID());
 
 				List<Collection<OperatorStateHandle>> actualSubManagedOperatorState = new ArrayList<>(1);
 				actualSubManagedOperatorState.add(opState.getManagedOperatorState());
@@ -921,7 +922,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			{
 				int operatorIndexInChain = 0;
 				OperatorSubtaskState opState =
-					stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIndexInChain));
+					stateSnapshot.getSubtaskStateByOperatorID(operatorIDs.get(operatorIndexInChain).getGeneratedOperatorID());
 				assertTrue(opState.getManagedOperatorState().isEmpty());
 				assertTrue(opState.getRawOperatorState().isEmpty());
 
@@ -931,7 +932,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			KeyGroupsStateHandle originalKeyedStateRaw = generateKeyGroupState(id3.f0, newKeyGroupPartitions2.get(i), true);
 
 			OperatorSubtaskState headOpState =
-				stateSnapshot.getSubtaskStateByOperatorID(operatorIds.get(operatorIds.size() - 1));
+				stateSnapshot.getSubtaskStateByOperatorID(operatorIDs.get(operatorIDs.size() - 1).getGeneratedOperatorID());
 
 			Collection<KeyedStateHandle> keyedStateBackend = headOpState.getManagedKeyedState();
 			Collection<KeyedStateHandle> keyGroupStateRaw = headOpState.getRawKeyedState();

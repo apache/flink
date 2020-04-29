@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -101,7 +102,7 @@ public class ChannelStateNoRescalingPartitionerTest {
 			StateAssignmentOperation.reDistributePartitionableStates(
 				singletonList(state),
 				newParallelism,
-				singletonList(OPERATOR_ID),
+				singletonList(OperatorIDPair.generatedIDOnly(OPERATOR_ID)),
 				(Function<OperatorSubtaskState, StateObjectCollection<T>>) this.extractState,
 				channelStateNonRescalingRepartitioner("test"));
 		} catch (IllegalArgumentException e) {

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
@@ -123,7 +124,7 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
 		Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates = reDistributePartitionableStates(
 			singletonList(operatorState),
 			minNumSplits,
-			singletonList(operatorState.getOperatorID()),
+			singletonList(OperatorIDPair.generatedIDOnly(operatorState.getOperatorID())),
 			OperatorSubtaskState::getManagedOperatorState,
 			RoundRobinOperatorStateRepartitioner.INSTANCE);
 

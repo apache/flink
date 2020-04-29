@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.mock.Whitebox;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -65,7 +66,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -357,8 +357,11 @@ public class CheckpointCoordinatorTestingUtils {
 		when(executionJobVertex.getParallelism()).thenReturn(parallelism);
 		when(executionJobVertex.getMaxParallelism()).thenReturn(maxParallelism);
 		when(executionJobVertex.isMaxParallelismConfigured()).thenReturn(true);
-		when(executionJobVertex.getOperatorIDs()).thenReturn(jobVertexIDs);
-		when(executionJobVertex.getUserDefinedOperatorIDs()).thenReturn(Arrays.asList(new OperatorID[jobVertexIDs.size()]));
+		List<OperatorIDPair> operatorIDPairs = new ArrayList<>();
+		for (OperatorID operatorID : jobVertexIDs) {
+			operatorIDPairs.add(OperatorIDPair.generatedIDOnly(operatorID));
+		}
+		when(executionJobVertex.getOperatorIDs()).thenReturn(operatorIDPairs);
 
 		return executionJobVertex;
 	}
@@ -455,7 +458,11 @@ public class CheckpointCoordinatorTestingUtils {
 		when(vertex.getMaxParallelism()).thenReturn(maxParallelism);
 
 		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-		when(jobVertex.getOperatorIDs()).thenReturn(jobVertexIDs);
+		List<OperatorIDPair> operatorIDPairs = new ArrayList<>();
+		for (OperatorID operatorID : jobVertexIDs) {
+			operatorIDPairs.add(OperatorIDPair.generatedIDOnly(operatorID));
+		}
+		when(jobVertex.getOperatorIDs()).thenReturn(operatorIDPairs);
 
 		when(vertex.getJobVertex()).thenReturn(jobVertex);
 
@@ -560,8 +567,7 @@ public class CheckpointCoordinatorTestingUtils {
 		when(vertex.getMaxParallelism()).thenReturn(vertices.length);
 		when(vertex.getJobVertexId()).thenReturn(id);
 		when(vertex.getTaskVertices()).thenReturn(vertices);
-		when(vertex.getOperatorIDs()).thenReturn(Collections.singletonList(OperatorID.fromJobVertexID(id)));
-		when(vertex.getUserDefinedOperatorIDs()).thenReturn(Collections.<OperatorID>singletonList(null));
+		when(vertex.getOperatorIDs()).thenReturn(Collections.singletonList(OperatorIDPair.generatedIDOnly(OperatorID.fromJobVertexID(id))));
 
 		for (ExecutionVertex v : vertices) {
 			when(v.getJobVertex()).thenReturn(vertex);
