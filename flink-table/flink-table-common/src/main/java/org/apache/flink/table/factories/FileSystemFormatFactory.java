@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.filesystem;
+package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
@@ -26,7 +26,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.factories.TableFormatFactory;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Arrays;
