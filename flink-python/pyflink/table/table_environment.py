@@ -797,6 +797,8 @@ class TableEnvironment(object):
         .. versionadded:: 1.10.0
         """
         java_function = function.java_user_defined_function()
+        # this is a temporary solution and will be unified later when type problems have been
+        # solved.
         if self._is_blink_planner and isinstance(self, BatchTableEnvironment) and \
                 self._is_table_function(java_function):
             self._register_table_function(name, java_function)
