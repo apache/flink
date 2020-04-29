@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.SinkCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.BatchPlanner
@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.sinks.{RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.types.DataType
 
@@ -126,8 +126,8 @@ class BatchExecSink[T](
     validateType(resultDataType)
     val inputNode = getInputNodes.get(0)
     inputNode match {
-      // Sink's input must be BatchExecNode[BaseRow] now.
-      case node: BatchExecNode[BaseRow] =>
+      // Sink's input must be BatchExecNode[RowData] now.
+      case node: BatchExecNode[RowData] =>
         val plan = node.translateToPlan(planner).asInstanceOf[Transformation[T]]
         if (CodeGenUtils.isInternalClass(resultDataType)) {
           plan
@@ -135,7 +135,7 @@ class BatchExecSink[T](
           val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
             CodeGeneratorContext(config),
             config,
-            plan.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType,
+            plan.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType,
             sink,
             withChangeFlag,
             "SinkConversion"

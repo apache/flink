@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
-import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal, SqlTimestamp}
+import org.apache.flink.table.data.{RowData, StringData, DecimalData, TimestampData}
 import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
@@ -520,29 +520,29 @@ object AggregateUtil extends Enumeration {
       case TIME_WITHOUT_TIME_ZONE => DataTypes.INT
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val dt = argTypes(0).asInstanceOf[TimestampType]
-        DataTypes.TIMESTAMP(dt.getPrecision).bridgedTo(classOf[SqlTimestamp])
+        DataTypes.TIMESTAMP(dt.getPrecision).bridgedTo(classOf[TimestampData])
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val dt = argTypes(0).asInstanceOf[LocalZonedTimestampType]
-        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(dt.getPrecision).bridgedTo(classOf[SqlTimestamp])
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(dt.getPrecision).bridgedTo(classOf[TimestampData])
 
       case INTERVAL_YEAR_MONTH => DataTypes.INT
       case INTERVAL_DAY_TIME => DataTypes.BIGINT
 
       case VARCHAR =>
         val dt = argTypes(0).asInstanceOf[VarCharType]
-        DataTypes.VARCHAR(dt.getLength).bridgedTo(classOf[BinaryString])
+        DataTypes.VARCHAR(dt.getLength).bridgedTo(classOf[StringData])
       case CHAR =>
         val dt = argTypes(0).asInstanceOf[CharType]
-        DataTypes.CHAR(dt.getLength).bridgedTo(classOf[BinaryString])
+        DataTypes.CHAR(dt.getLength).bridgedTo(classOf[StringData])
       case DECIMAL =>
         val dt = argTypes(0).asInstanceOf[DecimalType]
-        DataTypes.DECIMAL(dt.getPrecision, dt.getScale).bridgedTo(classOf[Decimal])
+        DataTypes.DECIMAL(dt.getPrecision, dt.getScale).bridgedTo(classOf[DecimalData])
       case t =>
         throw new TableException(s"Distinct aggregate function does not support type: $t.\n" +
           s"Please re-check the data type.")
       }
     } else {
-      fromLogicalTypeToDataType(RowType.of(argTypes: _*)).bridgedTo(classOf[BaseRow])
+      fromLogicalTypeToDataType(RowType.of(argTypes: _*)).bridgedTo(classOf[RowData])
     }
   }
 
@@ -702,14 +702,14 @@ object AggregateUtil extends Enumeration {
   /**
     * Creates a MiniBatch trigger depends on the config.
     */
-  def createMiniBatchTrigger(tableConfig: TableConfig): CountBundleTrigger[BaseRow] = {
+  def createMiniBatchTrigger(tableConfig: TableConfig): CountBundleTrigger[RowData] = {
     val size = tableConfig.getConfiguration.getLong(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE)
     if (size <= 0 ) {
       throw new IllegalArgumentException(
         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE + " must be > 0.")
     }
-    new CountBundleTrigger[BaseRow](size)
+    new CountBundleTrigger[RowData](size)
   }
 
   /**

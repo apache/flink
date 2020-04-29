@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import org.junit.Test;
 
@@ -60,7 +60,7 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 	public void testVariableRankRange() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new VariableRankRange(1), true, false);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 2L, 19));
 		testHarness.processElement(updateAfterRecord("book", 2L, 18));
@@ -87,7 +87,7 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 	public void testOutputRankNumberWithVariableRankRange() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new VariableRankRange(1), true, true);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 2L, 19));
 		testHarness.processElement(updateAfterRecord("book", 2L, 12));
@@ -116,7 +116,7 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 	public void testSortKeyChangesWhenOutputRankNumber() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), true, true);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 2L, 19));
 		testHarness.processElement(insertRecord("book", 3L, 16));
@@ -160,7 +160,7 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 	public void testSortKeyChangesWhenOutputRankNumberAndNotGenerateUpdateBefore() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), false, true);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 2L, 19));
 		testHarness.processElement(insertRecord("book", 3L, 16));
@@ -196,7 +196,7 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 	public void testSortKeyChangesWhenNotOutputRankNumber() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), true, false);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 2L, 19));
 		testHarness.processElement(insertRecord("book", 3L, 16));
@@ -226,7 +226,7 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
 	public void testSortKeyChangesWhenNotOutputRankNumberAndNotGenerateUpdateBefore() throws Exception {
 		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER,
 				new ConstantRankRange(1, 2), false, false);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 2L, 19));
 		testHarness.processElement(insertRecord("book", 3L, 16));

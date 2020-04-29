@@ -20,13 +20,13 @@ package org.apache.flink.table.planner.codegen;
 
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.table.dataformat.BinaryGeneric;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RawValueData;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
-import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
+import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
@@ -36,7 +36,7 @@ import org.junit.Test;
 
 import java.util.function.Function;
 
-import static org.apache.flink.table.dataformat.SqlTimestamp.fromEpochMillis;
+import static org.apache.flink.table.data.TimestampData.fromEpochMillis;
 
 /**
  * Test for {@link EqualiserCodeGenerator}.
@@ -49,15 +49,15 @@ public class EqualiserCodeGeneratorTest {
 				new LogicalType[]{new TypeInformationRawType<>(Types.INT)})
 				.generateRecordEqualiser("RAW")
 				.newInstance(Thread.currentThread().getContextClassLoader());
-		Function<BinaryGeneric, BinaryRow> func = o -> {
-			BinaryRow row = new BinaryRow(1);
+		Function<RawValueData<?>, BinaryRowData> func = o -> {
+			BinaryRowData row = new BinaryRowData(1);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
-			writer.writeGeneric(0, o, new BinaryGenericSerializer<>(IntSerializer.INSTANCE));
+			writer.writeRawValue(0, o, new RawValueDataSerializer<>(IntSerializer.INSTANCE));
 			writer.complete();
 			return row;
 		};
-		assertBoolean(equaliser, func, new BinaryGeneric<>(1), new BinaryGeneric<>(1), true);
-		assertBoolean(equaliser, func, new BinaryGeneric<>(1), new BinaryGeneric<>(2), false);
+		assertBoolean(equaliser, func, RawValueData.fromObject(1), RawValueData.fromObject(1), true);
+		assertBoolean(equaliser, func, RawValueData.fromObject(1), RawValueData.fromObject(2), false);
 	}
 
 	@Test
@@ -66,8 +66,8 @@ public class EqualiserCodeGeneratorTest {
 				new LogicalType[]{new TimestampType()})
 				.generateRecordEqualiser("TIMESTAMP")
 				.newInstance(Thread.currentThread().getContextClassLoader());
-		Function<SqlTimestamp, BinaryRow> func = o -> {
-			BinaryRow row = new BinaryRow(1);
+		Function<TimestampData, BinaryRowData> func = o -> {
+			BinaryRowData row = new BinaryRowData(1);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
 			writer.writeTimestamp(0, o, 9);
 			writer.complete();
@@ -79,20 +79,20 @@ public class EqualiserCodeGeneratorTest {
 
 	private static <T> void assertBoolean(
 			RecordEqualiser equaliser,
-			Function<T, BinaryRow> toBinaryRow,
+			Function<T, BinaryRowData> toBinaryRow,
 			T o1,
 			T o2,
 			boolean bool) {
-		Assert.assertEquals(bool, equaliser.equalsWithoutHeader(
-				GenericRow.of(o1),
-				GenericRow.of(o2)));
-		Assert.assertEquals(bool, equaliser.equalsWithoutHeader(
+		Assert.assertEquals(bool, equaliser.equals(
+				GenericRowData.of(o1),
+				GenericRowData.of(o2)));
+		Assert.assertEquals(bool, equaliser.equals(
 				toBinaryRow.apply(o1),
-				GenericRow.of(o2)));
-		Assert.assertEquals(bool, equaliser.equalsWithoutHeader(
-				GenericRow.of(o1),
+				GenericRowData.of(o2)));
+		Assert.assertEquals(bool, equaliser.equals(
+				GenericRowData.of(o1),
 				toBinaryRow.apply(o2)));
-		Assert.assertEquals(bool, equaliser.equalsWithoutHeader(
+		Assert.assertEquals(bool, equaliser.equals(
 				toBinaryRow.apply(o1),
 				toBinaryRow.apply(o2)));
 	}

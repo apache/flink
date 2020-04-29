@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -30,19 +30,19 @@ import java.util.TreeMap;
 import java.util.function.Supplier;
 
 /**
- * TopNBuffer stores mapping from sort key to records list, sortKey is BaseRow type, each record is BaseRow type.
+ * TopNBuffer stores mapping from sort key to records list, sortKey is RowData type, each record is RowData type.
  * TopNBuffer could also track rank number of each record.
  */
 class TopNBuffer implements Serializable {
 
 	private static final long serialVersionUID = 6824488508991990228L;
 
-	private final Supplier<Collection<BaseRow>> valueSupplier;
-	private final Comparator<BaseRow> sortKeyComparator;
+	private final Supplier<Collection<RowData>> valueSupplier;
+	private final Comparator<RowData> sortKeyComparator;
 	private int currentTopNum = 0;
-	private TreeMap<BaseRow, Collection<BaseRow>> treeMap;
+	private TreeMap<RowData, Collection<RowData>> treeMap;
 
-	TopNBuffer(Comparator<BaseRow> sortKeyComparator, Supplier<Collection<BaseRow>> valueSupplier) {
+	TopNBuffer(Comparator<RowData> sortKeyComparator, Supplier<Collection<RowData>> valueSupplier) {
 		this.valueSupplier = valueSupplier;
 		this.sortKeyComparator = sortKeyComparator;
 		this.treeMap = new TreeMap(sortKeyComparator);
@@ -55,10 +55,10 @@ class TopNBuffer implements Serializable {
 	 * @param value record which is to be appended
 	 * @return the size of the collection under the sortKey.
 	 */
-	public int put(BaseRow sortKey, BaseRow value) {
+	public int put(RowData sortKey, RowData value) {
 		currentTopNum += 1;
 		// update treeMap
-		Collection<BaseRow> collection = treeMap.get(sortKey);
+		Collection<RowData> collection = treeMap.get(sortKey);
 		if (collection == null) {
 			collection = valueSupplier.get();
 			treeMap.put(sortKey, collection);
@@ -74,8 +74,8 @@ class TopNBuffer implements Serializable {
 	 * @param sortKey sort key with which the specified values are to be associated
 	 * @param values record lists to be associated with the specified key
 	 */
-	void putAll(BaseRow sortKey, Collection<BaseRow> values) {
-		Collection<BaseRow> oldValues = treeMap.get(sortKey);
+	void putAll(RowData sortKey, Collection<RowData> values) {
+		Collection<RowData> oldValues = treeMap.get(sortKey);
 		if (oldValues != null) {
 			currentTopNum -= oldValues.size();
 		}
@@ -89,12 +89,12 @@ class TopNBuffer implements Serializable {
 	 * @param sortKey key to get
 	 * @return the record list from the buffer under the sortKey
 	 */
-	public Collection<BaseRow> get(BaseRow sortKey) {
+	public Collection<RowData> get(RowData sortKey) {
 		return treeMap.get(sortKey);
 	}
 
-	public void remove(BaseRow sortKey, BaseRow value) {
-		Collection<BaseRow> list = treeMap.get(sortKey);
+	public void remove(RowData sortKey, RowData value) {
+		Collection<RowData> list = treeMap.get(sortKey);
 		if (list != null) {
 			if (list.remove(value)) {
 				currentTopNum -= 1;
@@ -110,8 +110,8 @@ class TopNBuffer implements Serializable {
 	 *
 	 * @param sortKey key to remove
 	 */
-	void removeAll(BaseRow sortKey) {
-		Collection<BaseRow> list = treeMap.get(sortKey);
+	void removeAll(RowData sortKey) {
+		Collection<RowData> list = treeMap.get(sortKey);
 		if (list != null) {
 			currentTopNum -= list.size();
 			treeMap.remove(sortKey);
@@ -123,11 +123,11 @@ class TopNBuffer implements Serializable {
 	 *
 	 * @return removed record
 	 */
-	BaseRow removeLast() {
-		Map.Entry<BaseRow, Collection<BaseRow>> last = treeMap.lastEntry();
-		BaseRow lastElement = null;
+	RowData removeLast() {
+		Map.Entry<RowData, Collection<RowData>> last = treeMap.lastEntry();
+		RowData lastElement = null;
 		if (last != null) {
-			Collection<BaseRow> list = last.getValue();
+			Collection<RowData> list = last.getValue();
 			lastElement = getLastElement(list);
 			if (lastElement != null) {
 				if (list.remove(lastElement)) {
@@ -147,13 +147,13 @@ class TopNBuffer implements Serializable {
 	 * @param rank rank value to search
 	 * @return the record which rank is given value
 	 */
-	BaseRow getElement(int rank) {
+	RowData getElement(int rank) {
 		int curRank = 0;
-		for (Map.Entry<BaseRow, Collection<BaseRow>> entry : treeMap.entrySet()) {
-			Collection<BaseRow> list = entry.getValue();
+		for (Map.Entry<RowData, Collection<RowData>> entry : treeMap.entrySet()) {
+			Collection<RowData> list = entry.getValue();
 
 			if (curRank + list.size() >= rank) {
-				for (BaseRow elem : list) {
+				for (RowData elem : list) {
 					curRank += 1;
 					if (curRank == rank) {
 						return elem;
@@ -166,10 +166,10 @@ class TopNBuffer implements Serializable {
 		return null;
 	}
 
-	private BaseRow getLastElement(Collection<BaseRow> list) {
-		BaseRow element = null;
+	private RowData getLastElement(Collection<RowData> list) {
+		RowData element = null;
 		if (list != null && !list.isEmpty()) {
-			Iterator<BaseRow> iter = list.iterator();
+			Iterator<RowData> iter = list.iterator();
 			while (iter.hasNext()) {
 				element = iter.next();
 			}
@@ -180,14 +180,14 @@ class TopNBuffer implements Serializable {
 	/**
 	 * Returns a {@link Set} view of the mappings contained in the buffer.
 	 */
-	Set<Map.Entry<BaseRow, Collection<BaseRow>>> entrySet() {
+	Set<Map.Entry<RowData, Collection<RowData>>> entrySet() {
 		return treeMap.entrySet();
 	}
 
 	/**
 	 * Returns the last Entry in the buffer. Returns null if the TreeMap is empty.
 	 */
-	Map.Entry<BaseRow, Collection<BaseRow>> lastEntry() {
+	Map.Entry<RowData, Collection<RowData>> lastEntry() {
 		return treeMap.lastEntry();
 	}
 
@@ -197,7 +197,7 @@ class TopNBuffer implements Serializable {
 	 * @param key key whose presence in the buffer is to be tested
 	 * @return {@code true} if the buffer contains a mapping for the specified key
 	 */
-	boolean containsKey(BaseRow key) {
+	boolean containsKey(RowData key) {
 		return treeMap.containsKey(key);
 	}
 
@@ -215,7 +215,7 @@ class TopNBuffer implements Serializable {
 	 *
 	 * @return sort key comparator used by buffer
 	 */
-	Comparator<BaseRow> getSortKeyComparator() {
+	Comparator<RowData> getSortKeyComparator() {
 		return sortKeyComparator;
 	}
 }

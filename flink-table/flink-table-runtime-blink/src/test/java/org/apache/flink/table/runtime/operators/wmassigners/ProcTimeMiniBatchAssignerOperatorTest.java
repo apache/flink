@@ -22,8 +22,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 
 import org.junit.Test;
 
@@ -41,18 +41,18 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
 	public void testMiniBatchAssignerOperator() throws Exception {
 		final ProcTimeMiniBatchAssignerOperator operator = new ProcTimeMiniBatchAssignerOperator(100);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
 				new OneInputStreamOperatorTestHarness<>(operator);
 
 		long currentTime = 0;
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(1L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(2L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
 		testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(3L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(4L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
 
 		{
 			ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
@@ -83,11 +83,11 @@ public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOper
 			output.clear();
 		}
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(4L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(5L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(6L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(7L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(8L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(5L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(6L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(7L)));
+		testHarness.processElement(new StreamRecord<>(GenericRowData.of(8L)));
 
 		{
 			ConcurrentLinkedQueue<Object> output = testHarness.getOutput();

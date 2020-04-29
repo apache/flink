@@ -23,14 +23,14 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
-import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
-import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
+import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.TimestampDataTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -83,8 +83,8 @@ public class LogicalTypeDataTypeConverter {
 					// BigDecimal have infinity precision and scale, but we converted it into a limited
 					// Decimal(38, 18). If the user's BigDecimal is more precision than this, we will
 					// throw Exception to remind user to use GenericType in real data conversion.
-					return Decimal.DECIMAL_SYSTEM_DEFAULT;
-				} else if (typeInfo.equals(BinaryStringTypeInfo.INSTANCE)) {
+					return DecimalDataUtils.DECIMAL_SYSTEM_DEFAULT;
+				} else if (typeInfo.equals(StringDataTypeInfo.INSTANCE)) {
 					return DataTypes.STRING().getLogicalType();
 				} else if (typeInfo instanceof BasicArrayTypeInfo) {
 					return new ArrayType(
@@ -98,15 +98,15 @@ public class LogicalTypeDataTypeConverter {
 									.toArray(LogicalType[]::new),
 							compositeType.getFieldNames()
 					);
-				} else if (typeInfo instanceof DecimalTypeInfo) {
-					DecimalTypeInfo decimalType = (DecimalTypeInfo) typeInfo;
+				} else if (typeInfo instanceof DecimalDataTypeInfo) {
+					DecimalDataTypeInfo decimalType = (DecimalDataTypeInfo) typeInfo;
 					return new DecimalType(decimalType.precision(), decimalType.scale());
 				} else if (typeInfo instanceof BigDecimalTypeInfo) {
 					BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
 					return new DecimalType(decimalType.precision(), decimalType.scale());
-				} else if (typeInfo instanceof SqlTimestampTypeInfo) {
-					SqlTimestampTypeInfo sqlTimestampTypeInfo = (SqlTimestampTypeInfo) typeInfo;
-					return new TimestampType(sqlTimestampTypeInfo.getPrecision());
+				} else if (typeInfo instanceof TimestampDataTypeInfo) {
+					TimestampDataTypeInfo timestampDataTypeInfo = (TimestampDataTypeInfo) typeInfo;
+					return new TimestampType(timestampDataTypeInfo.getPrecision());
 				} else if (typeInfo instanceof LegacyLocalDateTimeTypeInfo) {
 					LegacyLocalDateTimeTypeInfo dateTimeType = (LegacyLocalDateTimeTypeInfo) typeInfo;
 					return new TimestampType(dateTimeType.getPrecision());

@@ -25,13 +25,13 @@ import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.dataview.MapView;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
-import org.apache.flink.table.runtime.typeutils.SqlTimestampTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.TimestampDataTypeInfo;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -320,26 +320,26 @@ public abstract class MinWithRetractAggFunction<T extends Comparable>
 	}
 
 	/**
-	 * Built-in Big Decimal Min with retraction aggregate function.
+	 * Built-in Big DecimalData Min with retraction aggregate function.
 	 */
-	public static class DecimalMinWithRetractAggFunction extends MinWithRetractAggFunction<Decimal> {
+	public static class DecimalMinWithRetractAggFunction extends MinWithRetractAggFunction<DecimalData> {
 		private static final long serialVersionUID = -7984016112363017960L;
-		private DecimalTypeInfo decimalType;
+		private DecimalDataTypeInfo decimalType;
 
-		public DecimalMinWithRetractAggFunction(DecimalTypeInfo decimalType) {
+		public DecimalMinWithRetractAggFunction(DecimalDataTypeInfo decimalType) {
 			this.decimalType = decimalType;
 		}
 
-		public void accumulate(MinWithRetractAccumulator<Decimal> acc, Decimal value) throws Exception {
+		public void accumulate(MinWithRetractAccumulator<DecimalData> acc, DecimalData value) throws Exception {
 			super.accumulate(acc, value);
 		}
 
-		public void retract(MinWithRetractAccumulator<Decimal> acc, Decimal value) throws Exception {
+		public void retract(MinWithRetractAccumulator<DecimalData> acc, DecimalData value) throws Exception {
 			super.retract(acc, value);
 		}
 
 		@Override
-		protected TypeInformation<Decimal> getValueTypeInfo() {
+		protected TypeInformation<DecimalData> getValueTypeInfo() {
 			return decimalType;
 		}
 	}
@@ -347,28 +347,28 @@ public abstract class MinWithRetractAggFunction<T extends Comparable>
 	/**
 	 * Built-in String Min with retraction aggregate function.
 	 */
-	public static class StringMinWithRetractAggFunction extends MinWithRetractAggFunction<BinaryString> {
+	public static class StringMinWithRetractAggFunction extends MinWithRetractAggFunction<StringData> {
 
 		private static final long serialVersionUID = -6402993104400269468L;
 
-		public void accumulate(MinWithRetractAccumulator<BinaryString> acc, BinaryString value) throws Exception {
+		public void accumulate(MinWithRetractAccumulator<StringData> acc, StringData value) throws Exception {
 			super.accumulate(acc, value);
 		}
 
-		public void retract(MinWithRetractAccumulator<BinaryString> acc, BinaryString value) throws Exception {
+		public void retract(MinWithRetractAccumulator<StringData> acc, StringData value) throws Exception {
 			super.retract(acc, value);
 		}
 
 		@Override
-		protected TypeInformation<BinaryString> getValueTypeInfo() {
-			return BinaryStringTypeInfo.INSTANCE;
+		protected TypeInformation<StringData> getValueTypeInfo() {
+			return StringDataTypeInfo.INSTANCE;
 		}
 	}
 
 	/**
 	 * Built-in Timestamp Min with retraction aggregate function.
 	 */
-	public static class TimestampMinWithRetractAggFunction extends MinWithRetractAggFunction<SqlTimestamp> {
+	public static class TimestampMinWithRetractAggFunction extends MinWithRetractAggFunction<TimestampData> {
 
 		private static final long serialVersionUID = -7494198823345305907L;
 
@@ -378,17 +378,17 @@ public abstract class MinWithRetractAggFunction<T extends Comparable>
 			this.precision = precision;
 		}
 
-		public void accumulate(MinWithRetractAccumulator<SqlTimestamp> acc, SqlTimestamp value) throws Exception {
+		public void accumulate(MinWithRetractAccumulator<TimestampData> acc, TimestampData value) throws Exception {
 			super.accumulate(acc, value);
 		}
 
-		public void retract(MinWithRetractAccumulator<SqlTimestamp> acc, SqlTimestamp value) throws Exception {
+		public void retract(MinWithRetractAccumulator<TimestampData> acc, TimestampData value) throws Exception {
 			super.retract(acc, value);
 		}
 
 		@Override
-		protected TypeInformation<SqlTimestamp> getValueTypeInfo() {
-			return new SqlTimestampTypeInfo(precision);
+		protected TypeInformation<TimestampData> getValueTypeInfo() {
+			return new TimestampDataTypeInfo(precision);
 		}
 	}
 

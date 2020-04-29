@@ -21,9 +21,9 @@ package org.apache.flink.table.runtime.operators.join;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 
 import org.junit.Test;
 
@@ -39,9 +39,9 @@ import static org.junit.Assert.assertEquals;
 public class ProcTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase {
 
 	private int keyIdx = 0;
-	private BinaryRowKeySelector keySelector = new BinaryRowKeySelector(new int[] { keyIdx },
+	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(new int[] { keyIdx },
 			rowType.getLogicalTypes());
-	private TypeInformation<BaseRow> keyType = new BaseRowTypeInfo();
+	private TypeInformation<RowData> keyType = new RowDataTypeInfo();
 
 
 	/** a.proctime >= b.proctime - 10 and a.proctime <= b.proctime + 20. **/
@@ -49,7 +49,7 @@ public class ProcTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase
 	public void testProcTimeInnerJoinWithCommonBounds() throws Exception {
 		ProcTimeBoundedStreamJoin joinProcessFunc = new ProcTimeBoundedStreamJoin(
 				FlinkJoinType.INNER, -10, 20, rowType, rowType, generatedFunction);
-		KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> testHarness = createTestHarness(
+		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
 				joinProcessFunc);
 		testHarness.open();
 		testHarness.setProcessingTime(1);
@@ -108,7 +108,7 @@ public class ProcTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase
 		ProcTimeBoundedStreamJoin joinProcessFunc = new ProcTimeBoundedStreamJoin(
 				FlinkJoinType.INNER, -10, -5, rowType, rowType, generatedFunction);
 
-		KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> testHarness = createTestHarness(
+		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
 				joinProcessFunc);
 		testHarness.open();
 
@@ -166,12 +166,12 @@ public class ProcTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase
 		testHarness.close();
 	}
 
-	private KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> createTestHarness(
+	private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> createTestHarness(
 			ProcTimeBoundedStreamJoin windowJoinFunc)
 			throws Exception {
-		KeyedCoProcessOperator<BaseRow, BaseRow, BaseRow, BaseRow> operator = new KeyedCoProcessOperator<>(
+		KeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator = new KeyedCoProcessOperator<>(
 				windowJoinFunc);
-		KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> testHarness =
+		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(operator, keySelector, keySelector, keyType);
 		return testHarness;
 	}

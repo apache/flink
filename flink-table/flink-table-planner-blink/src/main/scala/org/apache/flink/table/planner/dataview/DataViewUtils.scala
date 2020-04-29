@@ -22,11 +22,12 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview._
-import org.apache.flink.table.dataformat.{BinaryGeneric, GenericRow}
+import org.apache.flink.table.data.GenericRowData
+import org.apache.flink.table.data.binary.BinaryRawValueData
 import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
 import org.apache.flink.table.functions.UserDefinedAggregateFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LegacyTypeInformationType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
@@ -86,9 +87,9 @@ object DataViewUtils {
             val pojoTypeInfo = new PojoTypeInfo(pojoType.getTypeClass, newPojoFields)
             (fromLegacyInfoToDataType(pojoTypeInfo), accumulatorSpecs.toArray)
 
-          // so we add another check => acc.isInstanceOf[GenericRow]
-          case t: BaseRowTypeInfo if acc.isInstanceOf[GenericRow] =>
-            val accInstance = acc.asInstanceOf[GenericRow]
+          // so we add another check => acc.isInstanceOf[GenericRowData]
+          case t: RowDataTypeInfo if acc.isInstanceOf[GenericRowData] =>
+            val accInstance = acc.asInstanceOf[GenericRowData]
             val (arity, fieldNames, fieldTypes) = (t.getArity, t.getFieldNames, t.getFieldTypes)
             val newFieldTypes = for (i <- 0 until arity) yield {
               val fieldName = fieldNames(i)
@@ -107,7 +108,7 @@ object DataViewUtils {
               fromTypeInfoToLogicalType(newTypeInfo)
             }
 
-            val newType = new BaseRowTypeInfo(newFieldTypes.toArray, fieldNames)
+            val newType = new RowDataTypeInfo(newFieldTypes.toArray, fieldNames)
             (fromLegacyInfoToDataType(newType), accumulatorSpecs.toArray)
 
           case ct: CompositeType[_] if includesDataView(ct) =>
@@ -149,7 +150,7 @@ object DataViewUtils {
             "accumulators of Pojo type.")
       case map: MapViewTypeInfo[_, _] =>
         val mapView = instance match {
-          case b: BinaryGeneric[_] =>
+          case b: BinaryRawValueData[_] =>
             b.getJavaObject.asInstanceOf[MapView[_, _]]
           case _ =>
             instance.asInstanceOf[MapView[_, _]]
@@ -180,7 +181,7 @@ object DataViewUtils {
 
       case list: ListViewTypeInfo[_] =>
         val listView = instance match {
-          case b: BinaryGeneric[_] =>
+          case b: BinaryRawValueData[_] =>
             b.getJavaObject.asInstanceOf[ListView[_]]
           case _ =>
             instance.asInstanceOf[ListView[_]]

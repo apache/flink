@@ -24,7 +24,7 @@ import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.TableFormatFactory;
 import org.apache.flink.table.types.DataType;
@@ -38,22 +38,22 @@ import java.util.Optional;
  * File system format factory for creating configured instances of reader and writer.
  */
 @Internal
-public interface FileSystemFormatFactory extends TableFormatFactory<BaseRow> {
+public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 
 	/**
 	 * Create {@link InputFormat} reader.
 	 */
-	InputFormat<BaseRow, ?> createReader(ReaderContext context);
+	InputFormat<RowData, ?> createReader(ReaderContext context);
 
 	/**
 	 * Create {@link Encoder} writer.
 	 */
-	Optional<Encoder<BaseRow>> createEncoder(WriterContext context);
+	Optional<Encoder<RowData>> createEncoder(WriterContext context);
 
 	/**
 	 * Create {@link BulkWriter.Factory} writer.
 	 */
-	Optional<BulkWriter.Factory<BaseRow>> createBulkWriterFactory(WriterContext context);
+	Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context);
 
 	/**
 	 * Context of {@link #createReader}.

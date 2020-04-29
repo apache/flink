@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 
 /**
@@ -34,5 +34,5 @@ public interface AggsHandleFunction extends AggsHandleFunctionBase {
 	 * Gets the result of the aggregation from the current accumulators.
 	 * @return the final result (saved in a row) of the current accumulators.
 	 */
-	BaseRow getValue() throws Exception;
+	RowData getValue() throws Exception;
 }

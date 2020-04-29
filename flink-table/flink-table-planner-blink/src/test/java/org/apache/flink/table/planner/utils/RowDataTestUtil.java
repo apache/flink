@@ -19,15 +19,14 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryWriter;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.runtime.types.InternalSerializers;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -37,16 +36,16 @@ import java.util.List;
 import java.util.TimeZone;
 
 /**
- * Utility for BaseRow.
+ * Utility for RowData.
  */
-public class BaseRowTestUtil {
+public class RowDataTestUtil {
 
-	public static String baseRowToString(BaseRow value, BaseRowTypeInfo rowTypeInfo, TimeZone tz) {
-		return baseRowToString(value, rowTypeInfo, tz, true);
+	public static String rowToString(RowData value, RowDataTypeInfo rowTypeInfo, TimeZone tz) {
+		return rowToString(value, rowTypeInfo, tz, true);
 	}
 
-	public static String baseRowToString(BaseRow value, BaseRowTypeInfo rowTypeInfo, TimeZone tz, boolean withHeader) {
-		GenericRow genericRow = toGenericRowDeeply(value, rowTypeInfo.getLogicalTypes());
+	public static String rowToString(RowData value, RowDataTypeInfo rowTypeInfo, TimeZone tz, boolean withHeader) {
+		GenericRowData genericRow = toGenericRowDeeply(value, rowTypeInfo.getLogicalTypes());
 		return genericRowToString(genericRow, tz, withHeader);
 	}
 
@@ -55,11 +54,11 @@ public class BaseRowTestUtil {
 			// TODO support after FLINK-11898 is merged
 			throw new UnsupportedOperationException();
 		} else {
-			return StringUtils.arrayAwareToString(field);
+			return EncodingUtils.objectToString(field);
 		}
 	}
 
-	private static String genericRowToString(GenericRow row, TimeZone tz, boolean withHeader) {
+	private static String genericRowToString(GenericRowData row, TimeZone tz, boolean withHeader) {
 		StringBuilder sb = new StringBuilder();
 		if (withHeader) {
 			sb.append(row.getRowKind().shortString());
@@ -75,25 +74,25 @@ public class BaseRowTestUtil {
 		return sb.toString();
 	}
 
-	public static GenericRow toGenericRowDeeply(BaseRow baseRow, LogicalType[] types) {
-		return toGenericRowDeeply(baseRow, Arrays.asList(types));
+	public static GenericRowData toGenericRowDeeply(RowData rowData, LogicalType[] types) {
+		return toGenericRowDeeply(rowData, Arrays.asList(types));
 	}
 
-	public static GenericRow toGenericRowDeeply(BaseRow baseRow, List<LogicalType> types) {
-		if (baseRow instanceof GenericRow) {
-			return (GenericRow) baseRow;
+	public static GenericRowData toGenericRowDeeply(RowData rowData, List<LogicalType> types) {
+		if (rowData instanceof GenericRowData) {
+			return (GenericRowData) rowData;
 		} else {
-			int fieldNum = baseRow.getArity();
-			GenericRow row = new GenericRow(fieldNum);
-			row.setRowKind(baseRow.getRowKind());
+			int fieldNum = rowData.getArity();
+			GenericRowData row = new GenericRowData(fieldNum);
+			row.setRowKind(rowData.getRowKind());
 			for (int i = 0; i < fieldNum; i++) {
-				if (baseRow.isNullAt(i)) {
+				if (rowData.isNullAt(i)) {
 					row.setField(i, null);
 				} else {
 					LogicalType type = types.get(i);
-					Object o = TypeGetterSetters.get(baseRow, i, type);
+					Object o = RowData.get(rowData, i, type);
 					if (type instanceof RowType) {
-						o = toGenericRowDeeply((BaseRow) o, type.getChildren());
+						o = toGenericRowDeeply((RowData) o, type.getChildren());
 					}
 					row.setField(i, o);
 				}

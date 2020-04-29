@@ -22,9 +22,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 
 import org.junit.Test;
 
@@ -40,9 +40,9 @@ import static org.junit.Assert.assertEquals;
 public class RowTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase {
 
 	private int keyIdx = 1;
-	private BinaryRowKeySelector keySelector = new BinaryRowKeySelector(new int[] { keyIdx },
+	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(new int[] { keyIdx },
 			rowType.getLogicalTypes());
-	private TypeInformation<BaseRow> keyType = new BaseRowTypeInfo();
+	private TypeInformation<RowData> keyType = new RowDataTypeInfo();
 
 	/** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime + 20. **/
 	@Test
@@ -50,7 +50,7 @@ public class RowTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase 
 		RowTimeBoundedStreamJoin joinProcessFunc = new RowTimeBoundedStreamJoin(
 				FlinkJoinType.INNER, -10, 20, 0, rowType, rowType, generatedFunction, 0, 0);
 
-		KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> testHarness = createTestHarness(
+		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
 				joinProcessFunc);
 
 		testHarness.open();
@@ -114,7 +114,7 @@ public class RowTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase 
 		RowTimeBoundedStreamJoin joinProcessFunc = new RowTimeBoundedStreamJoin(
 				FlinkJoinType.INNER, -10, -7, 0, rowType, rowType, generatedFunction, 0, 0);
 
-		KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> testHarness = createTestHarness(
+		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
 				joinProcessFunc);
 
 		testHarness.open();
@@ -168,7 +168,7 @@ public class RowTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase 
 		RowTimeBoundedStreamJoin joinProcessFunc = new RowTimeBoundedStreamJoin(
 				FlinkJoinType.LEFT, -5, 9, 0, rowType, rowType, generatedFunction, 0, 0);
 
-		KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> testHarness = createTestHarness(
+		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
 				joinProcessFunc);
 
 		testHarness.open();
@@ -236,7 +236,7 @@ public class RowTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase 
 		RowTimeBoundedStreamJoin joinProcessFunc = new RowTimeBoundedStreamJoin(
 				FlinkJoinType.RIGHT, -5, 9, 0, rowType, rowType, generatedFunction, 0, 0);
 
-		KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> testHarness = createTestHarness(
+		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
 				joinProcessFunc);
 
 		testHarness.open();
@@ -305,7 +305,7 @@ public class RowTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase 
 		RowTimeBoundedStreamJoin joinProcessFunc = new RowTimeBoundedStreamJoin(
 				FlinkJoinType.FULL, -5, 9, 0, rowType, rowType, generatedFunction, 0, 0);
 
-		KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> testHarness = createTestHarness(
+		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
 				joinProcessFunc);
 
 		testHarness.open();
@@ -374,12 +374,12 @@ public class RowTimeBoundedStreamJoinTest extends TimeBoundedStreamJoinTestBase 
 		testHarness.close();
 	}
 
-	private KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> createTestHarness(
+	private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> createTestHarness(
 			RowTimeBoundedStreamJoin windowJoinFunc)
 			throws Exception {
-		KeyedCoProcessOperator<BaseRow, BaseRow, BaseRow, BaseRow> operator = new KeyedCoProcessOperatorWithWatermarkDelay<>(
+		KeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator = new KeyedCoProcessOperatorWithWatermarkDelay<>(
 				windowJoinFunc, windowJoinFunc.getMaxOutputDelay());
-		KeyedTwoInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow, BaseRow> testHarness =
+		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
 				new KeyedTwoInputStreamOperatorTestHarness<>(operator, keySelector, keySelector, keyType);
 		return testHarness;
 	}

@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory
 import org.apache.flink.streaming.api.operators.{ProcessOperator, SimpleOperatorFactory}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableException, TableSchema}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.LookupJoinCodeGenerator._
@@ -35,17 +35,17 @@ import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
-import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, RelExplainUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
+import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, RelExplainUtil}
 import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.table.runtime.operators.join.lookup.{AsyncLookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinRunner, LookupJoinWithCalcRunner}
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getInternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.sources.{LookupableTableSource, TableSource}
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.logical.{LogicalType, RowType, TypeInformationRawType}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.types.Row
@@ -208,10 +208,10 @@ abstract class CommonLookupJoin(
   // ----------------------------------------------------------------------------------------
 
   def translateToPlanInternal(
-      inputTransformation: Transformation[BaseRow],
+      inputTransformation: Transformation[RowData],
       env: StreamExecutionEnvironment,
       config: TableConfig,
-      relBuilder: RelBuilder): Transformation[BaseRow] = {
+      relBuilder: RelBuilder): Transformation[RowData] = {
 
     val inputRowType = FlinkTypeFactory.toLogicalRowType(input.getRowType)
     val tableSourceRowType = FlinkTypeFactory.toLogicalRowType(tableRowType)
@@ -295,7 +295,7 @@ abstract class CommonLookupJoin(
           generatedCalc,
           generatedResultFuture,
           producedTypeInfo,
-          BaseRowTypeInfo.of(rightRowType),
+          RowDataTypeInfo.of(rightRowType),
           leftOuterJoin,
           asyncBufferCapacity)
       } else {
@@ -311,7 +311,7 @@ abstract class CommonLookupJoin(
           generatedFetcher,
           generatedResultFuture,
           producedTypeInfo,
-          BaseRowTypeInfo.of(rightRowType),
+          RowDataTypeInfo.of(rightRowType),
           leftOuterJoin,
           asyncBufferCapacity)
       }
@@ -396,15 +396,15 @@ abstract class CommonLookupJoin(
       inputTransformation,
       getRelDetailedDescription,
       operatorFactory,
-      BaseRowTypeInfo.of(resultRowType),
+      RowDataTypeInfo.of(resultRowType),
       inputTransformation.getParallelism)
   }
 
   private def rowTypeEquals(expected: TypeInformation[_], actual: TypeInformation[_]): Boolean = {
     // check internal and external type, cause we will auto convert external class to internal
-    // class (eg: Row => BaseRow).
-    (expected.getTypeClass == classOf[BaseRow] || expected.getTypeClass == classOf[Row]) &&
-      (actual.getTypeClass == classOf[BaseRow] || actual.getTypeClass == classOf[Row])
+    // class (eg: Row => RowData).
+    (expected.getTypeClass == classOf[RowData] || expected.getTypeClass == classOf[Row]) &&
+      (actual.getTypeClass == classOf[RowData] || actual.getTypeClass == classOf[Row])
   }
 
   def checkEvalMethodSignature(
@@ -418,7 +418,7 @@ abstract class CommonLookupJoin(
       expectedTypes.map {
         // special case for generic type
         case gt: TypeInformationRawType[_] => gt.getTypeInformation.getTypeClass
-        case t@_ => getInternalClassForType(t)
+        case t@_ => toInternalConversionClass(t)
       }
     }
     val method = getUserDefinedMethod(
@@ -662,10 +662,10 @@ abstract class CommonLookupJoin(
     }
 
     val tableReturnType = fromDataTypeToLegacyInfo(tableSource.getProducedDataType)
-    if (!tableReturnType.isInstanceOf[BaseRowTypeInfo] &&
+    if (!tableReturnType.isInstanceOf[RowDataTypeInfo] &&
       !tableReturnType.isInstanceOf[RowTypeInfo]) {
       throw new TableException(
-        "Temporal table join only support Row or BaseRow type as return type of temporal table." +
+        "Temporal table join only support Row or RowData type as return type of temporal table." +
           " But was " + tableReturnType)
     }
 
@@ -683,12 +683,12 @@ abstract class CommonLookupJoin(
           s"The TableSource [$tableDesc] return type $tableReturnTypeInfo does not match " +
             s"its lookup function extracted return type $extractedUdtfReturnTypeInfo")
       }
-      if (extractedUdtfReturnTypeInfo.getTypeClass != classOf[BaseRow] &&
+      if (extractedUdtfReturnTypeInfo.getTypeClass != classOf[RowData] &&
         extractedUdtfReturnTypeInfo.getTypeClass != classOf[Row]) {
         throw new TableException(
           s"Result type of the lookup TableFunction of TableSource [$tableDesc] is " +
             s"$extractedUdtfReturnTypeInfo type, " +
-            s"but currently only Row and BaseRow are supported.")
+            s"but currently only Row and RowData are supported.")
       }
     } else {
       if (!rowTypeEquals(tableReturnTypeInfo, udtfReturnTypeInfo)) {
@@ -696,12 +696,12 @@ abstract class CommonLookupJoin(
           s"The TableSource [$tableDesc] return type $tableReturnTypeInfo " +
             s"does not match its lookup function return type $udtfReturnTypeInfo")
       }
-      if (!udtfReturnTypeInfo.isInstanceOf[BaseRowTypeInfo] &&
+      if (!udtfReturnTypeInfo.isInstanceOf[RowDataTypeInfo] &&
         !udtfReturnTypeInfo.isInstanceOf[RowTypeInfo]) {
         throw new TableException(
           "Result type of the async lookup TableFunction of TableSource " +
             s"'$tableDesc' is $udtfReturnTypeInfo type, " +
-            s"currently only Row and BaseRow are supported.")
+            s"currently only Row and RowData are supported.")
       }
     }
   }

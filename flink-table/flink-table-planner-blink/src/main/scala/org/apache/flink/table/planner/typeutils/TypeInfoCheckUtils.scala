@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, PojoTypeInfo}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.validate._
-import org.apache.flink.table.runtime.typeutils.{BigDecimalTypeInfo, DecimalTypeInfo, LegacyLocalDateTimeTypeInfo, LegacyTimestampTypeInfo}
+import org.apache.flink.table.runtime.typeutils.{BigDecimalTypeInfo, DecimalDataTypeInfo, LegacyLocalDateTimeTypeInfo, LegacyTimestampTypeInfo}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.{INTERVAL_MILLIS, INTERVAL_MONTHS}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo}
 
@@ -49,7 +49,7 @@ object TypeInfoCheckUtils {
 
   def isNumeric(dataType: TypeInformation[_]): Boolean = dataType match {
     case _: NumericTypeInfo[_] => true
-    case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalTypeInfo => true
+    case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalDataTypeInfo => true
     case _ => false
   }
 
@@ -108,7 +108,7 @@ object TypeInfoCheckUtils {
   : ValidationResult = dataType match {
     case _: NumericTypeInfo[_] =>
       ValidationSuccess
-    case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalTypeInfo =>
+    case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalDataTypeInfo =>
       ValidationSuccess
     case _ =>
       ValidationFailure(s"$caller requires numeric types, get $dataType here")

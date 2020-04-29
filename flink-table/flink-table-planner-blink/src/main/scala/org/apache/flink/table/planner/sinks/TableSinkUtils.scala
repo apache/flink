@@ -23,11 +23,11 @@ import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, Tuple
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.operations.CatalogSinkModifyOperation
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, legacyRawToTypeInfoRaw, toNullable}
@@ -267,13 +267,13 @@ object TableSinkUtils {
     requestedTypeInfo match {
       case gt: GenericTypeInfo[Row] if gt.getTypeClass == classOf[Row] =>
         fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[Row])
-      case gt: GenericTypeInfo[BaseRow] if gt.getTypeClass == classOf[BaseRow] =>
-        fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[BaseRow])
-      case bt: BaseRowTypeInfo =>
+      case gt: GenericTypeInfo[RowData] if gt.getTypeClass == classOf[RowData] =>
+        fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[RowData])
+      case bt: RowDataTypeInfo =>
         val fields = bt.getFieldNames.zip(bt.getLogicalTypes).map { case (n, t) =>
           DataTypes.FIELD(n, fromLogicalToDataType(t))
         }
-        DataTypes.ROW(fields: _*).bridgedTo(classOf[BaseRow])
+        DataTypes.ROW(fields: _*).bridgedTo(classOf[RowData])
       case _ =>
         fromLegacyInfoToDataType(requestedTypeInfo)
     }

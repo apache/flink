@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.deduplicate;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import org.junit.Test;
 
@@ -45,17 +45,17 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 			generateInsert);
 	}
 
-	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
+	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
 			DeduplicateKeepLastRowFunction func)
 			throws Exception {
-		KeyedProcessOperator<BaseRow, BaseRow, BaseRow> operator = new KeyedProcessOperator<>(func);
+		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(func);
 		return new KeyedOneInputStreamOperatorTestHarness<>(operator, rowKeySelector, rowKeySelector.getProducedType());
 	}
 
 	@Test
 	public void testWithoutGenerateUpdateBefore() throws Exception {
 		DeduplicateKeepLastRowFunction func = createFunction(false, true);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 11));
@@ -73,7 +73,7 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 	@Test
 	public void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
 		DeduplicateKeepLastRowFunction func = createFunction(false, false);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 11));
@@ -91,7 +91,7 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 	@Test
 	public void testWithGenerateUpdateBefore() throws Exception {
 		DeduplicateKeepLastRowFunction func = createFunction(true, true);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 11));
@@ -110,7 +110,7 @@ public class DeduplicateKeepLastRowFunctionTest extends DeduplicateFunctionTestB
 	@Test
 	public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
 		DeduplicateKeepLastRowFunction func = createFunction(true, true);
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 11));
