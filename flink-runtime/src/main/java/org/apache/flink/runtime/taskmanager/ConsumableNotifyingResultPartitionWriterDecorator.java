@@ -101,8 +101,8 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 	}
 
 	@Override
-	public void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException {
-		partitionWriter.initializeState(stateReader);
+	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+		partitionWriter.readRecoveredState(stateReader);
 	}
 
 	@Override

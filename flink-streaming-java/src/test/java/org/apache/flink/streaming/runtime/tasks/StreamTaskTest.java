@@ -1776,7 +1776,7 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		public void initializeState(ChannelStateReader stateReader) {
+		public void readRecoveredState(ChannelStateReader stateReader) {
 			isStateInitialized = true;
 		}
 

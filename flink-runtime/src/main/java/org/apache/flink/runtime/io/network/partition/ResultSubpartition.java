@@ -77,7 +77,7 @@ public abstract class ResultSubpartition {
 		parent.onConsumedSubpartition(getSubPartitionIndex());
 	}
 
-	public void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
 	}
 
 	/**
