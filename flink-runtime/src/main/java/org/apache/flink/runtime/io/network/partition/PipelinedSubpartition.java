@@ -103,17 +103,23 @@ public class PipelinedSubpartition extends ResultSubpartition {
 
 	@Override
 	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+		boolean recycleBuffer = true;
 		for (ReadResult readResult = ReadResult.HAS_MORE_DATA; readResult == ReadResult.HAS_MORE_DATA;) {
 			BufferBuilder bufferBuilder = parent.getBufferPool().requestBufferBuilderBlocking();
 			BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
-			readResult = stateReader.readOutputData(subpartitionInfo, bufferBuilder);
+			try {
+				readResult = stateReader.readOutputData(subpartitionInfo, bufferBuilder);
 
-			// check whether there are some states data filled in this time
-			if (bufferConsumer.isDataAvailable()) {
-				add(bufferConsumer, false, false);
-				bufferBuilder.finish();
-			} else {
-				bufferConsumer.close();
+				// check whether there are some states data filled in this time
+				if (bufferConsumer.isDataAvailable()) {
+					add(bufferConsumer, false, false);
+					recycleBuffer = false;
+					bufferBuilder.finish();
+				}
+			} finally {
+				if (recycleBuffer) {
+					bufferConsumer.close();
+				}
 			}
 		}
 	}

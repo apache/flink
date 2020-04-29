@@ -500,6 +500,32 @@ public class ResultPartitionTest {
 	}
 
 	/**
+	 * Tests that the buffer is recycled correctly if exception is thrown during
+	 * {@link ChannelStateReader#readOutputData(ResultSubpartitionInfo, BufferBuilder)}.
+	 */
+	@Test
+	public void testReadRecoveredStateWithException() throws Exception {
+		final int totalBuffers = 2;
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 1, 1);
+		final ResultPartition partition = new ResultPartitionBuilder()
+			.setNetworkBufferPool(globalPool)
+			.build();
+		final ChannelStateReader stateReader = new ChannelStateReaderWithException();
+
+		try {
+			partition.setup();
+			partition.readRecoveredState(stateReader);
+		} catch (IOException e) {
+			assertThat("should throw custom exception message", e.getMessage().contains("test"));
+		} finally {
+			globalPool.destroyAllBufferPools();
+			// verify whether there are any buffers leak
+			assertEquals(totalBuffers, globalPool.getNumberOfAvailableMemorySegments());
+			globalPool.destroy();
+		}
+	}
+
+	/**
 	 * The {@link ChannelStateReader} instance for restoring the specific number of states.
 	 */
 	public static final class FiniteChannelStateReader implements ChannelStateReader {
@@ -526,6 +552,27 @@ public class ResultPartitionTest {
 			} else {
 				return ReadResult.NO_MORE_DATA;
 			}
+		}
+
+		@Override
+		public void close() {
+		}
+	}
+
+	/**
+	 * The {@link ChannelStateReader} instance for throwing exception when
+	 * {@link #readOutputData(ResultSubpartitionInfo, BufferBuilder)}.
+	 */
+	private static final class ChannelStateReaderWithException implements ChannelStateReader {
+
+		@Override
+		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) {
+			return ReadResult.NO_MORE_DATA;
+		}
+
+		@Override
+		public ReadResult readOutputData(ResultSubpartitionInfo info, BufferBuilder bufferBuilder) throws IOException {
+			throw new IOException("test");
 		}
 
 		@Override
