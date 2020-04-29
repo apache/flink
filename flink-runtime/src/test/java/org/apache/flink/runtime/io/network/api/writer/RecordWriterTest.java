@@ -463,7 +463,7 @@ public class RecordWriterTest {
 
 		try {
 			partition.setup();
-			partition.initializeState(stateReader);
+			partition.readRecoveredState(stateReader);
 
 			for (int record: records) {
 				// the record length 4 is also written into buffer for every emit

@@ -102,7 +102,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
 		for (ReadResult readResult = ReadResult.HAS_MORE_DATA; readResult == ReadResult.HAS_MORE_DATA;) {
 			BufferBuilder bufferBuilder = parent.getBufferPool().requestBufferBuilderBlocking();
 			BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();

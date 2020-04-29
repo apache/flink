@@ -45,10 +45,10 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	void setup() throws IOException;
 
 	/**
-	 * Loads the previous output states with the given reader for unaligned checkpoint.
+	 * Reads the previous output states with the given reader for unaligned checkpoint.
 	 * It should be done before task processing the inputs.
 	 */
-	void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException;
+	void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException;
 
 	ResultPartitionID getPartitionId();
 
