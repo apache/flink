@@ -50,7 +50,7 @@ public class RowDataVectorizer extends Vectorizer<RowData> {
 	@Override
 	public void vectorize(RowData row, VectorizedRowBatch batch) {
 		int rowId = batch.size++;
-		for(int i = 0; i < row.getArity(); ++i) {
+		for (int i = 0; i < row.getArity(); ++i) {
 			setColumn(rowId, batch.cols[i], fieldTypes[i], row, i);
 		}
 	}
