@@ -22,9 +22,9 @@ import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.IOUtils;
@@ -101,7 +101,7 @@ public class OrcColumnarRowSplitReaderTest {
 					split)) {
 				// read and count all rows
 				while (!reader.reachedEnd()) {
-					BaseRow row = reader.nextRecord(null);
+					RowData row = reader.nextRecord(null);
 					Assert.assertFalse(row.isNullAt(0));
 					Assert.assertFalse(row.isNullAt(1));
 					totalF0 += row.getInt(0);
@@ -125,12 +125,12 @@ public class OrcColumnarRowSplitReaderTest {
 				new HashMap<>(),
 				splits[0])) {
 			assertFalse(reader.reachedEnd());
-			BaseRow row = reader.nextRecord(null);
+			RowData row = reader.nextRecord(null);
 
 			// validate first row
 			assertNotNull(row);
 			assertEquals(1, row.getArity());
-			assertEquals(Decimal.castFrom(-1000.5d, 10, 5), row.getDecimal(0, 10, 5));
+			assertEquals(DecimalDataUtils.castFrom(-1000.5d, 10, 5), row.getDecimal(0, 10, 5));
 
 			// check correct number of rows
 			long cnt = 1;
@@ -187,7 +187,7 @@ public class OrcColumnarRowSplitReaderTest {
 					split)) {
 				// read and count all rows
 				while (!reader.reachedEnd()) {
-					BaseRow row = reader.nextRecord(null);
+					RowData row = reader.nextRecord(null);
 
 					// data values
 					Assert.assertFalse(row.isNullAt(3));
@@ -200,7 +200,7 @@ public class OrcColumnarRowSplitReaderTest {
 					Assert.assertFalse(row.isNullAt(1));
 					Assert.assertFalse(row.isNullAt(2));
 					Assert.assertFalse(row.isNullAt(4));
-					Assert.assertEquals(Decimal.castFrom(5.333, 10, 5), row.getDecimal(0, 10, 5));
+					Assert.assertEquals(DecimalDataUtils.castFrom(5.333, 10, 5), row.getDecimal(0, 10, 5));
 					Assert.assertEquals(1, row.getInt(1));
 					Assert.assertEquals(3, row.getLong(2));
 					Assert.assertEquals("f5", row.getString(4).toString());
@@ -229,7 +229,7 @@ public class OrcColumnarRowSplitReaderTest {
 					split)) {
 				// read and count all rows
 				while (!reader.reachedEnd()) {
-					BaseRow row = reader.nextRecord(null);
+					RowData row = reader.nextRecord(null);
 					Assert.assertFalse(row.isNullAt(0));
 					Assert.assertFalse(row.isNullAt(1));
 					Assert.assertFalse(row.isNullAt(2));
@@ -344,7 +344,7 @@ public class OrcColumnarRowSplitReaderTest {
 				split)) {
 			// read and count all rows
 			while (!reader.reachedEnd()) {
-				BaseRow row = reader.nextRecord(null);
+				RowData row = reader.nextRecord(null);
 
 				if (cnt == rowSize - 1) {
 					Assert.assertTrue(row.isNullAt(0));
@@ -359,7 +359,7 @@ public class OrcColumnarRowSplitReaderTest {
 					Assert.assertFalse(row.isNullAt(3));
 					Assert.assertFalse(row.isNullAt(4));
 					Assert.assertEquals(
-							SqlTimestamp.fromTimestamp(toTimestamp(cnt)),
+							TimestampData.fromTimestamp(toTimestamp(cnt)),
 							row.getTimestamp(0, 9));
 					Assert.assertEquals(cnt, row.getFloat(1), 0);
 					Assert.assertEquals(cnt, row.getDouble(2), 0);
