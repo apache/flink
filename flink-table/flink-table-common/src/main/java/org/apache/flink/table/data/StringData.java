@@ -19,6 +19,7 @@
 package org.apache.flink.table.data;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.VarCharType;
 
@@ -48,16 +49,14 @@ public interface StringData extends Comparable<StringData> {
 	 * Creates an instance of {@link StringData} from the given {@link String}.
 	 */
 	static StringData fromString(String str) {
-		// TODO
-		throw new UnsupportedOperationException();
+		return BinaryStringData.fromString(str);
 	}
 
 	/**
 	 * Creates an instance of {@link StringData} from the given UTF-8 byte array.
 	 */
 	static StringData fromBytes(byte[] bytes) {
-		// TODO
-		throw new UnsupportedOperationException();
+		return BinaryStringData.fromBytes(bytes);
 	}
 
 	/**
@@ -65,7 +64,6 @@ public interface StringData extends Comparable<StringData> {
 	 * of bytes.
 	 */
 	static StringData fromBytes(byte[] bytes, int offset, int numBytes) {
-		// TODO
-		throw new UnsupportedOperationException();
+		return BinaryStringData.fromBytes(bytes, offset, numBytes);
 	}
 }

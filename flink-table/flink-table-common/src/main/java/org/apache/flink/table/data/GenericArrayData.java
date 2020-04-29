@@ -132,6 +132,10 @@ public final class GenericArrayData implements ArrayData {
 		return !isPrimitiveArray && ((Object[]) array)[pos] == null;
 	}
 
+	// ------------------------------------------------------------------------------------------
+	// Read-only accessor methods
+	// ------------------------------------------------------------------------------------------
+
 	@Override
 	public boolean getBoolean(int pos) {
 		return isPrimitiveArray ? ((boolean[]) array)[pos] : (boolean) getObject(pos);
@@ -210,6 +214,45 @@ public final class GenericArrayData implements ArrayData {
 
 	private Object getObject(int pos) {
 		return ((Object[]) array)[pos];
+	}
+
+	// ------------------------------------------------------------------------------------------
+	// Conversion Utilities
+	// ------------------------------------------------------------------------------------------
+
+	@Override
+	public boolean[] toBooleanArray() {
+		return (boolean[]) array;
+	}
+
+	@Override
+	public byte[] toByteArray() {
+		return (byte[]) array;
+	}
+
+	@Override
+	public short[] toShortArray() {
+		return (short[]) array;
+	}
+
+	@Override
+	public int[] toIntArray() {
+		return (int[]) array;
+	}
+
+	@Override
+	public long[] toLongArray() {
+		return (long[]) array;
+	}
+
+	@Override
+	public float[] toFloatArray() {
+		return (float[]) array;
+	}
+
+	@Override
+	public double[] toDoubleArray() {
+		return (double[]) array;
 	}
 }
 

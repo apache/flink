@@ -21,7 +21,10 @@ package org.apache.flink.table.data;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.RowKind;
+
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -184,6 +187,35 @@ public final class GenericRowData implements RowData {
 	@Override
 	public RowData getRow(int pos, int numFields) {
 		return (RowData) this.fields[pos];
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o instanceof GenericRowData) {
+			GenericRowData other = (GenericRowData) o;
+			return kind == other.kind && Arrays.equals(fields, other.fields);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * kind.hashCode() + Arrays.hashCode(fields);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(kind.shortString()).append("(");
+		for (int i = 0; i < fields.length; i++) {
+			if (i != 0) {
+				sb.append(",");
+			}
+			sb.append(EncodingUtils.objectToString(fields[i]));
+		}
+		sb.append(")");
+		return sb.toString();
 	}
 
 	// ----------------------------------------------------------------------------------------
