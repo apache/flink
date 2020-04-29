@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator.CheckpointTriggerRequest;
 import org.apache.flink.runtime.util.clock.Clock;
 
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.function.Consumer;
@@ -39,17 +40,7 @@ class CheckpointRequestDecider {
 	private final long minPauseBetweenCheckpoints;
 	private final Supplier<Integer> pendingCheckpointsSizeSupplier;
 	private final Object lock;
-	private final PriorityQueue<CheckpointTriggerRequest> triggerRequestQueue = new PriorityQueue<>((r1, r2) -> {
-		if (r1.props.isSavepoint() != r2.props.isSavepoint()) {
-			return r1.props.isSavepoint() ? -1 : 1;
-		} else if (r1.props.forceCheckpoint() != r2.props.forceCheckpoint()) {
-			return r1.props.forceCheckpoint() ? -1 : 1;
-		} else if (r1.isPeriodic != r2.isPeriodic) {
-			return r1.isPeriodic ? 1 : -1;
-		} else {
-			return Long.compare(r1.timestamp, r2.timestamp);
-		}
-	});
+	private final PriorityQueue<CheckpointTriggerRequest> triggerRequestQueue = new PriorityQueue<>(checkpointTriggerRequestsComparator());
 
 	CheckpointRequestDecider(
 			int maxConcurrentCheckpointAttempts,
@@ -153,4 +144,19 @@ class CheckpointRequestDecider {
 			request.completeExceptionally(exception);
 		}
 	}
+
+	private static Comparator<CheckpointTriggerRequest> checkpointTriggerRequestsComparator() {
+		return (r1, r2) -> {
+			if (r1.props.isSavepoint() != r2.props.isSavepoint()) {
+				return r1.props.isSavepoint() ? -1 : 1;
+			} else if (r1.props.forceCheckpoint() != r2.props.forceCheckpoint()) {
+				return r1.props.forceCheckpoint() ? -1 : 1;
+			} else if (r1.isPeriodic != r2.isPeriodic) {
+				return r1.isPeriodic ? 1 : -1;
+			} else {
+				return Long.compare(r1.timestamp, r2.timestamp);
+			}
+		};
+	}
+
 }

@@ -165,7 +165,7 @@ public class CheckpointCoordinator {
 	/** The master checkpoint hooks executed by this checkpoint coordinator. */
 	private final HashMap<String, MasterTriggerRestoreHook<?>> masterHooks;
 
-	private final boolean isUnalignedCheckpointsEnabled;
+	private final boolean unalignedCheckpointsEnabled;
 
 	/** Actor that receives status updates from the execution graph this coordinator works for. */
 	private JobStatusListener jobStatusListener;
@@ -295,7 +295,7 @@ public class CheckpointCoordinator {
 		this.failureManager = checkNotNull(failureManager);
 		this.clock = checkNotNull(clock);
 		this.isExactlyOnceMode = chkConfig.isExactlyOnce();
-		this.isUnalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
+		this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
 
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.masterHooks = new HashMap<>();
@@ -426,7 +426,7 @@ public class CheckpointCoordinator {
 	 *                               configured
 	 */
 	public CompletableFuture<CompletedCheckpoint> triggerSavepoint(final long timestamp, @Nullable final String targetLocation) {
-		return triggerSavepointInternal(timestamp, CheckpointProperties.forSavepoint(!isUnalignedCheckpointsEnabled), false, targetLocation);
+		return triggerSavepointInternal(timestamp, CheckpointProperties.forSavepoint(!unalignedCheckpointsEnabled), false, targetLocation);
 	}
 
 	/**
@@ -447,7 +447,7 @@ public class CheckpointCoordinator {
 			final boolean advanceToEndOfEventTime,
 			@Nullable final String targetLocation) {
 
-		final CheckpointProperties properties = CheckpointProperties.forSyncSavepoint(!isUnalignedCheckpointsEnabled);
+		final CheckpointProperties properties = CheckpointProperties.forSyncSavepoint(!unalignedCheckpointsEnabled);
 
 		return triggerSavepointInternal(timestamp, properties, advanceToEndOfEventTime, targetLocation);
 	}
@@ -728,7 +728,7 @@ public class CheckpointCoordinator {
 			props.getCheckpointType(),
 			checkpointStorageLocation.getLocationReference(),
 			isExactlyOnceMode,
-			isUnalignedCheckpointsEnabled);
+			unalignedCheckpointsEnabled);
 
 		// send the messages to the tasks that trigger their checkpoint
 		for (Execution execution: executions) {
