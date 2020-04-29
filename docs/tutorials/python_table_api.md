@@ -81,6 +81,33 @@ t_env.connect(FileSystem().path('/tmp/output')) \
     .register_table_sink('mySink')
 {% endhighlight %}
 
+You can also use the TableEnvironment.sql_update() method to register a source/sink table defined in DDL:
+{% highlight python %}
+my_source_ddl = """
+    create table mySource (
+        word VARCHAR
+    ) with (
+        'connector.type' = 'filesystem',
+        'format.type' = 'csv',
+        'connector.path' = '/tmp/input'
+    )
+"""
+
+my_sink_ddl = """
+    create table mySink (
+        word VARCHAR,
+        `count` BIGINT
+    ) with (
+        'connector.type' = 'filesystem',
+        'format.type' = 'csv',
+        'connector.path' = '/tmp/output'
+    )
+"""
+
+t_env.sql_update(my_source_ddl)
+t_env.sql_update(my_sink_ddl)
+{% endhighlight %}
+
 This registers a table named `mySource` and a table named `mySink` in the
 `ExecutionEnvironment`. The table `mySource` has only one column: word.
 It represents the words read from file `/tmp/input`. The table `mySink` has two columns:
