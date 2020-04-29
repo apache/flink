@@ -23,10 +23,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.dataformat.BaseMap;
-import org.apache.flink.table.dataformat.BinaryArray;
-import org.apache.flink.table.dataformat.BinaryMap;
-import org.apache.flink.table.dataformat.GenericMap;
+import org.apache.flink.table.data.GenericMapData;
+import org.apache.flink.table.data.MapData;
+import org.apache.flink.table.data.binary.BinaryArrayData;
+import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -35,17 +35,19 @@ import org.apache.flink.testutils.DeeplyEqualsChecker;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.data.util.MapDataUtil.convertToJavaMap;
+
 /**
- * Test for {@link BaseMapSerializerTest}.
+ * Test for {@link MapDataSerializerTest}.
  */
-public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
+public class MapDataSerializerTest extends SerializerTestBase<MapData> {
 
 	private static final LogicalType BIGINT = DataTypes.BIGINT().getLogicalType();
 	private static final LogicalType FLOAT = DataTypes.FLOAT().getLogicalType();
 
-	public BaseMapSerializerTest() {
+	public MapDataSerializerTest() {
 		super(new DeeplyEqualsChecker().withCustomCheck(
-			(o1, o2) -> o1 instanceof BaseMap && o2 instanceof BaseMap,
+			(o1, o2) -> o1 instanceof MapData && o2 instanceof MapData,
 			(o1, o2, checker) ->
 				// Better is more proper to compare the maps after changing them to Java maps
 				// instead of binary maps. For example, consider the following two maps:
@@ -53,14 +55,14 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 				// These are actually the same maps, but their key / value order will be
 				// different when stored as binary maps, and the equalsTo method of binary
 				// map will return false.
-				((BaseMap) o1).toJavaMap(BIGINT, FLOAT)
-					.equals(((BaseMap) o2).toJavaMap(BIGINT, FLOAT))
+				convertToJavaMap((MapData) o1, BIGINT, FLOAT)
+					.equals(convertToJavaMap((MapData) o2, BIGINT, FLOAT))
 		));
 	}
 
 	@Override
-	protected TypeSerializer<BaseMap> createSerializer() {
-		return new BaseMapSerializer(
+	protected TypeSerializer<MapData> createSerializer() {
+		return new MapDataSerializer(
 			new BigIntType(), new FloatType(), LongSerializer.INSTANCE, FloatSerializer.INSTANCE);
 	}
 
@@ -70,16 +72,16 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 	}
 
 	@Override
-	protected Class<BaseMap> getTypeClass() {
-		return BaseMap.class;
+	protected Class<MapData> getTypeClass() {
+		return MapData.class;
 	}
 
 	@Override
-	protected BaseMap[] getTestData() {
+	protected MapData[] getTestData() {
 		Map<Object, Object> first = new HashMap<>();
 		first.put(1L, -100.1F);
-		BinaryArray keyBinary = BinaryArray.fromPrimitiveArray(new long[]{10L});
-		BinaryArray valueBinary = BinaryArray.fromPrimitiveArray(new float[]{10.2F});
-		return new BaseMap[]{new GenericMap(first), BinaryMap.valueOf(keyBinary, valueBinary)};
+		BinaryArrayData keyBinary = BinaryArrayData.fromPrimitiveArray(new long[]{10L});
+		BinaryArrayData valueBinary = BinaryArrayData.fromPrimitiveArray(new float[]{10.2F});
+		return new MapData[]{new GenericMapData(first), BinaryMapData.valueOf(keyBinary, valueBinary)};
 	}
 }

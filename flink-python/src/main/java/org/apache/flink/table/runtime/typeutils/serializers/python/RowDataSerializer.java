@@ -28,9 +28,8 @@ import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -40,11 +39,11 @@ import java.util.Arrays;
 import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoNullMask;
 
 /**
- * A {@link TypeSerializer} for {@link BaseRow}. It should be noted that the header will not be encoded.
- * Currently Python doesn't support BaseRow natively, so we can't use BaseRowSerializer in blink directly.
+ * A {@link TypeSerializer} for {@link RowData}. It should be noted that the header will not be encoded.
+ * Currently Python doesn't support RowData natively, so we can't use RowDataSerializer in blink directly.
  */
 @Internal
-public class BaseRowSerializer extends org.apache.flink.table.runtime.typeutils.BaseRowSerializer {
+public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.RowDataSerializer {
 
 	private final LogicalType[] fieldTypes;
 
@@ -52,7 +51,7 @@ public class BaseRowSerializer extends org.apache.flink.table.runtime.typeutils.
 
 	private transient boolean[] nullMask;
 
-	public BaseRowSerializer(LogicalType[] types, TypeSerializer[] fieldSerializers) {
+	public RowDataSerializer(LogicalType[] types, TypeSerializer[] fieldSerializers) {
 		super(types, fieldSerializers);
 		this.fieldTypes = types;
 		this.fieldSerializers = fieldSerializers;
@@ -60,7 +59,7 @@ public class BaseRowSerializer extends org.apache.flink.table.runtime.typeutils.
 	}
 
 	@Override
-	public void serialize(BaseRow row, DataOutputView target) throws IOException {
+	public void serialize(RowData row, DataOutputView target) throws IOException {
 		int len = fieldSerializers.length;
 
 		if (row.getArity() != len) {
@@ -72,20 +71,20 @@ public class BaseRowSerializer extends org.apache.flink.table.runtime.typeutils.
 
 		for (int i = 0; i < row.getArity(); i++) {
 			if (!row.isNullAt(i)) {
-				// TODO: support BaseRow natively in Python, then we can eliminate the redundant serialize/deserialize
-				fieldSerializers[i].serialize(TypeGetterSetters.get(row, i, fieldTypes[i]), target);
+				// TODO: support RowData natively in Python, then we can eliminate the redundant serialize/deserialize
+				fieldSerializers[i].serialize(RowData.get(row, i, fieldTypes[i]), target);
 			}
 		}
 	}
 
 	@Override
-	public BaseRow deserialize(DataInputView source) throws IOException {
+	public RowData deserialize(DataInputView source) throws IOException {
 		int len = fieldSerializers.length;
 
 		// read null mask
 		readIntoNullMask(len, source, nullMask);
 
-		GenericRow row = new GenericRow(fieldSerializers.length);
+		GenericRowData row = new GenericRowData(fieldSerializers.length);
 		for (int i = 0; i < row.getArity(); i++) {
 			if (nullMask[i]) {
 				row.setField(i, null);
@@ -97,7 +96,7 @@ public class BaseRowSerializer extends org.apache.flink.table.runtime.typeutils.
 	}
 
 	@Override
-	public BaseRow deserialize(BaseRow reuse, DataInputView source) throws IOException {
+	public RowData deserialize(RowData reuse, DataInputView source) throws IOException {
 		return deserialize(source);
 	}
 
@@ -106,7 +105,7 @@ public class BaseRowSerializer extends org.apache.flink.table.runtime.typeutils.
 		serialize(deserialize(source), target);
 	}
 
-	private static void writeNullMask(int len, BaseRow value, DataOutputView target) throws IOException {
+	private static void writeNullMask(int len, RowData value, DataOutputView target) throws IOException {
 		int b = 0x00;
 		int bytePos = 0;
 
@@ -134,25 +133,25 @@ public class BaseRowSerializer extends org.apache.flink.table.runtime.typeutils.
 	}
 
 	@Override
-	public TypeSerializerSnapshot<BaseRow> snapshotConfiguration() {
-		return new BaseRowSerializerSnapshot(fieldTypes, fieldSerializers);
+	public TypeSerializerSnapshot<RowData> snapshotConfiguration() {
+		return new RowDataSerializerSnapshot(fieldTypes, fieldSerializers);
 	}
 
 	/**
-	 * {@link TypeSerializerSnapshot} for {@link BaseRowSerializer}.
+	 * {@link TypeSerializerSnapshot} for {@link RowDataSerializer}.
 	 */
-	public static final class BaseRowSerializerSnapshot implements TypeSerializerSnapshot<BaseRow> {
+	public static final class RowDataSerializerSnapshot implements TypeSerializerSnapshot<RowData> {
 		private static final int CURRENT_VERSION = 3;
 
 		private LogicalType[] previousTypes;
 		private NestedSerializersSnapshotDelegate nestedSerializersSnapshotDelegate;
 
 		@SuppressWarnings("unused")
-		public BaseRowSerializerSnapshot() {
+		public RowDataSerializerSnapshot() {
 			// this constructor is used when restoring from a checkpoint/savepoint.
 		}
 
-		BaseRowSerializerSnapshot(LogicalType[] types, TypeSerializer[] serializers) {
+		RowDataSerializerSnapshot(LogicalType[] types, TypeSerializer[] serializers) {
 			this.previousTypes = types;
 			this.nestedSerializersSnapshotDelegate = new NestedSerializersSnapshotDelegate(
 				serializers);
@@ -196,32 +195,32 @@ public class BaseRowSerializer extends org.apache.flink.table.runtime.typeutils.
 		}
 
 		@Override
-		public BaseRowSerializer restoreSerializer() {
-			return new BaseRowSerializer(
+		public RowDataSerializer restoreSerializer() {
+			return new RowDataSerializer(
 				previousTypes,
 				nestedSerializersSnapshotDelegate.getRestoredNestedSerializers()
 			);
 		}
 
 		@Override
-		public TypeSerializerSchemaCompatibility<BaseRow> resolveSchemaCompatibility(TypeSerializer<BaseRow> newSerializer) {
-			if (!(newSerializer instanceof BaseRowSerializer)) {
+		public TypeSerializerSchemaCompatibility<RowData> resolveSchemaCompatibility(TypeSerializer<RowData> newSerializer) {
+			if (!(newSerializer instanceof RowDataSerializer)) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			}
 
-			BaseRowSerializer newRowSerializer = (BaseRowSerializer) newSerializer;
+			RowDataSerializer newRowSerializer = (RowDataSerializer) newSerializer;
 			if (!Arrays.equals(previousTypes, newRowSerializer.fieldTypes)) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			}
 
-			CompositeTypeSerializerUtil.IntermediateCompatibilityResult<BaseRow> intermediateResult =
+			CompositeTypeSerializerUtil.IntermediateCompatibilityResult<RowData> intermediateResult =
 				CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
 					newRowSerializer.fieldSerializers,
 					nestedSerializersSnapshotDelegate.getNestedSerializerSnapshots()
 				);
 
 			if (intermediateResult.isCompatibleWithReconfiguredSerializer()) {
-				BaseRowSerializer reconfiguredCompositeSerializer = restoreSerializer();
+				RowDataSerializer reconfiguredCompositeSerializer = restoreSerializer();
 				return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
 					reconfiguredCompositeSerializer);
 			}

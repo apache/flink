@@ -22,9 +22,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.typeutils.serializers.python.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.RowDataSerializer;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -38,24 +38,24 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for {@link BaseRowPythonTableFunctionRunner}. These test that
+ * Tests for {@link RowDataPythonTableFunctionRunner}. These test that
  * the input data type and output data type are properly constructed.
  */
-public class BaseRowPythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRunnerTest<BaseRow> {
+public class RowDataPythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRunnerTest<RowData> {
 
 	@Test
 	public void testInputOutputDataTypeConstructedProperlyForSingleUDTF() throws Exception {
-		final AbstractPythonTableFunctionRunner<BaseRow> runner = createUDTFRunner();
+		final AbstractPythonTableFunctionRunner<RowData> runner = createUDTFRunner();
 
 		// check input TypeSerializer
 		TypeSerializer inputTypeSerializer = runner.getInputTypeSerializer();
-		assertTrue(inputTypeSerializer instanceof BaseRowSerializer);
+		assertTrue(inputTypeSerializer instanceof RowDataSerializer);
 
-		assertEquals(1, ((BaseRowSerializer) inputTypeSerializer).getArity());
+		assertEquals(1, ((RowDataSerializer) inputTypeSerializer).getArity());
 	}
 
 	@Override
-	public AbstractPythonTableFunctionRunner<BaseRow> createPythonTableFunctionRunner(
+	public AbstractPythonTableFunctionRunner<RowData> createPythonTableFunctionRunner(
 		PythonFunctionInfo pythonFunctionInfo,
 		RowType inputType,
 		RowType outputType) throws Exception {
@@ -69,7 +69,7 @@ public class BaseRowPythonTableFunctionRunnerTest extends AbstractPythonTableFun
 				new String[]{System.getProperty("java.io.tmpdir")},
 				new HashMap<>());
 
-		return new BaseRowPythonTableFunctionRunner(
+		return new RowDataPythonTableFunctionRunner(
 			"testPythonRunner",
 			dummyReceiver,
 			pythonFunctionInfo,

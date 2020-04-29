@@ -19,9 +19,9 @@
 package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
-import org.apache.flink.table.dataformat.vector.ColumnVector;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.vector.ColumnVector;
 import org.apache.flink.table.runtime.arrow.readers.ArrayFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.ArrowFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.BigIntFieldReader;
@@ -54,7 +54,7 @@ import org.apache.flink.table.runtime.arrow.vectors.ArrowTimestampColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTinyIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarBinaryColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarCharColumnVector;
-import org.apache.flink.table.runtime.arrow.vectors.BaseRowArrowReader;
+import org.apache.flink.table.runtime.arrow.vectors.RowDataArrowReader;
 import org.apache.flink.table.runtime.arrow.writers.ArrayWriter;
 import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
 import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
@@ -247,45 +247,45 @@ public final class ArrowUtils {
 	/**
 	 * Creates an {@link ArrowWriter} for blink planner for the specified {@link VectorSchemaRoot}.
 	 */
-	public static ArrowWriter<BaseRow> createBaseRowArrowWriter(VectorSchemaRoot root, RowType rowType) {
-		ArrowFieldWriter<BaseRow>[] fieldWriters = new ArrowFieldWriter[root.getFieldVectors().size()];
+	public static ArrowWriter<RowData> createRowDataArrowWriter(VectorSchemaRoot root, RowType rowType) {
+		ArrowFieldWriter<RowData>[] fieldWriters = new ArrowFieldWriter[root.getFieldVectors().size()];
 		List<FieldVector> vectors = root.getFieldVectors();
 		for (int i = 0; i < vectors.size(); i++) {
 			FieldVector vector = vectors.get(i);
 			vector.allocateNew();
-			fieldWriters[i] = createArrowFieldWriter(vector, rowType.getTypeAt(i));
+			fieldWriters[i] = createArrowFieldWriterForRow(vector, rowType.getTypeAt(i));
 		}
 
 		return new ArrowWriter<>(root, fieldWriters);
 	}
 
-	private static <T extends TypeGetterSetters> ArrowFieldWriter<T> createArrowFieldWriter(ValueVector vector, LogicalType fieldType) {
+	private static ArrowFieldWriter<RowData> createArrowFieldWriterForRow(ValueVector vector, LogicalType fieldType) {
 		if (vector instanceof TinyIntVector) {
-			return new TinyIntWriter<>((TinyIntVector) vector);
+			return TinyIntWriter.forRow((TinyIntVector) vector);
 		} else if (vector instanceof SmallIntVector) {
-			return new SmallIntWriter<>((SmallIntVector) vector);
+			return SmallIntWriter.forRow((SmallIntVector) vector);
 		} else if (vector instanceof IntVector) {
-			return new IntWriter<>((IntVector) vector);
+			return IntWriter.forRow((IntVector) vector);
 		} else if (vector instanceof BigIntVector) {
-			return new BigIntWriter<>((BigIntVector) vector);
+			return BigIntWriter.forRow((BigIntVector) vector);
 		} else if (vector instanceof BitVector) {
-			return new BooleanWriter<>((BitVector) vector);
+			return BooleanWriter.forRow((BitVector) vector);
 		} else if (vector instanceof Float4Vector) {
-			return new FloatWriter<>((Float4Vector) vector);
+			return FloatWriter.forRow((Float4Vector) vector);
 		} else if (vector instanceof Float8Vector) {
-			return new DoubleWriter<>((Float8Vector) vector);
+			return DoubleWriter.forRow((Float8Vector) vector);
 		} else if (vector instanceof VarCharVector) {
-			return new VarCharWriter<>((VarCharVector) vector);
+			return VarCharWriter.forRow((VarCharVector) vector);
 		} else if (vector instanceof VarBinaryVector) {
-			return new VarBinaryWriter<>((VarBinaryVector) vector);
+			return VarBinaryWriter.forRow((VarBinaryVector) vector);
 		} else if (vector instanceof DecimalVector) {
 			DecimalVector decimalVector = (DecimalVector) vector;
-			return new DecimalWriter<>(decimalVector, getPrecision(decimalVector), decimalVector.getScale());
+			return DecimalWriter.forRow(decimalVector, getPrecision(decimalVector), decimalVector.getScale());
 		} else if (vector instanceof DateDayVector) {
-			return new DateWriter<>((DateDayVector) vector);
+			return DateWriter.forRow((DateDayVector) vector);
 		} else if (vector instanceof TimeSecVector || vector instanceof TimeMilliVector ||
 			vector instanceof TimeMicroVector || vector instanceof TimeNanoVector) {
-			return new TimeWriter<>(vector);
+			return TimeWriter.forRow(vector);
 		} else if (vector instanceof TimeStampVector && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
 			int precision;
 			if (fieldType instanceof LocalZonedTimestampType) {
@@ -293,20 +293,74 @@ public final class ArrowUtils {
 			} else {
 				precision = ((TimestampType) fieldType).getPrecision();
 			}
-			return new TimestampWriter<>(vector, precision);
+			return TimestampWriter.forRow(vector, precision);
 		} else if (vector instanceof ListVector) {
 			ListVector listVector = (ListVector) vector;
 			LogicalType elementType = ((ArrayType) fieldType).getElementType();
-			return new ArrayWriter<>(listVector, createArrowFieldWriter(listVector.getDataVector(), elementType));
+			return ArrayWriter.forRow(listVector, createArrowFieldWriterForArray(listVector.getDataVector(), elementType));
 		} else if (vector instanceof StructVector) {
 			RowType rowType = (RowType) fieldType;
-			ArrowFieldWriter<TypeGetterSetters>[] fieldsWriters = new ArrowFieldWriter[rowType.getFieldCount()];
+			ArrowFieldWriter<RowData>[] fieldsWriters = new ArrowFieldWriter[rowType.getFieldCount()];
 			for (int i = 0; i < fieldsWriters.length; i++) {
-				fieldsWriters[i] = createArrowFieldWriter(
+				fieldsWriters[i] = createArrowFieldWriterForRow(
 					((StructVector) vector).getVectorById(i),
 					rowType.getTypeAt(i));
 			}
-			return new RowWriter<>((StructVector) vector, fieldsWriters);
+			return RowWriter.forRow((StructVector) vector, fieldsWriters);
+		} else {
+			throw new UnsupportedOperationException(String.format(
+				"Unsupported type %s.", fieldType));
+		}
+	}
+
+	private static ArrowFieldWriter<ArrayData> createArrowFieldWriterForArray(ValueVector vector, LogicalType fieldType) {
+		if (vector instanceof TinyIntVector) {
+			return TinyIntWriter.forArray((TinyIntVector) vector);
+		} else if (vector instanceof SmallIntVector) {
+			return SmallIntWriter.forArray((SmallIntVector) vector);
+		} else if (vector instanceof IntVector) {
+			return IntWriter.forArray((IntVector) vector);
+		} else if (vector instanceof BigIntVector) {
+			return BigIntWriter.forArray((BigIntVector) vector);
+		} else if (vector instanceof BitVector) {
+			return BooleanWriter.forArray((BitVector) vector);
+		} else if (vector instanceof Float4Vector) {
+			return FloatWriter.forArray((Float4Vector) vector);
+		} else if (vector instanceof Float8Vector) {
+			return DoubleWriter.forArray((Float8Vector) vector);
+		} else if (vector instanceof VarCharVector) {
+			return VarCharWriter.forArray((VarCharVector) vector);
+		} else if (vector instanceof VarBinaryVector) {
+			return VarBinaryWriter.forArray((VarBinaryVector) vector);
+		} else if (vector instanceof DecimalVector) {
+			DecimalVector decimalVector = (DecimalVector) vector;
+			return DecimalWriter.forArray(decimalVector, getPrecision(decimalVector), decimalVector.getScale());
+		} else if (vector instanceof DateDayVector) {
+			return DateWriter.forArray((DateDayVector) vector);
+		} else if (vector instanceof TimeSecVector || vector instanceof TimeMilliVector ||
+			vector instanceof TimeMicroVector || vector instanceof TimeNanoVector) {
+			return TimeWriter.forArray(vector);
+		} else if (vector instanceof TimeStampVector && ((ArrowType.Timestamp) vector.getField().getType()).getTimezone() == null) {
+			int precision;
+			if (fieldType instanceof LocalZonedTimestampType) {
+				precision = ((LocalZonedTimestampType) fieldType).getPrecision();
+			} else {
+				precision = ((TimestampType) fieldType).getPrecision();
+			}
+			return TimestampWriter.forArray(vector, precision);
+		} else if (vector instanceof ListVector) {
+			ListVector listVector = (ListVector) vector;
+			LogicalType elementType = ((ArrayType) fieldType).getElementType();
+			return ArrayWriter.forArray(listVector, createArrowFieldWriterForArray(listVector.getDataVector(), elementType));
+		} else if (vector instanceof StructVector) {
+			RowType rowType = (RowType) fieldType;
+			ArrowFieldWriter<RowData>[] fieldsWriters = new ArrowFieldWriter[rowType.getFieldCount()];
+			for (int i = 0; i < fieldsWriters.length; i++) {
+				fieldsWriters[i] = createArrowFieldWriterForRow(
+					((StructVector) vector).getVectorById(i),
+					rowType.getTypeAt(i));
+			}
+			return RowWriter.forArray((StructVector) vector, fieldsWriters);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
@@ -376,14 +430,14 @@ public final class ArrowUtils {
 	/**
 	 * Creates an {@link ArrowReader} for blink planner for the specified {@link VectorSchemaRoot}.
 	 */
-	public static BaseRowArrowReader createBaseRowArrowReader(VectorSchemaRoot root, RowType rowType) {
+	public static RowDataArrowReader createRowDataArrowReader(VectorSchemaRoot root, RowType rowType) {
 		List<ColumnVector> columnVectors = new ArrayList<>();
 		List<FieldVector> fieldVectors = root.getFieldVectors();
 		for (int i = 0; i < fieldVectors.size(); i++) {
 			columnVectors.add(createColumnVector(fieldVectors.get(i), rowType.getTypeAt(i)));
 		}
 
-		return new BaseRowArrowReader(columnVectors.toArray(new ColumnVector[0]));
+		return new RowDataArrowReader(columnVectors.toArray(new ColumnVector[0]));
 	}
 
 	public static ColumnVector createColumnVector(ValueVector vector, LogicalType fieldType) {
