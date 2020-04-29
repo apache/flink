@@ -23,8 +23,6 @@ import tempfile
 
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.table import BatchTableEnvironment, TableConfig
-from pyflink.table.descriptors import FileSystem, OldCsv, Schema
-from pyflink.table.types import DataTypes
 
 
 def word_count():
