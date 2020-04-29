@@ -78,8 +78,9 @@ public class FileSystemTableFactory implements
 
 	public static final ConfigOption<Long> SINK_ROLLING_POLICY_TIME_INTERVAL = key("sink.rolling-policy.time.interval")
 			.longType()
-			.defaultValue(60L * 1000L)
-			.withDescription("The maximum time duration a part file can stay open before rolling (by default 60 sec).");
+			.defaultValue(30L * 60 * 1000L)
+			.withDescription("The maximum time duration a part file can stay open before rolling" +
+					" (by default 30 min to avoid to many small files).");
 
 	public static final ConfigOption<Boolean> SINK_SHUFFLE_BY_PARTITION = key("sink.shuffle-by-partition.enable")
 			.booleanType()
