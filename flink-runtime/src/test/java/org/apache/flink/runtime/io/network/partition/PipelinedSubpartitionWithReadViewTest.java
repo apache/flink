@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
@@ -319,7 +320,12 @@ public class PipelinedSubpartitionWithReadViewTest {
 		assertEquals(1, availablityListener.getNumNotifications());
 		assertEquals(0, availablityListener.getNumPriorityEvents());
 
-		subpartition.add(createFilledFinishedBufferConsumer(3));
+		BufferConsumer eventBuffer = EventSerializer.toBufferConsumer(EndOfSuperstepEvent.INSTANCE);
+		subpartition.add(eventBuffer);
+		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(0, availablityListener.getNumPriorityEvents());
+
+		subpartition.add(createFilledFinishedBufferConsumer(4));
 		assertEquals(1, availablityListener.getNumNotifications());
 		assertEquals(0, availablityListener.getNumPriorityEvents());
 
@@ -334,13 +340,14 @@ public class PipelinedSubpartitionWithReadViewTest {
 		assertEquals(0, availablityListener.getNumPriorityEvents());
 
 		List<Buffer> inflight = subpartition.requestInflightBufferSnapshot();
-		assertEquals(Arrays.asList(1, 2, 3), inflight.stream().map(Buffer::getSize).collect(Collectors.toList()));
+		assertEquals(Arrays.asList(1, 2, 4), inflight.stream().map(Buffer::getSize).collect(Collectors.toList()));
 		inflight.forEach(Buffer::recycleBuffer);
 
 		assertNextEvent(readView, barrierBuffer.getWrittenBytes(), CheckpointBarrier.class, true, 2, false, true);
 		assertNextBuffer(readView, 1, true, 1, false, true);
-		assertNextBuffer(readView, 2, false, 0, false, true);
-		assertNextBuffer(readView, 3, false, 0, false, true);
+		assertNextBuffer(readView, 2, true, 0, true, true);
+		assertNextEvent(readView, eventBuffer.getWrittenBytes(), EndOfSuperstepEvent.class, false, 0, false, true);
+		assertNextBuffer(readView, 4, false, 0, false, true);
 		assertNoNextBuffer(readView);
 	}
 

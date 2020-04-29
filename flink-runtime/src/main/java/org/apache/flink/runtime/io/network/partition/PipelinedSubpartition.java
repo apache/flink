@@ -174,7 +174,9 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			// Meanwhile prepare the collection of in-flight buffers which would be fetched in the next step later.
 			for (BufferConsumer buffer : buffers) {
 				try (BufferConsumer bc = buffer.copy()) {
-					inflightBufferSnapshot.add(bc.build());
+					if (bc.isBuffer()) {
+						inflightBufferSnapshot.add(bc.build());
+					}
 				}
 			}
 
