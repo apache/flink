@@ -1,0 +1,98 @@
+---
+title: "Set up Job Manager Memory"
+nav-parent_id: ops_mem
+nav-pos: 3
+---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+* toc
+{:toc}
+
+The further described memory configuration is applicable starting with the release version *1.11*. If you upgrade Flink
+from earlier versions, check the [migration guide](mem_migration.html) because many changes were introduced with the *1.11* release.
+
+<span class="label label-info">Note</span> This memory setup guide is relevant <strong>only for job managers</strong>!
+The main job manager memory components have a similar but simpler structure compared to the [task executors'](mem_setup_tm.html).
+
+## Configure Total Memory
+
+If you run the job manager process locally, you do not need to configure memory options, they will have no effect.
+See also [notes for the execution mode](#notes-for-the-execution-mode). Otherwise, the simplest way to set up the
+memory configuration is to configure the total memory.
+See [how to configure it for the Flink process](mem_setup.html#configure-total-memory).
+
+## Detailed configuration
+
+The following table lists all memory components, depicted above, and references Flink configuration options which
+affect the size of the respective components:
+
+| &nbsp;&nbsp;**Component**&nbsp;&nbsp;                          | &nbsp;&nbsp;**Configuration options**&nbsp;&nbsp;                                                                                                                                                                                                                                                   | &nbsp;&nbsp;**Description**&nbsp;&nbsp;                                                                                                                                                                                                                                  |
+| :------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Total Process Memory](mem_setup.html#configure-total-memory)  | [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size)                                                                                                                                                                                                                   | The *total process memory* size for the job manager. This includes all the memory that a job manager JVM process consumes, consisting of the *total Flink memory*, *JVM metaspace* and *JVM overhead*.                                                                   |
+| [Total Flink Memory](mem_setup.html#configure-total-memory)    | [`jobmanager.memory.flink.size`](../config.html#jobmanager-memory-flink-size)                                                                                                                                                                                                                       | The *total Flink memory* size for the job manager. This includes all the memory that a job manager consumes, except for *JVM metaspace* and *JVM overhead*. It consists of [JVM Heap](#configure-jvm-heap) and [Off-heap Memory](#configure-off-heap-memory) Memory.     |
+| [JVM Heap](#configure-jvm-heap)                                | [`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)                                                                                                                                                                                                                         | *JVM Heap* memory size for job manager.                                                                                                                                                                                                                                  |
+| [Off-heap Memory](#configure-off-heap-memory)                  | [`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size)                                                                                                                                                                                                                 | *Off-heap* memory size for job manager. This option covers all off-heap memory usage including direct and native memory allocation.                                                                                                                                      |
+| [JVM metaspace](mem_setup.html#jvm-parameters)                 | [`jobmanager.memory.jvm-metaspace.size`](../config.html#jobmanager-memory-jvm-metaspace-size)                                                                                                                                                                                                       | Metaspace size of the Flink JVM process                                                                                                                                                                                                                                  |
+| JVM Overhead                                                   | [`jobmanager.memory.jvm-overhead.min`](../config.html#jobmanager-memory-jvm-overhead-min) <br/> [`jobmanager.memory.jvm-overhead.max`](../config.html#jobmanager-memory-jvm-overhead-max) <br/> [`jobmanager.memory.jvm-overhead.fraction`](../config.html#jobmanager-memory-jvm-overhead-fraction) | Native memory reserved for other JVM overhead: e.g. thread stacks, code cache, garbage collection space etc, it is a [capped fractionated component](mem_setup.html#capped-fractionated-components) of the [total process memory](mem_setup.html#configure-total-memory) |
+{:.table-bordered}
+<br/>
+
+### Configure JVM Heap
+
+As mentioned before in the [total memory description](mem_setup.html#configure-total-memory), another way to setup memory
+for job manager is to specify explicitly *JVM Heap* size ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)).
+It gives more control over the available *JVM Heap* to the following purposes:
+
+* Flink framework (e.g. *Job cache*)
+* User code running during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
+
+The required size of *JVM Heap* is mostly driven by the amount of running jobs, their structure and requirements for
+the mentioned user code.
+
+The *Job cache* resides in the *JVM Heap*. It already can be configured currently by
+[`jobstore.cache-size`](../config.html#jobstore-cache-size) which must be less than the configured or derived *JVM Heap*.
+
+<span class="label label-info">Note</span> If you have configured the *JVM Heap* explicitly, it is recommended to set
+neither *total process memory* nor *total Flink memory*. Otherwise, it may easily lead to memory configuration conflicts.
+The *JVM Heap* size is set as the corresponding JVM parameters (*-Xms* and *-Xmx*) when the job manager process is started
+by Flink’s scripts or CLI, see also [JVM parameters](mem_setup.html#jvm-parameters).
+
+### Configure Off-heap Memory
+
+The *Off-heap* memory component accounts for any type of *JVM direct memory* and *native memory* usage. Therefore, it
+is also set as the corresponding JVM argument: *-XX:MaxDirectMemorySize*, see also [JVM parameters](mem_setup.html#jvm-parameters).
+
+The size of this component can be configured by [`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size)
+option. This option can be tuned e.g. if the job manager process throws ‘OutOfMemoryError: Direct buffer memory’, see
+also [the troubleshooting guide](mem_trouble.html#outofmemoryerror-direct-buffer-memory).
+
+There can be the following possible sources of the *Off-heap* memory consumption in JM:
+
+* Flink framework dependencies (e.g. Akka network communication)
+* User code running during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
+
+## Notes for the execution mode
+
+The configuration options of the described components are relevant only if Flink is either started using the provided
+*bin* scripts for [standalone](../deployment/cluster_setup.html) and [Mesos](../deployment/mesos.html) deployments or
+via Flink’s CLI for other containerised deployments ([Kubernetes](../deployment/kubernetes.html) and [Yarn](../deployment/yarn_setup.html)).
+
+If you run Flink locally (e.g. from your IDE) without creating a cluster, then Flink’s JVM process is started manually
+and the configuration options of the described components are not applicable.
