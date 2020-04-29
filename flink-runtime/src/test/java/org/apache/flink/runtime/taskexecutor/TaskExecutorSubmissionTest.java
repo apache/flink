@@ -576,7 +576,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 		final CompletableFuture<Void> taskCanceledFuture = new CompletableFuture<>();
 
 		final Configuration configuration = new Configuration();
-		configuration.set(WebOptions.BACKPRESSURE_NUM_SAMPLES, 40);
+		configuration.set(WebOptions.BACKPRESSURE_NUM_SAMPLES, 20);
+		configuration.set(WebOptions.BACKPRESSURE_DELAY, 5);
 		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4096"));
 
 		try (final TaskSubmissionTestEnvironment env = new TaskSubmissionTestEnvironment.Builder(jobId)
@@ -626,12 +627,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			assertEquals("Task was not back pressured in given time.", 1.0, backPressureRatio, 0.0);
 
 			// 3) trigger request for the blocking task, but cancel it before request finishes.
-			final int sleepTime = 1000;
-
 			CompletableFuture<TaskBackPressureResponse> canceledRequestFuture =
 				tmGateway.requestTaskBackPressure(executionAttemptID, requestId, timeout);
-
-			Thread.sleep(sleepTime);
 
 			tmGateway.cancelTask(executionAttemptID, timeout);
 			taskCanceledFuture.get();
