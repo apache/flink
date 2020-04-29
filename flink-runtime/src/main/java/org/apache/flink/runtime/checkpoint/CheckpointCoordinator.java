@@ -201,8 +201,7 @@ public class CheckpointCoordinator {
 	/** Flag represents there is an in-flight trigger request. */
 	private boolean isTriggering = false;
 
-	/** A queue to cache those trigger requests which can't be trigger immediately. */
-	private final ArrayDeque<CheckpointTriggerRequest> triggerRequestQueue;
+	private final CheckpointRequestDecider requestDecider;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -294,7 +293,6 @@ public class CheckpointCoordinator {
 
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.masterHooks = new HashMap<>();
-		this.triggerRequestQueue = new ArrayDeque<>();
 
 		this.timer = timer;
 
@@ -314,6 +312,7 @@ public class CheckpointCoordinator {
 		} catch (Throwable t) {
 			throw new RuntimeException("Failed to start checkpoint ID counter: " + t.getMessage(), t);
 		}
+		this.requestDecider = new CheckpointRequestDecider(this.lock);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -503,44 +502,19 @@ public class CheckpointCoordinator {
 				"Only synchronous savepoints are allowed to advance the watermark to MAX."));
 		}
 
-		final CompletableFuture<CompletedCheckpoint> onCompletionPromise =
-			new CompletableFuture<>();
-		synchronized (lock) {
-			if (isTriggering || !triggerRequestQueue.isEmpty()) {
-				// we can't trigger checkpoint directly if there is a trigger request being processed
-				// or queued
-				triggerRequestQueue.add(new CheckpointTriggerRequest(
-					timestamp,
-					props,
-					externalSavepointLocation,
-					isPeriodic,
-					advanceToEndOfTime,
-					onCompletionPromise));
-				return onCompletionPromise;
-			}
-		}
-		startTriggeringCheckpoint(
-			timestamp,
-			props,
-			externalSavepointLocation,
-			isPeriodic,
-			advanceToEndOfTime,
-			onCompletionPromise);
-		return onCompletionPromise;
+		CheckpointTriggerRequest request = new CheckpointTriggerRequest(timestamp, props, externalSavepointLocation, isPeriodic, advanceToEndOfTime);
+		requestDecider
+			.chooseRequestToExecute(isTriggering, request)
+			.ifPresent(this::startTriggeringCheckpoint);
+
+		return request.getOnCompletionFuture();
 	}
 
-	private void startTriggeringCheckpoint(
-		long timestamp,
-		CheckpointProperties props,
-		@Nullable String externalSavepointLocation,
-		boolean isPeriodic,
-		boolean advanceToEndOfTime,
-		CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
-
+	private void startTriggeringCheckpoint(CheckpointTriggerRequest request) {
 		try {
 			// make some eager pre-checks
 			synchronized (lock) {
-				preCheckBeforeTriggeringCheckpoint(isPeriodic, props.forceCheckpoint());
+				preCheckBeforeTriggeringCheckpoint(request.isPeriodic, request.props.forceCheckpoint());
 			}
 
 			final Execution[] executions = getTriggerExecutions();
@@ -551,16 +525,16 @@ public class CheckpointCoordinator {
 			isTriggering = true;
 
 			final CompletableFuture<PendingCheckpoint> pendingCheckpointCompletableFuture =
-				initializeCheckpoint(props, externalSavepointLocation)
+				initializeCheckpoint(request.props, request.externalSavepointLocation)
 					.thenApplyAsync(
 						(checkpointIdAndStorageLocation) -> createPendingCheckpoint(
-							timestamp,
-							props,
+							request.timestamp,
+							request.props,
 							ackTasks,
-							isPeriodic,
+							request.isPeriodic,
 							checkpointIdAndStorageLocation.checkpointId,
 							checkpointIdAndStorageLocation.checkpointStorageLocation,
-							onCompletionPromise),
+							request.getOnCompletionFuture()),
 						timer);
 
 			final CompletableFuture<?> masterStatesComplete = pendingCheckpointCompletableFuture
@@ -581,17 +555,17 @@ public class CheckpointCoordinator {
 						if (throwable == null && checkpoint != null && !checkpoint.isDiscarded()) {
 							// no exception, no discarding, everything is OK
 							snapshotTaskState(
-								timestamp,
+								request.timestamp,
 								checkpoint.getCheckpointId(),
 								checkpoint.getCheckpointStorageLocation(),
-								props,
+								request.props,
 								executions,
-								advanceToEndOfTime);
+								request.advanceToEndOfTime);
 							onTriggerSuccess();
 						} else {
 								// the initialization might not be finished yet
 								if (checkpoint == null) {
-									onTriggerFailure(onCompletionPromise, throwable);
+									onTriggerFailure(request, throwable);
 								} else {
 									onTriggerFailure(checkpoint, throwable);
 								}
@@ -599,7 +573,7 @@ public class CheckpointCoordinator {
 					},
 					timer);
 		} catch (Throwable throwable) {
-			onTriggerFailure(onCompletionPromise, throwable);
+			onTriggerFailure(request, throwable);
 		}
 	}
 
@@ -781,7 +755,7 @@ public class CheckpointCoordinator {
 	private void onTriggerSuccess() {
 		isTriggering = false;
 		numUnsuccessfulCheckpointsTriggers.set(0);
-		checkQueuedCheckpointTriggerRequest();
+		executeQueuedRequest();
 	}
 
 	/**
@@ -792,7 +766,7 @@ public class CheckpointCoordinator {
 	 * @param throwable the reason of trigger failure
 	 */
 	private void onTriggerFailure(
-		CompletableFuture<CompletedCheckpoint> onCompletionPromise, Throwable throwable) {
+		CheckpointTriggerRequest onCompletionPromise, Throwable throwable) {
 		final CheckpointException checkpointException =
 			getCheckpointException(CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, throwable);
 		onCompletionPromise.completeExceptionally(checkpointException);
@@ -826,7 +800,7 @@ public class CheckpointCoordinator {
 			}
 		} finally {
 			isTriggering = false;
-			checkQueuedCheckpointTriggerRequest();
+			executeQueuedRequest();
 		}
 	}
 
@@ -834,25 +808,8 @@ public class CheckpointCoordinator {
 	 * Checks whether there is a trigger request queued. Consumes it if there is one.
 	 * NOTE: this must be called after each triggering
 	 */
-	private void checkQueuedCheckpointTriggerRequest() {
-		synchronized (lock) {
-			if (triggerRequestQueue.isEmpty()) {
-				return;
-			}
-		}
-		final CheckpointTriggerRequest request;
-		synchronized (lock) {
-			request = triggerRequestQueue.poll();
-		}
-		if (request != null) {
-			startTriggeringCheckpoint(
-				request.timestamp,
-				request.props,
-				request.externalSavepointLocation,
-				request.isPeriodic,
-				request.advanceToEndOfTime,
-				request.onCompletionPromise);
-		}
+	private void executeQueuedRequest() {
+		requestDecider.chooseQueuedRequestToExecute().ifPresent(this::startTriggeringCheckpoint);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1390,7 +1347,7 @@ public class CheckpointCoordinator {
 	}
 
 	public ArrayDeque<CheckpointTriggerRequest> getTriggerRequestQueue() {
-		return triggerRequestQueue;
+		return requestDecider.getTriggerRequestQueue();
 	}
 
 	public boolean isTriggering() {
@@ -1708,11 +1665,8 @@ public class CheckpointCoordinator {
 	}
 
 	private void abortPendingAndQueuedCheckpoints(CheckpointException exception) {
-		assert(Thread.holdsLock(lock));
-		CheckpointTriggerRequest request;
-		while ((request = triggerRequestQueue.poll()) != null) {
-			request.onCompletionPromise.completeExceptionally(exception);
-		}
+		assert (Thread.holdsLock(lock));
+		requestDecider.abortAll(exception);
 		abortPendingCheckpoints(exception);
 	}
 
@@ -1767,28 +1721,34 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	private static class CheckpointTriggerRequest {
+	static class CheckpointTriggerRequest {
 		private final long timestamp;
 		private final CheckpointProperties props;
 		private final @Nullable String externalSavepointLocation;
 		private final boolean isPeriodic;
 		private final boolean advanceToEndOfTime;
-		private final CompletableFuture<CompletedCheckpoint> onCompletionPromise;
+		private final CompletableFuture<CompletedCheckpoint> onCompletionPromise = new CompletableFuture<>();
 
 		CheckpointTriggerRequest(
 			long timestamp,
 			CheckpointProperties props,
 			@Nullable String externalSavepointLocation,
 			boolean isPeriodic,
-			boolean advanceToEndOfTime,
-			CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
+			boolean advanceToEndOfTime) {
 
 			this.timestamp = timestamp;
 			this.props = checkNotNull(props);
 			this.externalSavepointLocation = externalSavepointLocation;
 			this.isPeriodic = isPeriodic;
 			this.advanceToEndOfTime = advanceToEndOfTime;
-			this.onCompletionPromise = checkNotNull(onCompletionPromise);
+		}
+
+		private CompletableFuture<CompletedCheckpoint> getOnCompletionFuture() {
+			return onCompletionPromise;
+		}
+
+		public void completeExceptionally(CheckpointException exception) {
+			onCompletionPromise.completeExceptionally(exception);
 		}
 	}
 }
