@@ -1009,7 +1009,7 @@ CREATE TABLE MyUserTable (
     .documentType("user")              // required: Elasticsearch document type
 
     // optional: configure Elasticsearch cluster username and password 
-    .userName("myusername")    // optional: Elasticsearch cluster username
+    .username("myusername")    // optional: Elasticsearch cluster username
     .password("mypassword")    // optional: Elasticsearch cluster password
 
     .keyDelimiter("$")        // optional: delimiter for composite keys ("_" by default)
@@ -1055,7 +1055,7 @@ CREATE TABLE MyUserTable (
     .document_type("user")             # required: Elasticsearch document type
 
     // optional: configure ElasticSearch cluster username and password 
-    .userName("myusername")    // optional: Elasticsearch cluster username
+    .username("myusername")    // optional: Elasticsearch cluster username
     .password("mypassword")    // optional: Elasticsearch cluster password
 
     .key_delimiter("$")       # optional: delimiter for composite keys ("_" by default)

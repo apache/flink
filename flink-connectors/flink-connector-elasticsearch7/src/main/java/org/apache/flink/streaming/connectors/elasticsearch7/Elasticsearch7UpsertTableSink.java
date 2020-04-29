@@ -229,7 +229,7 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 	 */
 	static class AuthRestClientFactory implements RestClientFactory {
 
-		private String userName;
+		private String username;
 
 		private String password;
 
@@ -237,8 +237,8 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 
 		private transient CredentialsProvider credentialsProvider;
 
-		public AuthRestClientFactory(String userName, String password, @Nullable String pathPrefix) {
-			this.userName = userName;
+		public AuthRestClientFactory(String username, String password, @Nullable String pathPrefix) {
+			this.username = username;
 			this.password = password;
 			this.pathPrefix = pathPrefix;
 		}
@@ -247,7 +247,7 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 		public void configureRestClientBuilder(RestClientBuilder restClientBuilder) {
 			if (credentialsProvider == null) {
 				credentialsProvider = new BasicCredentialsProvider();
-				credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(userName, password));
+				credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));
 			}
 			restClientBuilder.setHttpClientConfigCallback(httpAsyncClientBuilder ->
 				httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
@@ -266,14 +266,14 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 				return false;
 			}
 			AuthRestClientFactory that = (AuthRestClientFactory) o;
-			return Objects.equals(userName, that.userName) &&
+			return Objects.equals(username, that.username) &&
 				Objects.equals(password, that.password) &&
 				Objects.equals(pathPrefix, that.pathPrefix);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(userName, password, pathPrefix);
+			return Objects.hash(username, password, pathPrefix);
 		}
 	}
 
