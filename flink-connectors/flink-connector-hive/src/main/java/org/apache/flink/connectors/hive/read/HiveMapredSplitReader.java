@@ -22,9 +22,9 @@ import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.DataFormatConverters;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
 
@@ -146,12 +146,12 @@ public class HiveMapredSplitReader implements SplitReader {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public BaseRow nextRecord(BaseRow reuse) throws IOException {
+	public RowData nextRecord(RowData reuse) throws IOException {
 		if (reachedEnd()) {
 			return null;
 		}
-		final GenericRow row = reuse instanceof GenericRow ?
-				(GenericRow) reuse : new GenericRow(selectedFields.length);
+		final GenericRowData row = reuse instanceof GenericRowData ?
+				(GenericRowData) reuse : new GenericRowData(selectedFields.length);
 		try {
 			//Use HiveDeserializer to deserialize an object out of a Writable blob
 			Object hiveRowStruct = deserializer.deserialize(value);

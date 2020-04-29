@@ -36,7 +36,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sources.LimitableTableSource;
@@ -75,10 +75,10 @@ import java.util.stream.Collectors;
  * A TableSource implementation to read data from Hive tables.
  */
 public class HiveTableSource implements
-		StreamTableSource<BaseRow>,
+		StreamTableSource<RowData>,
 		PartitionableTableSource,
-		ProjectableTableSource<BaseRow>,
-		LimitableTableSource<BaseRow> {
+		ProjectableTableSource<RowData>,
+		LimitableTableSource<RowData> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveTableSource.class);
 
@@ -139,18 +139,18 @@ public class HiveTableSource implements
 	}
 
 	@Override
-	public DataStream<BaseRow> getDataStream(StreamExecutionEnvironment execEnv) {
+	public DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
 		List<HiveTablePartition> allHivePartitions = initAllPartitions();
 
 		@SuppressWarnings("unchecked")
-		TypeInformation<BaseRow> typeInfo =
-				(TypeInformation<BaseRow>) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(getProducedDataType());
+		TypeInformation<RowData> typeInfo =
+				(TypeInformation<RowData>) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(getProducedDataType());
 
 		HiveTableInputFormat inputFormat = getInputFormat(
 				allHivePartitions,
 				flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER));
 
-		DataStreamSource<BaseRow> source = execEnv.createInput(inputFormat, typeInfo);
+		DataStreamSource<RowData> source = execEnv.createInput(inputFormat, typeInfo);
 
 		int parallelism = flinkConf.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM);
 		if (flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM)) {
@@ -212,7 +212,7 @@ public class HiveTableSource implements
 					Arrays.stream(projectedFields).mapToObj(i -> fullTypes[i]).toArray(DataType[]::new))
 					.build().toRowDataType();
 		}
-		return type.bridgedTo(BaseRow.class);
+		return type.bridgedTo(RowData.class);
 	}
 
 	@Override
@@ -221,7 +221,7 @@ public class HiveTableSource implements
 	}
 
 	@Override
-	public TableSource<BaseRow> applyLimit(long limit) {
+	public TableSource<RowData> applyLimit(long limit) {
 		return new HiveTableSource(
 				jobConf,
 				flinkConf,
@@ -242,7 +242,7 @@ public class HiveTableSource implements
 	}
 
 	@Override
-	public TableSource<BaseRow> applyPartitionPruning(List<Map<String, String>> remainingPartitions) {
+	public TableSource<RowData> applyPartitionPruning(List<Map<String, String>> remainingPartitions) {
 		if (catalogTable.getPartitionKeys() == null || catalogTable.getPartitionKeys().size() == 0) {
 			return this;
 		} else {
@@ -261,7 +261,7 @@ public class HiveTableSource implements
 	}
 
 	@Override
-	public TableSource<BaseRow> projectFields(int[] fields) {
+	public TableSource<RowData> projectFields(int[] fields) {
 		return new HiveTableSource(
 				jobConf,
 				flinkConf,

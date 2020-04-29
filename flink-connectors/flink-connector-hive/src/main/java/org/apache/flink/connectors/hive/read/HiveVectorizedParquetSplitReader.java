@@ -21,7 +21,7 @@ package org.apache.flink.connectors.hive.read;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.conf.Configuration;
@@ -32,7 +32,7 @@ import org.apache.hadoop.mapred.JobConf;
 
 import java.io.IOException;
 
-import static org.apache.flink.table.dataformat.vector.VectorizedColumnBatch.DEFAULT_SIZE;
+import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
 
 /**
  * Orc {@link SplitReader} to read files using {@link ParquetColumnarRowSplitReader}.
@@ -80,7 +80,7 @@ public class HiveVectorizedParquetSplitReader implements SplitReader {
 	}
 
 	@Override
-	public BaseRow nextRecord(BaseRow reuse) {
+	public RowData nextRecord(RowData reuse) {
 		return this.reader.nextRecord();
 	}
 
