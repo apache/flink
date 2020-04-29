@@ -176,7 +176,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			JobMasterGateway jobMasterGateway,
 			TaskManagerActions taskManagerActions,
 			Time timeout) {
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, () -> ContextClassLoaderLibraryCacheManager.INSTANCE);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, ignored -> ContextClassLoaderLibraryCacheManager.INSTANCE);
 		job.connect(
 			ResourceID.generate(),
 			jobMasterGateway,

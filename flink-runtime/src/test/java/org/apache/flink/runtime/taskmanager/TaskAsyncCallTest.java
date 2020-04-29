@@ -22,9 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -162,9 +159,6 @@ public class TaskAsyncCallTest extends TestLogger {
 	}
 
 	private Task createTask(Class<? extends AbstractInvokable> invokableClass) throws Exception {
-		BlobCacheService blobService =
-			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
-
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(new TestUserCodeClassLoader());
 
@@ -211,7 +205,6 @@ public class TaskAsyncCallTest extends TestLogger {
 			mock(CheckpointResponder.class),
 			new NoOpTaskOperatorEventGateway(),
 			new TestGlobalAggregateManager(),
-			blobService,
 			libCache,
 			mock(FileCache.class),
 			new TestingTaskManagerRuntimeInfo(),

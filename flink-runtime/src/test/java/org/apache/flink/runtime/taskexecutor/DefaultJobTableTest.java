@@ -35,7 +35,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
@@ -48,7 +48,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class DefaultJobTableTest extends TestLogger {
 
-	private static final Supplier<LibraryCacheManager> DEFAULT_LIBRARY_SUPPLIER = () -> ContextClassLoaderLibraryCacheManager.INSTANCE;
+	private static final Function<JobID, LibraryCacheManager> DEFAULT_LIBRARY_SUPPLIER = ignored -> ContextClassLoaderLibraryCacheManager.INSTANCE;
 
 	private final JobID jobId = new JobID();
 
@@ -88,7 +88,7 @@ public class DefaultJobTableTest extends TestLogger {
 		final TestingLibraryCacheManager testingLibraryCacheManager = TestingLibraryCacheManager.newBuilder()
 			.setShutdownRunnable(shutdownLibraryCacheManagerLatch::trigger)
 			.build();
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, () -> testingLibraryCacheManager);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, ignored -> testingLibraryCacheManager);
 
 		job.close();
 
@@ -187,8 +187,9 @@ public class DefaultJobTableTest extends TestLogger {
 		final TestingLibraryCacheManager classLoaderLease2 = TestingLibraryCacheManager.newBuilder()
 			.setShutdownRunnable(shutdownLibraryCacheManagerLatch::countDown)
 			.build();
-		jobTable.getOrCreateJob(jobId, () -> classLoaderLease1);
-		jobTable.getOrCreateJob(new JobID(), () -> classLoaderLease2);
+
+		jobTable.getOrCreateJob(jobId, ignored -> classLoaderLease1);
+		jobTable.getOrCreateJob(new JobID(), ignored -> classLoaderLease2);
 
 		jobTable.close();
 

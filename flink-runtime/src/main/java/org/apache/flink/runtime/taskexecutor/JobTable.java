@@ -29,7 +29,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 
 import java.util.Collection;
 import java.util.Optional;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /**
  * A {@link JobTable JobTable's} task is to manage the lifecycle
@@ -55,13 +55,13 @@ public interface JobTable extends AutoCloseable {
 	 * Gets a registered {@link Job} or creates one if not present.
 	 *
 	 * @param jobId jobId identifies the job to get
-	 * @param libraryCacheManagerSupplier libraryCacheManagerSupplier supplies a fresh
+	 * @param libraryCacheManagerFunction libraryCacheManagerFunction creates a fresh
 	 * {@link LibraryCacheManager} instance if a new job needs to be created
 	 * @return the current job (existing or created) registered under jobId
 	 */
 	Job getOrCreateJob(
 		JobID jobId,
-		Supplier<? extends LibraryCacheManager> libraryCacheManagerSupplier);
+		Function<JobID, ? extends LibraryCacheManager> libraryCacheManagerFunction);
 
 	/**
 	 * Gets the job registered under jobId.
