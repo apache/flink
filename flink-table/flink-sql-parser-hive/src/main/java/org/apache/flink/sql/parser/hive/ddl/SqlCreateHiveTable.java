@@ -43,12 +43,12 @@ import java.util.stream.Collectors;
  */
 public class SqlCreateHiveTable extends SqlCreateTable {
 
-	public static final String TABLE_LOCATION_URI = "table.location_uri";
-	public static final String TABLE_IS_TEMPORARY = "table.is.temporary";
-	public static final String TABLE_IS_EXTERNAL = "table.is.external";
-	public static final String PK_CONSTRAINT_NAME = "pk.constraint.name";
-	public static final String PK_CONSTRAINT_TRAIT = "pk.constraint.trait";
-	public static final String NOT_NULL_CONSTRAINT_TRAITS = "not.null.constraint.traits";
+	public static final String TABLE_LOCATION_URI = "hive.table.location-uri";
+	public static final String TABLE_IS_TEMPORARY = "hive.table.is-temporary";
+	public static final String TABLE_IS_EXTERNAL = "hive.table.is-external";
+	public static final String PK_CONSTRAINT_NAME = "hive.pk.constraint.name";
+	public static final String PK_CONSTRAINT_TRAIT = "hive.pk.constraint.trait";
+	public static final String NOT_NULL_CONSTRAINT_TRAITS = "hive.not.null.constraint.traits";
 
 	private final HiveTableCreationContext creationContext;
 	private final SqlNodeList originPropList;
@@ -322,9 +322,9 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 	 */
 	public static class HiveTableStoredAs {
 
-		public static final String STORED_AS_FILE_FORMAT = "stored.as.file.format";
-		public static final String STORED_AS_INPUT_FORMAT = "stored.as.input.format";
-		public static final String STORED_AS_OUTPUT_FORMAT = "stored.as.output.format";
+		public static final String STORED_AS_FILE_FORMAT = "hive.stored.as.file.format";
+		public static final String STORED_AS_INPUT_FORMAT = "hive.stored.as.input.format";
+		public static final String STORED_AS_OUTPUT_FORMAT = "hive.stored.as.output.format";
 
 		private final SqlParserPos pos;
 		private final SqlIdentifier fileFormat;
@@ -378,10 +378,10 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 	 */
 	public static class HiveTableRowFormat {
 
-		public static final String SERDE_LIB_CLASS_NAME = "serde.lib.class.name";
-		public static final String SERDE_INFO_PROP_PREFIX = "serde.info.prop.";
+		public static final String SERDE_LIB_CLASS_NAME = "hive.serde.lib.class.name";
+		public static final String SERDE_INFO_PROP_PREFIX = "hive.serde.info.prop.";
 		private static final String FIELD_DELIM = SERDE_INFO_PROP_PREFIX + "field.delim";
-		private static final String COLLECTION_DELIM = SERDE_INFO_PROP_PREFIX + "colelction.delim";
+		public static final String COLLECTION_DELIM = SERDE_INFO_PROP_PREFIX + "collection.delim";
 		private static final String ESCAPE_CHAR = SERDE_INFO_PROP_PREFIX + "escape.delim";
 		private static final String MAPKEY_DELIM = SERDE_INFO_PROP_PREFIX + "mapkey.delim";
 		private static final String LINE_DELIM = SERDE_INFO_PROP_PREFIX + "line.delim";

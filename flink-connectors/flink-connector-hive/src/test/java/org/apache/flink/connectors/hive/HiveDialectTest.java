@@ -152,6 +152,12 @@ public class HiveDialectTest {
 		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl4"));
 		assertEquals("|", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.FIELD_DELIM));
 		assertEquals("\n", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.LINE_DELIM));
+
+		tableEnv.sqlUpdate("create table tbl5 (m map<bigint,string>) row format delimited collection items terminated by ';' " +
+				"map keys terminated by ':'");
+		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
+		assertEquals(";", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.COLLECTION_DELIM));
+		assertEquals(":", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.MAPKEY_DELIM));
 	}
 
 	private static String locationPath(String locationURI) throws URISyntaxException {

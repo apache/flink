@@ -40,6 +40,7 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
 import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
+import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
@@ -51,6 +52,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.COLLECTION_DELIM;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_INFO_PROP_PREFIX;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_LIB_CLASS_NAME;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT;
@@ -194,7 +196,8 @@ public class HiveTableUtil {
 	}
 
 	/**
-	 * Extract DDL semantics from properties and use it to initiate the table.
+	 * Extract DDL semantics from properties and use it to initiate the table. The related properties will be removed
+	 * from the map after they're used.
 	 */
 	public static void initiateTableFromProperties(Table hiveTable, Map<String, String> properties) {
 		setExternal(hiveTable, properties);
@@ -228,8 +231,11 @@ public class HiveTableUtil {
 				.filter(p -> p.startsWith(SERDE_INFO_PROP_PREFIX))
 				.collect(Collectors.toList());
 		for (String prop : serdeProps) {
-			sd.getSerdeInfo().getParameters()
-					.put(prop.substring(SERDE_INFO_PROP_PREFIX.length()), properties.remove(prop));
+			String value = properties.remove(prop);
+			// there was a typo of this property in hive, and was fixed in 3.0.0 -- https://issues.apache.org/jira/browse/HIVE-16922
+			String key = prop.equals(COLLECTION_DELIM) ?
+					serdeConstants.COLLECTION_DELIM : prop.substring(SERDE_INFO_PROP_PREFIX.length());
+			sd.getSerdeInfo().getParameters().put(key, value);
 		}
 	}
 

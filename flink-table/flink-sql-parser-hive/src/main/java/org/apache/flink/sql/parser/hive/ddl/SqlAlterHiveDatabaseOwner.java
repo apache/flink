@@ -31,8 +31,8 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  */
 public class SqlAlterHiveDatabaseOwner extends SqlAlterHiveDatabase {
 
-	public static final String DATABASE_OWNER_NAME = "database.owner.name";
-	public static final String DATABASE_OWNER_TYPE = "database.owner.type";
+	public static final String DATABASE_OWNER_NAME = "hive.database.owner.name";
+	public static final String DATABASE_OWNER_TYPE = "hive.database.owner.type";
 	public static final String USER_OWNER = "user";
 	public static final String ROLE_OWNER = "role";
 
