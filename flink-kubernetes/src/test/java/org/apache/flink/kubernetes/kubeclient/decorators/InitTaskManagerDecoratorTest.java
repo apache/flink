@@ -163,6 +163,13 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 	}
 
 	@Test
+	public void testRestartPolicy() {
+		final String resultRestartPolicy = this.resultPod.getSpec().getRestartPolicy();
+
+		assertThat(resultRestartPolicy, is(Constants.RESTART_POLICY_OF_NEVER));
+	}
+
+	@Test
 	public void testImagePullSecrets() {
 		final List<String> resultSecrets = this.resultPod.getSpec().getImagePullSecrets()
 			.stream()

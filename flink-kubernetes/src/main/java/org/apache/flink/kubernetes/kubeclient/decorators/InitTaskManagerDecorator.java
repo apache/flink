@@ -59,6 +59,7 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 				.withAnnotations(kubernetesTaskManagerParameters.getAnnotations())
 				.endMetadata()
 			.editOrNewSpec()
+				.withRestartPolicy(Constants.RESTART_POLICY_OF_NEVER)
 				.withImagePullSecrets(kubernetesTaskManagerParameters.getImagePullSecrets())
 				.withNodeSelector(kubernetesTaskManagerParameters.getNodeSelector())
 				.withTolerations(kubernetesTaskManagerParameters.getTolerations().stream()
