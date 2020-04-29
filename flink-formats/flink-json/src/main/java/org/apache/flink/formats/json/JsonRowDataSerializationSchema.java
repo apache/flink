@@ -68,14 +68,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 	/** Reusable object node. */
 	private transient ObjectNode node;
 
-	/**
-	 * Creates a builder for {@link JsonRowDataSerializationSchema}.
-	 */
-	public static Builder builder() {
-		return new Builder();
-	}
-
-	private JsonRowDataSerializationSchema(RowType rowType) {
+	public JsonRowDataSerializationSchema(RowType rowType) {
 		this.runtimeConverter = createConverter(rowType);
 	}
 
@@ -91,34 +84,6 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 		} catch (Throwable t) {
 			throw new RuntimeException("Could not serialize row '" + row + "'. " +
 				"Make sure that the schema matches the input.", t);
-		}
-	}
-
-	// --------------------------------------------------------------------------------
-	// Builder
-	// --------------------------------------------------------------------------------
-
-	/**
-	 * Builder of {@link JsonRowDataSerializationSchema}.
-	 */
-	public static class Builder {
-
-		private RowType rowType;
-
-		private Builder() {
-			// private constructor
-		}
-
-		/**
-		 * Configures with the {@link RowType} schema information.
-		 */
-		public Builder schema(RowType rowType) {
-			this.rowType = rowType;
-			return this;
-		}
-
-		public JsonRowDataSerializationSchema build() {
-			return new JsonRowDataSerializationSchema(rowType);
 		}
 	}
 

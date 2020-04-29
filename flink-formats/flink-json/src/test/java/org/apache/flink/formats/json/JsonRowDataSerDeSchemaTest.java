@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.formats.json;
 
 import org.apache.flink.table.data.RowData;
@@ -24,6 +42,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
@@ -38,9 +57,11 @@ import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.junit.Assert.assertEquals;
 
@@ -54,7 +75,11 @@ public class JsonRowDataSerDeSchemaTest {
 
 	@Test
 	public void testSerDe() throws Exception {
-		long id = 1238123899121L;
+		byte tinyint = 'c';
+		short smallint = 128;
+		int intValue = 45536;
+		float floatValue = 33.333F;
+		long bigint = 1238123899121L;
 		String name = "asdlkjasjkdla998y1122";
 		byte[] bytes = new byte[1024];
 		ThreadLocalRandom.current().nextBytes(bytes);
@@ -79,7 +104,11 @@ public class JsonRowDataSerDeSchemaTest {
 		// Root
 		ObjectNode root = objectMapper.createObjectNode();
 		root.put("bool", true);
-		root.put("id", id);
+		root.put("tinyint", tinyint);
+		root.put("smallint", smallint);
+		root.put("int", intValue);
+		root.put("bigint", bigint);
+		root.put("float", floatValue);
 		root.put("name", name);
 		root.put("bytes", bytes);
 		root.put("decimal", decimal);
@@ -95,7 +124,11 @@ public class JsonRowDataSerDeSchemaTest {
 
 		DataType dataType = ROW(
 			FIELD("bool", BOOLEAN()),
-			FIELD("id", BIGINT()),
+			FIELD("tinyint", TINYINT()),
+			FIELD("smallint", SMALLINT()),
+			FIELD("int", INT()),
+			FIELD("bigint", BIGINT()),
+			FIELD("float", FLOAT()),
 			FIELD("name", STRING()),
 			FIELD("bytes", BYTES()),
 			FIELD("decimal", DECIMAL(9, 6)),
@@ -109,36 +142,89 @@ public class JsonRowDataSerDeSchemaTest {
 		RowType schema = (RowType) dataType.getLogicalType();
 		RowDataTypeInfo resultTypeInfo = new RowDataTypeInfo(schema);
 
-		JsonRowDataDeserializationSchema deserializationSchema = JsonRowDataDeserializationSchema.builder()
-			.schema(schema)
-			.resultTypeInfo(resultTypeInfo)
-			.build();
+		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
+			schema, resultTypeInfo, false, false);
 
-		Row expected = new Row(12);
+		Row expected = new Row(16);
 		expected.setField(0, true);
-		expected.setField(1, id);
-		expected.setField(2, name);
-		expected.setField(3, bytes);
-		expected.setField(4, decimal);
-		expected.setField(5, doubles);
-		expected.setField(6, date);
-		expected.setField(7, time);
-		expected.setField(8, timestamp3.toLocalDateTime());
-		expected.setField(9, timestamp9.toLocalDateTime());
-		expected.setField(10, map);
-		expected.setField(11, nestedMap);
+		expected.setField(1, tinyint);
+		expected.setField(2, smallint);
+		expected.setField(3, intValue);
+		expected.setField(4, bigint);
+		expected.setField(5, floatValue);
+		expected.setField(6, name);
+		expected.setField(7, bytes);
+		expected.setField(8, decimal);
+		expected.setField(9, doubles);
+		expected.setField(10, date);
+		expected.setField(11, time);
+		expected.setField(12, timestamp3.toLocalDateTime());
+		expected.setField(13, timestamp9.toLocalDateTime());
+		expected.setField(14, map);
+		expected.setField(15, nestedMap);
 
 		RowData rowData = deserializationSchema.deserialize(serializedJson);
 		Row actual = convertToExternal(rowData, dataType);
 		assertEquals(expected, actual);
 
 		// test serialization
-		JsonRowDataSerializationSchema serializationSchema = JsonRowDataSerializationSchema.builder()
-			.schema(schema)
-			.build();
+		JsonRowDataSerializationSchema serializationSchema = new JsonRowDataSerializationSchema(schema);
 
 		byte[] actualBytes = serializationSchema.serialize(rowData);
 		assertEquals(new String(serializedJson), new String(actualBytes));
+	}
+
+	/**
+	 * Tests the deserialization slow path,
+	 * e.g. convert into string and use {@link Double#parseDouble(String)}.
+	 */
+	@Test
+	public void testSlowDeserialization() throws Exception {
+		Random random = new Random();
+		boolean bool = random.nextBoolean();
+		int integer = random.nextInt();
+		long bigint = random.nextLong();
+		double doubleValue = random.nextDouble();
+		float floatValue = random.nextFloat();
+
+		ObjectMapper objectMapper = new ObjectMapper();
+		ObjectNode root = objectMapper.createObjectNode();
+		root.put("bool", String.valueOf(bool));
+		root.put("int", String.valueOf(integer));
+		root.put("bigint", String.valueOf(bigint));
+		root.put("double1", String.valueOf(doubleValue));
+		root.put("double2", new BigDecimal(doubleValue));
+		root.put("float1", String.valueOf(floatValue));
+		root.put("float2", new BigDecimal(floatValue));
+
+		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
+
+		DataType dataType = ROW(
+			FIELD("bool", BOOLEAN()),
+			FIELD("int", INT()),
+			FIELD("bigint", BIGINT()),
+			FIELD("double1", DOUBLE()),
+			FIELD("double2", DOUBLE()),
+			FIELD("float1", FLOAT()),
+			FIELD("float2", FLOAT())
+		);
+		RowType rowType = (RowType) dataType.getLogicalType();
+
+		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
+			rowType, new RowDataTypeInfo(rowType), false, false);
+
+		Row expected = new Row(7);
+		expected.setField(0, bool);
+		expected.setField(1, integer);
+		expected.setField(2, bigint);
+		expected.setField(3, doubleValue);
+		expected.setField(4, doubleValue);
+		expected.setField(5, floatValue);
+		expected.setField(6, floatValue);
+
+		RowData rowData = deserializationSchema.deserialize(serializedJson);
+		Row actual = convertToExternal(rowData, dataType);
+		assertEquals(expected, actual);
 	}
 
 	@Test
@@ -149,13 +235,9 @@ public class JsonRowDataSerDeSchemaTest {
 			FIELD("f3", STRING())
 		).getLogicalType();
 
-		JsonRowDataDeserializationSchema deserializationSchema = JsonRowDataDeserializationSchema.builder()
-			.schema(rowType)
-			.resultTypeInfo(new RowDataTypeInfo(rowType))
-			.build();
-		JsonRowDataSerializationSchema serializationSchema = JsonRowDataSerializationSchema.builder()
-			.schema(rowType)
-			.build();
+		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
+			rowType, new RowDataTypeInfo(rowType), false, false);
+		JsonRowDataSerializationSchema serializationSchema = new JsonRowDataSerializationSchema(rowType);
 
 		ObjectMapper objectMapper = new ObjectMapper();
 
@@ -187,32 +269,29 @@ public class JsonRowDataSerDeSchemaTest {
 	@Test
 	public void testSerDeMultiRowsWithNullValues() throws Exception {
 		String[] jsons = new String[] {
-			"{\"svt\":\"2020-02-24T12:58:09.209+0800\"}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"metrics\":{\"k1\":10.01,\"k2\":\"invalid\"}}",
 			"{\"svt\":\"2020-02-24T12:58:09.209+0800\", \"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\"}, " +
 				"\"ids\":[1, 2, 3]}",
-			"{\"svt\":\"2020-02-24T12:58:09.209+0800\"}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"metrics\":{}}",
 		};
 
 		String[] expected = new String[] {
-			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null,\"ids\":null}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null,\"ids\":null,\"metrics\":{\"k1\":10.01,\"k2\":null}}",
 			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":{\"id\":\"281708d0-4092-4c21-9233-931950b6eccf\"}," +
-				"\"ids\":[1,2,3]}",
-			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null,\"ids\":null}",
+				"\"ids\":[1,2,3],\"metrics\":null}",
+			"{\"svt\":\"2020-02-24T12:58:09.209+0800\",\"ops\":null,\"ids\":null,\"metrics\":{}}",
 		};
 
 		RowType rowType = (RowType) ROW(
 			FIELD("svt", STRING()),
 			FIELD("ops", ROW(FIELD("id", STRING()))),
-			FIELD("ids", ARRAY(INT()))
+			FIELD("ids", ARRAY(INT())),
+			FIELD("metrics", MAP(STRING(), DOUBLE()))
 		).getLogicalType();
 
-		JsonRowDataDeserializationSchema deserializationSchema = JsonRowDataDeserializationSchema.builder()
-			.schema(rowType)
-			.resultTypeInfo(new RowDataTypeInfo(rowType))
-			.build();
-		JsonRowDataSerializationSchema serializationSchema = JsonRowDataSerializationSchema.builder()
-			.schema(rowType)
-			.build();
+		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
+			rowType, new RowDataTypeInfo(rowType), false, true);
+		JsonRowDataSerializationSchema serializationSchema = new JsonRowDataSerializationSchema(rowType);
 
 		for (int i = 0; i < jsons.length; i++) {
 			String json = jsons[i];
@@ -235,44 +314,33 @@ public class JsonRowDataSerDeSchemaTest {
 		RowType schema = (RowType) dataType.getLogicalType();
 
 		// pass on missing field
-		JsonRowDataDeserializationSchema deserializationSchema = JsonRowDataDeserializationSchema.builder()
-			.schema(schema)
-			.resultTypeInfo(new RowDataTypeInfo(schema))
-			.build();
+		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
+			schema, new RowDataTypeInfo(schema), false, false);
 
 		Row expected = new Row(1);
 		Row actual = convertToExternal(deserializationSchema.deserialize(serializedJson), dataType);
 		assertEquals(expected, actual);
 
 		// fail on missing field
-		deserializationSchema = JsonRowDataDeserializationSchema.builder()
-			.schema(schema)
-			.resultTypeInfo(new RowDataTypeInfo(schema))
-			.failOnMissingField()
-			.build();
+		deserializationSchema = deserializationSchema = new JsonRowDataDeserializationSchema(
+			schema, new RowDataTypeInfo(schema), true, false);
 
 		thrown.expect(IOException.class);
 		thrown.expectMessage("Failed to deserialize JSON '{\"id\":123123123}'");
 		deserializationSchema.deserialize(serializedJson);
 
 		// ignore on parse error
-		deserializationSchema = JsonRowDataDeserializationSchema.builder()
-			.schema(schema)
-			.resultTypeInfo(new RowDataTypeInfo(schema))
-			.ignoreParseErrors()
-			.build();
+		deserializationSchema = new JsonRowDataDeserializationSchema(
+			schema, new RowDataTypeInfo(schema), false, true);
 		actual = convertToExternal(deserializationSchema.deserialize(serializedJson), dataType);
 		assertEquals(expected, actual);
 
 		thrown.expect(IllegalArgumentException.class);
 		thrown.expectMessage("JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled");
 		// failOnMissingField and ignoreParseErrors both enabled
-		JsonRowDataDeserializationSchema.builder()
-			.schema(schema)
-			.resultTypeInfo(new RowDataTypeInfo(schema))
-			.failOnMissingField()
-			.ignoreParseErrors()
-			.build();
+		//noinspection ConstantConditions
+		new JsonRowDataDeserializationSchema(
+			schema, new RowDataTypeInfo(schema), true, true);
 	}
 
 	@Test
@@ -287,11 +355,8 @@ public class JsonRowDataSerDeSchemaTest {
 
 	private void testIgnoreParseErrors(TestSpec spec) throws Exception {
 		// the parsing field should be null and no exception is thrown
-		JsonRowDataDeserializationSchema ignoreErrorsSchema = JsonRowDataDeserializationSchema.builder()
-			.schema(spec.rowType)
-			.resultTypeInfo(new RowDataTypeInfo(spec.rowType))
-			.ignoreParseErrors()
-			.build();
+		JsonRowDataDeserializationSchema ignoreErrorsSchema = new JsonRowDataDeserializationSchema(
+			spec.rowType,  new RowDataTypeInfo(spec.rowType), false, true);
 		Row expected;
 		if (spec.expected != null) {
 			expected = spec.expected;
@@ -307,10 +372,8 @@ public class JsonRowDataSerDeSchemaTest {
 
 	private void testParseErrors(TestSpec spec) throws Exception {
 		// expect exception if parse error is not ignored
-		JsonRowDataDeserializationSchema failingSchema = JsonRowDataDeserializationSchema.builder()
-			.schema(spec.rowType)
-			.resultTypeInfo(new RowDataTypeInfo(spec.rowType))
-			.build();
+		JsonRowDataDeserializationSchema failingSchema = new JsonRowDataDeserializationSchema(
+			spec.rowType,  new RowDataTypeInfo(spec.rowType), false, false);
 
 		thrown.expectMessage(spec.errorMessage);
 		failingSchema.deserialize(spec.json.getBytes());

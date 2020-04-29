@@ -92,14 +92,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	/** Object mapper for parsing the JSON. */
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
-	/**
-	 * Creates a builder for {@link JsonRowDataDeserializationSchema}.
-	 */
-	public static Builder builder() {
-		return new Builder();
-	}
-
-	private JsonRowDataDeserializationSchema(
+	public JsonRowDataDeserializationSchema(
 			RowType rowType,
 			TypeInformation<RowData> resultTypeInfo,
 			boolean failOnMissingField,
@@ -135,68 +128,6 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	@Override
 	public TypeInformation<RowData> getProducedType() {
 		return resultTypeInfo;
-	}
-
-	// -------------------------------------------------------------------------------------
-	// Builder
-	// -------------------------------------------------------------------------------------
-
-	/**
-	 * Builder for {@link JsonRowDataDeserializationSchema}.
-	 */
-	public static class Builder {
-
-		private RowType rowType;
-		private TypeInformation<RowData> resultTypeInfo;
-		private boolean failOnMissingField = false;
-		private boolean ignoreParseErrors = false;
-
-		/**
-		 * Configures with the {@link RowType} schema information.
-		 */
-		public Builder schema(RowType rowType) {
-			this.rowType = rowType;
-			return this;
-		}
-
-		/**
-		 * Configures the {@link TypeInformation} of the produced {@link RowData}.
-		 */
-		public Builder resultTypeInfo(TypeInformation<RowData> resultTypeInfo) {
-			this.resultTypeInfo = resultTypeInfo;
-			return this;
-		}
-
-		/**
-		 * Configures to fail if a JSON field is missing.
-		 *
-		 * <p>By default, a missing field is ignored and the field is set to null.
-		 */
-		public Builder failOnMissingField() {
-			this.failOnMissingField = true;
-			return this;
-		}
-
-		/**
-		 * Configures to fail when parsing json failed.
-		 *
-		 * <p>By default, an exception will be thrown when parsing json fails.
-		 */
-		public Builder ignoreParseErrors() {
-			this.ignoreParseErrors = true;
-			return this;
-		}
-
-		/**
-		 * Creates the instance of {@link JsonRowDataDeserializationSchema}.
-		 */
-		public JsonRowDataDeserializationSchema build() {
-			return new JsonRowDataDeserializationSchema(
-				rowType,
-				resultTypeInfo,
-				failOnMissingField,
-				ignoreParseErrors);
-		}
 	}
 
 	// -------------------------------------------------------------------------------------
@@ -461,7 +392,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	private DeserializationRuntimeConverter wrapIntoNullableConverter(
 			DeserializationRuntimeConverter converter) {
 		return jsonNode -> {
-			if (jsonNode.isNull()) {
+			if (jsonNode == null || jsonNode.isNull()) {
 				return null;
 			}
 			try {
