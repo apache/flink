@@ -18,7 +18,7 @@
 
 package org.apache.flink.orc.nohive.vector;
 
-import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.data.TimestampData;
 
 import org.apache.orc.storage.ql.exec.vector.TimestampColumnVector;
 
@@ -29,7 +29,7 @@ import java.sql.Timestamp;
  * Flink's TimestampColumnVector.
  */
 public class OrcNoHiveTimestampVector extends AbstractOrcNoHiveVector implements
-		org.apache.flink.table.dataformat.vector.TimestampColumnVector {
+		org.apache.flink.table.data.vector.TimestampColumnVector {
 
 	private TimestampColumnVector vector;
 
@@ -39,10 +39,10 @@ public class OrcNoHiveTimestampVector extends AbstractOrcNoHiveVector implements
 	}
 
 	@Override
-	public SqlTimestamp getTimestamp(int i, int precision) {
+	public TimestampData getTimestamp(int i, int precision) {
 		int index = vector.isRepeating ? 0 : i;
 		Timestamp timestamp = new Timestamp(vector.time[index]);
 		timestamp.setNanos(vector.nanos[index]);
-		return SqlTimestamp.fromTimestamp(timestamp);
+		return TimestampData.fromTimestamp(timestamp);
 	}
 }
