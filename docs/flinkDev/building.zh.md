@@ -62,7 +62,7 @@ mvn clean install -DskipTests -Dfast
 
 1. 构建Flink
 
-    如果您想构建一个可用于pip安装的PyFlink包，您需要先构建Flink的Jar包，如[构建Flink](#build-flink)中所述。
+    如果您想构建一个可用于pip安装的PyFlink包，您需要先构建Flink工程，如[构建Flink](#build-flink)中所述。
 
 2. Python的版本为3.5, 3.6 或者 3.7.
 
@@ -71,17 +71,15 @@ mvn clean install -DskipTests -Dfast
     # the version printed here must be 3.5, 3.6 or 3.7
     ```
 
-3. 编译器
+3. 构建PyFlink的Cython扩展模块（可选的）
     
-    为了构建Python的扩展模块，你需要C编译器。根据使用的系统，获取C编译器的方式有所不同：
+    为了构建PyFlink的Cython扩展模块，你需要C编译器。在不同操作系统上安装C编译器的方式略有不同：
     
-    * **Linux** 通常存在GNU C编译器（gcc），或者可以通过软件包系统轻松获得。例如，在Ubuntu或Debian上，命令sudo apt-get install build-essential将获取您需要的所有内容。
+    * **Linux** Linux操作系统通常预装有GCC。否则，您需要手动安装。例如，您可以在Ubuntu或Debian上使用命令sudo apt-get install build-essential安装。
 
-    * **Mac OS X** 要检索gcc，一个选项是安装 Apple 的 XCode，XCode 可以从 Mac OS X 的安装 DVD 或 [https://developer.apple.com/](https://developer.apple.com/)中检索。
+    * **Mac OS X** 要在Mac OS X上安装GCC，您需要下载并安装 [Xcode命令行工具](https://developer.apple.com/downloads/index.action)，该工具可在Apple的开发人员页面中找到。
 
-4. 安装依赖
-
-    为了构建PyFlink，您需要通过以下命令安装依赖项：
+    您还需要使用以下命令安装依赖项：
     
     ```shell
     $ python -m pip install -r flink-python/dev/dev-requirements.txt

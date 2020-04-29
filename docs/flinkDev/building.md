@@ -62,7 +62,7 @@ mvn clean install -DskipTests -Dfast
 
 1. Building Flink
 
-    If you want to build a PyFlink package that can be used for pip installation, you need to build Flink jars first, as described in [Build Flink](#build-flink).
+    If you want to build a PyFlink package that can be used for pip installation, you need to build the Flink project first, as described in [Build Flink](#build-flink).
 
 2. Python version(3.5, 3.6 or 3.7) is required
 
@@ -71,18 +71,16 @@ mvn clean install -DskipTests -Dfast
     # the version printed here must be 3.5, 3.6 or 3.7
     ```
 
-3. Compilers
-    
-    To build any extension modules for Python, you’ll need a C compiler. The details of getting a C compiler varies according to the system used:
-    
-    * **Linux** The GNU C Compiler (gcc) is usually present, or easily available through the package system. On Ubuntu or Debian, for instance, the command sudo apt-get install build-essential will fetch everything you need.
-    
-    * **Mac OS X** To retrieve gcc, one option is to install Apple’s XCode, which can be retrieved from the Mac OS X’s install DVDs or from [https://developer.apple.com/](https://developer.apple.com/).
+3. Build PyFlink with Cython extension support (optional)
 
-4. Installing Dependencies
+    To build PyFlink with Cython extension support, you’ll need a C compiler. It's a little different on how to install the C compiler on operating systems:
 
-    For building PyFlink, you'll need to install dependencies by following command:
-    
+    * **Linux** Linux operating systems usually come with GCC preinstalled. Otherwise, you need to install it manually. For example, you can install it with command `sudo apt-get install build-essential` On Ubuntu or Debian.
+
+    * **Mac OS X** To install GCC on Mac OS X, you need to download and install "[Command Line Tools for Xcode](https://developer.apple.com/downloads/index.action)", which is available in Apple’s developer page.
+
+    You also need to install the dependencies with following command:
+
     ```shell
     $ python -m pip install -r flink-python/dev/dev-requirements.txt
     ```
@@ -95,7 +93,7 @@ Then go to the root directory of flink source code and run this command to build
 cd flink-python; python setup.py sdist bdist_wheel
 {% endhighlight %}
 
-The sdist and wheel package will be found under `./flink-python/dist/`. Either of them could be used for pip installation, such as:
+The sdist and wheel packages will be found under `./flink-python/dist/`. Either of them could be used for pip installation, such as:
 
 {% highlight bash %}
 python -m pip install dist/*.tar.gz
