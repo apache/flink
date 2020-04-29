@@ -36,14 +36,6 @@ import org.apache.flink.types.Row;
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
-import org.apache.hadoop.hive.serde2.io.ByteWritable;
-import org.apache.hadoop.hive.serde2.io.DateWritable;
-import org.apache.hadoop.hive.serde2.io.DoubleWritable;
-import org.apache.hadoop.hive.serde2.io.HiveCharWritable;
-import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
-import org.apache.hadoop.hive.serde2.io.HiveVarcharWritable;
-import org.apache.hadoop.hive.serde2.io.ShortWritable;
-import org.apache.hadoop.hive.serde2.io.TimestampWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
@@ -89,15 +81,8 @@ import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
-import org.apache.hadoop.io.BooleanWritable;
-import org.apache.hadoop.io.BytesWritable;
-import org.apache.hadoop.io.FloatWritable;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
 
 import javax.annotation.Nonnull;
 
@@ -346,59 +331,6 @@ public class HiveInspectors {
 
 		throw new FlinkHiveUDFException(
 			String.format("Unwrap does not support ObjectInspector '%s' yet", inspector));
-	}
-
-	public static ObjectInspector getObjectInspector(HiveShim hiveShim, Class clazz) {
-		TypeInfo typeInfo;
-
-		if (clazz.equals(String.class) || clazz.equals(Text.class)) {
-
-			typeInfo = TypeInfoFactory.stringTypeInfo;
-		} else if (clazz.equals(Boolean.class) || clazz.equals(BooleanWritable.class)) {
-
-			typeInfo = TypeInfoFactory.booleanTypeInfo;
-		} else if (clazz.equals(Byte.class) || clazz.equals(ByteWritable.class)) {
-
-			typeInfo = TypeInfoFactory.byteTypeInfo;
-		} else if (clazz.equals(Short.class) || clazz.equals(ShortWritable.class)) {
-
-			typeInfo = TypeInfoFactory.shortTypeInfo;
-		} else if (clazz.equals(Integer.class) || clazz.equals(IntWritable.class)) {
-
-			typeInfo = TypeInfoFactory.intTypeInfo;
-		} else if (clazz.equals(Long.class) || clazz.equals(LongWritable.class)) {
-
-			typeInfo = TypeInfoFactory.longTypeInfo;
-		} else if (clazz.equals(Float.class) || clazz.equals(FloatWritable.class)) {
-
-			typeInfo = TypeInfoFactory.floatTypeInfo;
-		} else if (clazz.equals(Double.class) || clazz.equals(DoubleWritable.class)) {
-
-			typeInfo = TypeInfoFactory.doubleTypeInfo;
-		} else if (clazz.equals(hiveShim.getDateDataTypeClass()) || clazz.equals(DateWritable.class)) {
-
-			typeInfo = TypeInfoFactory.dateTypeInfo;
-		} else if (clazz.equals(hiveShim.getTimestampDataTypeClass()) || clazz.equals(TimestampWritable.class)) {
-
-			typeInfo = TypeInfoFactory.timestampTypeInfo;
-		} else if (clazz.equals(byte[].class) || clazz.equals(BytesWritable.class)) {
-
-			typeInfo = TypeInfoFactory.binaryTypeInfo;
-		} else if (clazz.equals(HiveChar.class) || clazz.equals(HiveCharWritable.class)) {
-
-			typeInfo = TypeInfoFactory.charTypeInfo;
-		} else if (clazz.equals(HiveVarchar.class) || clazz.equals(HiveVarcharWritable.class)) {
-
-			typeInfo = TypeInfoFactory.varcharTypeInfo;
-		} else if (clazz.equals(HiveDecimal.class) || clazz.equals(HiveDecimalWritable.class)) {
-
-			typeInfo = TypeInfoFactory.decimalTypeInfo;
-		} else {
-			throw new FlinkHiveUDFException(
-				String.format("Class %s is not supported yet", clazz.getName()));
-		}
-
-		return getObjectInspector(typeInfo);
 	}
 
 	/**
