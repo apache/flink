@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.sources.FilterableTableSource;
 import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.sources.LimitableTableSource;
