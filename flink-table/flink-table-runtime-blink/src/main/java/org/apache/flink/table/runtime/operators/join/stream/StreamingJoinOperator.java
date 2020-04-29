@@ -19,17 +19,17 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateViews;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.types.RowKind;
 
 /**
@@ -44,9 +44,9 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 	// whether right side is outer side, e.g. right is outer but left is not when RIGHT OUTER JOIN
 	private final boolean rightIsOuter;
 
-	private transient JoinedRow outRow;
-	private transient BaseRow leftNullRow;
-	private transient BaseRow rightNullRow;
+	private transient JoinedRowData outRow;
+	private transient RowData leftNullRow;
+	private transient RowData rightNullRow;
 
 	// left join state
 	private transient JoinRecordStateView leftRecordStateView;
@@ -54,8 +54,8 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 	private transient JoinRecordStateView rightRecordStateView;
 
 	public StreamingJoinOperator(
-			BaseRowTypeInfo leftType,
-			BaseRowTypeInfo rightType,
+			RowDataTypeInfo leftType,
+			RowDataTypeInfo rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			JoinInputSideSpec leftInputSideSpec,
 			JoinInputSideSpec rightInputSideSpec,
@@ -72,9 +72,9 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 	public void open() throws Exception {
 		super.open();
 
-		this.outRow = new JoinedRow();
-		this.leftNullRow = new GenericRow(leftType.getArity());
-		this.rightNullRow = new GenericRow(rightType.getArity());
+		this.outRow = new JoinedRowData();
+		this.leftNullRow = new GenericRowData(leftType.getArity());
+		this.rightNullRow = new GenericRowData(rightType.getArity());
 
 		// initialize states
 		if (leftIsOuter) {
@@ -111,12 +111,12 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 	}
 
 	@Override
-	public void processElement1(StreamRecord<BaseRow> element) throws Exception {
+	public void processElement1(StreamRecord<RowData> element) throws Exception {
 		processElement(element.getValue(), leftRecordStateView, rightRecordStateView, true);
 	}
 
 	@Override
-	public void processElement2(StreamRecord<BaseRow> element) throws Exception {
+	public void processElement2(StreamRecord<RowData> element) throws Exception {
 		processElement(element.getValue(), rightRecordStateView, leftRecordStateView, false);
 	}
 
@@ -186,13 +186,13 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 	 * @param inputIsLeft whether input side is left side
 	 */
 	private void processElement(
-			BaseRow input,
+			RowData input,
 			JoinRecordStateView inputSideStateView,
 			JoinRecordStateView otherSideStateView,
 			boolean inputIsLeft) throws Exception {
 		boolean inputIsOuter = inputIsLeft ? leftIsOuter : rightIsOuter;
 		boolean otherIsOuter = inputIsLeft ? rightIsOuter : leftIsOuter;
-		boolean isAccumulateMsg = BaseRowUtil.isAccumulateMsg(input);
+		boolean isAccumulateMsg = RowDataUtil.isAccumulateMsg(input);
 		RowKind inputRowKind = input.getRowKind();
 		input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
@@ -210,7 +210,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 					if (otherIsOuter) { // other side is outer
 						OuterJoinRecordStateView otherSideOuterStateView = (OuterJoinRecordStateView) otherSideStateView;
 						for (OuterRecord outerRecord : associatedRecords.getOuterRecords()) {
-							BaseRow other = outerRecord.record;
+							RowData other = outerRecord.record;
 							// if the matched num in the matched rows == 0
 							if (outerRecord.numOfAssociations == 0) {
 								// send -D[null+other]
@@ -223,7 +223,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 					}
 					// send +I[record+other]s
 					outRow.setRowKind(RowKind.INSERT);
-					for (BaseRow other : associatedRecords.getRecords()) {
+					for (RowData other : associatedRecords.getRecords()) {
 						output(input, other, inputIsLeft);
 					}
 					// state.add(record, other.size)
@@ -250,7 +250,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 						// send +I/+U[record+other]s (using input RowKind)
 						outRow.setRowKind(inputRowKind);
 					}
-					for (BaseRow other : associatedRecords.getRecords()) {
+					for (RowData other : associatedRecords.getRecords()) {
 						output(input, other, inputIsLeft);
 					}
 				}
@@ -274,7 +274,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 					// send -D/-U[record+other]s (using input RowKind)
 					outRow.setRowKind(inputRowKind);
 				}
-				for (BaseRow other : associatedRecords.getRecords()) {
+				for (RowData other : associatedRecords.getRecords()) {
 					output(input, other, inputIsLeft);
 				}
 				// if other side is outer
@@ -296,7 +296,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 
 	// -------------------------------------------------------------------------------------
 
-	private void output(BaseRow inputRow, BaseRow otherRow, boolean inputIsLeft) {
+	private void output(RowData inputRow, RowData otherRow, boolean inputIsLeft) {
 		if (inputIsLeft) {
 			outRow.replace(inputRow, otherRow);
 		} else {
@@ -305,7 +305,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 		collector.collect(outRow);
 	}
 
-	private void outputNullPadding(BaseRow row, boolean isLeft) {
+	private void outputNullPadding(RowData row, boolean isLeft) {
 		if (isLeft) {
 			outRow.replace(row, rightNullRow);
 		} else {

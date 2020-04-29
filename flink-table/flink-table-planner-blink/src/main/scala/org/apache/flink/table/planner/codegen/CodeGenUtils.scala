@@ -20,13 +20,15 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.core.memory.MemorySegment
-import org.apache.flink.table.dataformat.DataFormatConverters.IdentityConverter
-import org.apache.flink.table.dataformat.util.BinaryRowUtil.BYTE_ARRAY_BASE_OFFSET
-import org.apache.flink.table.dataformat.{BinaryStringUtil, Decimal, _}
+import org.apache.flink.table.data._
+import org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFSET
+import org.apache.flink.table.data.binary.{BinaryArrayData, BinaryMapData, BinaryRawValueData, BinaryRowData, BinaryStringData, BinaryStringDataUtil}
+import org.apache.flink.table.data.util.DataFormatConverters
+import org.apache.flink.table.data.util.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.planner.codegen.GenerateUtils.{generateInputFieldUnboxing, generateNonNullField}
 import org.apache.flink.table.runtime.dataview.StateDataViewStore
 import org.apache.flink.table.runtime.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction, TableAggsHandleFunction}
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getInternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
@@ -34,12 +36,12 @@ import org.apache.flink.table.runtime.util.MurmurHashUtil
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.types.{Row, RowKind}
 
 import java.lang.reflect.Method
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
 import java.util.concurrent.atomic.AtomicInteger
-import org.apache.flink.table.planner.codegen.GenerateUtils.{generateInputFieldUnboxing, generateNonNullField}
 
 object CodeGenUtils {
 
@@ -63,29 +65,31 @@ object CodeGenUtils {
 
   // -------------------------- CANONICAL CLASS NAMES ---------------------------------------
 
-  val BINARY_ROW: String = className[BinaryRow]
+  val BINARY_ROW: String = className[BinaryRowData]
 
-  val BINARY_ARRAY: String = className[BinaryArray]
+  val ARRAY_DATA: String = className[ArrayData]
 
-  val BASE_ARRAY: String = className[BaseArray]
+  val BINARY_ARRAY: String = className[BinaryArrayData]
 
-  val BINARY_GENERIC: String = className[BinaryGeneric[_]]
+  val BINARY_RAW_VALUE: String = className[BinaryRawValueData[_]]
 
-  val BINARY_STRING: String = className[BinaryString]
+  val BINARY_STRING: String = className[BinaryStringData]
 
-  val BINARY_MAP: String = className[BinaryMap]
+  val MAP_DATA: String = className[MapData]
 
-  val BASE_MAP: String = className[BaseMap]
+  val BINARY_MAP: String = className[BinaryMapData]
 
-  val BASE_ROW: String = className[BaseRow]
+  val GENERIC_MAP: String = className[GenericMapData]
 
-  val JOINED_ROW: String = className[JoinedRow]
+  val ROW_DATA: String = className[RowData]
 
-  val GENERIC_ROW: String = className[GenericRow]
+  val JOINED_ROW: String = className[JoinedRowData]
+
+  val GENERIC_ROW: String = className[GenericRowData]
 
   val ROW_KIND: String = className[RowKind]
 
-  val DECIMAL_TERM: String = className[Decimal]
+  val DECIMAL_UTIL: String = className[DecimalDataUtils]
 
   val SEGMENT: String = className[MemorySegment]
 
@@ -97,9 +101,9 @@ object CodeGenUtils {
 
   val STATE_DATA_VIEW_STORE: String = className[StateDataViewStore]
 
-  val STRING_UTIL: String = className[BinaryStringUtil]
+  val BINARY_STRING_UTIL: String = className[BinaryStringDataUtil]
 
-  val SQL_TIMESTAMP: String = className[SqlTimestamp]
+  val TIMESTAMP_DATA: String = className[TimestampData]
 
   // ----------------------------------------------------------------------------------------
 
@@ -132,6 +136,15 @@ object CodeGenUtils {
    * Returns a term for representing the given class in Java code.
    */
   def typeTerm(clazz: Class[_]): String = {
+    if (clazz == classOf[StringData]) {
+      // we should always use BinaryStringData in code generation instead of StringData
+      // to allow accessing more useful methods easily
+      return BINARY_STRING
+    } else if (clazz == classOf[RawValueData[_]]) {
+      // we should always use BinaryRawValueData in code generation instead of RawValueData
+      // to allow accessing more useful methods easily
+      return BINARY_RAW_VALUE
+    }
     val name = clazz.getCanonicalName
     if (name == null) {
       throw new CodeGenException(
@@ -181,13 +194,13 @@ object CodeGenUtils {
     case VARCHAR | CHAR => BINARY_STRING
     case VARBINARY | BINARY => "byte[]"
 
-    case DECIMAL => className[Decimal]
-    case ARRAY => className[BaseArray]
-    case MULTISET | MAP => className[BaseMap]
-    case ROW => className[BaseRow]
-    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[SqlTimestamp]
+    case DECIMAL => className[DecimalData]
+    case ARRAY => className[ArrayData]
+    case MULTISET | MAP => className[MapData]
+    case ROW => className[RowData]
+    case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE => className[TimestampData]
 
-    case RAW => className[BinaryGeneric[_]]
+    case RAW => className[BinaryRawValueData[_]]
   }
 
   /**
@@ -215,8 +228,8 @@ object CodeGenUtils {
   def isInternalClass(t: DataType): Boolean = {
     val clazz = t.getConversionClass
     clazz != classOf[Object] && clazz != classOf[Row] &&
-        (classOf[BaseRow].isAssignableFrom(clazz) ||
-            clazz == getInternalClassForType(fromDataTypeToLogicalType(t)))
+        (classOf[RowData].isAssignableFrom(clazz) ||
+            clazz == toInternalConversionClass(fromDataTypeToLogicalType(t)))
   }
 
   def hashCodeForType(
@@ -254,7 +267,7 @@ object CodeGenUtils {
       val gt = t.asInstanceOf[TypeInformationRawType[_]]
       val serTerm = ctx.addReusableObject(
         gt.getTypeInformation.createSerializer(new ExecutionConfig), "serializer")
-      s"$BINARY_GENERIC.getJavaObjectFromBinaryGeneric($term, $serTerm).hashCode()"
+      s"$BINARY_RAW_VALUE.getJavaObjectFromRawValueData($term, $serTerm).hashCode()"
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -271,7 +284,7 @@ object CodeGenUtils {
       case (TINYINT, BIGINT) => s"(long) ${expr.resultTerm}"
       case (TINYINT, DECIMAL) =>
         val dt = targetType.asInstanceOf[DecimalType]
-        s"${classOf[Decimal].getCanonicalName}.castFrom(" +
+        s"$DECIMAL_UTIL.castFrom(" +
           s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
       case (TINYINT, FLOAT) => s"(float) ${expr.resultTerm}"
       case (TINYINT, DOUBLE) => s"(double) ${expr.resultTerm}"
@@ -281,7 +294,7 @@ object CodeGenUtils {
       case (SMALLINT, BIGINT) => s"(long) ${expr.resultTerm}"
       case (SMALLINT, DECIMAL) =>
         val dt = targetType.asInstanceOf[DecimalType]
-        s"${classOf[Decimal].getCanonicalName}.castFrom(" +
+        s"$DECIMAL_UTIL.castFrom(" +
           s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
       case (SMALLINT, FLOAT) => s"(float) ${expr.resultTerm}"
       case (SMALLINT, DOUBLE) => s"(double) ${expr.resultTerm}"
@@ -290,7 +303,7 @@ object CodeGenUtils {
       case (INTEGER, BIGINT) => s"(long) ${expr.resultTerm}"
       case (INTEGER, DECIMAL) =>
         val dt = targetType.asInstanceOf[DecimalType]
-        s"${classOf[Decimal].getCanonicalName}.castFrom(" +
+        s"$DECIMAL_UTIL.castFrom(" +
           s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
       case (INTEGER, FLOAT) => s"(float) ${expr.resultTerm}"
       case (INTEGER, DOUBLE) => s"(double) ${expr.resultTerm}"
@@ -298,7 +311,7 @@ object CodeGenUtils {
       // long -> other numeric types
       case (BIGINT, DECIMAL) =>
         val dt = targetType.asInstanceOf[DecimalType]
-        s"${classOf[Decimal].getCanonicalName}.castFrom(" +
+        s"$DECIMAL_UTIL.castFrom(" +
           s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
       case (BIGINT, FLOAT) => s"(float) ${expr.resultTerm}"
       case (BIGINT, DOUBLE) => s"(double) ${expr.resultTerm}"
@@ -306,12 +319,12 @@ object CodeGenUtils {
       // decimal -> other numeric types
       case (DECIMAL, DECIMAL) =>
         val dt = targetType.asInstanceOf[DecimalType]
-        s"${classOf[Decimal].getCanonicalName}.castToDecimal(" +
+        s"$DECIMAL_UTIL.castToDecimal(" +
           s"${expr.resultTerm}, ${dt.getPrecision}, ${dt.getScale})"
       case (DECIMAL, FLOAT) =>
-        s"${classOf[Decimal].getCanonicalName}.castToFloat(${expr.resultTerm})"
+        s"$DECIMAL_UTIL.castToFloat(${expr.resultTerm})"
       case (DECIMAL, DOUBLE) =>
-        s"${classOf[Decimal].getCanonicalName}.castToDouble(${expr.resultTerm})"
+        s"$DECIMAL_UTIL.castToDouble(${expr.resultTerm})"
 
       // float -> other numeric types
       case (FLOAT, DOUBLE) => s"(double) ${expr.resultTerm}"
@@ -393,16 +406,16 @@ object CodeGenUtils {
   // DataFormat Operations
   // --------------------------------------------------------------------------------
 
-  // -------------------------- BaseRow Read Access -------------------------------
+  // -------------------------- RowData Read Access -------------------------------
 
-  def baseRowFieldReadAccess(
+  def rowFieldReadAccess(
       ctx: CodeGeneratorContext,
       index: Int,
       rowTerm: String,
       fieldType: LogicalType) : String =
-    baseRowFieldReadAccess(ctx, index.toString, rowTerm, fieldType)
+    rowFieldReadAccess(ctx, index.toString, rowTerm, fieldType)
 
-  def baseRowFieldReadAccess(
+  def rowFieldReadAccess(
       ctx: CodeGeneratorContext,
       indexTerm: String,
       rowTerm: String,
@@ -416,7 +429,7 @@ object CodeGenUtils {
       case BIGINT => s"$rowTerm.getLong($indexTerm)"
       case FLOAT => s"$rowTerm.getFloat($indexTerm)"
       case DOUBLE => s"$rowTerm.getDouble($indexTerm)"
-      case VARCHAR | CHAR => s"$rowTerm.getString($indexTerm)"
+      case VARCHAR | CHAR => s"(($BINARY_STRING) $rowTerm.getString($indexTerm))"
       case VARBINARY | BINARY => s"$rowTerm.getBinary($indexTerm)"
       case DECIMAL =>
         val dt = t.asInstanceOf[DecimalType]
@@ -439,23 +452,23 @@ object CodeGenUtils {
       case MULTISET | MAP  => s"$rowTerm.getMap($indexTerm)"
       case ROW => s"$rowTerm.getRow($indexTerm, ${t.asInstanceOf[RowType].getFieldCount})"
 
-      case RAW => s"$rowTerm.getGeneric($indexTerm)"
+      case RAW => s"(($BINARY_RAW_VALUE) $rowTerm.getRawValue($indexTerm))"
     }
 
-  // -------------------------- BaseRow Set Field -------------------------------
+  // -------------------------- RowData Set Field -------------------------------
 
-  def baseRowSetField(
-    ctx: CodeGeneratorContext,
-    rowClass: Class[_ <: BaseRow],
-    rowTerm: String,
-    indexTerm: String,
-    fieldExpr: GeneratedExpression,
-    binaryRowWriterTerm: Option[String]): String = {
+  def rowSetField(
+      ctx: CodeGeneratorContext,
+      rowClass: Class[_ <: RowData],
+      rowTerm: String,
+      indexTerm: String,
+      fieldExpr: GeneratedExpression,
+      binaryRowWriterTerm: Option[String]): String = {
 
     val fieldType = fieldExpr.resultType
     val fieldTerm = fieldExpr.resultTerm
 
-    if (rowClass == classOf[BinaryRow]) {
+    if (rowClass == classOf[BinaryRowData]) {
       binaryRowWriterTerm match {
         case Some(writer) =>
           // use writer to set field
@@ -477,7 +490,7 @@ object CodeGenUtils {
           }
 
         case None =>
-          // directly set field to BinaryRow, this depends on all the fields are fixed length
+          // directly set field to BinaryRowData, this depends on all the fields are fixed length
           val writeField = binaryRowFieldSetAccess(indexTerm, rowTerm, fieldType, fieldTerm)
           if (ctx.nullCheck) {
             s"""
@@ -495,17 +508,23 @@ object CodeGenUtils {
              """.stripMargin
           }
       }
-    } else if (rowClass == classOf[GenericRow] || rowClass == classOf[BoxedWrapperRow]) {
-      val writeField = if (rowClass == classOf[GenericRow]) {
+    } else if (rowClass == classOf[GenericRowData] || rowClass == classOf[BoxedWrapperRowData]) {
+      val writeField = if (rowClass == classOf[GenericRowData]) {
         s"$rowTerm.setField($indexTerm, $fieldTerm)"
       } else {
         boxedWrapperRowFieldSetAccess(rowTerm, indexTerm, fieldTerm, fieldType)
       }
+      val setNullField = if (rowClass == classOf[GenericRowData]) {
+        s"$rowTerm.setField($indexTerm, null)"
+      } else {
+        s"$rowTerm.setNullAt($indexTerm)"
+      }
+
       if (ctx.nullCheck) {
         s"""
            |${fieldExpr.code}
            |if (${fieldExpr.nullTerm}) {
-           |  $rowTerm.setNullAt($indexTerm);
+           |  $setNullField;
            |} else {
            |  $writeField;
            |}
@@ -521,17 +540,17 @@ object CodeGenUtils {
     }
   }
 
-  // -------------------------- BinaryRow Set Field -------------------------------
+  // -------------------------- BinaryRowData Set Field -------------------------------
 
   def binaryRowSetNull(index: Int, rowTerm: String, t: LogicalType): String =
     binaryRowSetNull(index.toString, rowTerm, t)
 
   def binaryRowSetNull(indexTerm: String, rowTerm: String, t: LogicalType): String = t match {
-    case d: DecimalType if !Decimal.isCompact(d.getPrecision) =>
+    case d: DecimalType if !DecimalData.isCompact(d.getPrecision) =>
       s"$rowTerm.setDecimal($indexTerm, null, ${d.getPrecision})"
-    case d: TimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+    case d: TimestampType if !TimestampData.isCompact(d.getPrecision) =>
       s"$rowTerm.setTimestamp($indexTerm, null, ${d.getPrecision})"
-    case d: LocalZonedTimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+    case d: LocalZonedTimestampType if !TimestampData.isCompact(d.getPrecision) =>
       s"$rowTerm.setTimestamp($indexTerm, null, ${d.getPrecision})"
     case _ => s"$rowTerm.setNullAt($indexTerm)"
   }
@@ -574,7 +593,7 @@ object CodeGenUtils {
           + t + ".")
     }
 
-  // -------------------------- BoxedWrapperRow Set Field -------------------------------
+  // -------------------------- BoxedWrapperRowData Set Field -------------------------------
 
   def boxedWrapperRowFieldSetAccess(
       rowTerm: String,
@@ -623,11 +642,11 @@ object CodeGenUtils {
       indexTerm: String,
       writerTerm: String,
       t: LogicalType): String = t match {
-    case d: DecimalType if !Decimal.isCompact(d.getPrecision) =>
+    case d: DecimalType if !DecimalData.isCompact(d.getPrecision) =>
       s"$writerTerm.writeDecimal($indexTerm, null, ${d.getPrecision})"
-    case d: TimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+    case d: TimestampType if !TimestampData.isCompact(d.getPrecision) =>
       s"$writerTerm.writeTimestamp($indexTerm, null, ${d.getPrecision})"
-    case d: LocalZonedTimestampType if !SqlTimestamp.isCompact(d.getPrecision) =>
+    case d: LocalZonedTimestampType if !TimestampData.isCompact(d.getPrecision) =>
       s"$writerTerm.writeTimestamp($indexTerm, null, ${d.getPrecision})"
     case _ => s"$writerTerm.setNullAt($indexTerm)"
   }
@@ -682,7 +701,7 @@ object CodeGenUtils {
         s"$writerTerm.writeRow($indexTerm, $fieldValTerm, $ser)"
       case RAW =>
         val ser = ctx.addReusableTypeSerializer(t)
-        s"$writerTerm.writeGeneric($indexTerm, $fieldValTerm, $ser)"
+        s"$writerTerm.writeRawValue($indexTerm, $fieldValTerm, $ser)"
     }
 
   private def isConverterIdentity(t: DataType): Boolean = {

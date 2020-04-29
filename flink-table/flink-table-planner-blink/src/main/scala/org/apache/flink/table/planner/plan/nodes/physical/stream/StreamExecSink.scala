@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{Table, TableException}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.SinkCodeGenerator.generateRowConverterOperator
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpdatingPlanChecker}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, TypeCheckUtils}
+import org.apache.flink.table.runtime.typeutils.{RowDataTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.logical.TimestampType
 
@@ -151,10 +151,10 @@ class StreamExecSink[T](
           "Use the toRetractStream() in order to handle add and retract messages.")
     }
 
-    // get BaseRow plan
+    // get RowData plan
     val parTransformation = inputNode match {
-      // Sink's input must be StreamExecNode[BaseRow] now.
-      case node: StreamExecNode[BaseRow] =>
+      // Sink's input must be StreamExecNode[RowData] now.
+      case node: StreamExecNode[RowData] =>
         node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
@@ -171,7 +171,7 @@ class StreamExecSink[T](
           s"Please select the rowtime field that should be used as event-time timestamp for the " +
           s"DataStream by casting all other fields to TIMESTAMP.")
     } else if (rowtimeFields.size == 1) {
-      val origRowType = parTransformation.getOutputType.asInstanceOf[BaseRowTypeInfo]
+      val origRowType = parTransformation.getOutputType.asInstanceOf[RowDataTypeInfo]
       val convFieldTypes = origRowType.getLogicalTypes.map { t =>
         if (TypeCheckUtils.isRowTime(t)) {
           new TimestampType(3)
@@ -179,7 +179,7 @@ class StreamExecSink[T](
           t
         }
       }
-      new BaseRowTypeInfo(convFieldTypes, origRowType.getFieldNames)
+      new RowDataTypeInfo(convFieldTypes, origRowType.getFieldNames)
     } else {
       parTransformation.getOutputType
     }
@@ -191,7 +191,7 @@ class StreamExecSink[T](
       val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
         CodeGeneratorContext(config),
         config,
-        convType.asInstanceOf[BaseRowTypeInfo].toRowType,
+        convType.asInstanceOf[RowDataTypeInfo].toRowType,
         sink,
         withChangeFlag,
         "SinkConversion"

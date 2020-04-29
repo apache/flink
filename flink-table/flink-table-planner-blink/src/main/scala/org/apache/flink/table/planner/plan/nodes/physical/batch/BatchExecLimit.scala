@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
@@ -59,7 +59,7 @@ class BatchExecLimit(
     offset,
     fetch)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   private lazy val limitStart: Long = SortUtil.getLimitStart(offset)
   private lazy val limitEnd: Long = SortUtil.getLimitEnd(offset, fetch)
@@ -101,9 +101,9 @@ class BatchExecLimit(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val input = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
     val inputType = input.getOutputType
     val operator = new LimitOperator(isGlobal, limitStart, limitEnd)
     ExecNode.createOneInputTransformation(

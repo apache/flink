@@ -21,20 +21,20 @@ package org.apache.flink.table.runtime.operators.match;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.cep.pattern.conditions.RichIterativeCondition;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 
 /**
  * A {@link RichIterativeCondition} wrapper to delegate invocation to the code generated
  * {@link RichIterativeCondition}.
  */
-public class IterativeConditionRunner extends RichIterativeCondition<BaseRow> {
+public class IterativeConditionRunner extends RichIterativeCondition<RowData> {
 	private static final long serialVersionUID = 1L;
 
-	private final GeneratedFunction<RichIterativeCondition<BaseRow>> generatedFunction;
-	private transient RichIterativeCondition<BaseRow> function;
+	private final GeneratedFunction<RichIterativeCondition<RowData>> generatedFunction;
+	private transient RichIterativeCondition<RowData> function;
 
-	public IterativeConditionRunner(GeneratedFunction<RichIterativeCondition<BaseRow>> generatedFunction) {
+	public IterativeConditionRunner(GeneratedFunction<RichIterativeCondition<RowData>> generatedFunction) {
 		this.generatedFunction = generatedFunction;
 	}
 
@@ -46,7 +46,7 @@ public class IterativeConditionRunner extends RichIterativeCondition<BaseRow> {
 	}
 
 	@Override
-	public boolean filter(BaseRow value, Context<BaseRow> ctx) throws Exception {
+	public boolean filter(RowData value, Context<RowData> ctx) throws Exception {
 		return function.filter(value, ctx);
 	}
 

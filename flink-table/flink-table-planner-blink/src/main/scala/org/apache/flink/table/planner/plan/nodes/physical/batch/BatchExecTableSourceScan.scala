@@ -27,7 +27,7 @@ import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
@@ -49,7 +49,6 @@ import java.util.function.{Function => JFunction}
 import java.{lang, util}
 
 import scala.collection.JavaConversions._
-import scala.collection.JavaConverters._
 
 /**
   * Batch physical RelNode to read data from an external source defined by a
@@ -61,7 +60,7 @@ class BatchExecTableSourceScan(
     tableSourceTable: TableSourceTable[_])
   extends PhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow]{
+  with BatchExecNode[RowData]{
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecTableSourceScan(cluster, traitSet, tableSourceTable)
@@ -91,7 +90,7 @@ class BatchExecTableSourceScan(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
 
@@ -138,7 +137,7 @@ class BatchExecTableSourceScan(
         config,
         rowtimeExpression)
     } else {
-      inputTransform.asInstanceOf[Transformation[BaseRow]]
+      inputTransform.asInstanceOf[Transformation[RowData]]
     }
 
   }

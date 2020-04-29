@@ -27,8 +27,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{DataTypes, TableException}
-import org.apache.flink.table.dataformat.DataFormatConverters.DataFormatConverter
-import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters}
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.util.DataFormatConverters
+import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator._
@@ -65,7 +66,7 @@ class StreamExecTableSourceScan(
     tableSourceTable: TableSourceTable[_])
   extends PhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -92,7 +93,7 @@ class StreamExecTableSourceScan(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
 
@@ -132,7 +133,7 @@ class StreamExecTableSourceScan(
           ("", "")
         }
       val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
-        classOf[AbstractProcessStreamOperator[BaseRow]])
+        classOf[AbstractProcessStreamOperator[RowData]])
       // the produced type may not carry the correct precision user defined in DDL, because
       // it may be converted from legacy type. Fix precision using logical schema from DDL.
       // Code generation requires the correct precision of input fields.
@@ -152,7 +153,7 @@ class StreamExecTableSourceScan(
         afterConvert = resetElement)
       conversionTransform
     } else {
-      inputTransform.asInstanceOf[Transformation[BaseRow]]
+      inputTransform.asInstanceOf[Transformation[RowData]]
     }
 
     val ingestedTable = new DataStream(planner.getExecEnv, streamTransformation)
@@ -227,11 +228,11 @@ class StreamExecTableSourceScan(
 private class PeriodicWatermarkAssignerWrapper(
     timeFieldIdx: Int,
     assigner: PeriodicWatermarkAssigner)
-  extends AssignerWithPeriodicWatermarks[BaseRow] {
+  extends AssignerWithPeriodicWatermarks[RowData] {
 
   override def getCurrentWatermark: Watermark = assigner.getWatermark
 
-  override def extractTimestamp(row: BaseRow, previousElementTimestamp: Long): Long = {
+  override def extractTimestamp(row: RowData, previousElementTimestamp: Long): Long = {
     val timestamp: Long = row.getTimestamp(timeFieldIdx, 3).getMillisecond
     assigner.nextTimestamp(timestamp)
     0L
@@ -248,20 +249,20 @@ private class PunctuatedWatermarkAssignerWrapper(
     timeFieldIdx: Int,
     assigner: PunctuatedWatermarkAssigner,
     sourceType: DataType)
-  extends AssignerWithPunctuatedWatermarks[BaseRow] {
+  extends AssignerWithPunctuatedWatermarks[RowData] {
 
   private val converter =
     DataFormatConverters.getConverterForDataType((sourceType match {
       case _: FieldsDataType => sourceType
       case _ => DataTypes.ROW(DataTypes.FIELD("f0", sourceType))
-    }).bridgedTo(classOf[Row])).asInstanceOf[DataFormatConverter[BaseRow, Row]]
+    }).bridgedTo(classOf[Row])).asInstanceOf[DataFormatConverter[RowData, Row]]
 
-  override def checkAndGetNextWatermark(row: BaseRow, ts: Long): Watermark = {
+  override def checkAndGetNextWatermark(row: RowData, ts: Long): Watermark = {
     val timestamp: Long = row.getLong(timeFieldIdx)
     assigner.getWatermark(converter.toExternal(row), timestamp)
   }
 
-  override def extractTimestamp(element: BaseRow, previousElementTimestamp: Long): Long = {
+  override def extractTimestamp(element: RowData, previousElementTimestamp: Long): Long = {
     0L
   }
 }

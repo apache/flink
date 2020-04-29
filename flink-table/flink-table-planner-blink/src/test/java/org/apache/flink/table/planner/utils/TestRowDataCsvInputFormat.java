@@ -30,10 +30,10 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.DataFormatConverters;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.filesystem.PartitionPathUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -45,9 +45,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * The {@link InputFormat} that output {@link BaseRow}.
+ * The {@link InputFormat} that output {@link RowData}.
  */
-public class TestRowDataCsvInputFormat extends RichInputFormat<BaseRow, FileInputSplit> {
+public class TestRowDataCsvInputFormat extends RichInputFormat<RowData, FileInputSplit> {
 
 	private final List<String> partitionKeys;
 	private final String defaultPartValue;
@@ -60,7 +60,7 @@ public class TestRowDataCsvInputFormat extends RichInputFormat<BaseRow, FileInpu
 	private final int[] csvFieldMapping;
 
 	private transient Row csvRow;
-	private transient GenericRow row;
+	private transient GenericRowData row;
 	private transient long emitted;
 
 	public TestRowDataCsvInputFormat(
@@ -126,7 +126,7 @@ public class TestRowDataCsvInputFormat extends RichInputFormat<BaseRow, FileInpu
 		inputFormat.open(split);
 		Path path = split.getPath();
 		LinkedHashMap<String, String> partSpec = PartitionPathUtils.extractPartitionSpecFromPath(path);
-		this.row = new GenericRow(selectFields.length);
+		this.row = new GenericRowData(selectFields.length);
 		for (int i = 0; i < selectFields.length; i++) {
 			int selectField = selectFields[i];
 			String name = fieldNames.get(selectField);
@@ -146,7 +146,7 @@ public class TestRowDataCsvInputFormat extends RichInputFormat<BaseRow, FileInpu
 		} else if (type.equals(Types.LONG)) {
 			return Long.parseLong(value);
 		} else if (type.equals(Types.STRING)) {
-			return BinaryString.fromString(value);
+			return StringData.fromString(value);
 		} else {
 			throw new UnsupportedOperationException("Unsupported partition type: " + type);
 		}
@@ -158,7 +158,7 @@ public class TestRowDataCsvInputFormat extends RichInputFormat<BaseRow, FileInpu
 	}
 
 	@Override
-	public BaseRow nextRecord(BaseRow reuse) throws IOException {
+	public RowData nextRecord(RowData reuse) throws IOException {
 		Row csvRow = inputFormat.nextRecord(this.csvRow);
 		if (csvRow == null) {
 			return null;

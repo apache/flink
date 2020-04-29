@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, _}
 import org.apache.flink.table.runtime.operators.rank._
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -71,7 +71,7 @@ class StreamExecRank(
     rankNumberType,
     outputRankNumber)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -127,7 +127,7 @@ class StreamExecRank(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val tableConfig = planner.getTableConfig
     rankType match {
       case RankType.ROW_NUMBER => // ignore
@@ -139,11 +139,11 @@ class StreamExecRank(
         throw new TableException(s"Streaming tables do not support $k rank function.")
     }
 
-    val inputRowTypeInfo = BaseRowTypeInfo.of(
+    val inputRowTypeInfo = RowDataTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getInput.getRowType))
     val fieldCollations = orderKey.getFieldCollations
     val (sortFields, sortDirections, nullsIsLast) = SortUtil.getKeysAndOrders(fieldCollations)
-    val sortKeySelector = KeySelectorUtil.getBaseRowSelector(sortFields, inputRowTypeInfo)
+    val sortKeySelector = KeySelectorUtil.getRowDataSelector(sortFields, inputRowTypeInfo)
     val sortKeyType = sortKeySelector.getProducedType
     val sortKeyComparator = ComparatorCodeGenerator.gen(tableConfig, "StreamExecSortComparator",
       sortFields.indices.toArray, sortKeyType.getLogicalTypes, sortDirections, nullsIsLast)
@@ -167,7 +167,7 @@ class StreamExecRank(
           cacheSize)
 
       case UpdateFastStrategy(primaryKeys) =>
-        val rowKeySelector = KeySelectorUtil.getBaseRowSelector(primaryKeys, inputRowTypeInfo)
+        val rowKeySelector = KeySelectorUtil.getRowDataSelector(primaryKeys, inputRowTypeInfo)
         new UpdatableTopNFunction(
           minIdleStateRetentionTime,
           maxIdleStateRetentionTime,
@@ -201,8 +201,8 @@ class StreamExecRank(
     val operator = new KeyedProcessOperator(processFunction)
     processFunction.setKeyContext(operator)
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
-    val outputRowTypeInfo = BaseRowTypeInfo.of(
+      .asInstanceOf[Transformation[RowData]]
+    val outputRowTypeInfo = RowDataTypeInfo.of(
       FlinkTypeFactory.toLogicalRowType(getRowType))
     val ret = new OneInputTransformation(
       inputTransform,
@@ -217,7 +217,7 @@ class StreamExecRank(
     }
 
     // set KeyType and Selector for state
-    val selector = KeySelectorUtil.getBaseRowSelector(partitionKey.toArray, inputRowTypeInfo)
+    val selector = KeySelectorUtil.getRowDataSelector(partitionKey.toArray, inputRowTypeInfo)
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)
     ret

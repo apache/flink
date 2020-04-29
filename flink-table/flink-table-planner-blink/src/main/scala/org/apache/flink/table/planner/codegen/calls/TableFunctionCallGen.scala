@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.calcite.rex.RexCall
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.newName
@@ -35,6 +34,8 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType
+
+import org.apache.calcite.rex.RexCall
 
 import scala.collection.JavaConversions._
 
@@ -127,7 +128,7 @@ class TableFunctionCallGen(
         .bindInput(externalType, externalTerm, pojoFieldMapping)
       val wrappedResult = resultGenerator.generateConverterResultExpression(
         wrappedInternalType,
-        classOf[GenericRow])
+        classOf[GenericRowData])
       s"""
        |${wrappedResult.code}
        |outputResult(${wrappedResult.resultTerm});

@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.`type`.FlinkReturnTypes
 import org.apache.flink.table.planner.typeutils.TypeCoercion
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.{fromLogicalTypeToTypeInfo, fromTypeInfoToLogicalType}
-import org.apache.flink.table.runtime.typeutils.{BigDecimalTypeInfo, DecimalTypeInfo}
+import org.apache.flink.table.runtime.typeutils.{BigDecimalTypeInfo, DecimalDataTypeInfo}
 import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
 
 import org.apache.calcite.rel.`type`.RelDataType
@@ -77,7 +77,7 @@ object ReturnTypeInference {
         precision = Math.min(precision, typeSystem.getMaxNumericPrecision)
         assert(precision > 0)
         fromLogicalTypeToTypeInfo(wideResultType) match {
-          case _: DecimalTypeInfo => DecimalTypeInfo.of(precision, scale)
+          case _: DecimalDataTypeInfo => DecimalDataTypeInfo.of(precision, scale)
           case _: BigDecimalTypeInfo => BigDecimalTypeInfo.of(precision, scale)
         }
       } else {
@@ -170,7 +170,7 @@ object ReturnTypeInference {
   def inferRound(round: Round): TypeInformation[_] = {
     val numType = round.left.resultType
     numType match {
-      case _: DecimalTypeInfo | _: BigDecimalTypeInfo =>
+      case _: DecimalDataTypeInfo | _: BigDecimalTypeInfo =>
         val lenValue = round.right match {
           case Literal(v: Int, BasicTypeInfo.INT_TYPE_INFO) => v
           case _ => throw new TableException("This will not happen here!")
@@ -208,7 +208,7 @@ object ReturnTypeInference {
   private def getArg0OrExactNoScale(op: UnaryExpression) = {
     val childType = op.child.resultType
     childType match {
-      case t: DecimalTypeInfo => DecimalTypeInfo.of(t.precision(), 0)
+      case t: DecimalDataTypeInfo => DecimalDataTypeInfo.of(t.precision(), 0)
       case t: BigDecimalTypeInfo => BigDecimalTypeInfo.of(t.precision(), 0)
       case _ => childType
     }

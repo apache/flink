@@ -24,12 +24,12 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest.MyProjection;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.util.MutableObjectIterator;
@@ -62,7 +62,7 @@ public class SortMergeJoinIteratorTest {
 	private final boolean leftIsSmall;
 	private MemoryManager memManager;
 	private IOManager ioManager;
-	private BinaryRowSerializer serializer;
+	private BinaryRowDataSerializer serializer;
 
 	public SortMergeJoinIteratorTest(boolean leftIsSmall) throws Exception {
 		this.leftIsSmall = leftIsSmall;
@@ -77,7 +77,7 @@ public class SortMergeJoinIteratorTest {
 	public void before() throws MemoryAllocationException {
 		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 		this.ioManager = new IOManagerAsync();
-		this.serializer = new BinaryRowSerializer(1);
+		this.serializer = new BinaryRowDataSerializer(1);
 	}
 
 	@Test
@@ -92,12 +92,12 @@ public class SortMergeJoinIteratorTest {
 
 	@Test
 	public void testOneSideOuter() throws Exception {
-		List<Tuple2<BinaryRow, BinaryRow>> compare1;
-		List<Tuple2<BinaryRow, BinaryRow>> compare2;
-		List<Tuple2<BinaryRow, BinaryRow>> compare3;
-		List<Tuple2<BinaryRow, BinaryRow>> compare4 = newExpect1(2);
-		List<Tuple2<BinaryRow, BinaryRow>> compare5;
-		List<Tuple2<BinaryRow, BinaryRow>> compare6;
+		List<Tuple2<BinaryRowData, BinaryRowData>> compare1;
+		List<Tuple2<BinaryRowData, BinaryRowData>> compare2;
+		List<Tuple2<BinaryRowData, BinaryRowData>> compare3;
+		List<Tuple2<BinaryRowData, BinaryRowData>> compare4 = newExpect1(2);
+		List<Tuple2<BinaryRowData, BinaryRowData>> compare5;
+		List<Tuple2<BinaryRowData, BinaryRowData>> compare6;
 		if (!leftIsSmall) {
 			compare1 = Arrays.asList(
 					newTuple(newRow(1), null),
@@ -143,10 +143,10 @@ public class SortMergeJoinIteratorTest {
 				newTuple(null, newRow(null))));
 		fullOuter(noJoin(), Collections.singletonList(newTuple(newRow(1), null)));
 		fullOuter(oneAndTwo(), newExpect1(2));
-		List<Tuple2<BinaryRow, BinaryRow>> compare5 = newExpect1(6);
+		List<Tuple2<BinaryRowData, BinaryRowData>> compare5 = newExpect1(6);
 		compare5.add(newTuple(null, newRow(null)));
 		fullOuter(nmJoin(), compare5);
-		List<Tuple2<BinaryRow, BinaryRow>> compare6 = newExpect1(6);
+		List<Tuple2<BinaryRowData, BinaryRowData>> compare6 = newExpect1(6);
 		compare6.addAll(Arrays.asList(
 				newTuple(null, newRow(2)),
 				newTuple(newRow(3), null),
@@ -155,8 +155,8 @@ public class SortMergeJoinIteratorTest {
 		fullOuter(nmMultiJoin(), compare6);
 	}
 
-	private List<Tuple2<BinaryRow, BinaryRow>> newExpect1(int number) {
-		List<Tuple2<BinaryRow, BinaryRow>> list = new ArrayList<>();
+	private List<Tuple2<BinaryRowData, BinaryRowData>> newExpect1(int number) {
+		List<Tuple2<BinaryRowData, BinaryRowData>> list = new ArrayList<>();
 		for (int i = 0; i < number; i++) {
 			list.add(newTuple(newRow(1), newRow(1)));
 		}
@@ -164,8 +164,8 @@ public class SortMergeJoinIteratorTest {
 	}
 
 	public void inner(
-			Tuple2<MutableObjectIterator<BinaryRow>, MutableObjectIterator<BinaryRow>> data,
-			List<Tuple2<BinaryRow, BinaryRow>> compare) throws Exception {
+			Tuple2<MutableObjectIterator<BinaryRowData>, MutableObjectIterator<BinaryRowData>> data,
+			List<Tuple2<BinaryRowData, BinaryRowData>> compare) throws Exception {
 		MutableObjectIterator input1 = data.f0;
 		MutableObjectIterator input2 = data.f1;
 		if (leftIsSmall) {
@@ -173,8 +173,8 @@ public class SortMergeJoinIteratorTest {
 			input2 = data.f0;
 		}
 		try (SortMergeInnerJoinIterator iterator = new SortMergeInnerJoinIterator(
-				new BinaryRowSerializer(1),
-				new BinaryRowSerializer(1),
+				new BinaryRowDataSerializer(1),
+				new BinaryRowDataSerializer(1),
 				new MyProjection(),
 				new MyProjection(),
 				new IntRecordComparator(),
@@ -186,11 +186,11 @@ public class SortMergeJoinIteratorTest {
 						serializer, false), new boolean[]{true})) {
 			int id = 0;
 			while (iterator.nextInnerJoin()) {
-				BaseRow probe = iterator.getProbeRow();
+				RowData probe = iterator.getProbeRow();
 				ResettableExternalBuffer.BufferIterator iter = iterator.getMatchBuffer().newIterator();
 				while (iter.advanceNext()) {
-					BaseRow row = iter.getRow();
-					Tuple2<BinaryRow, BinaryRow> expected = compare.get(id++);
+					RowData row = iter.getRow();
+					Tuple2<BinaryRowData, BinaryRowData> expected = compare.get(id++);
 					if (leftIsSmall) {
 						assertEquals(expected, new Tuple2<>(row, probe));
 					} else {
@@ -203,8 +203,8 @@ public class SortMergeJoinIteratorTest {
 	}
 
 	public void oneSideOuter(
-			Tuple2<MutableObjectIterator<BinaryRow>, MutableObjectIterator<BinaryRow>> data,
-			List<Tuple2<BinaryRow, BinaryRow>> compare) throws Exception {
+			Tuple2<MutableObjectIterator<BinaryRowData>, MutableObjectIterator<BinaryRowData>> data,
+			List<Tuple2<BinaryRowData, BinaryRowData>> compare) throws Exception {
 		MutableObjectIterator input1 = data.f0;
 		MutableObjectIterator input2 = data.f1;
 		if (leftIsSmall) {
@@ -212,8 +212,8 @@ public class SortMergeJoinIteratorTest {
 			input2 = data.f0;
 		}
 		try (SortMergeOneSideOuterJoinIterator iterator = new SortMergeOneSideOuterJoinIterator(
-				new BinaryRowSerializer(1),
-				new BinaryRowSerializer(1),
+				new BinaryRowDataSerializer(1),
+				new BinaryRowDataSerializer(1),
 				new MyProjection(),
 				new MyProjection(),
 				new IntRecordComparator(),
@@ -225,9 +225,9 @@ public class SortMergeJoinIteratorTest {
 						serializer, false), new boolean[]{true})) {
 			int id = 0;
 			while (iterator.nextOuterJoin()) {
-				BaseRow probe = iterator.getProbeRow();
+				RowData probe = iterator.getProbeRow();
 				if (iterator.matchKey == null) {
-					Tuple2<BinaryRow, BinaryRow> expected = compare.get(id++);
+					Tuple2<BinaryRowData, BinaryRowData> expected = compare.get(id++);
 					if (leftIsSmall) {
 						assertEquals(expected, new Tuple2<>(null, probe));
 					} else {
@@ -236,8 +236,8 @@ public class SortMergeJoinIteratorTest {
 				} else {
 					ResettableExternalBuffer.BufferIterator iter = iterator.getMatchBuffer().newIterator();
 					while (iter.advanceNext()) {
-						BaseRow row = iter.getRow();
-						Tuple2<BinaryRow, BinaryRow> expected = compare.get(id++);
+						RowData row = iter.getRow();
+						Tuple2<BinaryRowData, BinaryRowData> expected = compare.get(id++);
 						assertEquals(expected, new Tuple2<>(row, probe));
 					}
 				}
@@ -247,13 +247,13 @@ public class SortMergeJoinIteratorTest {
 	}
 
 	public void fullOuter(
-			Tuple2<MutableObjectIterator<BinaryRow>, MutableObjectIterator<BinaryRow>> data,
-			List<Tuple2<BinaryRow, BinaryRow>> compare) throws Exception {
-		MutableObjectIterator<BinaryRow> input1 = data.f0;
-		MutableObjectIterator<BinaryRow> input2 = data.f1;
+			Tuple2<MutableObjectIterator<BinaryRowData>, MutableObjectIterator<BinaryRowData>> data,
+			List<Tuple2<BinaryRowData, BinaryRowData>> compare) throws Exception {
+		MutableObjectIterator<BinaryRowData> input1 = data.f0;
+		MutableObjectIterator<BinaryRowData> input2 = data.f1;
 		try (SortMergeFullOuterJoinIterator iterator = new SortMergeFullOuterJoinIterator(
-				new BinaryRowSerializer(1),
-				new BinaryRowSerializer(1),
+				new BinaryRowDataSerializer(1),
+				new BinaryRowDataSerializer(1),
 				new MyProjection(),
 				new MyProjection(),
 				new IntRecordComparator(),
@@ -269,32 +269,32 @@ public class SortMergeJoinIteratorTest {
 						serializer, false), new boolean[]{true})) {
 			int id = 0;
 			while (iterator.nextOuterJoin()) {
-				BinaryRow matchKey = iterator.getMatchKey();
+				BinaryRowData matchKey = iterator.getMatchKey();
 				ResettableExternalBuffer buffer1 = iterator.getBuffer1();
 				ResettableExternalBuffer buffer2 = iterator.getBuffer2();
 
 				if (matchKey == null && buffer1.size() > 0) { // left outer join.
 					ResettableExternalBuffer.BufferIterator iter = buffer1.newIterator();
 					while (iter.advanceNext()) {
-						BaseRow row = iter.getRow();
-						Tuple2<BinaryRow, BinaryRow> expected = compare.get(id++);
+						RowData row = iter.getRow();
+						Tuple2<BinaryRowData, BinaryRowData> expected = compare.get(id++);
 						assertEquals(expected, new Tuple2<>(row, null));
 					}
 				} else if (matchKey == null && buffer2.size() > 0) { // right outer join.
 					ResettableExternalBuffer.BufferIterator iter = buffer2.newIterator();
 					while (iter.advanceNext()) {
-						BaseRow row = iter.getRow();
-						Tuple2<BinaryRow, BinaryRow> expected = compare.get(id++);
+						RowData row = iter.getRow();
+						Tuple2<BinaryRowData, BinaryRowData> expected = compare.get(id++);
 						assertEquals(expected, new Tuple2<>(null, row));
 					}
 				} else if (matchKey != null) { // match join.
 					ResettableExternalBuffer.BufferIterator iter1 = buffer1.newIterator();
 					while (iter1.advanceNext()) {
-						BaseRow row1 = iter1.getRow();
+						RowData row1 = iter1.getRow();
 						ResettableExternalBuffer.BufferIterator iter2 = buffer2.newIterator();
 						while (iter2.advanceNext()) {
-							BaseRow row2 = iter2.getRow();
-							Tuple2<BinaryRow, BinaryRow> expected = compare.get(id++);
+							RowData row2 = iter2.getRow();
+							Tuple2<BinaryRowData, BinaryRowData> expected = compare.get(id++);
 							assertEquals(expected, new Tuple2<>(row1, row2));
 						}
 					}
@@ -306,50 +306,50 @@ public class SortMergeJoinIteratorTest {
 		}
 	}
 
-	private Tuple2<MutableObjectIterator<BinaryRow>, MutableObjectIterator<BinaryRow>> oneEmpty() {
+	private Tuple2<MutableObjectIterator<BinaryRowData>, MutableObjectIterator<BinaryRowData>> oneEmpty() {
 		return new Tuple2<>(
 				new ListIterator(Arrays.asList(newRow(1), newRow(2))),
 				new ListIterator(emptyList())
 		);
 	}
 
-	private Tuple2<MutableObjectIterator<BinaryRow>, MutableObjectIterator<BinaryRow>> oneAndTwo() {
+	private Tuple2<MutableObjectIterator<BinaryRowData>, MutableObjectIterator<BinaryRowData>> oneAndTwo() {
 		return new Tuple2<>(
 				new ListIterator(Collections.singletonList(newRow(1))),
 				new ListIterator(Arrays.asList(newRow(1), newRow(1)))
 		);
 	}
 
-	private Tuple2<MutableObjectIterator<BinaryRow>, MutableObjectIterator<BinaryRow>> haveNull() {
+	private Tuple2<MutableObjectIterator<BinaryRowData>, MutableObjectIterator<BinaryRowData>> haveNull() {
 		return new Tuple2<>(
 				new ListIterator(Collections.singletonList(newRow(null))),
 				new ListIterator(Arrays.asList(newRow(null), newRow(null)))
 		);
 	}
 
-	private Tuple2<MutableObjectIterator<BinaryRow>, MutableObjectIterator<BinaryRow>> noJoin() {
+	private Tuple2<MutableObjectIterator<BinaryRowData>, MutableObjectIterator<BinaryRowData>> noJoin() {
 		return new Tuple2<>(
 				new ListIterator(Collections.singletonList(newRow(1))),
 				new ListIterator(emptyList())
 		);
 	}
 
-	private Tuple2<MutableObjectIterator<BinaryRow>, MutableObjectIterator<BinaryRow>> nmJoin() {
+	private Tuple2<MutableObjectIterator<BinaryRowData>, MutableObjectIterator<BinaryRowData>> nmJoin() {
 		return new Tuple2<>(
 				new ListIterator(Arrays.asList(newRow(1), newRow(1))),
 				new ListIterator(Arrays.asList(newRow(1), newRow(1), newRow(1), newRow(null)))
 		);
 	}
 
-	private Tuple2<MutableObjectIterator<BinaryRow>, MutableObjectIterator<BinaryRow>> nmMultiJoin() {
+	private Tuple2<MutableObjectIterator<BinaryRowData>, MutableObjectIterator<BinaryRowData>> nmMultiJoin() {
 		return new Tuple2<>(
 				new ListIterator(Arrays.asList(newRow(1), newRow(1), newRow(3), newRow(5))),
 				new ListIterator(Arrays.asList(newRow(1), newRow(1), newRow(1), newRow(2), newRow(4)))
 		);
 	}
 
-	public BinaryRow newRow(Integer i) {
-		BinaryRow row = new BinaryRow(1);
+	public BinaryRowData newRow(Integer i) {
+		BinaryRowData row = new BinaryRowData(1);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		if (i != null) {
 			writer.writeInt(0, i);
@@ -360,29 +360,29 @@ public class SortMergeJoinIteratorTest {
 		return row;
 	}
 
-	public Tuple2<BinaryRow, BinaryRow> newTuple(BinaryRow i, BinaryRow j) {
+	public Tuple2<BinaryRowData, BinaryRowData> newTuple(BinaryRowData i, BinaryRowData j) {
 		return new Tuple2<>(i, j);
 	}
 
 	/**
 	 * List iterator.
 	 */
-	public static class ListIterator implements MutableObjectIterator<BinaryRow> {
+	public static class ListIterator implements MutableObjectIterator<BinaryRowData> {
 
-		private List<BinaryRow> list;
+		private List<BinaryRowData> list;
 		private int index = 0;
 
-		public ListIterator(List<BinaryRow> list) {
+		public ListIterator(List<BinaryRowData> list) {
 			this.list = list;
 		}
 
 		@Override
-		public BinaryRow next(BinaryRow binaryRow) throws IOException {
+		public BinaryRowData next(BinaryRowData binaryRow) throws IOException {
 			return next();
 		}
 
 		@Override
-		public BinaryRow next() throws IOException {
+		public BinaryRowData next() throws IOException {
 			if (index < list.size()) {
 				return list.get(index++);
 			}

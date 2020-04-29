@@ -18,28 +18,28 @@
 
 package org.apache.flink.table.runtime.keyselector;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.util.BinaryRowUtil;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowDataUtil;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 
 /**
  * A utility class which key is always empty no matter what the input row is.
  */
-public class NullBinaryRowKeySelector implements BaseRowKeySelector {
+public class EmptyRowDataKeySelector implements RowDataKeySelector {
 
-	public static final NullBinaryRowKeySelector INSTANCE = new NullBinaryRowKeySelector();
+	public static final EmptyRowDataKeySelector INSTANCE = new EmptyRowDataKeySelector();
 
 	private static final long serialVersionUID = -2079386198687082032L;
 
-	private final BaseRowTypeInfo returnType = new BaseRowTypeInfo();
+	private final RowDataTypeInfo returnType = new RowDataTypeInfo();
 
 	@Override
-	public BaseRow getKey(BaseRow value) throws Exception {
-		return BinaryRowUtil.EMPTY_ROW;
+	public RowData getKey(RowData value) throws Exception {
+		return BinaryRowDataUtil.EMPTY_ROW;
 	}
 
 	@Override
-	public BaseRowTypeInfo getProducedType() {
+	public RowDataTypeInfo getProducedType() {
 		return returnType;
 	}
 }

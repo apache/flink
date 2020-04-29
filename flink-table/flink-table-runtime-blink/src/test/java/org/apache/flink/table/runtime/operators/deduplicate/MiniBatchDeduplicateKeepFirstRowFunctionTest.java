@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 
@@ -40,9 +40,9 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
  */
 public class MiniBatchDeduplicateKeepFirstRowFunctionTest extends DeduplicateFunctionTestBase {
 
-	private TypeSerializer<BaseRow> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
+	private TypeSerializer<RowData> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
 
-	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(
+	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
 			MiniBatchDeduplicateKeepFirstRowFunction func)
 			throws Exception {
 		CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);
@@ -53,7 +53,7 @@ public class MiniBatchDeduplicateKeepFirstRowFunctionTest extends DeduplicateFun
 	@Test
 	public void testKeepFirstRowWithGenerateUpdateBefore() throws Exception {
 		MiniBatchDeduplicateKeepFirstRowFunction func = new MiniBatchDeduplicateKeepFirstRowFunction(typeSerializer, minTime.toMilliseconds());
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));
 		testHarness.processElement(insertRecord("book", 2L, 11));
@@ -74,7 +74,7 @@ public class MiniBatchDeduplicateKeepFirstRowFunctionTest extends DeduplicateFun
 	@Test
 	public void testKeepFirstRowWithStateTtl() throws Exception {
 		MiniBatchDeduplicateKeepFirstRowFunction func = new MiniBatchDeduplicateKeepFirstRowFunction(typeSerializer, minTime.toMilliseconds());
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
 		testHarness.setup();
 		testHarness.open();
 		testHarness.processElement(insertRecord("book", 1L, 12));

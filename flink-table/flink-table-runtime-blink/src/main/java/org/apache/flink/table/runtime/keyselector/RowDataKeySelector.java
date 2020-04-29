@@ -20,14 +20,14 @@ package org.apache.flink.table.runtime.keyselector;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 
 /**
- * BaseRowKeySelector takes an BaseRow and extracts the deterministic key for the BaseRow.
+ * RowDataKeySelector takes an RowData and extracts the deterministic key for the RowData.
  */
-public interface BaseRowKeySelector extends KeySelector<BaseRow, BaseRow>, ResultTypeQueryable<BaseRow> {
+public interface RowDataKeySelector extends KeySelector<RowData, RowData>, ResultTypeQueryable<RowData> {
 
-	BaseRowTypeInfo getProducedType();
+	RowDataTypeInfo getProducedType();
 
 }

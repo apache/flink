@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.{GeneratedWatermarkGenerator, WatermarkGenerator}
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, RowType}
@@ -66,7 +66,7 @@ object WatermarkGeneratorCodeGenerator {
         }
 
         @Override
-        public Long currentWatermark($BASE_ROW row) throws Exception {
+        public Long currentWatermark($ROW_DATA row) throws Exception {
           ${ctx.reusePerRecordCode()}
           ${ctx.reuseLocalVariableCode()}
           ${ctx.reuseInputUnboxingCode()}

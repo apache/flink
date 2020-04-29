@@ -24,7 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.sources.FilterableTableSource;
 import org.apache.flink.table.sources.InputFormatTableSource;
@@ -47,11 +47,11 @@ import static org.apache.flink.table.filesystem.FileSystemTableFactory.createFor
 /**
  * File system table source.
  */
-public class FileSystemTableSource extends InputFormatTableSource<BaseRow> implements
+public class FileSystemTableSource extends InputFormatTableSource<RowData> implements
 		PartitionableTableSource,
-		ProjectableTableSource<BaseRow>,
-		LimitableTableSource<BaseRow>,
-		FilterableTableSource<BaseRow> {
+		ProjectableTableSource<RowData>,
+		LimitableTableSource<RowData>,
+		FilterableTableSource<RowData> {
 
 	private final TableSchema schema;
 	private final Path path;
@@ -106,7 +106,7 @@ public class FileSystemTableSource extends InputFormatTableSource<BaseRow> imple
 	}
 
 	@Override
-	public InputFormat<BaseRow, ?> getInputFormat() {
+	public InputFormat<RowData, ?> getInputFormat() {
 		// When this table has no partition, just return a empty source.
 		if (!partitionKeys.isEmpty() && getOrFetchPartitions().isEmpty()) {
 			return new CollectionInputFormat<>(new ArrayList<>(), null);
@@ -284,7 +284,7 @@ public class FileSystemTableSource extends InputFormatTableSource<BaseRow> imple
 		return DataTypes.ROW(Arrays.stream(fields)
 				.mapToObj(i -> DataTypes.FIELD(schemaFieldNames[i], schemaTypes[i]))
 				.toArray(DataTypes.Field[]::new))
-				.bridgedTo(BaseRow.class);
+				.bridgedTo(RowData.class);
 	}
 
 	@Override

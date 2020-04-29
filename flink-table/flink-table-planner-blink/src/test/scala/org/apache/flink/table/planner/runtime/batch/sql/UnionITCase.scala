@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.dataformat.BinaryString.fromString
+import org.apache.flink.table.data.StringData.fromString
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.{binaryRow, row}
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
 import org.junit._
@@ -32,7 +32,7 @@ import scala.collection.Seq
 
 class UnionITCase extends BatchTestBase {
 
-  val type6 = new BaseRowTypeInfo(
+  val type6 = new RowDataTypeInfo(
     new IntType(), new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH))
 
   val data6 = Seq(
@@ -109,7 +109,7 @@ class UnionITCase extends BatchTestBase {
   }
 
   /**
-    * Test different types of two union inputs(One is GenericRow, the other is BinaryRow).
+    * Test different types of two union inputs(One is GenericRowData, the other is BinaryRowData).
     */
   @Test
   def testJoinAfterDifferentTypeUnionAll(): Unit = {

@@ -29,7 +29,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -39,8 +39,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * generates periodic watermarks.
  */
 public class WatermarkAssignerOperator
-	extends AbstractStreamOperator<BaseRow>
-	implements OneInputStreamOperator<BaseRow, BaseRow>, ProcessingTimeCallback {
+	extends AbstractStreamOperator<RowData>
+	implements OneInputStreamOperator<RowData, RowData>, ProcessingTimeCallback {
 
 	private static final long serialVersionUID = 1L;
 
@@ -104,13 +104,13 @@ public class WatermarkAssignerOperator
 	}
 
 	@Override
-	public void processElement(StreamRecord<BaseRow> element) throws Exception {
+	public void processElement(StreamRecord<RowData> element) throws Exception {
 		if (idleTimeout > 0) {
 			// mark the channel active
 			streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
 			lastRecordTime = getProcessingTimeService().getCurrentProcessingTime();
 		}
-		BaseRow row = element.getValue();
+		RowData row = element.getValue();
 		if (row.isNullAt(rowtimeFieldIndex)) {
 			throw new RuntimeException("RowTime field should not be null," +
 					" please convert it to a non-null long value.");

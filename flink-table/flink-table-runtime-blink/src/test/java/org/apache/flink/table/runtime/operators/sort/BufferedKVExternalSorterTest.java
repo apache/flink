@@ -26,12 +26,12 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -56,8 +56,8 @@ public class BufferedKVExternalSorterTest {
 	private static final int PAGE_SIZE = MemoryManager.DEFAULT_PAGE_SIZE;
 
 	private IOManager ioManager;
-	private BinaryRowSerializer keySerializer;
-	private BinaryRowSerializer valueSerializer;
+	private BinaryRowDataSerializer keySerializer;
+	private BinaryRowDataSerializer valueSerializer;
 	private NormalizedKeyComputer computer;
 	private RecordComparator comparator;
 
@@ -94,8 +94,8 @@ public class BufferedKVExternalSorterTest {
 	public void beforeTest() throws InstantiationException, IllegalAccessException {
 		this.ioManager = new IOManagerAsync();
 
-		this.keySerializer = new BinaryRowSerializer(2);
-		this.valueSerializer = new BinaryRowSerializer(2);
+		this.keySerializer = new BinaryRowDataSerializer(2);
+		this.valueSerializer = new BinaryRowDataSerializer(2);
 
 		this.computer = IntNormalizedKeyComputer.INSTANCE;
 		this.comparator = IntRecordComparator.INSTANCE;
@@ -126,8 +126,8 @@ public class BufferedKVExternalSorterTest {
 			sorter.sortAndSpill(segments, recordNumberPerFile, pool);
 		}
 		Collections.sort(expected);
-		MutableObjectIterator<Tuple2<BinaryRow, BinaryRow>> iterator = sorter.getKVIterator();
-		Tuple2<BinaryRow, BinaryRow> kv =
+		MutableObjectIterator<Tuple2<BinaryRowData, BinaryRowData>> iterator = sorter.getKVIterator();
+		Tuple2<BinaryRowData, BinaryRowData> kv =
 				new Tuple2<>(keySerializer.createInstance(), valueSerializer.createInstance());
 		int count = 0;
 		while ((kv = iterator.next(kv)) != null) {
@@ -140,16 +140,16 @@ public class BufferedKVExternalSorterTest {
 	}
 
 	private void writeKVToBuffer(
-			BinaryRowSerializer keySerializer,
-			BinaryRowSerializer valueSerializer,
+			BinaryRowDataSerializer keySerializer,
+			BinaryRowDataSerializer valueSerializer,
 			SimpleCollectingOutputView out,
 			List<Integer> expecteds,
 			int length) throws IOException {
 		Random random = new Random();
 		int stringLength = 30;
 		for (int i = 0; i < length; i++) {
-			BinaryRow key = randomRow(random, stringLength);
-			BinaryRow val = key.copy();
+			BinaryRowData key = randomRow(random, stringLength);
+			BinaryRowData val = key.copy();
 			val.setInt(0, val.getInt(0) * -3 + 177);
 			expecteds.add(key.getInt(0));
 			keySerializer.serializeToPages(key, out);
@@ -157,11 +157,11 @@ public class BufferedKVExternalSorterTest {
 		}
 	}
 
-	public static BinaryRow randomRow(Random random, int stringLength) {
-		BinaryRow row = new BinaryRow(2);
+	public static BinaryRowData randomRow(Random random, int stringLength) {
+		BinaryRowData row = new BinaryRowData(2);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeInt(0, random.nextInt());
-		writer.writeString(1, BinaryString.fromString(RandomStringUtils.random(stringLength)));
+		writer.writeString(1, StringData.fromString(RandomStringUtils.random(stringLength)));
 		writer.complete();
 		return row;
 	}

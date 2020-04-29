@@ -21,12 +21,12 @@ package org.apache.flink.table.runtime.operators.sort;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
+import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -43,7 +43,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
  */
 public class ProcTimeSortOperatorTest {
 
-	private BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(
+	private RowDataTypeInfo inputRowType = new RowDataTypeInfo(
 			new IntType(),
 			new BigIntType(),
 			new VarCharType(VarCharType.MAX_LENGTH),
@@ -60,12 +60,12 @@ public class ProcTimeSortOperatorTest {
 		}
 	};
 
-	private BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(inputRowType.getFieldTypes());
+	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.getFieldTypes());
 
 	@Test
 	public void test() throws Exception {
 		ProcTimeSortOperator operator = createSortOperator();
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 		testHarness.open();
 		testHarness.setProcessingTime(0L);
 		testHarness.processElement(insertRecord(3, 3L, "Hello world", 3));
@@ -119,10 +119,10 @@ public class ProcTimeSortOperatorTest {
 		return new ProcTimeSortOperator(inputRowType, gComparator);
 	}
 
-	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> createTestHarness(BaseTemporalSortOperator operator)
+	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(BaseTemporalSortOperator operator)
 			throws Exception {
 		OneInputStreamOperatorTestHarness testHarness = new KeyedOneInputStreamOperatorTestHarness<>(
-				operator, NullBinaryRowKeySelector.INSTANCE, NullBinaryRowKeySelector.INSTANCE.getProducedType());
+				operator, EmptyRowDataKeySelector.INSTANCE, EmptyRowDataKeySelector.INSTANCE.getProducedType());
 		return testHarness;
 	}
 
