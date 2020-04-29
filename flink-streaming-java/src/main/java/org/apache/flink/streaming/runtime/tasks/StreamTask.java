@@ -28,7 +28,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -461,9 +460,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			ResultPartitionWriter[] writers = getEnvironment().getAllWriters();
 			if (writers != null) {
-				//TODO we should get proper state reader from getEnvironment().getTaskStateManager().getChannelStateReader()
 				for (ResultPartitionWriter writer : writers) {
-					writer.readRecoveredState(ChannelStateReader.NO_OP);
+					writer.readRecoveredState(getEnvironment().getTaskStateManager().getChannelStateReader());
 				}
 			}
 		});
