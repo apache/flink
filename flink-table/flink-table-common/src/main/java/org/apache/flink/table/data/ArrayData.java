@@ -20,6 +20,11 @@ package org.apache.flink.table.data;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampType;
 
 /**
  * Base interface of an internal data structure representing data of {@link ArrayType}.
@@ -129,4 +134,85 @@ public interface ArrayData {
 	 */
 	RowData getRow(int pos, int numFields);
 
+	// ------------------------------------------------------------------------------------------
+	// Conversion Utilities
+	// ------------------------------------------------------------------------------------------
+
+	boolean[] toBooleanArray();
+
+	byte[] toByteArray();
+
+	short[] toShortArray();
+
+	int[] toIntArray();
+
+	long[] toLongArray();
+
+	float[] toFloatArray();
+
+	double[] toDoubleArray();
+
+	// ------------------------------------------------------------------------------------------
+	// Access Utilities
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * Returns the element object in the internal array data structure at the given position.
+	 *
+	 * @param array the internal array data
+	 * @param pos position of the element to return
+	 * @param elementType the element type of the array
+	 * @return the element object at the specified position in this array data
+	 */
+	static Object get(ArrayData array, int pos, LogicalType elementType) {
+		if (array.isNullAt(pos)) {
+			return null;
+		}
+		switch (elementType.getTypeRoot()) {
+			case BOOLEAN:
+				return array.getBoolean(pos);
+			case TINYINT:
+				return array.getByte(pos);
+			case SMALLINT:
+				return array.getShort(pos);
+			case INTEGER:
+			case DATE:
+			case TIME_WITHOUT_TIME_ZONE:
+			case INTERVAL_YEAR_MONTH:
+				return array.getInt(pos);
+			case BIGINT:
+			case INTERVAL_DAY_TIME:
+				return array.getLong(pos);
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				TimestampType timestampType = (TimestampType) elementType;
+				return array.getTimestamp(pos, timestampType.getPrecision());
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) elementType;
+				return array.getTimestamp(pos, lzTs.getPrecision());
+			case FLOAT:
+				return array.getFloat(pos);
+			case DOUBLE:
+				return array.getDouble(pos);
+			case CHAR:
+			case VARCHAR:
+				return array.getString(pos);
+			case DECIMAL:
+				DecimalType decimalType = (DecimalType) elementType;
+				return array.getDecimal(pos, decimalType.getPrecision(), decimalType.getScale());
+			case ARRAY:
+				return array.getArray(pos);
+			case MAP:
+			case MULTISET:
+				return array.getMap(pos);
+			case ROW:
+				return array.getRow(pos, ((RowType) elementType).getFieldCount());
+			case BINARY:
+			case VARBINARY:
+				return array.getBinary(pos);
+			case RAW:
+				return array.getRawValue(pos);
+			default:
+				throw new UnsupportedOperationException("Unsupported type: " + elementType);
+		}
+	}
 }

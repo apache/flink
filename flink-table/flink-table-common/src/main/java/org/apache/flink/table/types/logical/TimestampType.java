@@ -21,6 +21,7 @@ package org.apache.flink.table.types.logical;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.TimestampData;
 
 import java.util.Collections;
 import java.util.List;
@@ -59,7 +60,7 @@ public final class TimestampType extends LogicalType {
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		java.sql.Timestamp.class.getName(),
 		java.time.LocalDateTime.class.getName(),
-		"org.apache.flink.table.dataformat.SqlTimestamp");
+		TimestampData.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = java.time.LocalDateTime.class;
 
