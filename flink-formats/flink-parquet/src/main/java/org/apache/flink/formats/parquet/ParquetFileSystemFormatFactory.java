@@ -31,7 +31,7 @@ import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.filesystem.FileSystemFormatFactory;
+import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.filesystem.PartitionPathUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
