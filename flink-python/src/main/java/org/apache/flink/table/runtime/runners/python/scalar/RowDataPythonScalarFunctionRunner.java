@@ -22,11 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -35,12 +35,12 @@ import java.util.Map;
 
 /**
  * A {@link PythonFunctionRunner} used to execute Python {@link ScalarFunction}s.
- * It takes {@link BaseRow} as the input and outputs a byte array.
+ * It takes {@link RowData} as the input and outputs a byte array.
  */
 @Internal
-public class BaseRowPythonScalarFunctionRunner extends AbstractGeneralPythonScalarFunctionRunner<BaseRow> {
+public class RowDataPythonScalarFunctionRunner extends AbstractGeneralPythonScalarFunctionRunner<RowData> {
 
-	public BaseRowPythonScalarFunctionRunner(
+	public RowDataPythonScalarFunctionRunner(
 		String taskName,
 		FnDataReceiver<byte[]> resultReceiver,
 		PythonFunctionInfo[] scalarFunctions,
@@ -54,7 +54,7 @@ public class BaseRowPythonScalarFunctionRunner extends AbstractGeneralPythonScal
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public BaseRowSerializer getInputTypeSerializer() {
-		return (BaseRowSerializer) PythonTypeUtils.toBlinkTypeSerializer(getInputType());
+	public RowDataSerializer getInputTypeSerializer() {
+		return (RowDataSerializer) PythonTypeUtils.toBlinkTypeSerializer(getInputType());
 	}
 }

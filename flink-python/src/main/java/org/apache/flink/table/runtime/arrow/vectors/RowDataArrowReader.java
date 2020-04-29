@@ -19,18 +19,18 @@
 package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.ColumnarRow;
-import org.apache.flink.table.dataformat.vector.ColumnVector;
-import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.ColumnarRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.vector.ColumnVector;
+import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 import org.apache.flink.table.runtime.arrow.ArrowReader;
 import org.apache.flink.util.Preconditions;
 
 /**
- * {@link ArrowReader} which read the underlying Arrow format data as {@link BaseRow}.
+ * {@link ArrowReader} which read the underlying Arrow format data as {@link RowData}.
  */
 @Internal
-public final class BaseRowArrowReader implements ArrowReader<BaseRow> {
+public final class RowDataArrowReader implements ArrowReader<RowData> {
 
 	/**
 	 * An array of vectors which are responsible for the deserialization of each column of the rows.
@@ -40,11 +40,11 @@ public final class BaseRowArrowReader implements ArrowReader<BaseRow> {
 	/**
 	 * Reusable row used to hold the deserialized result.
 	 */
-	private ColumnarRow reuseRow;
+	private ColumnarRowData reuseRow;
 
-	public BaseRowArrowReader(ColumnVector[] columnVectors) {
+	public RowDataArrowReader(ColumnVector[] columnVectors) {
 		this.columnVectors = Preconditions.checkNotNull(columnVectors);
-		this.reuseRow = new ColumnarRow();
+		this.reuseRow = new ColumnarRowData();
 	}
 
 	/**
@@ -55,7 +55,7 @@ public final class BaseRowArrowReader implements ArrowReader<BaseRow> {
 	}
 
 	@Override
-	public BaseRow read(int rowId) {
+	public RowData read(int rowId) {
 		reuseRow.setVectorizedColumnBatch(new VectorizedColumnBatch(columnVectors));
 		reuseRow.setRowId(rowId);
 		return reuseRow;

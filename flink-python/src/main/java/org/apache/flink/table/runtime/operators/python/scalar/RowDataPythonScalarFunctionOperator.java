@@ -23,10 +23,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.scalar.BaseRowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.scalar.RowDataPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -39,16 +39,16 @@ import java.util.Map;
  * The Python {@link ScalarFunction} operator for the blink planner.
  */
 @Internal
-public class BaseRowPythonScalarFunctionOperator extends AbstractBaseRowPythonScalarFunctionOperator {
+public class RowDataPythonScalarFunctionOperator extends AbstractRowDataPythonScalarFunctionOperator {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The TypeSerializer for udf execution results.
 	 */
-	private transient TypeSerializer<BaseRow> udfOutputTypeSerializer;
+	private transient TypeSerializer<RowData> udfOutputTypeSerializer;
 
-	public BaseRowPythonScalarFunctionOperator(
+	public RowDataPythonScalarFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
@@ -70,20 +70,20 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractBaseRowPythonSc
 	public void emitResults() throws IOException {
 		byte[] rawUdfResult;
 		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			BaseRow input = forwardedInputQueue.poll();
+			RowData input = forwardedInputQueue.poll();
 			reuseJoinedRow.setRowKind(input.getRowKind());
 			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
-			BaseRow udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
-			baseRowWrapper.collect(reuseJoinedRow.replace(input, udfResult));
+			RowData udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
+			rowDataWrapper.collect(reuseJoinedRow.replace(input, udfResult));
 		}
 	}
 
 	@Override
-	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
+	public PythonFunctionRunner<RowData> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
 			PythonEnvironmentManager pythonEnvironmentManager,
 			Map<String, String> jobOptions) {
-		return new BaseRowPythonScalarFunctionRunner(
+		return new RowDataPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
 			scalarFunctions,

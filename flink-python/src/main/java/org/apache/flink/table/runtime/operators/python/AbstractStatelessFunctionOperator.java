@@ -26,7 +26,7 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -241,23 +241,23 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	}
 
 	/**
-	 * The collector is used to convert a {@link BaseRow} to a {@link StreamRecord}.
+	 * The collector is used to convert a {@link RowData} to a {@link StreamRecord}.
 	 */
-	public static class StreamRecordBaseRowWrappingCollector implements Collector<BaseRow> {
+	public static class StreamRecordRowDataWrappingCollector implements Collector<RowData> {
 
-		private final Collector<StreamRecord<BaseRow>> out;
+		private final Collector<StreamRecord<RowData>> out;
 
 		/**
 		 * For Table API & SQL jobs, the timestamp field is not used.
 		 */
-		private final StreamRecord<BaseRow> reuseStreamRecord = new StreamRecord<>(null);
+		private final StreamRecord<RowData> reuseStreamRecord = new StreamRecord<>(null);
 
-		public StreamRecordBaseRowWrappingCollector(Collector<StreamRecord<BaseRow>> out) {
+		public StreamRecordRowDataWrappingCollector(Collector<StreamRecord<RowData>> out) {
 			this.out = out;
 		}
 
 		@Override
-		public void collect(BaseRow record) {
+		public void collect(RowData record) {
 			out.collect(reuseStreamRecord.replace(record));
 		}
 

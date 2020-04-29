@@ -19,10 +19,10 @@
 package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.ColumnarRow;
-import org.apache.flink.table.dataformat.vector.ColumnVector;
-import org.apache.flink.table.dataformat.vector.RowColumnVector;
-import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.ColumnarRowData;
+import org.apache.flink.table.data.vector.ColumnVector;
+import org.apache.flink.table.data.vector.RowColumnVector;
+import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.complex.StructVector;
@@ -45,9 +45,9 @@ public final class ArrowRowColumnVector implements RowColumnVector {
 	}
 
 	@Override
-	public ColumnarRow getRow(int i) {
+	public ColumnarRowData getRow(int i) {
 		VectorizedColumnBatch vectorizedColumnBatch = new VectorizedColumnBatch(fieldColumns);
-		return new ColumnarRow(vectorizedColumnBatch, i);
+		return new ColumnarRowData(vectorizedColumnBatch, i);
 	}
 
 	@Override

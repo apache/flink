@@ -24,19 +24,19 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.runners.python.table.BaseRowPythonTableFunctionRunner;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.runners.python.table.RowDataPythonTableFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -49,8 +49,8 @@ import java.util.Map;
  * The Python {@link TableFunction} operator for the blink planner.
  */
 @Internal
-public class BaseRowPythonTableFunctionOperator
-	extends AbstractPythonTableFunctionOperator<BaseRow, BaseRow, BaseRow> {
+public class RowDataPythonTableFunctionOperator
+	extends AbstractPythonTableFunctionOperator<RowData, RowData, RowData> {
 
 
 	private static final long serialVersionUID = 1L;
@@ -58,29 +58,29 @@ public class BaseRowPythonTableFunctionOperator
 	/**
 	 * The collector used to collect records.
 	 */
-	private transient StreamRecordBaseRowWrappingCollector baseRowWrapper;
+	private transient StreamRecordRowDataWrappingCollector rowDataWrapper;
 
 	/**
-	 * The JoinedRow reused holding the execution result.
+	 * The JoinedRowData reused holding the execution result.
 	 */
-	private transient JoinedRow reuseJoinedRow;
+	private transient JoinedRowData reuseJoinedRow;
 
 	/**
 	 * The Projection which projects the udtf input fields from the input row.
 	 */
-	private transient Projection<BaseRow, BinaryRow> udtfInputProjection;
+	private transient Projection<RowData, BinaryRowData> udtfInputProjection;
 
 	/**
 	 * The TypeSerializer for udtf execution results.
 	 */
-	private transient TypeSerializer<BaseRow> udtfOutputTypeSerializer;
+	private transient TypeSerializer<RowData> udtfOutputTypeSerializer;
 
 	/**
 	 * The type serializer for the forwarded fields.
 	 */
-	private transient BaseRowSerializer forwardedInputSerializer;
+	private transient RowDataSerializer forwardedInputSerializer;
 
-	public BaseRowPythonTableFunctionOperator(
+	public RowDataPythonTableFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo tableFunction,
 		RowType inputType,
@@ -94,33 +94,33 @@ public class BaseRowPythonTableFunctionOperator
 	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		super.open();
-		baseRowWrapper = new StreamRecordBaseRowWrappingCollector(output);
-		reuseJoinedRow = new JoinedRow();
+		rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
+		reuseJoinedRow = new JoinedRowData();
 
 		udtfInputProjection = createUdtfInputProjection();
-		forwardedInputSerializer = new BaseRowSerializer(this.getExecutionConfig(), inputType);
+		forwardedInputSerializer = new RowDataSerializer(this.getExecutionConfig(), inputType);
 		udtfOutputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
 
 	@Override
-	public void bufferInput(BaseRow input) {
-		// always copy the input BaseRow
-		BaseRow forwardedFields = forwardedInputSerializer.copy(input);
+	public void bufferInput(RowData input) {
+		// always copy the input RowData
+		RowData forwardedFields = forwardedInputSerializer.copy(input);
 		forwardedFields.setRowKind(input.getRowKind());
 		forwardedInputQueue.add(forwardedFields);
 	}
 
 	@Override
-	public BaseRow getFunctionInput(BaseRow element) {
+	public RowData getFunctionInput(RowData element) {
 		return udtfInputProjection.apply(element);
 	}
 
 	@Override
-	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
+	public PythonFunctionRunner<RowData> createPythonFunctionRunner(
 		FnDataReceiver<byte[]> resultReceiver,
 		PythonEnvironmentManager pythonEnvironmentManager,
 		Map<String, String> jobOptions) {
-		return new BaseRowPythonTableFunctionRunner(
+		return new RowDataPythonTableFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
 			tableFunction,
@@ -131,7 +131,7 @@ public class BaseRowPythonTableFunctionOperator
 			getFlinkMetricContainer());
 	}
 
-	private Projection<BaseRow, BinaryRow> createUdtfInputProjection() {
+	private Projection<RowData, BinaryRowData> createUdtfInputProjection() {
 		final GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
 			CodeGeneratorContext.apply(new TableConfig()),
 			"UdtfInputProjection",
@@ -144,7 +144,7 @@ public class BaseRowPythonTableFunctionOperator
 
 	@Override
 	public void emitResults() throws IOException {
-		BaseRow input = null;
+		RowData input = null;
 		byte[] rawUdtfResult;
 		boolean lastIsFinishResult = true;
 		while ((rawUdtfResult = userDefinedFunctionResultQueue.poll()) != null) {
@@ -158,14 +158,14 @@ public class BaseRowPythonTableFunctionOperator
 				if (!isFinishResult) {
 					reuseJoinedRow.setRowKind(input.getRowKind());
 					bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
-					BaseRow udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
-					baseRowWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
+					RowData udtfResult = udtfOutputTypeSerializer.deserialize(baisWrapper);
+					rowDataWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
 				} else {
-					BaseRow udtfResult = new GenericRow(userDefinedFunctionOutputType.getFieldCount());
+					GenericRowData udtfResult = new GenericRowData(userDefinedFunctionOutputType.getFieldCount());
 					for (int i = 0; i < udtfResult.getArity(); i++) {
-						udtfResult.setNullAt(i);
+						udtfResult.setField(i, null);
 					}
-					baseRowWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
+					rowDataWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
 					input = forwardedInputQueue.poll();
 				}
 			}

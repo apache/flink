@@ -26,23 +26,22 @@ import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.table.dataformat.BaseArray;
-import org.apache.flink.table.dataformat.BinaryArray;
-import org.apache.flink.table.dataformat.BinaryArrayWriter;
-import org.apache.flink.table.dataformat.BinaryWriter;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.binary.BinaryArrayData;
+import org.apache.flink.table.data.writer.BinaryArrayWriter;
+import org.apache.flink.table.data.writer.BinaryWriter;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 
 /**
- * A {@link TypeSerializer} for {@link BaseArray}. It should be noted that the header will not be
- * encoded. Currently Python doesn't support BinaryArray natively, so we can't use BaseArraySerializer
+ * A {@link TypeSerializer} for {@link ArrayData}. It should be noted that the header will not be
+ * encoded. Currently Python doesn't support BinaryArrayData natively, so we can't use BaseArraySerializer
  * in blink directly.
  */
 @Internal
-public class BaseArraySerializer extends org.apache.flink.table.runtime.typeutils.BaseArraySerializer {
+public class ArrayDataSerializer extends org.apache.flink.table.runtime.typeutils.ArrayDataSerializer {
 
 	private static final long serialVersionUID = 1L;
 
@@ -52,41 +51,41 @@ public class BaseArraySerializer extends org.apache.flink.table.runtime.typeutil
 
 	private final int elementSize;
 
-	public BaseArraySerializer(LogicalType eleType, TypeSerializer elementTypeSerializer) {
+	public ArrayDataSerializer(LogicalType eleType, TypeSerializer elementTypeSerializer) {
 		super(eleType, null);
 		this.elementType = eleType;
 		this.elementTypeSerializer = elementTypeSerializer;
-		this.elementSize = BinaryArray.calculateFixLengthPartSize(this.elementType);
+		this.elementSize = BinaryArrayData.calculateFixLengthPartSize(this.elementType);
 	}
 
 	@Override
-	public void serialize(BaseArray array, DataOutputView target) throws IOException {
-		int len = array.numElements();
+	public void serialize(ArrayData array, DataOutputView target) throws IOException {
+		int len = array.size();
 		target.writeInt(len);
 		for (int i = 0; i < len; i++) {
 			if (array.isNullAt(i)) {
 				target.writeBoolean(false);
 			} else {
 				target.writeBoolean(true);
-				Object element = TypeGetterSetters.get(array, i, elementType);
+				Object element = ArrayData.get(array, i, elementType);
 				elementTypeSerializer.serialize(element, target);
 			}
 		}
 	}
 
 	@Override
-	public BaseArray deserialize(DataInputView source) throws IOException {
-		BinaryArray array = new BinaryArray();
+	public ArrayData deserialize(DataInputView source) throws IOException {
+		BinaryArrayData array = new BinaryArrayData();
 		deserializeInternal(source, array);
 		return array;
 	}
 
 	@Override
-	public BaseArray deserialize(BaseArray reuse, DataInputView source) throws IOException {
+	public ArrayData deserialize(ArrayData reuse, DataInputView source) throws IOException {
 		return deserializeInternal(source, toBinaryArray(reuse));
 	}
 
-	private BaseArray deserializeInternal(DataInputView source, BinaryArray array) throws IOException {
+	private ArrayData deserializeInternal(DataInputView source, BinaryArrayData array) throws IOException {
 		int len = source.readInt();
 		BinaryArrayWriter writer = new BinaryArrayWriter(array, len, elementSize);
 		for (int i = 0; i < len; i++) {
@@ -108,30 +107,30 @@ public class BaseArraySerializer extends org.apache.flink.table.runtime.typeutil
 	}
 
 	@Override
-	public TypeSerializer<BaseArray> duplicate() {
-		return new BaseArraySerializer(elementType, elementTypeSerializer);
+	public TypeSerializer<ArrayData> duplicate() {
+		return new ArrayDataSerializer(elementType, elementTypeSerializer);
 	}
 
 	@Override
-	public TypeSerializerSnapshot<BaseArray> snapshotConfiguration() {
-		return new BaseArraySerializerSnapshot(elementType, elementTypeSerializer);
+	public TypeSerializerSnapshot<ArrayData> snapshotConfiguration() {
+		return new ArrayDataSerializerSnapshot(elementType, elementTypeSerializer);
 	}
 
 	/**
-	 * {@link TypeSerializerSnapshot} for {@link BaseArraySerializer}.
+	 * {@link TypeSerializerSnapshot} for {@link ArrayDataSerializer}.
 	 */
-	public static final class BaseArraySerializerSnapshot implements TypeSerializerSnapshot<BaseArray> {
+	public static final class ArrayDataSerializerSnapshot implements TypeSerializerSnapshot<ArrayData> {
 		private static final int CURRENT_VERSION = 1;
 
 		private LogicalType previousType;
 		private TypeSerializer previousEleSer;
 
 		@SuppressWarnings("unused")
-		public BaseArraySerializerSnapshot() {
+		public ArrayDataSerializerSnapshot() {
 			// this constructor is used when restoring from a checkpoint/savepoint.
 		}
 
-		BaseArraySerializerSnapshot(LogicalType eleType, TypeSerializer eleSer) {
+		ArrayDataSerializerSnapshot(LogicalType eleType, TypeSerializer eleSer) {
 			this.previousType = eleType;
 			this.previousEleSer = eleSer;
 		}
@@ -160,19 +159,19 @@ public class BaseArraySerializer extends org.apache.flink.table.runtime.typeutil
 		}
 
 		@Override
-		public TypeSerializer<BaseArray> restoreSerializer() {
-			return new BaseArraySerializer(previousType, previousEleSer);
+		public TypeSerializer<ArrayData> restoreSerializer() {
+			return new ArrayDataSerializer(previousType, previousEleSer);
 		}
 
 		@Override
-		public TypeSerializerSchemaCompatibility<BaseArray> resolveSchemaCompatibility(TypeSerializer<BaseArray> newSerializer) {
-			if (!(newSerializer instanceof BaseArraySerializer)) {
+		public TypeSerializerSchemaCompatibility<ArrayData> resolveSchemaCompatibility(TypeSerializer<ArrayData> newSerializer) {
+			if (!(newSerializer instanceof ArrayDataSerializer)) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			}
 
-			BaseArraySerializer newBaseArraySerializer = (BaseArraySerializer) newSerializer;
-			if (!previousType.equals(newBaseArraySerializer.elementType) ||
-				!previousEleSer.equals(newBaseArraySerializer.elementTypeSerializer)) {
+			ArrayDataSerializer newArrayDataSerializer = (ArrayDataSerializer) newSerializer;
+			if (!previousType.equals(newArrayDataSerializer.elementType) ||
+				!previousEleSer.equals(newArrayDataSerializer.elementTypeSerializer)) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			} else {
 				return TypeSerializerSchemaCompatibility.compatibleAsIs();

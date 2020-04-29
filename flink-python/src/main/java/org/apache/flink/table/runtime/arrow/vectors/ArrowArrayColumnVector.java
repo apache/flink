@@ -19,10 +19,10 @@
 package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.BaseArray;
-import org.apache.flink.table.dataformat.ColumnarArray;
-import org.apache.flink.table.dataformat.vector.ArrayColumnVector;
-import org.apache.flink.table.dataformat.vector.ColumnVector;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.ColumnarArrayData;
+import org.apache.flink.table.data.vector.ArrayColumnVector;
+import org.apache.flink.table.data.vector.ColumnVector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.complex.ListVector;
@@ -45,11 +45,11 @@ public final class ArrowArrayColumnVector implements ArrayColumnVector {
 	}
 
 	@Override
-	public BaseArray getArray(int i) {
+	public ArrayData getArray(int i) {
 		int index = i * ListVector.OFFSET_WIDTH;
 		int start = listVector.getOffsetBuffer().getInt(index);
 		int end = listVector.getOffsetBuffer().getInt(index + ListVector.OFFSET_WIDTH);
-		return new ColumnarArray(elementVector, start, end - start);
+		return new ColumnarArrayData(elementVector, start, end - start);
 	}
 
 	@Override
