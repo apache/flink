@@ -28,14 +28,14 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.ArrowWriter;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
@@ -46,38 +46,38 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import java.util.Collection;
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.baserow;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
 /**
- * Tests for {@link BaseRowArrowPythonScalarFunctionOperator}.
+ * Tests for {@link RowDataArrowPythonScalarFunctionOperator}.
  */
-public class BaseRowArrowPythonScalarFunctionOperatorTest
-		extends PythonScalarFunctionOperatorTestBase<BaseRow, BaseRow, BaseRow> {
+public class RowDataArrowPythonScalarFunctionOperatorTest
+		extends PythonScalarFunctionOperatorTestBase<RowData, RowData, RowData> {
 
-	private final BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(new TypeInformation[]{
+	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new TypeInformation[]{
 		Types.STRING,
 		Types.STRING,
 		Types.LONG
 	});
 
 	@Override
-	public AbstractPythonScalarFunctionOperator<BaseRow, BaseRow, BaseRow> getTestOperator(
+	public AbstractPythonScalarFunctionOperator<RowData, RowData, RowData> getTestOperator(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
 		int[] forwardedFields) {
-		return new PassThroughBaseRowArrowPythonScalarFunctionOperator(
+		return new PassThroughRowDataArrowPythonScalarFunctionOperator(
 			config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
 	@Override
-	public BaseRow newRow(boolean accumulateMsg, Object... fields) {
+	public RowData newRow(boolean accumulateMsg, Object... fields) {
 		if (accumulateMsg) {
-			return baserow(fields);
+			return row(fields);
 		} else {
-			BaseRow row = baserow(fields);
+			RowData row = row(fields);
 			row.setRowKind(RowKind.DELETE);
 			return row;
 		}
@@ -96,13 +96,13 @@ public class BaseRowArrowPythonScalarFunctionOperatorTest
 	}
 
 	@Override
-	public TypeSerializer<BaseRow> getOutputTypeSerializer(RowType rowType) {
-		return new BaseRowSerializer(new ExecutionConfig(), rowType);
+	public TypeSerializer<RowData> getOutputTypeSerializer(RowType rowType) {
+		return new RowDataSerializer(new ExecutionConfig(), rowType);
 	}
 
-	private static class PassThroughBaseRowArrowPythonScalarFunctionOperator extends BaseRowArrowPythonScalarFunctionOperator {
+	private static class PassThroughRowDataArrowPythonScalarFunctionOperator extends RowDataArrowPythonScalarFunctionOperator {
 
-		PassThroughBaseRowArrowPythonScalarFunctionOperator(
+		PassThroughRowDataArrowPythonScalarFunctionOperator(
 			Configuration config,
 			PythonFunctionInfo[] scalarFunctions,
 			RowType inputType,
@@ -113,11 +113,11 @@ public class BaseRowArrowPythonScalarFunctionOperatorTest
 		}
 
 		@Override
-		public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
+		public PythonFunctionRunner<RowData> createPythonFunctionRunner(
 			FnDataReceiver<byte[]> resultReceiver,
 			PythonEnvironmentManager pythonEnvironmentManager,
 			Map<String, String> jobOptions) {
-			return new PassThroughArrowPythonScalarFunctionRunner<BaseRow>(
+			return new PassThroughArrowPythonScalarFunctionRunner<RowData>(
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
@@ -128,8 +128,8 @@ public class BaseRowArrowPythonScalarFunctionOperatorTest
 				jobOptions,
 				PythonTestUtils.createMockFlinkMetricContainer()) {
 				@Override
-				public ArrowWriter<BaseRow> createArrowWriter() {
-					return ArrowUtils.createBaseRowArrowWriter(root, getInputType());
+				public ArrowWriter<RowData> createArrowWriter() {
+					return ArrowUtils.createRowDataArrowWriter(root, getInputType());
 				}
 			};
 		}

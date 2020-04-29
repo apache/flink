@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.runtime.util.StringUtf8Utils;
 
 import java.io.IOException;
@@ -35,14 +35,14 @@ import java.math.BigDecimal;
  * for performance reasons in Python deserialization.
  */
 @Internal
-public class DecimalSerializer extends TypeSerializer<Decimal> {
+public class DecimalDataSerializer extends TypeSerializer<DecimalData> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final int precision;
 	private final int scale;
 
-	public DecimalSerializer(int precision, int scale) {
+	public DecimalDataSerializer(int precision, int scale) {
 		this.precision = precision;
 		this.scale = scale;
 	}
@@ -53,22 +53,22 @@ public class DecimalSerializer extends TypeSerializer<Decimal> {
 	}
 
 	@Override
-	public TypeSerializer<Decimal> duplicate() {
-		return new DecimalSerializer(precision, scale);
+	public TypeSerializer<DecimalData> duplicate() {
+		return new DecimalDataSerializer(precision, scale);
 	}
 
 	@Override
-	public Decimal createInstance() {
-		return Decimal.zero(precision, scale);
+	public DecimalData createInstance() {
+		return DecimalData.zero(precision, scale);
 	}
 
 	@Override
-	public Decimal copy(Decimal from) {
+	public DecimalData copy(DecimalData from) {
 		return from.copy();
 	}
 
 	@Override
-	public Decimal copy(Decimal from, Decimal reuse) {
+	public DecimalData copy(DecimalData from, DecimalData reuse) {
 		return copy(from);
 	}
 
@@ -78,23 +78,23 @@ public class DecimalSerializer extends TypeSerializer<Decimal> {
 	}
 
 	@Override
-	public void serialize(Decimal record, DataOutputView target) throws IOException {
+	public void serialize(DecimalData record, DataOutputView target) throws IOException {
 		byte[] bytes = StringUtf8Utils.encodeUTF8(record.toBigDecimal().toString());
 		target.writeInt(bytes.length);
 		target.write(bytes);
 	}
 
 	@Override
-	public Decimal deserialize(DataInputView source) throws IOException {
+	public DecimalData deserialize(DataInputView source) throws IOException {
 		final int size = source.readInt();
 		byte[] bytes = new byte[size];
 		source.readFully(bytes);
 		BigDecimal bigDecimal = new BigDecimal(StringUtf8Utils.decodeUTF8(bytes, 0, size));
-		return Decimal.fromBigDecimal(bigDecimal, precision, scale);
+		return DecimalData.fromBigDecimal(bigDecimal, precision, scale);
 	}
 
 	@Override
-	public Decimal deserialize(Decimal reuse, DataInputView source) throws IOException {
+	public DecimalData deserialize(DecimalData reuse, DataInputView source) throws IOException {
 		return deserialize(source);
 	}
 
@@ -112,7 +112,7 @@ public class DecimalSerializer extends TypeSerializer<Decimal> {
 			return false;
 		}
 
-		DecimalSerializer that = (DecimalSerializer) o;
+		DecimalDataSerializer that = (DecimalDataSerializer) o;
 
 		return precision == that.precision && scale == that.scale;
 	}
@@ -125,14 +125,14 @@ public class DecimalSerializer extends TypeSerializer<Decimal> {
 	}
 
 	@Override
-	public TypeSerializerSnapshot<Decimal> snapshotConfiguration() {
+	public TypeSerializerSnapshot<DecimalData> snapshotConfiguration() {
 		return new DecimalSerializerSnapshot(precision, scale);
 	}
 
 	/**
-	 * {@link TypeSerializerSnapshot} for {@link DecimalSerializer}.
+	 * {@link TypeSerializerSnapshot} for {@link DecimalDataSerializer}.
 	 */
-	public static final class DecimalSerializerSnapshot implements TypeSerializerSnapshot<Decimal> {
+	public static final class DecimalSerializerSnapshot implements TypeSerializerSnapshot<DecimalData> {
 
 		private static final int CURRENT_VERSION = 1;
 
@@ -167,19 +167,19 @@ public class DecimalSerializer extends TypeSerializer<Decimal> {
 		}
 
 		@Override
-		public TypeSerializer<Decimal> restoreSerializer() {
-			return new DecimalSerializer(previousPrecision, previousScale);
+		public TypeSerializer<DecimalData> restoreSerializer() {
+			return new DecimalDataSerializer(previousPrecision, previousScale);
 		}
 
 		@Override
-		public TypeSerializerSchemaCompatibility<Decimal> resolveSchemaCompatibility(TypeSerializer<Decimal> newSerializer) {
-			if (!(newSerializer instanceof DecimalSerializer)) {
+		public TypeSerializerSchemaCompatibility<DecimalData> resolveSchemaCompatibility(TypeSerializer<DecimalData> newSerializer) {
+			if (!(newSerializer instanceof DecimalDataSerializer)) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			}
 
-			DecimalSerializer newDecimalSerializer = (DecimalSerializer) newSerializer;
-			if (previousPrecision != newDecimalSerializer.precision ||
-				previousScale != newDecimalSerializer.scale) {
+			DecimalDataSerializer newDecimalDataSerializer = (DecimalDataSerializer) newSerializer;
+			if (previousPrecision != newDecimalDataSerializer.precision ||
+				previousScale != newDecimalDataSerializer.scale) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			} else {
 				return TypeSerializerSchemaCompatibility.compatibleAsIs();

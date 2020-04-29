@@ -61,9 +61,9 @@ public class PythonTypeUtilsTest {
 		rowFields.add(new RowType.RowField("f1", new BigIntType()));
 		RowType rowType = new RowType(rowFields);
 		TypeSerializer baseSerializer = PythonTypeUtils.toBlinkTypeSerializer(rowType);
-		assertTrue(baseSerializer instanceof BaseRowSerializer);
+		assertTrue(baseSerializer instanceof RowDataSerializer);
 
-		assertEquals(1, ((BaseRowSerializer) baseSerializer).getArity());
+		assertEquals(1, ((RowDataSerializer) baseSerializer).getArity());
 	}
 
 	@Test

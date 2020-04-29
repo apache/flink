@@ -19,8 +19,8 @@
 package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.SqlTimestamp;
-import org.apache.flink.table.dataformat.vector.TimestampColumnVector;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.vector.TimestampColumnVector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.TimeStampMicroVector;
@@ -48,17 +48,17 @@ public final class ArrowTimestampColumnVector implements TimestampColumnVector {
 	}
 
 	@Override
-	public SqlTimestamp getTimestamp(int i, int precision) {
+	public TimestampData getTimestamp(int i, int precision) {
 		if (valueVector instanceof TimeStampSecVector) {
-			return SqlTimestamp.fromEpochMillis(((TimeStampSecVector) valueVector).get(i) * 1000);
+			return TimestampData.fromEpochMillis(((TimeStampSecVector) valueVector).get(i) * 1000);
 		} else if (valueVector instanceof TimeStampMilliVector) {
-			return SqlTimestamp.fromEpochMillis(((TimeStampMilliVector) valueVector).get(i));
+			return TimestampData.fromEpochMillis(((TimeStampMilliVector) valueVector).get(i));
 		} else if (valueVector instanceof TimeStampMicroVector) {
 			long micros = ((TimeStampMicroVector) valueVector).get(i);
-			return SqlTimestamp.fromEpochMillis(micros / 1000, (int) (micros % 1000) * 1000);
+			return TimestampData.fromEpochMillis(micros / 1000, (int) (micros % 1000) * 1000);
 		} else {
 			long nanos = ((TimeStampNanoVector) valueVector).get(i);
-			return SqlTimestamp.fromEpochMillis(nanos / 1_000_000, (int) (nanos % 1_000_000));
+			return TimestampData.fromEpochMillis(nanos / 1_000_000, (int) (nanos % 1_000_000));
 		}
 	}
 

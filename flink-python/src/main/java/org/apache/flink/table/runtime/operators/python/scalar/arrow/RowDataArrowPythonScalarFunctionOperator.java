@@ -22,13 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.ArrowReader;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
-import org.apache.flink.table.runtime.operators.python.scalar.AbstractBaseRowPythonScalarFunctionOperator;
-import org.apache.flink.table.runtime.runners.python.scalar.arrow.BaseRowArrowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.operators.python.scalar.AbstractRowDataPythonScalarFunctionOperator;
+import org.apache.flink.table.runtime.runners.python.scalar.arrow.RowDataArrowPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -43,7 +43,7 @@ import java.util.Map;
  * Arrow Python {@link ScalarFunction} operator for the blink planner.
  */
 @Internal
-public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPythonScalarFunctionOperator {
+public class RowDataArrowPythonScalarFunctionOperator extends AbstractRowDataPythonScalarFunctionOperator {
 
 	private static final long serialVersionUID = 1L;
 
@@ -55,7 +55,7 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 	/**
 	 * Reader which is responsible for deserialize the Arrow format data to the Flink rows.
 	 */
-	private transient ArrowReader<BaseRow> arrowReader;
+	private transient ArrowReader<RowData> arrowReader;
 
 	/**
 	 * Reader which is responsible for convert the execution result from
@@ -63,7 +63,7 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 	 */
 	private transient ArrowStreamReader reader;
 
-	public BaseRowArrowPythonScalarFunctionOperator(
+	public RowDataArrowPythonScalarFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
@@ -91,11 +91,11 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 	}
 
 	@Override
-	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
+	public PythonFunctionRunner<RowData> createPythonFunctionRunner(
 		FnDataReceiver<byte[]> resultReceiver,
 		PythonEnvironmentManager pythonEnvironmentManager,
 		Map<String, String> jobOptions) {
-		return new BaseRowArrowPythonScalarFunctionRunner(
+		return new RowDataArrowPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
 			scalarFunctions,
@@ -116,12 +116,12 @@ public class BaseRowArrowPythonScalarFunctionOperator extends AbstractBaseRowPyt
 			reader.loadNextBatch();
 			VectorSchemaRoot root = reader.getVectorSchemaRoot();
 			if (arrowReader == null) {
-				arrowReader = ArrowUtils.createBaseRowArrowReader(root, outputType);
+				arrowReader = ArrowUtils.createRowDataArrowReader(root, outputType);
 			}
 			for (int i = 0; i < root.getRowCount(); i++) {
-				BaseRow input = forwardedInputQueue.poll();
+				RowData input = forwardedInputQueue.poll();
 				reuseJoinedRow.setRowKind(input.getRowKind());
-				baseRowWrapper.collect(reuseJoinedRow.replace(input, arrowReader.read(i)));
+				rowDataWrapper.collect(reuseJoinedRow.replace(input, arrowReader.read(i)));
 			}
 		}
 	}

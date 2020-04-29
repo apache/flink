@@ -21,9 +21,9 @@ package org.apache.flink.table.runtime.operators.python.scalar;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -39,32 +39,32 @@ import java.util.stream.Collectors;
  * The Python {@link ScalarFunction} operator for the blink planner.
  */
 @Internal
-public abstract class AbstractBaseRowPythonScalarFunctionOperator
-		extends AbstractPythonScalarFunctionOperator<BaseRow, BaseRow, BaseRow> {
+public abstract class AbstractRowDataPythonScalarFunctionOperator
+		extends AbstractPythonScalarFunctionOperator<RowData, RowData, RowData> {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The collector used to collect records.
 	 */
-	protected transient StreamRecordBaseRowWrappingCollector baseRowWrapper;
+	protected transient StreamRecordRowDataWrappingCollector rowDataWrapper;
 
 	/**
 	 * The Projection which projects the forwarded fields from the input row.
 	 */
-	private transient Projection<BaseRow, BinaryRow> forwardedFieldProjection;
+	private transient Projection<RowData, BinaryRowData> forwardedFieldProjection;
 
 	/**
 	 * The Projection which projects the udf input fields from the input row.
 	 */
-	private transient Projection<BaseRow, BinaryRow> udfInputProjection;
+	private transient Projection<RowData, BinaryRowData> udfInputProjection;
 
 	/**
-	 * The JoinedRow reused holding the execution result.
+	 * The JoinedRowData reused holding the execution result.
 	 */
-	protected transient JoinedRow reuseJoinedRow;
+	protected transient JoinedRowData reuseJoinedRow;
 
-	public AbstractBaseRowPythonScalarFunctionOperator(
+	public AbstractRowDataPythonScalarFunctionOperator(
 		Configuration config,
 		PythonFunctionInfo[] scalarFunctions,
 		RowType inputType,
@@ -78,27 +78,27 @@ public abstract class AbstractBaseRowPythonScalarFunctionOperator
 	@SuppressWarnings("unchecked")
 	public void open() throws Exception {
 		super.open();
-		baseRowWrapper = new StreamRecordBaseRowWrappingCollector(output);
-		reuseJoinedRow = new JoinedRow();
+		rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
+		reuseJoinedRow = new JoinedRowData();
 
 		udfInputProjection = createUdfInputProjection();
 		forwardedFieldProjection = createForwardedFieldProjection();
 	}
 
 	@Override
-	public void bufferInput(BaseRow input) {
+	public void bufferInput(RowData input) {
 		// always copy the projection result as the generated Projection reuses the projection result
-		BaseRow forwardedFields = forwardedFieldProjection.apply(input).copy();
+		RowData forwardedFields = forwardedFieldProjection.apply(input).copy();
 		forwardedFields.setRowKind(input.getRowKind());
 		forwardedInputQueue.add(forwardedFields);
 	}
 
 	@Override
-	public BaseRow getFunctionInput(BaseRow element) {
+	public RowData getFunctionInput(RowData element) {
 		return udfInputProjection.apply(element);
 	}
 
-	private Projection<BaseRow, BinaryRow> createUdfInputProjection() {
+	private Projection<RowData, BinaryRowData> createUdfInputProjection() {
 		final GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
 			CodeGeneratorContext.apply(new TableConfig()),
 			"UdfInputProjection",
@@ -109,7 +109,7 @@ public abstract class AbstractBaseRowPythonScalarFunctionOperator
 		return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
 	}
 
-	private Projection<BaseRow, BinaryRow> createForwardedFieldProjection() {
+	private Projection<RowData, BinaryRowData> createForwardedFieldProjection() {
 		final RowType forwardedFieldType = new RowType(
 			Arrays.stream(forwardedFields)
 				.mapToObj(i -> inputType.getFields().get(i))
