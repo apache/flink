@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializers;
@@ -137,27 +138,17 @@ public class Checkpoints {
 		// generate mapping from operator to task
 		Map<OperatorID, ExecutionJobVertex> operatorToJobVertexMapping = new HashMap<>();
 		for (ExecutionJobVertex task : tasks.values()) {
-			for (OperatorID operatorID : task.getOperatorIDs()) {
-				operatorToJobVertexMapping.put(operatorID, task);
+			for (OperatorIDPair operatorIDPair : task.getOperatorIDs()) {
+				operatorToJobVertexMapping.put(operatorIDPair.getGeneratedOperatorID(), task);
+				operatorIDPair.getUserDefinedOperatorID().ifPresent(id -> operatorToJobVertexMapping.put(id, task));
 			}
 		}
 
 		// (2) validate it (parallelism, etc)
-		boolean expandedToLegacyIds = false;
-
 		HashMap<OperatorID, OperatorState> operatorStates = new HashMap<>(checkpointMetadata.getOperatorStates().size());
 		for (OperatorState operatorState : checkpointMetadata.getOperatorStates()) {
 
 			ExecutionJobVertex executionJobVertex = operatorToJobVertexMapping.get(operatorState.getOperatorID());
-
-			// on the first time we can not find the execution job vertex for an id, we also consider alternative ids,
-			// for example as generated from older flink versions, to provide backwards compatibility.
-			if (executionJobVertex == null && !expandedToLegacyIds) {
-				operatorToJobVertexMapping = ExecutionJobVertex.includeAlternativeOperatorIDs(operatorToJobVertexMapping);
-				executionJobVertex = operatorToJobVertexMapping.get(operatorState.getOperatorID());
-				expandedToLegacyIds = true;
-				LOG.info("Could not find ExecutionJobVertex. Including user-defined OperatorIDs in search.");
-			}
 
 			if (executionJobVertex != null) {
 

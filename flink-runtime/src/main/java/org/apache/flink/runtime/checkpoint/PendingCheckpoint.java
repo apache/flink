@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -371,31 +372,31 @@ public class PendingCheckpoint {
 				acknowledgedTasks.add(executionAttemptId);
 			}
 
-			List<OperatorID> operatorIDs = vertex.getJobVertex().getOperatorIDs();
+			List<OperatorIDPair> operatorIDs = vertex.getJobVertex().getOperatorIDs();
 			int subtaskIndex = vertex.getParallelSubtaskIndex();
 			long ackTimestamp = System.currentTimeMillis();
 
 			long stateSize = 0L;
 
 			if (operatorSubtaskStates != null) {
-				for (OperatorID operatorID : operatorIDs) {
+				for (OperatorIDPair operatorID : operatorIDs) {
 
 					OperatorSubtaskState operatorSubtaskState =
-						operatorSubtaskStates.getSubtaskStateByOperatorID(operatorID);
+						operatorSubtaskStates.getSubtaskStateByOperatorID(operatorID.getGeneratedOperatorID());
 
 					// if no real operatorSubtaskState was reported, we insert an empty state
 					if (operatorSubtaskState == null) {
 						operatorSubtaskState = new OperatorSubtaskState();
 					}
 
-					OperatorState operatorState = operatorStates.get(operatorID);
+					OperatorState operatorState = operatorStates.get(operatorID.getGeneratedOperatorID());
 
 					if (operatorState == null) {
 						operatorState = new OperatorState(
-							operatorID,
+							operatorID.getGeneratedOperatorID(),
 							vertex.getTotalNumberOfParallelSubtasks(),
 							vertex.getMaxParallelism());
-						operatorStates.put(operatorID, operatorState);
+						operatorStates.put(operatorID.getGeneratedOperatorID(), operatorState);
 					}
 
 					operatorState.putState(subtaskIndex, operatorSubtaskState);
