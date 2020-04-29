@@ -24,6 +24,9 @@ import org.apache.flink.runtime.util.EvictingBoundedList;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializable {
 
@@ -106,7 +109,11 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 	}
 
 	@Override
-	public EvictingBoundedList<ArchivedExecution> getPriorExecutionAttempts() {
-		return priorExecutions;
+	public List<AccessExecution> getPriorExecutionAttempts() {
+		List<AccessExecution> accessExecutionList = new ArrayList<>();
+		for (ArchivedExecution archivedExecution: priorExecutions) {
+			accessExecutionList.add(archivedExecution);
+		}
+		return Collections.unmodifiableList(accessExecutionList);
 	}
 }

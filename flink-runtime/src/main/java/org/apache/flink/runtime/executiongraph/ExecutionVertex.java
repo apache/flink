@@ -319,8 +319,12 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	@Override
-	public EvictingBoundedList<ArchivedExecution> getPriorExecutionAttempts() {
-		return priorExecutions;
+	public List<AccessExecution> getPriorExecutionAttempts() {
+		List<AccessExecution> accessExecutionList = new ArrayList<>();
+		for (ArchivedExecution archivedExecution: priorExecutions) {
+			accessExecutionList.add(archivedExecution);
+		}
+		return Collections.unmodifiableList(accessExecutionList);
 	}
 
 	public ArchivedExecution getLatestPriorExecution() {
