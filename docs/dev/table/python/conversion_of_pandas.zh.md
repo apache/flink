@@ -1,5 +1,5 @@
 ---
-title: "PyFlink Table和Pandas DataFrame互转"
+title: "PyFlink Table 和 Pandas DataFrame 互转"
 nav-parent_id: python_tableapi
 nav-pos: 50
 ---
@@ -45,4 +45,15 @@ pdf = pd.DataFrame(np.random.rand(1000, 2))
 
 # Create a PyFlink Table from a Pandas DataFrame
 table = t_env.from_pandas(pdf)
+
+# Create a PyFlink Table from a Pandas DataFrame with the specified column names
+table = t_env.from_pandas(pdf, ['f0', 'f1'])
+
+# Create a PyFlink Table from a Pandas DataFrame with the specified column types
+table = t_env.from_pandas(pdf, [DataTypes.DOUBLE(), DataTypes.DOUBLE()])
+
+# Create a PyFlink Table from a Pandas DataFrame with the specified row type
+table = t_env.from_pandas(pdf,
+                          DataTypes.ROW([DataTypes.FIELD("f0", DataTypes.DOUBLE()),
+                                         DataTypes.FIELD("f1", DataTypes.DOUBLE())])
 {% endhighlight %}

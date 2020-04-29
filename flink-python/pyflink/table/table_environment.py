@@ -1129,8 +1129,8 @@ class TableEnvironment(object):
         Example:
         ::
 
-            # use the second parameter to specify custom field names
             >>> pdf = pd.DataFrame(np.random.rand(1000, 2))
+            # use the second parameter to specify custom field names
             >>> table_env.from_pandas(pdf, ["a", "b"])
             # use the second parameter to specify custom field types
             >>> table_env.from_pandas(pdf, [DataTypes.DOUBLE(), DataTypes.DOUBLE()]))
@@ -1141,13 +1141,10 @@ class TableEnvironment(object):
 
         :param pdf: The pandas DataFrame.
         :param schema: The schema of the converted table.
-        :type schema: RowType or list[str] or list[DataType]
         :param splits_num: The number of splits the given Pandas DataFrame will be split into. It
                            determines the number of parallel source tasks.
                            If not specified, the default parallelism will be used.
-        :type splits_num: int
         :return: The result table.
-        :rtype: Table
         """
 
         import pandas as pd
