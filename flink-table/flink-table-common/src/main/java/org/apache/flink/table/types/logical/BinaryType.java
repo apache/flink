@@ -21,6 +21,7 @@ package org.apache.flink.table.types.logical;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.ArrayData;
 
 import java.util.Collections;
 import java.util.List;
@@ -52,7 +53,7 @@ public final class BinaryType extends LogicalType {
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		byte[].class.getName(),
-		"org.apache.flink.table.dataformat.BinaryArray");
+		ArrayData.class.getName());
 
 	private static final Class<?> DEFAULT_CONVERSION = byte[].class;
 

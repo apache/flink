@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -49,7 +50,7 @@ public final class RawType<T> extends LogicalType {
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		byte[].class.getName(),
-		"org.apache.flink.table.dataformat.BinaryGeneric");
+		RawValueData.class.getName());
 
 	private final Class<T> clazz;
 

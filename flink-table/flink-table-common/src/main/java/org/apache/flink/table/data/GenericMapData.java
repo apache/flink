@@ -50,6 +50,14 @@ public final class GenericMapData implements MapData {
 		this.map = map;
 	}
 
+	/**
+	 * Returns the value to which the specified key is mapped, or {@code null} if this map
+	 * contains no mapping for the key. The returned value is in internal data structure.
+	 */
+	public Object get(Object key) {
+		return map.get(key);
+	}
+
 	@Override
 	public int size() {
 		return map.size();

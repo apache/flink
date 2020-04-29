@@ -223,7 +223,6 @@ public final class DecimalData implements Comparable<DecimalData> {
 	 */
 	public static DecimalData fromUnscaledLong(long unscaledLong, int precision, int scale) {
 		checkArgument(precision > 0 && precision <= MAX_LONG_DIGITS);
-		checkArgument((unscaledLong >= 0 ? unscaledLong : -unscaledLong) < POW10[precision]);
 		return new DecimalData(precision, scale, unscaledLong, null);
 	}
 
@@ -256,5 +255,16 @@ public final class DecimalData implements Comparable<DecimalData> {
 		} else {
 			return fromBigDecimal(BigDecimal.ZERO, precision, scale);
 		}
+	}
+
+	// ------------------------------------------------------------------------------------------
+	// Utilities
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * Returns whether the decimal value is small enough to be stored in a long.
+	 */
+	public static boolean isCompact(int precision) {
+		return precision <= MAX_COMPACT_PRECISION;
 	}
 }

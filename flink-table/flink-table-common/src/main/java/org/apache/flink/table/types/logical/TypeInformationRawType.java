@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -56,7 +57,7 @@ public final class TypeInformationRawType<T> extends LogicalType {
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		byte[].class.getName(),
-		"org.apache.flink.table.dataformat.BinaryGeneric");
+		RawValueData.class.getName());
 
 	private static final TypeInformation<?> DEFAULT_TYPE_INFO = Types.GENERIC(Object.class);
 
