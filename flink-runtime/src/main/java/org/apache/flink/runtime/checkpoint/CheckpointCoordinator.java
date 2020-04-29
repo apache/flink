@@ -1354,7 +1354,9 @@ public class CheckpointCoordinator {
 	// ------------------------------------------------------------------------
 
 	public int getNumberOfPendingCheckpoints() {
-		return this.pendingCheckpoints.size();
+		synchronized (lock) {
+			return this.pendingCheckpoints.size();
+		}
 	}
 
 	public int getNumberOfRetainedSuccessfulCheckpoints() {
