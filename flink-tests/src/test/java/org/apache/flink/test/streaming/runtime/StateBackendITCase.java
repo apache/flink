@@ -108,7 +108,7 @@ public class StateBackendITCase extends AbstractTestBase {
 
 		@Override
 		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-			return new MemoryBackendCheckpointStorage(jobId, null, null, 1_000_000);
+			return new MemoryBackendCheckpointStorage(jobId, null, null, 1_000_000, false);
 		}
 
 		@Override

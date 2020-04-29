@@ -188,6 +188,10 @@ If you neither configure a default nor specify a custom target directory, trigge
 <strong>Attention:</strong> The target directory has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system.
 </div>
 
+<div class="alert alert-warning">
+<strong>Attention:</strong> Never set the target directory mixed with checkpoint location to avoid unexpected savepoint data lost once `state.checkpoints.cleanup.recursive-on-shutdown` is enabled.
+</div>
+
 ## F.A.Q
 
 ### Should I assign IDs to all operators in my job?

@@ -219,7 +219,8 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 			TernaryBoolean asynchronousSnapshots) {
 
 		super(checkpointPath == null ? null : new Path(checkpointPath),
-				savepointPath == null ? null : new Path(savepointPath));
+			savepointPath == null ? null : new Path(savepointPath),
+			TernaryBoolean.UNDEFINED);
 
 		checkArgument(maxStateSize > 0, "maxStateSize must be > 0");
 		this.maxStateSize = maxStateSize;
@@ -235,7 +236,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * @param classLoader The class loader
 	 */
 	private MemoryStateBackend(MemoryStateBackend original, ReadableConfig configuration, ClassLoader classLoader) {
-		super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
+		super(original.getCheckpointPath(), original.getSavepointPath(), original.cleanupStorageRecursively, configuration);
 
 		this.maxStateSize = original.maxStateSize;
 
@@ -292,7 +293,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 
 	@Override
 	public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-		return new MemoryBackendCheckpointStorage(jobId, getCheckpointPath(), getSavepointPath(), maxStateSize);
+		return new MemoryBackendCheckpointStorage(jobId, getCheckpointPath(), getSavepointPath(), maxStateSize, isCleanupStorageRecursively());
 	}
 
 	// ------------------------------------------------------------------------

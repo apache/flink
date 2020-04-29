@@ -356,7 +356,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * @param configuration The configuration
 	 */
 	private FsStateBackend(FsStateBackend original, ReadableConfig configuration, ClassLoader classLoader) {
-		super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
+		super(original.getCheckpointPath(), original.getSavepointPath(), original.cleanupStorageRecursively, configuration);
 
 		// if asynchronous snapshots were configured, use that setting,
 		// else check the configuration
@@ -487,7 +487,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 			getSavepointPath(),
 			jobId,
 			getMinFileSizeThreshold(),
-			getWriteBufferSize());
+			getWriteBufferSize(),
+			isCleanupStorageRecursively());
 	}
 
 	// ------------------------------------------------------------------------

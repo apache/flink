@@ -59,13 +59,13 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected CheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception {
-		return new MemoryBackendCheckpointStorage(new JobID(), checkpointDir, null, DEFAULT_MAX_STATE_SIZE);
+	protected CheckpointStorage createCheckpointStorage(Path checkpointDir, boolean cleanUpRecursivelyOnShutDown) throws Exception {
+		return new MemoryBackendCheckpointStorage(new JobID(), checkpointDir, null, DEFAULT_MAX_STATE_SIZE, cleanUpRecursivelyOnShutDown);
 	}
 
 	@Override
 	protected CheckpointStorage createCheckpointStorageWithSavepointDir(Path checkpointDir, Path savepointDir) throws Exception {
-		return new MemoryBackendCheckpointStorage(new JobID(), checkpointDir, savepointDir, DEFAULT_MAX_STATE_SIZE);
+		return new MemoryBackendCheckpointStorage(new JobID(), checkpointDir, savepointDir, DEFAULT_MAX_STATE_SIZE, false);
 	}
 
 	// ------------------------------------------------------------------------
@@ -120,7 +120,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 	@Test
 	public void testNonPersistentCheckpointLocation() throws Exception {
 		MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
-				new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
+				new JobID(), null, null, DEFAULT_MAX_STATE_SIZE, false);
 
 		CheckpointStorageLocation location = storage.initializeLocationForCheckpoint(9);
 
@@ -145,7 +145,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		// non persistent memory state backend for checkpoint
 		{
 			MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
-					new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
+					new JobID(), null, null, DEFAULT_MAX_STATE_SIZE, false);
 			CheckpointStorageLocation location = storage.initializeLocationForCheckpoint(42);
 			assertTrue(location.getLocationReference().isDefaultReference());
 		}
@@ -153,7 +153,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		// non persistent memory state backend for checkpoint
 		{
 			MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
-					new JobID(), randomTempPath(), null, DEFAULT_MAX_STATE_SIZE);
+					new JobID(), randomTempPath(), null, DEFAULT_MAX_STATE_SIZE, false);
 			CheckpointStorageLocation location = storage.initializeLocationForCheckpoint(42);
 			assertTrue(location.getLocationReference().isDefaultReference());
 		}
@@ -161,7 +161,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		// memory state backend for savepoint
 		{
 			MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
-					new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
+					new JobID(), null, null, DEFAULT_MAX_STATE_SIZE, false);
 			CheckpointStorageLocation location = storage.initializeLocationForSavepoint(
 					1337, randomTempPath().toString());
 			assertTrue(location.getLocationReference().isDefaultReference());
@@ -173,7 +173,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		final List<String> state = Arrays.asList("Flopsy", "Mopsy", "Cotton Tail", "Peter");
 
 		final MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
-				new JobID(), null, null, DEFAULT_MAX_STATE_SIZE);
+				new JobID(), null, null, DEFAULT_MAX_STATE_SIZE, false);
 
 		StreamStateHandle stateHandle;
 
@@ -196,7 +196,7 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 	@Test
 	public void testStorageLocationMkdirs() throws Exception {
 		MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
-			new JobID(), randomTempPath(), null, DEFAULT_MAX_STATE_SIZE);
+			new JobID(), randomTempPath(), null, DEFAULT_MAX_STATE_SIZE, false);
 
 		File baseDir = new File(storage.getCheckpointsDirectory().getPath());
 		assertFalse(baseDir.exists());

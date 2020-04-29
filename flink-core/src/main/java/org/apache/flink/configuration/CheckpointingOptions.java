@@ -133,6 +133,18 @@ public class CheckpointingOptions {
 				"in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes" +
 				"(i.e. all TaskManagers and JobManagers).");
 
+	/** The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem.
+	 * The storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).*/
+	@Documentation.Section(
+		value = Documentation.Sections.COMMON_STATE_BACKENDS,
+		position = 4)
+	public static final ConfigOption<Boolean> CHECKPOINTS_CLEANUP_RECURSIVE = ConfigOptions
+		.key("state.checkpoints.cleanup.recursive-on-shutdown")
+		.booleanType()
+		.defaultValue(false)
+		.withDescription("The option configures whether directories of checkpoint storage would be cleaned up recursively if necessary on shutdown. " +
+			"Be careful when enable this feature, never set savepoint location mixed with checkpoint location to avoid unexpected savepoint data lost.");
+
 	/** The minimum size of state data files. All state chunks smaller than that
 	 * are stored inline in the root checkpoint metadata file. */
 	@Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)

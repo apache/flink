@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.util.TernaryBoolean;
 
 import javax.annotation.Nullable;
 
@@ -82,6 +83,8 @@ public abstract class AbstractFileStateBackend extends AbstractStateBackend {
 	@Nullable
 	private final Path baseSavepointPath;
 
+	protected final TernaryBoolean cleanupStorageRecursively;
+
 	/**
 	 * Creates a backend with the given optional checkpoint- and savepoint base directories.
 	 *
@@ -93,7 +96,8 @@ public abstract class AbstractFileStateBackend extends AbstractStateBackend {
 			@Nullable URI baseSavepointPath) {
 
 		this(baseCheckpointPath == null ? null : new Path(baseCheckpointPath),
-				baseSavepointPath == null ? null : new Path(baseSavepointPath));
+			baseSavepointPath == null ? null : new Path(baseSavepointPath),
+			TernaryBoolean.UNDEFINED);
 	}
 
 	/**
@@ -104,10 +108,12 @@ public abstract class AbstractFileStateBackend extends AbstractStateBackend {
 	 */
 	protected AbstractFileStateBackend(
 			@Nullable Path baseCheckpointPath,
-			@Nullable Path baseSavepointPath) {
+			@Nullable Path baseSavepointPath,
+			TernaryBoolean cleanupStorageRecursively) {
 
 		this.baseCheckpointPath = baseCheckpointPath == null ? null : validatePath(baseCheckpointPath);
 		this.baseSavepointPath = baseSavepointPath == null ? null : validatePath(baseSavepointPath);
+		this.cleanupStorageRecursively = cleanupStorageRecursively;
 	}
 
 	/**
@@ -126,10 +132,12 @@ public abstract class AbstractFileStateBackend extends AbstractStateBackend {
 	protected AbstractFileStateBackend(
 			@Nullable Path baseCheckpointPath,
 			@Nullable Path baseSavepointPath,
+			TernaryBoolean cleanupStorageRecursively,
 			ReadableConfig configuration) {
 
 		this(parameterOrConfigured(baseCheckpointPath, configuration, CheckpointingOptions.CHECKPOINTS_DIRECTORY),
-				parameterOrConfigured(baseSavepointPath, configuration, CheckpointingOptions.SAVEPOINT_DIRECTORY));
+			parameterOrConfigured(baseSavepointPath, configuration, CheckpointingOptions.SAVEPOINT_DIRECTORY),
+			cleanupStorageRecursively.resolveUndefined(configuration.get(CheckpointingOptions.CHECKPOINTS_CLEANUP_RECURSIVE)));
 	}
 
 	// ------------------------------------------------------------------------
@@ -154,6 +162,16 @@ public abstract class AbstractFileStateBackend extends AbstractStateBackend {
 	@Nullable
 	public Path getSavepointPath() {
 		return baseSavepointPath;
+	}
+
+	/**
+	 * Gets whether the checkpoint storage would be clean up recursively on shutdown.
+	 *
+	 * <p>If not explicitly configured, this is the default value of
+	 * {@link CheckpointingOptions#CHECKPOINTS_CLEANUP_RECURSIVE}.
+	 */
+	public boolean isCleanupStorageRecursively() {
+		return cleanupStorageRecursively.getOrDefault(CheckpointingOptions.CHECKPOINTS_CLEANUP_RECURSIVE.defaultValue());
 	}
 
 	// ------------------------------------------------------------------------

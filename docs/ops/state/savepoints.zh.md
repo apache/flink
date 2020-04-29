@@ -178,6 +178,9 @@ state.savepoints.dir: hdfs:///flink/savepoints
 <strong>注意:</strong>目标目录必须是 JobManager(s) 和 TaskManager(s) 可访问的位置，例如，分布式文件系统上的位置。
 </div>
 
+<div class="alert alert-warning">
+<strong>注意:</strong>当启用`state.checkpoints.cleanup.recursive-on-shutdown`功能时，切勿将savepoint目录与checkpoint设置在同一个位置，以避免意外的savepoint数据丢失。
+</div>
 
 ## F.A.Q
 

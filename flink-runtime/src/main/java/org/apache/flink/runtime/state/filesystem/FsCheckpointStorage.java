@@ -60,14 +60,16 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 			@Nullable Path defaultSavepointDirectory,
 			JobID jobId,
 			int fileSizeThreshold,
-			int writeBufferSize) throws IOException {
+			int writeBufferSize,
+			boolean cleanUpRecursivelyOnShutDown) throws IOException {
 
 		this(checkpointBaseDirectory.getFileSystem(),
 				checkpointBaseDirectory,
 				defaultSavepointDirectory,
 				jobId,
 				fileSizeThreshold,
-				writeBufferSize);
+				writeBufferSize,
+				cleanUpRecursivelyOnShutDown);
 	}
 
 	public FsCheckpointStorage(
@@ -76,9 +78,10 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 			@Nullable Path defaultSavepointDirectory,
 			JobID jobId,
 			int fileSizeThreshold,
-			int writeBufferSize) throws IOException {
+			int writeBufferSize,
+			boolean cleanUpRecursivelyOnShutDown) {
 
-		super(jobId, defaultSavepointDirectory);
+		super(jobId, defaultSavepointDirectory, cleanUpRecursivelyOnShutDown);
 
 		checkArgument(fileSizeThreshold >= 0);
 		checkArgument(writeBufferSize >= 0);

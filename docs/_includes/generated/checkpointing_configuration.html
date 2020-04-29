@@ -45,6 +45,12 @@
             <td>This option configures local recovery for this state backend. By default, local recovery is deactivated. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does not support local recovery and ignore this option.</td>
         </tr>
         <tr>
+            <td><h5>state.checkpoints.cleanup.recursive-on-shutdown</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>The option configures whether directories of checkpoint storage would be cleaned up recursively if necessary on shutdown. Be careful when enable this feature, never set savepoint location mixed with checkpoint location to avoid unexpected savepoint data lost.</td>
+        </tr>
+        <tr>
             <td><h5>state.checkpoints.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

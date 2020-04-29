@@ -27,6 +27,12 @@
             <td>The default directory for savepoints. Used by the state backends that write savepoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).</td>
         </tr>
         <tr>
+            <td><h5>state.checkpoints.cleanup.recursive-on-shutdown</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>The option configures whether directories of checkpoint storage would be cleaned up recursively if necessary on shutdown. Be careful when enable this feature, never set savepoint location mixed with checkpoint location to avoid unexpected savepoint data lost.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.incremental</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
