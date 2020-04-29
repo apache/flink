@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,25 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.typeutils;
+package org.apache.flink.table.data.vector.writable;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.apache.flink.table.data.vector.BytesColumnVector;
 
 /**
- * Test for {@link StringDataTypeInfo}, {@link DecimalDataTypeInfo}.
+ * Writable {@link BytesColumnVector}.
  */
-public class InternalTypeInfoTest extends TypeInformationTestBase<TypeInformation<?>> {
+public interface WritableBytesVector extends WritableColumnVector, BytesColumnVector {
 
-	@Override
-	protected TypeInformation[] getTestData() {
-		return new TypeInformation[] {
-			StringDataTypeInfo.INSTANCE,
-			new DecimalDataTypeInfo(5, 2),
-			new TimestampDataTypeInfo(0),
-			new TimestampDataTypeInfo(3),
-			new TimestampDataTypeInfo(6),
-			new TimestampDataTypeInfo(9)
-		};
-	}
+	/**
+	 * Append byte[] at rowId with the provided value.
+	 * Note: Must append values according to the order of rowId, can not random append.
+	 */
+	void appendBytes(int rowId, byte[] value, int offset, int length);
+
+	/**
+	 * Fill the column vector with the provided value.
+	 */
+	void fill(byte[] value);
 }

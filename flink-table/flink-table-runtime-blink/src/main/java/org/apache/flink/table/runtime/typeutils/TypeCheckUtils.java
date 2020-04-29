@@ -122,7 +122,7 @@ public class TypeCheckUtils {
 	}
 
 	public static boolean isMutable(LogicalType type) {
-		// the internal representation of String is BinaryString which is mutable
+		// the internal representation of String is StringData which is mutable
 		switch (type.getTypeRoot()) {
 			case VARCHAR:
 			case CHAR:

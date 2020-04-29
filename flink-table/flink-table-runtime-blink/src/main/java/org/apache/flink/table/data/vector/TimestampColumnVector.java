@@ -16,38 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.typeutils;
+package org.apache.flink.table.data.vector;
 
-import org.apache.flink.api.common.typeutils.SerializerTestBase;
-import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.TimestampData;
 
 /**
- * A test for the {@link DecimalDataSerializer}.
+ * Timestamp column vector.
  */
-public class DecimalSerializerTest extends SerializerTestBase<DecimalData> {
-
-	@Override
-	protected DecimalDataSerializer createSerializer() {
-		return new DecimalDataSerializer(5, 2);
-	}
-
-	@Override
-	protected int getLength() {
-		return -1;
-	}
-
-	@Override
-	protected Class<DecimalData> getTypeClass() {
-		return DecimalData.class;
-	}
-
-	@Override
-	protected DecimalData[] getTestData() {
-		return new DecimalData[] {
-				DecimalData.fromUnscaledLong(1, 5, 2),
-				DecimalData.fromUnscaledLong(2, 5, 2),
-				DecimalData.fromUnscaledLong(3, 5, 2),
-				DecimalData.fromUnscaledLong(4, 5, 2)
-		};
-	}
+public interface TimestampColumnVector extends ColumnVector {
+	TimestampData getTimestamp(int i, int precision);
 }

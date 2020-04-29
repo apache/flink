@@ -19,16 +19,18 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
-import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.StringData;
+
+import java.util.Arrays;
 
 /**
- * A test for the {@link DecimalDataSerializer}.
+ * A test for the {@link StringDataSerializer}.
  */
-public class DecimalSerializerTest extends SerializerTestBase<DecimalData> {
+public class StringDataSerializerTest extends SerializerTestBase<StringData> {
 
 	@Override
-	protected DecimalDataSerializer createSerializer() {
-		return new DecimalDataSerializer(5, 2);
+	protected StringDataSerializer createSerializer() {
+		return StringDataSerializer.INSTANCE;
 	}
 
 	@Override
@@ -37,17 +39,14 @@ public class DecimalSerializerTest extends SerializerTestBase<DecimalData> {
 	}
 
 	@Override
-	protected Class<DecimalData> getTypeClass() {
-		return DecimalData.class;
+	protected Class<StringData> getTypeClass() {
+		return StringData.class;
 	}
 
 	@Override
-	protected DecimalData[] getTestData() {
-		return new DecimalData[] {
-				DecimalData.fromUnscaledLong(1, 5, 2),
-				DecimalData.fromUnscaledLong(2, 5, 2),
-				DecimalData.fromUnscaledLong(3, 5, 2),
-				DecimalData.fromUnscaledLong(4, 5, 2)
-		};
+	protected StringData[] getTestData() {
+		return Arrays.stream(
+				new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"})
+				.map(StringData::fromString).toArray(StringData[]::new);
 	}
 }
