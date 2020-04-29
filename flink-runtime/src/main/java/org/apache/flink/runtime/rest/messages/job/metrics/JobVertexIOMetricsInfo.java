@@ -168,11 +168,23 @@ public final class JobVertexIOMetricsInfo extends IOMetricsInfo {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.getBytesRead(), this.isBytesReadComplete(), this.getBytesWritten(), this.isBytesWrittenComplete(),
-			this.getRecordsRead(), this.isRecordsReadComplete(), this.getRecordsWritten(), this.isRecordsWrittenComplete(),
-			this.getInputExclusiveBuffersUsageAvg(), this.isInputExclusiveBuffersUsageAvgComplete(), this.getInputFloatingBuffersUsageAvg(),
-			this.isInputFloatingBuffersUsageAvgComplete(), this.getOutPoolUsageAvg(), this.isOutPoolUsageAvgComplete(),
-			this.isBackPressured(), this.isBackPressuredComplete());
+		return Objects.hash(
+			this.getBytesRead(),
+			this.isBytesReadComplete(),
+			this.getBytesWritten(),
+			this.isBytesWrittenComplete(),
+			this.getRecordsRead(),
+			this.isRecordsReadComplete(),
+			this.getRecordsWritten(),
+			this.isRecordsWrittenComplete(),
+			this.getInputExclusiveBuffersUsageAvg(),
+			this.isInputExclusiveBuffersUsageAvgComplete(),
+			this.getInputFloatingBuffersUsageAvg(),
+			this.isInputFloatingBuffersUsageAvgComplete(),
+			this.getOutPoolUsageAvg(),
+			this.isOutPoolUsageAvgComplete(),
+			this.isBackPressured(),
+			this.isBackPressuredComplete());
 	}
 
 }

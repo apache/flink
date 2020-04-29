@@ -176,13 +176,9 @@ public class MutableIOMetrics extends IOMetrics {
 		}
 	}
 
-	private void update(MetricStore.ComponentMetricStore metrics, String metricKey, Consumer<String> emptyFunction, Consumer<String> noEmptyFunction) {
+	private void update(MetricStore.ComponentMetricStore metrics, String metricKey, Consumer<String> emptyFunction, Consumer<String> nonEmptyFunction) {
 		String value = metrics.getMetric(metricKey);
-		if (value == null){
-			emptyFunction.accept(value);
-		}
-		else {
-			noEmptyFunction.accept(value);
-		}
+		Consumer<String> updateFunction = value == null ? emptyFunction : nonEmptyFunction;
+		updateFunction.accept(value);
 	}
 }
