@@ -42,7 +42,7 @@ import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToIn
  * This column vector is used to adapt hive's ColumnVector to Flink's ColumnVector.
  */
 public abstract class AbstractOrcNoHiveVector implements
-		org.apache.flink.table.dataformat.vector.ColumnVector {
+		org.apache.flink.table.data.vector.ColumnVector {
 
 	private ColumnVector orcVector;
 
@@ -55,7 +55,7 @@ public abstract class AbstractOrcNoHiveVector implements
 		return !orcVector.noNulls && orcVector.isNull[orcVector.isRepeating ? 0 : i];
 	}
 
-	public static org.apache.flink.table.dataformat.vector.ColumnVector createFlinkVector(
+	public static org.apache.flink.table.data.vector.ColumnVector createFlinkVector(
 			ColumnVector vector) {
 		if (vector instanceof LongColumnVector) {
 			return new OrcNoHiveLongVector((LongColumnVector) vector);
@@ -75,7 +75,7 @@ public abstract class AbstractOrcNoHiveVector implements
 	/**
 	 * Create flink vector by hive vector from constant.
 	 */
-	public static org.apache.flink.table.dataformat.vector.ColumnVector createFlinkVectorFromConstant(
+	public static org.apache.flink.table.data.vector.ColumnVector createFlinkVectorFromConstant(
 			LogicalType type, Object value, int batchSize) {
 		return createFlinkVector(createHiveVectorFromConstant(type, value, batchSize));
 	}
