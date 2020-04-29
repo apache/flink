@@ -18,7 +18,7 @@
 
 package org.apache.flink.connectors.hive.read;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -45,5 +45,5 @@ public interface SplitReader extends Closeable {
 	 *
 	 * @throws IOException Thrown, if an I/O error occurred.
 	 */
-	BaseRow nextRecord(BaseRow reuse) throws IOException;
+	RowData nextRecord(RowData reuse) throws IOException;
 }
