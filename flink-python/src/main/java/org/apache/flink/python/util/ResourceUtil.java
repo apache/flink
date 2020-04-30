@@ -18,6 +18,8 @@
 
 package org.apache.flink.python.util;
 
+import org.apache.flink.util.OperatingSystem;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,10 +31,16 @@ import java.nio.file.Paths;
  */
 public class ResourceUtil {
 
-	public static final String PYFLINK_UDF_RUNNER = "pyflink-udf-runner.sh";
+	public static final String PYFLINK_UDF_RUNNER_SH = "pyflink-udf-runner.sh";
+	public static final String PYFLINK_UDF_RUNNER_BAT = "pyflink-udf-runner.bat";
 
 	public static File extractUdfRunner(String tmpdir) throws IOException, InterruptedException {
-		File file = new File(tmpdir, PYFLINK_UDF_RUNNER);
+		File file;
+		if (OperatingSystem.isWindows()) {
+			file = new File(tmpdir, PYFLINK_UDF_RUNNER_BAT);
+		} else {
+			file = new File(tmpdir, PYFLINK_UDF_RUNNER_SH);
+		}
 		// TODO: This is a hacky solution to prevent subprocesses to hold the file descriptor of shell scripts,
 		// which will cause the execution of shell scripts failed with the exception "test file is busy"
 		// randomly. It's a bug of JDK, see https://bugs.openjdk.java.net/browse/JDK-8068370. After moving flink
@@ -46,7 +54,7 @@ public class ResourceUtil {
 			classPath,
 			ResourceUtil.class.getName(),
 			tmpdir,
-			PYFLINK_UDF_RUNNER).inheritIO().start().waitFor();
+			file.getName()).inheritIO().start().waitFor();
 		return file;
 	}
 

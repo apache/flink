@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -73,7 +74,7 @@ final class PythonEnvUtils {
 	static class PythonEnvironment {
 		String tempDirectory;
 
-		String pythonExec = "python";
+		String pythonExec = OperatingSystem.isWindows() ? "python.exe" : "python";
 
 		String pythonPath;
 

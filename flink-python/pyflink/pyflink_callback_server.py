@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 import time
 
 from pyflink.java_gateway import get_gateway
@@ -24,9 +23,10 @@ from pyflink.java_gateway import get_gateway
 if __name__ == '__main__':
     # just a daemon process used to serve the rpc call from Java.
     gateway = get_gateway()
+    watchdog = gateway.jvm.org.apache.flink.client.python.PythonGatewayServer.watchdog
     try:
-        while sys.stdin.read():
-            time.sleep(100)
+        while watchdog.ping():
+            time.sleep(1)
     finally:
         get_gateway().close()
         exit(0)

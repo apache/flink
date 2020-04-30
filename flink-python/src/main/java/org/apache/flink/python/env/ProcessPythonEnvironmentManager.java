@@ -78,6 +78,9 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	@VisibleForTesting
 	static final String PYTHON_FILES_DIR = "python-files";
 
+	private static final long CHECK_INTERVAL = 20;
+	private static final long CHECK_TIMEOUT = 1000;
+
 	private transient String baseDirectory;
 
 	/**
@@ -127,25 +130,48 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	}
 
 	@Override
-	public void close() {
-		FileUtils.deleteDirectoryQuietly(new File(baseDirectory));
-		if (shutdownHook != null) {
-			ShutdownHookUtil.removeShutdownHook(
-				shutdownHook, ProcessPythonEnvironmentManager.class.getSimpleName(), LOG);
-			shutdownHook = null;
+	public void close() throws Exception {
+		try {
+			int retries = 0;
+			while (true) {
+				try {
+					FileUtils.deleteDirectory(new File(baseDirectory));
+					break;
+				} catch (Throwable t) {
+					retries++;
+					if (retries <= CHECK_TIMEOUT / CHECK_INTERVAL) {
+						LOG.warn(
+							String.format(
+								"Failed to delete the working directory %s of the Python UDF worker. Retrying...",
+								baseDirectory),
+							t);
+					} else {
+						LOG.warn(
+							String.format(
+								"Failed to delete the working directory %s of the Python UDF worker.", baseDirectory),
+							t);
+						break;
+					}
+				}
+			}
+		} finally {
+			if (shutdownHook != null) {
+				ShutdownHookUtil.removeShutdownHook(
+					shutdownHook, ProcessPythonEnvironmentManager.class.getSimpleName(), LOG);
+				shutdownHook = null;
+			}
 		}
 	}
 
 	@Override
 	public RunnerApi.Environment createEnvironment() throws IOException, InterruptedException {
 		Map<String, String> env = constructEnvironmentVariables();
-		ResourceUtil.extractUdfRunner(baseDirectory);
-		String pythonWorkerCommand = String.join(File.separator, baseDirectory, "pyflink-udf-runner.sh");
+		File runnerScript = ResourceUtil.extractUdfRunner(baseDirectory);
 
 		return Environments.createProcessEnvironment(
 			"",
 			"",
-			pythonWorkerCommand,
+			runnerScript.getPath(),
 			env);
 	}
 

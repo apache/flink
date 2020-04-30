@@ -40,4 +40,4 @@ if [[ "$_PYTHON_WORKING_DIR" != "" ]]; then
 fi
 
 log="$BOOT_LOG_DIR/flink-python-udf-boot.log"
-${python} -m pyflink.fn_execution.boot $@ 2>&1 | tee -a ${log}
+${python} -m pyflink.fn_execution.boot $@ 2>&1 | tee ${log}

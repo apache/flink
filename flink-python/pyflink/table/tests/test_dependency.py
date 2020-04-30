@@ -22,6 +22,7 @@ import sys
 import unittest
 import uuid
 
+from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
@@ -179,9 +180,7 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
         self.assert_equals(actual, ["3,1", "4,2", "5,3"])
 
     def test_set_environment(self):
-        if getattr(os, "symlink", None) is None:
-            self.skipTest("Symbolic link is not supported, skip testing 'test_set_python_exec'...")
-
+        unittest.skipIf(on_windows(), "Symbolic link is not supported on Windows, skipping.")
         python_exec = sys.executable
         tmp_dir = self.tempdir
         python_exec_link_path = os.path.join(tmp_dir, "py_exec")

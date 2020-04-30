@@ -24,6 +24,7 @@ import sys
 import tempfile
 import unittest
 
+from pyflink.pyflink_gateway_server import on_windows
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 
 from pyflink.java_gateway import get_gateway
@@ -531,10 +532,16 @@ class TypesTests(unittest.TestCase):
         self.assertEqual(dt.from_sql_type(0), datetime.date(1970, 1, 1))
 
     def test_timestamp_microsecond(self):
+        unittest.skipIf(on_windows(), "Windows x64 system only support the datetime not larger "
+                                      "than time.ctime(32536799999), so this test can't run "
+                                      "under Windows platform")
         tst = DataTypes.TIMESTAMP()
         self.assertEqual(tst.to_sql_type(datetime.datetime.max) % 1000000, 999999)
 
     def test_local_zoned_timestamp_type(self):
+        unittest.skipIf(on_windows(), "Windows x64 system only support the datetime not larger "
+                                      "than time.ctime(32536799999), so this test can't run "
+                                      "under Windows platform")
         lztst = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
         ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000)
         self.assertEqual(0, lztst.to_sql_type(ts))
