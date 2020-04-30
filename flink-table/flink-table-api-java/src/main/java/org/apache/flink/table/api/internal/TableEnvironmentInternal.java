@@ -32,7 +32,7 @@ import java.util.List;
  * that defines extended methods used for {@link TableImpl}.
  */
 @Internal
-public interface TableEnvironmentInternal extends TableEnvironment {
+interface TableEnvironmentInternal extends TableEnvironment {
 
 	/**
 	 * Return a {@link Parser} that provides methods for parsing a SQL string.

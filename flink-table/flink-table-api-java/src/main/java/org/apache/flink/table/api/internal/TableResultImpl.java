@@ -40,7 +40,7 @@ import java.util.Optional;
  * Implementation for {@link TableResult}.
  */
 @Internal
-public class TableResultImpl implements TableResult {
+class TableResultImpl implements TableResult {
 	public static final TableResult TABLE_RESULT_OK = TableResultImpl.builder()
 			.resultKind(ResultKind.SUCCESS)
 			.tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
