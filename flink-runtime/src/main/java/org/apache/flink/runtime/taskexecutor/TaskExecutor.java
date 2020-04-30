@@ -39,7 +39,6 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -186,6 +185,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final BlobCacheService blobCacheService;
 
+	private final LibraryCacheManager libraryCacheManager;
+
 	/** The address to metric query service on this Task Manager. */
 	@Nullable
 	private final String metricQueryServiceAddress;
@@ -277,6 +278,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.metricQueryServiceAddress = metricQueryServiceAddress;
 		this.backPressureSampleService = checkNotNull(backPressureSampleService);
 
+		this.libraryCacheManager = taskExecutorServices.getLibraryCacheManager();
 		this.taskSlotTable = taskExecutorServices.getTaskSlotTable();
 		this.jobTable = taskExecutorServices.getJobTable();
 		this.jobLeaderService = taskExecutorServices.getJobLeaderService();
@@ -920,16 +922,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
-	private LibraryCacheManager registerNewJobAndCreateServices(JobID jobId, String targetAddress) throws Exception {
+	private LibraryCacheManager.ClassLoaderLease registerNewJobAndCreateServices(JobID jobId, String targetAddress) throws Exception {
 		jobLeaderService.addJob(jobId, targetAddress);
 
 		blobCacheService.getPermanentBlobService().registerJob(jobId);
 
-		return new BlobLibraryCacheManager(
-			blobCacheService.getPermanentBlobService(),
-			BlobLibraryCacheManager.defaultClassLoaderFactory(
-				taskManagerConfiguration.getClassLoaderResolveOrder(),
-				taskManagerConfiguration.getAlwaysParentFirstLoaderPatterns()));
+		return libraryCacheManager.registerClassLoaderLease(jobId);
 	}
 
 	private void allocateSlot(

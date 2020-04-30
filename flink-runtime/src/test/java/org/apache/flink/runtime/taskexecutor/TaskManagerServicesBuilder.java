@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.TestingLibraryCacheManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -55,6 +57,7 @@ public class TaskManagerServicesBuilder {
 	private TaskExecutorLocalStateStoresManager taskStateManager;
 	private TaskEventDispatcher taskEventDispatcher;
 	private ExecutorService ioExecutor;
+	private LibraryCacheManager libraryCacheManager;
 
 	public TaskManagerServicesBuilder() {
 		unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
@@ -68,6 +71,7 @@ public class TaskManagerServicesBuilder {
 		jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 		taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
 		ioExecutor = TestingUtils.defaultExecutor();
+		libraryCacheManager = TestingLibraryCacheManager.newBuilder().build();
 	}
 
 	public TaskManagerServicesBuilder setUnresolvedTaskManagerLocation(UnresolvedTaskManagerLocation unresolvedTaskManagerLocation) {
@@ -120,6 +124,11 @@ public class TaskManagerServicesBuilder {
 		return this;
 	}
 
+	public TaskManagerServicesBuilder setLibraryCacheManager(LibraryCacheManager libraryCacheManager) {
+		this.libraryCacheManager = libraryCacheManager;
+		return this;
+	}
+
 	public TaskManagerServices build() {
 		return new TaskManagerServices(
 			unresolvedTaskManagerLocation,
@@ -133,6 +142,7 @@ public class TaskManagerServicesBuilder {
 			jobLeaderService,
 			taskStateManager,
 			taskEventDispatcher,
-			ioExecutor);
+			ioExecutor,
+			libraryCacheManager);
 	}
 }

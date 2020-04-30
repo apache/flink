@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -216,6 +217,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 			TaskManagerServicesConfiguration config) throws Exception {
 		return TaskManagerServices.fromConfiguration(
 			config,
+			VoidPermanentBlobService.INSTANCE,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			Executors.directExecutor());
 	}

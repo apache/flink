@@ -46,6 +46,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
+import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -288,22 +289,18 @@ public class TaskExecutorTest extends TestLogger {
 
 		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
-		final long heartbeatInterval = 1L;
-		final long heartbeatTimeout = 10L;
-
-		HeartbeatServices heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
+		final TestingHeartbeatServices heartbeatServices = new TestingHeartbeatServices();
 
 		final String jobMasterAddress = "jm";
 		final UUID jmLeaderId = UUID.randomUUID();
 
 		final ResourceID jmResourceId = ResourceID.generate();
 		final CountDownLatch registrationAttempts = new CountDownLatch(2);
-		final CompletableFuture<UnresolvedTaskManagerLocation> taskManagerUnresolvedLocationFuture = new CompletableFuture<>();
+		final OneShotLatch slotOfferedLatch = new OneShotLatch();
 		final CompletableFuture<ResourceID> disconnectTaskManagerFuture = new CompletableFuture<>();
 		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
 			.setRegisterTaskManagerFunction((s, taskManagerUnresolvedLocation) -> {
 				registrationAttempts.countDown();
-				taskManagerUnresolvedLocationFuture.complete(taskManagerUnresolvedLocation);
 				return CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId));
 			})
 			.setDisconnectTaskManagerFunction(
@@ -311,7 +308,10 @@ public class TaskExecutorTest extends TestLogger {
 					disconnectTaskManagerFuture.complete(resourceID);
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				})
-			.setOfferSlotsFunction((resourceID, slotOffers) -> CompletableFuture.completedFuture(slotOffers))
+			.setOfferSlotsFunction((resourceID, slotOffers) -> {
+				slotOfferedLatch.trigger();
+				return CompletableFuture.completedFuture(slotOffers);
+			})
 			.build();
 
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
@@ -362,11 +362,13 @@ public class TaskExecutorTest extends TestLogger {
 			jobManagerLeaderRetriever.notifyListener(jobMasterAddress, jmLeaderId);
 
 			// register task manager success will trigger monitoring heartbeat target between tm and jm
-			final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation1 = taskManagerUnresolvedLocationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-			assertThat(unresolvedTaskManagerLocation1, equalTo(unresolvedTaskManagerLocation));
+			slotOfferedLatch.await();
+
+			// trigger the JM heartbeat timeout
+			heartbeatServices.triggerHeartbeatTimeout(unresolvedTaskManagerLocation.getResourceID(), jmResourceId);
 
 			// the timeout should trigger disconnecting from the JobManager
-			final ResourceID resourceID = disconnectTaskManagerFuture.get(heartbeatTimeout * 50L, TimeUnit.MILLISECONDS);
+			final ResourceID resourceID = disconnectTaskManagerFuture.get();
 			assertThat(resourceID, equalTo(unresolvedTaskManagerLocation.getResourceID()));
 
 			assertTrue(
