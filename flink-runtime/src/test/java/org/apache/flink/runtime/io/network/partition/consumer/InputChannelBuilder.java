@@ -26,10 +26,13 @@ import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
+import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 
 import java.net.InetSocketAddress;
+
+import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
 
 /**
  * Builder for various {@link InputChannel} types.
@@ -41,7 +44,7 @@ public class InputChannelBuilder {
 	private int channelIndex = 0;
 	private ResultPartitionID partitionId = new ResultPartitionID();
 	private ConnectionID connectionID = STUB_CONNECTION_ID;
-	private ResultPartitionManager partitionManager = new ResultPartitionManager();
+	private ResultPartitionManager partitionManager = new TestingResultPartitionManager(new NoOpResultSubpartitionView());
 	private TaskEventPublisher taskEventPublisher = new TaskEventDispatcher();
 	private ConnectionManager connectionManager = new TestingConnectionManager();
 	private int initialBackoff = 0;
@@ -122,11 +125,37 @@ public class InputChannelBuilder {
 			taskEventPublisher,
 			initialBackoff,
 			maxBackoff,
-			metrics);
+			metrics.getNumBytesInLocalCounter(),
+			metrics.getNumBuffersInLocalCounter());
 	}
 
 	public RemoteInputChannel buildRemoteChannel(SingleInputGate inputGate) {
 		return new RemoteInputChannel(
+			inputGate,
+			channelIndex,
+			partitionId,
+			connectionID,
+			connectionManager,
+			initialBackoff,
+			maxBackoff,
+			metrics.getNumBytesInRemoteCounter(),
+			metrics.getNumBuffersInRemoteCounter());
+	}
+
+	public LocalRecoveredInputChannel buildLocalRecoveredChannel(SingleInputGate inputGate) {
+		return new LocalRecoveredInputChannel(
+			inputGate,
+			channelIndex,
+			partitionId,
+			partitionManager,
+			taskEventPublisher,
+			initialBackoff,
+			maxBackoff,
+			metrics);
+	}
+
+	public RemoteRecoveredInputChannel buildRemoteRecoveredChannel(SingleInputGate inputGate) {
+		return new RemoteRecoveredInputChannel(
 			inputGate,
 			channelIndex,
 			partitionId,

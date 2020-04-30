@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -52,12 +53,14 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -227,19 +230,57 @@ public class SingleInputGate extends IndexedInputGate {
 	}
 
 	@Override
-	public void setup() throws IOException, InterruptedException {
+	public void setup() throws IOException {
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: Already registered buffer pool.");
 		// assign exclusive buffers to input channels directly and use the rest for floating buffers
 		assignExclusiveSegments();
 
 		BufferPool bufferPool = bufferPoolFactory.get();
 		setBufferPool(bufferPool);
-
-		requestPartitions();
 	}
 
-	@VisibleForTesting
-	void requestPartitions() throws IOException, InterruptedException {
+	@Override
+	public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+		List<CompletableFuture<?>> futures = getStateConsumedFuture();
+
+		executor.submit(() -> {
+			Collection<InputChannel> channels;
+			synchronized (requestLock) {
+				channels = inputChannels.values();
+			}
+			internalReadRecoveredState(reader, channels);
+		});
+
+		return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+	}
+
+	private List<CompletableFuture<?>> getStateConsumedFuture() {
+		synchronized (requestLock) {
+			List<CompletableFuture<?>> futures = new ArrayList<>(inputChannels.size());
+			for (InputChannel inputChannel : inputChannels.values()) {
+				if (inputChannel instanceof RecoveredInputChannel) {
+					futures.add(((RecoveredInputChannel) inputChannel).getStateConsumedFuture());
+				}
+			}
+			return futures;
+		}
+	}
+
+	private void internalReadRecoveredState(ChannelStateReader reader, Collection<InputChannel> inputChannels) {
+		for (InputChannel inputChannel : inputChannels) {
+			try {
+				if (inputChannel instanceof RecoveredInputChannel) {
+					((RecoveredInputChannel) inputChannel).readRecoveredState(reader);
+				}
+			} catch (Throwable t) {
+				inputChannel.setError(t);
+				return;
+			}
+		}
+	}
+
+	@Override
+	public void requestPartitions() {
 		synchronized (requestLock) {
 			if (!requestedPartitionsFlag) {
 				if (closeFuture.isDone()) {
@@ -256,12 +297,40 @@ public class SingleInputGate extends IndexedInputGate {
 						numberOfInputChannels));
 				}
 
-				for (InputChannel inputChannel : inputChannels.values()) {
-					inputChannel.requestSubpartition(consumedSubpartitionIndex);
-				}
+				convertRecoveredInputChannels();
+				internalRequestPartitions();
 			}
 
 			requestedPartitionsFlag = true;
+		}
+	}
+
+	@VisibleForTesting
+	void convertRecoveredInputChannels() {
+		for (Map.Entry<IntermediateResultPartitionID, InputChannel> entry : inputChannels.entrySet()) {
+			InputChannel inputChannel = entry.getValue();
+			if (inputChannel instanceof RecoveredInputChannel) {
+				try {
+					InputChannel realInputChannel = ((RecoveredInputChannel) inputChannel).toInputChannel();
+					inputChannel.releaseAllResources();
+					entry.setValue(realInputChannel);
+					channels[inputChannel.getChannelIndex()] = realInputChannel;
+				} catch (Throwable t) {
+					inputChannel.setError(t);
+					return;
+				}
+			}
+		}
+	}
+
+	private void internalRequestPartitions() {
+		for (InputChannel inputChannel : inputChannels.values()) {
+			try {
+				inputChannel.requestSubpartition(consumedSubpartitionIndex);
+			} catch (Throwable t) {
+				inputChannel.setError(t);
+				return;
+			}
 		}
 	}
 
@@ -311,6 +380,10 @@ public class SingleInputGate extends IndexedInputGate {
 		return memorySegmentProvider;
 	}
 
+	public String getOwningTaskName() {
+		return owningTaskName;
+	}
+
 	public int getNumberOfQueuedBuffers() {
 		// re-try 3 times, if fails, return 0 for "unknown"
 		for (int retry = 0; retry < 3; retry++) {
@@ -356,8 +429,13 @@ public class SingleInputGate extends IndexedInputGate {
 	public void assignExclusiveSegments() throws IOException {
 		synchronized (requestLock) {
 			for (InputChannel inputChannel : inputChannels.values()) {
+				// Note that although the initial channel would not be RemoteInputChannel at the moment,
+				// we might change to generate different type channels based on config future.
 				if (inputChannel instanceof RemoteInputChannel) {
 					((RemoteInputChannel) inputChannel).assignExclusiveSegments();
+				}
+				else if (inputChannel instanceof RemoteRecoveredInputChannel) {
+					((RemoteRecoveredInputChannel) inputChannel).assignExclusiveSegments();
 				}
 			}
 		}

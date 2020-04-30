@@ -78,9 +78,9 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	 */
 	@Test
 	public void testRegisterTaskWithLimitedBuffers() throws Exception {
-		// outgoing: 1 buffer per channel (always)
-		// incoming: 2 exclusive buffers per channel
-		final int bufferCount = 14 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+		// outgoing: 1 buffer per channel + 1 extra buffer per ResultPartition
+		// incoming: 2 exclusive buffers per channel + 1 floating buffer per single gate
+		final int bufferCount = 18 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
 
 		testRegisterTaskWithLimitedBuffers(bufferCount);
 	}
@@ -91,8 +91,8 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	 */
 	@Test
 	public void testRegisterTaskWithInsufficientBuffers() throws Exception {
-		// outgoing: 1 buffer per channel (always)
-		// incoming: 2 exclusive buffers per channel
+		// outgoing: 1 buffer per channel + 1 extra buffer per ResultPartition
+		// incoming: 2 exclusive buffers per channel + 1 floating buffer per single gate
 		final int bufferCount = 10 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
 
 		expectedException.expect(IOException.class);
@@ -167,10 +167,10 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 
 		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
 		// for exclusive buffers not managed by the buffer pool)
-		assertEquals(0, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(0, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(0, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(0, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
 
 		assertEquals(floatingBuffers, ig1.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(floatingBuffers, ig2.getBufferPool().getMaxNumberOfMemorySegments());

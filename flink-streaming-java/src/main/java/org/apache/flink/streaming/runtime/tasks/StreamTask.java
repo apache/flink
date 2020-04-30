@@ -40,6 +40,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.SingleRecordWriter;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
@@ -204,6 +205,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	protected final MailboxProcessor mailboxProcessor;
 
+	/**
+	 * TODO it might be replaced by the global IO executor on TaskManager level future.
+	 */
+	private final ExecutorService channelIOExecutor;
+
 	private Long syncSavepointId = null;
 
 	// ------------------------------------------------------------------------
@@ -292,6 +298,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		} else {
 			this.timerService = timerService;
 		}
+
+		this.channelIOExecutor = Executors.newSingleThreadExecutor(new ExecutorThreadFactory("channel-state-unspilling"));
 	}
 
 	private CompletableFuture<Void> prepareInputSnapshot(ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
@@ -458,15 +466,48 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// registers a timer, that fires before the open() is called.
 			operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
 
-			ResultPartitionWriter[] writers = getEnvironment().getAllWriters();
-			if (writers != null) {
-				for (ResultPartitionWriter writer : writers) {
-					writer.readRecoveredState(getEnvironment().getTaskStateManager().getChannelStateReader());
-				}
-			}
+			readRecoveredChannelState();
 		});
 
 		isRunning = true;
+	}
+
+	private void readRecoveredChannelState() throws IOException, InterruptedException {
+		//TODO we will support channel state recovery even if the current setting is not unaligned checkpoint.
+		if (!configuration.isUnalignedCheckpointsEnabled()) {
+			requestPartitions();
+		}
+
+		ResultPartitionWriter[] writers = getEnvironment().getAllWriters();
+		if (writers != null) {
+			for (ResultPartitionWriter writer : writers) {
+				writer.readRecoveredState(getEnvironment().getTaskStateManager().getChannelStateReader());
+			}
+		}
+
+		// It would get possible benefits to recovery input side after output side, which guarantees the
+		// output can request more floating buffers from global firstly.
+		InputGate[] inputGates = getEnvironment().getAllInputGates();
+		if (inputGates != null && inputGates.length > 0) {
+			CompletableFuture[] futures = new CompletableFuture[inputGates.length];
+			for (int i = 0; i < inputGates.length; i++) {
+				futures[i] = inputGates[i].readRecoveredState(
+					channelIOExecutor, getEnvironment().getTaskStateManager().getChannelStateReader());
+			}
+
+			// Note that we must request partition after all the single gates finished recovery.
+			CompletableFuture.allOf(futures).thenRun(() -> mailboxProcessor.getMainMailboxExecutor().execute(
+				this::requestPartitions, "Input gates request partitions"));
+		}
+	}
+
+	private void requestPartitions() throws IOException {
+		InputGate[] inputGates = getEnvironment().getAllInputGates();
+		if (inputGates != null) {
+			for (InputGate inputGate : inputGates) {
+				inputGate.requestPartitions();
+			}
+		}
 	}
 
 	@Override
@@ -587,6 +628,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		} else {
 			// failed to allocate operatorChain, clean up record writers
 			recordWriter.close();
+		}
+
+		try {
+			channelIOExecutor.shutdown();
+		} catch (Throwable t) {
+			LOG.error("Error during shutdown the channel state unspill executor", t);
 		}
 
 		mailboxProcessor.close();

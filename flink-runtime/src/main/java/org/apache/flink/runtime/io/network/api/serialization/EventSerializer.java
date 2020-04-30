@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -59,6 +60,8 @@ public class EventSerializer {
 
 	private static final int CANCEL_CHECKPOINT_MARKER_EVENT = 4;
 
+	private static final int END_OF_CHANNEL_STATE_EVENT = 5;
+
 	private static final int CHECKPOINT_TYPE_CHECKPOINT = 0;
 
 	private static final int CHECKPOINT_TYPE_SAVEPOINT = 1;
@@ -79,6 +82,9 @@ public class EventSerializer {
 		}
 		else if (eventClass == EndOfSuperstepEvent.class) {
 			return ByteBuffer.wrap(new byte[] { 0, 0, 0, END_OF_SUPERSTEP_EVENT });
+		}
+		else if (eventClass == EndOfChannelStateEvent.class) {
+			return ByteBuffer.wrap(new byte[] { 0, 0, 0, END_OF_CHANNEL_STATE_EVENT });
 		}
 		else if (eventClass == CancelCheckpointMarker.class) {
 			CancelCheckpointMarker marker = (CancelCheckpointMarker) event;
@@ -129,6 +135,8 @@ public class EventSerializer {
 				return type == CHECKPOINT_BARRIER_EVENT;
 			} else if (eventClass.equals(EndOfSuperstepEvent.class)) {
 				return type == END_OF_SUPERSTEP_EVENT;
+			} else if (eventClass.equals(EndOfChannelStateEvent.class)) {
+				return type == END_OF_CHANNEL_STATE_EVENT;
 			} else if (eventClass.equals(CancelCheckpointMarker.class)) {
 				return type == CANCEL_CHECKPOINT_MARKER_EVENT;
 			} else {
@@ -161,6 +169,9 @@ public class EventSerializer {
 			}
 			else if (type == END_OF_SUPERSTEP_EVENT) {
 				return EndOfSuperstepEvent.INSTANCE;
+			}
+			else if (type == END_OF_CHANNEL_STATE_EVENT) {
+				return EndOfChannelStateEvent.INSTANCE;
 			}
 			else if (type == CANCEL_CHECKPOINT_MARKER_EVENT) {
 				long id = buffer.getLong();

@@ -46,6 +46,8 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -562,6 +564,7 @@ public class ResultPartitionTest {
 		private final int totalStates;
 		private int numRestoredStates;
 		private final int[] states;
+		private final Map<InputChannelInfo, Integer> counters = new HashMap<>();
 
 		public FiniteChannelStateReader(int totalStates, int[] states) {
 			this.totalStates = totalStates;
@@ -570,14 +573,22 @@ public class ResultPartitionTest {
 
 		@Override
 		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) {
-			return ReadResult.NO_MORE_DATA;
+			for (int state: states) {
+				buffer.asByteBuf().writeInt(state);
+			}
+			int result = counters.compute(info, (unused, counter) -> (counter == null) ? 1 : ++counter);
+
+			return getReadResult(result);
 		}
 
 		@Override
 		public ReadResult readOutputData(ResultSubpartitionInfo info, BufferBuilder bufferBuilder) {
 			bufferBuilder.appendAndCommit(BufferBuilderAndConsumerTest.toByteBuffer(states));
+			return getReadResult(++numRestoredStates);
+		}
 
-			if (++numRestoredStates < totalStates) {
+		private ReadResult getReadResult(int numRestoredStates) {
+			if (numRestoredStates < totalStates) {
 				return ReadResult.HAS_MORE_DATA;
 			} else {
 				return ReadResult.NO_MORE_DATA;
@@ -591,13 +602,13 @@ public class ResultPartitionTest {
 
 	/**
 	 * The {@link ChannelStateReader} instance for throwing exception when
-	 * {@link #readOutputData(ResultSubpartitionInfo, BufferBuilder)}.
+	 * {@link #readOutputData(ResultSubpartitionInfo, BufferBuilder)} and {@link #readInputData(InputChannelInfo, Buffer)}.
 	 */
-	private static final class ChannelStateReaderWithException implements ChannelStateReader {
+	public static final class ChannelStateReaderWithException implements ChannelStateReader {
 
 		@Override
-		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) {
-			return ReadResult.NO_MORE_DATA;
+		public ReadResult readInputData(InputChannelInfo info, Buffer buffer) throws IOException {
+			throw new IOException("test");
 		}
 
 		@Override

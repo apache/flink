@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -84,6 +85,42 @@ public class BufferManager implements BufferListener, BufferRecycler {
 	Buffer requestBuffer() {
 		synchronized (bufferQueue) {
 			return bufferQueue.takeBuffer();
+		}
+	}
+
+	Buffer requestBufferBlocking() throws IOException, InterruptedException {
+		synchronized (bufferQueue) {
+			Buffer buffer;
+			while ((buffer = bufferQueue.takeBuffer()) == null) {
+				if (inputChannel.isReleased()) {
+					throw new CancelTaskException("Input channel [" + inputChannel.channelInfo + "] has already been released.");
+				}
+				if (!isWaitingForFloatingBuffers) {
+					BufferPool bufferPool = inputChannel.inputGate.getBufferPool();
+					buffer = bufferPool.requestBuffer();
+					if (buffer == null && shouldContinueRequest(bufferPool)) {
+						continue;
+					}
+				}
+
+				if (buffer != null) {
+					return buffer;
+				}
+				bufferQueue.wait();
+			}
+			return buffer;
+		}
+	}
+
+	private boolean shouldContinueRequest(BufferPool bufferPool) {
+		if (bufferPool.addBufferListener(this)) {
+			isWaitingForFloatingBuffers = true;
+			numRequiredBuffers = 1;
+			return false;
+		} else if (bufferPool.isDestroyed()) {
+			throw new CancelTaskException("Local buffer pool has already been released.");
+		} else {
+			return true;
 		}
 	}
 
@@ -156,10 +193,19 @@ public class BufferManager implements BufferListener, BufferRecycler {
 				}
 			} catch (Throwable t) {
 				ExceptionUtils.rethrow(t);
+			} finally {
+				bufferQueue.notifyAll();
 			}
 		}
 
 		inputChannel.notifyBufferAvailable(numAddedBuffers);
+	}
+
+	void releaseFloatingBuffers() {
+		synchronized (bufferQueue) {
+			numRequiredBuffers = 0;
+			bufferQueue.releaseFloatingBuffers();
+		}
 	}
 
 	/**
@@ -180,6 +226,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
 		}
 		synchronized (bufferQueue) {
 			bufferQueue.releaseAll(exclusiveRecyclingSegments);
+			bufferQueue.notifyAll();
 		}
 
 		if (exclusiveRecyclingSegments.size() > 0) {
@@ -220,6 +267,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
 				}
 
 				bufferQueue.addFloatingBuffer(buffer);
+				bufferQueue.notifyAll();
 
 				if (bufferQueue.getAvailableBufferSize() == numRequiredBuffers) {
 					isWaitingForFloatingBuffers = false;
@@ -347,6 +395,13 @@ public class BufferManager implements BufferListener, BufferRecycler {
 			}
 			while ((buffer = exclusiveBuffers.poll()) != null) {
 				exclusiveSegments.add(buffer.getMemorySegment());
+			}
+		}
+
+		void releaseFloatingBuffers() {
+			Buffer buffer;
+			while ((buffer = floatingBuffers.poll()) != null) {
+				buffer.recycleBuffer();
 			}
 		}
 

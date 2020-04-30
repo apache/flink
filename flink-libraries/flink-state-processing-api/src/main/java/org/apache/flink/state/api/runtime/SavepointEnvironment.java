@@ -250,7 +250,7 @@ public class SavepointEnvironment implements Environment {
 
 	@Override
 	public IndexedInputGate[] getAllInputGates() {
-		throw new UnsupportedOperationException(ERROR_MSG);
+		return new IndexedInputGate[0];
 	}
 
 	@Override

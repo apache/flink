@@ -855,7 +855,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	@VisibleForTesting
 	public static void setupPartitionsAndGates(
-		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException, InterruptedException {
+		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException {
 
 		for (ResultPartitionWriter partition : producedPartitions) {
 			partition.setup();

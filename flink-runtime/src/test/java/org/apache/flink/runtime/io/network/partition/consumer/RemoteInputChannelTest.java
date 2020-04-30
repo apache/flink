@@ -649,15 +649,16 @@ public class RemoteInputChannelTest {
 
 		final SingleInputGate inputGate = createSingleInputGate(3, networkBufferPool);
 		final RemoteInputChannel[] inputChannels = new RemoteInputChannel[3];
-		inputChannels[0] = spy(createRemoteInputChannel(inputGate));
-		inputChannels[1] = spy(createRemoteInputChannel(inputGate));
-		inputChannels[2] = spy(createRemoteInputChannel(inputGate));
+		inputChannels[0] = createRemoteInputChannel(inputGate);
+		inputChannels[1] = createRemoteInputChannel(inputGate);
+		inputChannels[2] = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannels(inputChannels);
 		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments();
+			inputGate.requestPartitions();
 			for (RemoteInputChannel inputChannel : inputChannels) {
 				inputChannel.requestSubpartition(0);
 			}
@@ -697,8 +698,8 @@ public class RemoteInputChannelTest {
 
 	/**
 	 * Tests that failures are propagated correctly if
-	 * {@link BufferManager#notifyBufferAvailable(Buffer)} throws an exception.
-	 * Also tests that a second listener will be notified in this case.
+	 * {@link RemoteInputChannel#notifyBufferAvailable(int)} throws an exception. Also tests that
+	 * a second listener will be notified in this case.
 	 */
 	@Test
 	public void testFailureInNotifyBufferAvailable() throws Exception {
@@ -1215,7 +1216,7 @@ public class RemoteInputChannelTest {
 	 * @param executor The executor service for running tasks.
 	 * @param tasks The callable tasks to be submitted and executed.
 	 */
-	private void submitTasksAndWaitForResults(ExecutorService executor, Callable[] tasks) throws Exception {
+	static void submitTasksAndWaitForResults(ExecutorService executor, Callable[] tasks) throws Exception {
 		final List<Future> results = Lists.newArrayListWithCapacity(tasks.length);
 
 		for (Callable task : tasks) {
@@ -1231,7 +1232,7 @@ public class RemoteInputChannelTest {
 	/**
 	 * Helper code to ease cleanup handling with suppressed exceptions.
 	 */
-	private void cleanup(
+	public static void cleanup(
 			NetworkBufferPool networkBufferPool,
 			@Nullable ExecutorService executor,
 			@Nullable Buffer buffer,

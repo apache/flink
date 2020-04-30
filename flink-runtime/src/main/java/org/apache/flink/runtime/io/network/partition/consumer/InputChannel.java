@@ -66,10 +66,10 @@ public abstract class InputChannel {
 	// - Partition request backoff --------------------------------------------
 
 	/** The initial backoff (in ms). */
-	private final int initialBackoff;
+	protected final int initialBackoff;
 
 	/** The maximum backoff (in ms). */
-	private final int maxBackoff;
+	protected final int maxBackoff;
 
 	protected final Counter numBytesIn;
 

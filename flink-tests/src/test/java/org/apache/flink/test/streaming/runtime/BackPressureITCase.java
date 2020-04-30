@@ -94,7 +94,7 @@ public class BackPressureITCase extends TestLogger {
 		final Configuration configuration = new Configuration();
 
 		final int memorySegmentSizeKb = 32;
-		final MemorySize networkBuffersMemory = MemorySize.parse(memorySegmentSizeKb * (NUM_TASKS + 2) + "kb");
+		final MemorySize networkBuffersMemory = MemorySize.parse(memorySegmentSizeKb * 6 + "kb");
 
 		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse(memorySegmentSizeKb + "kb"));
 		configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, networkBuffersMemory);

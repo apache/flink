@@ -96,8 +96,7 @@ public class InputGateFairnessTest {
 			inputChannels[i] = createLocalInputChannel(gate, i, resultPartitionManager);
 		}
 
-		gate.setInputChannels(inputChannels);
-		gate.setup();
+		setupInputGate(gate, inputChannels);
 
 		// read all the buffers and the EOF event
 		for (int i = numberOfChannels * (buffersPerChannel + 1); i > 0; --i) {
@@ -148,8 +147,7 @@ public class InputGateFairnessTest {
 			// seed one initial buffer
 			sources[12].add(bufferConsumer.copy());
 
-			gate.setInputChannels(inputChannels);
-			gate.setup();
+			setupInputGate(gate, inputChannels);
 
 			// read all the buffers and the EOF event
 			for (int i = 0; i < numberOfChannels * buffersPerChannel; i++) {
@@ -202,6 +200,7 @@ public class InputGateFairnessTest {
 
 		gate.setInputChannels(channels);
 		gate.setup();
+		gate.requestPartitions();
 
 		// read all the buffers and the EOF event
 		for (int i = numberOfChannels * (buffersPerChannel + 1); i > 0; --i) {
@@ -246,8 +245,7 @@ public class InputGateFairnessTest {
 		channels[11].onBuffer(mockBuffer, 0, -1);
 		channelSequenceNums[11]++;
 
-		gate.setInputChannels(channels);
-		gate.setup();
+		setupInputGate(gate, channels);
 
 		// read all the buffers and the EOF event
 		for (int i = 0; i < numberOfChannels * buffersPerChannel; i++) {
@@ -394,5 +392,11 @@ public class InputGateFairnessTest {
 			.setChannelIndex(channelIndex)
 			.setConnectionManager(connectionManager)
 			.buildRemoteChannel(inputGate);
+	}
+
+	public static void setupInputGate(SingleInputGate gate, InputChannel... channels) throws IOException {
+		gate.setInputChannels(channels);
+		gate.setup();
+		gate.requestPartitions();
 	}
 }
