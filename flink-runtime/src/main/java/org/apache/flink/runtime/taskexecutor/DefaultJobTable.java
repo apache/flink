@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
 
@@ -35,7 +36,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 
 /**
  * Default implementation of the {@link JobTable}.
@@ -51,8 +51,15 @@ public final class DefaultJobTable implements JobTable {
 	}
 
 	@Override
-	public Job getOrCreateJob(JobID jobId, Function<JobID, ? extends LibraryCacheManager> libraryCacheManagerFunction) {
-		return jobs.computeIfAbsent(jobId, missingJobId -> new JobOrConnection(missingJobId, libraryCacheManagerFunction.apply(jobId)));
+	public <E extends Exception> Job getOrCreateJob(JobID jobId, FunctionWithException<JobID, ? extends LibraryCacheManager, E> jobServicesFactory) throws E {
+		JobOrConnection job = jobs.get(jobId);
+
+		if (job == null) {
+			job = new JobOrConnection(jobId, jobServicesFactory.apply(jobId));
+			jobs.put(jobId, job);
+		}
+
+		return job;
 	}
 
 	@Override
@@ -103,6 +110,8 @@ public final class DefaultJobTable implements JobTable {
 
 		private final LibraryCacheManager libraryCacheManager;
 
+		private final LibraryCacheManager.ClassLoaderLease classLoaderLease;
+
 		@Nullable
 		private EstablishedConnection connection;
 
@@ -111,6 +120,7 @@ public final class DefaultJobTable implements JobTable {
 		private JobOrConnection(JobID jobId, LibraryCacheManager libraryCacheManager) {
 			this.jobId = jobId;
 			this.libraryCacheManager = libraryCacheManager;
+			this.classLoaderLease = libraryCacheManager.registerClassLoaderLease(jobId);
 			this.connection = null;
 			this.isClosed = false;
 		}
@@ -155,9 +165,9 @@ public final class DefaultJobTable implements JobTable {
 		}
 
 		@Override
-		public LibraryCacheManager getLibraryCacheManager() {
+		public LibraryCacheManager.ClassLoaderHandle getClassLoaderHandle() {
 			verifyJobIsNotClosed();
-			return libraryCacheManager;
+			return classLoaderLease;
 		}
 
 		@Override
@@ -173,6 +183,12 @@ public final class DefaultJobTable implements JobTable {
 		@Override
 		public JobID getJobId() {
 			return jobId;
+		}
+
+		@Override
+		public LibraryCacheManager getLibraryCacheManager() {
+			verifyJobIsNotClosed();
+			return libraryCacheManager;
 		}
 
 		@Override

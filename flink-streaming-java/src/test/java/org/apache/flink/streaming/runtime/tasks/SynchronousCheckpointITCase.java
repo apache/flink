@@ -31,7 +31,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
@@ -75,9 +75,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests that the cached thread pool used by the {@link Task} allows
@@ -209,8 +207,6 @@ public class SynchronousCheckpointITCase {
 	// --------------------------		Boilerplate tools copied from the TaskAsyncCallTest		--------------------------
 
 	private Task createTask(Class<? extends AbstractInvokable> invokableClass) throws Exception {
-		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		when(libCache.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
 
 		ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
@@ -257,7 +253,7 @@ public class SynchronousCheckpointITCase {
 				mock(CheckpointResponder.class),
 				new NoOpTaskOperatorEventGateway(),
 				new TestGlobalAggregateManager(),
-				libCache,
+				TestingClassLoaderLease.newBuilder().build(),
 				mock(FileCache.class),
 				new TestingTaskManagerRuntimeInfo(),
 				taskMetricGroup,

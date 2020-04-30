@@ -575,7 +575,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
 			GlobalAggregateManager aggregateManager = jobManagerConnection.getGlobalAggregateManager();
 
-			LibraryCacheManager libraryCache = jobManagerConnection.getLibraryCacheManager();
+			LibraryCacheManager.ClassLoaderHandle classLoaderHandle = jobManagerConnection.getClassLoaderHandle();
 			ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = jobManagerConnection.getResultPartitionConsumableNotifier();
 			PartitionProducerStateChecker partitionStateChecker = jobManagerConnection.getPartitionStateChecker();
 
@@ -623,7 +623,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				checkpointResponder,
 				taskOperatorEventGateway,
 				aggregateManager,
-				libraryCache,
+				classLoaderHandle,
 				fileCache,
 				taskManagerConfiguration,
 				taskMetricGroup,
@@ -872,61 +872,64 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		log.info("Receive slot request {} for job {} from resource manager with leader id {}.",
 			allocationId, jobId, resourceManagerId);
 
+		if (!isConnectedToResourceManager(resourceManagerId)) {
+			final String message = String.format("TaskManager is not connected to the resource manager %s.", resourceManagerId);
+			log.debug(message);
+			return FutureUtils.completedExceptionally(new TaskManagerException(message));
+		}
+
 		try {
-			if (!isConnectedToResourceManager(resourceManagerId)) {
-				final String message = String.format("TaskManager is not connected to the resource manager %s.", resourceManagerId);
-				log.debug(message);
-				throw new TaskManagerException(message);
-			}
-
-			final JobTable.Job job = jobTable.getOrCreateJob(jobId, this::createJobServices);
-
 			allocateSlot(
 				slotId,
 				jobId,
 				allocationId,
 				resourceProfile);
+		} catch (SlotAllocationException sae) {
+			return FutureUtils.completedExceptionally(sae);
+		}
 
-			if (job.isConnected()) {
-				offerSlotsToJobManager(jobId);
-			} else {
-				try {
-					jobLeaderService.addJob(jobId, targetAddress);
-				} catch (Exception e) {
-					// free the allocated slot
-					try {
-						taskSlotTable.freeSlot(allocationId);
-					} catch (SlotNotFoundException slotNotFoundException) {
-						// slot no longer existent, this should actually never happen, because we've
-						// just allocated the slot. So let's fail hard in this case!
-						onFatalError(slotNotFoundException);
-					}
+		final JobTable.Job job;
 
-					// release local state under the allocation id.
-					localStateStoresManager.releaseLocalStateForAllocationId(allocationId);
-
-					// sanity check
-					if (!taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
-						onFatalError(new Exception("Could not free slot " + slotId));
-					}
-
-					throw new SlotAllocationException("Could not add job to job leader service.", e);
-				}
+		try {
+			job = jobTable.getOrCreateJob(jobId, id -> registerNewJobAndCreateServices(id, targetAddress));
+		} catch (Exception e) {
+			// free the allocated slot
+			try {
+				taskSlotTable.freeSlot(allocationId);
+			} catch (SlotNotFoundException slotNotFoundException) {
+				// slot no longer existent, this should actually never happen, because we've
+				// just allocated the slot. So let's fail hard in this case!
+				onFatalError(slotNotFoundException);
 			}
-		} catch (TaskManagerException taskManagerException) {
-			return FutureUtils.completedExceptionally(taskManagerException);
+
+			// release local state under the allocation id.
+			localStateStoresManager.releaseLocalStateForAllocationId(allocationId);
+
+			// sanity check
+			if (!taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
+				onFatalError(new Exception("Could not free slot " + slotId));
+			}
+
+			return FutureUtils.completedExceptionally(new SlotAllocationException("Could not create new job.", e));
+		}
+
+		if (job.isConnected()) {
+			offerSlotsToJobManager(jobId);
 		}
 
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
-	private LibraryCacheManager createJobServices(JobID jobId) {
+	private LibraryCacheManager registerNewJobAndCreateServices(JobID jobId, String targetAddress) throws Exception {
+		jobLeaderService.addJob(jobId, targetAddress);
+
 		blobCacheService.getPermanentBlobService().registerJob(jobId);
 
 		return new BlobLibraryCacheManager(
 			blobCacheService.getPermanentBlobService(),
-			taskManagerConfiguration.getClassLoaderResolveOrder(),
-			taskManagerConfiguration.getAlwaysParentFirstLoaderPatterns());
+			BlobLibraryCacheManager.defaultClassLoaderFactory(
+				taskManagerConfiguration.getClassLoaderResolveOrder(),
+				taskManagerConfiguration.getAlwaysParentFirstLoaderPatterns()));
 	}
 
 	private void allocateSlot(
@@ -1320,12 +1323,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		};
 	}
 
-	private void establishJobManagerConnection(JobID jobId, final JobMasterGateway jobMasterGateway, JMTMRegistrationSuccess registrationSuccess) {
+	private void establishJobManagerConnection(JobTable.Job job, final JobMasterGateway jobMasterGateway, JMTMRegistrationSuccess registrationSuccess) {
 
-		final Optional<JobTable.Connection> optionalConnection = jobTable.getConnection(jobId);
+		final JobID jobId = job.getJobId();
+		final Optional<JobTable.Connection> connection = job.asConnection();
 
-		if (optionalConnection.isPresent()) {
-			JobTable.Connection oldJobManagerConnection = optionalConnection.get();
+		if (connection.isPresent()) {
+			JobTable.Connection oldJobManagerConnection = connection.get();
 
 			if (Objects.equals(oldJobManagerConnection.getJobMasterId(), jobMasterGateway.getFencingToken())) {
 				// we already are connected to the given job manager
@@ -1339,10 +1343,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		log.info("Establish JobManager connection for job {}.", jobId);
 
 		ResourceID jobManagerResourceID = registrationSuccess.getResourceID();
-		associateWithJobManager(
-				jobId,
-				jobManagerResourceID,
-				jobMasterGateway);
+
+		final JobTable.Connection establishedConnection = associateWithJobManager(
+			job,
+			jobManagerResourceID,
+			jobMasterGateway);
 
 		// monitor the job manager as heartbeat target
 		jobManagerHeartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget<AccumulatorReport>() {
@@ -1357,7 +1362,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			}
 		});
 
-		offerSlotsToJobManager(jobId);
+		internalOfferSlotsToJobManager(establishedConnection);
 	}
 
 	private void closeJob(JobTable.Job job, Exception cause) {
@@ -1415,15 +1420,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		jobManagerConnection.disconnect();
 	}
 
-	private void associateWithJobManager(
-			JobID jobID,
+	private JobTable.Connection associateWithJobManager(
+			JobTable.Job job,
 			ResourceID resourceID,
 			JobMasterGateway jobMasterGateway) {
-		checkNotNull(jobID);
 		checkNotNull(resourceID);
 		checkNotNull(jobMasterGateway);
-
-		final JobTable.Job job = jobTable.getOrCreateJob(jobID, this::createJobServices);
 
 		TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobMasterGateway);
 
@@ -1437,9 +1439,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		PartitionProducerStateChecker partitionStateChecker = new RpcPartitionStateChecker(jobMasterGateway);
 
-		registerQueryableState(jobID, jobMasterGateway);
+		registerQueryableState(job.getJobId(), jobMasterGateway);
 
-		job.connect(
+		return job.connect(
 			resourceID,
 			jobMasterGateway,
 			taskManagerActions,
@@ -1805,12 +1807,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			final JobID jobId,
 			final JobMasterGateway jobManagerGateway,
 			final JMTMRegistrationSuccess registrationMessage) {
-			runAsync(
-				() ->
-					establishJobManagerConnection(
-						jobId,
-						jobManagerGateway,
-						registrationMessage));
+			runAsync(() ->
+				jobTable
+					.getJob(jobId)
+					.ifPresent(job ->
+						establishJobManagerConnection(
+							job,
+							jobManagerGateway,
+							registrationMessage)));
 		}
 
 		@Override

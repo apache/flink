@@ -219,7 +219,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	private final GlobalAggregateManager aggregateManager;
 
 	/** The library cache, from which the task can request its class loader. */
-	private final LibraryCacheManager libraryCache;
+	private final LibraryCacheManager.ClassLoaderHandle classLoaderHandle;
 
 	/** The cache for user-defined files that the invokable requires. */
 	private final FileCache fileCache;
@@ -300,7 +300,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		CheckpointResponder checkpointResponder,
 		TaskOperatorEventGateway operatorCoordinatorEventGateway,
 		GlobalAggregateManager aggregateManager,
-		LibraryCacheManager libraryCache,
+		LibraryCacheManager.ClassLoaderHandle classLoaderHandle,
 		FileCache fileCache,
 		TaskManagerRuntimeInfo taskManagerConfig,
 		@Nonnull TaskMetricGroup metricGroup,
@@ -352,7 +352,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		this.aggregateManager = Preconditions.checkNotNull(aggregateManager);
 		this.taskManagerActions = checkNotNull(taskManagerActions);
 
-		this.libraryCache = Preconditions.checkNotNull(libraryCache);
+		this.classLoaderHandle = Preconditions.checkNotNull(classLoaderHandle);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
 		this.kvStateService = Preconditions.checkNotNull(kvStateService);
 		this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
@@ -825,8 +825,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 					memoryManager.releaseAll(invokable);
 				}
 
-				// remove all of the tasks library resources
-				libraryCache.unregisterTask(jobId, executionId);
+				// remove all of the tasks resources
 				fileCache.releaseJob(jobId, executionId);
 
 				// close and de-activate safety net for task thread
@@ -919,15 +918,11 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		long startDownloadTime = System.currentTimeMillis();
 
 		// triggers the download of all missing jar files from the job manager
-		libraryCache.registerTask(jobId, executionId, requiredJarFiles, requiredClasspaths);
+		final ClassLoader userCodeClassLoader = classLoaderHandle.getOrResolveClassLoader(requiredJarFiles, requiredClasspaths);
 
 		LOG.debug("Getting user code class loader for task {} at library cache manager took {} milliseconds",
 				executionId, System.currentTimeMillis() - startDownloadTime);
 
-		ClassLoader userCodeClassLoader = libraryCache.getClassLoader(jobId);
-		if (userCodeClassLoader == null) {
-			throw new Exception("No user code classloader available.");
-		}
 		return userCodeClassLoader;
 	}
 

@@ -31,7 +31,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
@@ -69,9 +69,7 @@ import java.util.concurrent.Future;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Testing asynchronous call of {@link Task}.
@@ -159,8 +157,9 @@ public class TaskAsyncCallTest extends TestLogger {
 	}
 
 	private Task createTask(Class<? extends AbstractInvokable> invokableClass) throws Exception {
-		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		when(libCache.getClassLoader(any(JobID.class))).thenReturn(new TestUserCodeClassLoader());
+		final TestingClassLoaderLease classLoaderHandle = TestingClassLoaderLease.newBuilder()
+			.setGetOrResolveClassLoaderFunction((permanentBlobKeys, urls) -> new TestUserCodeClassLoader())
+			.build();
 
 		ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
@@ -205,7 +204,7 @@ public class TaskAsyncCallTest extends TestLogger {
 			mock(CheckpointResponder.class),
 			new NoOpTaskOperatorEventGateway(),
 			new TestGlobalAggregateManager(),
-			libCache,
+			classLoaderHandle,
 			mock(FileCache.class),
 			new TestingTaskManagerRuntimeInfo(),
 			taskMetricGroup,

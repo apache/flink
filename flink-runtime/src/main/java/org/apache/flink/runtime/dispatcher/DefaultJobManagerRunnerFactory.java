@@ -80,7 +80,7 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
 			jobGraph,
 			jobMasterFactory,
 			highAvailabilityServices,
-			jobManagerServices.getLibraryCacheManager(),
+			jobManagerServices.getLibraryCacheManager().registerClassLoaderLease(jobGraph.getJobID()),
 			jobManagerServices.getScheduledExecutorService(),
 			fatalErrorHandler);
 	}

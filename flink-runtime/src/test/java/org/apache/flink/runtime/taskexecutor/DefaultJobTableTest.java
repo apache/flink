@@ -29,13 +29,13 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.function.Function;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
@@ -48,7 +48,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class DefaultJobTableTest extends TestLogger {
 
-	private static final Function<JobID, LibraryCacheManager> DEFAULT_LIBRARY_SUPPLIER = ignored -> ContextClassLoaderLibraryCacheManager.INSTANCE;
+	private static final FunctionWithException<JobID, LibraryCacheManager, RuntimeException> DEFAULT_LIBRARY_SUPPLIER = ignored -> ContextClassLoaderLibraryCacheManager.INSTANCE;
 
 	private final JobID jobId = new JobID();
 
