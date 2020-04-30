@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
@@ -56,6 +57,7 @@ import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
+import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 import org.apache.flink.yarn.entrypoint.YarnApplicationClusterEntryPoint;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
@@ -125,8 +127,6 @@ import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
-import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
 
 /**
  * The descriptor with deployment information for deploying a Flink cluster on Yarn.
@@ -400,7 +400,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		checkNotNull(applicationConfiguration);
 
 		final YarnDeploymentTarget deploymentTarget = YarnDeploymentTarget.fromConfig(flinkConfiguration);
-
 		if (YarnDeploymentTarget.APPLICATION != deploymentTarget) {
 			throw new ClusterDeploymentException(
 					"Couldn't deploy Yarn Application Cluster." +
@@ -409,6 +408,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 
 		applicationConfiguration.applyToConfiguration(flinkConfiguration);
+
+		final String configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
+		YarnLogConfigUtil.setLogConfigFileInConfig(flinkConfiguration, configurationDirectory);
 
 		try {
 			return deployInternal(
@@ -966,16 +968,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			}
 		}
 
-		final boolean hasLogback = logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOGBACK_NAME);
-		final boolean hasLog4j = logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOG4J_NAME);
-
 		final JobManagerProcessSpec processSpec = JobManagerProcessUtils.processSpecFromConfigWithFallbackForLegacyHeap(
 			flinkConfiguration,
 			JobManagerOptions.TOTAL_PROCESS_MEMORY);
 		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(
 				yarnClusterEntrypoint,
-				hasLogback,
-				hasLog4j,
 				hasKrb5,
 				processSpec);
 
@@ -1612,8 +1609,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 	ContainerLaunchContext setupApplicationMasterContainer(
 			String yarnClusterEntrypoint,
-			boolean hasLogback,
-			boolean hasLog4j,
 			boolean hasKrb5,
 			JobManagerProcessSpec processSpec) {
 		// ------------------ Prepare Application Master Container  ------------------------------
@@ -1639,22 +1634,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		startCommandValues.put("jvmmem", jvmHeapMem);
 
 		startCommandValues.put("jvmopts", javaOpts);
-		String logging = "";
+		startCommandValues.put("logging", YarnLogConfigUtil.getLoggingYarnCommand(flinkConfiguration));
 
-		if (hasLogback || hasLog4j) {
-			logging = "-Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.log\"";
-
-			if (hasLogback) {
-				logging += " -Dlogback.configurationFile=file:" + CONFIG_FILE_LOGBACK_NAME;
-			}
-
-			if (hasLog4j) {
-				logging += " -Dlog4j.configuration=file:" + CONFIG_FILE_LOG4J_NAME;
-				logging += " -Dlog4j.configurationFile=file:" + CONFIG_FILE_LOG4J_NAME;
-			}
-		}
-
-		startCommandValues.put("logging", logging);
 		startCommandValues.put("class", yarnClusterEntrypoint);
 		startCommandValues.put("redirects",
 			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
