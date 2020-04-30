@@ -79,7 +79,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -204,10 +203,9 @@ public class RemoteInputChannelTest {
 
 	@Test(expected = IllegalStateException.class)
 	public void testRetriggerWithoutPartitionRequest() throws Exception {
-		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
 		SingleInputGate inputGate = createSingleInputGate(1);
 
-		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, 500, 3000);
+		RemoteInputChannel ch = createRemoteInputChannel(inputGate, 500, 3000);
 
 		ch.retriggerSubpartitionRequest(0);
 	}
@@ -218,20 +216,21 @@ public class RemoteInputChannelTest {
 		int[] expectedDelays = {500, 1000, 2000, 3000};
 
 		// Setup
-		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
 		SingleInputGate inputGate = createSingleInputGate(1);
-
-		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, 500, 3000);
+		ResultPartitionID partitionId = new ResultPartitionID();
+		TestVerifyPartitionRequestClient client = new TestVerifyPartitionRequestClient();
+		ConnectionManager connectionManager = new TestVerifyConnectionManager(client);
+		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connectionManager, partitionId, 500, 3000);
 
 		// Initial request
 		ch.requestSubpartition(0);
-		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0));
+		client.verifyResult(partitionId, 0, 0);
 
 		// Request subpartition and verify that the actual requests are delayed.
 		for (int expected : expectedDelays) {
 			ch.retriggerSubpartitionRequest(0);
 
-			verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(expected));
+			client.verifyResult(partitionId, 0, expected);
 		}
 
 		// Exception after backoff is greater than the maximum backoff.
@@ -247,18 +246,19 @@ public class RemoteInputChannelTest {
 	@Test
 	public void testPartitionRequestSingleBackoff() throws Exception {
 		// Setup
-		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
 		SingleInputGate inputGate = createSingleInputGate(1);
-
-		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, 500, 500);
+		ResultPartitionID partitionId = new ResultPartitionID();
+		TestVerifyPartitionRequestClient client = new TestVerifyPartitionRequestClient();
+		ConnectionManager connectionManager = new TestVerifyConnectionManager(client);
+		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connectionManager, partitionId, 500, 500);
 
 		// No delay for first request
 		ch.requestSubpartition(0);
-		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0));
+		client.verifyResult(partitionId, 0, 0);
 
 		// Initial delay for second request
 		ch.retriggerSubpartitionRequest(0);
-		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(500));
+		client.verifyResult(partitionId, 0, 500);
 
 		// Exception after backoff is greater than the maximum backoff.
 		try {
@@ -273,14 +273,15 @@ public class RemoteInputChannelTest {
 	@Test
 	public void testPartitionRequestNoBackoff() throws Exception {
 		// Setup
-		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
 		SingleInputGate inputGate = createSingleInputGate(1);
-
-		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, 0, 0);
+		ResultPartitionID partitionId = new ResultPartitionID();
+		TestVerifyPartitionRequestClient client = new TestVerifyPartitionRequestClient();
+		ConnectionManager connectionManager = new TestVerifyConnectionManager(client);
+		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connectionManager, partitionId, 0, 0);
 
 		// No delay for first request
 		ch.requestSubpartition(0);
-		verify(connClient).requestSubpartition(eq(ch.partitionId), eq(0), eq(ch), eq(0));
+		client.verifyResult(partitionId, 0, 0);
 
 		// Exception, because backoff is disabled.
 		try {
@@ -1053,24 +1054,28 @@ public class RemoteInputChannelTest {
 
 	// ---------------------------------------------------------------------------------------------
 
-	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) throws IOException, InterruptedException {
-		return createRemoteInputChannel(inputGate, mock(PartitionRequestClient.class), 0, 0);
+	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) {
+		return createRemoteInputChannel(inputGate, 0, 0);
+	}
+
+	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate, int initialBackoff, int maxBackoff) {
+		return InputChannelBuilder.newBuilder()
+			.setInitialBackoff(initialBackoff)
+			.setMaxBackoff(maxBackoff)
+			.buildRemoteChannel(inputGate);
 	}
 
 	private RemoteInputChannel createRemoteInputChannel(
 			SingleInputGate inputGate,
-			PartitionRequestClient partitionRequestClient,
+			ConnectionManager connectionManager,
+			ResultPartitionID partitionId,
 			int initialBackoff,
-			int maxBackoff) throws IOException, InterruptedException {
-
-		final ConnectionManager connectionManager = mock(ConnectionManager.class);
-		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
-				.thenReturn(partitionRequestClient);
-
+			int maxBackoff) {
 		return InputChannelBuilder.newBuilder()
-			.setConnectionManager(connectionManager)
 			.setInitialBackoff(initialBackoff)
 			.setMaxBackoff(maxBackoff)
+			.setPartitionId(partitionId)
+			.setConnectionManager(connectionManager)
 			.buildRemoteChannel(inputGate);
 	}
 
@@ -1292,6 +1297,38 @@ public class RemoteInputChannelTest {
 
 		boolean isInvoked() {
 			return isInvoked;
+		}
+	}
+
+	private static final class TestVerifyConnectionManager extends TestingConnectionManager {
+		private final PartitionRequestClient client;
+
+		TestVerifyConnectionManager(TestingPartitionRequestClient client) {
+			this.client = checkNotNull(client);
+		}
+
+		@Override
+		public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
+			return client;
+		}
+	}
+
+	private static final class TestVerifyPartitionRequestClient extends TestingPartitionRequestClient {
+		private ResultPartitionID partitionId;
+		private int subpartitionIndex;
+		private int delayMs;
+
+		@Override
+		public void requestSubpartition(ResultPartitionID partitionId, int subpartitionIndex, RemoteInputChannel channel, int delayMs) {
+			this.partitionId = partitionId;
+			this.subpartitionIndex = subpartitionIndex;
+			this.delayMs = delayMs;
+		}
+
+		void verifyResult(ResultPartitionID expectedId, int expectedSubpartitionIndex, int expectedDelayMs) {
+			assertEquals(expectedId, partitionId);
+			assertEquals(expectedSubpartitionIndex, subpartitionIndex);
+			assertEquals(expectedDelayMs, delayMs);
 		}
 	}
 }

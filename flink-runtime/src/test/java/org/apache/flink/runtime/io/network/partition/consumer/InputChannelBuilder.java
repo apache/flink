@@ -20,10 +20,10 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -43,7 +43,7 @@ public class InputChannelBuilder {
 	private ConnectionID connectionID = STUB_CONNECTION_ID;
 	private ResultPartitionManager partitionManager = new ResultPartitionManager();
 	private TaskEventPublisher taskEventPublisher = new TaskEventDispatcher();
-	private ConnectionManager connectionManager = new LocalConnectionManager();
+	private ConnectionManager connectionManager = new TestingConnectionManager();
 	private int initialBackoff = 0;
 	private int maxBackoff = 0;
 	private InputChannelMetrics metrics = InputChannelTestUtils.newUnregisteredInputChannelMetrics();
