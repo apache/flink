@@ -103,6 +103,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 				"[5.5, 6.6, 7.7]," +
 				"[6.6, 7.7, 8.8]," +
 				"[7.70000, 8.80000, 9.90000]," +
+				"[8.800000000000000000, 9.900000000000000000, 10.100000000000000000]," +
 				"[true, false, true]," +
 				"[a, b, c]," +
 				"[b, c, d]," +

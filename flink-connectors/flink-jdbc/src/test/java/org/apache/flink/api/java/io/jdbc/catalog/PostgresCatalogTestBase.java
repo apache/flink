@@ -225,6 +225,7 @@ public class PostgresCatalogTestBase {
 				.field("real_arr", DataTypes.ARRAY(DataTypes.FLOAT()))
 				.field("double_precision_arr", DataTypes.ARRAY(DataTypes.DOUBLE()))
 				.field("numeric_arr", DataTypes.ARRAY(DataTypes.DECIMAL(10, 5)))
+				.field("numeric_arr_default", DataTypes.ARRAY(DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18)))
 				.field("boolean_arr", DataTypes.ARRAY(DataTypes.BOOLEAN()))
 				.field("text_arr", DataTypes.ARRAY(DataTypes.STRING()))
 				.field("char_arr", DataTypes.ARRAY(DataTypes.CHAR(1)))
@@ -243,6 +244,7 @@ public class PostgresCatalogTestBase {
 				"real_arr real[], " +
 				"double_precision_arr double precision[], " +
 				"numeric_arr numeric(10, 5)[], " +
+				"numeric_arr_default numeric[], " +
 				"boolean_arr boolean[], " +
 				"text_arr text[], " +
 				"char_arr char[], " +
@@ -260,6 +262,7 @@ public class PostgresCatalogTestBase {
 					"'{5.5,6.6,7.7}'," +
 					"'{6.6,7.7,8.8}'," +
 					"'{7.7,8.8,9.9}'," +
+					"'{8.8,9.9,10.10}'," +
 					"'{true,false,true}'," +
 					"'{a,b,c}'," +
 					"'{b,c,d}'," +
