@@ -1199,6 +1199,27 @@ CREATE TABLE MyUserTable (
 )
 {% endhighlight %}
 </div>
+<div data-lang="python" markdown="1">
+{% highlight python%}
+.connect(
+    HBase()
+    .version('1.4.3')                      # required: currently only support '1.4.3'
+    .table_name('hbase_table_name')        # required: HBase table name
+    .zookeeper_quorum('localhost:2181')    # required: HBase Zookeeper quorum configuration
+    .zookeeper_node_parent('/test')        # optional: the root dir in Zookeeper for Hbae cluster.
+                                           # The default value is '/hbase'
+    .write_buffer_flush_max_size('10mb')   # optional: writing option, determines how many size in memory of buffered
+                                           # rows to insert per round trip. This can help performance on writing to JDBC
+                                           # database. The default value is '2mb'
+    .write_buffer_flush_max_rows(1000)     # optional: writing option, determines how many rows to insert per round trip.
+                                           # This can help performance on writing to JDBC database. No default value,
+                                           # i.e. the default flushing is not depends on the number of buffered rows.
+    .write_buffer_flush_interval('2s')     # optional: writing option, sets a flush interval flushing buffered requesting
+                                           # if the interval passes, in milliseconds. Default value is '0s', which means
+                                           # no asynchronous flush thread will he scheduled.
+)
+{% endhighlight%}
+</div>
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 connector:
