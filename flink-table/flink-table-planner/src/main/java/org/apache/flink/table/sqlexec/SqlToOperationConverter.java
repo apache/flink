@@ -216,6 +216,11 @@ public class SqlToOperationConverter {
 				"Watermark statement is not supported in Old Planner, please use Blink Planner instead.");
 		}
 
+		if (sqlCreateTable.getTableLike().isPresent()) {
+			throw new SqlConversionException(
+				"CREATE TABLE ... LIKE statement is not supported in Old Planner, please use Blink Planner instead.");
+		}
+
 		// set with properties
 		Map<String, String> properties = new HashMap<>();
 		sqlCreateTable.getPropertyList().getList().forEach(p ->
@@ -231,6 +236,8 @@ public class SqlToOperationConverter {
 			.map(p -> ((SqlIdentifier) p).getSimple())
 			.collect(Collectors.toList());
 
+		verifyPartitioningColumnsExist(tableSchema, partitionKeys);
+
 		CatalogTable catalogTable = new CatalogTableImpl(tableSchema,
 			partitionKeys,
 			properties,
@@ -244,6 +251,19 @@ public class SqlToOperationConverter {
 			catalogTable,
 			sqlCreateTable.isIfNotExists(),
 			sqlCreateTable.isTemporary());
+	}
+
+	private void verifyPartitioningColumnsExist(TableSchema mergedSchema, List<String> partitionKeys) {
+		for (String partitionKey : partitionKeys) {
+			if (!mergedSchema.getTableColumn(partitionKey).isPresent()) {
+				throw new ValidationException(
+					String.format(
+						"Partition column '%s' not defined in the table schema. Available columns: [%s]",
+						partitionKey,
+						Arrays.stream(mergedSchema.getFieldNames()).collect(Collectors.joining("', '", "'", "'"))
+					));
+			}
+		}
 	}
 
 	/** Convert DROP TABLE statement. */
