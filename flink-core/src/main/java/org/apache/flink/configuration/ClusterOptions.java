@@ -63,6 +63,14 @@ public class ClusterOptions {
 		.defaultValue(30000L)
 		.withDescription("The shutdown timeout for cluster services like executors in milliseconds.");
 
+	@Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
+	public static final ConfigOption<Integer> CLUSTER_IO_EXECUTOR_POOL_SIZE = ConfigOptions
+		.key("cluster.io-executor.pool-size")
+		.intType()
+		.noDefaultValue()
+		.withDescription("The pool size of io executor for cluster entry-point and mini cluster. " +
+			"It's undefined by default and will use the number of CPU cores (hardware contexts) that the cluster entry-point JVM has access to.");
+
 	@Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
 	public static final ConfigOption<Boolean> EVENLY_SPREAD_OUT_SLOTS_STRATEGY = ConfigOptions
 		.key("cluster.evenly-spread-out-slots")
