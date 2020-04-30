@@ -79,7 +79,7 @@ public class CliFrontendParser {
 	public static final Option YARN_DETACHED_OPTION = new Option("yd", "yarndetached", false, "If present, runs " +
 		"the job in detached mode (deprecated; use non-YARN specific option instead)");
 
-	static final Option ARGS_OPTION = new Option("a", "arguments", true,
+	public static final Option ARGS_OPTION = new Option("a", "arguments", true,
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 
 	public static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true,
