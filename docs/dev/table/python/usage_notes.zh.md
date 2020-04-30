@@ -22,99 +22,97 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This page shows solutions to common problems encountered by PyFlink users after getting started.
+This page describes the solutions to some frequently encountered problems for PyFlink users.
 
 * This will be replaced by the TOC
 {:toc}
-## How to Add Jars
-A PyFlink job often depends on some jar packages, such as connector jar packages, java udf jar packages and so on.
-So how to make PyFlink refer to these jar packages? 
-
-You can specify the dependencies with the following Python Table APIs or through command line arguments directly when submitting the job。
-{% highlight python %}
-table_env.get_config().set_configuration("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
-{% endhighlight %}
-For details, you can refer to <a href="{{ site.baseurl }}/zh/dev/table/python/dependency_management.html#usage">dependency management
-
-## How to Watch UDF Log
-There are different solutions for watching UDF log in local mode and cluster mode.
-#### Local
-you will see all udf log infos in the console directly.
-#### Cluster
-you can see the udf log infos in the taskmanager log.
-
-## How to Prepare a Python Virtual Env Used by PyFlink
-You can refer to the following script to prepare a Python virtual env zip which can be used in mac os and most Linux distributions
+## Preparing Python Virtual Environment
+You can prepare the Python virtual environment as following:
 {% highlight shell %}
-# you need to install wget and zip manually
-echo "required command: wget, zip"
-
-# download miniconda.sh 
+# download miniconda.sh
 set -e
 if [ `uname -s` == "Darwin" ]; then
-    # If you live in China, you can change the url to https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-4.7.10-MacOSX-x86_64.sh
     wget "https://repo.continuum.io/miniconda/Miniconda3-4.7.10-MacOSX-x86_64.sh" -O "miniconda.sh"
 else
-    # If you live in China, you can change the url to https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-4.7.10-Linux-x86_64.sh
     wget "https://repo.continuum.io/miniconda/Miniconda3-4.7.10-Linux-x86_64.sh" -O "miniconda.sh"
 fi
 
+# add the execution permission
 chmod +x miniconda.sh
 
-# create python virtual env
+# create python virtual environment
 ./miniconda.sh -b -p venv
-TMP_PATH=$PATH
-PATH=`cd venv/bin;pwd`:$PATH
 
-# install dependency
+# activate the conda python virtual environment
+source venv/bin/activate
+
+# install PyFlink
 pip install apache-flink
+
+# deactivate the conda python virtual environment
+conda deactivate
+
+# remove the cached packages
 rm -rf venv/pkgs
-PATH=$TMP_PATH
+
+# package the prepared conda python virtual environment
 zip -r venv.zip venv
 {% endhighlight %}
 
-## How to Run Python UDF Locally
-Firstly, you need to prepare a Python Virtual Env Used by PyFlink (You can refer to the previous section).
+## Execute PyFlink jobs with Python virtual environment
+You can refer to the section [Preparing Python Virtual Environment](#preparing-python-virtual-environment) on how to
+prepare the Python virtual environment.
 
-Then, you should execute the following script to activate your used Python virtual environment
+You should activate the Python virtual environment before executing the PyFlink job.
 
-{% highlight shell %}
-$ venv/bin/conda init
-# you need to restart the shell
-$ conda activate
-{% endhighlight %}
-Now, you can run your Python UDF script directly.
-{% highlight shell %}
-python xxx.py
-{% endhighlight %}
-
-## How to Run Python UDF in Cluster
-There are two ways of preparing a Python environment installed PyFlink which can be used in the Cluster
-
-#### Install Packages in the machine of the cluster
+#### Local
 
 {% highlight shell %}
-$ pip install apache-flink
+# activate the conda python virtual environment
+$ source venv/bin/activate
+$ python xxx.py
 {% endhighlight %}
 
-After installing, you can use `pyexec` command line arg or `set_python_executable` api of table_env to specify the path of the python interpreter which is used to execute the python udf workers.
+#### Cluster
 
-#### Use Uploaded Virtual Environment
-You can use `pyarch` command line arg or `add_python_archive` api of table_env to upload Python virtual environment and use `pyexec` command line arg or `set_python_executable` api to specify the path of the python interpreter which is used to execute the python udf workers.
+{% highlight shell %}
+$ # specify the Python virtual environment
+$ table_env.add_python_archive("venv.zip")
+$ # specify the path of the python interpreter which is used to execute the python udf workers
+$ table_env.get_config().set_python_executable("venv.zip/venv/bin/python")
+{% endhighlight %}
 
-For details about the command line args of `pyarch` and `pyexec`, you can refer to <a href="{{ site.baseurl }}/zh/ops/cli.html#usage">command line arguments.</a>
-For details about the usage of api `add_python_archive` and `set_python_executable`, you can refer to <a href="{{ site.baseurl }}/zh/dev/table/python/dependency_management.html#usage">dependency management.</a>
+You can refer to <a href="{{ site.baseurl }}/zh/dev/table/python/dependency_management.html#usage">dependency management</a> for more details on the usage of `add_python_archive` and `set_python_executable`.
 
-## How to Add Python Files
-You can use `pyfs` command line arg or `add_python_file` api of table_env to add python file dependencies which could be python files, python packages or local directories.
+## Adding Jar Files
+A PyFlink job may depend on jar files, i.e. connectors, Java udfs, etc.
 
-For example, if you want to add a python directory `myDir`, you can call the api `add_python_file` of table_env to add the whole myDir directory.
-e.g. 
+You can specify the dependencies with the following Python Table APIs or through <a href="{{ site.baseurl }}/zh/ops/cli.html#usage">command line arguments</a> directly when submitting the job.
+{% highlight python %}
+# NOTE: Only local file URLs (start with "file://") are supported.
+table_env.get_config().set_configuration("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+
+# NOTE: The Paths must specify a protocol (e.g. file://) and users should ensure that the URLs are accessible on both the client and the cluster.
+table_env.get_config().set_configuration("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+{% endhighlight %}
+
+You can refer to <a href="{{ site.baseurl }}/zh/dev/table/python/dependency_management.html##java-dependency">Adding Java Dependency</a> for more details.
+
+## Adding Python Files
+You can use the command line arguments `pyfs` or the API `add_python_file` of `TableEnvironment` to add python file dependencies which could be python files, python packages or local directories.
+
+For example, if you have a directory named `myDir` which has the following hierarchy:
+```
+myDir
+├──utils
+    ├──__init__.py
+    ├──my_util.py
+```
+
+you can add the Python files of directory `myDir` as following:
 {% highlight python %}
 table_env.add_python_file('myDir')
-{% endhighlight %}
 
-If you have a myudf.py in the directory `myDir/connectors`, you can use following code to import myudf.py
-{% highlight python %}
-from connectors import myudf
+def my_udf():
+    from utils import my_util
 {% endhighlight %}
