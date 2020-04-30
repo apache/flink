@@ -51,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
@@ -143,9 +144,16 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 						final Optional<JobCancellationException> cancellationException =
 								ExceptionUtils.findThrowable(t, JobCancellationException.class);
 
-						applicationStatus = cancellationException.isPresent()
-								? ApplicationStatus.CANCELED
-								: ApplicationStatus.FAILED;
+						if (cancellationException.isPresent()) {
+							// this means the Flink Job was cancelled
+							applicationStatus = ApplicationStatus.CANCELED;
+						} else if (t instanceof CancellationException) {
+							// this means that the future was cancelled
+							applicationStatus = ApplicationStatus.UNKNOWN;
+						} else {
+							applicationStatus = ApplicationStatus.FAILED;
+						}
+
 						LOG.warn("Application {}: ", applicationStatus, t);
 					} else {
 						applicationStatus = ApplicationStatus.SUCCEEDED;
