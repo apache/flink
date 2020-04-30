@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.vector.ColumnVector;
@@ -39,6 +40,9 @@ import org.apache.flink.table.runtime.arrow.readers.TimestampFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.TinyIntFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.VarBinaryFieldReader;
 import org.apache.flink.table.runtime.arrow.readers.VarCharFieldReader;
+import org.apache.flink.table.runtime.arrow.sources.AbstractArrowTableSource;
+import org.apache.flink.table.runtime.arrow.sources.ArrowTableSource;
+import org.apache.flink.table.runtime.arrow.sources.RowArrowTableSource;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowArrayColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBooleanColumnVector;
@@ -86,6 +90,7 @@ import org.apache.flink.table.runtime.arrow.writers.TimestampWriter;
 import org.apache.flink.table.runtime.arrow.writers.TinyIntWriter;
 import org.apache.flink.table.runtime.arrow.writers.VarBinaryWriter;
 import org.apache.flink.table.runtime.arrow.writers.VarCharWriter;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -107,6 +112,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.types.Row;
 
+import org.apache.arrow.flatbuf.MessageHeader;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -129,6 +135,10 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.ipc.ReadChannel;
+import org.apache.arrow.vector.ipc.WriteChannel;
+import org.apache.arrow.vector.ipc.message.MessageMetadataResult;
+import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
@@ -137,7 +147,13 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import java.io.EOFException;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -150,7 +166,26 @@ import java.util.stream.Collectors;
 @Internal
 public final class ArrowUtils {
 
-	public static final RootAllocator ROOT_ALLOCATOR = new RootAllocator(Long.MAX_VALUE);
+	private static RootAllocator rootAllocator;
+
+	public static synchronized RootAllocator getRootAllocator() {
+		if (rootAllocator == null) {
+			rootAllocator = new RootAllocator(Long.MAX_VALUE);
+		}
+		return rootAllocator;
+	}
+
+	public static void checkArrowUsable() {
+		// Arrow requires the property io.netty.tryReflectionSetAccessible to
+		// be set to true for JDK >= 9. Please refer to ARROW-5412 for more details.
+		if (System.getProperty("io.netty.tryReflectionSetAccessible") == null) {
+			System.setProperty("io.netty.tryReflectionSetAccessible", "true");
+		} else if (!io.netty.util.internal.PlatformDependent.hasDirectBufferNoCleanerConstructor()) {
+			throw new RuntimeException("Vectorized Python UDF depends on " +
+				"DirectByteBuffer.<init>(long, int) which is not available. Please set the " +
+				"system property 'io.netty.tryReflectionSetAccessible' to 'true'.");
+		}
+	}
 
 	/**
 	 * Returns the Arrow schema of the specified type.
@@ -482,6 +517,74 @@ public final class ArrowUtils {
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Unsupported type %s.", fieldType));
+		}
+	}
+
+	public static AbstractArrowTableSource createArrowTableSource(DataType dataType, String fileName) throws IOException {
+		try (FileInputStream fis = new FileInputStream(fileName)) {
+			if (RowData.class.isAssignableFrom(dataType.getConversionClass())) {
+				return new ArrowTableSource(dataType, readArrowBatches(fis.getChannel()));
+			} else {
+				return new RowArrowTableSource(dataType, readArrowBatches(fis.getChannel()));
+			}
+		}
+	}
+
+	public static byte[][] readArrowBatches(ReadableByteChannel channel) throws IOException {
+		List<byte[]> results = new ArrayList<>();
+		byte[] batch;
+		while ((batch = readNextBatch(channel)) != null) {
+			results.add(batch);
+		}
+		return results.toArray(new byte[0][]);
+	}
+
+	private static byte[] readNextBatch(ReadableByteChannel channel) throws IOException {
+		MessageMetadataResult metadata = MessageSerializer.readMessage(new ReadChannel(channel));
+		if (metadata == null) {
+			return null;
+		}
+
+		long bodyLength = metadata.getMessageBodyLength();
+
+		// Only care about RecordBatch messages and skip the other kind of messages
+		if (metadata.getMessage().headerType() == MessageHeader.RecordBatch) {
+			// Buffer backed output large enough to hold 8-byte length + complete serialized message
+			ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos((int) (8 + metadata.getMessageLength() + bodyLength));
+
+			// Write message metadata to ByteBuffer output stream
+			MessageSerializer.writeMessageBuffer(
+				new WriteChannel(Channels.newChannel(baos)),
+				metadata.getMessageLength(),
+				metadata.getMessageBuffer());
+
+			baos.close();
+			ByteBuffer result = ByteBuffer.wrap(baos.getBuf());
+			result.position(baos.getPosition());
+			result.limit(result.capacity());
+			readFully(channel, result);
+			return result.array();
+		} else {
+			if (bodyLength > 0) {
+				// Skip message body if not a RecordBatch
+				Channels.newInputStream(channel).skip(bodyLength);
+			}
+
+			// Proceed to next message
+			return readNextBatch(channel);
+		}
+	}
+
+	/**
+	 * Fills a buffer with data read from the channel.
+	 */
+	private static void readFully(ReadableByteChannel channel, ByteBuffer dst) throws IOException {
+		int expected = dst.remaining();
+		while (dst.hasRemaining()) {
+			if (channel.read(dst) < 0) {
+				throw new EOFException(String.format("Not enough bytes in channel (expected %d).",
+					expected));
+			}
 		}
 	}
 

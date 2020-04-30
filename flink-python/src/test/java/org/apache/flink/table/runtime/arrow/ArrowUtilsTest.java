@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.api.java.tuple.Tuple7;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.vector.ColumnVector;
 import org.apache.flink.table.runtime.arrow.readers.ArrayFieldReader;
@@ -104,8 +105,11 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
@@ -115,6 +119,10 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -223,7 +231,7 @@ public class ArrowUtilsTest {
 		}
 		rowType = new RowType(rowFields);
 
-		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator("stdout", 0, Long.MAX_VALUE);
+		allocator = ArrowUtils.getRootAllocator().newChildAllocator("stdout", 0, Long.MAX_VALUE);
 	}
 
 	@Test
@@ -277,5 +285,34 @@ public class ArrowUtilsTest {
 		for (int i = 0; i < fieldWriters.length; i++) {
 			assertEquals(testFields.get(i).f4, fieldWriters[i].getClass());
 		}
+	}
+
+	@Test
+	public void testReadArrowBatches() throws IOException {
+		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
+		ArrowWriter<RowData> arrowWriter = ArrowUtils.createRowDataArrowWriter(root, rowType);
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ArrowStreamWriter arrowStreamWriter = new ArrowStreamWriter(root, null, baos);
+		arrowStreamWriter.start();
+
+		List<RowData> testData = Arrays.asList(
+			new GenericRowData(rowType.getFieldCount()),
+			new GenericRowData(rowType.getFieldCount()),
+			new GenericRowData(rowType.getFieldCount()),
+			new GenericRowData(rowType.getFieldCount()),
+			new GenericRowData(rowType.getFieldCount()));
+		int batches = 3;
+		List<List<RowData>> subLists = Lists.partition(testData, testData.size() / batches + 1);
+		for (List<RowData> subList : subLists) {
+			for (RowData value : subList) {
+				arrowWriter.write(value);
+			}
+			arrowWriter.finish();
+			arrowStreamWriter.writeBatch();
+			arrowWriter.reset();
+		}
+
+		assertEquals(batches,
+			ArrowUtils.readArrowBatches(Channels.newChannel(new ByteArrayInputStream(baos.toByteArray()))).length);
 	}
 }
