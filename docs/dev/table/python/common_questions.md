@@ -22,12 +22,19 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This page describes the solutions to some frequently encountered problems for PyFlink users.
+This page describes the solutions to some common questions for PyFlink users.
 
 * This will be replaced by the TOC
 {:toc}
 ## Preparing Python Virtual Environment
-You can download a [convenience script](https://github.com/apache/flink/blob/master/flink-python/dev/setup-pyflink-virtual-env.sh) to prepare a Python virtual env zip which can be used on Mac OS and most Linux distributions. 
+You can download a [convenience script](setup-pyflink-virtual-env.sh) to prepare a Python virtual env zip which can be used on Mac OS and most Linux distributions.
+
+You can specify the version parameter to generate a Python virtual environment required for the corresponding PyFlink version. e.g.
+
+{% highlight shell %}
+# you will get a Python virtual environment required by PyFlink version 1.10
+setup-pyflink-virtual-env.sh 1.10
+{% endhighlight %}
 
 ## Execute PyFlink jobs with Python virtual environment
 You can refer to the section [Preparing Python Virtual Environment](#preparing-python-virtual-environment) on how to
