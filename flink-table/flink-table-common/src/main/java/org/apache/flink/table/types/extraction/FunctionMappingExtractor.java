@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.extraction.utils;
+package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.DataTypeHint;
@@ -27,7 +27,6 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -44,17 +43,17 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectMethods;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.createMethodSignatureString;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.isAssignable;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.isMethodInvokable;
-import static org.apache.flink.table.types.extraction.utils.TemplateUtils.extractGlobalFunctionTemplates;
-import static org.apache.flink.table.types.extraction.utils.TemplateUtils.extractLocalFunctionTemplates;
-import static org.apache.flink.table.types.extraction.utils.TemplateUtils.findInputOnlyTemplates;
-import static org.apache.flink.table.types.extraction.utils.TemplateUtils.findResultMappingTemplates;
-import static org.apache.flink.table.types.extraction.utils.TemplateUtils.findResultOnlyTemplate;
-import static org.apache.flink.table.types.extraction.utils.TemplateUtils.findResultOnlyTemplates;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.collectMethods;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.createMethodSignatureString;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.isAssignable;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.isMethodInvokable;
+import static org.apache.flink.table.types.extraction.TemplateUtils.extractGlobalFunctionTemplates;
+import static org.apache.flink.table.types.extraction.TemplateUtils.extractLocalFunctionTemplates;
+import static org.apache.flink.table.types.extraction.TemplateUtils.findInputOnlyTemplates;
+import static org.apache.flink.table.types.extraction.TemplateUtils.findResultMappingTemplates;
+import static org.apache.flink.table.types.extraction.TemplateUtils.findResultOnlyTemplate;
+import static org.apache.flink.table.types.extraction.TemplateUtils.findResultOnlyTemplates;
 
 /**
  * Utility for extracting function mappings from signature to result, e.g. from (INT, STRING) to BOOLEAN.
@@ -63,7 +62,7 @@ import static org.apache.flink.table.types.extraction.utils.TemplateUtils.findRe
  * extracted reflectively using the implementation methods and/or function generics.
  */
 @Internal
-public final class FunctionMappingExtractor {
+final class FunctionMappingExtractor {
 
 	private final DataTypeFactory typeFactory;
 
@@ -79,7 +78,7 @@ public final class FunctionMappingExtractor {
 
 	private final MethodVerification verification;
 
-	public FunctionMappingExtractor(
+	FunctionMappingExtractor(
 			DataTypeFactory typeFactory,
 			Class<? extends UserDefinedFunction> function,
 			String methodName,
@@ -96,15 +95,15 @@ public final class FunctionMappingExtractor {
 		this.verification = verification;
 	}
 
-	public Class<? extends UserDefinedFunction> getFunction() {
+	Class<? extends UserDefinedFunction> getFunction() {
 		return function;
 	}
 
-	public boolean hasAccumulator() {
+	boolean hasAccumulator() {
 		return accumulatorExtraction != null;
 	}
 
-	public Map<FunctionSignatureTemplate, FunctionResultTemplate> extractOutputMapping() {
+	Map<FunctionSignatureTemplate, FunctionResultTemplate> extractOutputMapping() {
 		try {
 			return extractResultMappings(
 				outputExtraction,
@@ -115,7 +114,7 @@ public final class FunctionMappingExtractor {
 		}
 	}
 
-	public Map<FunctionSignatureTemplate, FunctionResultTemplate> extractAccumulatorMapping() {
+	Map<FunctionSignatureTemplate, FunctionResultTemplate> extractAccumulatorMapping() {
 		Preconditions.checkState(hasAccumulator());
 		try {
 			return extractResultMappings(
@@ -313,7 +312,7 @@ public final class FunctionMappingExtractor {
 	/**
 	 * Extraction that uses the method parameters for producing a {@link FunctionSignatureTemplate}.
 	 */
-	public static SignatureExtraction createParameterSignatureExtraction(int offset) {
+	static SignatureExtraction createParameterSignatureExtraction(int offset) {
 		return (extractor, method) -> {
 			final List<FunctionArgumentTemplate> parameterTypes = extractArgumentTemplates(
 				extractor.typeFactory,
@@ -389,7 +388,7 @@ public final class FunctionMappingExtractor {
 	/**
 	 * Extraction that uses the method return type for producing a {@link FunctionResultTemplate}.
 	 */
-	public static ResultExtraction createReturnTypeResultExtraction() {
+	static ResultExtraction createReturnTypeResultExtraction() {
 		return (extractor, method) -> {
 			final DataType dataType = DataTypeExtractor.extractFromMethodOutput(
 				extractor.typeFactory,
@@ -402,7 +401,7 @@ public final class FunctionMappingExtractor {
 	/**
 	 * Extraction that uses a generic type variable for producing a {@link FunctionResultTemplate}.
 	 */
-	public static ResultExtraction createGenericResultExtraction(Class<? extends UserDefinedFunction> baseClass, int genericPos) {
+	static ResultExtraction createGenericResultExtraction(Class<? extends UserDefinedFunction> baseClass, int genericPos) {
 		return (extractor, method) -> {
 			final DataType dataType = DataTypeExtractor.extractFromGeneric(
 				extractor.typeFactory,
@@ -416,7 +415,7 @@ public final class FunctionMappingExtractor {
 	/**
 	 * Verification that checks a method by parameters and return type.
 	 */
-	public static MethodVerification createParameterAndReturnTypeVerification() {
+	static MethodVerification createParameterAndReturnTypeVerification() {
 		return (method, signature, result) -> {
 			final Class<?>[] parameters = signature.toArray(new Class[0]);
 			final Class<?> returnType = method.getReturnType();
@@ -431,7 +430,7 @@ public final class FunctionMappingExtractor {
 	/**
 	 * Verification that checks a method by parameters including an accumulator.
 	 */
-	public static MethodVerification createParameterWithAccumulatorVerification() {
+	static MethodVerification createParameterWithAccumulatorVerification() {
 		return (method, signature, result) -> {
 			if (result != null) {
 				// ignore the accumulator in the first argument
@@ -446,7 +445,7 @@ public final class FunctionMappingExtractor {
 	/**
 	 * Verification that checks a method by parameters including an additional first parameter.
 	 */
-	public static MethodVerification createParameterWithArgumentVerification(@Nullable Class<?> argumentClass) {
+	static MethodVerification createParameterWithArgumentVerification(@Nullable Class<?> argumentClass) {
 		return (method, signature, result) -> {
 			final Class<?>[] parameters = Stream.concat(Stream.of(argumentClass), signature.stream())
 				.toArray(Class<?>[]::new);
@@ -459,7 +458,7 @@ public final class FunctionMappingExtractor {
 	/**
 	 * Verification that checks a method by parameters.
 	 */
-	public static MethodVerification createParameterVerification() {
+	static MethodVerification createParameterVerification() {
 		return (method, signature, result) -> {
 			final Class<?>[] parameters = signature.toArray(new Class[0]);
 			if (!isMethodInvokable(method, parameters)) {
@@ -484,21 +483,21 @@ public final class FunctionMappingExtractor {
 	/**
 	 * Extracts a {@link FunctionSignatureTemplate} from a method.
 	 */
-	public interface SignatureExtraction {
+	interface SignatureExtraction {
 		FunctionSignatureTemplate extract(FunctionMappingExtractor extractor, Method method);
 	}
 
 	/**
 	 * Extracts a {@link FunctionResultTemplate} from a class or method.
 	 */
-	public interface ResultExtraction {
+	interface ResultExtraction {
 		@Nullable FunctionResultTemplate extract(FunctionMappingExtractor extractor, Method method);
 	}
 
 	/**
 	 * Verifies the signature of a method.
 	 */
-	public interface MethodVerification {
+	interface MethodVerification {
 		void verify(Method method, List<Class<?>> arguments, Class<?> result);
 	}
 }

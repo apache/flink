@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.extraction.utils;
+package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.InputGroup;
@@ -28,32 +28,32 @@ import javax.annotation.Nullable;
 
 import java.util.Objects;
 
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
 
 /**
  * Template of a function argument. It can either be backed by a single or a group of {@link DataType}s.
  */
 @Internal
-public final class FunctionArgumentTemplate {
+final class FunctionArgumentTemplate {
 
-	public final @Nullable DataType dataType;
+	final @Nullable DataType dataType;
 
-	public final @Nullable InputGroup inputGroup;
+	final @Nullable InputGroup inputGroup;
 
 	private FunctionArgumentTemplate(@Nullable DataType dataType, @Nullable InputGroup inputGroup) {
 		this.dataType = dataType;
 		this.inputGroup = inputGroup;
 	}
 
-	public static FunctionArgumentTemplate of(DataType dataType) {
+	static FunctionArgumentTemplate of(DataType dataType) {
 		return new FunctionArgumentTemplate(dataType, null);
 	}
 
-	public static FunctionArgumentTemplate of(InputGroup inputGroup) {
+	static FunctionArgumentTemplate of(InputGroup inputGroup) {
 		return new FunctionArgumentTemplate(null, inputGroup);
 	}
 
-	public ArgumentTypeStrategy toArgumentTypeStrategy() {
+	ArgumentTypeStrategy toArgumentTypeStrategy() {
 		if (dataType != null) {
 			return InputTypeStrategies.explicit(dataType);
 		}
@@ -67,7 +67,7 @@ public final class FunctionArgumentTemplate {
 		}
 	}
 
-	public Class<?> toConversionClass() {
+	Class<?> toConversionClass() {
 		if (dataType != null) {
 			return dataType.getConversionClass();
 		}

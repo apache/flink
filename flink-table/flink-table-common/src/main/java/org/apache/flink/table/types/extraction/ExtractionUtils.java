@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.extraction.utils;
+package org.apache.flink.table.types.extraction;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
@@ -62,27 +63,8 @@ import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getMethodDescr
 /**
  * Utilities for performing reflection tasks.
  */
+@Internal
 public final class ExtractionUtils {
-
-	/**
-	 * Helper method for creating consistent exceptions during extraction.
-	 */
-	public static ValidationException extractionError(String message, Object... args) {
-		return extractionError(null, message, args);
-	}
-
-	/**
-	 * Helper method for creating consistent exceptions during extraction.
-	 */
-	public static ValidationException extractionError(Throwable cause, String message, Object... args) {
-		return new ValidationException(
-			String.format(
-				message,
-				args
-			),
-			cause
-		);
-	}
 
 	/**
 	 * Collects methods of the given name.
@@ -92,352 +74,6 @@ public final class ExtractionUtils {
 			.filter(method -> method.getName().equals(methodName))
 			.sorted(Comparator.comparing(Method::toString)) // for deterministic order
 			.collect(Collectors.toList());
-	}
-
-	/**
-	 * Collects the partially ordered type hierarchy (i.e. all involved super classes and super
-	 * interfaces) of the given type.
-	 */
-	public static List<Type> collectTypeHierarchy(Type type) {
-		Type currentType = type;
-		Class<?> currentClass = toClass(type);
-		final List<Type> typeHierarchy = new ArrayList<>();
-		while (currentClass != null) {
-			// collect type
-			typeHierarchy.add(currentType);
-			// collect super interfaces
-			for (Type genericInterface : currentClass.getGenericInterfaces()) {
-				final Class<?> interfaceClass = toClass(genericInterface);
-				if (interfaceClass != null) {
-					typeHierarchy.addAll(collectTypeHierarchy(genericInterface));
-				}
-			}
-			currentType = currentClass.getGenericSuperclass();
-			currentClass = toClass(currentType);
-		}
-		return typeHierarchy;
-	}
-
-	/**
-	 * Converts a {@link Type} to {@link Class} if possible, {@code null} otherwise.
-	 */
-	public static @Nullable Class<?> toClass(Type type) {
-		if (type instanceof Class) {
-			return (Class<?>) type;
-		} else if (type instanceof ParameterizedType) {
-			// this is always a class
-			return (Class<?>) ((ParameterizedType) type).getRawType();
-		}
-		// unsupported: generic arrays, type variables, wildcard types
-		return null;
-	}
-
-	/**
-	 * Creates a raw data type.
-	 */
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public static DataType createRawType(
-			DataTypeFactory typeFactory,
-			@Nullable Class<? extends TypeSerializer<?>> rawSerializer,
-			@Nullable Class<?> conversionClass) {
-		if (rawSerializer != null) {
-			return DataTypes.RAW((Class) createConversionClass(conversionClass), instantiateRawSerializer(rawSerializer));
-		}
-		return typeFactory.createRawDataType(createConversionClass(conversionClass));
-	}
-
-	private static Class<?> createConversionClass(@Nullable Class<?> conversionClass) {
-		if (conversionClass != null) {
-			return conversionClass;
-		}
-		return Object.class;
-	}
-
-	private static TypeSerializer<?> instantiateRawSerializer(Class<? extends TypeSerializer<?>> rawSerializer) {
-		try {
-			return rawSerializer.newInstance();
-		} catch (Exception e) {
-			throw extractionError(
-				e,
-				"Cannot instantiate type serializer '%s' for RAW type. " +
-					"Make sure the class is publicly accessible and has a default constructor.",
-				rawSerializer.getName()
-			);
-		}
-	}
-
-	/**
-	 * Resolves a {@link TypeVariable} using the given type hierarchy if possible.
-	 */
-	public static Type resolveVariable(List<Type> typeHierarchy, TypeVariable<?> variable) {
-		// iterate through hierarchy from top to bottom until type variable gets a non-variable assigned
-		for (int i = typeHierarchy.size() - 1; i >= 0; i--) {
-			final Type currentType = typeHierarchy.get(i);
-
-			if (currentType instanceof ParameterizedType) {
-				final Type resolvedType = resolveVariableInParameterizedType(
-					variable,
-					(ParameterizedType) currentType);
-				if (resolvedType instanceof TypeVariable) {
-					// follow type variables transitively
-					variable = (TypeVariable<?>) resolvedType;
-				} else if (resolvedType != null) {
-					return resolvedType;
-				}
-			}
-		}
-		// unresolved variable
-		return variable;
-	}
-
-	private static @Nullable Type resolveVariableInParameterizedType(
-			TypeVariable<?> variable,
-			ParameterizedType currentType) {
-		final Class<?> currentRaw = (Class<?>) currentType.getRawType();
-		final TypeVariable<?>[] currentVariables = currentRaw.getTypeParameters();
-		// search for matching type variable
-		for (int paramPos = 0; paramPos < currentVariables.length; paramPos++) {
-			if (typeVariableEquals(variable, currentVariables[paramPos])) {
-				return currentType.getActualTypeArguments()[paramPos];
-			}
-		}
-		return null;
-	}
-
-	private static boolean typeVariableEquals(TypeVariable<?> variable, TypeVariable<?> currentVariable) {
-		return currentVariable.getGenericDeclaration().equals(variable.getGenericDeclaration()) &&
-				currentVariable.getName().equals(variable.getName());
-	}
-
-	/**
-	 * Validates the characteristics of a class for a {@link StructuredType} such as accessibility.
-	 */
-	public static void validateStructuredClass(Class<?> clazz) {
-		final int m = clazz.getModifiers();
-		if (Modifier.isAbstract(m)) {
-			throw extractionError("Class '%s' must not be abstract.", clazz.getName());
-		}
-		if (!Modifier.isPublic(m)) {
-			throw extractionError("Class '%s' is not public.", clazz.getName());
-		}
-		if (clazz.getEnclosingClass() != null &&
-				(clazz.getDeclaringClass() == null || !Modifier.isStatic(m))) {
-			throw extractionError("Class '%s' is a not a static, globally accessible class.", clazz.getName());
-		}
-	}
-
-	/**
-	 * Returns the fields of a class for a {@link StructuredType}.
-	 */
-	public static List<Field> collectStructuredFields(Class<?> clazz) {
-		final List<Field> fields = new ArrayList<>();
-		while (clazz != Object.class) {
-			final Field[] declaredFields = clazz.getDeclaredFields();
-			Stream.of(declaredFields)
-				.filter(field -> {
-					final int m = field.getModifiers();
-					return !Modifier.isStatic(m) && !Modifier.isTransient(m);
-				})
-				.forEach(fields::add);
-			clazz = clazz.getSuperclass();
-		}
-		return fields;
-	}
-
-	/**
-	 * Validates if a field is properly readable either directly or through a getter.
-	 */
-	public static void validateStructuredFieldReadability(Class<?> clazz, Field field) {
-		final int m = field.getModifiers();
-
-		// field is accessible
-		if (Modifier.isPublic(m)) {
-			return;
-		}
-
-		// field needs a getter
-		if (!hasStructuredFieldGetter(clazz, field)) {
-			throw extractionError(
-				"Field '%s' of class '%s' is neither publicly accessible nor does it have " +
-					"a corresponding getter method.",
-				field.getName(),
-				clazz.getName());
-		}
-	}
-
-	/**
-	 * Checks if a field is mutable or immutable. Returns {@code true} if the field is properly
-	 * mutable. Returns {@code false} if it is properly immutable.
-	 */
-	public static boolean isStructuredFieldMutable(Class<?> clazz, Field field) {
-		final int m = field.getModifiers();
-
-		// field is immutable
-		if (Modifier.isFinal(m)) {
-			return false;
-		}
-		// field is directly mutable
-		if (Modifier.isPublic(m)) {
-			return true;
-		}
-		// field has setters by which it is mutable
-		if (hasFieldSetter(clazz, field)) {
-			return true;
-		}
-
-		throw extractionError(
-			"Field '%s' of class '%s' is mutable but is neither publicly accessible nor does it have " +
-				"a corresponding setter method.",
-			field.getName(),
-			clazz.getName());
-	}
-
-	/**
-	 * Checks for a field setters. The logic is as broad as possible to support both Java and Scala
-	 * in different flavors.
-	 */
-	public static boolean hasFieldSetter(Class<?> clazz, Field field) {
-		final String normalizedFieldName = field.getName().toUpperCase();
-
-		final List<Method> methods = collectStructuredMethods(clazz);
-		for (Method method : methods) {
-
-			// check name:
-			// set<Name>(type)
-			// <Name>(type)
-			// <Name>_$eq(type) for Scala
-			final String normalizedMethodName = method.getName().toUpperCase();
-			final boolean hasName = normalizedMethodName.equals("SET" + normalizedFieldName) ||
-				normalizedMethodName.equals(normalizedFieldName) ||
-				normalizedMethodName.equals(normalizedFieldName + "_$EQ");
-			if (!hasName) {
-				continue;
-			}
-
-			// check return type:
-			// void or the declaring class
-			final Class<?> returnType = method.getReturnType();
-			final boolean hasReturnType = returnType == Void.TYPE || returnType == clazz;
-			if (!hasReturnType) {
-				continue;
-			}
-
-			// check parameters:
-			// one parameter that has the same (or primitive) type of the field
-			final boolean hasParameter = method.getParameterCount() == 1 &&
-				(method.getGenericParameterTypes()[0].equals(field.getGenericType()) ||
-					primitiveToWrapper(method.getGenericParameterTypes()[0]).equals(field.getGenericType()));
-			if (!hasParameter) {
-				continue;
-			}
-
-			// matching setter found
-			return true;
-		}
-
-		// no setter found
-		return false;
-	}
-
-	/**
-	 * Returns the boxed type of a primitive type.
-	 */
-	public static Type primitiveToWrapper(Type type) {
-		if (type instanceof Class) {
-			return primitiveToWrapper((Class<?>) type);
-		}
-		return type;
-	}
-
-	/**
-	 * Checks for a field getter. The logic is as broad as possible to support both Java and Scala
-	 * in different flavors.
-	 */
-	public static boolean hasStructuredFieldGetter(Class<?> clazz, Field field) {
-		final String normalizedFieldName = field.getName().toUpperCase();
-
-		final List<Method> methods = collectStructuredMethods(clazz);
-		for (Method method : methods) {
-			// check name:
-			// get<Name>()
-			// is<Name>()
-			// <Name>() for Scala
-			final String normalizedMethodName = method.getName().toUpperCase();
-			final boolean hasName = normalizedMethodName.equals("GET" + normalizedFieldName) ||
-				normalizedMethodName.equals("IS" + normalizedFieldName) ||
-				normalizedMethodName.equals(normalizedFieldName);
-			if (!hasName) {
-				continue;
-			}
-
-			// check return type:
-			// equal to field type
-			final Type returnType = method.getGenericReturnType();
-			final boolean hasReturnType = returnType.equals(field.getGenericType());
-			if (!hasReturnType) {
-				continue;
-			}
-
-			// check parameters:
-			// no parameters
-			final boolean hasNoParameters = method.getParameterCount() == 0;
-			if (!hasNoParameters) {
-				continue;
-			}
-
-			// matching getter found
-			return true;
-		}
-
-		// no getter found
-		return false;
-	}
-
-	/**
-	 * Collects all methods that qualify as methods of a {@link StructuredType}.
-	 */
-	public static List<Method> collectStructuredMethods(Class<?> clazz) {
-		final List<Method> methods = new ArrayList<>();
-		while (clazz != Object.class) {
-			final Method[] declaredMethods = clazz.getDeclaredMethods();
-			Stream.of(declaredMethods)
-				.filter(field -> {
-					final int m = field.getModifiers();
-					return Modifier.isPublic(m) && !Modifier.isNative(m) && !Modifier.isAbstract(m);
-				})
-				.forEach(methods::add);
-			clazz = clazz.getSuperclass();
-		}
-		return methods;
-	}
-
-	/**
-	 * Collects all annotations of the given type defined in the current class or superclasses. Duplicates
-	 * are ignored.
-	 */
-	public static <T extends Annotation> Set<T> collectAnnotationsOfClass(
-			Class<T> annotation,
-			Class<?> annotatedClass) {
-		final List<Class<?>> classHierarchy = new ArrayList<>();
-		Class<?> currentClass = annotatedClass;
-		while (currentClass != null) {
-			classHierarchy.add(currentClass);
-			currentClass = currentClass.getSuperclass();
-		}
-		// convert to top down
-		Collections.reverse(classHierarchy);
-		return classHierarchy.stream()
-			.flatMap(c -> Stream.of(c.getAnnotationsByType(annotation)))
-			.collect(Collectors.toCollection(LinkedHashSet::new));
-	}
-
-	/**
-	 * Collects all annotations of the given type defined in the given method. Duplicates are ignored.
-	 */
-	public static <T extends Annotation> Set<T> collectAnnotationsOfMethod(
-			Class<T> annotation,
-			Method annotatedMethod) {
-		return new LinkedHashSet<>(Arrays.asList(annotatedMethod.getAnnotationsByType(annotation)));
 	}
 
 	/**
@@ -500,6 +136,372 @@ public final class ExtractionUtils {
 		return builder.toString();
 	}
 
+	/**
+	 * Helper method for creating consistent exceptions during extraction.
+	 */
+	static ValidationException extractionError(String message, Object... args) {
+		return extractionError(null, message, args);
+	}
+
+	/**
+	 * Helper method for creating consistent exceptions during extraction.
+	 */
+	static ValidationException extractionError(Throwable cause, String message, Object... args) {
+		return new ValidationException(
+			String.format(
+				message,
+				args
+			),
+			cause
+		);
+	}
+
+	/**
+	 * Collects the partially ordered type hierarchy (i.e. all involved super classes and super
+	 * interfaces) of the given type.
+	 */
+	static List<Type> collectTypeHierarchy(Type type) {
+		Type currentType = type;
+		Class<?> currentClass = toClass(type);
+		final List<Type> typeHierarchy = new ArrayList<>();
+		while (currentClass != null) {
+			// collect type
+			typeHierarchy.add(currentType);
+			// collect super interfaces
+			for (Type genericInterface : currentClass.getGenericInterfaces()) {
+				final Class<?> interfaceClass = toClass(genericInterface);
+				if (interfaceClass != null) {
+					typeHierarchy.addAll(collectTypeHierarchy(genericInterface));
+				}
+			}
+			currentType = currentClass.getGenericSuperclass();
+			currentClass = toClass(currentType);
+		}
+		return typeHierarchy;
+	}
+
+	/**
+	 * Converts a {@link Type} to {@link Class} if possible, {@code null} otherwise.
+	 */
+	static @Nullable Class<?> toClass(Type type) {
+		if (type instanceof Class) {
+			return (Class<?>) type;
+		} else if (type instanceof ParameterizedType) {
+			// this is always a class
+			return (Class<?>) ((ParameterizedType) type).getRawType();
+		}
+		// unsupported: generic arrays, type variables, wildcard types
+		return null;
+	}
+
+	/**
+	 * Creates a raw data type.
+	 */
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	static DataType createRawType(
+			DataTypeFactory typeFactory,
+			@Nullable Class<? extends TypeSerializer<?>> rawSerializer,
+			@Nullable Class<?> conversionClass) {
+		if (rawSerializer != null) {
+			return DataTypes.RAW((Class) createConversionClass(conversionClass), instantiateRawSerializer(rawSerializer));
+		}
+		return typeFactory.createRawDataType(createConversionClass(conversionClass));
+	}
+
+	static Class<?> createConversionClass(@Nullable Class<?> conversionClass) {
+		if (conversionClass != null) {
+			return conversionClass;
+		}
+		return Object.class;
+	}
+
+	private static TypeSerializer<?> instantiateRawSerializer(Class<? extends TypeSerializer<?>> rawSerializer) {
+		try {
+			return rawSerializer.newInstance();
+		} catch (Exception e) {
+			throw extractionError(
+				e,
+				"Cannot instantiate type serializer '%s' for RAW type. " +
+					"Make sure the class is publicly accessible and has a default constructor.",
+				rawSerializer.getName()
+			);
+		}
+	}
+
+	/**
+	 * Resolves a {@link TypeVariable} using the given type hierarchy if possible.
+	 */
+	static Type resolveVariable(List<Type> typeHierarchy, TypeVariable<?> variable) {
+		// iterate through hierarchy from top to bottom until type variable gets a non-variable assigned
+		for (int i = typeHierarchy.size() - 1; i >= 0; i--) {
+			final Type currentType = typeHierarchy.get(i);
+
+			if (currentType instanceof ParameterizedType) {
+				final Type resolvedType = resolveVariableInParameterizedType(
+					variable,
+					(ParameterizedType) currentType);
+				if (resolvedType instanceof TypeVariable) {
+					// follow type variables transitively
+					variable = (TypeVariable<?>) resolvedType;
+				} else if (resolvedType != null) {
+					return resolvedType;
+				}
+			}
+		}
+		// unresolved variable
+		return variable;
+	}
+
+	private static @Nullable Type resolveVariableInParameterizedType(
+			TypeVariable<?> variable,
+			ParameterizedType currentType) {
+		final Class<?> currentRaw = (Class<?>) currentType.getRawType();
+		final TypeVariable<?>[] currentVariables = currentRaw.getTypeParameters();
+		// search for matching type variable
+		for (int paramPos = 0; paramPos < currentVariables.length; paramPos++) {
+			if (typeVariableEquals(variable, currentVariables[paramPos])) {
+				return currentType.getActualTypeArguments()[paramPos];
+			}
+		}
+		return null;
+	}
+
+	private static boolean typeVariableEquals(TypeVariable<?> variable, TypeVariable<?> currentVariable) {
+		return currentVariable.getGenericDeclaration().equals(variable.getGenericDeclaration()) &&
+				currentVariable.getName().equals(variable.getName());
+	}
+
+	/**
+	 * Validates the characteristics of a class for a {@link StructuredType} such as accessibility.
+	 */
+	static void validateStructuredClass(Class<?> clazz) {
+		final int m = clazz.getModifiers();
+		if (Modifier.isAbstract(m)) {
+			throw extractionError("Class '%s' must not be abstract.", clazz.getName());
+		}
+		if (!Modifier.isPublic(m)) {
+			throw extractionError("Class '%s' is not public.", clazz.getName());
+		}
+		if (clazz.getEnclosingClass() != null &&
+				(clazz.getDeclaringClass() == null || !Modifier.isStatic(m))) {
+			throw extractionError("Class '%s' is a not a static, globally accessible class.", clazz.getName());
+		}
+	}
+
+	/**
+	 * Returns the fields of a class for a {@link StructuredType}.
+	 */
+	static List<Field> collectStructuredFields(Class<?> clazz) {
+		final List<Field> fields = new ArrayList<>();
+		while (clazz != Object.class) {
+			final Field[] declaredFields = clazz.getDeclaredFields();
+			Stream.of(declaredFields)
+				.filter(field -> {
+					final int m = field.getModifiers();
+					return !Modifier.isStatic(m) && !Modifier.isTransient(m);
+				})
+				.forEach(fields::add);
+			clazz = clazz.getSuperclass();
+		}
+		return fields;
+	}
+
+	/**
+	 * Validates if a field is properly readable either directly or through a getter.
+	 */
+	static void validateStructuredFieldReadability(Class<?> clazz, Field field) {
+		final int m = field.getModifiers();
+
+		// field is accessible
+		if (Modifier.isPublic(m)) {
+			return;
+		}
+
+		// field needs a getter
+		if (!hasStructuredFieldGetter(clazz, field)) {
+			throw extractionError(
+				"Field '%s' of class '%s' is neither publicly accessible nor does it have " +
+					"a corresponding getter method.",
+				field.getName(),
+				clazz.getName());
+		}
+	}
+
+	/**
+	 * Checks if a field is mutable or immutable. Returns {@code true} if the field is properly
+	 * mutable. Returns {@code false} if it is properly immutable.
+	 */
+	static boolean isStructuredFieldMutable(Class<?> clazz, Field field) {
+		final int m = field.getModifiers();
+
+		// field is immutable
+		if (Modifier.isFinal(m)) {
+			return false;
+		}
+		// field is directly mutable
+		if (Modifier.isPublic(m)) {
+			return true;
+		}
+		// field has setters by which it is mutable
+		if (hasFieldSetter(clazz, field)) {
+			return true;
+		}
+
+		throw extractionError(
+			"Field '%s' of class '%s' is mutable but is neither publicly accessible nor does it have " +
+				"a corresponding setter method.",
+			field.getName(),
+			clazz.getName());
+	}
+
+	/**
+	 * Checks for a field setters. The logic is as broad as possible to support both Java and Scala
+	 * in different flavors.
+	 */
+	static boolean hasFieldSetter(Class<?> clazz, Field field) {
+		final String normalizedFieldName = field.getName().toUpperCase();
+
+		final List<Method> methods = collectStructuredMethods(clazz);
+		for (Method method : methods) {
+
+			// check name:
+			// set<Name>(type)
+			// <Name>(type)
+			// <Name>_$eq(type) for Scala
+			final String normalizedMethodName = method.getName().toUpperCase();
+			final boolean hasName = normalizedMethodName.equals("SET" + normalizedFieldName) ||
+				normalizedMethodName.equals(normalizedFieldName) ||
+				normalizedMethodName.equals(normalizedFieldName + "_$EQ");
+			if (!hasName) {
+				continue;
+			}
+
+			// check return type:
+			// void or the declaring class
+			final Class<?> returnType = method.getReturnType();
+			final boolean hasReturnType = returnType == Void.TYPE || returnType == clazz;
+			if (!hasReturnType) {
+				continue;
+			}
+
+			// check parameters:
+			// one parameter that has the same (or primitive) type of the field
+			final boolean hasParameter = method.getParameterCount() == 1 &&
+				(method.getGenericParameterTypes()[0].equals(field.getGenericType()) ||
+					primitiveToWrapper(method.getGenericParameterTypes()[0]).equals(field.getGenericType()));
+			if (!hasParameter) {
+				continue;
+			}
+
+			// matching setter found
+			return true;
+		}
+
+		// no setter found
+		return false;
+	}
+
+	/**
+	 * Returns the boxed type of a primitive type.
+	 */
+	static Type primitiveToWrapper(Type type) {
+		if (type instanceof Class) {
+			return primitiveToWrapper((Class<?>) type);
+		}
+		return type;
+	}
+
+	/**
+	 * Checks for a field getter. The logic is as broad as possible to support both Java and Scala
+	 * in different flavors.
+	 */
+	static boolean hasStructuredFieldGetter(Class<?> clazz, Field field) {
+		final String normalizedFieldName = field.getName().toUpperCase();
+
+		final List<Method> methods = collectStructuredMethods(clazz);
+		for (Method method : methods) {
+			// check name:
+			// get<Name>()
+			// is<Name>()
+			// <Name>() for Scala
+			final String normalizedMethodName = method.getName().toUpperCase();
+			final boolean hasName = normalizedMethodName.equals("GET" + normalizedFieldName) ||
+				normalizedMethodName.equals("IS" + normalizedFieldName) ||
+				normalizedMethodName.equals(normalizedFieldName);
+			if (!hasName) {
+				continue;
+			}
+
+			// check return type:
+			// equal to field type
+			final Type returnType = method.getGenericReturnType();
+			final boolean hasReturnType = returnType.equals(field.getGenericType());
+			if (!hasReturnType) {
+				continue;
+			}
+
+			// check parameters:
+			// no parameters
+			final boolean hasNoParameters = method.getParameterCount() == 0;
+			if (!hasNoParameters) {
+				continue;
+			}
+
+			// matching getter found
+			return true;
+		}
+
+		// no getter found
+		return false;
+	}
+
+	/**
+	 * Collects all methods that qualify as methods of a {@link StructuredType}.
+	 */
+	static List<Method> collectStructuredMethods(Class<?> clazz) {
+		final List<Method> methods = new ArrayList<>();
+		while (clazz != Object.class) {
+			final Method[] declaredMethods = clazz.getDeclaredMethods();
+			Stream.of(declaredMethods)
+				.filter(field -> {
+					final int m = field.getModifiers();
+					return Modifier.isPublic(m) && !Modifier.isNative(m) && !Modifier.isAbstract(m);
+				})
+				.forEach(methods::add);
+			clazz = clazz.getSuperclass();
+		}
+		return methods;
+	}
+
+	/**
+	 * Collects all annotations of the given type defined in the current class or superclasses. Duplicates
+	 * are ignored.
+	 */
+	static <T extends Annotation> Set<T> collectAnnotationsOfClass(
+			Class<T> annotation,
+			Class<?> annotatedClass) {
+		final List<Class<?>> classHierarchy = new ArrayList<>();
+		Class<?> currentClass = annotatedClass;
+		while (currentClass != null) {
+			classHierarchy.add(currentClass);
+			currentClass = currentClass.getSuperclass();
+		}
+		// convert to top down
+		Collections.reverse(classHierarchy);
+		return classHierarchy.stream()
+			.flatMap(c -> Stream.of(c.getAnnotationsByType(annotation)))
+			.collect(Collectors.toCollection(LinkedHashSet::new));
+	}
+
+	/**
+	 * Collects all annotations of the given type defined in the given method. Duplicates are ignored.
+	 */
+	static <T extends Annotation> Set<T> collectAnnotationsOfMethod(
+			Class<T> annotation,
+			Method annotatedMethod) {
+		return new LinkedHashSet<>(Arrays.asList(annotatedMethod.getAnnotationsByType(annotation)));
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Parameter Extraction Utilities
 	// --------------------------------------------------------------------------------------------
@@ -507,7 +509,7 @@ public final class ExtractionUtils {
 	/**
 	 * Result of the extraction in {@link #extractAssigningConstructor(Class, List)}.
 	 */
-	public static class AssigningConstructor {
+	static class AssigningConstructor {
 		public final Constructor<?> constructor;
 		public final List<String> parameterNames;
 
@@ -521,7 +523,7 @@ public final class ExtractionUtils {
 	 * Checks whether the given constructor takes all of the given fields with matching (possibly
 	 * primitive) type and name. An assigning constructor can define the order of fields.
 	 */
-	public static @Nullable AssigningConstructor extractAssigningConstructor(
+	static @Nullable AssigningConstructor extractAssigningConstructor(
 			Class<?> clazz,
 			List<Field> fields) {
 		AssigningConstructor foundConstructor = null;
@@ -547,7 +549,7 @@ public final class ExtractionUtils {
 	/**
 	 * Extracts the parameter names of a method if possible.
 	 */
-	public static @Nullable List<String> extractMethodParameterNames(Method method) {
+	static @Nullable List<String> extractMethodParameterNames(Method method) {
 		return extractExecutableNames(method);
 	}
 
@@ -657,17 +659,17 @@ public final class ExtractionUtils {
 
 		private final List<String> parameterNames = new ArrayList<>();
 
-		public ParameterExtractor(Constructor<?> constructor) {
+		ParameterExtractor(Constructor<?> constructor) {
 			super(OPCODE);
 			methodDescriptor = getConstructorDescriptor(constructor);
 		}
 
-		public ParameterExtractor(Method method) {
+		ParameterExtractor(Method method) {
 			super(OPCODE);
 			methodDescriptor = getMethodDescriptor(method);
 		}
 
-		public List<String> getParameterNames() {
+		List<String> getParameterNames() {
 			return parameterNames;
 		}
 
@@ -870,6 +872,8 @@ public final class ExtractionUtils {
 	public static Class<?> wrapperToPrimitive(final Class<?> cls) {
 		return wrapperPrimitiveMap.get(cls);
 	}
+
+	// --------------------------------------------------------------------------------------------
 
 	private ExtractionUtils() {
 		// no instantiation

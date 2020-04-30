@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.extraction.utils;
+package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.FunctionHint;
@@ -32,9 +32,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectAnnotationsOfClass;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectAnnotationsOfMethod;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.collectAnnotationsOfClass;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.collectAnnotationsOfMethod;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
 
 /**
  * Utilities for extracting and dealing with templates.

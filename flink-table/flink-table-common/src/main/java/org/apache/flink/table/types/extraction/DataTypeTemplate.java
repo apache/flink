@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.extraction.utils;
+package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -26,7 +26,6 @@ import org.apache.flink.table.annotation.HintFlag;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.extraction.DataTypeExtractor;
 
 import javax.annotation.Nullable;
 
@@ -34,7 +33,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Function;
 
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.createRawType;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.createRawType;
 
 /**
  * Internal representation of a {@link DataTypeHint}.
@@ -43,33 +42,33 @@ import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.crea
  * members are {@code null}.
  */
 @Internal
-public final class DataTypeTemplate {
+final class DataTypeTemplate {
 
 	private static final DataTypeHint DEFAULT_ANNOTATION = getDefaultAnnotation();
 
 	private static final String RAW_TYPE_NAME = "RAW";
 
-	public final @Nullable DataType dataType;
+	final @Nullable DataType dataType;
 
-	public final @Nullable Class<? extends TypeSerializer<?>> rawSerializer;
+	final @Nullable Class<? extends TypeSerializer<?>> rawSerializer;
 
-	public final @Nullable InputGroup inputGroup;
+	final @Nullable InputGroup inputGroup;
 
-	public final @Nullable ExtractionVersion version;
+	final @Nullable ExtractionVersion version;
 
-	public final @Nullable Boolean allowRawGlobally;
+	final @Nullable Boolean allowRawGlobally;
 
-	public final @Nullable String[] allowRawPattern;
+	final @Nullable String[] allowRawPattern;
 
-	public final @Nullable String[] forceRawPattern;
+	final @Nullable String[] forceRawPattern;
 
-	public final @Nullable Integer defaultDecimalPrecision;
+	final @Nullable Integer defaultDecimalPrecision;
 
-	public final @Nullable Integer defaultDecimalScale;
+	final @Nullable Integer defaultDecimalScale;
 
-	public final @Nullable Integer defaultYearPrecision;
+	final @Nullable Integer defaultYearPrecision;
 
-	public final @Nullable Integer defaultSecondPrecision;
+	final @Nullable Integer defaultSecondPrecision;
 
 	private DataTypeTemplate(
 			@Nullable DataType dataType,
@@ -100,7 +99,7 @@ public final class DataTypeTemplate {
 	 * Creates an instance from the given {@link DataTypeHint}. Resolves an explicitly defined data type
 	 * if {@link DataTypeHint#value()} and/or {@link DataTypeHint#bridgedTo()} are defined.
 	 */
-	public static DataTypeTemplate fromAnnotation(DataTypeFactory typeFactory, DataTypeHint hint) {
+	static DataTypeTemplate fromAnnotation(DataTypeFactory typeFactory, DataTypeHint hint) {
 		final String typeName = defaultAsNull(hint, DataTypeHint::value);
 		final Class<?> conversionClass = defaultAsNull(hint, DataTypeHint::bridgedTo);
 		if (typeName != null || conversionClass != null) {
@@ -115,7 +114,7 @@ public final class DataTypeTemplate {
 	/**
 	 * Creates an instance from the given {@link DataTypeHint} with a resolved data type if available.
 	 */
-	public static DataTypeTemplate fromAnnotation(DataTypeHint hint, @Nullable DataType dataType) {
+	static DataTypeTemplate fromAnnotation(DataTypeHint hint, @Nullable DataType dataType) {
 		return new DataTypeTemplate(
 			dataType,
 			defaultAsNull(hint, DataTypeHint::rawSerializer),
@@ -134,7 +133,7 @@ public final class DataTypeTemplate {
 	/**
 	 * Creates an instance with no parameter content.
 	 */
-	public static DataTypeTemplate fromDefaults() {
+	static DataTypeTemplate fromDefaults() {
 		return new DataTypeTemplate(
 			null,
 			null,
@@ -153,7 +152,7 @@ public final class DataTypeTemplate {
 	/**
 	 * Copies this template but removes the explicit data type (if available).
 	 */
-	public DataTypeTemplate copyWithoutDataType() {
+	DataTypeTemplate copyWithoutDataType() {
 		return new DataTypeTemplate(
 			null,
 			rawSerializer,
@@ -173,7 +172,7 @@ public final class DataTypeTemplate {
 	 * Merges this template with an inner annotation. The inner annotation has highest precedence
 	 * and definitely determines the explicit data type (if available).
 	 */
-	public DataTypeTemplate mergeWithInnerAnnotation(DataTypeFactory typeFactory, DataTypeHint hint) {
+	DataTypeTemplate mergeWithInnerAnnotation(DataTypeFactory typeFactory, DataTypeHint hint) {
 		final DataTypeTemplate otherTemplate = fromAnnotation(typeFactory, hint);
 		return new DataTypeTemplate(
 			otherTemplate.dataType,
@@ -193,14 +192,14 @@ public final class DataTypeTemplate {
 	/**
 	 * Returns whether RAW types are allowed everywhere.
 	 */
-	public boolean isAllowRawGlobally() {
+	boolean isAllowRawGlobally() {
 		return allowRawGlobally != null && allowRawGlobally;
 	}
 
 	/**
 	 * Returns whether the given class is eligible for being treated as RAW type.
 	 */
-	public boolean isAllowAnyPattern(@Nullable Class<?> clazz) {
+	boolean isAllowAnyPattern(@Nullable Class<?> clazz) {
 		if (allowRawPattern == null || clazz == null) {
 			return false;
 		}
@@ -216,7 +215,7 @@ public final class DataTypeTemplate {
 	/**
 	 * Returns whether the given class must be treated as RAW type.
 	 */
-	public boolean isForceAnyPattern(@Nullable Class<?> clazz) {
+	boolean isForceAnyPattern(@Nullable Class<?> clazz) {
 		if (forceRawPattern == null || clazz == null) {
 			return false;
 		}
