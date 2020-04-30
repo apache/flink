@@ -68,6 +68,6 @@ interface TableEnvironmentInternal extends TableEnvironment {
 	 *   e.g. estimated cost, changelog mode for streaming
 	 * @return AST and the execution plan.
 	 */
-	String explain(List<Operation> operations, ExplainDetail... extraDetails);
+	String explainInternal(List<Operation> operations, ExplainDetail... extraDetails);
 
 }

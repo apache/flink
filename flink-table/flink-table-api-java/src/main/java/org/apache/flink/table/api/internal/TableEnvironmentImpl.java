@@ -614,7 +614,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	@Override
-	public String explain(List<Operation> operations, ExplainDetail... extraDetails) {
+	public String explainInternal(List<Operation> operations, ExplainDetail... extraDetails) {
 		return planner.explain(operations, extraDetails);
 	}
 
@@ -1002,7 +1002,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	protected ExplainDetail[] getExplainDetails(boolean extended) {
 		if (extended) {
 			if (isStreamingMode) {
-				return new ExplainDetail[] { ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_TRAITS };
+				return new ExplainDetail[] { ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE };
 			} else {
 				return new ExplainDetail[] { ExplainDetail.ESTIMATED_COST };
 			}

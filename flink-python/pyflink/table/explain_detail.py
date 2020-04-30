@@ -29,6 +29,6 @@ class ExplainDetail(object):
     # 0.0 memory}
     ESTIMATED_COST = 0
 
-    # The changelog traits produced by a physical rel node.
+    # The changelog mode produced by a physical rel node.
     # e.g. GroupAggregate(..., changelogMode=[I,UA,D])
-    CHANGELOG_TRAITS = 1
+    CHANGELOG_MODE = 1

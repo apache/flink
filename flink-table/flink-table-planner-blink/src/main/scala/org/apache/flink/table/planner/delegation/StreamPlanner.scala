@@ -114,7 +114,7 @@ class StreamPlanner(
     } else {
       SqlExplainLevel.DIGEST_ATTRIBUTES
     }
-    val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_TRAITS)
+    val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
     sb.append(ExecNodePlanDumper.dagToString(
       execNodes,
       explainLevel,

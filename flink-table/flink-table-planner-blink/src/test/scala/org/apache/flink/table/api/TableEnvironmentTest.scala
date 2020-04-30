@@ -911,7 +911,7 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
 
     val actual = tableEnv.explainSql(
-      "select * from MyTable where a > 10", ExplainDetail.CHANGELOG_TRAITS)
+      "select * from MyTable where a > 10", ExplainDetail.CHANGELOG_MODE)
     val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithSelect.out")
     assertEquals(replaceStageId(expected), replaceStageId(actual))
   }
@@ -968,7 +968,7 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
 
     val actual = tableEnv.sqlQuery("select * from MyTable where a > 10")
-      .explain(ExplainDetail.CHANGELOG_TRAITS)
+      .explain(ExplainDetail.CHANGELOG_MODE)
     val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithSelect.out")
     assertEquals(replaceStageId(expected), replaceStageId(actual))
   }

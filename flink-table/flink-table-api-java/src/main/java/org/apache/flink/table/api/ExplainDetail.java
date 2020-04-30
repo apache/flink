@@ -29,8 +29,8 @@ public enum ExplainDetail {
 	ESTIMATED_COST,
 
 	/**
-	 * The changelog traits produced by a physical rel node.
+	 * The changelog mode produced by a physical rel node.
 	 * e.g. GroupAggregate(..., changelogMode=[I,UA,D])
 	 */
-	CHANGELOG_TRAITS
+	CHANGELOG_MODE
 }

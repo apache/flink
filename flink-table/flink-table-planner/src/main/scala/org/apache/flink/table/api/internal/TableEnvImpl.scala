@@ -762,7 +762,7 @@ abstract class TableEnvImpl(
       case _: ShowViewsOperation =>
         buildShowResult(listViews())
       case explainOperation: ExplainOperation =>
-        val explanation = explain(JCollections.singletonList(explainOperation.getChild))
+        val explanation = explainInternal(JCollections.singletonList(explainOperation.getChild))
         TableResultImpl.builder.
           resultKind(ResultKind.SUCCESS_WITH_CONTENT)
           .tableSchema(TableSchema.builder.field("result", DataTypes.STRING).build)
@@ -1142,10 +1142,10 @@ abstract class TableEnvImpl(
         "Unsupported SQL query! explainSql() only accepts a single SQL query.")
     }
 
-    explain(operations, extraDetails: _*)
+    explainInternal(operations, extraDetails: _*)
   }
 
-  protected def explain(operations: JList[Operation], extraDetails: ExplainDetail*): String
+  protected def explainInternal(operations: JList[Operation], extraDetails: ExplainDetail*): String
 
   override def fromValues(values: Expression*): Table = {
     createTable(operationTreeBuilder.values(values: _*))

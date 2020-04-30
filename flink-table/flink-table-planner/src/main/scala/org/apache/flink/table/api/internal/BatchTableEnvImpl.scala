@@ -217,7 +217,7 @@ abstract class BatchTableEnvImpl(
     * @param extended Flag to include detailed optimizer estimates.
     */
   private[flink] def explain(table: Table, extended: Boolean): String = {
-    explain(
+    explainInternal(
       JCollections.singletonList(table.getQueryOperation.asInstanceOf[Operation]),
       getExplainDetails(extended): _*)
   }
@@ -225,12 +225,14 @@ abstract class BatchTableEnvImpl(
   override def explain(table: Table): String = explain(table: Table, extended = false)
 
   override def explain(extended: Boolean): String = {
-    explain(
+    explainInternal(
       bufferedModifyOperations.asScala.map(_.asInstanceOf[Operation]).asJava,
       getExplainDetails(extended): _*)
   }
 
-  protected def explain(operations: JList[Operation], extraDetails: ExplainDetail*): String = {
+  protected override def explainInternal(
+      operations: JList[Operation],
+      extraDetails: ExplainDetail*): String = {
     require(operations.asScala.nonEmpty, "operations should not be empty")
     val astList = operations.asScala.map {
       case queryOperation: QueryOperation =>
