@@ -24,8 +24,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
-import org.apache.flink.table.types.extraction.utils.DataTypeTemplate;
-import org.apache.flink.table.types.extraction.utils.ExtractionUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
@@ -50,16 +48,16 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectStructuredFields;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.collectTypeHierarchy;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.createRawType;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractAssigningConstructor;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.isStructuredFieldMutable;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.resolveVariable;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.toClass;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.validateStructuredClass;
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.validateStructuredFieldReadability;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.collectStructuredFields;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.collectTypeHierarchy;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.createRawType;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.extractAssigningConstructor;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.isStructuredFieldMutable;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.resolveVariable;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.toClass;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredClass;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredFieldReadability;
 
 /**
  * Reflection-based utility that analyzes a given {@link java.lang.reflect.Type}, method, or class to
