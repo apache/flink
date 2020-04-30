@@ -73,7 +73,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class JsonRowDataDeserializationSchema implements DeserializationSchema<RowData> {
-	private static final long serialVersionUID = 8576854315236033439L;
+	private static final long serialVersionUID = 1L;
 
 	/** Flag indicating whether to fail if a field is missing. */
 	private final boolean failOnMissingField;
