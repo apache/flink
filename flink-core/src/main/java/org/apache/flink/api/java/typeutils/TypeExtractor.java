@@ -831,7 +831,7 @@ public class TypeExtractor {
 		}
 
 		final Type baseClassType =
-			resolveTypeFromTypeHierachy(typeHierarchy.get(typeHierarchy.size() - 1), typeHierarchy, false);
+			resolveTypeFromTypeHierarchy(typeHierarchy.get(typeHierarchy.size() - 1), typeHierarchy, false);
 
 		final Type returnType = ((ParameterizedType) baseClassType).getActualTypeArguments()[returnParamPos];
 
@@ -900,7 +900,7 @@ public class TypeExtractor {
 
 			typeHierarchy.add(curT);
 
-			curT = resolveTypeFromTypeHierachy(curT, typeHierarchy, true);
+			curT = resolveTypeFromTypeHierarchy(curT, typeHierarchy, true);
 
 			// create the type information for the subtypes
 			final TypeInformation<?>[] subTypesInfo =
@@ -1057,7 +1057,7 @@ public class TypeExtractor {
 			return null;
 		}
 		final Type factoryDefiningType =
-			resolveTypeFromTypeHierachy(
+			resolveTypeFromTypeHierarchy(
 				factoryHierarchy.get(factoryHierarchy.size() - 1),
 				factoryHierarchy,
 				true);
@@ -1741,7 +1741,7 @@ public class TypeExtractor {
 			try {
 				List<Type> fieldTypeHierarchy = new ArrayList<>(typeHierarchy);
 				fieldTypeHierarchy.add(fieldType);
-				Type resolveFeildType = resolveTypeFromTypeHierachy(fieldType, fieldTypeHierarchy, true);
+				Type resolveFeildType = resolveTypeFromTypeHierarchy(fieldType, fieldTypeHierarchy, true);
 
 				TypeInformation<?> ti = createTypeInfo(resolveFeildType, typeVariableBindings, extractingClasses);
 				pojoFields.add(new PojoField(field, ti));
@@ -2063,7 +2063,7 @@ public class TypeExtractor {
 	 *                               {@code testParameterizedArrays()})
 	 * @return resolved type
 	 */
-	private static Type resolveTypeFromTypeHierachy(
+	private static Type resolveTypeFromTypeHierarchy(
 		final Type type,
 		final List<Type> typeHierarchy,
 		final boolean resolveGenericArray) {
@@ -2099,7 +2099,7 @@ public class TypeExtractor {
 
 		int i = 0;
 		for (Type type : parameterizedType.getActualTypeArguments()) {
-			actualTypeArguments[i] = resolveTypeFromTypeHierachy(type, typeHierarchy, resolveGenericArray);
+			actualTypeArguments[i] = resolveTypeFromTypeHierarchy(type, typeHierarchy, resolveGenericArray);
 			i++;
 		}
 
@@ -2118,7 +2118,7 @@ public class TypeExtractor {
 	private static Type resolveGenericArrayType(final GenericArrayType genericArrayType, final List<Type> typeHierarchy) {
 
 		final Type resolvedComponentType =
-			resolveTypeFromTypeHierachy(genericArrayType.getGenericComponentType(), typeHierarchy, true);
+			resolveTypeFromTypeHierarchy(genericArrayType.getGenericComponentType(), typeHierarchy, true);
 
 		return new ResolvedGenericArrayType(genericArrayType.getTypeName(), resolvedComponentType);
 	}
@@ -2217,13 +2217,13 @@ public class TypeExtractor {
 
 		if (in1TypeInfo != null) {
 			final Type in1Type = baseClass.getActualTypeArguments()[in1Pos];
-			final Type resolvedIn1Type = resolveTypeFromTypeHierachy(in1Type, functionTypeHierarchy, false);
+			final Type resolvedIn1Type = resolveTypeFromTypeHierarchy(in1Type, functionTypeHierarchy, false);
 			typeVariableBindings = bindTypeVariablesWithTypeInformationFromInput(resolvedIn1Type, in1TypeInfo);
 		}
 
 		if (in2TypeInfo != null) {
 			final Type in2Type = baseClass.getActualTypeArguments()[in2Pos];
-			final Type resolvedIn2Type = resolveTypeFromTypeHierachy(in2Type, functionTypeHierarchy, false);
+			final Type resolvedIn2Type = resolveTypeFromTypeHierarchy(in2Type, functionTypeHierarchy, false);
 			if (!typeVariableBindings.equals(Collections.emptyMap())) {
 				typeVariableBindings.putAll(bindTypeVariablesWithTypeInformationFromInput(resolvedIn2Type, in2TypeInfo));
 			}
@@ -2246,7 +2246,7 @@ public class TypeExtractor {
 
 		if (factory != null) {
 			final Type factoryDefiningType =
-				resolveTypeFromTypeHierachy(
+				resolveTypeFromTypeHierarchy(
 					factoryHierarchy.get(factoryHierarchy.size() - 1),
 					factoryHierarchy,
 					true);
@@ -2264,7 +2264,7 @@ public class TypeExtractor {
 			if (curType != inType) {
 				typeHierarchy.add(curType);
 			}
-			final Type tupleBaseClass = resolveTypeFromTypeHierachy(curType, typeHierarchy, true);
+			final Type tupleBaseClass = resolveTypeFromTypeHierarchy(curType, typeHierarchy, true);
 			return bindTypeVariableFromGenericParameters(tupleBaseClass, inTypeInfo);
 		} else if (inTypeInfo instanceof PojoTypeInfo && isClassType(inType)) {
 			return bindTypeVariableFromFields(inType, inTypeInfo);
@@ -2350,7 +2350,7 @@ public class TypeExtractor {
 		List<Field> fields = getAllDeclaredFields(typeToClass(type), false);
 		for (Field field : fields) {
 			final Type fieldType = field.getGenericType();
-			final Type resolvedFieldType =  resolveTypeFromTypeHierachy(fieldType, pojoHierarchy, true);
+			final Type resolvedFieldType =  resolveTypeFromTypeHierarchy(fieldType, pojoHierarchy, true);
 			final Map<TypeVariable<?>, TypeInformation<?>> sub =
 				bindTypeVariablesWithTypeInformationFromInput(resolvedFieldType, getTypeOfPojoField(typeInformation, field));
 			typeVariableBindings.putAll(sub);
