@@ -55,14 +55,14 @@ public interface JobTable extends AutoCloseable {
 	 * Gets a registered {@link Job} or creates one if not present.
 	 *
 	 * @param jobId jobId identifies the job to get
-	 * @param jobServicesFactory jobServicesFactory creates a fresh
-	 * {@link LibraryCacheManager} instance if a new job needs to be created
+	 * @param jobServicesFactory jobServicesFactory registers a
+	 * {@link LibraryCacheManager.ClassLoaderLease} if a new job needs to be created
 	 * @return the current job (existing or created) registered under jobId
 	 * @throws E if the job services could not be created
 	 */
 	<E extends Exception> Job getOrCreateJob(
 		JobID jobId,
-		FunctionWithException<JobID, ? extends LibraryCacheManager, E> jobServicesFactory) throws E;
+		FunctionWithException<JobID, ? extends LibraryCacheManager.ClassLoaderLease, E> jobServicesFactory) throws E;
 
 	/**
 	 * Gets the job registered under jobId.
@@ -128,13 +128,6 @@ public interface JobTable extends AutoCloseable {
 		 * @return job id which is associated with this job
 		 */
 		JobID getJobId();
-
-		/**
-		 * Gets the {@link LibraryCacheManager} associated with this job.
-		 *
-		 * @return {@link LibraryCacheManager} associated with this job
-		 */
-		LibraryCacheManager getLibraryCacheManager();
 
 		/**
 		 * Returns the associated {@link Connection} if the job is connected to a JobManager.

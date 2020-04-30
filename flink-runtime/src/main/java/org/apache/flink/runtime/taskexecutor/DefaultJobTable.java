@@ -51,7 +51,7 @@ public final class DefaultJobTable implements JobTable {
 	}
 
 	@Override
-	public <E extends Exception> Job getOrCreateJob(JobID jobId, FunctionWithException<JobID, ? extends LibraryCacheManager, E> jobServicesFactory) throws E {
+	public <E extends Exception> Job getOrCreateJob(JobID jobId, FunctionWithException<JobID, ? extends LibraryCacheManager.ClassLoaderLease, E> jobServicesFactory) throws E {
 		JobOrConnection job = jobs.get(jobId);
 
 		if (job == null) {
@@ -108,8 +108,6 @@ public final class DefaultJobTable implements JobTable {
 
 		private final JobID jobId;
 
-		private final LibraryCacheManager libraryCacheManager;
-
 		private final LibraryCacheManager.ClassLoaderLease classLoaderLease;
 
 		@Nullable
@@ -117,10 +115,9 @@ public final class DefaultJobTable implements JobTable {
 
 		private boolean isClosed;
 
-		private JobOrConnection(JobID jobId, LibraryCacheManager libraryCacheManager) {
+		private JobOrConnection(JobID jobId, LibraryCacheManager.ClassLoaderLease classLoaderLease) {
 			this.jobId = jobId;
-			this.libraryCacheManager = libraryCacheManager;
-			this.classLoaderLease = libraryCacheManager.registerClassLoaderLease(jobId);
+			this.classLoaderLease = classLoaderLease;
 			this.connection = null;
 			this.isClosed = false;
 		}
@@ -186,12 +183,6 @@ public final class DefaultJobTable implements JobTable {
 		}
 
 		@Override
-		public LibraryCacheManager getLibraryCacheManager() {
-			verifyJobIsNotClosed();
-			return libraryCacheManager;
-		}
-
-		@Override
 		public ResourceID getResourceId() {
 			return verifyContainsEstablishedConnection().getResourceID();
 		}
@@ -238,7 +229,7 @@ public final class DefaultJobTable implements JobTable {
 					disconnect();
 				}
 
-				libraryCacheManager.shutdown();
+				classLoaderLease.close();
 				jobs.remove(jobId);
 
 				isClosed = true;

@@ -359,6 +359,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,
+			blobCacheService.getPermanentBlobService(),
 			taskManagerMetricGroup.f1,
 			rpcService.getExecutor()); // TODO replace this later with some dedicated executor for io.
 

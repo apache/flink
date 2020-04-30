@@ -21,9 +21,8 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.TestingLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
@@ -48,7 +47,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class DefaultJobTableTest extends TestLogger {
 
-	private static final FunctionWithException<JobID, LibraryCacheManager, RuntimeException> DEFAULT_LIBRARY_SUPPLIER = ignored -> ContextClassLoaderLibraryCacheManager.INSTANCE;
+	private static final FunctionWithException<JobID, LibraryCacheManager.ClassLoaderLease, RuntimeException> DEFAULT_LIBRARY_SUPPLIER = ignored -> TestingClassLoaderLease.newBuilder().build();
 
 	private final JobID jobId = new JobID();
 
@@ -83,12 +82,12 @@ public class DefaultJobTableTest extends TestLogger {
 	}
 
 	@Test
-	public void closeJob_WillShutDownLibraryCacheManager() throws InterruptedException {
+	public void closeJob_WillCloseClassLoaderLease() throws InterruptedException {
 		final OneShotLatch shutdownLibraryCacheManagerLatch = new OneShotLatch();
-		final TestingLibraryCacheManager testingLibraryCacheManager = TestingLibraryCacheManager.newBuilder()
-			.setShutdownRunnable(shutdownLibraryCacheManagerLatch::trigger)
+		final TestingClassLoaderLease classLoaderLease = TestingClassLoaderLease.newBuilder()
+			.setCloseRunnable(shutdownLibraryCacheManagerLatch::trigger)
 			.build();
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, ignored -> testingLibraryCacheManager);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, ignored -> classLoaderLease);
 
 		job.close();
 
@@ -150,12 +149,12 @@ public class DefaultJobTableTest extends TestLogger {
 	}
 
 	@Test(expected = IllegalStateException.class)
-	public void accessLibraryCachemanager_AfterBeingClosed_WillFail() {
+	public void access_AfterBeingClosed_WillFail() {
 		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_LIBRARY_SUPPLIER);
 
 		job.close();
 
-		job.getLibraryCacheManager();
+		job.asConnection();
 	}
 
 	@Test(expected = IllegalStateException.class)
@@ -181,11 +180,11 @@ public class DefaultJobTableTest extends TestLogger {
 	@Test
 	public void close_WillCloseAllRegisteredJobs() throws InterruptedException {
 		final CountDownLatch shutdownLibraryCacheManagerLatch = new CountDownLatch(2);
-		final TestingLibraryCacheManager classLoaderLease1 = TestingLibraryCacheManager.newBuilder()
-			.setShutdownRunnable(shutdownLibraryCacheManagerLatch::countDown)
+		final TestingClassLoaderLease classLoaderLease1 = TestingClassLoaderLease.newBuilder()
+			.setCloseRunnable(shutdownLibraryCacheManagerLatch::countDown)
 			.build();
-		final TestingLibraryCacheManager classLoaderLease2 = TestingLibraryCacheManager.newBuilder()
-			.setShutdownRunnable(shutdownLibraryCacheManagerLatch::countDown)
+		final TestingClassLoaderLease classLoaderLease2 = TestingClassLoaderLease.newBuilder()
+			.setCloseRunnable(shutdownLibraryCacheManagerLatch::countDown)
 			.build();
 
 		jobTable.getOrCreateJob(jobId, ignored -> classLoaderLease1);
