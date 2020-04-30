@@ -1800,7 +1800,7 @@ def _from_java_type(j_data_type):
             if type_info == BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO:
                 data_type = DataTypes.ARRAY(DataTypes.STRING())
             elif type_info == BasicTypeInfo.BIG_DEC_TYPE_INFO:
-                data_type = DataTypes.DECIMAL(10, 0)
+                data_type = DataTypes.DECIMAL(38, 18)
             elif type_info.getClass() == \
                 get_java_class(gateway.jvm.org.apache.flink.table.runtime.typeutils
                                .BigDecimalTypeInfo):
@@ -2269,6 +2269,76 @@ def _create_type_verifier(data_type, name=None):
             verify_value(obj)
 
     return verify
+
+
+def create_arrow_schema(field_names, field_types):
+    """
+    Create an Arrow schema with the specified filed names and types.
+    """
+    import pyarrow as pa
+    fields = [pa.field(field_name, to_arrow_type(field_type), field_type._nullable)
+              for field_name, field_type in zip(field_names, field_types)]
+    return pa.schema(fields)
+
+
+def from_arrow_type(arrow_type, nullable=True):
+    """
+    Convert Arrow type to Flink data type.
+    """
+    from pyarrow import types
+    if types.is_boolean(arrow_type):
+        return BooleanType(nullable)
+    elif types.is_int8(arrow_type):
+        return TinyIntType(nullable)
+    elif types.is_int16(arrow_type):
+        return SmallIntType(nullable)
+    elif types.is_int32(arrow_type):
+        return IntType(nullable)
+    elif types.is_int64(arrow_type):
+        return BigIntType(nullable)
+    elif types.is_float32(arrow_type):
+        return FloatType(nullable)
+    elif types.is_float64(arrow_type):
+        return DoubleType(nullable)
+    elif types.is_decimal(arrow_type):
+        return DecimalType(arrow_type.precision, arrow_type.scale, nullable)
+    elif types.is_string(arrow_type):
+        return VarCharType(0x7fffffff, nullable)
+    elif types.is_fixed_size_binary(arrow_type):
+        return BinaryType(arrow_type.byte_width, nullable)
+    elif types.is_binary(arrow_type):
+        return VarBinaryType(0x7fffffff, nullable)
+    elif types.is_date32(arrow_type):
+        return DateType(nullable)
+    elif types.is_time32(arrow_type):
+        if str(arrow_type) == 'time32[s]':
+            return TimeType(0, nullable)
+        else:
+            return TimeType(3, nullable)
+    elif types.is_time64(arrow_type):
+        if str(arrow_type) == 'time64[us]':
+            return TimeType(6, nullable)
+        else:
+            return TimeType(9, nullable)
+    elif types.is_timestamp(arrow_type):
+        if arrow_type.unit == 's':
+            return TimestampType(0, nullable)
+        elif arrow_type.unit == 'ms':
+            return TimestampType(3, nullable)
+        elif arrow_type.unit == 'us':
+            return TimestampType(6, nullable)
+        else:
+            return TimestampType(9, nullable)
+    elif types.is_list(arrow_type):
+        return ArrayType(from_arrow_type(arrow_type.value_type), nullable)
+    elif types.is_struct(arrow_type):
+        if any(types.is_struct(field.type) for field in arrow_type):
+            raise TypeError("Nested RowType is not supported in conversion from Arrow: " +
+                            str(arrow_type))
+        return RowType([RowField(field.name, from_arrow_type(field.type, field.nullable))
+                        for field in arrow_type])
+    else:
+        raise TypeError("Unsupported data type to convert to Arrow type: " + str(dt))
 
 
 def to_arrow_type(data_type):
