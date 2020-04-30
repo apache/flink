@@ -35,7 +35,7 @@ if [[ $1 =~ ^1.10 ]]; then
     conda install -y -c conda-forge apache-beam=2.15.0
     if [[ $1 = "1.10.0" ]]; then
         pip install protobuf==3.10.0
-   	fi
+    fi
 elif [[ $1 = "" ]]; then
     # install the latest version of pyflink
     pip install apache-flink
