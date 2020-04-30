@@ -22,11 +22,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-注意：目前 blink 计划器还不能很好的支持 Scala Shell，因此 **不** 建议在 Scala Shell 中使用 Hive 连接器。
+注意：目前 blink planner 还不能很好的支持 Scala Shell，因此 **不** 建议在 Scala Shell 中使用 Hive 连接器。
 
 [Flink Scala Shell]({{ site.baseurl }}/zh/ops/scala_shell.html) 是快速上手 Flink 的好方法。
-你需要在 pom 中引进 Hive 的依赖，打包并通过 Flink run 来提交 Hive 作业，而在 Scala Shell 中使用 Hive 连接器可以代替这种提交方式。
-想要在 Scala Shell 中使用 Hive 连接器，你需要把 [Hive 连接器依赖项]({{ site.baseurl }}/zh/dev/table/hive/#depedencies) 放在 Flink 源码的 lib 文件夹下
+你可以在 Scala Shell 中直接使用 Hive 连接器，而不需要在 pom 中引入 Hive 相关依赖，并打包提交作业。
+想要在 Scala Shell 中使用 Hive 连接器，你需要把 [Hive 连接器依赖项]({{ site.baseurl }}/zh/dev/table/hive/#depedencies) 放在 Flink dist 包中的 lib 文件夹下。
 
 * flink-connector-hive_{scala_version}-{flink.version}.jar
 * flink-hadoop-compatibility_{scala_version}-{flink.version}.jar
