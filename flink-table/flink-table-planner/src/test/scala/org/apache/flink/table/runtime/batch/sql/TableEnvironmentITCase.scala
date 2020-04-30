@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem
@@ -28,7 +29,7 @@ import org.apache.flink.table.api.{ResultKind, TableEnvironment, TableEnvironmen
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.sinks.CsvTableSink
-import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
+import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TestingOverwritableTableSink}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
@@ -293,6 +294,41 @@ class TableEnvironmentITCase(
       .get()
     val expected1 = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
+  }
+
+  @Test
+  def testExecuteSqlWithInsertOverwrite(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("sourceTable", t)
+
+    val resultFile = _tempFolder.newFile()
+    val sinkPath = resultFile.getAbsolutePath
+    val configuredSink = new TestingOverwritableTableSink(sinkPath)
+      .configure(Array("d"),  Array(STRING))
+    tEnv.registerTableSink("MySink", configuredSink)
+
+    val tableResult1 = tEnv.executeSql("INSERT overwrite MySink SELECT c FROM sourceTable")
+    checkInsertTableResult(tableResult1)
+    // wait job finished
+    tableResult1.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    val expected1 = List("Hi", "Hello", "Hello world")
+    val actual1 = FileUtils.readFileUtf8(resultFile).split("\n").toList
+    assertEquals(expected1.sorted, actual1.sorted)
+
+    val tableResult2 = tEnv.executeSql("INSERT overwrite MySink SELECT c FROM sourceTable")
+    checkInsertTableResult(tableResult2)
+    // wait job finished
+    tableResult2.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    val expected2 = List("Hi", "Hello", "Hello world")
+    val actual2 = FileUtils.readFileUtf8(resultFile).split("\n").toList
+    assertEquals(expected2.sorted, actual2.sorted)
   }
 
   @Test

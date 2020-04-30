@@ -47,10 +47,10 @@ public interface TableEnvironmentInternal extends TableEnvironment {
 	CatalogManager getCatalogManager();
 
 	/**
-	 * Execute the given operations and return the execution result.
+	 * Execute the given modify operations and return the execution result.
 	 *
 	 * @param operations The operations to be executed.
 	 * @return the affected row counts (-1 means unknown).
 	 */
-	TableResult executeOperations(List<ModifyOperation> operations);
+	TableResult executeInternal(List<ModifyOperation> operations);
 }

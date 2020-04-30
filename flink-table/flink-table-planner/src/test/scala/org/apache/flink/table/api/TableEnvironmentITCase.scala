@@ -31,6 +31,7 @@ import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTa
 import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
+import org.apache.flink.table.utils.TestingOverwritableTableSink
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
 
@@ -258,6 +259,32 @@ class TableEnvironmentITCase(tableEnvName: String) {
     checkInsertTableResult(tableResult)
     // wait job finished
     tableResult.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    assertFirstValues(sinkPath)
+  }
+
+  @Test
+  def testExecuteSqlWithInsertOverwrite(): Unit = {
+    val resultFile = _tempFolder.newFile()
+    val sinkPath = resultFile.getAbsolutePath
+    val configuredSink = new TestingOverwritableTableSink(sinkPath)
+      .configure(Array("first"), Array(STRING))
+    tEnv.registerTableSink("MySink", configuredSink)
+
+    checkEmptyFile(sinkPath)
+    val tableResult1 = tEnv.executeSql("insert overwrite MySink select first from MyTable")
+    checkInsertTableResult(tableResult1)
+    // wait job finished
+    tableResult1.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    assertFirstValues(sinkPath)
+
+    val tableResult2 = tEnv.executeSql("insert overwrite MySink select first from MyTable")
+    checkInsertTableResult(tableResult2)
+    // wait job finished
+    tableResult2.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
       .get()
     assertFirstValues(sinkPath)

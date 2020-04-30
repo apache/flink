@@ -37,7 +37,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assert, Before, Test}
 
-import _root_.java.io.File
+import _root_.java.io.{File, FileFilter}
 import _root_.java.lang.{Long => JLong}
 import _root_.java.util
 
@@ -271,6 +271,38 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
   }
 
   @Test
+  def testExecuteSqlWithInsertOverwrite(): Unit = {
+    val sinkPath = _tempFolder.newFolder().toString
+    tEnv.sqlUpdate(
+      s"""
+         |create table MySink (
+         |  first string
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$sinkPath',
+         |  'format' = 'testcsv'
+         |)
+       """.stripMargin
+    )
+
+    val tableResult1 = tEnv.executeSql("insert overwrite MySink select first from MyTable")
+    checkInsertTableResult(tableResult1)
+    // wait job finished
+    tableResult1.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    assertFirstValues(sinkPath)
+
+    val tableResult2 =  tEnv.executeSql("insert overwrite MySink select first from MyTable")
+    checkInsertTableResult(tableResult2)
+    // wait job finished
+    tableResult2.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    assertFirstValues(sinkPath)
+  }
+
+  @Test
   def testExecuteSqlAndSqlUpdate(): Unit = {
     val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
@@ -387,12 +419,12 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   private def assertFirstValues(csvFilePath: String): Unit = {
     val expected = List("Mike", "Bob", "Sam", "Peter", "Liz", "Sally", "Alice", "Kelly")
-    val actual = FileUtils.readFileUtf8(new File(csvFilePath)).split("\n").toList
+    val actual = readFile(csvFilePath)
     assertEquals(expected.sorted, actual.sorted)
   }
 
   private def assertLastValues(csvFilePath: String): Unit = {
-    val actual = FileUtils.readFileUtf8(new File(csvFilePath)).split("\n").toList
+    val actual = readFile(csvFilePath)
     assertEquals(getExpectedLastValues.sorted, actual.sorted)
   }
 
@@ -422,6 +454,16 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     assertFalse(it.hasNext)
   }
 
+  private def readFile(csvFilePath: String): List[String] = {
+    val file = new File(csvFilePath)
+    if (file.isDirectory) {
+      file.listFiles(new FileFilter() {
+        override def accept(f: File): Boolean = f.isFile
+      }).map(FileUtils.readFileUtf8).flatMap(_.split("\n")).toList
+    } else {
+      FileUtils.readFileUtf8(file).split("\n").toList
+    }
+  }
 }
 
 object TableEnvironmentITCase {

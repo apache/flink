@@ -576,7 +576,7 @@ abstract class TableEnvImpl(
     executeOperation(operations.get(0))
   }
 
-  override def executeOperations(operations: JList[ModifyOperation]): TableResult = {
+  override def executeInternal(operations: JList[ModifyOperation]): TableResult = {
     if (operations.size() != 1) {
       throw new TableException("Only one ModifyOperation is supported now.");
     }

@@ -635,7 +635,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	@Override
-	public TableResult executeOperations(List<ModifyOperation> operations) {
+	public TableResult executeInternal(List<ModifyOperation> operations) {
 		if (operations.size() != 1) {
 			throw new TableException("Only one ModifyOperation is supported now.");
 		}

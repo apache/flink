@@ -561,7 +561,7 @@ public class TableImpl implements Table {
 				overwrite,
 				Collections.emptyMap());
 
-		return tableEnvironment.executeOperations(Collections.singletonList(operation));
+		return tableEnvironment.executeInternal(Collections.singletonList(operation));
 	}
 
 	@Override
