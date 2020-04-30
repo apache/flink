@@ -1,0 +1,35 @@
+{
+  "name": "NestedRecord",
+  "namespace": "org.apache.flink.formats.parquet.generated",
+  "type": "record",
+  "fields": [
+      { "default": null, "name": "foo", "type": [ "null", "long" ]},
+      { "default": null, "name": "spamMap", "type": [ "null", {"type": "map", "values": "string"} ]},
+      { "default": null, "name": "bar", "type": [ "null", {
+        "type": "record",
+        "name": "Bar",
+        "fields": [ { "default": null, "name": "spam", "type": [ "null", "long" ] }]
+        }]
+      },
+      { "default": null, "name": "arr", "type": [ "null", {"type": "array", "items": "long"} ]},
+      { "default": null, "name": "strArray", "type": [ "null", {"type": "array", "items": "string"} ]},
+      { "default": null, "name": "nestedMap", "type": [ "null", {"type": "map", "values": {
+        "type": "record",
+        "name": "MapItem",
+        "fields": [
+         {"name": "type", "type": ["null", "string"]},
+         {"name": "value", "type": ["null", "string"]}]}
+        }]
+      },
+      { "default": null, "name": "nestedArray", "type": [ "null", {"type": "array", "items": {
+        "type": "record",
+        "name": "ArrayItem",
+        "fields": [
+           {"name": "type", "type": "string"},
+           {"name": "value", "type": "long"}]}
+        }]
+      }
+  ],
+  "schema_id": 1,
+  "type": "record"
+}

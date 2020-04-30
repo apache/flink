@@ -1,0 +1,43 @@
+tables:
+  - name: q2
+    type: sink-table
+    connector:
+      type: filesystem
+      path: "$RESULT_DIR/q2.csv"
+    format:
+      type: csv
+      fields:
+        - name: s_acctbal
+          type: DOUBLE
+        - name: s_name
+          type: VARCHAR
+        - name: n_name
+          type: VARCHAR
+        - name: p_partkey
+          type: BIGINT
+        - name: p_mfgr
+          type: VARCHAR
+        - name: s_addres
+          type: VARCHAR
+        - name: s_phone
+          type: VARCHAR
+        - name: s_comment
+          type: VARCHAR
+      field-delimiter: "|"
+    schema:
+      - name: s_acctbal
+        type: DOUBLE
+      - name: s_name
+        type: VARCHAR
+      - name: n_name
+        type: VARCHAR
+      - name: p_partkey
+        type: BIGINT
+      - name: p_mfgr
+        type: VARCHAR
+      - name: s_addres
+        type: VARCHAR
+      - name: s_phone
+        type: VARCHAR
+      - name: s_comment
+        type: VARCHAR

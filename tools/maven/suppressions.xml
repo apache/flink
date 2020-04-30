@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<!DOCTYPE suppressions PUBLIC
+		"-//Puppy Crawl//DTD Suppressions 1.1//EN"
+		"http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+
+<suppressions>
+		<suppress files="org[\\/]apache[\\/]flink[\\/]formats[\\/]avro[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
+		<suppress files="org[\\/]apache[\\/]flink[\\/]formats[\\/]parquet[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
+		<!-- Sometimes we have to temporarily fix very long, different formatted Calcite files. -->
+		<suppress files="org[\\/]apache[\\/]calcite.*" checks="[a-zA-Z0-9]*"/>
+
+		<!-- Temporarily fix TM Metaspace memory leak caused by Apache Beam sdk harness. -->
+		<suppress files="org[\\/]apache[\\/]beam[\\/]vendor[\\/]grpc[\\/]v1p21p0[\\/]io[\\/]netty[\\/]buffer.*.java" checks="[a-zA-Z0-9]*"/>
+
+	    <!-- Have to use guava directly -->
+	    <suppress
+			files="OverConvertRule.java|CustomizedConvertRule.java"
+			checks="IllegalImport"/>
+		<!-- Cassandra connectors have to use guava directly -->
+		<suppress
+			files="AbstractCassandraTupleSink.java|CassandraInputFormat.java|CassandraOutputFormatBase.java|CassandraSinkBase.java|CassandraSinkBaseTest.java|CassandraPojoSink.java|CassandraRowSink.java|CassandraTupleWriteAheadSink.java|CassandraRowWriteAheadSink.java|CassandraPojoOutputFormat.java"
+			checks="IllegalImport"/>
+		<!-- Kinesis producer has to use guava directly -->
+		<suppress
+			files="FlinkKinesisProducer.java|FlinkKinesisProducerTest.java"
+			checks="IllegalImport"/>
+		<!-- Classes copied from Hadoop -->
+		<suppress
+			files="org[\\/]apache[\\/]hadoop[\\/]conf[\\/]Configuration.java"
+			checks=".*"/>
+		<suppress
+			files="org[\\/]apache[\\/]hadoop[\\/]util[\\/]NativeCodeLoader.java"
+			checks=".*"/>
+		<suppress
+			files="org[\\/]apache[\\/]hadoop[\\/]util[\\/]VersionInfo.java"
+			checks=".*"/>
+		<!-- Classes copied from AWS -->
+		<suppress
+			files="com[\\/]amazonaws[\\/]services[\\/]s3[\\/]model[\\/]transform[\\/]XmlResponsesSaxParser.java"
+			checks=".*"/>
+		<!-- target directory is not relevant for checkstyle -->
+		<suppress
+			files="[\\/]target[\\/]"
+			checks=".*"/>
+</suppressions>

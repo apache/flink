@@ -1,0 +1,102 @@
+[
+{"namespace": "org.apache.flink.formats.avro.generated",
+ "type": "record",
+ "name": "Address",
+ "fields": [
+     {"name": "num", "type": "int"},
+     {"name": "street", "type": "string"},
+     {"name": "city", "type": "string"},
+     {"name": "state", "type": "string"},
+     {"name": "zip", "type": "string"}
+  ]
+},
+{"namespace": "org.apache.flink.formats.avro.generated",
+ "type": "record",
+ "name": "User",
+ "fields": [
+     {"name": "name", "type": "string"},
+     {"name": "favorite_number",  "type": ["int", "null"]},
+     {"name": "favorite_color", "type": ["string", "null"]},
+     {"name": "type_long_test", "type": ["long", "null"]},
+     {"name": "type_double_test", "type": "double"},
+     {"name": "type_null_test", "type": ["null"]},
+     {"name": "type_bool_test", "type": ["boolean"]},
+     {"name": "type_array_string", "type" : {"type" : "array", "items" : "string"}},
+     {"name": "type_array_boolean", "type" : {"type" : "array", "items" : "boolean"}},
+     {"name": "type_nullable_array", "type": ["null", {"type":"array", "items":"string"}], "default":null},
+     {"name": "type_enum", "type": {"type": "enum", "name": "Colors", "symbols" : ["RED", "GREEN", "BLUE"]}},
+     {"name": "type_map", "type": {"type": "map", "values": "long"}},
+     {"name": "type_fixed",
+                 "size": 16,
+                 "type": ["null", {"name": "Fixed16", "size": 16, "type": "fixed"}]},
+     {"name": "type_union", "type": ["null", "boolean", "long", "double"]},
+     {"name": "type_nested", "type": ["null", "Address"]},
+     {"name": "type_bytes", "type": "bytes"},
+     {"name": "type_date", "type": {"type": "int", "logicalType": "date"}},
+     {"name": "type_time_millis", "type": {"type": "int", "logicalType": "time-millis"}},
+     {"name": "type_time_micros", "type": {"type": "int", "logicalType": "time-micros"}},
+     {"name": "type_timestamp_millis", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+     {"name": "type_timestamp_micros", "type": {"type": "long", "logicalType": "timestamp-micros"}},
+     {"name": "type_decimal_bytes", "type": {"type": "bytes", "logicalType": "decimal", "precision": 4, "scale": 2}},
+     {"name": "type_decimal_fixed", "type": {"name": "Fixed2", "size": 2, "type": "fixed", "logicalType": "decimal", "precision": 4, "scale": 2}}
+ ]
+},
+ {"namespace": "org.apache.flink.formats.avro.generated",
+  "type": "record",
+  "name": "SimpleRecord",
+  "fields": [
+      {"name": "name", "type": "string"},
+      {"name": "optionalField",  "type": ["null", "int"], "default": null}
+  ]
+},
+/**
+ * The BackwardsCompatibleAvroSerializer does not support custom Kryo
+ * registrations (which logical types require for Avro 1.8 because Kryo does not support Joda-Time).
+ * We introduce a simpler user record for pre-Avro 1.8 test cases. This record can be dropped when
+ * we drop support for 1.3 savepoints.
+ */
+{"namespace": "org.apache.flink.formats.avro.generated",
+ "type": "record",
+ "name": "SimpleUser",
+ "fields": [
+     {"name": "name", "type": "string"},
+     {"name": "favorite_number",  "type": ["int", "null"]},
+     {"name": "favorite_color", "type": ["string", "null"]},
+     {"name": "type_long_test", "type": ["long", "null"]},
+     {"name": "type_double_test", "type": "double"},
+     {"name": "type_null_test", "type": ["null"]},
+     {"name": "type_bool_test", "type": ["boolean"]},
+     {"name": "type_array_string", "type" : {"type" : "array", "items" : "string"}},
+     {"name": "type_array_boolean", "type" : {"type" : "array", "items" : "boolean"}},
+     {"name": "type_nullable_array", "type": ["null", {"type":"array", "items":"string"}], "default":null},
+     {"name": "type_enum", "type": "Colors"},
+     {"name": "type_map", "type": {"type": "map", "values": "long"}},
+     {"name": "type_fixed", "type": ["null", "Fixed16"]},
+     {"name": "type_union", "type": ["null", "boolean", "long", "double"]},
+     {"name": "type_nested", "type": ["null", "Address"]},
+     {"name": "type_bytes", "type": "bytes"}
+ ]
+},
+ {"namespace": "org.apache.flink.formats.avro.generated",
+  "type": "record",
+  "name": "SchemaRecord",
+  "fields": [
+      {"name": "field1", "type": ["null", "long"], "default": null},
+      {"name": "field2", "type": ["null", "string"], "default": null},
+      {"name": "time1", "type": "long"},
+      {"name": "time2", "type": "long"},
+      {"name": "field3", "type": ["null", "double"], "default": null}
+  ]
+},
+ {"namespace": "org.apache.flink.formats.avro.generated",
+  "type": "record",
+  "name": "DifferentSchemaRecord",
+  "fields": [
+      {"name": "otherField1", "type": ["null", "long"], "default": null},
+      {"name": "otherField2", "type": ["null", "string"], "default": null},
+      {"name": "otherTime1", "type": "long"},
+      {"name": "otherField3", "type": ["null", "double"], "default": null},
+      {"name": "otherField4", "type": ["null", "float"], "default": null},
+      {"name": "otherField5", "type": ["null", "int"], "default": null}
+  ]
+}]

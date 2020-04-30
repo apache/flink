@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-parent</artifactId>
+		<version>1.11-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
+
+	<packaging>pom</packaging>
+
+	<artifactId>flink-end-to-end-tests</artifactId>
+	<name>flink-end-to-end-tests</name>
+
+	<properties>
+		<!-- functions as a global exclude; required since an empty set of included groups implicitly includes all -->
+		<includeE2E.default>org.apache.flink.tests.util.categories.Dummy</includeE2E.default>
+		<!-- default inclusions / exclusions -->
+		<e2e.include.org.apache.flink.tests.util.categories.TravisGroup1>false</e2e.include.org.apache.flink.tests.util.categories.TravisGroup1>
+		<e2e.include.org.apache.flink.tests.util.categories.TravisGroup2>false</e2e.include.org.apache.flink.tests.util.categories.TravisGroup2>
+		<e2e.include.org.apache.flink.tests.util.categories.TravisGroup3>false</e2e.include.org.apache.flink.tests.util.categories.TravisGroup3>
+		<e2e.include.org.apache.flink.tests.util.categories.TravisGroup4>false</e2e.include.org.apache.flink.tests.util.categories.TravisGroup4>
+		<e2e.include.org.apache.flink.tests.util.categories.TravisGroup5>false</e2e.include.org.apache.flink.tests.util.categories.TravisGroup5>
+		<e2e.include.org.apache.flink.tests.util.categories.TravisGroup6>false</e2e.include.org.apache.flink.tests.util.categories.TravisGroup6>
+		<e2e.include.org.apache.flink.tests.util.categories.PreCommit>false</e2e.include.org.apache.flink.tests.util.categories.PreCommit>
+		<e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>true</e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>
+		<e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>false</e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>
+	</properties>
+
+	<modules>
+		<module>flink-cli-test</module>
+		<module>flink-parent-child-classloading-test-program</module>
+		<module>flink-parent-child-classloading-test-lib-package</module>
+		<module>flink-dataset-allround-test</module>
+		<module>flink-dataset-fine-grained-recovery-test</module>
+		<module>flink-datastream-allround-test</module>
+		<module>flink-batch-sql-test</module>
+		<module>flink-stream-sql-test</module>
+		<module>flink-bucketing-sink-test</module>
+		<module>flink-distributed-cache-via-blob-test</module>
+		<module>flink-high-parallelism-iterations-test</module>
+		<module>flink-stream-stateful-job-upgrade-test</module>
+		<module>flink-queryable-state-test</module>
+		<module>flink-local-recovery-and-allocation-test</module>
+		<module>flink-elasticsearch5-test</module>
+		<module>flink-elasticsearch6-test</module>
+		<module>flink-quickstart-test</module>
+		<module>flink-confluent-schema-registry</module>
+		<module>flink-stream-state-ttl-test</module>
+		<module>flink-sql-client-test</module>
+		<module>flink-streaming-file-sink-test</module>
+		<module>flink-state-evolution-test</module>
+		<module>flink-rocksdb-state-memory-control-test</module>
+		<module>flink-end-to-end-tests-common</module>
+		<module>flink-metrics-availability-test</module>
+		<module>flink-metrics-reporter-prometheus-test</module>
+		<module>flink-heavy-deployment-stress-test</module>
+		<module>flink-connector-gcp-pubsub-emulator-tests</module>
+		<module>flink-streaming-kafka-test-base</module>
+		<module>flink-streaming-kafka-test</module>
+		<module>flink-streaming-kafka011-test</module>
+		<module>flink-streaming-kafka010-test</module>
+		<module>flink-plugins-test</module>
+		<module>flink-tpch-test</module>
+		<module>flink-streaming-kinesis-test</module>
+		<module>flink-elasticsearch7-test</module>
+		<module>flink-end-to-end-tests-common-kafka</module>
+		<module>flink-tpcds-test</module>
+		<module>flink-netty-shuffle-memory-control-test</module>
+	</modules>
+
+	<profiles>
+		<profile>
+			<id>e2e-travis1</id>
+			<properties>
+				<e2e.include.org.apache.flink.tests.util.categories.TravisGroup1>true</e2e.include.org.apache.flink.tests.util.categories.TravisGroup1>
+			</properties>
+		</profile>
+		<profile>
+			<id>e2e-travis2</id>
+			<properties>
+				<e2e.include.org.apache.flink.tests.util.categories.TravisGroup2>true</e2e.include.org.apache.flink.tests.util.categories.TravisGroup2>
+			</properties>
+		</profile>
+		<profile>
+			<id>e2e-travis3</id>
+			<properties>
+				<e2e.include.org.apache.flink.tests.util.categories.TravisGroup3>true</e2e.include.org.apache.flink.tests.util.categories.TravisGroup3>
+			</properties>
+		</profile>
+		<profile>
+			<id>e2e-travis4</id>
+			<properties>
+				<e2e.include.org.apache.flink.tests.util.categories.TravisGroup4>true</e2e.include.org.apache.flink.tests.util.categories.TravisGroup4>
+			</properties>
+		</profile>
+		<profile>
+			<id>e2e-travis5</id>
+			<properties>
+				<e2e.include.org.apache.flink.tests.util.categories.TravisGroup5>true</e2e.include.org.apache.flink.tests.util.categories.TravisGroup5>
+			</properties>
+		</profile>
+		<profile>
+			<id>e2e-travis6</id>
+			<properties>
+				<e2e.include.org.apache.flink.tests.util.categories.TravisGroup6>true</e2e.include.org.apache.flink.tests.util.categories.TravisGroup6>
+			</properties>
+		</profile>
+		<profile>
+			<id>e2e-pre-commit</id>
+			<properties>
+				<e2e.include.org.apache.flink.tests.util.categories.PreCommit>true</e2e.include.org.apache.flink.tests.util.categories.PreCommit>
+			</properties>
+		</profile>
+		<profile>
+			<id>e2e-hadoop</id>
+			<properties>
+				<e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>false</e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>
+			</properties>
+		</profile>
+		<profile>
+			<id>java11</id>
+			<activation>
+				<jdk>11</jdk>
+			</activation>
+			<properties>
+				<e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>true</e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>
+			</properties>
+		</profile>
+	</profiles>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-deploy-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.gmavenplus</groupId>
+				<artifactId>gmavenplus-plugin</artifactId>
+				<version>1.8.1</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.codehaus.groovy</groupId>
+						<artifactId>groovy-all</artifactId>
+						<version>2.5.8</version>
+						<scope>runtime</scope>
+						<type>pom</type>
+					</dependency>
+				</dependencies>
+				<executions>
+					<execution>
+						<id>merge-categories</id>
+						<phase>initialize</phase>
+						<goals>
+							<goal>execute</goal>
+						</goals>
+						<configuration>
+							<scripts>
+								<script>
+									<![CDATA[
+									def categorySearcher = { String propertyPrefix ->
+										project.properties.entrySet().stream()
+											.filter { p -> p.getKey().startsWith(propertyPrefix) }
+											.filter { p -> p.getValue().toBoolean() }
+											.map { p -> p.getKey() }
+											.map { p -> p.substring(propertyPrefix.size(), p.size()) }
+											.toList()
+									}
+
+									def includes = categorySearcher('e2e.include.')
+									// allow overrides from the command-line
+									if (project.properties.includeE2E != null && !project.properties.includeE2E.isEmpty()) {
+										includes.add(project.properties.includeE2E)
+									}
+									if (includes.size() > 0) {
+										project.properties.includeE2E = includes.join(',')
+									} else {
+										project.properties.includeE2E = project.properties.'includeE2E.default'
+									}
+
+									def excludes = categorySearcher('e2e.exclude.')
+									// allow overrides from the command-line
+									if (project.properties.excludeE2E != null && !project.properties.excludeE2E.isEmpty()) {
+										excludes.add(project.properties.excludeE2E)
+									}
+									project.properties.excludeE2E = excludes.join(',')
+
+									println "includes: " + project.properties.includeE2E
+									println "excludes: " + project.properties.excludeE2E
+									]]>
+								</script>
+							</scripts>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>default-test</id>
+						<phase>none</phase>
+					</execution>
+					<execution>
+						<id>integration-tests</id>
+						<phase>none</phase>
+					</execution>
+					<execution>
+						<id>end-to-end-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/*ITCase.*</include>
+							</includes>
+							<!-- Disable all tests by default.
+                                Uses a separate property to make it configurable from the command-line. -->
+							<groups>${includeE2E}</groups>
+							<excludedGroups>${excludeE2E}</excludedGroups>
+							<!-- E2E tests must not access flink-dist concurrently. -->
+							<forkCount>1</forkCount>
+							<systemPropertyVariables>
+								<moduleDir>${project.basedir}</moduleDir>
+							</systemPropertyVariables>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<configuration>
+						<artifactSet>
+							<excludes>
+								<exclude>com.google.code.findbugs:jsr305</exclude>
+								<exclude>org.slf4j:slf4j-api</exclude>
+							</excludes>
+						</artifactSet>
+						<filters>
+							<filter>
+								<artifact>*:*</artifact>
+								<excludes>
+									<exclude>META-INF/*.SF</exclude>
+									<exclude>META-INF/*.DSA</exclude>
+									<exclude>META-INF/*.RSA</exclude>
+								</excludes>
+							</filter>
+						</filters>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+	
+</project>

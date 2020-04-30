@@ -1,0 +1,66 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+**/
+
+/**
+ * Make dropdown menus in nav bars show on hover instead of click
+ * using solution at http://stackoverflow.com/questions/8878033/how-
+ * to-make-twitter-bootstrap-menu-dropdown-on-hover-rather-than-click
+ **/
+ul.nav li.dropdown:hover ul.dropdown-menu{
+  display: block;
+}
+
+a.menu:after, .dropdown-toggle:after {
+  content: none;
+}
+
+/** Make the submenus open on hover on the parent menu item */
+ul.nav li.dropdown ul.dropdown-menu li.dropdown-submenu:hover ul.dropdown-menu {
+  display: block;
+}
+
+/** Make the submenus be invisible until the parent menu item is hovered upon */
+ul.nav li.dropdown ul.dropdown-menu li.dropdown-submenu ul.dropdown-menu {
+  display: none;
+}
+
+/**
+ * Made the navigation bar buttons not grey out when clicked.
+ * Essentially making nav bar buttons not react to clicks, only hover events.
+ */
+.navbar .nav li.dropdown.open > .dropdown-toggle {
+  background-color: transparent;
+}
+
+/**
+ * Made the active tab caption blue. Otherwise the active tab is black, and inactive tab is blue.
+ * That looks weird. Changed the colors to active - blue, inactive - black, and
+ * no color change on hover.
+ */
+.nav-tabs > li.active > a, .nav-tabs > li.active > a:hover {
+  color: #08c !important;
+}
+
+.nav-tabs > li > a, .nav-tabs > li > a:hover {
+  color: #333;
+}
+
+.nav.nav-tabs {
+    margin-bottom: 20px;
+}

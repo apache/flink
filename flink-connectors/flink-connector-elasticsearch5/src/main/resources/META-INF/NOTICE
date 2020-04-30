@@ -1,0 +1,102 @@
+flink-connector-elasticsearch5
+Copyright 2014-2020 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.carrotsearch:hppc:0.7.1
+- com.fasterxml.jackson.core:jackson-core:2.10.1
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.10.1
+- com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.10.1
+- com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.10.1
+- com.github.spullara.mustache.java:compiler:0.9.3
+- com.tdunning:t-digest:3.0
+- commons-codec:commons-codec:1.10
+- commons-logging:commons-logging:1.1.3
+- io.netty:netty:3.10.6.Final
+- io.netty:netty-buffer:4.1.44.Final
+- io.netty:netty-codec:4.1.44.Final
+- io.netty:netty-codec-http:4.1.44.Final
+- io.netty:netty-common:4.1.44.Final
+- io.netty:netty-handler:4.1.44.Final
+- io.netty:netty-resolver:4.1.44.Final
+- io.netty:netty-transport:4.1.44.Final
+- joda-time:joda-time:2.5
+- net.java.dev.jna:jna:4.2.2
+- org.apache.httpcomponents:httpasynclcient:4.1.2
+- org.apache.httpcomponents:httpclient:4.5.3
+- org.apache.httpcomponents:httpcore:4.4.6
+- org.apache.httpcomponents:httpcore-nio:4.4.5
+- org.apache.lucene:lucene-analyzers-common:6.4.2
+- org.apache.lucene:lucene-backward-codecs:6.4.2
+- org.apache.lucene:lucene-core:6.4.2
+- org.apache.lucene:lucene-grouping:6.4.2
+- org.apache.lucene:lucene-highlighter:6.4.2
+- org.apache.lucene:lucene-join:6.4.2
+- org.apache.lucene:lucene-memory:6.4.2
+- org.apache.lucene:lucene-misc:6.4.2
+- org.apache.lucene:lucene-queries:6.4.2
+- org.apache.lucene:lucene-queryparser:6.4.2
+- org.apache.lucene:lucene-sandbox:6.4.2
+- org.apache.lucene:lucene-spatial:6.4.2
+- org.apache.lucene:lucene-spatial-extras:6.4.2
+- org.apache.lucene:lucene-spatial3d:6.4.2
+- org.apache.lucene:lucene-suggest:6.4.2
+- org.elasticsearch:elasticsearch:5.3.3
+- org.elasticsearch:securesm:1.1
+- org.elasticsearch.client:rest:5.3.3
+- org.elasticsearch.client:transport:5.3.3
+- org.elasticsearch.plugin:lang-mustache-client:5.3.3
+- org.elasticsearch.plugin:percolator-client:5.3.3
+- org.elasticsearch.plugin:reindex-client:5.3.3
+- org.elasticsearch.plugin:transport-netty3-client:5.3.3
+- org.elasticsearch.plugin:transport-netty4-client:5.3.3
+- org.yaml:snakeyaml:1.25
+
+This project bundles the following dependencies under the MIT license. (https://opensource.org/licenses/MIT)
+
+- net.sf.jopt-simple:jopt-simple:5.0.2
+
+This project bundles the following dependencies under the Creative Commons CC0 1.0 Universal Public Domain Dedication License (http://creativecommons.org/publicdomain/zero/1.0/)
+See bundled license files for details.
+
+- org.hdrhistogram:HdrHistogram:2.1.6
+
+This project bundles io.netty:netty:3.10.6.Final from which it inherits the following notices:
+
+This product contains the extensions to Java Collections Framework which has
+been derived from the works by JSR-166 EG, Doug Lea, and Jason T. Greene:
+
+  * LICENSE:
+    * licenses/LICENSE.jsr166y (Public Domain)
+  * HOMEPAGE:
+    * http://gee.cs.oswego.edu/cgi-bin/viewcvs.cgi/jsr166/
+    * http://viewvc.jboss.org/cgi-bin/viewvc.cgi/jbosscache/experimental/jsr166/
+
+This product contains a modified version of Robert Harder's Public Domain
+Base64 Encoder and Decoder, which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.base64 (Public Domain)
+  * HOMEPAGE:
+    * http://iharder.sourceforge.net/current/java/base64/
+
+This product contains a modified version of 'JZlib', a re-implementation of
+zlib in pure Java, which can be obtained at:
+
+  * LICENSE:
+    * licenses/LICENSE.jzlib (BSD Style License)
+  * HOMEPAGE:
+    * http://www.jcraft.com/jzlib/
+
+This product contains a modified version of 'Webbit', a Java event based
+WebSocket and HTTP server:
+
+  * LICENSE:
+    * licenses/LICENSE.webbit (BSD License)
+  * HOMEPAGE:
+    * https://github.com/joewalnes/webbit
+
+

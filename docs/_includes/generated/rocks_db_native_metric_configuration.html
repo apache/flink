@@ -1,0 +1,168 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.actual-delayed-write-rate</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the current actual delayed write rate. 0 means no delay.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.background-errors</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the number of background errors in RocksDB.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.block-cache-capacity</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor block cache capacity.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.block-cache-pinned-usage</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the memory size for the entries being pinned in block cache.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.block-cache-usage</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the memory size for the entries residing in block cache.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.column-family-as-variable</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to expose the column family as a variable.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.compaction-pending</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Track pending compactions in RocksDB. Returns 1 if a compaction is pending, 0 otherwise.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.cur-size-active-mem-table</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the approximate size of the active memtable in bytes.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.cur-size-all-mem-tables</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the approximate size of the active and unflushed immutable memtables in bytes.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.estimate-live-data-size</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Estimate of the amount of live data in bytes.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.estimate-num-keys</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Estimate the number of keys in RocksDB.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.estimate-pending-compaction-bytes</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Estimated total number of bytes compaction needs to rewrite to get all levels down to under target size. Not valid for other compactions than level-based.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.estimate-table-readers-mem</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Estimate the memory used for reading SST tables, excluding memory used in block cache (e.g.,filter and index blocks) in bytes.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.is-write-stopped</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Track whether write has been stopped in RocksDB. Returns 1 if write has been stopped, 0 otherwise.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.mem-table-flush-pending</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the number of pending memtable flushes in RocksDB.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.num-deletes-active-mem-table</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total number of delete entries in the active memtable.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.num-deletes-imm-mem-tables</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total number of delete entries in the unflushed immutable memtables.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.num-entries-active-mem-table</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total number of entries in the active memtable.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.num-entries-imm-mem-tables</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total number of entries in the unflushed immutable memtables.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.num-immutable-mem-table</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the number of immutable memtables in RocksDB.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.num-live-versions</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor number of live versions. Version is an internal data structure. See RocksDB file version_set.h for details. More live versions often mean more SST files are held from being deleted, by iterators or unfinished compactions.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.num-running-compactions</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the number of currently running compactions.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.num-running-flushes</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the number of currently running flushes.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.num-snapshots</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the number of unreleased snapshots of the database.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.size-all-mem-tables</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the approximate size of the active, unflushed immutable, and pinned immutable memtables in bytes.</td>
+        </tr>
+        <tr>
+            <td><h5>state.backend.rocksdb.metrics.total-sst-files-size</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Monitor the total size (bytes) of all SST files.WARNING: may slow down online queries if there are too many files.</td>
+        </tr>
+    </tbody>
+</table>

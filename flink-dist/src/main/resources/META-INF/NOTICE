@@ -1,0 +1,65 @@
+flink-dist
+Copyright 2014-2020 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.data-artisans:frocksdbjni:5.17.2-artisans-2.0
+- com.google.code.findbugs:jsr305:1.3.9
+- com.twitter:chill-java:0.7.6
+- com.twitter:chill_2.11:0.7.6
+- com.typesafe:config:1.3.0
+- com.typesafe:ssl-config-core_2.11:0.3.7
+- com.typesafe.akka:akka-actor_2.11:2.5.1
+- com.typesafe.akka:akka-protobuf_2.11:2.5.21
+- com.typesafe.akka:akka-slf4j_2.11:2.5.21
+- com.typesafe.akka:akka-stream_2.11:2.5.21
+- commons-cli:commons-cli:1.3.1
+- commons-collections:commons-collections:3.2.2
+- commons-io:commons-io:2.4
+- org.apache.commons:commons-compress:1.20
+- org.apache.commons:commons-lang3:3.3.2
+- org.apache.commons:commons-math3:3.5
+- org.javassist:javassist:3.24.0-GA
+- org.lz4:lz4-java:1.5.0
+- org.objenesis:objenesis:2.1
+- org.xerial.snappy:snappy-java:1.1.4
+
+This project bundles the following dependencies under the BSD license.
+See bundled license files for details.
+
+- com.esotericsoftware.kryo:kryo:2.24.0
+- com.esotericsoftware.minlog:minlog:1.2
+- org.clapper:grizzled-slf4j_2.11:1.3.2
+
+The following dependencies all share the same BSD license which you find under licenses/LICENSE.scala.
+
+- org.scala-lang:scala-compiler:2.11.12
+- org.scala-lang:scala-library:2.11.12
+- org.scala-lang:scala-reflect:2.11.12
+- org.scala-lang.modules:scala-java8-compat_2.11:0.7.0
+- org.scala-lang.modules:scala-parser-combinators_2.11:1.1.1
+- org.scala-lang.modules:scala-xml_2.11:1.0.5
+
+This project bundles the following dependencies under the MIT/X11 license.
+See bundled license files for details.
+
+- com.github.scopt:scopt_2.11:3.5.0
+- org.slf4j:slf4j-api:1.7.15
+
+This project bundles the following dependencies under the CDDL 1.1 license.
+See bundled license files for details.
+
+- javax.activation:javax.activation-api:1.2.0
+- javax.xml.bind:jaxb-api:2.3.1
+
+This project bundles "org.tukaani:xz:1.5".
+This Java implementation of XZ has been put into the public domain, thus you can do
+whatever you want with it. All the files in the package have been written by Lasse Collin,
+but some files are heavily based on public domain code written by Igor Pavlov.
+
+This project bundles the following dependencies under the Creative Commons CC0 "No Rights Reserved".
+
+- org.reactivestreams:reactive-streams:1.0.2

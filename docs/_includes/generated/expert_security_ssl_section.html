@@ -1,0 +1,42 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>security.ssl.internal.close-notify-flush-timeout</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The timeout (in ms) for flushing the `close_notify` that was triggered by closing a channel. If the `close_notify` was not flushed in the given timeout the channel will be closed forcibly. (-1 = use system default)</td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.internal.handshake-timeout</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The timeout (in ms) during SSL handshake. (-1 = use system default)</td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.internal.session-cache-size</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The size of the cache used for storing SSL session objects. According to https://github.com/netty/netty/issues/832, you should always set this to an appropriate number to not run into a bug with stalling IO threads during garbage collection. (-1 = use system default).</td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.internal.session-timeout</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The timeout (in ms) for the cached SSL session objects. (-1 = use system default)</td>
+        </tr>
+        <tr>
+            <td><h5>security.ssl.provider</h5></td>
+            <td style="word-wrap: break-word;">"JDK"</td>
+            <td>String</td>
+            <td>The SSL engine provider to use for the ssl transport:<ul><li><span markdown="span">`JDK`</span>: default Java-based SSL engine</li><li><span markdown="span">`OPENSSL`</span>: openSSL-based SSL engine using system libraries</li></ul><span markdown="span">`OPENSSL`</span> is based on <a href="http://netty.io/wiki/forked-tomcat-native.html#wiki-h2-4">netty-tcnative</a> and comes in two flavours:<ul><li>dynamically linked: This will use your system's openSSL libraries (if compatible) and requires <span markdown="span">`opt/flink-shaded-netty-tcnative-dynamic-*.jar`</span> to be copied to <span markdown="span">`lib/`</span></li><li>statically linked: Due to potential licensing issues with openSSL (see <a href="https://issues.apache.org/jira/browse/LEGAL-393">LEGAL-393</a>), we cannot ship pre-built libraries. However, you can build the required library yourself and put it into <span markdown="span">`lib/`</span>:<br /><span markdown="span">`git clone https://github.com/apache/flink-shaded.git &amp;&amp; cd flink-shaded &amp;&amp; mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static`</span></li></ul></td>
+        </tr>
+    </tbody>
+</table>

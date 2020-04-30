@@ -1,0 +1,78 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.planner.utils
+
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.io.CollectionInputFormat
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.sources._
+import org.apache.flink.types.Row
+
+import scala.collection.JavaConverters._
+
+/**
+  * The table source which support push-down the limit to the source.
+  */
+class TestLimitableTableSource(
+    data: Seq[Row],
+    rowType: RowTypeInfo,
+    var limit: Long = -1,
+    var limitablePushedDown: Boolean = false)
+  extends StreamTableSource[Row]
+  with LimitableTableSource[Row] {
+
+  override def isBounded = true
+
+  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+    if (limit == 0) {
+      throw new RuntimeException("limit 0 should be optimize to single values.")
+    }
+    val dataSet = if (limit > 0) {
+      data.take(limit.toInt).asJava
+    } else {
+      data.asJava
+    }
+    execEnv.createInput(
+      new CollectionInputFormat(dataSet, rowType.createSerializer(new ExecutionConfig)),
+      rowType)
+  }
+
+  override def applyLimit(limit: Long): TableSource[Row] = {
+    new TestLimitableTableSource(data, rowType, limit, limitablePushedDown)
+  }
+
+  override def isLimitPushedDown: Boolean = limitablePushedDown
+
+  override def getReturnType: TypeInformation[Row] = rowType
+
+  override def explainSource(): String = {
+    if (limit > 0) {
+      "limit: " + limit
+    } else {
+      ""
+    }
+  }
+
+  override def getTableSchema: TableSchema = TableSchema.fromTypeInfo(rowType)
+}
+

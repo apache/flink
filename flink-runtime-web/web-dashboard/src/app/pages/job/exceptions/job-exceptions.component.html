@@ -1,0 +1,64 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-tabset [nzTabBarGutter]="4" [nzSize]="'small'" [nzAnimated]="{inkBar:true, tabPane:false}">
+  <nz-tab nzTitle="Root Exception" nzForceRender>
+    <flink-monaco-editor [value]="rootException"></flink-monaco-editor>
+  </nz-tab>
+  <nz-tab nzTitle="Exception History" nzForceRender>
+    <nz-table
+      class="no-border small"
+      [nzSize]="'small'"
+      [nzData]="listOfException"
+      [nzShowPagination]="false"
+      [nzFrontPagination]="false">
+      <thead>
+        <tr>
+          <th nzShowExpand></th>
+          <th>Time</th>
+          <th>Name</th>
+          <th>Location</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let exception of listOfException;trackBy:trackExceptionBy;">
+          <tr>
+            <td nzShowExpand [(nzExpand)]="exception.expand"></td>
+            <td>{{exception.timestamp | date:'yyyy-MM-dd HH:mm:ss'}}</td>
+            <td>
+              <div class="name">
+                {{exception.task}}
+              </div>
+            </td>
+            <td>{{exception.location}}</td>
+          </tr>
+          <tr [nzExpand]="exception.expand">
+            <td colspan="6" class="expand-td">
+              <flink-monaco-editor *ngIf="exception.expand" class="subtask" [value]="exception.exception"></flink-monaco-editor>
+            </td>
+          </tr>
+        </ng-container>
+        <tr *ngIf="truncated">
+          <td colspan="6">
+            <button nz-button nzBlock nzType="primary" nzGhost (click)="loadMore()" [nzLoading]="isLoading">Load More</button>
+          </td>
+        </tr>
+      </tbody>
+    </nz-table>
+  </nz-tab>
+</nz-tabset>

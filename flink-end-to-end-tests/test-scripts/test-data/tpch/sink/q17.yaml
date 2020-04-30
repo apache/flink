@@ -1,0 +1,15 @@
+tables:
+  - name: q17
+    type: sink-table
+    connector:
+      type: filesystem
+      path: "$RESULT_DIR/q17.csv"
+    format:
+      type: csv
+      fields:
+        - name: avg_yearly
+          type: DOUBLE
+      field-delimiter: "|"
+    schema:
+      - name: avg_yearly
+        type: DOUBLE
