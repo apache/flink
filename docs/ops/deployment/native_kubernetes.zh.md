@@ -74,7 +74,23 @@ faster and during development you have more time to inspect the logfiles of your
 The system will use the configuration in `conf/flink-conf.yaml`.
 Please follow our [configuration guide]({{ site.baseurl }}/zh/ops/config.html) if you want to change something.
 
-If you do not specify a particular name for your session by `kubernetes.cluster-id`, the Flink client will generate a UUID name. 
+If you do not specify a particular name for your session by `kubernetes.cluster-id`, the Flink client will generate a UUID name.
+
+### Custom Flink Docker image
+
+If you want to use a custom Docker image to deploy Flink containers, check [the Flink Docker image documentation](docker.html),
+[its tags](#image-tags), [how to customize the Flink Docker image](docker.html#customize-flink-image) and [enable plugins](docker.html#using-plugins).
+If you created a custom Docker image you can provide it by setting the [`kubernetes.container.image`](../config.html#kubernetes-container-image) configuration option:
+
+{% highlight bash %}
+./bin/kubernetes-session.sh \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dtaskmanager.memory.process.size=4096m \
+  -Dkubernetes.taskmanager.cpu=2 \
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dresourcemanager.taskmanager-timeout=3600000 \
+  -Dkubernetes.container.image=<custom_image_name>
+{% endhighlight %}
 
 ### Submitting jobs to an existing Session
 
@@ -95,14 +111,14 @@ You can then use `localhost:8081` to submit a Flink job to the session or view t
 
 {% highlight bash %}
 $ kubectl port-forward service/<ServiceName> 8081
-{% endhighlight %} 
+{% endhighlight %}
 
 - `NodePort`: Exposes the service on each Node’s IP at a static port (the `NodePort`). `<NodeIP>:<NodePort>` could be used to contact the Job Manager Service. `NodeIP` could be easily replaced with Kubernetes ApiServer address.
 You could find it in your kube config file.
 
 - `LoadBalancer`: Default value, exposes the service externally using a cloud provider’s load balancer.
 Since the cloud provider and Kubernetes needs some time to prepare the load balancer, you may get a `NodePort` JobManager Web Interface in the client log.
-You can use `kubectl get services/<ClusterId>` to get EXTERNAL-IP and then construct the load balancer JobManager Web Interface manually `http://<EXTERNAL-IP>:8081`. 
+You can use `kubectl get services/<ClusterId>` to get EXTERNAL-IP and then construct the load balancer JobManager Web Interface manually `http://<EXTERNAL-IP>:8081`.
 
 - `ExternalName`: Map a service to a DNS name, not supported in current version.
 
@@ -127,8 +143,8 @@ $ echo 'stop' | ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=<ClusterId> 
 #### Manual Resource Cleanup
 
 Flink uses [Kubernetes OwnerReference's](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) to cleanup all cluster components.
-All the Flink created resources, including `ConfigMap`, `Service`, `Pod`, have been set the OwnerReference to `deployment/<ClusterId>`. 
-When the deployment is deleted, all other resources will be deleted automatically. 
+All the Flink created resources, including `ConfigMap`, `Service`, `Pod`, have been set the OwnerReference to `deployment/<ClusterId>`.
+When the deployment is deleted, all other resources will be deleted automatically.
 
 {% highlight bash %}
 $ kubectl delete deployment/<ClusterID>
@@ -136,7 +152,7 @@ $ kubectl delete deployment/<ClusterID>
 
 ## Log Files
 
-By default, the JobManager and TaskManager only store logs under `/opt/flink/log` in each pod. 
+By default, the JobManager and TaskManager only store logs under `/opt/flink/log` in each pod.
 If you want to use `kubectl logs <PodName>` to view the logs, you must perform the following:
 
 1. Add a new appender to the log4j.properties in the Flink client.
@@ -152,33 +168,7 @@ appender.console.layout.type = PatternLayout
 appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
 {% endhighlight %}
 
-If the pod is running, you can use `kubectl exec -it <PodName> bash` to tunnel in and view the logs or debug the process. 
-
-## Using plugins
-
-As described in the [plugins]({{ site.baseurl }}/zh/ops/plugins.html) documentation page: in order to use plugins they must be
-copied to the correct location in the flink installation for them to work.
-
-The simplest way to enable plugins for use on Kubernetes is to modify the provided official Flink docker images by adding
-an additional layer. This does however assume you have a docker registry available where you can push images to and
-that is accessible by your Kubernetes cluster.
-
-How this can be done is described on the [Docker Setup]({{ site.baseurl }}/zh/ops/deployment/docker.html#using-plugins) page.
-
-With such an image created you can now start your Kubernetes based Flink session cluster with the additional parameter
-`kubernetes.container.image` which must specify the image that was created: `docker.example.nl/flink:{{ site.version }}-2.12-s3`
-
-Extending the above example command to start the session cluster makes it this:
-
-{% highlight bash %}
-./bin/kubernetes-session.sh \
-  -Dkubernetes.cluster-id=<ClusterId> \
-  -Dtaskmanager.memory.process.size=4096m \
-  -Dkubernetes.taskmanager.cpu=2 \
-  -Dtaskmanager.numberOfTaskSlots=4 \
-  -Dresourcemanager.taskmanager-timeout=3600000 \
-  -Dkubernetes.container.image=docker.example.nl/flink:{{ site.version }}-2.12-s3
-{% endhighlight %}
+If the pod is running, you can use `kubectl exec -it <PodName> bash` to tunnel in and view the logs or debug the process.
 
 ## Kubernetes concepts
 
