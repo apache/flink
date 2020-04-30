@@ -179,6 +179,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		} else {
 			LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", taskName);
 		}
+		channelStateWriter.notifyCheckpointComplete(checkpointId);
 		env.getTaskStateManager().notifyCheckpointComplete(checkpointId);
 	}
 
