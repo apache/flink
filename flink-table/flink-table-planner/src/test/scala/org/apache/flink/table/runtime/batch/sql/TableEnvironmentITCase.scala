@@ -431,6 +431,41 @@ class TableEnvironmentITCase(
     assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
 
+  @Test
+  def testExecuteInsertOverwrite(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("sourceTable", t)
+
+    val resultFile = _tempFolder.newFile()
+    val sinkPath = resultFile.getAbsolutePath
+    val configuredSink = new TestingOverwritableTableSink(sinkPath)
+      .configure(Array("d"),  Array(STRING))
+    tEnv.registerTableSink("MySink", configuredSink)
+
+    val tableResult1 = tEnv.sqlQuery("SELECT c FROM sourceTable").executeInsert("MySink", true)
+    checkInsertTableResult(tableResult1)
+    // wait job finished
+    tableResult1.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    val expected1 = List("Hi", "Hello", "Hello world")
+    val actual1 = FileUtils.readFileUtf8(resultFile).split("\n").toList
+    assertEquals(expected1.sorted, actual1.sorted)
+
+    val tableResult2 = tEnv.sqlQuery("SELECT c FROM sourceTable").executeInsert("MySink", true)
+    checkInsertTableResult(tableResult2)
+    // wait job finished
+    tableResult2.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    val expected2 = List("Hi", "Hello", "Hello world")
+    val actual2 = FileUtils.readFileUtf8(resultFile).split("\n").toList
+    assertEquals(expected2.sorted, actual2.sorted)
+  }
+
   private def registerCsvTableSink(
       tEnv: TableEnvironment,
       fieldNames: Array[String],

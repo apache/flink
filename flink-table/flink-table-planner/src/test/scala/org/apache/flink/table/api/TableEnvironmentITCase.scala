@@ -366,6 +366,32 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertFirstValues(sinkPath)
   }
 
+  @Test
+  def testExecuteInsertOverwrite(): Unit = {
+    val resultFile = _tempFolder.newFile()
+    val sinkPath = resultFile.getAbsolutePath
+    val configuredSink = new TestingOverwritableTableSink(sinkPath)
+      .configure(Array("first"), Array(STRING))
+    tEnv.registerTableSink("MySink", configuredSink)
+
+    checkEmptyFile(sinkPath)
+    val tableResult1 = tEnv.sqlQuery("select first from MyTable").executeInsert("MySink", true)
+    checkInsertTableResult(tableResult1)
+    // wait job finished
+    tableResult1.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    assertFirstValues(sinkPath)
+
+    val tableResult2 = tEnv.sqlQuery("select first from MyTable").executeInsert("MySink", true)
+    checkInsertTableResult(tableResult2)
+    // wait job finished
+    tableResult2.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    assertFirstValues(sinkPath)
+  }
+
   private def registerCsvTableSink(
       tEnv: TableEnvironment,
       fieldNames: Array[String],

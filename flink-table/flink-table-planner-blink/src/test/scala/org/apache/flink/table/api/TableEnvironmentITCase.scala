@@ -383,6 +383,37 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
   }
 
   @Test
+  def testExecuteInsertOverwrite(): Unit = {
+    val sinkPath = _tempFolder.newFolder().toString
+    tEnv.sqlUpdate(
+      s"""
+         |create table MySink (
+         |  first string
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$sinkPath',
+         |  'format' = 'testcsv'
+         |)
+       """.stripMargin
+    )
+    val tableResult1 = tEnv.sqlQuery("select first from MyTable").executeInsert("MySink", true)
+    checkInsertTableResult(tableResult1)
+    // wait job finished
+    tableResult1.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    assertFirstValues(sinkPath)
+
+    val tableResult2 = tEnv.sqlQuery("select first from MyTable").executeInsert("MySink", true)
+    checkInsertTableResult(tableResult2)
+    // wait job finished
+    tableResult2.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    assertFirstValues(sinkPath)
+  }
+
+  @Test
   def testClearOperation(): Unit = {
     TestCollectionTableFactory.reset()
     val tableEnv = TableEnvironmentImpl.create(settings)
