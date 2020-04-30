@@ -125,6 +125,13 @@ public interface DynamicTableSink {
 	interface Context {
 
 		/**
+		 * Returns whether a runtime implementation can expect a finite number of rows.
+		 *
+		 * <p>This information might be derived from the session's execution mode and/or kind of query.
+		 */
+		boolean isBounded();
+
+		/**
 		 * Creates a converter for mapping between Flink's internal data structures and objects specified
 		 * by the given {@link DataType} that can be passed into a runtime implementation.
 		 *
