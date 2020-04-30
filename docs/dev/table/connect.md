@@ -55,8 +55,7 @@ The following tables list all available connectors and formats. Their mutual com
 
 | Name                       | Maven dependency             | SQL Client JAR         |
 | :------------------------- | :--------------------------- | :--------------------- |
-| Old CSV (for files)        | Built-in                     | Built-in               |
-| CSV (for Kafka)            | `flink-csv`                  | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-csv/{{site.version}}/flink-csv-{{site.version}}-sql-jar.jar) |
+| CSV                        | `flink-csv`                  | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-csv/{{site.version}}/flink-csv-{{site.version}}-sql-jar.jar) |
 | JSON                       | `flink-json`                 | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-json/{{site.version}}/flink-json-{{site.version}}-sql-jar.jar) |
 | Apache Avro                | `flink-avro`                 | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) |
 
@@ -684,7 +683,7 @@ Please note that not all connectors are available in both batch and streaming ye
 <span class="label label-primary">Source: Streaming Append Mode</span>
 <span class="label label-primary">Sink: Batch</span>
 <span class="label label-primary">Sink: Streaming Append Mode</span>
-<span class="label label-info">Format: OldCsv-only</span>
+<span class="label label-info">Format: CSV, JSON, ORC, Parquet</span>
 
 The file system connector allows for reading and writing from a local or distributed filesystem. A filesystem can be defined as:
 
@@ -692,62 +691,44 @@ The file system connector allows for reading and writing from a local or distrib
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 CREATE TABLE MyUserTable (
+  column_name1 INT,
+  column_name2 STRING,
   ...
-) WITH (
-  'connector.type' = 'filesystem',                -- required: specify to connector type
-  'connector.path' = 'file:///path/to/whatever',  -- required: path to a file or directory
-  'format.type' = '...',                          -- required: file system connector requires to specify a format,
-  ...                                             -- currently only 'csv' format is supported.
-                                                  -- Please refer to old CSV format part of Table Formats
-                                                  -- section for more details.
-)                                               
-{% endhighlight %}
-</div>
+  part_name1 INT,
+  part_name2 STRING
+) PARTITIONED BY (part_name1, part_name2) WITH (
+  'connector' = 'filesystem',              -- required: specify to connector type
+  'path' = 'file:///path/to/whatever',  -- required: path to a directory
+  'format' = '...',                     -- required: file system connector requires to specify a format,
+                                        -- Please refer to Table Formats
+                                        -- section for more details.s
+  'partition.default-name' = '...',     -- optional: default partition name in case the dynamic partition
+                                        -- column value is null/empty string.
 
-<div data-lang="Java/Scala" markdown="1">
-{% highlight java %}
-.connect(
-  new FileSystem()
-    .path("file:///path/to/whatever")    // required: path to a file or directory
+  -- optional: the option to enable shuffle data by dynamic partition fields in sink phase, this can greatly
+  -- reduce the number of file for filesystem sink but may lead data skew, the default value is disabled.
+  'sink.shuffle-by-partition.enable' = '...',
+  -- optional: the maximum part file size before rolling (by default 128MB).
+  'sink.rolling-policy.file-size' = '...', 
+  -- optional: the maximum time duration a part file can stay open before rolling (by default 30 min
+  -- to avoid too many small files).
+  'sink.rolling-policy.time.interval' = '...'
 )
-.withFormat(                             // required: file system connector requires to specify a format,
-  ...                                    // currently only OldCsv format is supported.
-)                                        // Please refer to old CSV format part of Table Formats
-                                         // section for more details.
-{% endhighlight %}
-</div>
-
-<div data-lang="python" markdown="1">
-{% highlight python %}
-.connect(
-    FileSystem()
-    .path("file:///path/to/whatever")  # required: path to a file or directory
-)
-.withFormat(                           # required: file system connector requires to specify a format,
-  ...                                  # currently only OldCsv format is supported.
-)                                      # Please refer to old CSV format part of Table Formats
-                                       # section for more details.
-{% endhighlight %}
-</div>
-
-<div data-lang="YAML" markdown="1">
-{% highlight yaml %}
-connector:
-  type: filesystem
-  path: "file:///path/to/whatever"    # required: path to a file or directory
-format:                               # required: file system connector requires to specify a format,
-  ...                                 # currently only 'csv' format is supported.
-                                      # Please refer to old CSV format part of Table Formats
-                                      # section for more details.
 {% endhighlight %}
 </div>
 </div>
 
 The file system connector itself is included in Flink and does not require an additional dependency. A corresponding format needs to be specified for reading and writing rows from and to a file system.
 
+**Full partition support:** The file system connector supports partition table, partition DDL, partition DML. It manages partitions according to the directory of the file system.
+
+**Insert overwrite:** The file system connector supports overwrite inserting, it is worth noting that when overwrite a partitioned table, it overwrites the corresponding partition, not the entire table.
+
+**Streaming sink:** The file system connector supports streaming sink, it uses [Streaming File Sink]({{ site.baseurl }}/connectors/streamfile_sink.html) to sink. Row-encoded Formats are csv and json. Bulk-encoded Formats are parquet and orc.
+
 <span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({{ site.baseurl }}/internals/filesystems.html).
 
-<span class="label label-danger">Attention</span> File system sources and sinks for streaming are only experimental. In the future, we will support actual streaming use cases, i.e., directory monitoring and bucket output.
+<span class="label label-danger">Attention</span> File system sources for streaming are only experimental. In the future, we will support actual streaming use cases, i.e., partition and directory monitoring.
 
 ### Kafka Connector
 
@@ -1887,16 +1868,9 @@ Avro uses [Joda-Time](http://www.joda.org/joda-time/) for representing logical d
 
 Make sure to add the Apache Avro dependency.
 
-### Old CSV Format
+### Apache ORC Format
 
-<span class="label label-danger">Attention</span> For prototyping purposes only!
-
-The old CSV format allows to read and write comma-separated rows using the filesystem connector.
-The format schema is derived from the desired table schema.
-
-This format describes Flink's non-standard CSV table source/sink. In the future, the format will be
-replaced by a proper RFC-compliant version. Use the RFC-compliant CSV format when writing to Kafka.
-Use the old one for stream/batch filesystem operations for now.
+The Apache ORC format allows to read and write ORC files using the filesystem connector.
 
 <div class="codetabs" markdown="1">
 <div data-lang="DDL" markdown="1">
@@ -1904,66 +1878,47 @@ Use the old one for stream/batch filesystem operations for now.
 CREATE TABLE MyUserTable (
   ...
 ) WITH (
-  'format.type' = 'csv',                  -- required: specify the schema type
+  'format' = 'orc',              -- required: specify the schema type
 
-  'format.field-delimiter' = ',',         -- optional: string delimiter "," by default
-  'format.line-delimiter' = U&'\000A',    -- optional: string delimiter line feed by default, unicode is
-                                          -- supported if the delimiter is an invisible special character,
-                                          -- e.g. U&'\000A' is the unicode representation of line feed "\n"
-  'format.quote-character' = '"',         -- optional: single character for string values, empty by default
-  'format.comment-prefix' = '#',          -- optional: string to indicate comments, empty by default
-  'format.ignore-first-line' = 'false',   -- optional: boolean flag to ignore the first line,
-                                          -- by default it is not skipped
-  'format.ignore-parse-errors' = 'true'   -- optional: skip records with parse error instead of failing by default
+  'format.orc.compress' = '...', -- optional: define the default compression codec for ORC file
+  ...                            -- optional: see OrcConf, the properties of orc can be configured
+                                 -- with 'format.orc' prefix.
 )
 {% endhighlight %}
 </div>
+</div>
 
-<div data-lang="Java/Scala" markdown="1">
-{% highlight java %}
-.withFormat(
-  new OldCsv()
-    .fieldDelimiter(",")              // optional: string delimiter "," by default
-    .lineDelimiter("\n")              // optional: string delimiter "\n" by default
-    .quoteCharacter('"')              // optional: single character for string values, empty by default
-    .commentPrefix('#')               // optional: string to indicate comments, empty by default
-    .ignoreFirstLine()                // optional: ignore the first line, by default it is not skipped
-    .ignoreParseErrors()              // optional: skip records with parse error instead of failing by default
+**Not support complex types:** Currently, Array, Map, Row, etc. are not supported.
+
+Make sure to add the ORC format as a dependency.
+
+### Apache Parquet Format
+
+The Apache Parquet format allows to read and write Parquet files using the filesystem connector.
+
+<div class="codetabs" markdown="1">
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format' = 'parquet',                 -- required: specify the schema type
+
+  -- optional: use UTC timezone or local timezone to the conversion between epoch time and LocalDateTime.
+  -- Hive 0.x/1.x/2.x use local timezone. But Hive 3.x use UTC timezone. Default false.
+  'format.utc-timezone' = ',',
+
+  'format.parquet.compression' = '...', -- optional: define the default compression codec for Parquet file
+  ...                                   -- optional: see more in ParquetOutputFormat, the properties of 
+                                        -- parquet can be configured with 'format.parquet' prefix.
 )
 {% endhighlight %}
 </div>
-
-<div data-lang="python" markdown="1">
-{% highlight python %}
-.with_format(
-    OldCsv()
-    .field_delimiter(",")              # optional: string delimiter "," by default
-    .line_delimiter("\n")              # optional: string delimiter "\n" by default
-    .quote_character('"')              # optional: single character for string values, empty by default
-    .comment_prefix('#')               # optional: string to indicate comments, empty by default
-    .ignore_first_line()               # optional: ignore the first line, by default it is not skipped
-    .ignore_parse_errors()             # optional: skip records with parse error instead of failing by default
-)
-{% endhighlight %}
 </div>
 
-<div data-lang="YAML" markdown="1">
-{% highlight yaml %}
-format:
-  type: csv
-  field-delimiter: ","       # optional: string delimiter "," by default
-  line-delimiter: "\n"       # optional: string delimiter "\n" by default
-  quote-character: '"'       # optional: single character for string values, empty by default
-  comment-prefix: '#'        # optional: string to indicate comments, empty by default
-  ignore-first-line: false   # optional: boolean flag to ignore the first line, by default it is not skipped
-  ignore-parse-errors: true  # optional: skip records with parse error instead of failing by default
-{% endhighlight %}
-</div>
-</div>
+**Not support complex types:** Currently, Array, Map, Row, etc. are not supported.
 
-The old CSV format is included in Flink and does not require additional dependencies.
-
-<span class="label label-danger">Attention</span> The old CSV format for writing rows is limited at the moment.
+Make sure to add the Parquet format as a dependency.
 
 {% top %}
 
