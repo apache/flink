@@ -114,6 +114,7 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
 	 *     <li>ALL - a shortcut to change the default merging strategy if none provided</li>
 	 *     <li>CONSTRAINTS - constraints such as primary and unique keys</li>
 	 *     <li>GENERATED - computed columns</li>
+	 *     <li>WATERMARKS - watermark declarations</li>
 	 *     <li>PARTITIONS - partition of the tables</li>
 	 *     <li>OPTIONS - connector options that decribed connector and format properties</li>
 	 * </ul>
@@ -140,8 +141,9 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
 		ALL,
 		CONSTRAINTS,
 		GENERATED,
+		OPTIONS,
 		PARTITIONS,
-		OPTIONS
+		WATERMARKS
 	}
 
 	private final SqlIdentifier sourceTable;

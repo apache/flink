@@ -775,6 +775,8 @@ SqlTableLikeOption SqlTableLikeOption():
         <OPTIONS> { featureOption = FeatureOption.OPTIONS;}
     |
         <PARTITIONS> { featureOption = FeatureOption.PARTITIONS;}
+    |
+        <WATERMARKS> { featureOption = FeatureOption.WATERMARKS;}
     )
 
     {
