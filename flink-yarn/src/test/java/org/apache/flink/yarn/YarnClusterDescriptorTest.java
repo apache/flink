@@ -28,8 +28,9 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
+import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.service.Service;
@@ -166,10 +167,10 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			"-Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR +
 				"/jobmanager.log\""; // if set
 		final String logback =
-			"-Dlogback.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME; // if set
+			"-Dlogback.configurationFile=file:" + YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME; // if set
 		final String log4j =
-			"-Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME +
-				" -Dlog4j.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME; // if set
+			"-Dlog4j.configuration=file:" + YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME +
+				" -Dlog4j.configurationFile=file:" + YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME; // if set
 		final String mainClass = clusterDescriptor.getYarnSessionClusterEntrypoint();
 		final String redirects =
 			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
@@ -186,8 +187,6 @@ public class YarnClusterDescriptorTest extends TestLogger {
 					.setupApplicationMasterContainer(
 						mainClass,
 						false,
-						false,
-						false,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
@@ -199,13 +198,12 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						false,
-						false,
 						true,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// logback only, with/out krb5
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					"" + // jvmOpts
@@ -214,12 +212,11 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						true,
-						false,
 						false,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					" " + krb5 + // jvmOpts
@@ -228,13 +225,12 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						true,
-						false,
 						true,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// log4j, with/out krb5
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					"" + // jvmOpts
@@ -244,11 +240,10 @@ public class YarnClusterDescriptorTest extends TestLogger {
 					.setupApplicationMasterContainer(
 						mainClass,
 						false,
-						true,
-						false,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					" " + krb5 + // jvmOpts
@@ -257,136 +252,126 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						false,
-						true,
 						true,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
-			// logback + log4j, with/out krb5
+			// logback, with/out krb5
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					"" + // jvmOpts
-					" " + logfile + " " + logback + " " + log4j +
+					" " + logfile + " " + logback +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						true,
-						true,
 						false,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					" " + krb5 + // jvmOpts
-					" " + logfile + " " + logback + " " + log4j +
+					" " + logfile + " " + logback +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
 						true,
-						true,
-						true,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
-			// logback + log4j, with/out krb5, different JVM opts
+			// logback, with/out krb5, different JVM opts
 			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor,
 			// because we have a reference to the ClusterDescriptor's configuration which we modify continuously
 			cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					" " + jvmOpts +
-					" " + logfile + " " + logback + " " + log4j +
+					" " + logfile + " " + logback +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						true,
-						true,
 						false,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					" " + jvmOpts + " " + krb5 + // jvmOpts
-					" " + logfile + " " + logback + " " + log4j +
+					" " + logfile + " " + logback +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						true,
-						true,
 						true,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
-			// logback + log4j, with/out krb5, different JVM opts
+			// log4j, with/out krb5, different JVM opts
 			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
 			cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					" " + jvmOpts + " " + jmJvmOpts +
-					" " + logfile + " " + logback + " " + log4j +
+					" " + logfile + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						true,
-						true,
 						false,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
-					" " + logfile + " " + logback + " " + log4j +
+					" " + logfile + " " + log4j +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						true,
-						true,
 						true,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// now try some configurations with different yarn.container-start-command-template
 			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 				"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
 			assertEquals(
 				java + " 1 " + jvmmem +
 					" 2 " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
-					" 3 " + logfile + " " + logback + " " + log4j +
+					" 3 " + logfile + " " + logback +
 					" 4 " + mainClass + " 5 6 " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
 						true,
-						true,
-						true,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
 
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 				"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
 			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
 			assertEquals(
 				java +
-					" " + logfile + " " + logback + " " + log4j +
+					" " + logfile + " " + logback +
 					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
 					" " + jvmmem +
 					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						true,
-						true,
 						true,
 						jobManagerProcessSpec)
 					.getCommands().get(0));
