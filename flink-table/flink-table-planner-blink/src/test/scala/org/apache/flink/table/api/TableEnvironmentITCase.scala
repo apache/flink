@@ -272,6 +272,11 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testExecuteSqlWithInsertOverwrite(): Unit = {
+    if(isStreaming) {
+      // Streaming mode not support overwrite for FileSystemTableSink.
+      return
+    }
+
     val sinkPath = _tempFolder.newFolder().toString
     tEnv.sqlUpdate(
       s"""
@@ -384,6 +389,10 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testExecuteInsertOverwrite(): Unit = {
+    if(isStreaming) {
+      // Streaming mode not support overwrite for FileSystemTableSink.
+      return
+    }
     val sinkPath = _tempFolder.newFolder().toString
     tEnv.sqlUpdate(
       s"""
