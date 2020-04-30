@@ -1,5 +1,5 @@
 ---
-title: "Usage Notes"
+title: "常见问题"
 nav-parent_id: python_tableapi
 nav-pos: 140
 ---
@@ -27,37 +27,7 @@ This page describes the solutions to some frequently encountered problems for Py
 * This will be replaced by the TOC
 {:toc}
 ## Preparing Python Virtual Environment
-You can prepare the Python virtual environment as following:
-{% highlight shell %}
-# download miniconda.sh
-set -e
-if [ `uname -s` == "Darwin" ]; then
-    wget "https://repo.continuum.io/miniconda/Miniconda3-4.7.10-MacOSX-x86_64.sh" -O "miniconda.sh"
-else
-    wget "https://repo.continuum.io/miniconda/Miniconda3-4.7.10-Linux-x86_64.sh" -O "miniconda.sh"
-fi
-
-# add the execution permission
-chmod +x miniconda.sh
-
-# create python virtual environment
-./miniconda.sh -b -p venv
-
-# activate the conda python virtual environment
-source venv/bin/activate
-
-# install PyFlink
-pip install apache-flink
-
-# deactivate the conda python virtual environment
-conda deactivate
-
-# remove the cached packages
-rm -rf venv/pkgs
-
-# package the prepared conda python virtual environment
-zip -r venv.zip venv
-{% endhighlight %}
+You can download a [convenience script](https://github.com/apache/flink/blob/master/flink-python/dev/setup-pyflink-virtual-env.sh) to prepare a Python virtual env zip which can be used on Mac OS and most Linux distributions. 
 
 ## Execute PyFlink jobs with Python virtual environment
 You can refer to the section [Preparing Python Virtual Environment](#preparing-python-virtual-environment) on how to
@@ -78,16 +48,16 @@ $ python xxx.py
 {% highlight shell %}
 $ # specify the Python virtual environment
 $ table_env.add_python_archive("venv.zip")
-$ # specify the path of the python interpreter which is used to execute the python udf workers
+$ # specify the path of the python interpreter which is used to execute the python UDF workers
 $ table_env.get_config().set_python_executable("venv.zip/venv/bin/python")
 {% endhighlight %}
 
-You can refer to <a href="{{ site.baseurl }}/zh/dev/table/python/dependency_management.html#usage">dependency management</a> for more details on the usage of `add_python_archive` and `set_python_executable`.
+For details on the usage of `add_python_archive` and `set_python_executable`, you can refer to [the relevant documentation]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html#usage).
 
 ## Adding Jar Files
-A PyFlink job may depend on jar files, i.e. connectors, Java udfs, etc.
+A PyFlink job may depend on jar files, i.e. connectors, Java UDFs, etc.
 
-You can specify the dependencies with the following Python Table APIs or through <a href="{{ site.baseurl }}/zh/ops/cli.html#usage">command line arguments</a> directly when submitting the job.
+You can specify the dependencies with the following Python Table APIs or through <a href="{{ site.baseurl }}/zh/ops/cli.html#usage">command-line arguments</a> directly when submitting the job.
 {% highlight python %}
 # NOTE: Only local file URLs (start with "file://") are supported.
 table_env.get_config().set_configuration("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
@@ -96,10 +66,10 @@ table_env.get_config().set_configuration("pipeline.jars", "file:///my/jar/path/c
 table_env.get_config().set_configuration("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-You can refer to <a href="{{ site.baseurl }}/zh/dev/table/python/dependency_management.html##java-dependency">Adding Java Dependency</a> for more details.
+For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html##java-dependency)
 
 ## Adding Python Files
-You can use the command line arguments `pyfs` or the API `add_python_file` of `TableEnvironment` to add python file dependencies which could be python files, python packages or local directories.
+You can use the command-line arguments `pyfs` or the API `add_python_file` of `TableEnvironment` to add python file dependencies which could be python files, python packages or local directories.
 
 For example, if you have a directory named `myDir` which has the following hierarchy:
 ```
