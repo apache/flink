@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -84,7 +85,8 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 		this.kubernetesTaskManagerParameters = new KubernetesTaskManagerParameters(flinkConfig,
 			POD_NAME,
 			DYNAMIC_PROPERTIES,
-			containeredTaskManagerParameters);
+			containeredTaskManagerParameters,
+			Collections.emptyMap());
 	}
 
 	@Test

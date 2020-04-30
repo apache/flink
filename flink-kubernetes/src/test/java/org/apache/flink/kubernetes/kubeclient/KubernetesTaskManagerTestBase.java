@@ -27,6 +27,7 @@ import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerPa
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -94,6 +95,7 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 				flinkConfig,
 				POD_NAME,
 				DYNAMIC_PROPERTIES,
-				containeredTaskManagerParameters);
+				containeredTaskManagerParameters,
+				ExternalResourceUtils.getExternalResources(flinkConfig, KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX));
 	}
 }
