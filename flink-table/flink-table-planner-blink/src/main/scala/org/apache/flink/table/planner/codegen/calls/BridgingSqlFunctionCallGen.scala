@@ -29,18 +29,17 @@ import org.apache.flink.table.planner.functions.inference.OperatorBindingCallCon
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.extraction.utils.ExtractionUtils
-import org.apache.flink.table.types.extraction.utils.ExtractionUtils.{createMethodSignatureString, isAssignable, isMethodInvokable, primitiveToWrapper}
+import org.apache.flink.table.types.extraction.ExtractionUtils.{createMethodSignatureString, isAssignable, isMethodInvokable, primitiveToWrapper}
 import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.util.Preconditions
-
 import org.apache.calcite.rex.{RexCall, RexCallBinding}
-
 import java.lang.reflect.Method
 import java.util.Collections
+
+import org.apache.flink.table.types.extraction.ExtractionUtils
 
 /**
  * Generates a call to a user-defined [[ScalarFunction]] or [[TableFunction]].

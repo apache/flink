@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.extraction.utils;
+package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
@@ -31,19 +31,19 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
 
 /**
  * Template of a function signature with argument types and argument names.
  */
 @Internal
-public final class FunctionSignatureTemplate {
+final class FunctionSignatureTemplate {
 
-	public final List<FunctionArgumentTemplate> argumentTemplates;
+	final List<FunctionArgumentTemplate> argumentTemplates;
 
-	public final boolean isVarArgs;
+	final boolean isVarArgs;
 
-	public final @Nullable String[] argumentNames;
+	final @Nullable String[] argumentNames;
 
 	private FunctionSignatureTemplate(
 			List<FunctionArgumentTemplate> argumentTemplates,
@@ -54,7 +54,7 @@ public final class FunctionSignatureTemplate {
 		this.argumentNames = argumentNames;
 	}
 
-	public static FunctionSignatureTemplate of(
+	static FunctionSignatureTemplate of(
 			List<FunctionArgumentTemplate> argumentTemplates,
 			boolean isVarArgs,
 			@Nullable String[] argumentNames) {
@@ -67,7 +67,7 @@ public final class FunctionSignatureTemplate {
 		return new FunctionSignatureTemplate(argumentTemplates, isVarArgs, argumentNames);
 	}
 
-	public InputTypeStrategy toInputTypeStrategy() {
+	InputTypeStrategy toInputTypeStrategy() {
 		final ArgumentTypeStrategy[] argumentStrategies = argumentTemplates.stream()
 			.map(FunctionArgumentTemplate::toArgumentTypeStrategy)
 			.toArray(ArgumentTypeStrategy[]::new);
@@ -91,7 +91,7 @@ public final class FunctionSignatureTemplate {
 		return strategy;
 	}
 
-	public List<Class<?>> toClass() {
+	List<Class<?>> toClass() {
 		return IntStream.range(0, argumentTemplates.size())
 			.mapToObj(i -> {
 				final Class<?> clazz = argumentTemplates.get(i).toConversionClass();

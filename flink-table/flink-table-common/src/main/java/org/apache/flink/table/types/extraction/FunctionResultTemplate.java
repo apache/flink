@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.extraction.utils;
+package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
@@ -29,23 +29,23 @@ import java.util.Objects;
  * Template of a function intermediate result (i.e. accumulator) or final result (i.e. output).
  */
 @Internal
-public final class FunctionResultTemplate {
+final class FunctionResultTemplate {
 
-	public final DataType dataType;
+	final DataType dataType;
 
 	private FunctionResultTemplate(DataType dataType) {
 		this.dataType = dataType;
 	}
 
-	public static FunctionResultTemplate of(DataType dataType) {
+	static FunctionResultTemplate of(DataType dataType) {
 		return new FunctionResultTemplate(dataType);
 	}
 
-	public TypeStrategy toTypeStrategy() {
+	TypeStrategy toTypeStrategy() {
 		return TypeStrategies.explicit(dataType);
 	}
 
-	public Class<?> toClass() {
+	Class<?> toClass() {
 		return dataType.getConversionClass();
 	}
 

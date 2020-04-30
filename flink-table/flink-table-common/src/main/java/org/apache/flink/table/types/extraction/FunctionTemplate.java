@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.extraction.utils;
+package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.DataTypeHint;
@@ -30,7 +30,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
 
 /**
  * Internal representation of a {@link FunctionHint}.
@@ -39,7 +39,7 @@ import static org.apache.flink.table.types.extraction.utils.ExtractionUtils.extr
  * members are {@code null}.
  */
 @Internal
-public final class FunctionTemplate {
+final class FunctionTemplate {
 
 	private static final FunctionHint DEFAULT_ANNOTATION = getDefaultAnnotation();
 
@@ -62,7 +62,7 @@ public final class FunctionTemplate {
 	 * Creates an instance using the given {@link FunctionHint}. It resolves explicitly defined data
 	 * types.
 	 */
-	public static FunctionTemplate fromAnnotation(DataTypeFactory typeFactory, FunctionHint hint) {
+	static FunctionTemplate fromAnnotation(DataTypeFactory typeFactory, FunctionHint hint) {
 		return new FunctionTemplate(
 			createSignatureTemplate(
 				typeFactory,
@@ -74,15 +74,15 @@ public final class FunctionTemplate {
 		);
 	}
 
-	public @Nullable FunctionSignatureTemplate getSignatureTemplate() {
+	@Nullable FunctionSignatureTemplate getSignatureTemplate() {
 		return signatureTemplate;
 	}
 
-	public @Nullable FunctionResultTemplate getAccumulatorTemplate() {
+	@Nullable FunctionResultTemplate getAccumulatorTemplate() {
 		return accumulatorTemplate;
 	}
 
-	public @Nullable FunctionResultTemplate getOutputTemplate() {
+	@Nullable FunctionResultTemplate getOutputTemplate() {
 		return outputTemplate;
 	}
 
