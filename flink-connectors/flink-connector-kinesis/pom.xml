@@ -221,6 +221,14 @@ under the License.
 									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.http</shadedPattern>
 								</relocation>
 							</relocations>
+							<filters>
+								<filter>
+									<artifact>com.amazonaws:amazon-kinesis-producer</artifact>
+									<excludes>
+										<exclude>META-INF/THIRD_PARTY_NOTICES</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
