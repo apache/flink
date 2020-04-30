@@ -72,8 +72,8 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
+import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
@@ -311,7 +311,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 
 				ioExecutor = Executors.newFixedThreadPool(
-					Hardware.getNumberCPUCores(),
+					ClusterEntrypointUtils.getPoolSize(configuration),
 					new ExecutorThreadFactory("mini-cluster-io"));
 				haServices = createHighAvailabilityServices(configuration, ioExecutor);
 
