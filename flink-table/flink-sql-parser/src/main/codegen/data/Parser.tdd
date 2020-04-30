@@ -101,6 +101,7 @@
     "USE"
     "VIEWS"
     "WATERMARK"
+    "WATERMARKS"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
