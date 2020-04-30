@@ -15,7 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import collections
 import os
+import sys
 
 from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
                                        Elasticsearch, Csv, Avro, Json, CustomConnectorDescriptor,
@@ -48,6 +50,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
         properties = kafka.to_properties()
         expected = {'connector.version': '0.11',
                     'connector.type': 'kafka',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
@@ -57,6 +60,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
                     'connector.topic': 'topic1',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
@@ -65,6 +69,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
 
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.properties.bootstrap.servers': 'localhost:9092',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
@@ -74,6 +79,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
 
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.properties.group.id': 'testGroup',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
@@ -130,6 +136,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
 
         properties = kafka.to_properties()
         expected = {'connector.sink-partitioner': 'fixed',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.type': 'kafka',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
@@ -144,6 +151,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
                         'org.apache.flink.streaming.connectors.kafka.partitioner.'
                         'FlinkFixedPartitioner',
                     'connector.type': 'kafka',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
@@ -153,6 +161,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
         properties = kafka.to_properties()
         expected = {'connector.sink-partitioner': 'round-robin',
                     'connector.type': 'kafka',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
@@ -904,6 +913,64 @@ class SchemaDescriptorTests(PyFlinkTestCase):
                     'schema.10.name': 'boolean_field',
                     'schema.10.data-type': 'BOOLEAN'}
         self.assertEqual(expected, properties)
+
+    def test_fields(self):
+        fields = collections.OrderedDict([
+            ("int_field", DataTypes.INT()),
+            ("long_field", DataTypes.BIGINT()),
+            ("string_field", DataTypes.STRING()),
+            ("timestamp_field", DataTypes.TIMESTAMP(3)),
+            ("time_field", DataTypes.TIME()),
+            ("date_field", DataTypes.DATE()),
+            ("double_field", DataTypes.DOUBLE()),
+            ("float_field", DataTypes.FLOAT()),
+            ("byte_field", DataTypes.TINYINT()),
+            ("short_field", DataTypes.SMALLINT()),
+            ("boolean_field", DataTypes.BOOLEAN())
+        ])
+
+        schema = Schema().fields(fields)
+
+        properties = schema.to_properties()
+        expected = {'schema.0.name': 'int_field',
+                    'schema.0.data-type': 'INT',
+                    'schema.1.name': 'long_field',
+                    'schema.1.data-type': 'BIGINT',
+                    'schema.2.name': 'string_field',
+                    'schema.2.data-type': 'VARCHAR(2147483647)',
+                    'schema.3.name': 'timestamp_field',
+                    'schema.3.data-type': 'TIMESTAMP(3)',
+                    'schema.4.name': 'time_field',
+                    'schema.4.data-type': 'TIME(0)',
+                    'schema.5.name': 'date_field',
+                    'schema.5.data-type': 'DATE',
+                    'schema.6.name': 'double_field',
+                    'schema.6.data-type': 'DOUBLE',
+                    'schema.7.name': 'float_field',
+                    'schema.7.data-type': 'FLOAT',
+                    'schema.8.name': 'byte_field',
+                    'schema.8.data-type': 'TINYINT',
+                    'schema.9.name': 'short_field',
+                    'schema.9.data-type': 'SMALLINT',
+                    'schema.10.name': 'boolean_field',
+                    'schema.10.data-type': 'BOOLEAN'}
+        self.assertEqual(expected, properties)
+
+        if sys.version_info[:2] <= (3, 5):
+            fields = {
+                "int_field": DataTypes.INT(),
+                "long_field": DataTypes.BIGINT(),
+                "string_field": DataTypes.STRING(),
+                "timestamp_field": DataTypes.TIMESTAMP(3),
+                "time_field": DataTypes.TIME(),
+                "date_field": DataTypes.DATE(),
+                "double_field": DataTypes.DOUBLE(),
+                "float_field": DataTypes.FLOAT(),
+                "byte_field": DataTypes.TINYINT(),
+                "short_field": DataTypes.SMALLINT(),
+                "boolean_field": DataTypes.BOOLEAN()
+            }
+            self.assertRaises(TypeError, Schema().fields, fields)
 
     def test_field_in_string(self):
         schema = Schema()\
