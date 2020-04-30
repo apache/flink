@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.RecordCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -184,6 +185,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		catch (Throwable t) {
 			throw new RuntimeException("Error setting up mock readers: " + t.getMessage(), t);
 		}
+	}
+
+	public void addInputs(List<IndexedInputGate> gates) {
+		inputs.addAll(gates);
 	}
 
 	public void addOutput(final List<Record> outputList) {

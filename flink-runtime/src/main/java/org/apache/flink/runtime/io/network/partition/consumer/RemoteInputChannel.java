@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
-import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
@@ -107,10 +107,10 @@ public class RemoteInputChannel extends InputChannel {
 		ConnectionManager connectionManager,
 		int initialBackOff,
 		int maxBackoff,
-		InputChannelMetrics metrics) {
+		Counter numBytesIn,
+		Counter numBuffersIn) {
 
-		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff,
-			metrics.getNumBytesInRemoteCounter(), metrics.getNumBuffersInRemoteCounter());
+		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, numBytesIn, numBuffersIn);
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -307,6 +307,11 @@ public class RemoteInputChannel extends InputChannel {
 	@VisibleForTesting
 	BufferManager getBufferManager() {
 		return bufferManager;
+	}
+
+	@VisibleForTesting
+	PartitionRequestClient getPartitionRequestClient() {
+		return partitionRequestClient;
 	}
 
 

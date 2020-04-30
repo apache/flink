@@ -511,6 +511,7 @@ public class CheckpointBarrierUnalignerTest {
 		sequenceNumbers = new int[numberOfChannels];
 
 		gate.setup();
+		gate.requestPartitions();
 
 		return createCheckpointedInputGate(gate, toNotify);
 	}

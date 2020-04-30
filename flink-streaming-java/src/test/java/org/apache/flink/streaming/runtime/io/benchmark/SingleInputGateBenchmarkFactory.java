@@ -114,7 +114,8 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				taskEventPublisher,
 				initialBackoff,
 				maxBackoff,
-				metrics);
+				metrics.getNumBytesInLocalCounter(),
+				metrics.getNumBuffersInLocalCounter());
 		}
 
 		@Override
@@ -157,7 +158,8 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				connectionManager,
 				initialBackOff,
 				maxBackoff,
-				metrics);
+				metrics.getNumBytesInRemoteCounter(),
+				metrics.getNumBuffersInRemoteCounter());
 		}
 
 		@Override

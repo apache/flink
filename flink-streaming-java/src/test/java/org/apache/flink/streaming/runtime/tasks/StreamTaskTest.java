@@ -81,6 +81,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -98,6 +99,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.io.InputStatus;
+import org.apache.flink.streaming.runtime.io.MockIndexedInputGate;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
@@ -143,6 +145,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -905,26 +908,49 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	@Test
-	public void testInitializeResultPartitionState() throws Exception {
+	public void testInitializeChannelState() throws Exception {
 		int numWriters = 2;
+		int numGates = 2;
 		RecoveryResultPartition[] partitions = new RecoveryResultPartition[numWriters];
 		for (int i = 0; i < numWriters; i++) {
 			partitions[i] = new RecoveryResultPartition();
 		}
+		RecoveryInputGate[] gates = new RecoveryInputGate[numGates];
+		for (int i = 0; i < numGates; i++) {
+			gates[i] = new RecoveryInputGate(partitions);
+		}
 
-		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build();
+		Configuration configuration = new Configuration();
+		configuration.setBoolean(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true);
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().setTaskConfiguration(configuration).build();
 		mockEnvironment.addOutputs(Arrays.asList(partitions));
+		mockEnvironment.addInputs(Arrays.asList(gates));
 		StreamTask task = new MockStreamTaskBuilder(mockEnvironment).build();
-
 		try {
+			verifyResults(gates, partitions, false);
+
 			task.beforeInvoke();
 
-			// output recovery should be done before task processing
-			for (RecoveryResultPartition resultPartition : partitions) {
-				assertTrue(resultPartition.isStateInitialized());
+			verifyResults(gates, partitions, true);
+
+			// execute the partition request mail inserted after input recovery completes
+			task.mailboxProcessor.drain();
+
+			for (RecoveryInputGate inputGate : gates) {
+				assertTrue(inputGate.isPartitionRequested());
 			}
 		} finally {
 			task.cleanUpInvoke();
+		}
+	}
+
+	private void verifyResults(RecoveryInputGate[] gates, RecoveryResultPartition[] partitions, boolean expected) {
+		for (RecoveryResultPartition resultPartition : partitions) {
+			assertEquals(expected, resultPartition.isStateRecovered());
+		}
+		for (RecoveryInputGate inputGate : gates) {
+			assertEquals(expected, inputGate.isStateRecovered());
+			assertFalse(inputGate.isPartitionRequested());
 		}
 	}
 
@@ -1770,18 +1796,51 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	private static class RecoveryResultPartition extends MockResultPartitionWriter {
-		private boolean isStateInitialized;
+		private boolean isStateRecovered;
 
 		RecoveryResultPartition() {
 		}
 
 		@Override
 		public void readRecoveredState(ChannelStateReader stateReader) {
-			isStateInitialized = true;
+			isStateRecovered = true;
 		}
 
-		boolean isStateInitialized() {
-			return isStateInitialized;
+		boolean isStateRecovered() {
+			return isStateRecovered;
+		}
+	}
+
+	private static class RecoveryInputGate extends MockIndexedInputGate {
+		private final RecoveryResultPartition[] partitions;
+		private boolean isStateRecovered;
+		private boolean isPartitionRequested;
+
+		RecoveryInputGate(RecoveryResultPartition[] partitions) {
+			this.partitions = checkNotNull(partitions);
+		}
+
+		@Override
+		public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+			for (RecoveryResultPartition partition : partitions) {
+				checkState(partition.isStateRecovered(), "The output state recovery should happen before input state recovery.");
+				checkState(!isPartitionRequested, "The partition request should happen after completing all input gates recovery.");
+			}
+			isStateRecovered = true;
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public void requestPartitions() {
+			isPartitionRequested = true;
+		}
+
+		boolean isStateRecovered() {
+			return isStateRecovered;
+		}
+
+		boolean isPartitionRequested() {
+			return isPartitionRequested;
 		}
 	}
 }

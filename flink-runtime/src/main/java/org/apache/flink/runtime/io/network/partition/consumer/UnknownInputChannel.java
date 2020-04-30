@@ -127,10 +127,20 @@ class UnknownInputChannel extends InputChannel {
 			connectionManager,
 			initialBackoff,
 			maxBackoff,
-			metrics);
+			metrics.getNumBytesInRemoteCounter(),
+			metrics.getNumBuffersInRemoteCounter());
 	}
 
 	public LocalInputChannel toLocalInputChannel() {
-		return new LocalInputChannel(inputGate, getChannelIndex(), partitionId, partitionManager, taskEventPublisher, initialBackoff, maxBackoff, metrics);
+		return new LocalInputChannel(
+			inputGate,
+			getChannelIndex(),
+			partitionId,
+			partitionManager,
+			taskEventPublisher,
+			initialBackoff,
+			maxBackoff,
+			metrics.getNumBytesInRemoteCounter(),
+			metrics.getNumBuffersInRemoteCounter());
 	}
 }

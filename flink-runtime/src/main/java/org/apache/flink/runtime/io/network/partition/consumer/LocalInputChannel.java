@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -71,10 +72,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		ResultPartitionID partitionId,
 		ResultPartitionManager partitionManager,
 		TaskEventPublisher taskEventPublisher,
-		InputChannelMetrics metrics) {
+		Counter numBytesIn,
+		Counter numBuffersIn) {
 
-		this(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher,
-			0, 0, metrics);
+		this(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher, 0, 0, numBytesIn, numBuffersIn);
 	}
 
 	public LocalInputChannel(
@@ -85,9 +86,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		TaskEventPublisher taskEventPublisher,
 		int initialBackoff,
 		int maxBackoff,
-		InputChannelMetrics metrics) {
+		Counter numBytesIn,
+		Counter numBuffersIn) {
 
-		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, metrics.getNumBytesInLocalCounter(), metrics.getNumBuffersInLocalCounter());
+		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, numBytesIn, numBuffersIn);
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventPublisher = checkNotNull(taskEventPublisher);
@@ -302,5 +304,14 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		}
 		// already processed
 		return true;
+	}
+
+	// ------------------------------------------------------------------------
+	// Getter
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	ResultSubpartitionView getSubpartitionView() {
+		return subpartitionView;
 	}
 }
