@@ -35,6 +35,8 @@ import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 
@@ -47,6 +49,21 @@ import java.util.Optional;
  */
 @PublicEvolving
 public interface Catalog {
+
+	/**
+	 * Returns a factory for creating instances from catalog objects.
+	 *
+	 * <p>This method enables bypassing the discovery process. Implementers can directly pass internal
+	 * catalog-specific objects to their own factory. For example, a custom {@link CatalogTable} can
+	 * be processed by a custom {@link DynamicTableFactory}.
+	 *
+	 * <p>Because all factories are interfaces, the returned {@link Factory} instance can implement multiple
+	 * supported extension points. An {@code instanceof} check is performed by the caller that checks
+	 * whether a required factory is implemented; otherwise the discovery process is used.
+	 */
+	default Optional<Factory> getFactory() {
+		return Optional.empty();
+	}
 
 	/**
 	 * Get an optional {@link TableFactory} instance that's responsible for generating table-related
