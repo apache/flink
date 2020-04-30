@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.commons.lang3.ClassUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -53,6 +52,8 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.lang3.ClassUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,14 +74,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getTypeHierarchy;
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.hasSuperclass;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getTypeHierarchy;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.hasSuperclass;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.isClassType;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.sameTypeVars;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.typeToClass;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A utility for reflection analysis on classes, to determine the return type of implementations of transformation
@@ -117,7 +118,7 @@ public class TypeExtractor {
 	 *
 	 */
 
-	/** The name of the class representing Hadoop's writable */
+	/** The name of the class representing Hadoop's writable. */
 	private static final String HADOOP_WRITABLE_CLASS = "org.apache.hadoop.io.Writable";
 
 	private static final String HADOOP_WRITABLE_TYPEINFO_CLASS = "org.apache.flink.api.java.typeutils.WritableTypeInfo";
@@ -171,8 +172,7 @@ public class TypeExtractor {
 
 	@PublicEvolving
 	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(MapFunction<IN, OUT> mapInterface, TypeInformation<IN> inType,
-			String functionName, boolean allowMissing)
-	{
+			String functionName, boolean allowMissing) {
 		return getUnaryOperatorReturnType(
 			(Function) mapInterface,
 			MapFunction.class,
@@ -184,7 +184,6 @@ public class TypeExtractor {
 			allowMissing);
 	}
 
-
 	@PublicEvolving
 	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMapFunction<IN, OUT> flatMapInterface, TypeInformation<IN> inType) {
 		return getFlatMapReturnTypes(flatMapInterface, inType, null, false);
@@ -192,8 +191,7 @@ public class TypeExtractor {
 
 	@PublicEvolving
 	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMapFunction<IN, OUT> flatMapInterface, TypeInformation<IN> inType,
-			String functionName, boolean allowMissing)
-	{
+			String functionName, boolean allowMissing) {
 		return getUnaryOperatorReturnType(
 			(Function) flatMapInterface,
 			FlatMapFunction.class,
@@ -210,8 +208,7 @@ public class TypeExtractor {
 	 */
 	@PublicEvolving
 	@Deprecated
-	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType)
-	{
+	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType) {
 		return getFoldReturnTypes(foldInterface, inType, null, false);
 	}
 
@@ -220,8 +217,7 @@ public class TypeExtractor {
 	 */
 	@PublicEvolving
 	@Deprecated
-	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType, String functionName, boolean allowMissing)
-	{
+	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType, String functionName, boolean allowMissing) {
 		return getUnaryOperatorReturnType(
 			(Function) foldInterface,
 			FoldFunction.class,
@@ -238,8 +234,7 @@ public class TypeExtractor {
 			AggregateFunction<IN, ACC, ?> function,
 			TypeInformation<IN> inType,
 			String functionName,
-			boolean allowMissing)
-	{
+			boolean allowMissing) {
 		return getUnaryOperatorReturnType(
 			function,
 			AggregateFunction.class,
@@ -256,8 +251,7 @@ public class TypeExtractor {
 			AggregateFunction<IN, ?, OUT> function,
 			TypeInformation<IN> inType,
 			String functionName,
-			boolean allowMissing)
-	{
+			boolean allowMissing) {
 		return getUnaryOperatorReturnType(
 			function,
 			AggregateFunction.class,
@@ -276,8 +270,7 @@ public class TypeExtractor {
 
 	@PublicEvolving
 	public static <IN, OUT> TypeInformation<OUT> getMapPartitionReturnTypes(MapPartitionFunction<IN, OUT> mapPartitionInterface, TypeInformation<IN> inType,
-			String functionName, boolean allowMissing)
-	{
+			String functionName, boolean allowMissing) {
 		return getUnaryOperatorReturnType(
 			(Function) mapPartitionInterface,
 			MapPartitionFunction.class,
@@ -296,8 +289,7 @@ public class TypeExtractor {
 
 	@PublicEvolving
 	public static <IN, OUT> TypeInformation<OUT> getGroupReduceReturnTypes(GroupReduceFunction<IN, OUT> groupReduceInterface, TypeInformation<IN> inType,
-			String functionName, boolean allowMissing)
-	{
+			String functionName, boolean allowMissing) {
 		return getUnaryOperatorReturnType(
 			(Function) groupReduceInterface,
 			GroupReduceFunction.class,
@@ -316,8 +308,7 @@ public class TypeExtractor {
 
 	@PublicEvolving
 	public static <IN, OUT> TypeInformation<OUT> getGroupCombineReturnTypes(GroupCombineFunction<IN, OUT> combineInterface, TypeInformation<IN> inType,
-																			String functionName, boolean allowMissing)
-	{
+																			String functionName, boolean allowMissing) {
 		return getUnaryOperatorReturnType(
 			(Function) combineInterface,
 			GroupCombineFunction.class,
@@ -331,15 +322,13 @@ public class TypeExtractor {
 
 	@PublicEvolving
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getFlatJoinReturnTypes(FlatJoinFunction<IN1, IN2, OUT> joinInterface,
-			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type)
-	{
+			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		return getFlatJoinReturnTypes(joinInterface, in1Type, in2Type, null, false);
 	}
 
 	@PublicEvolving
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getFlatJoinReturnTypes(FlatJoinFunction<IN1, IN2, OUT> joinInterface,
-			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
-	{
+			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing) {
 		return getBinaryOperatorReturnType(
 			(Function) joinInterface,
 			FlatJoinFunction.class,
@@ -355,15 +344,13 @@ public class TypeExtractor {
 
 	@PublicEvolving
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(JoinFunction<IN1, IN2, OUT> joinInterface,
-			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type)
-	{
+			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		return getJoinReturnTypes(joinInterface, in1Type, in2Type, null, false);
 	}
 
 	@PublicEvolving
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(JoinFunction<IN1, IN2, OUT> joinInterface,
-			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
-	{
+			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing) {
 		return getBinaryOperatorReturnType(
 			(Function) joinInterface,
 			JoinFunction.class,
@@ -379,15 +366,13 @@ public class TypeExtractor {
 
 	@PublicEvolving
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(CoGroupFunction<IN1, IN2, OUT> coGroupInterface,
-			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type)
-	{
+			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		return getCoGroupReturnTypes(coGroupInterface, in1Type, in2Type, null, false);
 	}
 
 	@PublicEvolving
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(CoGroupFunction<IN1, IN2, OUT> coGroupInterface,
-			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
-	{
+			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing) {
 		return getBinaryOperatorReturnType(
 			(Function) coGroupInterface,
 			CoGroupFunction.class,
@@ -403,15 +388,13 @@ public class TypeExtractor {
 
 	@PublicEvolving
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(CrossFunction<IN1, IN2, OUT> crossInterface,
-			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type)
-	{
+			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		return getCrossReturnTypes(crossInterface, in1Type, in2Type, null, false);
 	}
 
 	@PublicEvolving
 	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(CrossFunction<IN1, IN2, OUT> crossInterface,
-			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing)
-	{
+			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type, String functionName, boolean allowMissing) {
 		return getBinaryOperatorReturnType(
 			(Function) crossInterface,
 			CrossFunction.class,
@@ -432,8 +415,7 @@ public class TypeExtractor {
 
 	@PublicEvolving
 	public static <IN, OUT> TypeInformation<OUT> getKeySelectorTypes(KeySelector<IN, OUT> selectorInterface,
-			TypeInformation<IN> inType, String functionName, boolean allowMissing)
-	{
+			TypeInformation<IN> inType, String functionName, boolean allowMissing) {
 		return getUnaryOperatorReturnType(
 			(Function) selectorInterface,
 			KeySelector.class,
@@ -467,7 +449,6 @@ public class TypeExtractor {
 			allowMissing);
 	}
 
-
 	@SuppressWarnings("unchecked")
 	@PublicEvolving
 	public static <IN> TypeInformation<IN> getInputFormatTypes(InputFormat<IN, ?> inputFormatInterface) {
@@ -486,10 +467,10 @@ public class TypeExtractor {
 	 *
 	 * <p>This method can extract a type in 4 different ways:
 	 *
-	 * <p>1. By using the generics of the base class like MyFunction<X, Y, Z, IN, OUT>.
+	 * <p>1. By using the generics of the base class like {@code MyFunction<X, Y, Z, IN, OUT>}.
 	 *    This is what outputTypeArgumentIndex (in this example "4") is good for.
 	 *
-	 * <p>2. By using input type inference SubMyFunction<T, String, String, String, T>.
+	 * <p>2. By using input type inference {@code SubMyFunction<T, String, String, String, T>}.
 	 *    This is what inputTypeArgumentIndex (in this example "0") and inType is good for.
 	 *
 	 * <p>3. By using the static method that a compiler generates for Java lambdas.
@@ -497,17 +478,15 @@ public class TypeExtractor {
 	 *    the following single abstract method:
 	 *
 	 * <pre>
-	 * <code>
-	 * void apply(IN value, Collector<OUT> value)
-	 * </code>
+	 * {@code void apply(IN value, Collector<OUT> value)}
 	 * </pre>
 	 *
-	 * <p> Lambda type indices allow the extraction of a type from lambdas. To extract the
-	 *     output type <b>OUT</b> from the function one should pass {@code new int[] {1, 0}}.
-	 *     "1" for selecting the parameter and 0 for the first generic in this type.
-	 *     Use {@code TypeExtractor.NO_INDEX} for selecting the return type of the lambda for
-	 *     extraction or if the class cannot be a lambda because it is not a single abstract
-	 *     method interface.
+	 * <p>Lambda type indices allow the extraction of a type from lambdas. To extract the
+	 *    output type <b>OUT</b> from the function one should pass {@code new int[] {1, 0}}.
+	 *    "1" for selecting the parameter and 0 for the first generic in this type.
+	 *    Use {@code TypeExtractor.NO_INDEX} for selecting the return type of the lambda for
+	 *    extraction or if the class cannot be a lambda because it is not a single abstract
+	 *    method interface.
 	 *
 	 * <p>4. By using interfaces such as {@link TypeInfoFactory} or {@link ResultTypeQueryable}.
 	 *
@@ -602,10 +581,10 @@ public class TypeExtractor {
 	 *
 	 * <p>This method can extract a type in 4 different ways:
 	 *
-	 * <p>1. By using the generics of the base class like MyFunction<X, Y, Z, IN, OUT>.
+	 * <p>1. By using the generics of the base class like {@code MyFunction<X, Y, Z, IN, OUT>}.
 	 *    This is what outputTypeArgumentIndex (in this example "4") is good for.
 	 *
-	 * <p>2. By using input type inference SubMyFunction<T, String, String, String, T>.
+	 * <p>2. By using input type inference {@code SubMyFunction<T, String, String, String, T>}.
 	 *    This is what inputTypeArgumentIndex (in this example "0") and inType is good for.
 	 *
 	 * <p>3. By using the static method that a compiler generates for Java lambdas.
@@ -613,17 +592,15 @@ public class TypeExtractor {
 	 *    the following single abstract method:
 	 *
 	 * <pre>
-	 * <code>
-	 * void apply(IN value, Collector<OUT> value)
-	 * </code>
+	 * {@code void apply(IN value, Collector<OUT> value) }
 	 * </pre>
 	 *
-	 * <p> Lambda type indices allow the extraction of a type from lambdas. To extract the
-	 *     output type <b>OUT</b> from the function one should pass {@code new int[] {1, 0}}.
-	 *     "1" for selecting the parameter and 0 for the first generic in this type.
-	 *     Use {@code TypeExtractor.NO_INDEX} for selecting the return type of the lambda for
-	 *     extraction or if the class cannot be a lambda because it is not a single abstract
-	 *     method interface.
+	 * <p>Lambda type indices allow the extraction of a type from lambdas. To extract the
+	 *    output type <b>OUT</b> from the function one should pass {@code new int[] {1, 0}}.
+	 *    "1" for selecting the parameter and 0 for the first generic in this type.
+	 *    Use {@code TypeExtractor.NO_INDEX} for selecting the return type of the lambda for
+	 *    extraction or if the class cannot be a lambda because it is not a single abstract
+	 *    method interface.
 	 *
 	 * <p>4. By using interfaces such as {@link TypeInfoFactory} or {@link ResultTypeQueryable}.
 	 *
@@ -740,7 +717,7 @@ public class TypeExtractor {
 	/**
 	 * Creates a {@link TypeInformation} from the given parameters.
 	 *
-	 * If the given {@code instance} implements {@link ResultTypeQueryable}, its information
+	 * <p>If the given {@code instance} implements {@link ResultTypeQueryable}, its information
 	 * is used to determine the type information. Otherwise, the type information is derived
 	 * based on the given class information.
 	 *
@@ -839,7 +816,7 @@ public class TypeExtractor {
 				curT = typeToClass(curT).getGenericSuperclass();
 			}
 
-			if(curT == Tuple0.class) {
+			if (curT == Tuple0.class) {
 				return new TupleTypeInfo(Tuple0.class);
 			}
 
@@ -976,7 +953,7 @@ public class TypeExtractor {
 			// original type contains additional fields.
 			// check for additional fields.
 			int fieldCount = countFieldsInClass(originalTypeAsClass);
-			if(fieldCount > subTypesInfo.length) {
+			if (fieldCount > subTypesInfo.length) {
 				return null;
 			}
 		}
@@ -1089,7 +1066,7 @@ public class TypeExtractor {
 		try {
 			validateInfo(typeHierarchy, t, inType);
 		}
-		catch(InvalidTypesException e) {
+		catch (InvalidTypesException e) {
 			throw new InvalidTypesException("Input mismatch: " + e.getMessage(), e);
 		}
 	}
@@ -1109,7 +1086,7 @@ public class TypeExtractor {
 		try {
 			validateInfo(typeHierarchy, inType, inTypeInfo);
 		}
-		catch(InvalidTypesException e) {
+		catch (InvalidTypesException e) {
 			throw new InvalidTypesException("Input mismatch: " + e.getMessage(), e);
 		}
 	}
@@ -1171,7 +1148,7 @@ public class TypeExtractor {
 					type = typeToClass(type).getGenericSuperclass();
 				}
 
-				if(type == Tuple0.class) {
+				if (type == Tuple0.class) {
 					return;
 				}
 
@@ -1207,7 +1184,7 @@ public class TypeExtractor {
 						return;
 					}
 				}
-				if (!(component instanceof Class<?> && ((Class<?>)component).isPrimitive())) {
+				if (!(component instanceof Class<?> && ((Class<?>) component).isPrimitive())) {
 					throw new InvalidTypesException("Primitive component expected.");
 				}
 			}
@@ -1389,8 +1366,8 @@ public class TypeExtractor {
 
 	private int countFieldsInClass(Class<?> clazz) {
 		int fieldCount = 0;
-		for(Field field : clazz.getFields()) { // get all fields
-			if(	!Modifier.isStatic(field.getModifiers()) &&
+		for (Field field : clazz.getFields()) { // get all fields
+			if (!Modifier.isStatic(field.getModifiers()) &&
 				!Modifier.isTransient(field.getModifiers())
 				) {
 				fieldCount++;
@@ -1441,7 +1418,7 @@ public class TypeExtractor {
 	/**
 	 * Creates type information from a given Class such as Integer, String[] or POJOs.
 	 *
-	 * This method does not support ParameterizedTypes such as Tuples or complex type hierarchies.
+	 * <p>This method does not support ParameterizedTypes such as Tuples or complex type hierarchies.
 	 * In most cases {@link TypeExtractor#createTypeInfo(Type)} is the recommended method for type extraction
 	 * (a Class is a child of Type).
 	 *
@@ -1533,14 +1510,14 @@ public class TypeExtractor {
 
 		// check for subclasses of Tuple
 		if (Tuple.class.isAssignableFrom(clazz)) {
-			if(clazz == Tuple0.class) {
+			if (clazz == Tuple0.class) {
 				return new TupleTypeInfo(Tuple0.class);
 			}
 			throw new InvalidTypesException("Type information extraction for tuples (except Tuple0) cannot be done based on the class.");
 		}
 
 		// check for Enums
-		if(Enum.class.isAssignableFrom(clazz)) {
+		if (Enum.class.isAssignableFrom(clazz)) {
 			return new EnumTypeInfo(clazz);
 		}
 
@@ -1560,8 +1537,8 @@ public class TypeExtractor {
 				return pojoType;
 			}
 		} catch (InvalidTypesException e) {
-			if(LOG.isDebugEnabled()) {
-				LOG.debug("Unable to handle type "+clazz+" as POJO. Message: "+e.getMessage(), e);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Unable to handle type " + clazz + " as POJO. Message: " + e.getMessage(), e);
 			}
 			// ignore and create generic type info
 		}
@@ -1581,7 +1558,7 @@ public class TypeExtractor {
 	 * @param typeHierarchy type hierarchy for materializing generic types
 	 */
 	private boolean isValidPojoField(Field f, Class<?> clazz, List<Type> typeHierarchy) {
-		if(Modifier.isPublic(f.getModifiers())) {
+		if (Modifier.isPublic(f.getModifiers())) {
 			return true;
 		} else {
 			boolean hasGetter = false, hasSetter = false;
@@ -1591,43 +1568,43 @@ public class TypeExtractor {
 			Class<?> fieldTypeWrapper = ClassUtils.primitiveToWrapper(f.getType());
 
 			TypeVariable<?> fieldTypeGeneric = null;
-			if(fieldType instanceof TypeVariable) {
+			if (fieldType instanceof TypeVariable) {
 				fieldTypeGeneric = (TypeVariable<?>) fieldType;
-				fieldType = materializeTypeVariable(typeHierarchy, (TypeVariable<?>)fieldType);
+				fieldType = materializeTypeVariable(typeHierarchy, (TypeVariable<?>) fieldType);
 			}
-			for(Method m : clazz.getMethods()) {
+			for (Method m : clazz.getMethods()) {
 				final String methodNameLow = m.getName().endsWith("_$eq") ?
 						m.getName().toLowerCase().replaceAll("_", "").replaceFirst("\\$eq$", "_\\$eq") :
 						m.getName().toLowerCase().replaceAll("_", "");
 
 				// check for getter
-				if(	// The name should be "get<FieldName>" or "<fieldName>" (for scala) or "is<fieldName>" for boolean fields.
-					(methodNameLow.equals("get"+fieldNameLow) || methodNameLow.equals("is"+fieldNameLow) || methodNameLow.equals(fieldNameLow)) &&
+				if (// The name should be "get<FieldName>" or "<fieldName>" (for scala) or "is<fieldName>" for boolean fields.
+					(methodNameLow.equals("get" + fieldNameLow) || methodNameLow.equals("is" + fieldNameLow) || methodNameLow.equals(fieldNameLow)) &&
 					// no arguments for the getter
 					m.getParameterTypes().length == 0 &&
 					// return type is same as field type (or the generic variant of it)
-					(m.getGenericReturnType().equals( fieldType ) || (fieldTypeWrapper != null && m.getReturnType().equals( fieldTypeWrapper )) || (fieldTypeGeneric != null && m.getGenericReturnType().equals(fieldTypeGeneric)) )
+					(m.getGenericReturnType().equals(fieldType) || (fieldTypeWrapper != null && m.getReturnType().equals(fieldTypeWrapper)) || (fieldTypeGeneric != null && m.getGenericReturnType().equals(fieldTypeGeneric)))
 				) {
 					hasGetter = true;
 				}
 				// check for setters (<FieldName>_$eq for scala)
-				if((methodNameLow.equals("set"+fieldNameLow) || methodNameLow.equals(fieldNameLow+"_$eq")) &&
+				if ((methodNameLow.equals("set" + fieldNameLow) || methodNameLow.equals(fieldNameLow + "_$eq")) &&
 					m.getParameterTypes().length == 1 && // one parameter of the field's type
-					(m.getGenericParameterTypes()[0].equals( fieldType ) || (fieldTypeWrapper != null && m.getParameterTypes()[0].equals( fieldTypeWrapper )) || (fieldTypeGeneric != null && m.getGenericParameterTypes()[0].equals(fieldTypeGeneric) ) )&&
+					(m.getGenericParameterTypes()[0].equals(fieldType) || (fieldTypeWrapper != null && m.getParameterTypes()[0].equals(fieldTypeWrapper)) || (fieldTypeGeneric != null && m.getGenericParameterTypes()[0].equals(fieldTypeGeneric))) &&
 					// return type is void (or the class self).
 					(m.getReturnType().equals(Void.TYPE) || m.getReturnType().equals(clazz))
 				) {
 					hasSetter = true;
 				}
 			}
-			if(hasGetter && hasSetter) {
+			if (hasGetter && hasSetter) {
 				return true;
 			} else {
-				if(!hasGetter) {
-					LOG.info(clazz+" does not contain a getter for field "+f.getName() );
+				if (!hasGetter) {
+					LOG.info(clazz + " does not contain a getter for field " + f.getName());
 				}
-				if(!hasSetter) {
-					LOG.info(clazz+" does not contain a setter for field "+f.getName() );
+				if (!hasSetter) {
+					LOG.info(clazz + " does not contain a setter for field " + f.getName());
 				}
 				return false;
 			}
@@ -1666,7 +1643,7 @@ public class TypeExtractor {
 		List<PojoField> pojoFields = new ArrayList<PojoField>();
 		for (Field field : fields) {
 			Type fieldType = field.getGenericType();
-			if(!isValidPojoField(field, clazz, typeHierarchy)) {
+			if (!isValidPojoField(field, clazz, typeHierarchy)) {
 				LOG.info("Class " + clazz + " cannot be used as a POJO type because not all fields are valid POJO fields, " +
 					"and must be processed as GenericType. Please read the Flink documentation " +
 					"on \"Data Types & Serialization\" for details of the effect on performance.");
@@ -1681,7 +1658,7 @@ public class TypeExtractor {
 				pojoFields.add(new PojoField(field, ti));
 			} catch (InvalidTypesException e) {
 				Class<?> genericClass = Object.class;
-				if(isClassType(fieldType)) {
+				if (isClassType(fieldType)) {
 					genericClass = typeToClass(fieldType);
 				}
 				pojoFields.add(new PojoField(field, new GenericTypeInfo<OUT>((Class<OUT>) genericClass)));
@@ -1720,7 +1697,7 @@ public class TypeExtractor {
 				return null;
 			}
 		}
-		if(defaultConstructor != null && !Modifier.isPublic(defaultConstructor.getModifiers())) {
+		if (defaultConstructor != null && !Modifier.isPublic(defaultConstructor.getModifiers())) {
 			LOG.info("The default constructor of " + clazz + " is not Public so it cannot be used as a POJO type " +
 				"and must be processed as GenericType. Please read the Flink documentation " +
 				"on \"Data Types & Serialization\" for details of the effect on performance.");
@@ -1747,15 +1724,15 @@ public class TypeExtractor {
 		while (clazz != null) {
 			Field[] fields = clazz.getDeclaredFields();
 			for (Field field : fields) {
-				if(Modifier.isTransient(field.getModifiers()) || Modifier.isStatic(field.getModifiers())) {
+				if (Modifier.isTransient(field.getModifiers()) || Modifier.isStatic(field.getModifiers())) {
 					continue; // we have no use for transient or static fields
 				}
-				if(hasFieldWithSameName(field.getName(), result)) {
+				if (hasFieldWithSameName(field.getName(), result)) {
 					if (ignoreDuplicates) {
 						continue;
 					} else {
-						throw new InvalidTypesException("The field "+field+" is already contained in the hierarchy of the "+clazz+"."
-							+ "Please use unique field names through your classes hierarchy");
+						throw new InvalidTypesException("The field " + field + " is already contained in the hierarchy of the " +
+							clazz + ".Please use unique field names through your classes hierarchy");
 					}
 				}
 				result.add(field);
@@ -1776,8 +1753,8 @@ public class TypeExtractor {
 	}
 
 	private static boolean hasFieldWithSameName(String name, List<Field> fields) {
-		for(Field field : fields) {
-			if(name.equals(field.getName())) {
+		for (Field field : fields) {
+			if (name.equals(field.getName())) {
 				return true;
 			}
 		}
@@ -1812,7 +1789,7 @@ public class TypeExtractor {
 		if (value instanceof Tuple) {
 			Tuple t = (Tuple) value;
 			int numFields = t.getArity();
-			if(numFields != countFieldsInClass(value.getClass())) {
+			if (numFields != countFieldsInClass(value.getClass())) {
 				// not a tuple since it has more fields.
 				return analyzePojo((Class<X>) value.getClass(), null, Collections.emptyMap(), currentExtractingClasses); // we immediately call analyze Pojo here, because
 				// there is currently no other type that can handle such a class.
@@ -1988,7 +1965,7 @@ public class TypeExtractor {
 	 * @param resolveGenericArray whether to resolve the {@code GenericArrayType} or not. This is for compatible.
 	 *                               (Some code path resolves the component type of a GenericArrayType. Some code path
 	 *                               does not resolve the component type of a GenericArray. A example case is
-	 *                               {@link TypeExtractorTest#testParameterizedArrays()})
+	 *                               {@code testParameterizedArrays()})
 	 * @return resolved type
 	 */
 	private static Type resolveTypeFromTypeHierachy(final Type type, final List<Type> typeHierarchy, final boolean resolveGenericArray) {
