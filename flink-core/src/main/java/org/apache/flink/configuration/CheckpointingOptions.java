@@ -63,6 +63,9 @@ public class CheckpointingOptions {
 	 * if possible. For an incremental checkpoint, only a diff from the previous
 	 * checkpoint is stored, rather than the complete checkpoint state.
 	 *
+	 * <p>Once enabled, the state size shown in web UI or fetched from rest API only represents the delta checkpoint size
+	 * instead of full checkpoint size.
+	 *
 	 * <p>Some state backends may not support incremental checkpoints and ignore
 	 * this option.*/
 	@Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
@@ -71,8 +74,9 @@ public class CheckpointingOptions {
 			.defaultValue(false)
 			.withDescription("Option whether the state backend should create incremental checkpoints, if possible. For" +
 				" an incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the" +
-				" complete checkpoint state. Some state backends may not support incremental checkpoints and ignore" +
-				" this option.");
+				" complete checkpoint state. Once enabled, the state size shown in web UI or fetched from rest API" +
+				" only represents the delta checkpoint size instead of full checkpoint size." +
+				" Some state backends may not support incremental checkpoints and ignore this option.");
 
 	/**
 	 * This option configures local recovery for this state backend. By default, local recovery is deactivated.

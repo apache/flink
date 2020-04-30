@@ -107,6 +107,12 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 	 */
 	public static final class Summary {
 
+		/**
+		 * The accurate name of this field should be 'checkpointed_data_size',
+		 * keep it as before to not break backwards compatibility for old web UI.
+		 *
+		 * @see <a href="https://issues.apache.org/jira/browse/FLINK-13390">FLINK-13390</a>
+		 */
 		public static final String FIELD_NAME_STATE_SIZE = "state_size";
 
 		public static final String FIELD_NAME_DURATION = "end_to_end_duration";
