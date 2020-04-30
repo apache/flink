@@ -289,7 +289,7 @@ public class TaskExecutorTest extends TestLogger {
 		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 
 		final long heartbeatInterval = 1L;
-		final long heartbeatTimeout = 3L;
+		final long heartbeatTimeout = 10L;
 
 		HeartbeatServices heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
 
@@ -310,8 +310,8 @@ public class TaskExecutorTest extends TestLogger {
 				resourceID -> {
 					disconnectTaskManagerFuture.complete(resourceID);
 					return CompletableFuture.completedFuture(Acknowledge.get());
-				}
-			)
+				})
+			.setOfferSlotsFunction((resourceID, slotOffers) -> CompletableFuture.completedFuture(slotOffers))
 			.build();
 
 		final TaskExecutorLocalStateStoresManager localStateStoresManager = createTaskExecutorLocalStateStoresManager();
@@ -325,15 +325,38 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TestingTaskExecutor taskManager = createTestingTaskExecutor(taskManagerServices, heartbeatServices);
 
+		final OneShotLatch slotReportReceived = new OneShotLatch();
+		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+		testingResourceManagerGateway.setSendSlotReportFunction(ignored -> {
+			slotReportReceived.trigger();
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		});
+
+		final Queue<CompletableFuture<RegistrationResponse>> registrationResponses = new ArrayDeque<>();
+		registrationResponses.add(CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(new InstanceID(), testingResourceManagerGateway.getOwnResourceId(), new ClusterInformation("foobar", 1234))));
+		registrationResponses.add(new CompletableFuture<>());
+		testingResourceManagerGateway.setRegisterTaskExecutorFunction(taskExecutorRegistration -> registrationResponses.poll());
+
+		rpc.registerGateway(jobMasterAddress, jobMasterGateway);
+		rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+
 		try {
 			taskManager.start();
 			taskManager.waitUntilStarted();
 
-			rpc.registerGateway(jobMasterAddress, jobMasterGateway);
+			final TaskExecutorGateway taskExecutorGateway = taskManager.getSelfGateway(TaskExecutorGateway.class);
 
-			// we have to add the job after the TaskExecutor, because otherwise the service has not
-			// been properly started.
-			jobLeaderService.addJob(jobId, jobMasterAddress);
+			resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
+			slotReportReceived.await();
+
+			taskExecutorGateway.requestSlot(
+				new SlotID(unresolvedTaskManagerLocation.getResourceID(), 0),
+				jobId,
+				new AllocationID(),
+				ResourceProfile.UNKNOWN,
+				jobMasterAddress,
+				testingResourceManagerGateway.getFencingToken(),
+				timeout).join();
 
 			// now inform the task manager about the new job leader
 			jobManagerLeaderRetriever.notifyListener(jobMasterAddress, jmLeaderId);

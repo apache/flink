@@ -37,8 +37,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
@@ -217,10 +216,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				checkpointResponder,
 				new NoOpTaskOperatorEventGateway(),
 				new TestGlobalAggregateManager(),
-				new BlobLibraryCacheManager(
-					VoidPermanentBlobService.INSTANCE,
-					FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-					new String[0]),
+				TestingClassLoaderLease.newBuilder().build(),
 				new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() },
 					VoidPermanentBlobService.INSTANCE),
 				new TestingTaskManagerRuntimeInfo(),

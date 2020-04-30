@@ -29,9 +29,9 @@ import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureRequestCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTrackerImpl;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureRequestCoordinator;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
@@ -147,8 +147,9 @@ public class JobManagerSharedServices {
 		final BlobLibraryCacheManager libraryCacheManager =
 			new BlobLibraryCacheManager(
 				blobServer,
-				FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
-				alwaysParentFirstLoaderPatterns);
+				BlobLibraryCacheManager.defaultClassLoaderFactory(
+					FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
+					alwaysParentFirstLoaderPatterns));
 
 		final Duration akkaTimeout;
 		try {

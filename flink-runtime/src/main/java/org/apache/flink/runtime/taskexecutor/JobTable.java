@@ -26,10 +26,10 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
+import org.apache.flink.util.function.FunctionWithException;
 
 import java.util.Collection;
 import java.util.Optional;
-import java.util.function.Function;
 
 /**
  * A {@link JobTable JobTable's} task is to manage the lifecycle
@@ -55,13 +55,14 @@ public interface JobTable extends AutoCloseable {
 	 * Gets a registered {@link Job} or creates one if not present.
 	 *
 	 * @param jobId jobId identifies the job to get
-	 * @param libraryCacheManagerFunction libraryCacheManagerFunction creates a fresh
+	 * @param jobServicesFactory jobServicesFactory creates a fresh
 	 * {@link LibraryCacheManager} instance if a new job needs to be created
 	 * @return the current job (existing or created) registered under jobId
+	 * @throws E if the job services could not be created
 	 */
-	Job getOrCreateJob(
+	<E extends Exception> Job getOrCreateJob(
 		JobID jobId,
-		Function<JobID, ? extends LibraryCacheManager> libraryCacheManagerFunction);
+		FunctionWithException<JobID, ? extends LibraryCacheManager, E> jobServicesFactory) throws E;
 
 	/**
 	 * Gets the job registered under jobId.
@@ -201,7 +202,7 @@ public interface JobTable extends AutoCloseable {
 
 		GlobalAggregateManager getGlobalAggregateManager();
 
-		LibraryCacheManager getLibraryCacheManager();
+		LibraryCacheManager.ClassLoaderHandle getClassLoaderHandle();
 
 		ResultPartitionConsumableNotifier getResultPartitionConsumableNotifier();
 

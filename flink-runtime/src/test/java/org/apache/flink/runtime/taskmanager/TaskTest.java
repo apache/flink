@@ -19,23 +19,16 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
@@ -64,7 +57,6 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -178,9 +170,14 @@ public class TaskTest extends TestLogger {
 	@Test
 	public void testLibraryCacheRegistrationFailed() throws Exception {
 		final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
+		final IOException testException = new IOException("Could not load classloader");
 		final Task task = createTaskBuilder()
 			.setTaskManagerActions(taskManagerActions)
-			.setLibraryCacheManager(mock(LibraryCacheManager.class)) // inactive manager
+			.setClassLoaderHandle(TestingClassLoaderLease.newBuilder()
+				.setGetOrResolveClassLoaderFunction((permanentBlobKeys, urls) -> {
+					throw testException;
+				})
+				.build())
 			.build();
 
 		// task should be new and perfect
@@ -194,57 +191,11 @@ public class TaskTest extends TestLogger {
 		// verify final state
 		assertEquals(ExecutionState.FAILED, task.getExecutionState());
 		assertTrue(task.isCanceledOrFailed());
-		assertNotNull(task.getFailureCause());
-		assertNotNull(task.getFailureCause().getMessage());
-		assertTrue(task.getFailureCause().getMessage().contains("classloader"));
+		assertThat(task.getFailureCause(), is(testException));
 
 		assertNull(task.getInvokable());
 
-		taskManagerActions.validateListenerMessage(
-			ExecutionState.FAILED, task, new Exception("No user code classloader available."));
-	}
-
-	@Test
-	public void testExecutionFailsInBlobsMissing() throws Exception {
-		final PermanentBlobKey missingKey = new PermanentBlobKey();
-
-		final Configuration config = new Configuration();
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
-			TEMPORARY_FOLDER.newFolder().getAbsolutePath());
-		config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
-
-		final BlobServer blobServer = new BlobServer(config, new VoidBlobStore());
-		blobServer.start();
-		InetSocketAddress serverAddress = new InetSocketAddress("localhost", blobServer.getPort());
-		final PermanentBlobCache permanentBlobCache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
-
-		final BlobLibraryCacheManager libraryCacheManager =
-			new BlobLibraryCacheManager(
-				permanentBlobCache,
-				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-				new String[0]);
-
-		final Task task = createTaskBuilder()
-			.setRequiredJarFileBlobKeys(Collections.singletonList(missingKey))
-			.setLibraryCacheManager(libraryCacheManager)
-			.build();
-
-		// task should be new and perfect
-		assertEquals(ExecutionState.CREATED, task.getExecutionState());
-		assertFalse(task.isCanceledOrFailed());
-		assertNull(task.getFailureCause());
-
-		// should fail
-		task.run();
-
-		// verify final state
-		assertEquals(ExecutionState.FAILED, task.getExecutionState());
-		assertTrue(task.isCanceledOrFailed());
-		assertNotNull(task.getFailureCause());
-		assertNotNull(task.getFailureCause().getMessage());
-		assertTrue(task.getFailureCause().getMessage().contains("Failed to fetch BLOB"));
-
-		assertNull(task.getInvokable());
+		taskManagerActions.validateListenerMessage(ExecutionState.FAILED, task, testException);
 	}
 
 	@Test

@@ -27,8 +27,8 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
@@ -70,7 +70,7 @@ public final class TestTaskBuilder {
 
 	private Class<? extends AbstractInvokable> invokable = AbstractInvokable.class;
 	private TaskManagerActions taskManagerActions = new NoOpTaskManagerActions();
-	private LibraryCacheManager libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
+	private LibraryCacheManager.ClassLoaderHandle classLoaderHandle = TestingClassLoaderLease.newBuilder().build();
 	private ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 	private PartitionProducerStateChecker partitionProducerStateChecker = new NoOpPartitionProducerStateChecker();
 	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
@@ -100,8 +100,8 @@ public final class TestTaskBuilder {
 		return this;
 	}
 
-	public TestTaskBuilder setLibraryCacheManager(LibraryCacheManager libraryCacheManager) {
-		this.libraryCacheManager = libraryCacheManager;
+	public TestTaskBuilder setClassLoaderHandle(LibraryCacheManager.ClassLoaderHandle classLoaderHandle) {
+		this.classLoaderHandle = classLoaderHandle;
 		return this;
 	}
 
@@ -215,7 +215,7 @@ public final class TestTaskBuilder {
 			new TestCheckpointResponder(),
 			new NoOpTaskOperatorEventGateway(),
 			new TestGlobalAggregateManager(),
-			libraryCacheManager,
+			classLoaderHandle,
 			mock(FileCache.class),
 			new TestingTaskManagerRuntimeInfo(taskManagerConfig),
 			taskMetricGroup,
