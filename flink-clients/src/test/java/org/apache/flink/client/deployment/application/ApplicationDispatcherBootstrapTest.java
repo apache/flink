@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -249,12 +250,36 @@ public class ApplicationDispatcherBootstrapTest {
 	}
 
 	@Test
+	public void testDispatcherIsCancelledWhenOneJobIsCancelled() throws Exception {
+		final CompletableFuture<ApplicationStatus> clusterShutdownStatus = new CompletableFuture<>();
+
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.CANCELED))
+				.setClusterShutdownFunction((status) -> {
+					clusterShutdownStatus.complete(status);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				})
+				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createCancelledJobResult(jobId)));
+
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
+
+		final CompletableFuture<Acknowledge> shutdownFuture =
+				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+
+		// wait until the bootstrap "thinks" it's done, also makes sure that we don't
+		// fail the future exceptionally with a JobCancelledException
+		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+		assertThat(clusterShutdownStatus.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(ApplicationStatus.CANCELED));
+	}
+
+	@Test
 	public void testApplicationTaskFinishesWhenApplicationFinishes() throws Exception {
 		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
 				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.FINISHED))
-				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createSuccessfulJobResult(jobId)))
-				.setClusterShutdownSupplier(() -> CompletableFuture.completedFuture(Acknowledge.get()));
+				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createSuccessfulJobResult(jobId)));
 
 		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
 
@@ -271,11 +296,10 @@ public class ApplicationDispatcherBootstrapTest {
 	}
 
 	@Test
-	public void testApplicationIsCancelledWhenStoppingBootstrap() throws Exception {
+	public void testApplicationIsStoppedWhenStoppingBootstrap() throws Exception {
 		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
-				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING))
-				.setClusterShutdownSupplier(() -> CompletableFuture.completedFuture(Acknowledge.get()));
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING));
 
 		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
 
@@ -297,13 +321,13 @@ public class ApplicationDispatcherBootstrapTest {
 	public void testClusterShutdownWhenStoppingBootstrap() throws Exception {
 		// we're "listening" on this to be completed to verify that the cluster
 		// is being shut down from the ApplicationDispatcherBootstrap
-		final CompletableFuture<Boolean> externalShutdownFuture = new CompletableFuture<>();
+		final CompletableFuture<ApplicationStatus> externalShutdownFuture = new CompletableFuture<>();
 
 		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
 				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING))
-				.setClusterShutdownSupplier(() -> {
-					externalShutdownFuture.complete(true);
+				.setClusterShutdownFunction((status) -> {
+					externalShutdownFuture.complete(status);
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
@@ -318,21 +342,21 @@ public class ApplicationDispatcherBootstrapTest {
 		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
 		// verify that the dispatcher is actually being shut down
-		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(true));
+		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(ApplicationStatus.UNKNOWN));
 	}
 
 	@Test
 	public void testClusterShutdownWhenSubmissionFails() throws Exception {
 		// we're "listening" on this to be completed to verify that the cluster
 		// is being shut down from the ApplicationDispatcherBootstrap
-		final CompletableFuture<Boolean> externalShutdownFuture = new CompletableFuture<>();
+		final CompletableFuture<ApplicationStatus> externalShutdownFuture = new CompletableFuture<>();
 
 		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> {
 					throw new FlinkRuntimeException("Nope!");
 				})
-				.setClusterShutdownSupplier(() -> {
-					externalShutdownFuture.complete(true);
+				.setClusterShutdownFunction((status) -> {
+					externalShutdownFuture.complete(status);
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
@@ -345,21 +369,21 @@ public class ApplicationDispatcherBootstrapTest {
 		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
 		// verify that the dispatcher is actually being shut down
-		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(true));
+		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(ApplicationStatus.FAILED));
 	}
 
 	@Test
 	public void testClusterShutdownWhenApplicationSucceeds() throws Exception {
 		// we're "listening" on this to be completed to verify that the cluster
 		// is being shut down from the ApplicationDispatcherBootstrap
-		final CompletableFuture<Boolean> externalShutdownFuture = new CompletableFuture<>();
+		final CompletableFuture<ApplicationStatus> externalShutdownFuture = new CompletableFuture<>();
 
 		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
 				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.FINISHED))
 				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createSuccessfulJobResult(jobId)))
-				.setClusterShutdownSupplier(() -> {
-					externalShutdownFuture.complete(true);
+				.setClusterShutdownFunction((status) -> {
+					externalShutdownFuture.complete(status);
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
@@ -372,21 +396,21 @@ public class ApplicationDispatcherBootstrapTest {
 		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
 		// verify that the dispatcher is actually being shut down
-		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(true));
+		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(ApplicationStatus.SUCCEEDED));
 	}
 
 	@Test
 	public void testClusterShutdownWhenApplicationFails() throws Exception {
 		// we're "listening" on this to be completed to verify that the cluster
 		// is being shut down from the ApplicationDispatcherBootstrap
-		final CompletableFuture<Boolean> externalShutdownFuture = new CompletableFuture<>();
+		final CompletableFuture<ApplicationStatus> externalShutdownFuture = new CompletableFuture<>();
 
 		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
 				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.FAILED))
 				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createFailedJobResult(jobId)))
-				.setClusterShutdownSupplier(() -> {
-					externalShutdownFuture.complete(true);
+				.setClusterShutdownFunction((status) -> {
+					externalShutdownFuture.complete(status);
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
@@ -399,7 +423,7 @@ public class ApplicationDispatcherBootstrapTest {
 		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
 		// verify that the dispatcher is actually being shut down
-		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(true));
+		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(ApplicationStatus.FAILED));
 	}
 
 	private CompletableFuture<Void> runApplication(
@@ -474,6 +498,17 @@ public class ApplicationDispatcherBootstrapTest {
 				.jobId(jobId)
 				.netRuntime(2L)
 				.applicationStatus(ApplicationStatus.SUCCEEDED)
+				.build();
+	}
+
+	private static JobResult createCancelledJobResult(final JobID jobId) {
+		return new JobResult.Builder()
+				.jobId(jobId)
+				.netRuntime(2L)
+				.serializedThrowable(
+						new SerializedThrowable(
+								new JobCancellationException(jobId, "Hello", null)))
+				.applicationStatus(ApplicationStatus.CANCELED)
 				.build();
 	}
 
