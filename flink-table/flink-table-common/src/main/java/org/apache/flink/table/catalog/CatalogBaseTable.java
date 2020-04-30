@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.factories.DynamicTableFactory;
 
 import java.util.Map;
 import java.util.Optional;
@@ -28,12 +29,23 @@ import java.util.Optional;
  * key-value pairs defining the properties of the table.
  */
 public interface CatalogBaseTable {
+
 	/**
-	 * Get the properties of the table.
-	 *
-	 * @return property map of the table/view
+	 * @deprecated Use {@link #getOptions()}.
 	 */
+	@Deprecated
 	Map<String, String> getProperties();
+
+	/**
+	 * Returns a map of string-based options.
+	 *
+	 * <p>In case of {@link CatalogTable}, these options may determine the kind of connector and its
+	 * configuration for accessing the data in the external system. See {@link DynamicTableFactory}
+	 * for more information.
+	 */
+	default Map<String, String> getOptions() {
+		return getProperties();
+	}
 
 	/**
 	 * Get the schema of the table.
