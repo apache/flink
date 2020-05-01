@@ -22,10 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.StringUtils;
 
 import com.ibm.icu.lang.UCharacter;
 import com.ibm.icu.lang.UProperty;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -106,7 +106,7 @@ public class PrintUtils {
 			if (field == null) {
 				fields[i] = NULL_COLUMN;
 			} else {
-				fields[i] = EncodingUtils.objectToString(field);
+				fields[i] = StringUtils.arrayAwareToString(field);
 			}
 		}
 		return fields;
@@ -135,7 +135,7 @@ public class PrintUtils {
 		StringBuilder sb = new StringBuilder();
 		sb.append("+");
 		for (int width : colWidths) {
-			sb.append(StringUtils.repeat('-', width + 1));
+			sb.append(EncodingUtils.repeat('-', width + 1));
 			sb.append("-+");
 		}
 		return sb.toString();
@@ -149,7 +149,7 @@ public class PrintUtils {
 			sb.append(" ");
 			int displayWidth = getStringDisplayWidth(col);
 			if (displayWidth <= colWidths[idx]) {
-				sb.append(StringUtils.repeat(' ', colWidths[idx] - displayWidth));
+				sb.append(EncodingUtils.repeat(' ', colWidths[idx] - displayWidth));
 				sb.append(col);
 			} else {
 				sb.append(truncateString(col, colWidths[idx] - COLUMN_TRUNCATED_FLAG.length()));
@@ -180,7 +180,7 @@ public class PrintUtils {
 		// pad with ' ' before the column
 		int lackedWidth = targetWidth - getStringDisplayWidth(substring);
 		if (lackedWidth > 0) {
-			substring = StringUtils.repeat(' ', lackedWidth) + substring;
+			substring = EncodingUtils.repeat(' ', lackedWidth) + substring;
 		}
 		return substring;
 	}

@@ -19,7 +19,6 @@
 package org.apache.flink.table.data;
 
 import org.apache.flink.table.data.binary.TypedSetters;
-import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.BooleanValue;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.DoubleValue;
@@ -28,6 +27,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.types.ShortValue;
+import org.apache.flink.util.StringUtils;
 
 import java.util.Arrays;
 
@@ -255,7 +255,7 @@ public class BoxedWrapperRowData implements RowData, TypedSetters {
 			if (i != 0) {
 				sb.append(",");
 			}
-			sb.append(EncodingUtils.objectToString(fields[i]));
+			sb.append(StringUtils.arrayAwareToString(fields[i]));
 		}
 		sb.append(")");
 		return sb.toString();

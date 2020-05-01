@@ -21,8 +21,8 @@ package org.apache.flink.table.data;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.StringUtils;
 
 import java.util.Arrays;
 
@@ -212,7 +212,7 @@ public final class GenericRowData implements RowData {
 			if (i != 0) {
 				sb.append(",");
 			}
-			sb.append(EncodingUtils.objectToString(fields[i]));
+			sb.append(StringUtils.arrayAwareToString(fields[i]));
 		}
 		sb.append(")");
 		return sb.toString();
