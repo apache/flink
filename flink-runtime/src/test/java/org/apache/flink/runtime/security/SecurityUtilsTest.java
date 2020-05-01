@@ -23,6 +23,7 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.contexts.AnotherCompatibleTestSecurityContextFactory;
 import org.apache.flink.runtime.security.contexts.HadoopSecurityContextFactory;
 import org.apache.flink.runtime.security.contexts.IncompatibleTestSecurityContextFactory;
+import org.apache.flink.runtime.security.contexts.LinkageErrorSecurityContextFactory;
 import org.apache.flink.runtime.security.contexts.NoOpSecurityContext;
 import org.apache.flink.runtime.security.contexts.NoOpSecurityContextFactory;
 import org.apache.flink.runtime.security.contexts.TestSecurityContextFactory;
@@ -79,6 +80,27 @@ public class SecurityUtilsTest {
 
 		SecurityUtils.install(sc);
 		assertEquals(TestSecurityContextFactory.TestSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+
+		SecurityUtils.uninstall();
+		assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+	}
+
+	@Test
+	public void testLinkageErrorShouldFallbackToSecond() throws Exception {
+		Configuration testFlinkConf = new Configuration();
+
+		testFlinkConf.set(
+			SecurityOptions.SECURITY_CONTEXT_FACTORY_CLASSES,
+			Lists.newArrayList(
+				LinkageErrorSecurityContextFactory.class.getCanonicalName(),
+				TestSecurityContextFactory.class.getCanonicalName()));
+
+		SecurityConfiguration testSecurityConf = new SecurityConfiguration(testFlinkConf);
+
+		SecurityUtils.install(testSecurityConf);
+		assertEquals(
+			TestSecurityContextFactory.TestSecurityContext.class,
+			SecurityUtils.getInstalledContext().getClass());
 
 		SecurityUtils.uninstall();
 		assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
