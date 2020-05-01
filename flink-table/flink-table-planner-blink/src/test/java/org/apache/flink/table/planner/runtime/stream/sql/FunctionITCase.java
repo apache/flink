@@ -39,8 +39,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.RawType;
-import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.StringUtils;
 
 import org.junit.Test;
 
@@ -865,7 +865,7 @@ public class FunctionITCase extends StreamingTestBase {
 	 */
 	public static class ComplexScalarFunction extends ScalarFunction {
 		public String eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o, java.sql.Timestamp t) {
-			return EncodingUtils.objectToString(o) + "+" + t.toString();
+			return StringUtils.arrayAwareToString(o) + "+" + t.toString();
 		}
 
 		public @DataTypeHint("DECIMAL(5, 2)") BigDecimal eval() {

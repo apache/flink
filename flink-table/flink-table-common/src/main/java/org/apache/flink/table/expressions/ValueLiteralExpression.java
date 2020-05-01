@@ -25,8 +25,8 @@ import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
-import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -311,6 +311,6 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 		} else if (value instanceof String) {
 			return "'" + ((String) value).replace("'", "''") + "'";
 		}
-		return EncodingUtils.objectToString(value);
+		return StringUtils.arrayAwareToString(value);
 	}
 }
