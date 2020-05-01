@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.PropertiesUtil.getBoolean;
 import static org.apache.flink.util.PropertiesUtil.getLong;
@@ -78,6 +79,21 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
 	 * available. If 0, returns immediately with any records that are available now. */
 	public static final long DEFAULT_POLL_TIMEOUT = 100L;
+
+	/** The default interval to execute event time alignment in milliseconds, disabled by default. */
+	public static final long EVENT_TIME_ALIGNMENT_DISABLED = Long.MIN_VALUE;
+
+	/** Configuration key to define the consumer's event time alignment interval, in milliseconds. */
+	public static final String KEY_EVENT_TIME_ALIGNMENT_INTERVAL_MILLIS = "flink.event-time-alignment.interval-millis";
+
+	/** Configuration key to define the event time threshold beyond which alignment kicks in for a partition, in milliseconds. */
+	public static final String KEY_EVENT_TIME_ALIGNMENT_THRESHOLD_MILLIS = "flink.event-time-alignment.threshold-millis";
+
+	/** User configured value for event time alignment interval, in milliseconds. */
+	private final long eventTimeAlignmentIntervalMillis;
+
+	/** User configured value for event time alignment threshold in ms, beyond which alignment kicks in. */
+	private final long eventTimeAlignmentThresholdMillis;
 
 	// ------------------------------------------------------------------------
 
@@ -191,6 +207,17 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 				KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, PARTITION_DISCOVERY_DISABLED),
 			!getBoolean(props, KEY_DISABLE_METRICS, false));
 
+		this.eventTimeAlignmentIntervalMillis = getLong(props,
+			KEY_EVENT_TIME_ALIGNMENT_INTERVAL_MILLIS, EVENT_TIME_ALIGNMENT_DISABLED);
+
+		this.eventTimeAlignmentThresholdMillis = getLong(props,
+			KEY_EVENT_TIME_ALIGNMENT_THRESHOLD_MILLIS, EVENT_TIME_ALIGNMENT_DISABLED);
+
+		checkArgument(
+			this.eventTimeAlignmentIntervalMillis == EVENT_TIME_ALIGNMENT_DISABLED ||
+				(this.eventTimeAlignmentIntervalMillis >= 0 && this.eventTimeAlignmentThresholdMillis >= 0),
+			"Cannot define a negative value for the event time alignment interval & threshold.");
+
 		this.properties = props;
 		setDeserializer(this.properties);
 
@@ -236,7 +263,11 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 			pollTimeout,
 			runtimeContext.getMetricGroup(),
 			consumerMetricGroup,
-			useMetrics);
+			useMetrics,
+			runtimeContext.getGlobalAggregateManager(),
+			getRuntimeContext().getIndexOfThisSubtask(),
+			this.eventTimeAlignmentIntervalMillis,
+			this.eventTimeAlignmentThresholdMillis);
 	}
 
 	@Override

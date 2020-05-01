@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -30,6 +31,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.SerializedValue;
 
+import javafx.util.Pair;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -39,10 +41,13 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -67,6 +72,23 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	/** The thread that runs the actual KafkaConsumer and hand the record batches to this fetcher. */
 	private final KafkaConsumerThread consumerThread;
 
+	/** Global aggregate manager will help us maintain a global timestamp for event-time-alignment. */
+	private final GlobalAggregateManager globalAggregateManager;
+
+	private final int subtaskIndex;
+
+	/** The thread that runs the event time alignment logic. */
+	private Thread eventTimeAlignmentThread = null;
+
+	/** The handover for the Fetcher to pass partitions that needs to be paused in KafkaConsumer for event-time alignment. */
+	private EventTimeAlignmentHandover eventTimeAlignmentHandover = null;
+
+	/** Maps each partition to it's latest timestamp value, this will be used for event-time alignment. */
+	private Map<TopicPartition, Long> partitionTimestampMap = null;
+
+	/** Aggregator for global timestamp tracking. */
+	private AlignmentTimestampAggregateFunction alignmentTsAggregator;
+
 	/** Flag to mark the main work loop as alive. */
 	private volatile boolean running = true;
 
@@ -86,7 +108,11 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		long pollTimeout,
 		MetricGroup subtaskMetricGroup,
 		MetricGroup consumerMetricGroup,
-		boolean useMetrics) throws Exception {
+		boolean useMetrics,
+		GlobalAggregateManager globalAggregateManager,
+		int subtaskIndex,
+		long eventTimeAlignmentIntervalMillis,
+		long eventTimeAlignmentThresholdMillis) throws Exception {
 		super(
 			sourceContext,
 			assignedPartitionsWithInitialOffsets,
@@ -101,16 +127,92 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		this.deserializer = deserializer;
 		this.handover = new Handover();
 
+		this.globalAggregateManager = globalAggregateManager;
+		this.subtaskIndex = subtaskIndex;
+
+		// Initialize event timer aligner
+		// current support is only for PERIODIC WATERMARKS
+		if (watermarksPeriodic != null && eventTimeAlignmentIntervalMillis >= 0) {
+			this.eventTimeAlignmentHandover = new EventTimeAlignmentHandover();
+			this.eventTimeAlignmentThread = initializeEventTimeAligner(
+				eventTimeAlignmentIntervalMillis, eventTimeAlignmentThresholdMillis, subtaskIndex);
+			this.partitionTimestampMap = new ConcurrentHashMap<>();
+			this.alignmentTsAggregator = new AlignmentTimestampAggregateFunction();
+		}
+
 		this.consumerThread = new KafkaConsumerThread(
 			LOG,
 			handover,
 			kafkaProperties,
 			unassignedPartitionsQueue,
+			eventTimeAlignmentHandover,
 			getFetcherName() + " for " + taskNameWithSubtasks,
 			pollTimeout,
 			useMetrics,
 			consumerMetricGroup,
 			subtaskMetricGroup);
+	}
+
+	private Thread initializeEventTimeAligner(long eventTimeAlignmentIntervalMillis,
+												long eventTimeAlignmentThresholdMillis,
+												int subtaskIndex) {
+
+		return new Thread(() -> {
+
+			LOG.info("Initializing event time aligner with interval={} threshold={}",
+				eventTimeAlignmentIntervalMillis, eventTimeAlignmentThresholdMillis);
+
+			while (running) {
+
+				try {
+					Thread.sleep(eventTimeAlignmentIntervalMillis);
+				} catch (InterruptedException e) {
+					LOG.warn("InterruptedException on event time aligner");
+					break;
+				}
+
+				try {
+					if (!this.partitionTimestampMap.isEmpty()) {
+
+						// Min of timestamp from all partitions in this task
+						long taskMin = this.partitionTimestampMap.values().stream()
+								.reduce(Long.MAX_VALUE, (a, b) -> Math.min(a, b));
+
+						// Global minimum for the job
+						Long globalMin = this.globalAggregateManager.updateGlobalAggregate("event-time-alignment-ts",
+							new Pair<>(this.subtaskIndex, taskMin), this.alignmentTsAggregator);
+
+						LOG.debug("Wake-up event time alignment subTask={}, taskMin={}, globalMin={}",
+							this.subtaskIndex, taskMin, globalMin);
+
+						// Identify the partitions which are mis-aligned,
+						// ie. have a timestamp > globalMin + threshold
+						List<TopicPartition> partitionsToPause = new LinkedList<>();
+						this.partitionTimestampMap.forEach((partition, timestamp) -> {
+							if (timestamp > globalMin + eventTimeAlignmentThresholdMillis) {
+								partitionsToPause.add(partition);
+							}
+						});
+
+						if (partitionsToPause.size() > 0) {
+							this.eventTimeAlignmentHandover.activate(partitionsToPause);
+						} else {
+							this.eventTimeAlignmentHandover.deactivate();
+						}
+					}
+				} catch (IOException e) {
+					LOG.error("GlobalAggregateManager exception", e);
+				}
+			}
+		});
+	}
+
+	protected void onEmitWithPeriodicWatermark (
+			KafkaTopicPartitionState<TopicPartition> partitionState, long timestamp) {
+		// Update the map with the latest partition timestamp
+		if (this.partitionTimestampMap != null) {
+			this.partitionTimestampMap.put(partitionState.getKafkaPartitionHandle(), timestamp);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -124,6 +226,11 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 			// kick off the actual Kafka consumer
 			consumerThread.start();
+
+			// kick off the event time aligner
+			if (eventTimeAlignmentThread != null) {
+				eventTimeAlignmentThread.start();
+			}
 
 			while (running) {
 				// this blocks until we get the next records
@@ -174,6 +281,9 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		running = false;
 		handover.close();
 		consumerThread.shutdown();
+		if (eventTimeAlignmentThread != null) {
+			eventTimeAlignmentThread.interrupt();
+		}
 	}
 
 	protected void emitRecord(
