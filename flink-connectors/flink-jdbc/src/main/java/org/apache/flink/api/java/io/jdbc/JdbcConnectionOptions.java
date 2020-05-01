@@ -40,11 +40,16 @@ public class JdbcConnectionOptions implements Serializable {
 	@Nullable
 	protected final String password;
 
-	JdbcConnectionOptions(String url, String driverName, String username, String password) {
+	// use Boolean instead of boolean to respect the default settings of the driver
+	@Nullable
+	protected final Boolean autoCommit;
+
+	JdbcConnectionOptions(String url, String driverName, String username, String password, Boolean autoCommit) {
 		this.url = Preconditions.checkNotNull(url, "jdbc url is empty");
 		this.driverName = Preconditions.checkNotNull(driverName, "driver name is empty");
 		this.username = username;
 		this.password = password;
+		this.autoCommit = autoCommit;
 	}
 
 	public String getDbURL() {
@@ -63,6 +68,10 @@ public class JdbcConnectionOptions implements Serializable {
 		return Optional.ofNullable(password);
 	}
 
+	public Optional<Boolean> getAutoCommit() {
+		return Optional.ofNullable(autoCommit);
+	}
+
 	/**
 	 * Builder for {@link JdbcConnectionOptions}.
 	 */
@@ -71,6 +80,7 @@ public class JdbcConnectionOptions implements Serializable {
 		private String driverName;
 		private String username;
 		private String password;
+		private Boolean autoCommit;
 
 		public JdbcConnectionOptionsBuilder withUrl(String url) {
 			this.url = url;
@@ -92,8 +102,13 @@ public class JdbcConnectionOptions implements Serializable {
 			return this;
 		}
 
+		public JdbcConnectionOptionsBuilder withAutoCommit(boolean autoCommit) {
+			this.autoCommit = autoCommit;
+			return this;
+		}
+
 		public JdbcConnectionOptions build() {
-			return new JdbcConnectionOptions(url, driverName, username, password);
+			return new JdbcConnectionOptions(url, driverName, username, password, autoCommit);
 		}
 	}
 }
