@@ -98,6 +98,13 @@
 		</file>
 
 		<file>
+			<source>../flink-metrics/flink-metrics-jmx/target/flink-metrics-jmx_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-metrics-jmx-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
 			<source>../flink-metrics/flink-metrics-statsd/target/flink-metrics-statsd-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-metrics-statsd-${project.version}.jar</destName>
