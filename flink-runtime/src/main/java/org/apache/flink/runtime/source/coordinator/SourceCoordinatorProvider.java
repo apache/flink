@@ -108,7 +108,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 			}
 			t = new Thread(r, coordinatorThreadName);
 			t.setUncaughtExceptionHandler((ignored, e) -> {
-				LOG.error("Received uncaught exception from the coordinator for source {}", operatorName);
+				LOG.error("Received uncaught exception from the coordinator for source {}", operatorName, e);
 				context.failJob(e);
 			});
 			return t;

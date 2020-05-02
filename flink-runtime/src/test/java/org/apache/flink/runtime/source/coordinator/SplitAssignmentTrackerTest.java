@@ -20,11 +20,15 @@ package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -148,17 +152,19 @@ public class SplitAssignmentTrackerTest {
 
 	private byte[] takeSnapshot(SplitAssignmentTracker<MockSourceSplit> tracker, long checkpointId) throws Exception {
 		byte[] bytes;
-		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				DataOutputStream out = new DataOutputViewStreamWrapper(baos)) {
 			tracker.snapshotState(checkpointId, new MockSourceSplitSerializer(), out);
 			out.flush();
-			bytes = out.toByteArray();
+			bytes = baos.toByteArray();
 		}
 		return bytes;
 	}
 
 	private SplitAssignmentTracker<MockSourceSplit> restoreSnapshot(byte[] bytes) throws Exception {
 		SplitAssignmentTracker<MockSourceSplit> deserializedTracker;
-		try (ByteArrayInputStream in = new ByteArrayInputStream(bytes)) {
+		try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+				DataInputStream in = new DataInputViewStreamWrapper(bais)) {
 			deserializedTracker = new SplitAssignmentTracker<>();
 			deserializedTracker.restoreState(new MockSourceSplitSerializer(), in);
 		}

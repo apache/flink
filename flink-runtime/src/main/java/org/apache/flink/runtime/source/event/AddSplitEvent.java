@@ -20,7 +20,6 @@ package org.apache.flink.runtime.source.event;
 
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**

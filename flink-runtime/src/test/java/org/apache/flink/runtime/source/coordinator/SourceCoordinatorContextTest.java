@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 
@@ -29,6 +30,8 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -146,7 +149,8 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 						OPERATOR_NAME,
 						TEST_OPERATOR_ID.toHexString(),
 						operatorCoordinatorContext);
-		try (ByteArrayInputStream in = new ByteArrayInputStream(bytes)) {
+		try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+				DataInputStream in = new DataInputStream(bais)) {
 			restoredContext = new SourceCoordinatorContext<>(
 					coordinatorExecutor,
 					coordinatorThreadFactory,
@@ -176,10 +180,11 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 
 	private byte[] takeSnapshot(SourceCoordinatorContext<MockSourceSplit> context, long checkpointId) throws Exception {
 		byte[] bytes;
-		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				DataOutputStream out = new DataOutputViewStreamWrapper(baos)) {
 			context.snapshotState(checkpointId, new MockSourceSplitSerializer(), out);
 			out.flush();
-			bytes = out.toByteArray();
+			bytes = baos.toByteArray();
 		}
 		return bytes;
 	}

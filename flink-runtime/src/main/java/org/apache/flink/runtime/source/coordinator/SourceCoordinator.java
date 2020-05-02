@@ -25,6 +25,8 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
@@ -35,6 +37,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -42,11 +46,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readAndVerifyCoordinatorSerdeVersion;
+import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readBytes;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.writeCoordinatorSerdeVersion;
-import static org.apache.flink.util.serde.SerdeUtils.readBytes;
-import static org.apache.flink.util.serde.SerdeUtils.readInt;
-import static org.apache.flink.util.serde.SerdeUtils.writeBytes;
-import static org.apache.flink.util.serde.SerdeUtils.writeInt;
 
 /**
  * The default implementation of the {@link OperatorCoordinator} for the {@link Source}.
@@ -225,13 +226,16 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	private byte[] toBytes(long checkpointId) throws Exception {
 		EnumChkT enumCkpt = enumerator.snapshotState();
 
-		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				DataOutputStream out = new DataOutputViewStreamWrapper(baos)) {
 			writeCoordinatorSerdeVersion(out);
-			writeInt(enumCheckpointSerializer.getVersion(), out);
-			writeBytes(enumCheckpointSerializer.serialize(enumCkpt), out);
+			out.writeInt(enumCheckpointSerializer.getVersion());
+			byte[] serialziedEnumChkpt = enumCheckpointSerializer.serialize(enumCkpt);
+			out.writeInt(serialziedEnumChkpt.length);
+			out.write(serialziedEnumChkpt);
 			context.snapshotState(checkpointId, splitSerializer, out);
 			out.flush();
-			return out.toByteArray();
+			return baos.toByteArray();
 		}
 	}
 
@@ -242,10 +246,12 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	 * @throws Exception When the deserialization failed.
 	 */
 	private void fromBytes(byte[] bytes) throws Exception {
-		try (ByteArrayInputStream in = new ByteArrayInputStream(bytes)) {
+		try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+				DataInputStream in = new DataInputViewStreamWrapper(bais)) {
 			readAndVerifyCoordinatorSerdeVersion(in);
-			int enumSerializerVersion = readInt(in);
-			byte[] serializedEnumChkpt = readBytes(in);
+			int enumSerializerVersion = in.readInt();
+			int serializedEnumChkptSize = in.readInt();
+			byte[] serializedEnumChkpt = readBytes(in, serializedEnumChkptSize);
 			EnumChkT enumChkpt = enumCheckpointSerializer.deserialize(enumSerializerVersion, serializedEnumChkpt);
 			context.restoreState(splitSerializer, in);
 			enumerator = source.restoreEnumerator(context, enumChkpt);

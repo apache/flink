@@ -35,8 +35,8 @@ import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -213,7 +213,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 	void snapshotState(
 			long checkpointId,
 			SimpleVersionedSerializer<SplitT> splitSerializer,
-			ByteArrayOutputStream out) throws Exception {
+			DataOutputStream out) throws Exception {
 		writeRegisteredReaders(registeredReaders, out);
 		assignmentTracker.snapshotState(checkpointId, splitSerializer, out);
 	}
@@ -227,7 +227,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit> implements Spl
 	@SuppressWarnings("unchecked")
 	void restoreState(
 			SimpleVersionedSerializer<SplitT> splitSerializer,
-			ByteArrayInputStream in) throws Exception {
+			DataInputStream in) throws Exception {
 		Map<Integer, ReaderInfo> readers = readRegisteredReaders(in);
 		registeredReaders.clear();
 		registeredReaders.putAll(readers);

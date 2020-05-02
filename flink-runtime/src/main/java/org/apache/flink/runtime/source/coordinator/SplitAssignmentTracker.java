@@ -25,8 +25,8 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -66,7 +66,7 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 	public void snapshotState(
 			long checkpointId,
 			SimpleVersionedSerializer<SplitT> splitSerializer,
-			ByteArrayOutputStream out) throws Exception {
+			DataOutputStream out) throws Exception {
 		// Include the uncheckpointed assignments to the snapshot.
 		assignmentsByCheckpointId.put(checkpointId, uncheckpointedAssignments);
 		uncheckpointedAssignments = new HashMap<>();
@@ -81,7 +81,7 @@ public class SplitAssignmentTracker<SplitT extends SourceSplit> {
 	 * @throws Exception when the state deserialization fails.
 	 */
 	@SuppressWarnings("unchecked")
-	public void restoreState(SimpleVersionedSerializer<SplitT> splitSerializer, ByteArrayInputStream in) throws Exception {
+	public void restoreState(SimpleVersionedSerializer<SplitT> splitSerializer, DataInputStream in) throws Exception {
 		// Read the split assignments by checkpoint id.
 		Map<Long, Map<Integer, LinkedHashSet<SplitT>>> deserializedAssignments =
 				readAssignmentsByCheckpointId(in, splitSerializer);
