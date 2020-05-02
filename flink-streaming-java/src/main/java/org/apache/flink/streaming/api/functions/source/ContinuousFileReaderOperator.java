@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -241,7 +242,7 @@ class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OUT>
 
 		checkState(checkpointedState == null, "The reader state has already been initialized.");
 
-		checkpointedState = context.getOperatorStateStore().getSerializableListState("splits");
+		checkpointedState = context.getOperatorStateStore().getListState(new ListStateDescriptor("splits", TimestampedFileInputSplit.class));
 
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
 		if (!context.isRestored()) {

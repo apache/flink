@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.functions.source;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -140,7 +141,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 
 		this.checkpointedState = context
 			.getOperatorStateStore()
-			.getSerializableListState("message-acknowledging-source-state");
+			.getListState(new ListStateDescriptor("message-acknowledging-source-state", SerializedCheckpointData[].class));
 
 		this.idsForCurrentCheckpoint = new HashSet<>(64);
 		this.pendingCheckpoints = new ArrayDeque<>();

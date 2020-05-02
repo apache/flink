@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.fs.bucketing;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
@@ -388,7 +389,7 @@ public class BucketingSink<T>
 		}
 
 		OperatorStateStore stateStore = context.getOperatorStateStore();
-		restoredBucketStates = stateStore.getSerializableListState("bucket-states");
+		this.restoredBucketStates = stateStore.getListState(new ListStateDescriptor("bucket-states", State.class));
 
 		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 		if (context.isRestored()) {

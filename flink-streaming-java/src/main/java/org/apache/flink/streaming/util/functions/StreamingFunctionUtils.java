@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
@@ -125,8 +126,9 @@ public final class StreamingFunctionUtils {
 			List<Serializable> partitionableState = ((ListCheckpointed<Serializable>) userFunction).
 					snapshotState(context.getCheckpointId(), context.getCheckpointTimestamp());
 
-			ListState<Serializable> listState = backend.
-					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+			ListStateDescriptor<Serializable> listStateDescriptor =
+				new ListStateDescriptor(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, Serializable.class);
+			ListState<Serializable> listState = backend.getListState(listStateDescriptor);
 
 			listState.clear();
 
@@ -184,8 +186,9 @@ public final class StreamingFunctionUtils {
 			@SuppressWarnings("unchecked")
 			ListCheckpointed<Serializable> listCheckpointedFun = (ListCheckpointed<Serializable>) userFunction;
 
-			ListState<Serializable> listState = context.getOperatorStateStore().
-					getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+			ListStateDescriptor<Serializable> listStateDescriptor =
+				new ListStateDescriptor(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, Serializable.class);
+			ListState<Serializable> listState = context.getOperatorStateStore().getListState(listStateDescriptor);
 
 			List<Serializable> list = new ArrayList<>();
 

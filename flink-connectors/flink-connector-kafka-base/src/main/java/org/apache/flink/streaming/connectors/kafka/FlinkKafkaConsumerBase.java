@@ -857,8 +857,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 		OperatorStateStore stateStore = context.getOperatorStateStore();
 
-		ListState<Tuple2<KafkaTopicPartition, Long>> oldRoundRobinListState =
-			stateStore.getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+		ListStateDescriptor<Tuple2<KafkaTopicPartition, Long>> listStateDescriptor =
+			new ListStateDescriptor(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME, new Tuple2<KafkaTopicPartition, Long>().getClass());
+		ListState<Tuple2<KafkaTopicPartition, Long>> oldRoundRobinListState = stateStore.getListState(listStateDescriptor);
 
 		this.unionOffsetStates = stateStore.getUnionListState(new ListStateDescriptor<>(OFFSETS_STATE_NAME,
 			createStateSerializer(getRuntimeContext().getExecutionConfig())));

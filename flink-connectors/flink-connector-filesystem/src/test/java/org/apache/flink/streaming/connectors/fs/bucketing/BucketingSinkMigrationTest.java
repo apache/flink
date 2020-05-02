@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.fs.bucketing;
 
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -204,7 +205,7 @@ public class BucketingSinkMigrationTest {
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 			OperatorStateStore stateStore = context.getOperatorStateStore();
 
-			ListState<State<T>> restoredBucketStates = stateStore.getSerializableListState("bucket-states");
+			ListState<State<T>> restoredBucketStates = stateStore.getListState(new ListStateDescriptor("bucket-states", State.class));
 
 			if (context.isRestored()) {
 

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -92,8 +93,9 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		Preconditions.checkState(this.checkpointedState == null,
 			"The reader state has already been initialized.");
 
-		checkpointedState = context.getOperatorStateStore()
-			.getSerializableListState("pending-checkpoints");
+		checkpointedState = context
+							.getOperatorStateStore()
+							.getListState(new ListStateDescriptor("pending-checkpoints", PendingCheckpoint.class));
 
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
 		if (context.isRestored()) {
