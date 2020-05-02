@@ -29,7 +29,7 @@ LogicalProject(EXPR$0=[MyUdf(1)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[CAST(2) AS EXPR$0])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -46,7 +46,7 @@ LogicalProject(EXPR$0=[myUdf(1)])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[11 AS EXPR$0])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -64,7 +64,7 @@ LogicalProject(EXPR$0=[PyUdf()], EXPR$1=[MyUdf(1)])
       <![CDATA[
 Calc(select=[f0 AS EXPR$0, CAST(2) AS EXPR$1])
 +- PythonCalc(select=[PyUdf() AS f0])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

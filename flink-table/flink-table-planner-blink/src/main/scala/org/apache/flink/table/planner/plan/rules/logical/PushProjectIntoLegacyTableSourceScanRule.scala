@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.plan.schema.TableSourceTable
+import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.sources._
 import org.apache.flink.util.CollectionUtil
@@ -33,15 +33,15 @@ import org.apache.flink.table.api.TableException
   * Planner rule that pushes a [[LogicalProject]] into a [[LogicalTableScan]]
   * which wraps a [[ProjectableTableSource]] or a [[NestedFieldsProjectableTableSource]].
   */
-class PushProjectIntoTableSourceScanRule extends RelOptRule(
+class PushProjectIntoLegacyTableSourceScanRule extends RelOptRule(
   operand(classOf[LogicalProject],
     operand(classOf[LogicalTableScan], none)),
-  "PushProjectIntoTableSourceScanRule") {
+  "PushProjectIntoLegacyTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: LogicalTableScan = call.rel(1)
-    scan.getTable.unwrap(classOf[TableSourceTable[_]]) match {
-      case table: TableSourceTable[_] =>
+    scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]]) match {
+      case table: LegacyTableSourceTable[_] =>
         table.tableSource match {
           // projection pushdown is not supported for sources that provide time indicators
           case r: DefinedRowtimeAttributes if !CollectionUtil.isNullOrEmpty(
@@ -65,7 +65,7 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
       return
     }
 
-    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable = scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]])
     val oldTableSource = tableSourceTable.tableSource
     val (newTableSource, isProjectSuccess) = oldTableSource match {
       case nested: NestedFieldsProjectableTableSource[_] =>
@@ -117,6 +117,6 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
   }
 }
 
-object PushProjectIntoTableSourceScanRule {
-  val INSTANCE: RelOptRule = new PushProjectIntoTableSourceScanRule
+object PushProjectIntoLegacyTableSourceScanRule {
+  val INSTANCE: RelOptRule = new PushProjectIntoLegacyTableSourceScanRule
 }

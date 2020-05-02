@@ -29,7 +29,7 @@ LogicalProject(c=[$2], s=[$3])
       <![CDATA[
 Calc(select=[c, s])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2)], correlate=[table(TableFunc1(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -46,7 +46,7 @@ LogicalProject(c=[$2], s=[$3])
       <![CDATA[
 Calc(select=[c, s])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2)], correlate=[table(TableFunc1(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[LEFT])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -63,7 +63,7 @@ LogicalProject(c=[$2], s=[$3])
       <![CDATA[
 Calc(select=[c, s])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36($2, _UTF-16LE'$')], correlate=[table(TableFunc1(c,_UTF-16LE'$'))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -80,7 +80,7 @@ LogicalProject(c=[$2], name=[$3], len=[$4])
       <![CDATA[
 Calc(select=[c, name, len])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc2$e9d8fd0c1a1f8cddfbbd46c86e136247($2)], correlate=[table(TableFunc2(c))], select=[a,b,c,name,len], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, INTEGER len)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -97,7 +97,7 @@ LogicalProject(c=[$2], name=[$3], len=[$5], adult=[$4])
       <![CDATA[
 Calc(select=[c, name, len, adult])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$HierarchyTableFunction$80e30c6adff4b29f031c16f3b03bfa7b($2)], correlate=[table(HierarchyTableFunction(c))], select=[a,b,c,name,adult,len], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, BOOLEAN adult, INTEGER len)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -114,7 +114,7 @@ LogicalProject(c=[$2], name=[$4], age=[$3])
       <![CDATA[
 Calc(select=[c, name, age])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$PojoTableFunc$eb4ab6b40e6b98c3b932dcabfbdc2263($2)], correlate=[table(PojoTableFunc(c))], select=[a,b,c,age,name], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER age, VARCHAR(2147483647) name)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -132,7 +132,7 @@ LogicalFilter(condition=[>($2, 2)])
       <![CDATA[
 Calc(select=[c, name, len])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc2$e9d8fd0c1a1f8cddfbbd46c86e136247($2)], correlate=[table(TableFunc2(c))], select=[a,b,c,name,len], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, INTEGER len)], joinType=[INNER], condition=[>($1, 2)])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -149,7 +149,7 @@ LogicalProject(a=[$0], c=[$2], s=[$3])
       <![CDATA[
 Calc(select=[a, c, s])
 +- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc1$774a5145e3fba9ca5b92e3e71a308c36(SUBSTRING($2, 2))], correlate=[table(TableFunc1(SUBSTRING(c, 2)))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

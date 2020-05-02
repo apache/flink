@@ -78,7 +78,7 @@ import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable$;
-import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
@@ -466,7 +466,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				tableSourceOperation.getTableSchema(),
 				scala.Option.apply(tableSource),
 				!isBatch);
-			TableSourceTable<?> tableSourceTable = new TableSourceTable<>(
+			LegacyTableSourceTable<?> tableSourceTable = new LegacyTableSourceTable<>(
 				relBuilder.getRelOptSchema(),
 				tableIdentifier,
 				rowType,

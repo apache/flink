@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan.isTableSourceScan
-import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacyTableSourceScan.isTableSourceScan
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, LegacyTableSourceTable}
 import org.apache.flink.table.sources._
 
 import com.google.common.collect.ImmutableList
@@ -41,25 +41,25 @@ import java.util.function.Supplier
   * Sub-class of [[TableScan]] that is a relational operator
   * which returns the contents of a [[TableSource]] in Flink.
   */
-class FlinkLogicalTableSourceScan(
+class FlinkLogicalLegacyTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: TableSourceTable[_])
+    relOptTable: LegacyTableSourceTable[_])
   extends TableScan(cluster, traitSet, Collections.emptyList[RelHint](), relOptTable)
   with FlinkLogicalRel {
 
   lazy val tableSource: TableSource[_] = tableSourceTable.tableSource
 
-  private lazy val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
+  private lazy val tableSourceTable = relOptTable.unwrap(classOf[LegacyTableSourceTable[_]])
 
   def copy(
       traitSet: RelTraitSet,
-      tableSourceTable: TableSourceTable[_]): FlinkLogicalTableSourceScan = {
-    new FlinkLogicalTableSourceScan(cluster, traitSet, tableSourceTable)
+      tableSourceTable: LegacyTableSourceTable[_]): FlinkLogicalLegacyTableSourceScan = {
+    new FlinkLogicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new FlinkLogicalTableSourceScan(cluster, traitSet, relOptTable)
+    new FlinkLogicalLegacyTableSourceScan(cluster, traitSet, relOptTable)
   }
 
   override def deriveRowType(): RelDataType = {
@@ -81,12 +81,12 @@ class FlinkLogicalTableSourceScan(
 
 }
 
-class FlinkLogicalTableSourceScanConverter
+class FlinkLogicalLegacyTableSourceScanConverter
   extends ConverterRule(
     classOf[LogicalTableScan],
     Convention.NONE,
     FlinkConventions.LOGICAL,
-    "FlinkLogicalTableSourceScanConverter") {
+    "FlinkLogicalLegacyTableSourceScanConverter") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0)
@@ -96,21 +96,21 @@ class FlinkLogicalTableSourceScanConverter
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[TableScan]
     val table = scan.getTable.asInstanceOf[FlinkPreparingTableBase]
-    FlinkLogicalTableSourceScan.create(rel.getCluster, table)
+    FlinkLogicalLegacyTableSourceScan.create(rel.getCluster, table)
   }
 }
 
-object FlinkLogicalTableSourceScan {
-  val CONVERTER = new FlinkLogicalTableSourceScanConverter
+object FlinkLogicalLegacyTableSourceScan {
+  val CONVERTER = new FlinkLogicalLegacyTableSourceScanConverter
 
   def isTableSourceScan(scan: TableScan): Boolean = {
-    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable = scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]])
     tableSourceTable != null
   }
 
   def create(cluster: RelOptCluster, relOptTable: FlinkPreparingTableBase)
-      : FlinkLogicalTableSourceScan = {
-    val table = relOptTable.unwrap(classOf[TableSourceTable[_]])
+      : FlinkLogicalLegacyTableSourceScan = {
+    val table = relOptTable.unwrap(classOf[LegacyTableSourceTable[_]])
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
       RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
         def get: util.List[RelCollation] = {
@@ -121,6 +121,6 @@ object FlinkLogicalTableSourceScan {
           }
         }
       }).simplify()
-    new FlinkLogicalTableSourceScan(cluster, traitSet, table)
+    new FlinkLogicalLegacyTableSourceScan(cluster, traitSet, table)
   }
 }

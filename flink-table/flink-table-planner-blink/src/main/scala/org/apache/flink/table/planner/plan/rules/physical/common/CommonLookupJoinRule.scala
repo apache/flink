@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.common
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.planner.plan.utils.JoinUtil
 import org.apache.flink.table.sources.{LookupableTableSource, TableSource}
@@ -73,8 +73,8 @@ trait CommonLookupJoinRule {
 
   protected def findTableSource(relNode: RelNode): Option[TableSource[_]] = {
     relNode match {
-      case logicalScan: FlinkLogicalTableSourceScan => Some(logicalScan.tableSource)
-      case physicalScan: PhysicalTableSourceScan => Some(physicalScan.tableSource)
+      case logicalScan: FlinkLogicalLegacyTableSourceScan => Some(logicalScan.tableSource)
+      case physicalScan: PhysicalLegacyTableSourceScan => Some(physicalScan.tableSource)
       // TODO: find TableSource in FlinkLogicalIntermediateTableScan
       case _ => None
     }
@@ -82,9 +82,9 @@ trait CommonLookupJoinRule {
 
   protected def isLookupableTableSource(relNode: RelNode): Boolean = {
     relNode match {
-      case logicalScan: FlinkLogicalTableSourceScan =>
+      case logicalScan: FlinkLogicalLegacyTableSourceScan =>
         logicalScan.tableSource.isInstanceOf[LookupableTableSource[_]]
-      case physicalScan: PhysicalTableSourceScan =>
+      case physicalScan: PhysicalLegacyTableSourceScan =>
         physicalScan.tableSource.isInstanceOf[LookupableTableSource[_]]
       // TODO: find TableSource in FlinkLogicalIntermediateTableScan
       case _ => false

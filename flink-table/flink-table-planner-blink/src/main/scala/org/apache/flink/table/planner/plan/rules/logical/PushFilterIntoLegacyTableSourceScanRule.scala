@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
-import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, LegacyTableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RexNodeExtractor}
 import org.apache.flink.table.sources.FilterableTableSource
@@ -42,10 +42,10 @@ import scala.collection.JavaConversions._
 /**
   * Planner rule that tries to push a filter into a [[FilterableTableSource]].
   */
-class PushFilterIntoTableSourceScanRule extends RelOptRule(
+class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
   operand(classOf[Filter],
     operand(classOf[LogicalTableScan], none)),
-  "PushFilterIntoTableSourceScanRule") {
+  "PushFilterIntoLegacyTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val config = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
@@ -60,8 +60,8 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
     }
 
     val scan: LogicalTableScan = call.rel(1)
-    scan.getTable.unwrap(classOf[TableSourceTable[_]]) match {
-      case table: TableSourceTable[_] =>
+    scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]]) match {
+      case table: LegacyTableSourceTable[_] =>
         table.tableSource match {
           case source: FilterableTableSource[_] => !source.isFilterPushedDown
           case _ => false
@@ -73,7 +73,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val filter: Filter = call.rel(0)
     val scan: LogicalTableScan = call.rel(1)
-    val table: TableSourceTable[_] = scan.getTable.asInstanceOf[TableSourceTable[_]]
+    val table: LegacyTableSourceTable[_] = scan.getTable.asInstanceOf[LegacyTableSourceTable[_]]
     pushFilterIntoScan(call, filter, scan, table)
   }
 
@@ -107,8 +107,8 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
 
     val newRelOptTable: FlinkPreparingTableBase =
       applyPredicate(remainingPredicates, relOptTable, relBuilder.getTypeFactory)
-    val newTableSource = newRelOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
-    val oldTableSource = relOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
+    val newTableSource = newRelOptTable.unwrap(classOf[LegacyTableSourceTable[_]]).tableSource
+    val oldTableSource = relOptTable.unwrap(classOf[LegacyTableSourceTable[_]]).tableSource
 
     if (newTableSource.asInstanceOf[FilterableTableSource[_]].isFilterPushedDown
       && newTableSource.explainSource().equals(oldTableSource.explainSource)) {
@@ -137,7 +137,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       relOptTable: FlinkPreparingTableBase,
       typeFactory: RelDataTypeFactory): FlinkPreparingTableBase = {
     val originPredicatesSize = predicates.size()
-    val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable = relOptTable.unwrap(classOf[LegacyTableSourceTable[_]])
     val filterableSource = tableSourceTable.tableSource.asInstanceOf[FilterableTableSource[_]]
     val newTableSource = filterableSource.applyPredicate(predicates)
     val updatedPredicatesSize = predicates.size()
@@ -157,6 +157,6 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
 }
 
 
-object PushFilterIntoTableSourceScanRule {
-  val INSTANCE: RelOptRule = new PushFilterIntoTableSourceScanRule
+object PushFilterIntoLegacyTableSourceScanRule {
+  val INSTANCE: RelOptRule = new PushFilterIntoLegacyTableSourceScanRule
 }

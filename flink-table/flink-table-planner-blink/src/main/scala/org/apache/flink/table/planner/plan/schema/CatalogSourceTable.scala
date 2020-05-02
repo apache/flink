@@ -42,9 +42,9 @@ import scala.collection.JavaConverters._
 
 /**
   * A [[FlinkPreparingTableBase]] implementation which defines the interfaces required to translate
-  * the Calcite [[RelOptTable]] to the Flink specific [[TableSourceTable]].
+  * the Calcite [[RelOptTable]] to the Flink specific [[LegacyTableSourceTable]].
   *
-  * <p>This table is only used to translate the catalog table into [[TableSourceTable]]
+  * <p>This table is only used to translate the catalog table into [[LegacyTableSourceTable]]
   * during the last phrase of sql-to-rel conversion, it is overdue once the sql node was converted
   * to relational expression.
   *
@@ -87,10 +87,10 @@ class CatalogSourceTable[T](
         + s"is set to true")
     }
 
-    val tableSource = findAndCreateTableSource(
+    val tableSource = findAndCreateLegacyTableSource(
       hintedOptions,
       conf)
-    val tableSourceTable = new TableSourceTable[T](
+    val tableSourceTable = new LegacyTableSourceTable[T](
       relOptSchema,
       schemaTable.getTableIdentifier,
       erasedRowType,
@@ -159,8 +159,8 @@ class CatalogSourceTable[T](
     relBuilder.build()
   }
 
-  /** Create the table source. */
-  private def findAndCreateTableSource(
+  /** Create the legacy table source. */
+  private def findAndCreateLegacyTableSource(
       hintedOptions: JMap[String, String],
       conf: ReadableConfig): TableSource[T] = {
     val tableFactoryOpt = schemaTable.getTableFactory

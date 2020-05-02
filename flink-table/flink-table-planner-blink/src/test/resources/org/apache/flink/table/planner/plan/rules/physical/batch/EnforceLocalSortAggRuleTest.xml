@@ -38,7 +38,7 @@ Calc(select=[EXPR$0])
             +- Sort(orderBy=[a ASC, c ASC, $e ASC])
                +- Expand(projects=[a, c, d, $e], projects=[{a, c, d, 0 AS $e}, {a, null AS c, d, 1 AS $e}, {null AS a, c, d, 2 AS $e}, {null AS a, null AS c, d, 3 AS $e}])
                   +- Calc(select=[a, c, d])
-                     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -64,7 +64,7 @@ Calc(select=[EXPR$0])
             +- Sort(orderBy=[b ASC, c ASC, $e ASC])
                +- Expand(projects=[b, c, a, $e], projects=[{b, c, a, 0 AS $e}, {b, null AS c, a, 1 AS $e}, {null AS b, c, a, 2 AS $e}, {null AS b, null AS c, a, 3 AS $e}])
                   +- Calc(select=[b, c, a])
-                     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -88,7 +88,7 @@ Calc(select=[EXPR$0])
       +- Exchange(distribution=[hash[a, b, $e]])
          +- Expand(projects=[a, b, d, $f3, $e], projects=[{a, b, d, $f3, 0 AS $e}, {a, null AS b, d, $f3, 1 AS $e}, {null AS a, b, d, $f3, 2 AS $e}, {null AS a, null AS b, d, $f3, 3 AS $e}])
             +- Calc(select=[a, b, d, 1 AS $f3])
-               +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -111,7 +111,7 @@ Calc(select=[EXPR$0])
    +- Sort(orderBy=[b ASC, c ASC, d ASC, $e ASC])
       +- Exchange(distribution=[hash[b, c, d, $e]])
          +- Expand(projects=[a, b, c, d, $e], projects=[{a, b, c, null AS d, 1 AS $e}, {a, b, null AS c, d, 2 AS $e}])
-            +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -135,7 +135,7 @@ Calc(select=[EXPR$0])
       +- Exchange(distribution=[hash[b, c, d, $e]])
          +- Expand(projects=[b, c, d, $e], projects=[{b, c, null AS d, 1 AS $e}, {b, null AS c, d, 2 AS $e}])
             +- Calc(select=[b, c, d])
-               +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -159,7 +159,7 @@ Calc(select=[EXPR$0])
       +- Exchange(distribution=[hash[b, c, $e]])
          +- Expand(projects=[b, c, a, $f3, $e], projects=[{b, c, a, $f3, 0 AS $e}, {b, null AS c, a, $f3, 1 AS $e}, {null AS b, null AS c, a, $f3, 3 AS $e}])
             +- Calc(select=[b, c, a, 1 AS $f3])
-               +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -183,7 +183,7 @@ Calc(select=[EXPR$0])
       +- Exchange(distribution=[hash[b, c, d, $e]])
          +- Expand(projects=[b, c, d, a, $f4, $e], projects=[{b, c, null AS d, a, $f4, 1 AS $e}, {b, null AS c, d, a, $f4, 2 AS $e}])
             +- Calc(select=[b, c, d, a, 1 AS $f4])
-               +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -209,7 +209,7 @@ Calc(select=[EXPR$0])
             +- Sort(orderBy=[b ASC, c ASC, $e ASC])
                +- Expand(projects=[b, c, a, $e], projects=[{b, c, a, 0 AS $e}, {b, null AS c, a, 1 AS $e}, {null AS b, null AS c, a, 3 AS $e}])
                   +- Calc(select=[b, c, a])
-                     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -235,7 +235,7 @@ Calc(select=[EXPR$0])
             +- Sort(orderBy=[b ASC, c ASC, $e ASC])
                +- Expand(projects=[b, c, $e], projects=[{b, c, 0 AS $e}, {b, null AS c, 1 AS $e}, {null AS b, null AS c, 3 AS $e}])
                   +- Calc(select=[b, c])
-                     +- TableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>

@@ -180,7 +180,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
       <![CDATA[
 GroupWindowAggregate(window=[SlidingGroupWindow('w$, $f2, 60000, 1000)], select=[SUM(a) AS EXPR$0, MAX(b) AS EXPR$1])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -415,7 +415,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
       <![CDATA[
 GroupWindowAggregate(window=[SessionGroupWindow('w$, $f2, 60000)], select=[SUM(a) AS EXPR$0, MAX(b) AS EXPR$1])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -613,7 +613,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
       <![CDATA[
 GroupWindowAggregate(window=[TumblingGroupWindow('w$, $f2, 1000)], select=[SUM(a) AS EXPR$0, MAX(b) AS EXPR$1])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>

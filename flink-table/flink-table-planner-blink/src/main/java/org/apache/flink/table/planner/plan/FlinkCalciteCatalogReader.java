@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable;
 import org.apache.flink.table.planner.catalog.SqlCatalogViewTable;
 import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
-import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -172,7 +172,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			throw new ValidationException("Only bounded StreamTableSource can be used in batch mode.");
 		}
 
-		return new TableSourceTable<>(
+		return new LegacyTableSourceTable<>(
 			relOptSchema,
 			tableIdentifier,
 			rowType,

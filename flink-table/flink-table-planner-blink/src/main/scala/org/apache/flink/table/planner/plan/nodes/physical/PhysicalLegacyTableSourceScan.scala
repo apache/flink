@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.planner.plan.schema.TableSourceTable
+import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.sources.{InputFormatTableSource, StreamTableSource, TableSource}
 
@@ -37,17 +37,17 @@ import scala.collection.JavaConverters._
 /**
   * Base physical RelNode to read data from an external source defined by a [[TableSource]].
   */
-abstract class PhysicalTableSourceScan(
+abstract class PhysicalLegacyTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: TableSourceTable[_])
+    relOptTable: LegacyTableSourceTable[_])
   extends TableScan(cluster, traitSet, relOptTable) {
 
   // cache table source transformation.
   protected var sourceTransform: Transformation[_] = _
 
-  protected val tableSourceTable: TableSourceTable[_] =
-    relOptTable.unwrap(classOf[TableSourceTable[_]])
+  protected val tableSourceTable: LegacyTableSourceTable[_] =
+    relOptTable.unwrap(classOf[LegacyTableSourceTable[_]])
 
   protected[flink] val tableSource: TableSource[_] = tableSourceTable.tableSource
 

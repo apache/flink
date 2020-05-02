@@ -30,10 +30,10 @@ import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
 
 /**
-  * Test for [[PushPartitionIntoTableSourceScanRule]].
+  * Test for [[PushPartitionIntoLegacyTableSourceScanRule]].
   */
 @RunWith(classOf[Parameterized])
-class PushPartitionIntoTableSourceScanRuleTest(
+class PushPartitionIntoLegacyTableSourceScanRuleTest(
     sourceFetchPartitions: Boolean) extends TableTestBase {
   private val util = batchTestUtil()
 
@@ -46,7 +46,7 @@ class PushPartitionIntoTableSourceScanRuleTest(
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(PushPartitionIntoTableSourceScanRule.INSTANCE,
+        .add(RuleSets.ofList(PushPartitionIntoLegacyTableSourceScanRule.INSTANCE,
           FilterProjectTransposeRule.INSTANCE))
         .build()
     )
@@ -166,7 +166,7 @@ class PushPartitionIntoTableSourceScanRuleTest(
 
 }
 
-object PushPartitionIntoTableSourceScanRuleTest {
+object PushPartitionIntoLegacyTableSourceScanRuleTest {
   @Parameterized.Parameters(name = "{0}")
   def parameters(): java.util.Collection[Boolean] = {
     java.util.Arrays.asList(true, false)
