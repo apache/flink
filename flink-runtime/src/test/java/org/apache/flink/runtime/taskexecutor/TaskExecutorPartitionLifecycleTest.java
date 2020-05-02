@@ -197,7 +197,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			trackerIsTrackingPartitions.set(false);
 
 			// the TM should check whether partitions are still stored, and afterwards terminate the connection
-			releaseOrPromoteCall.accept(taskExecutor, jobId, resultPartitionId);
+			releaseOrPromoteCall.accept(taskExecutorGateway, jobId, resultPartitionId);
 
 			disconnectFuture.get();
 		} finally {
