@@ -44,6 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readAndVerifyCoordinatorSerdeVersion;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readBytes;
@@ -107,15 +108,19 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	@Override
 	public void close() throws Exception {
 		LOG.info("Closing SourceCoordinator for source {}.", operatorName);
+		boolean successfullyClosed = false;
 		try {
 			if (started) {
 				enumerator.close();
 			}
 		} finally {
-			coordinatorExecutor.shutdown();
+			coordinatorExecutor.shutdownNow();
 			// We do not expect this to actually block for long. At this point, there should be very few task running
 			// in the executor, if any.
-			coordinatorExecutor.awaitTermination(10, TimeUnit.SECONDS);
+			successfullyClosed = coordinatorExecutor.awaitTermination(10, TimeUnit.SECONDS);
+		}
+		if (!successfullyClosed) {
+			throw new TimeoutException("The source coordinator failed to close before timeout.");
 		}
 		LOG.info("Source coordinator for source {} closed.", operatorName);
 	}
@@ -131,10 +136,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 				} else if (event instanceof ReaderRegistrationEvent) {
 					handleReaderRegistrationEvent((ReaderRegistrationEvent) event);
 				}
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				LOG.error("Failing the job due to exception when handling operator event {} from subtask {} " +
-								"of source {}.", event, subtask, operatorName, t);
-				context.failJob(t);
+								"of source {}.", event, subtask, operatorName, e);
+				context.failJob(e);
 			}
 		});
 	}
@@ -149,10 +154,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 				context.unregisterSourceReader(subtaskId);
 				LOG.debug("Adding {} back to the split enumerator of source {}.", splitsToAddBack, operatorName);
 				enumerator.addSplitsBack(splitsToAddBack, subtaskId);
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				LOG.error("Failing the job due to exception when handling subtask {} failure in source {}.",
-						subtaskId, operatorName, t);
-				context.failJob(t);
+						subtaskId, operatorName, e);
+				context.failJob(e);
 			}
 		});
 	}
@@ -178,10 +183,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 			try {
 				LOG.info("Marking checkpoint {} as completed for source {}.", checkpointId, operatorName);
 				context.onCheckpointComplete(checkpointId);
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				LOG.error("Failing the job due to exception when completing the checkpoint {} for source {}.",
-						checkpointId, operatorName, t);
-				context.failJob(t);
+						checkpointId, operatorName, e);
+				context.failJob(e);
 			}
 		});
 	}

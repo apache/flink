@@ -145,10 +145,7 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 		SourceCoordinatorContext<MockSourceSplit> restoredContext;
 		SplitAssignmentTracker<MockSourceSplit> restoredTracker = new SplitAssignmentTracker<>();
 		SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory =
-				new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
-						OPERATOR_NAME,
-						TEST_OPERATOR_ID.toHexString(),
-						operatorCoordinatorContext);
+				new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(TEST_OPERATOR_ID.toHexString());
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
 				DataInputStream in = new DataInputStream(bais)) {
 			restoredContext = new SourceCoordinatorContext<>(

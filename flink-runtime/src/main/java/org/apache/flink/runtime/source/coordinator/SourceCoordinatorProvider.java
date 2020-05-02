@@ -22,9 +22,7 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -73,7 +71,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 	public OperatorCoordinator create(OperatorCoordinator.Context context) {
 		final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
 		CoordinatorExecutorThreadFactory coordinatorThreadFactory =
-				new CoordinatorExecutorThreadFactory(operatorName, coordinatorThreadName, context);
+				new CoordinatorExecutorThreadFactory(coordinatorThreadName);
 		ExecutorService coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
 		SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
 				new SourceCoordinatorContext<>(coordinatorExecutor, coordinatorThreadFactory, numWorkerThreads, context);
@@ -84,19 +82,11 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 	 * A thread factory class that provides some helper methods.
 	 */
 	public static class CoordinatorExecutorThreadFactory implements ThreadFactory {
-		private static final Logger LOG = LoggerFactory.getLogger(CoordinatorExecutorThreadFactory.class);
-		private final String operatorName;
 		private final String coordinatorThreadName;
-		private final OperatorCoordinator.Context context;
 		private Thread t;
 
-		CoordinatorExecutorThreadFactory(
-				String operatorName,
-				String coordinatorThreadName,
-				OperatorCoordinator.Context context) {
-			this.operatorName = operatorName;
+		CoordinatorExecutorThreadFactory(String coordinatorThreadName) {
 			this.coordinatorThreadName = coordinatorThreadName;
-			this.context = context;
 			this.t = null;
 		}
 
@@ -107,10 +97,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 						"SingleThreadExecutor.");
 			}
 			t = new Thread(r, coordinatorThreadName);
-			t.setUncaughtExceptionHandler((ignored, e) -> {
-				LOG.error("Received uncaught exception from the coordinator for source {}", operatorName, e);
-				context.failJob(e);
-			});
+			t.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
 			return t;
 		}
 
