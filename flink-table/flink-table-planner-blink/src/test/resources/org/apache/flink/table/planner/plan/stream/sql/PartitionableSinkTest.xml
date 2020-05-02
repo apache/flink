@@ -30,7 +30,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c]
     <Resource name="planAfter">
       <![CDATA[
 Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -49,7 +49,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sinkShuffleBy`], fields=
       <![CDATA[
 Sink(name=[`default_catalog`.`default_database`.`sinkShuffleBy`], fields=[a, b, c])
 +- Exchange(distribution=[hash[b, c]])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -68,7 +68,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c]
       <![CDATA[
 Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 +- Calc(select=[a, 1:BIGINT AS EXPR$1, c])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -87,7 +87,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c]
       <![CDATA[
 Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 +- Calc(select=[a, 1:BIGINT AS EXPR$1, 1:BIGINT AS EXPR$2])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

@@ -46,7 +46,7 @@ import scala.collection.JavaConverters._
   * @param isStreamingMode A flag that tells if the current table is in stream mode
   * @param catalogTable Catalog table where this table source table comes from
   */
-class TableSourceTable[T](
+class LegacyTableSourceTable[T](
     relOptSchema: RelOptSchema,
     val tableIdentifier: ObjectIdentifier,
     rowType: RelDataType,
@@ -99,8 +99,8 @@ class TableSourceTable[T](
     * @param statistic New FlinkStatistic to replace
     * @return New TableSourceTable instance with specified table source and [[FlinkStatistic]]
     */
-  def copy(tableSource: TableSource[_], statistic: FlinkStatistic): TableSourceTable[T] = {
-    new TableSourceTable[T](
+  def copy(tableSource: TableSource[_], statistic: FlinkStatistic): LegacyTableSourceTable[T] = {
+    new LegacyTableSourceTable[T](
       relOptSchema,
       tableIdentifier,
       rowType,
@@ -120,7 +120,7 @@ class TableSourceTable[T](
     * @return New TableSourceTable instance with specified table source
     *         and selected fields
     */
-  def copy(tableSource: TableSource[_], selectedFields: Array[Int]): TableSourceTable[T] = {
+  def copy(tableSource: TableSource[_], selectedFields: Array[Int]): LegacyTableSourceTable[T] = {
     val newRowType = relOptSchema
       .getTypeFactory
       .createStructType(
@@ -128,7 +128,7 @@ class TableSourceTable[T](
           .map(idx => rowType.getFieldList.get(idx))
           .toList
           .asJava)
-    new TableSourceTable[T](
+    new LegacyTableSourceTable[T](
       relOptSchema,
       tableIdentifier,
       newRowType,

@@ -210,7 +210,7 @@ object FlinkLogicalRelFactories {
 
   /**
     * Implementation of [[TableScanFactory]] that returns a
-    * [[FlinkLogicalTableSourceScan]] or [[FlinkLogicalDataStreamTableScan]].
+    * [[FlinkLogicalLegacyTableSourceScan]] or [[FlinkLogicalDataStreamTableScan]].
     */
   class TableScanFactoryImpl extends TableScanFactory {
     def createScan(toRelContext: ToRelContext, table: RelOptTable): RelNode = {
@@ -218,8 +218,8 @@ object FlinkLogicalRelFactories {
       val hints = toRelContext.getTableHints
       val tableScan = LogicalTableScan.create(cluster, table, hints)
       tableScan match {
-        case s: LogicalTableScan if FlinkLogicalTableSourceScan.isTableSourceScan(s) =>
-          FlinkLogicalTableSourceScan.create(
+        case s: LogicalTableScan if FlinkLogicalLegacyTableSourceScan.isTableSourceScan(s) =>
+          FlinkLogicalLegacyTableSourceScan.create(
             cluster,
             s.getTable.asInstanceOf[FlinkPreparingTableBase])
         case s: LogicalTableScan if FlinkLogicalDataStreamTableScan.isDataStreamTableScan(s) =>

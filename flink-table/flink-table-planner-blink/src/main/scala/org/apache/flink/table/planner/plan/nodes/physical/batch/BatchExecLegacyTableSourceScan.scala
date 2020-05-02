@@ -32,8 +32,8 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.schema.TableSourceTable
+import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
+import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
@@ -54,16 +54,16 @@ import scala.collection.JavaConversions._
   * Batch physical RelNode to read data from an external source defined by a
   * bounded [[StreamTableSource]].
   */
-class BatchExecTableSourceScan(
+class BatchExecLegacyTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    tableSourceTable: TableSourceTable[_])
-  extends PhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
-  with BatchPhysicalRel
-  with BatchExecNode[RowData]{
+    tableSourceTable: LegacyTableSourceTable[_])
+  extends PhysicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
+          with BatchPhysicalRel
+          with BatchExecNode[RowData]{
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecTableSourceScan(cluster, traitSet, tableSourceTable)
+    new BatchExecLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {

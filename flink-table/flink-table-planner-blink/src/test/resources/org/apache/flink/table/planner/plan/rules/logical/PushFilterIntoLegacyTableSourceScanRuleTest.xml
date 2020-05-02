@@ -75,26 +75,6 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testFullyPushDownWithVirtualColumn">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM VirtualTable WHERE amount > 2 AND amount < 10]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
-+- LogicalFilter(condition=[AND(>($2, 2), <($2, 10))])
-   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[false], filter=[]]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
-+- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[true], filter=[and(greaterThan(amount, 2), lessThan(amount, 10))]]]])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testCannotPushDown3WithVirtualColumn">
     <Resource name="sql">
       <![CDATA[SELECT * FROM VirtualTable WHERE amount > 2 OR amount < 10]]>
@@ -169,6 +149,44 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filterPushedDown=[true], filter=[and(greaterThan(amount, 2), lessThan(amount, 10))]]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullyPushDownWithVirtualColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM VirtualTable WHERE amount > 2 AND amount < 10]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
++- LogicalFilter(condition=[AND(>($2, 2), <($2, 10))])
+   +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
++- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[true], filter=[and(greaterThan(amount, 2), lessThan(amount, 10))]]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLowerUpperPushdown">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar']]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[AND(=(LOWER($0), _UTF-16LE'foo'), =(UPPER($1), _UTF-16LE'bar'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[false], filter=[]]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[true], filter=[and(equals(lower(a), 'foo'), equals(upper(b), 'bar'))]]]])
 ]]>
     </Resource>
   </TestCase>
@@ -290,24 +308,6 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[$3], price=[$4])
 +- LogicalProject(name=[$0], id=[$1], amount=[$2], virtualField=[+($2, 1)], price=[$3])
    +- LogicalFilter(condition=[>($3, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testLowerUpperPushdown">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar']]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1])
-+- LogicalFilter(condition=[AND(=(LOWER($0), _UTF-16LE'foo'), =(UPPER($1), _UTF-16LE'bar'))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[false], filter=[]]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1])
-+- LogicalTableScan(table=[[default_catalog, default_database, MTable, source: [filterPushedDown=[true], filter=[and(equals(lower(a), 'foo'), equals(upper(b), 'bar'))]]]])
 ]]>
     </Resource>
   </TestCase>

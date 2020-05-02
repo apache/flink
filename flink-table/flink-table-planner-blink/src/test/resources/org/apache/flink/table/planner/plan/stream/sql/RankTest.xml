@@ -815,7 +815,7 @@ Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, 
 +- Exchange(distribution=[hash[category]], changelogMode=[I,UB,UA])
    +- GroupAggregate(groupBy=[category, shopId], select=[category, shopId, MAX(price) AS max_price], changelogMode=[I,UB,UA])
       +- Exchange(distribution=[hash[category, shopId]], changelogMode=[I])
-         +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(category, shopId, price)]]], fields=[category, shopId, price], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

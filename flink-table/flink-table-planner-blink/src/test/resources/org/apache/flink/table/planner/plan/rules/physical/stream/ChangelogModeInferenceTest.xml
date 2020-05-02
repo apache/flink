@@ -45,9 +45,9 @@ GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(cnt) AS frequency], cha
       :- Calc(select=[CAST(cnt) AS cnt], changelogMode=[I,UB,UA])
       :  +- GroupAggregate(groupBy=[word], select=[word, COUNT(number) AS cnt], changelogMode=[I,UB,UA])
       :     +- Exchange(distribution=[hash[word]], changelogMode=[I])
-      :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+      :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
       +- Calc(select=[cnt], changelogMode=[I])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(word, cnt)]]], fields=[word, cnt], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(word, cnt)]]], fields=[word, cnt], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -83,10 +83,10 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(count$0) AS frequ
          :     +- Exchange(distribution=[hash[word]], changelogMode=[I])
          :        +- LocalGroupAggregate(groupBy=[word], select=[word, COUNT(number) AS count$0], changelogMode=[I])
          :           +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
-         :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+         :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
          +- Calc(select=[cnt], changelogMode=[I])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(word, cnt)]]], fields=[word, cnt], changelogMode=[I])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(word, cnt)]]], fields=[word, cnt], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -102,7 +102,7 @@ LogicalProject(word=[$0], number=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -122,7 +122,7 @@ LogicalProject(EXPR$0=[$1])
 Calc(select=[EXPR$0], changelogMode=[I,UA])
 +- GroupAggregate(groupBy=[word], select=[word, COUNT(number) AS EXPR$0], changelogMode=[I,UA])
    +- Exchange(distribution=[hash[word]], changelogMode=[I])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -144,7 +144,7 @@ Calc(select=[EXPR$0], changelogMode=[I,UA])
    +- Exchange(distribution=[hash[word]], changelogMode=[I])
       +- LocalGroupAggregate(groupBy=[word], select=[word, COUNT(number) AS count$0], changelogMode=[I])
          +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -171,7 +171,7 @@ GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(*) AS frequency], chang
    +- Calc(select=[cnt], changelogMode=[I,UB,UA])
       +- GroupAggregate(groupBy=[word], select=[word, COUNT(number) AS cnt], changelogMode=[I,UB,UA])
          +- Exchange(distribution=[hash[word]], changelogMode=[I])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -187,7 +187,7 @@ LogicalProject(word=[$0], number=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -217,7 +217,7 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(count1$0) AS freq
             +- Exchange(distribution=[hash[word]], changelogMode=[I])
                +- LocalGroupAggregate(groupBy=[word], select=[word, COUNT(number) AS count$0], changelogMode=[I])
                   +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

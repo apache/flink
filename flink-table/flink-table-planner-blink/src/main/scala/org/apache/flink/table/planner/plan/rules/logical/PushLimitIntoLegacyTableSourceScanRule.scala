@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.stats.TableStats
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalSort, FlinkLogicalTableSourceScan}
-import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalSort, FlinkLogicalLegacyTableSourceScan}
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, LegacyTableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.LimitableTableSource
 
@@ -46,17 +46,18 @@ import java.util.Collections
   * implement.
   * 3.We can support limit with offset, we can push down offset + fetch to table source.
   */
-class PushLimitIntoTableSourceScanRule extends RelOptRule(
+class PushLimitIntoLegacyTableSourceScanRule extends RelOptRule(
   operand(classOf[FlinkLogicalSort],
-    operand(classOf[FlinkLogicalTableSourceScan], none)), "PushLimitIntoTableSourceScanRule") {
+    operand(classOf[FlinkLogicalLegacyTableSourceScan], none)),
+  "PushLimitIntoLegacyTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val sort = call.rel(0).asInstanceOf[Sort]
     val onlyLimit = sort.getCollation.getFieldCollations.isEmpty && sort.fetch != null
     if (onlyLimit) {
       call.rel(1).asInstanceOf[TableScan]
-          .getTable.unwrap(classOf[TableSourceTable[_]]) match {
-        case table: TableSourceTable[_] =>
+          .getTable.unwrap(classOf[LegacyTableSourceTable[_]]) match {
+        case table: LegacyTableSourceTable[_] =>
           table.tableSource match {
             case source: LimitableTableSource[_] =>
               return !source.isLimitPushedDown
@@ -70,16 +71,16 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val sort = call.rel(0).asInstanceOf[Sort]
-    val scan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
-    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val scan = call.rel(1).asInstanceOf[FlinkLogicalLegacyTableSourceScan]
+    val tableSourceTable = scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]])
     val offset = if (sort.offset == null) 0 else RexLiteral.intValue(sort.offset)
     val limit = offset + RexLiteral.intValue(sort.fetch)
     val relBuilder = call.builder()
     val newRelOptTable = applyLimit(limit, tableSourceTable, relBuilder)
     val newScan = scan.copy(scan.getTraitSet, newRelOptTable)
 
-    val newTableSource = newRelOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
-    val oldTableSource = tableSourceTable.unwrap(classOf[TableSourceTable[_]]).tableSource
+    val newTableSource = newRelOptTable.unwrap(classOf[LegacyTableSourceTable[_]]).tableSource
+    val oldTableSource = tableSourceTable.unwrap(classOf[LegacyTableSourceTable[_]]).tableSource
 
     if (newTableSource.asInstanceOf[LimitableTableSource[_]].isLimitPushedDown
         && newTableSource.explainSource().equals(oldTableSource.explainSource)) {
@@ -94,8 +95,8 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
   private def applyLimit(
       limit: Long,
       relOptTable: FlinkPreparingTableBase,
-      relBuilder: RelBuilder): TableSourceTable[_] = {
-    val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[Any]])
+      relBuilder: RelBuilder): LegacyTableSourceTable[_] = {
+    val tableSourceTable = relOptTable.unwrap(classOf[LegacyTableSourceTable[Any]])
     val limitedSource = tableSourceTable.tableSource.asInstanceOf[LimitableTableSource[Any]]
     val newTableSource = limitedSource.applyLimit(limit)
 
@@ -115,6 +116,6 @@ class PushLimitIntoTableSourceScanRule extends RelOptRule(
   }
 }
 
-object PushLimitIntoTableSourceScanRule {
-  val INSTANCE: RelOptRule = new PushLimitIntoTableSourceScanRule
+object PushLimitIntoLegacyTableSourceScanRule {
+  val INSTANCE: RelOptRule = new PushLimitIntoLegacyTableSourceScanRule
 }

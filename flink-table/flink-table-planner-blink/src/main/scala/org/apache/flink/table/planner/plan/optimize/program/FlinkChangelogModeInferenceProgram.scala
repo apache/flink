@@ -258,7 +258,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(
           union, children, new ModifyKindSetTrait(providedKindSet), requiredTrait, requester)
 
-      case _: StreamExecDataStreamScan | _: StreamExecTableSourceScan | _: StreamExecValues =>
+      case _: StreamExecDataStreamScan | _: StreamExecLegacyTableSourceScan |
+           _: StreamExecValues =>
         // DataStream, TableSource and Values only support producing insert-only messages
         createNewNode(
           rel, List(), ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
@@ -535,7 +536,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           createNewNode(union, Some(children.flatten), providedTrait)
         }
 
-      case _: StreamExecDataStreamScan | _: StreamExecTableSourceScan | _: StreamExecValues =>
+      case _: StreamExecDataStreamScan | _: StreamExecLegacyTableSourceScan |
+           _: StreamExecValues =>
         createNewNode(rel, Some(List()), UpdateKindTrait.NONE)
 
       case scan: StreamExecIntermediateTableScan =>

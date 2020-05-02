@@ -35,7 +35,7 @@ LogicalProject(a=[$0], s=[$3])
       <![CDATA[
 Calc(select=[a, s])
 +- Correlate(invocation=[explode($cor0.c)], correlate=[table(explode($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) ARRAY c, VARCHAR(2147483647) f0)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -94,7 +94,7 @@ LogicalProject(a=[$0], b=[$1], v=[$4])
       <![CDATA[
 Calc(select=[a, b, v])
 +- Correlate(invocation=[explode($cor0.c)], correlate=[table(explode($cor0.c))], select=[a,b,c,f0,f1], rowType=[RecordType(INTEGER a, BIGINT b, (VARCHAR(2147483647), VARCHAR(2147483647)) MAP c, VARCHAR(2147483647) f0, VARCHAR(2147483647) f1)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -126,7 +126,7 @@ LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
 Calc(select=[a, b, x, y], where=[>(x, a)])
 +- Correlate(invocation=[explode($cor0.b)], correlate=[table(explode($cor0.b))], select=[a,b,_1,_2], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2)], joinType=[INNER])
    +- Calc(select=[a, b], where=[<(a, 3)])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -181,7 +181,7 @@ LogicalProject(a=[$0], s=[$3])
       <![CDATA[
 Calc(select=[a, s])
 +- Correlate(invocation=[explode($cor0.c)], correlate=[table(explode($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER ARRAY ARRAY c, INTEGER ARRAY f0)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -236,7 +236,7 @@ LogicalProject(a=[$0], b=[$1], s=[$3])
       <![CDATA[
 Calc(select=[a, b, s])
 +- Correlate(invocation=[explode($cor0.b)], correlate=[table(explode($cor0.b))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER ARRAY ARRAY c, INTEGER f0)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -259,7 +259,7 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Correlate(invocation=[explode($cor0.b)], correlate=[table(explode($cor0.b))], select=[a,b,_1,_2], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2)], joinType=[INNER], condition=[>($0, 13)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -281,7 +281,7 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Correlate(invocation=[explode($cor0.b)], correlate=[table(explode($cor0.b))], select=[a,b,_1,_2], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2)], joinType=[INNER], condition=[>($0, 1)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>

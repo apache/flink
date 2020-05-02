@@ -24,7 +24,7 @@ import org.apache.flink.table.catalog.{Catalog, CatalogPartitionSpec, ObjectIden
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
-import org.apache.flink.table.planner.plan.schema.TableSourceTable
+import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, PartitionPruner, RexNodeExtractor, RexNodeToExpressionConverter}
 import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter
@@ -47,10 +47,10 @@ import scala.collection.mutable
   * Planner rule that tries to push partitions evaluated by filter condition into a
   * [[PartitionableTableSource]].
   */
-class PushPartitionIntoTableSourceScanRule extends RelOptRule(
+class PushPartitionIntoLegacyTableSourceScanRule extends RelOptRule(
   operand(classOf[Filter],
     operand(classOf[LogicalTableScan], none)),
-  "PushPartitionIntoTableSourceScanRule") {
+  "PushPartitionIntoLegacyTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val filter: Filter = call.rel(0)
@@ -59,8 +59,8 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
     }
 
     val scan: LogicalTableScan = call.rel(1)
-    scan.getTable.unwrap(classOf[TableSourceTable[_]]) match {
-      case table: TableSourceTable[_] =>
+    scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]]) match {
+      case table: LegacyTableSourceTable[_] =>
         table.catalogTable.isPartitioned &&
           table.tableSource.isInstanceOf[PartitionableTableSource]
       case _ => false
@@ -72,7 +72,7 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
     val scan: LogicalTableScan = call.rel(1)
     val context = call.getPlanner.getContext.unwrap(classOf[FlinkContext])
     val config = context.getTableConfig
-    val tableSourceTable: TableSourceTable[_] = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable = scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]])
     val tableIdentifier = tableSourceTable.tableIdentifier
     val catalogOption = toScala(context.getCatalogManager.getCatalog(
       tableIdentifier.getCatalogName))
@@ -262,6 +262,6 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
   }
 }
 
-object PushPartitionIntoTableSourceScanRule {
-  val INSTANCE: RelOptRule = new PushPartitionIntoTableSourceScanRule
+object PushPartitionIntoLegacyTableSourceScanRule {
+  val INSTANCE: RelOptRule = new PushPartitionIntoLegacyTableSourceScanRule
 }

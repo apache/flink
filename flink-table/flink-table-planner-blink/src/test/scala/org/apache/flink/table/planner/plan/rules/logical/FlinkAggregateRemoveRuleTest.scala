@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalCalc, FlinkLogicalExpand, FlinkLogicalJoin, FlinkLogicalSink, FlinkLogicalTableSourceScan, FlinkLogicalValues}
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalCalc, FlinkLogicalExpand, FlinkLogicalJoin, FlinkLogicalSink, FlinkLogicalLegacyTableSourceScan, FlinkLogicalValues}
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -75,7 +75,7 @@ class FlinkAggregateRemoveRuleTest extends TableTestBase {
           FlinkLogicalJoin.CONVERTER,
           FlinkLogicalValues.CONVERTER,
           FlinkLogicalExpand.CONVERTER,
-          FlinkLogicalTableSourceScan.CONVERTER,
+          FlinkLogicalLegacyTableSourceScan.CONVERTER,
           FlinkLogicalSink.CONVERTER))
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
         .build())

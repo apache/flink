@@ -28,7 +28,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -46,7 +46,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[name, id, amount, price], where=[>(price, 10)])
-+- TableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[]]]], fields=[name, id, amount, price])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
   </TestCase>
@@ -64,7 +64,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[name, id, amount, price], where=[OR(>(amount, 2), >(price, 10))])
-+- TableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[]]]], fields=[name, id, amount, price])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
   </TestCase>
@@ -82,7 +82,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[name, id, amount, price], where=[OR(>(amount, 2), <(amount, 10))])
-+- TableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[]]]], fields=[name, id, amount, price])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
   </TestCase>
@@ -99,7 +99,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
+LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
   </TestCase>
@@ -128,7 +128,7 @@ Calc(select=[name, w$end AS EXPR$1, EXPR$2])
 +- GroupWindowAggregate(groupBy=[name], window=[TumblingGroupWindow('w$, rowtime, 600000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[name, AVG(val) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[name]])
       +- Calc(select=[name, rowtime, val], where=[>(val, 100)])
-         +- TableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
 ]]>
     </Resource>
   </TestCase>
@@ -145,7 +145,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[and(greaterThan(amount, 2), lessThan(amount, 10))]]]], fields=[name, id, amount, price])
+LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[and(greaterThan(amount, 2), lessThan(amount, 10))]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
   </TestCase>
@@ -163,7 +163,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[name, id, amount, price], where=[>(price, 10)])
-+- TableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
   </TestCase>
@@ -184,7 +184,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[name, id, amount, price], where=[AND(<(id, 100), >(CAST(amount), 10))])
-+- TableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
   </TestCase>
@@ -202,7 +202,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[name, id, amount, price], where=[<(Func1$(amount), 32)])
-+- TableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable, source: [filterPushedDown=[true], filter=[greaterThan(amount, 2)]]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
   </TestCase>
@@ -226,7 +226,7 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], ne
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedValue, deepNested.nested2.flag AS nestedFlag, deepNested.nested2.num AS nestedNum])
-+- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(read nested fields: id.*, deepNested.nested2.num, deepNested.nested2.flag, deepNested.nested1.name, nested.value)]]], fields=[id, deepNested, nested])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(read nested fields: id.*, deepNested.nested2.num, deepNested.nested2.flag, deepNested.nested1.name, nested.value)]]], fields=[id, deepNested, nested])
 ]]>
     </Resource>
   </TestCase>
@@ -244,7 +244,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS part1, part2], where=[>(id, 2)])
-+- TableSourceScan(table=[[default_catalog, default_database, PartitionableTable, source: [partitions={part1=A, part2=2}]]], fields=[id, name, part1, part2])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, PartitionableTable, source: [partitions={part1=A, part2=2}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
   </TestCase>
@@ -262,7 +262,7 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, name, part1, part2], where=[>(id, 2)])
-+- TableSourceScan(table=[[default_catalog, default_database, PartitionableTable, source: [partitions={part1=A, part2=1}, {part1=C, part2=1}]]], fields=[id, name, part1, part2])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, PartitionableTable, source: [partitions={part1=A, part2=1}, {part1=C, part2=1}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
   </TestCase>
@@ -279,7 +279,7 @@ LogicalProject(pTime=[$1], id=[$0], name=[$3], val=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[PROCTIME_MATERIALIZE(pTime) AS pTime, id, name, val])
-+- TableSourceScan(table=[[default_catalog, default_database, procTimeT]], fields=[id, pTime, val, name])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, procTimeT]], fields=[id, pTime, val, name])
 ]]>
     </Resource>
   </TestCase>
@@ -296,7 +296,7 @@ LogicalProject(name=[$4], rtime=[$1], val=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[name, rtime, val])
-+- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: p-rtime, p-id, p-name, p-val)]]], fields=[id, rtime, val, ptime, name])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: p-rtime, p-id, p-name, p-val)]]], fields=[id, rtime, val, ptime, name])
 ]]>
     </Resource>
   </TestCase>
@@ -315,7 +315,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: )]]], fields=[])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: )]]], fields=[])
 ]]>
     </Resource>
   </TestCase>
@@ -332,7 +332,7 @@ LogicalProject(ptime=[$3], name=[$4], val=[$2], id=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
-+- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]], fields=[id, rtime, val, ptime, name])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]], fields=[id, rtime, val, ptime, name])
 ]]>
     </Resource>
   </TestCase>
@@ -349,7 +349,7 @@ LogicalProject(name=[$4], val=[$2], id=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[name, val, id])
-+- TableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]], fields=[id, rtime, val, ptime, name])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]], fields=[id, rtime, val, ptime, name])
 ]]>
     </Resource>
   </TestCase>
@@ -366,7 +366,7 @@ LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[rowtime, id, name, val])
-+- TableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
 ]]>
     </Resource>
   </TestCase>
@@ -389,7 +389,7 @@ LogicalProject(id=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id])
-+- TableSourceScan(table=[[default_catalog, default_database, FilterableTable1, source: [filterPushedDown=[true], filter=[and(and(greaterThan(tv, 14:25:02), greaterThan(dv, 2017-02-03)), greaterThan(tsv, 2017-02-03T14:25:02))]]]], fields=[id, dv, tv, tsv])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, FilterableTable1, source: [filterPushedDown=[true], filter=[and(and(greaterThan(tv, 14:25:02), greaterThan(dv, 2017-02-03)), greaterThan(tsv, 2017-02-03T14:25:02))]]]], fields=[id, dv, tv, tsv])
 ]]>
     </Resource>
   </TestCase>
@@ -406,7 +406,7 @@ LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[rowtime, id, name, val])
-+- TableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
 ]]>
     </Resource>
   </TestCase>
@@ -422,7 +422,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

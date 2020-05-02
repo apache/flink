@@ -35,8 +35,8 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.schema.TableSourceTable
+import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
+import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
@@ -60,18 +60,18 @@ import scala.collection.JavaConversions._
 /**
   * Stream physical RelNode to read data from an external source defined by a [[StreamTableSource]].
   */
-class StreamExecTableSourceScan(
+class StreamExecLegacyTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    tableSourceTable: TableSourceTable[_])
-  extends PhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
-  with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+    tableSourceTable: LegacyTableSourceTable[_])
+  extends PhysicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
+          with StreamPhysicalRel
+          with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamExecTableSourceScan(cluster, traitSet, tableSourceTable)
+    new StreamExecLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {

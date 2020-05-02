@@ -29,7 +29,7 @@ LogicalProject(b=[AS($0, _UTF-16LE'b')], x=[AS($1.f0, _UTF-16LE'x')], y=[AS($1.f
 Calc(select=[b, TMP_0.f0 AS x, TMP_0.f1 AS y])
 +- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
    +- Exchange(distribution=[hash[b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -45,7 +45,7 @@ LogicalProject(b=[$0], TMP_0=[$1])
       <![CDATA[
 GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS TMP_0])
 +- Exchange(distribution=[hash[b]])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -94,7 +94,7 @@ LogicalProject(EXPR$0=[$1])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS EXPR$0])
    +- Exchange(distribution=[hash[b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -112,7 +112,7 @@ LogicalProject(b=[$0], EXPR$0=[$1])
 GroupAggregate(groupBy=[b], select=[b, AVG(a0) AS EXPR$0])
 +- Exchange(distribution=[hash[b]])
    +- Calc(select=[b, CAST(a) AS a0])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -131,7 +131,7 @@ Calc(select=[4 AS four, EXPR$0])
 +- GroupAggregate(groupBy=[a], select=[a, SUM(b) AS EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b])
-         +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -150,7 +150,7 @@ Calc(select=[4 AS four, EXPR$0])
 +- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$0])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, a])
-         +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -167,7 +167,7 @@ LogicalProject(b=[AS($0, _UTF-16LE'b')], f0=[AS($1.f0, _UTF-16LE'f0')], f1=[AS($
 Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1])
 +- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
    +- Exchange(distribution=[hash[b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -186,7 +186,7 @@ Calc(select=[EXPR$0, EXPR$1])
 +- GroupAggregate(groupBy=[d], select=[d, MIN(c) AS EXPR$0, AVG(a) AS EXPR$1])
    +- Exchange(distribution=[hash[d]])
       +- Calc(select=[a, MOD(b, 3) AS d, c])
-         +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -205,7 +205,7 @@ Calc(select=[CAST(2) AS b, EXPR$0])
 +- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$0])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, c], where=[=(b, 2)])
-         +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -222,7 +222,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 Calc(select=[EXPR$0, EXPR$1])
 +- GroupAggregate(groupBy=[c], select=[c, WeightedAvg(DISTINCT a, b) AS EXPR$0, WeightedAvg(a, b) AS EXPR$1])
    +- Exchange(distribution=[hash[c]])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -239,7 +239,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 Calc(select=[EXPR$0, EXPR$1])
 +- GroupAggregate(groupBy=[b], select=[b, SUM(DISTINCT a) AS EXPR$0, COUNT(DISTINCT c) AS EXPR$1])
    +- Exchange(distribution=[hash[b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -272,7 +272,7 @@ LogicalProject(b=[AS($0, _UTF-16LE'b')], f0=[AS($1.f0, _UTF-16LE'f0')], f1=[AS($
 Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1, TMP_0.f2 AS f2])
 +- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
    +- Exchange(distribution=[hash[b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

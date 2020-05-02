@@ -16,37 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.rules.physical.batch
+package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecTableSourceScan
-import org.apache.flink.table.planner.plan.schema.TableSourceTable
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacyTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecLegacyTableSourceScan
+import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.sources.StreamTableSource
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
 
 /**
-  * Rule that converts [[FlinkLogicalTableSourceScan]] to [[BatchExecTableSourceScan]].
+  * Rule that converts [[FlinkLogicalLegacyTableSourceScan]] to [[StreamExecLegacyTableSourceScan]].
   */
-class BatchExecTableSourceScanRule
+class StreamExecLegacyTableSourceScanRule
   extends ConverterRule(
-    classOf[FlinkLogicalTableSourceScan],
+    classOf[FlinkLogicalLegacyTableSourceScan],
     FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecScanTableSourceRule") {
+    FlinkConventions.STREAM_PHYSICAL,
+    "StreamExecLegacyTableSourceScanRule") {
 
-  /** Rule must only match if TableScan targets a bounded [[StreamTableSource]] */
+  /** Rule must only match if TableScan targets a [[StreamTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
-    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable = scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]])
     tableSourceTable match {
-      case tst: TableSourceTable[_] =>
+      case tst: LegacyTableSourceTable[_] =>
         tst.tableSource match {
-          case sts: StreamTableSource[_] => sts.isBounded
+          case _: StreamTableSource[_] => true
           case _ => false
         }
       case _ => false
@@ -54,16 +54,17 @@ class BatchExecTableSourceScanRule
   }
 
   def convert(rel: RelNode): RelNode = {
-    val scan = rel.asInstanceOf[FlinkLogicalTableSourceScan]
-    val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    new BatchExecTableSourceScan(
+    val scan: FlinkLogicalLegacyTableSourceScan = rel.asInstanceOf[FlinkLogicalLegacyTableSourceScan]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+
+    new StreamExecLegacyTableSourceScan(
       rel.getCluster,
-      newTrait,
-      scan.getTable.asInstanceOf[TableSourceTable[_]]
+      traitSet,
+      scan.getTable.asInstanceOf[LegacyTableSourceTable[_]]
     )
   }
 }
 
-object BatchExecTableSourceScanRule {
-  val INSTANCE: RelOptRule = new BatchExecTableSourceScanRule
+object StreamExecLegacyTableSourceScanRule {
+  val INSTANCE: RelOptRule = new StreamExecLegacyTableSourceScanRule
 }

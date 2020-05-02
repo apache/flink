@@ -30,9 +30,9 @@ import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
 /**
-  * Test for [[PushProjectIntoTableSourceScanRule]].
+  * Test for [[PushProjectIntoLegacyTableSourceScanRule]].
   */
-class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
+class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
@@ -45,7 +45,7 @@ class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(PushProjectIntoTableSourceScanRule.INSTANCE))
+        .add(RuleSets.ofList(PushProjectIntoLegacyTableSourceScanRule.INSTANCE))
         .build()
     )
 

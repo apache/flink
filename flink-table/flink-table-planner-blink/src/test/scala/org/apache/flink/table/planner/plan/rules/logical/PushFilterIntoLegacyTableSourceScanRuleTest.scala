@@ -28,9 +28,9 @@ import org.apache.flink.types.Row
 import org.junit.{Before, Test}
 
 /**
-  * Test for [[PushFilterIntoTableSourceScanRule]].
+  * Test for [[PushFilterIntoLegacyTableSourceScanRule]].
   */
-class PushFilterIntoTableSourceScanRuleTest extends TableTestBase {
+class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
   @Before
@@ -42,7 +42,7 @@ class PushFilterIntoTableSourceScanRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(PushFilterIntoTableSourceScanRule.INSTANCE,
+        .add(RuleSets.ofList(PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
           FilterProjectTransposeRule.INSTANCE))
         .build()
     )
