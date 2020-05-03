@@ -26,7 +26,7 @@ import org.apache.flink.table.data.RowData;
  * Provider of an {@link OutputFormat} instance as a runtime implementation for {@link DynamicTableSink}.
  */
 @PublicEvolving
-interface OutputFormatProvider extends DynamicTableSink.SinkRuntimeProvider {
+public interface OutputFormatProvider extends DynamicTableSink.SinkRuntimeProvider {
 
 	/**
 	 * Helper method for creating a static provider.
