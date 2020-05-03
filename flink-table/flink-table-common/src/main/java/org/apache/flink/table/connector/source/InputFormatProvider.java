@@ -26,7 +26,7 @@ import org.apache.flink.table.data.RowData;
  * Provider of an {@link InputFormat} instance as a runtime implementation for {@link ScanTableSource}.
  */
 @PublicEvolving
-interface InputFormatProvider extends ScanTableSource.ScanRuntimeProvider {
+public interface InputFormatProvider extends ScanTableSource.ScanRuntimeProvider {
 
 	/**
 	 * Helper method for creating a static provider.
