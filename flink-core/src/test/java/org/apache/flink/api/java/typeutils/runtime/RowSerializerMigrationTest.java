@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.runtime.RowSerializer.RowSerializerSn
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.types.Row;
 
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -35,6 +36,7 @@ import java.util.Collection;
 /**
  * State migration test for {@link RowSerializer}.
  */
+@Ignore
 @RunWith(Parameterized.class)
 public class RowSerializerMigrationTest extends TypeSerializerSnapshotMigrationTestBase<Row> {
 

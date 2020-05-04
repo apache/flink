@@ -48,6 +48,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -169,7 +170,7 @@ public class DataFormatConvertersTest {
 			test(simpleTypes[i], simpleValues[i]);
 		}
 		test(new RowTypeInfo(simpleTypes), new Row(simpleTypes.length));
-		test(new RowTypeInfo(simpleTypes), Row.of(simpleValues));
+		test(new RowTypeInfo(simpleTypes), Row.ofKind(RowKind.DELETE, simpleValues));
 		test(new RowDataTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
 				GenericRowData.of(StringData.fromString("hehe"), 111));
 		test(new RowDataTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new IntType()), GenericRowData.of(null, null));
