@@ -29,9 +29,12 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -209,6 +212,14 @@ public enum PackagedProgramUtils {
 		} catch (MalformedURLException e) {
 			throw new RuntimeException("URL is invalid. This should not happen.", e);
 		}
+	}
+
+	public static URI resolveURI(String path) throws URISyntaxException {
+		final URI uri = new URI(path);
+		if (uri.getScheme() != null) {
+			return uri;
+		}
+		return new File(path).getAbsoluteFile().toURI();
 	}
 
 	private static ProgramInvocationException generateException(
