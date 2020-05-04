@@ -35,7 +35,9 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.ZooKeeperConnectionException;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.util.VersionUtil;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 
 import java.io.File;
@@ -142,6 +144,11 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 
 	@BeforeClass
 	public static void setUp() throws Exception {
+		// HBase 1.4 does not work with Hadoop 3
+		// because it uses Guava 12.0.1, Hadoop 3 uses Guava 27.0-jre.
+		// There is not Guava version in between that works with both.
+		Assume.assumeTrue("This test is skipped for Hadoop versions above 3", VersionUtil.compareVersions(System.getProperty("hadoop.version"), "3.0.0") < 0);
+
 		LOG.info("HBase minicluster: Starting");
 
 		TEST_UTIL.startMiniCluster(1);
@@ -236,6 +243,10 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 
 	@AfterClass
 	public static void tearDown() throws Exception {
+		if (conf == null) {
+			LOG.info("Skipping Hbase tear down. It was never started");
+			return;
+		}
 		LOG.info("HBase minicluster: Shutting down");
 		deleteTables();
 		hbaseSiteXmlFile.delete();
