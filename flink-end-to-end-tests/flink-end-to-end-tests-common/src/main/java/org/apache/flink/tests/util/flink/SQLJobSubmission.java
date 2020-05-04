@@ -90,6 +90,11 @@ public class SQLJobSubmission {
 			return this;
 		}
 
+		public SQLJobSubmissionBuilder addJars(List<Path> jarFiles) {
+			jarFiles.forEach(this::addJar);
+			return this;
+		}
+
 		public SQLJobSubmission build() {
 			return new SQLJobSubmission(sql, jars, defaultEnvFile, sessionEnvFile);
 		}
