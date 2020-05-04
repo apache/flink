@@ -55,14 +55,14 @@ public class ExecutionConfigAccessor {
 	/**
 	 * Creates an {@link ExecutionConfigAccessor} based on the provided {@link ProgramOptions} as provided by the user through the CLI.
 	 */
-	public static ExecutionConfigAccessor fromProgramOptions(final ProgramOptions options, final List<URL> jobJars) {
+	public static <T> ExecutionConfigAccessor fromProgramOptions(final ProgramOptions options, final List<T> jobJars) {
 		checkNotNull(options);
 		checkNotNull(jobJars);
 
 		final Configuration configuration = new Configuration();
 
 		options.applyToConfiguration(configuration);
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, jobJars, URL::toString);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, jobJars, Object::toString);
 
 		return new ExecutionConfigAccessor(configuration);
 	}
