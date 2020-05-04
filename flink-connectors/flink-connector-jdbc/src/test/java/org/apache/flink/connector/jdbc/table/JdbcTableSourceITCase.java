@@ -154,4 +154,34 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
 				"2020-01-01T15:36:01.123456,101.1234");
 		StreamITCase.compareWithList(expected);
 	}
+
+	@Test
+	public void testScanQueryJDBCSource() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		EnvironmentSettings envSettings = EnvironmentSettings.newInstance()
+			.useBlinkPlanner()
+			.inStreamingMode()
+			.build();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+
+		final String testQuery = "SELECT id FROM " + INPUT_TABLE;
+		tEnv.sqlUpdate(
+			"CREATE TABLE test(" +
+				"id BIGINT" +
+				") WITH (" +
+				"  'connector.type'='jdbc'," +
+				"  'connector.url'='" + DB_URL + "'," +
+				"  'connector.table'='whatever'," +
+				"  'connector.read.query'='" + testQuery + "'" +
+				")"
+		);
+
+		StreamITCase.clear();
+		tEnv.toAppendStream(tEnv.sqlQuery("SELECT id FROM test"), Row.class)
+			.addSink(new StreamITCase.StringSink<>());
+		env.execute();
+
+		List<String> expected =	Arrays.asList("1", "2");
+		StreamITCase.compareWithList(expected);
+	}
 }

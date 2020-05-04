@@ -57,6 +57,7 @@ import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_READ_PA
 import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_READ_PARTITION_LOWER_BOUND;
 import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_READ_PARTITION_NUM;
 import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_READ_PARTITION_UPPER_BOUND;
+import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_READ_QUERY;
 import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_TABLE;
 import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_TYPE_VALUE_JDBC;
 import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_URL;
@@ -96,6 +97,7 @@ public class JdbcTableSourceSinkFactory implements
 		properties.add(CONNECTOR_PASSWORD);
 
 		// scan options
+		properties.add(CONNECTOR_READ_QUERY);
 		properties.add(CONNECTOR_READ_PARTITION_COLUMN);
 		properties.add(CONNECTOR_READ_PARTITION_NUM);
 		properties.add(CONNECTOR_READ_PARTITION_LOWER_BOUND);
@@ -184,6 +186,7 @@ public class JdbcTableSourceSinkFactory implements
 	}
 
 	private JdbcReadOptions getJdbcReadOptions(DescriptorProperties descriptorProperties) {
+		final Optional<String> query = descriptorProperties.getOptionalString(CONNECTOR_READ_QUERY);
 		final Optional<String> partitionColumnName =
 			descriptorProperties.getOptionalString(CONNECTOR_READ_PARTITION_COLUMN);
 		final Optional<Long> partitionLower = descriptorProperties.getOptionalLong(CONNECTOR_READ_PARTITION_LOWER_BOUND);
@@ -191,6 +194,9 @@ public class JdbcTableSourceSinkFactory implements
 		final Optional<Integer> numPartitions = descriptorProperties.getOptionalInt(CONNECTOR_READ_PARTITION_NUM);
 
 		final JdbcReadOptions.Builder builder = JdbcReadOptions.builder();
+		if (query.isPresent()) {
+			builder.setQuery(query.get());
+		}
 		if (partitionColumnName.isPresent()) {
 			builder.setPartitionColumnName(partitionColumnName.get());
 			builder.setPartitionLowerBound(partitionLower.get());

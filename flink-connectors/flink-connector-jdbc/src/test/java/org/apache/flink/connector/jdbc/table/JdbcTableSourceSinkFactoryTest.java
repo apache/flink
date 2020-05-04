@@ -88,6 +88,7 @@ public class JdbcTableSourceSinkFactoryTest {
 	@Test
 	public void testJdbcReadProperties() {
 		Map<String, String> properties = getBasicProperties();
+		properties.put("connector.read.query", "SELECT aaa FROM mytable");
 		properties.put("connector.read.partition.column", "aaa");
 		properties.put("connector.read.partition.lower-bound", "-10");
 		properties.put("connector.read.partition.upper-bound", "100");
@@ -102,6 +103,7 @@ public class JdbcTableSourceSinkFactoryTest {
 			.setTableName("mytable")
 			.build();
 		final JdbcReadOptions readOptions = JdbcReadOptions.builder()
+			.setQuery("SELECT aaa FROM mytable")
 			.setPartitionColumnName("aaa")
 			.setPartitionLowerBound(-10)
 			.setPartitionUpperBound(100)

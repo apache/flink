@@ -43,6 +43,7 @@ public class JdbcValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_USERNAME = "connector.username";
 	public static final String CONNECTOR_PASSWORD = "connector.password";
 
+	public static final String CONNECTOR_READ_QUERY = "connector.read.query";
 	public static final String CONNECTOR_READ_PARTITION_COLUMN = "connector.read.partition.column";
 	public static final String CONNECTOR_READ_PARTITION_LOWER_BOUND = "connector.read.partition.lower-bound";
 	public static final String CONNECTOR_READ_PARTITION_UPPER_BOUND = "connector.read.partition.upper-bound";
@@ -89,6 +90,7 @@ public class JdbcValidator extends ConnectorDescriptorValidator {
 	}
 
 	private void validateReadProperties(DescriptorProperties properties) {
+		properties.validateString(CONNECTOR_READ_QUERY, true);
 		properties.validateString(CONNECTOR_READ_PARTITION_COLUMN, true);
 		properties.validateLong(CONNECTOR_READ_PARTITION_LOWER_BOUND, true);
 		properties.validateLong(CONNECTOR_READ_PARTITION_UPPER_BOUND, true);
