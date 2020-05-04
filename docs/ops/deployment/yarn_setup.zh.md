@@ -33,11 +33,8 @@ under the License.
 Start a YARN session where the job manager gets 1 GB of heap space and the task managers 4 GB of heap space assigned:
 
 {% highlight bash %}
-# get the hadoop2 package from the Flink download page at
-# {{ site.download_url }}
-curl -O <flink_hadoop2_download_url>
-tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
-cd flink-{{ site.version }}/
+# If HADOOP_CLASSPATH is not set:
+#   export HADOOP_CLASSPATH=`hadoop classpath`
 ./bin/yarn-session.sh -jm 1024m -tm 4096m
 {% endhighlight %}
 
@@ -48,11 +45,8 @@ Once the session has been started, you can submit jobs to the cluster using the 
 ### Run a Flink job on YARN
 
 {% highlight bash %}
-# get the hadoop2 package from the Flink download page at
-# {{ site.download_url }}
-curl -O <flink_hadoop2_download_url>
-tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
-cd flink-{{ site.version }}/
+# If HADOOP_CLASSPATH is not set:
+#   export HADOOP_CLASSPATH=`hadoop classpath`
 ./bin/flink run -m yarn-cluster -p 4 -yjm 1024m -ytm 4096m ./examples/batch/WordCount.jar
 {% endhighlight %}
 
@@ -62,10 +56,8 @@ Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management
 
 **Requirements**
 
-- at least Apache Hadoop 2.2
+- at least Apache Hadoop 2.4.1
 - HDFS (Hadoop Distributed File System) (or another distributed file system supported by Hadoop)
-
-If you have troubles using the Flink YARN client, have a look in the [FAQ section](https://flink.apache.org/faq.html#yarn-deployment).
 
 ### Start Flink Session
 
@@ -75,14 +67,15 @@ A session will start all required Flink services (JobManager and TaskManagers) s
 
 #### Download Flink
 
-Download a Flink package for Hadoop >= 2 from the [download page]({{ site.download_url }}). It contains the required files.
+Download a Flink package from the [download page]({{ site.download_url }}). It contains the required files.
 
 Extract the package using:
 
 {% highlight bash %}
-tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
+tar xvzf flink-{{ site.version }}-bin-scala*.tgz
 cd flink-{{site.version }}/
 {% endhighlight %}
+
 
 #### Start a Session
 
@@ -125,7 +118,7 @@ If you don't want to change the configuration file to set configuration paramete
 
 The example invocation starts a single container for the ApplicationMaster which runs the Job Manager.
 
-The session cluster will automatically allocate additional containers which run the Task Managers when jobs are submitted to the cluster.
+The session cluster will automatically allocate additional containers which run the Task Managers when jobs are submitted to the cluster. 
 
 Once Flink is deployed in your YARN cluster, it will show you the connection details of the Job Manager.
 
