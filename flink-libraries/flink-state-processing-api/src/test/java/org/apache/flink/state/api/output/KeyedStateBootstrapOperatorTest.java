@@ -64,34 +64,22 @@ public class KeyedStateBootstrapOperatorTest {
 		OperatorSubtaskState state;
 		KeyedStateBootstrapOperator<Long, Long> bootstrapOperator = new KeyedStateBootstrapOperator<>(0L, path, new TimerBootstrapFunction());
 		try (KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState> harness = getHarness(bootstrapOperator)) {
-			harness.open();
-
-			harness.processElement(1L, 0L);
-			harness.processElement(2L, 0L);
-			harness.processElement(3L, 0L);
-			bootstrapOperator.endInput();
-
-			state = harness.extractOutputValues().get(0).state;
+			processElements(harness, 1L, 2L, 3L);
+			state = getState(bootstrapOperator, harness);
 		}
 
 		KeyedProcessOperator<Long, Long, Tuple3<Long, Long, TimeDomain>> procOperator = new KeyedProcessOperator<>(new SimpleProcessFunction());
-		try (KeyedOneInputStreamOperatorTestHarness<Long, Long, Tuple3<Long, Long, TimeDomain>> harness = getHarness(procOperator)) {
-
-			harness.initializeState(state);
-			harness.open();
-
+		try (KeyedOneInputStreamOperatorTestHarness<Long, Long, Tuple3<Long, Long, TimeDomain>> harness = getHarness(procOperator, state)) {
 			harness.processWatermark(EVENT_TIMER);
 			harness.setProcessingTime(PROC_TIMER);
 
-			Assert.assertThat(harness.extractOutputValues(), Matchers.containsInAnyOrder(
+			assertHarnessOutput(harness,
 				Tuple3.of(1L, EVENT_TIMER, TimeDomain.EVENT_TIME),
 				Tuple3.of(2L, EVENT_TIMER, TimeDomain.EVENT_TIME),
 				Tuple3.of(3L, EVENT_TIMER, TimeDomain.EVENT_TIME),
 				Tuple3.of(1L, PROC_TIMER, TimeDomain.PROCESSING_TIME),
 				Tuple3.of(2L, PROC_TIMER, TimeDomain.PROCESSING_TIME),
-				Tuple3.of(3L, PROC_TIMER, TimeDomain.PROCESSING_TIME)));
-
-			harness.snapshot(0L, 0L);
+				Tuple3.of(3L, PROC_TIMER, TimeDomain.PROCESSING_TIME));
 		}
 	}
 
@@ -102,38 +90,53 @@ public class KeyedStateBootstrapOperatorTest {
 		OperatorSubtaskState state;
 		KeyedStateBootstrapOperator<Long, Long> bootstrapOperator = new KeyedStateBootstrapOperator<>(0L, path, new SimpleBootstrapFunction());
 		try (KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState> harness = getHarness(bootstrapOperator)) {
-			harness.open();
-
-			harness.processElement(1L, 0L);
-			harness.processElement(2L, 0L);
-			harness.processElement(3L, 0L);
-			bootstrapOperator.endInput();
-
-			state = harness.extractOutputValues().get(0).state;
+			processElements(harness, 1L, 2L, 3L);
+			state = getState(bootstrapOperator, harness);
 		}
 
 		StreamMap<Long, Long> mapOperator = new StreamMap<>(new StreamingFunction());
-		try (KeyedOneInputStreamOperatorTestHarness<Long, Long, Long> harness = getHarness(mapOperator)) {
+		try (KeyedOneInputStreamOperatorTestHarness<Long, Long, Long> harness = getHarness(mapOperator, state)) {
+			processElements(harness, 1L, 2L, 3L);
 
-			harness.initializeState(state);
-			harness.open();
-
-			harness.processElement(1L, 0L);
-			harness.processElement(2L, 0L);
-			harness.processElement(3L, 0L);
-
-			Assert.assertThat(harness.extractOutputValues(), Matchers.containsInAnyOrder(1L, 2L, 3L));
-
+			assertHarnessOutput(harness, 1L, 2L, 3L);
 			harness.snapshot(0L, 0L);
 		}
 	}
 
 	private <T> KeyedOneInputStreamOperatorTestHarness<Long, Long, T> getHarness(OneInputStreamOperator<Long, T> bootstrapOperator) throws Exception {
+		return getHarness(bootstrapOperator, null);
+	}
+
+	private <T> KeyedOneInputStreamOperatorTestHarness<Long, Long, T> getHarness(OneInputStreamOperator<Long, T> bootstrapOperator, OperatorSubtaskState state) throws Exception {
 		KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness = new KeyedOneInputStreamOperatorTestHarness<>(
 			bootstrapOperator, id -> id, Types.LONG, 128, 1, 0);
 
 		harness.setStateBackend(new RocksDBStateBackend(folder.newFolder().toURI()));
+		if (state != null) {
+			harness.initializeState(state);
+		}
+		harness.open();
 		return harness;
+	}
+
+	private <T> void processElements(KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness, Long... records) throws Exception {
+		for (Long record : records) {
+			harness.processElement(record, 0);
+		}
+	}
+
+	private OperatorSubtaskState getState(
+		KeyedStateBootstrapOperator<Long, Long> bootstrapOperator,
+		KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState> harness) throws Exception {
+		OperatorSubtaskState state;
+		bootstrapOperator.endInput();
+		state = harness.extractOutputValues().get(0).state;
+		return state;
+	}
+
+	private <T> void assertHarnessOutput(KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness, T... output) {
+		Assert.assertThat("The output from the operator does not match the expected values",
+			harness.extractOutputValues(), Matchers.containsInAnyOrder(output));
 	}
 
 	private static class TimerBootstrapFunction extends KeyedStateBootstrapFunction<Long, Long> {
