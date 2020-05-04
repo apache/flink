@@ -299,6 +299,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalSort.STREAM_CONVERTER,
     FlinkLogicalUnion.CONVERTER,
     FlinkLogicalValues.CONVERTER,
+    FlinkLogicalTableSourceScan.CONVERTER,
     FlinkLogicalLegacyTableSourceScan.CONVERTER,
     FlinkLogicalTableFunctionScan.CONVERTER,
     FlinkLogicalDataStreamTableScan.CONVERTER,
@@ -364,6 +365,7 @@ object FlinkStreamRuleSets {
     FlinkExpandConversionRule.STREAM_INSTANCE,
     // source
     StreamExecDataStreamScanRule.INSTANCE,
+    StreamExecTableSourceScanRule.INSTANCE,
     StreamExecLegacyTableSourceScanRule.INSTANCE,
     StreamExecIntermediateTableScanRule.INSTANCE,
     StreamExecWatermarkAssignerRule.INSTANCE,

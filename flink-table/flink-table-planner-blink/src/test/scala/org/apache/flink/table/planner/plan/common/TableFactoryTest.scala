@@ -60,7 +60,9 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
         |  b varchar,
         |  c as a + 1
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'filesystem',
+        |  'connector.path' = '/to/my/path1',
+        |  'format.type' = 'csv'
         |)
       """.stripMargin
     val sinkDDL =
@@ -70,7 +72,9 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
         |  b as c - 1,
         |  c int
         |) with (
-        |  'connector' = 'COLLECTION'
+        |  'connector.type' = 'filesystem',
+        |  'connector.path' = '/to/my/path2',
+        |  'format.type' = 'csv'
         |)
       """.stripMargin
     val query =

@@ -258,6 +258,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(
           union, children, new ModifyKindSetTrait(providedKindSet), requiredTrait, requester)
 
+      case ts: StreamExecTableSourceScan =>
+        // ScanTableSource supports produces updates and deletions
+        val providedTrait = ModifyKindSetTrait.fromChangelogMode(ts.tableSource.getChangelogMode)
+        createNewNode(ts, List(), providedTrait, requiredTrait, requester)
+
       case _: StreamExecDataStreamScan | _: StreamExecLegacyTableSourceScan |
            _: StreamExecValues =>
         // DataStream, TableSource and Values only support producing insert-only messages
@@ -535,6 +540,17 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           }
           createNewNode(union, Some(children.flatten), providedTrait)
         }
+
+      case ts: StreamExecTableSourceScan =>
+        // currently only support BEFORE_AND_AFTER if source produces updates
+        val providedTrait = UpdateKindTrait.fromChangelogMode(ts.tableSource.getChangelogMode)
+        if (providedTrait == UpdateKindTrait.ONLY_UPDATE_AFTER) {
+          throw new UnsupportedOperationException(
+            "Currently, ScanTableSource doesn't support producing ChangelogMode " +
+              "which contains UPDATE_AFTER but no UPDATE_BEFORE. Please update the " +
+              "implementation of '" + ts.tableSource.asSummaryString() + "' source.")
+        }
+        createNewNode(rel, Some(List()), providedTrait)
 
       case _: StreamExecDataStreamScan | _: StreamExecLegacyTableSourceScan |
            _: StreamExecValues =>

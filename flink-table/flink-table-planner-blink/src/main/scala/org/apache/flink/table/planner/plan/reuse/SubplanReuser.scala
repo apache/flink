@@ -152,7 +152,8 @@ object SubplanReuser {
     private def isNodeReusableDisabled(node: RelNode): Boolean = {
       node match {
         // TableSourceScan node can not be reused if reuse TableSource disabled
-        case _: FlinkLogicalLegacyTableSourceScan | _: PhysicalLegacyTableSourceScan => !tableSourceReuseEnabled
+        case _: FlinkLogicalLegacyTableSourceScan | _: PhysicalLegacyTableSourceScan =>
+          !tableSourceReuseEnabled
         // Exchange node can not be reused if its input is reusable disabled
         case e: Exchange => isNodeReusableDisabled(e.getInput)
         // TableFunctionScan and sink can not be reused

@@ -80,7 +80,8 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   }
 
   @After
-  def after(): Unit = {
+  override def after(): Unit = {
+    super.after()
     Assert.assertTrue(FailingCollectionSource.failedBefore)
   }
 

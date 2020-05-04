@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.plan.`trait`
 
 import org.apache.calcite.plan.{RelOptPlanner, RelTrait, RelTraitDef}
+import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.types.RowKind
 
 import scala.collection.JavaConversions._
 
@@ -65,5 +67,18 @@ object ModifyKindSetTrait {
    * A modify [[ModifyKindSetTrait]] that contains all change operations.
    */
   val ALL_CHANGES = new ModifyKindSetTrait(ModifyKindSet.ALL_CHANGES)
+
+  /**
+   * Creates an instance of [[ModifyKindSetTrait]] from th given [[ChangelogMode]].
+   */
+  def fromChangelogMode(changelogMode: ChangelogMode): ModifyKindSetTrait = {
+    val builder = ModifyKindSet.newBuilder
+    changelogMode.getContainedKinds.foreach {
+      case RowKind.INSERT => builder.addContainedKind(ModifyKind.INSERT)
+      case RowKind.DELETE => builder.addContainedKind(ModifyKind.DELETE)
+      case _ => builder.addContainedKind(ModifyKind.UPDATE) // otherwise updates
+    }
+    new ModifyKindSetTrait(builder.build)
+  }
 
 }

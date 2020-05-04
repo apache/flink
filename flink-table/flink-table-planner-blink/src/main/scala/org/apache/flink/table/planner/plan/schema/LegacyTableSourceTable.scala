@@ -18,21 +18,19 @@
 
 package org.apache.flink.table.planner.plan.schema
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Preconditions
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.planner.JMap
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.TableSource
 
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.flink.shaded.guava18.com.google.common.base.Preconditions
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
+import org.apache.calcite.rel.`type`.RelDataType
 
 import java.util
 import java.util.{Collections, List => JList}
-
-import scala.collection.JavaConverters._
 
 /**
   * A [[FlinkPreparingTableBase]] implementation which defines the context variables
@@ -122,12 +120,8 @@ class LegacyTableSourceTable[T](
     */
   def copy(tableSource: TableSource[_], selectedFields: Array[Int]): LegacyTableSourceTable[T] = {
     val newRowType = relOptSchema
-      .getTypeFactory
-      .createStructType(
-        selectedFields
-          .map(idx => rowType.getFieldList.get(idx))
-          .toList
-          .asJava)
+      .getTypeFactory.asInstanceOf[FlinkTypeFactory]
+      .projectStructType(rowType, selectedFields)
     new LegacyTableSourceTable[T](
       relOptSchema,
       tableIdentifier,
