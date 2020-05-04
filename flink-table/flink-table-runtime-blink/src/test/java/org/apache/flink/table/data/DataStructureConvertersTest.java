@@ -27,6 +27,7 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.Rule;
@@ -235,8 +236,8 @@ public class DataStructureConvertersTest {
 							ROW(
 								FIELD("b_1", DOUBLE()),
 								FIELD("b_2", BOOLEAN())))))
-				.convertedTo(Row.class, Row.of(12, Row.of(2.0, null)))
-				.convertedTo(RowData.class, GenericRowData.of(12, GenericRowData.of(2.0, null))),
+				.convertedTo(Row.class, Row.ofKind(RowKind.DELETE, 12, Row.of(2.0, null)))
+				.convertedTo(RowData.class, GenericRowData.ofKind(RowKind.DELETE, 12, GenericRowData.of(2.0, null))),
 
 			TestSpec
 				.forDataType(
