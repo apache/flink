@@ -43,6 +43,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.range;
+import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -291,7 +294,7 @@ public class ValuesITCase extends StreamingTestBase {
 
 		tEnv().createTemporaryFunction("func", new CustomScalarFunction());
 		Table t = tEnv().fromValues(data)
-			.select("func(f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15)");
+			.select(call("func", withColumns(range("f0", "f15"))));
 
 		TestCollectionTableFactory.reset();
 		tEnv().sqlUpdate(

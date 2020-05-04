@@ -78,7 +78,7 @@ class CalcTest extends TableTestBase {
     val util = streamTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.select('a, 'b, 'c)
-      .where(s"${(1 to 30).map("b = " + _).mkString(" || ")} && c = 'xx'")
+      .where((1 to 30).map($"b" === _).reduce((ex1, ex2) => ex1 || ex2) && ($"c" === "xx"))
 
     util.verifyPlan(resultTable)
   }
@@ -88,7 +88,7 @@ class CalcTest extends TableTestBase {
     val util = streamTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable.select('a, 'b, 'c)
-      .where(s"${(1 to 30).map("b != " + _).mkString(" && ")} || c != 'xx'")
+      .where((1 to 30).map($"b" !== _).reduce((ex1, ex2) => ex1 && ex2) || ($"c" !== "xx"))
 
     util.verifyPlan(resultTable)
   }

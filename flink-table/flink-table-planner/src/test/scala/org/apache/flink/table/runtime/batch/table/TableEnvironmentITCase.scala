@@ -187,7 +187,7 @@ class TableEnvironmentITCase(
     val tEnv = BatchTableEnvironment.create(env)
     MemoryTableSourceSinkUtil.clear()
 
-    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e", "f")

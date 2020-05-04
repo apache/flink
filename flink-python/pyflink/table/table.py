@@ -75,7 +75,7 @@ class Table(object):
         """
         return Table(self._j_table.select(fields))
 
-    def alias(self, fields):
+    def alias(self, field, *fields):
         """
         Renames the fields of the expression result. Use this to disambiguate fields before
         joining to operations.
@@ -83,14 +83,18 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.alias("a, b")
+            >>> tab.alias("a", "b")
 
-        :param fields: Field list expression string.
+        :param field: Field alias.
+        :type field: str
+        :param fields: Additional field aliases.
         :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(get_method(self._j_table, "as")(fields))
+        gateway = get_gateway()
+        extra_fields = to_jarray(gateway.jvm.String, fields)
+        return Table(get_method(self._j_table, "as")(field, extra_fields))
 
     def filter(self, predicate):
         """

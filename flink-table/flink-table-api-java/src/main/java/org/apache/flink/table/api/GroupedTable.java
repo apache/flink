@@ -38,18 +38,28 @@ public interface GroupedTable {
 	 *   tab.groupBy("key").select("key, value.avg + ' The average' as average")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #select(Expression...)}
 	 */
+	@Deprecated
 	Table select(String fields);
 
 	/**
 	 * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
 	 * The field expressions can contain complex expressions and aggregations.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.groupBy($("key")).select($("key"), $("value").avg().plus(" The average").as("average"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
-	 *   tab.groupBy('key).select('key, 'value.avg + " The average" as 'average)
+	 *   tab.groupBy($"key").select($"key", $"value".avg + " The average" as "average")
 	 * }
 	 * </pre>
 	 */
@@ -64,14 +74,16 @@ public interface GroupedTable {
 	 *
 	 * <pre>
 	 * {@code
-	 *   AggregateFunction aggFunc = new MyAggregateFunction()
+	 *   AggregateFunction aggFunc = new MyAggregateFunction();
 	 *   tableEnv.registerFunction("aggFunc", aggFunc);
 	 *   table.groupBy("key")
 	 *     .aggregate("aggFunc(a, b) as (f0, f1, f2)")
 	 *     .select("key, f0, f1")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #aggregate(Expression)}
 	 */
+	@Deprecated
 	AggregatedTable aggregate(String aggregateFunction);
 
 	/**
@@ -79,14 +91,26 @@ public interface GroupedTable {
 	 * {@link #aggregate(Expression)} with a select statement. The output will be flattened if the
 	 * output type is a composite type.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   AggregateFunction aggFunc = new MyAggregateFunction();
+	 *   tableEnv.registerFunction("aggFunc", aggFunc);
+	 *   tab.groupBy($("key"))
+	 *     .aggregate(call("aggFunc", $("a"), $("b")).as("f0", "f1", "f2"))
+	 *     .select($("key"), $("f0"), $("f1"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
 	 *   val aggFunc = new MyAggregateFunction
-	 *   table.groupBy('key)
-	 *     .aggregate(aggFunc('a, 'b) as ('f0, 'f1, 'f2))
-	 *     .select('key, 'f0, 'f1)
+	 *   table.groupBy($"key")
+	 *     .aggregate(aggFunc($"a", $"b") as ("f0", "f1", "f2"))
+	 *     .select($"key", $"f0", $"f1")
 	 * }
 	 * </pre>
 	 */
@@ -107,21 +131,35 @@ public interface GroupedTable {
 	 *     .select("key, x, y, z")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #flatAggregate(Expression)}
 	 */
+	@Deprecated
 	FlatAggregateTable flatAggregate(String tableAggFunction);
 
 	/**
 	 * Performs a flatAggregate operation on a grouped table. FlatAggregate takes a
 	 * TableAggregateFunction which returns multiple rows. Use a selection after flatAggregate.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction();
+	 *   tableEnv.registerFunction("tableAggFunc", tableAggFunc);
+	 *   tab.groupBy($("key"))
+	 *     .flatAggregate(call("tableAggFunc", $("a"), $("b")).as("x", "y", "z"))
+	 *     .select($("key"), $("x"), $("y"), $("z"));
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
 	 * {@code
 	 *   val tableAggFunc: TableAggregateFunction = new MyTableAggregateFunction
-	 *   tab.groupBy('key)
-	 *     .flatAggregate(tableAggFunc('a, 'b) as ('x, 'y, 'z))
-	 *     .select('key, 'x, 'y, 'z)
+	 *   tab.groupBy($"key")
+	 *     .flatAggregate(tableAggFunc($"a", $"b") as ("x", "y", "z"))
+	 *     .select($"key", $"x", $"y", $"z")
 	 * }
 	 * </pre>
 	 */

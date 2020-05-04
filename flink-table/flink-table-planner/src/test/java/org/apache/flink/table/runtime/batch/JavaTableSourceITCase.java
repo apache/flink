@@ -33,6 +33,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /**
  * Integration tests for {@link BatchTableSource}.
  */
@@ -53,7 +55,7 @@ public class JavaTableSourceITCase extends TableProgramsCollectionTestBase {
 		tableEnv.registerTableSource("persons", csvTable);
 
 		Table result = tableEnv.scan("persons")
-			.select("id, first, last, score");
+			.select($("id"), $("first"), $("last"), $("score"));
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();

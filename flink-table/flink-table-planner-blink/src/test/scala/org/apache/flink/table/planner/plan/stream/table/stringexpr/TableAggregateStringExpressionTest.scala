@@ -89,7 +89,7 @@ class TableAggregateStringExpressionTest extends TableTestBase {
     // String / Java API
     val resJava = t
       .flatAggregate("top3(a) as (d, e)")
-      .select("*")
+      .select($"*")
 
     verifyTableEquals(resJava, resScala)
   }
@@ -113,7 +113,7 @@ class TableAggregateStringExpressionTest extends TableTestBase {
     val resJava = t
       .groupBy("b")
       .flatAggregate("top3(a) as (d, e)")
-      .select("*")
+      .select($"*")
 
     verifyTableEquals(resJava, resScala)
   }

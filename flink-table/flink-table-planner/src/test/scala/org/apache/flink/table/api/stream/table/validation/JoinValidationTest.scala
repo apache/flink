@@ -232,7 +232,7 @@ class JoinValidationTest extends TableTestBase {
     val in1 = tEnv1.fromDataStream(ds1, 'a, 'b, 'c)
     val in2 = tEnv2.fromDataStream(ds2, 'd, 'e, 'f, 'g, 'c)
     // Must fail. Tables are bound to different TableEnvironments.
-    in1.join(in2).where("a === d").select("g.count")
+    in1.join(in2).where($"a" === $"d").select($"g".count)
   }
 
   /**

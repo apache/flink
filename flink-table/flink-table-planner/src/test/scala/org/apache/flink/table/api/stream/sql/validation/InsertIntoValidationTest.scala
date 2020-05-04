@@ -35,7 +35,7 @@ class InsertIntoValidationTest {
 
   @Test(expected = classOf[ValidationException])
   def testInconsistentLengthInsert(): Unit = {
-    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e")
@@ -53,7 +53,7 @@ class InsertIntoValidationTest {
 
   @Test(expected = classOf[ValidationException])
   def testUnmatchedTypesInsert(): Unit = {
-    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e", "f")
@@ -71,7 +71,7 @@ class InsertIntoValidationTest {
 
   @Test(expected = classOf[ValidationException])
   def testUnsupportedPartialInsert(): Unit = {
-    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e", "f")

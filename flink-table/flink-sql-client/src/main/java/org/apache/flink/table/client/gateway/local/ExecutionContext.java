@@ -38,6 +38,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.api.java.internal.BatchTableEnvironmentImpl;
@@ -108,6 +109,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -692,9 +694,13 @@ public class ExecutionContext<ClusterID> {
 	private void registerTemporalTable(TemporalTableEntry temporalTableEntry) {
 		try {
 			final Table table = tableEnv.scan(temporalTableEntry.getHistoryTable());
+			List<String> primaryKeyFields = temporalTableEntry.getPrimaryKeyFields();
+			if (primaryKeyFields.size() > 1) {
+				throw new ValidationException("Temporal tables over a composite primary key are not supported yet.");
+			}
 			final TableFunction<?> function = table.createTemporalTableFunction(
-				temporalTableEntry.getTimeAttribute(),
-				String.join(",", temporalTableEntry.getPrimaryKeyFields()));
+				$(temporalTableEntry.getTimeAttribute()),
+				$(primaryKeyFields.get(0)));
 			if (tableEnv instanceof StreamTableEnvironment) {
 				StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
 				streamTableEnvironment.registerFunction(temporalTableEntry.getName(), function);

@@ -118,7 +118,7 @@ class AggregateValidationTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    t.select("foo.avg")
+    t.select($"foo".avg)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -127,7 +127,7 @@ class AggregateValidationTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTable[(Long, String)]("Table2",'b, 'c)
     // Must fail. Cannot compute SUM aggregate on String field.
-    t.select("c.sum")
+    t.select($"c".sum)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -136,7 +136,7 @@ class AggregateValidationTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTable[(Long, String)]("Table2",'b, 'c)
     // Must fail. Aggregation on aggregation not allowed.
-    t.select("b.sum.sum")
+    t.select($"b".sum.sum)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -145,7 +145,7 @@ class AggregateValidationTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTable[(Long, String)]("Table2",'b, 'c)
     // Must fail. Aggregation on aggregation not allowed.
-    t.select("(b.sum + 1).sum")
+    t.select(($"b".sum + 1).sum)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -155,8 +155,8 @@ class AggregateValidationTest extends TableTestBase {
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // must fail. Field foo is not in input
-    t.groupBy("foo")
-    .select("a.avg")
+    t.groupBy($"foo")
+    .select($"a".avg)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -165,9 +165,9 @@ class AggregateValidationTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    t.groupBy("a, b")
+    t.groupBy($"a", $"b")
     // must fail. Field c is not a grouping key or aggregation
-    .select("c")
+    .select($"c")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -177,7 +177,7 @@ class AggregateValidationTest extends TableTestBase {
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // must fail. unknown is not known
-    t.select("unknown(c)")
+    .select(call("unknown", $"c"))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -186,9 +186,9 @@ class AggregateValidationTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-    t.groupBy("a, b")
+    t.groupBy($"a", $"b")
     // must fail. unknown is not known
-    .select("unknown(c)")
+    .select(call("unknown", $"c"))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -201,7 +201,7 @@ class AggregateValidationTest extends TableTestBase {
     util.tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
 
     // must fail. UDAGG does not accept String type
-    t.select("myWeightedAvg(c, a)")
+    t.select(call("myWeightedAvg", $"c", $"a"))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -213,8 +213,8 @@ class AggregateValidationTest extends TableTestBase {
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
     util.tableEnv.registerFunction("myWeightedAvg", myWeightedAvg)
 
-    t.groupBy("b")
+    t.groupBy($"b")
     // must fail. UDAGG does not accept String type
-    .select("myWeightedAvg(c, a)")
+    t.select(call("myWeightedAvg", $"c", $"a"))
   }
 }

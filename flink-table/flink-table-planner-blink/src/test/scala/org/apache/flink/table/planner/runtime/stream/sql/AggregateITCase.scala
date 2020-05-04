@@ -608,7 +608,7 @@ class AggregateITCase(
     data.+=((8, 4L, null))
     val sqlQuery = "SELECT b, LISTAGG(DISTINCT c, '#') FROM MyTable GROUP BY b"
     tEnv.registerTable("MyTable",
-      failingDataSource(data).toTable(tEnv).as('a, 'b, 'c))
+      failingDataSource(data).toTable(tEnv).as("a", "b", "c"))
     val sink = new TestingRetractSink
     tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
@@ -1164,7 +1164,7 @@ class AggregateITCase(
 
   @Test
   def testDistinctWithMultiFilter(): Unit = {
-    val t = failingDataSource(TestData.tupleData3).toTable(tEnv).as('a, 'b, 'c)
+    val t = failingDataSource(TestData.tupleData3).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery =

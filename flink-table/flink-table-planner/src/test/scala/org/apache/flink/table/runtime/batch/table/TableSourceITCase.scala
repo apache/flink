@@ -137,8 +137,8 @@ class TableSourceITCase(
     tableEnv.registerTableSource(tableName, TestFilterableTableSource())
     val results = tableEnv
       .scan(tableName)
-      .where("amount > 4 && price < 9")
-      .select("id, name")
+      .where($"amount" > 4 && $"price" < 9)
+      .select($"id", $"name")
       .collect()
 
     val expected = Seq(
