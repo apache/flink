@@ -5,7 +5,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 
 == Optimized Logical Plan ==
 Calc(select=[a, b, c], where=[>(a, 10)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(a, b, c)]]], fields=[a, b, c])
 
 == Physical Execution Plan ==
  : Data Source

@@ -23,14 +23,15 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api._
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
@@ -43,8 +44,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
+
 import org.junit.Assert._
-import org.junit.{Assert, Before}
+import org.junit.{After, Assert, Before}
 
 import _root_.java.lang.{Iterable => JIterable}
 import _root_.java.util.regex.Pattern
@@ -72,6 +74,11 @@ class BatchTestBase extends BatchAbstractTestBase {
   @Before
   def before(): Unit = {
     BatchTestBase.configForMiniCluster(conf)
+  }
+
+  @After
+  def after(): Unit = {
+    TestValuesTableFactory.clearAllRegisteredData()
   }
 
   /**

@@ -24,13 +24,13 @@ limitations under the License.
       <![CDATA[
 LogicalProject(ts=[$0], a=[$1], b=[$2])
 +- LogicalFilter(condition=[>($1, 1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[ts, a, b], where=[>(a, 1)])
-+- TableSourceScan(table=[[default_catalog, default_database, src, source: [CollectionTableSource(ts, a, b)]]], fields=[ts, a, b])
++- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -41,13 +41,13 @@ Calc(select=[ts, a, b], where=[>(a, 1)])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
-+- LogicalTableScan(table=[[default_catalog, default_database, computed_column_t, source: [CollectionTableSource(a, b)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, computed_column_t]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
-+- TableSourceScan(table=[[default_catalog, default_database, computed_column_t, source: [CollectionTableSource(a, b)]]], fields=[a, b])
++- TableSourceScan(table=[[default_catalog, default_database, computed_column_t]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -58,69 +58,17 @@ Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
-+- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t, source: [CollectionTableSource(a, b)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
-+- TableSourceScan(table=[[default_catalog, default_database, c_watermark_t, source: [CollectionTableSource(a, b)]]], fields=[a, b])
++- TableSourceScan(table=[[default_catalog, default_database, c_watermark_t]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTableApiScanWithComputedColumn">
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
-+- LogicalTableScan(table=[[default_catalog, default_database, computed_column_t, source: [CollectionTableSource(a, b)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
-+- TableSourceScan(table=[[default_catalog, default_database, computed_column_t, source: [CollectionTableSource(a, b)]]], fields=[a, b])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTableApiScanWithDDL">
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, t1, source: [CollectionTableSource(a, b)]]], fields=[a, b])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTableApiScanWithTemporaryTable">
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CsvTableSource(read fields: word)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, t1, source: [CsvTableSource(read fields: word)]]], fields=[word])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTableApiScanWithWatermark">
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
-+- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t, source: [CollectionTableSource(a, b)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
-+- TableSourceScan(table=[[default_catalog, default_database, c_watermark_t, source: [CollectionTableSource(a, b)]]], fields=[a, b])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTableSourceScan">
+  <TestCase name="testLegacyTableSourceScan">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable]]>
     </Resource>
@@ -132,7 +80,59 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableApiScanWithComputedColumn">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, computed_column_t]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
++- TableSourceScan(table=[[default_catalog, default_database, computed_column_t]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableApiScanWithDDL">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableApiScanWithWatermark">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
++- TableSourceScan(table=[[default_catalog, default_database, c_watermark_t]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTableApiScanWithTemporaryTable">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CsvTableSource(read fields: word)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [CsvTableSource(read fields: word)]]], fields=[word])
 ]]>
     </Resource>
   </TestCase>

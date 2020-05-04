@@ -326,6 +326,7 @@ object FlinkBatchRuleSets {
     FlinkLogicalSort.BATCH_CONVERTER,
     FlinkLogicalUnion.CONVERTER,
     FlinkLogicalValues.CONVERTER,
+    FlinkLogicalTableSourceScan.CONVERTER,
     FlinkLogicalLegacyTableSourceScan.CONVERTER,
     FlinkLogicalTableFunctionScan.CONVERTER,
     FlinkLogicalDataStreamTableScan.CONVERTER,
@@ -382,6 +383,7 @@ object FlinkBatchRuleSets {
     FlinkExpandConversionRule.BATCH_INSTANCE,
     // source
     BatchExecBoundedStreamScanRule.INSTANCE,
+    BatchExecTableSourceScanRule.INSTANCE,
     BatchExecLegacyTableSourceScanRule.INSTANCE,
     BatchExecIntermediateTableScanRule.INSTANCE,
     BatchExecValuesRule.INSTANCE,

@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
@@ -37,10 +37,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.TemporalTable;
 import org.apache.calcite.schema.impl.AbstractTable;
 
-import javax.annotation.Nullable;
-
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Represents a wrapper for {@link CatalogBaseTable} in {@link org.apache.calcite.schema.Schema}.
@@ -61,9 +58,7 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 	private final FlinkStatistic statistic;
 	private final boolean isStreamingMode;
 	private final boolean isTemporary;
-
-	@Nullable
-	private final TableFactory tableFactory;
+	private final Catalog catalog;
 
 	//~ Constructors -----------------------------------------------------------
 
@@ -73,7 +68,7 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 	 * @param tableIdentifier Table identifier
 	 * @param catalogBaseTable CatalogBaseTable instance which exists in the catalog
 	 * @param statistic Table statistics
-	 * @param tableFactory Optional table factory to create the table source
+	 * @param catalog The catalog which the schema table belongs to
 	 * @param isStreaming If the table is for streaming mode
 	 * @param isTemporary If the table is temporary
 	 */
@@ -81,21 +76,21 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 			ObjectIdentifier tableIdentifier,
 			CatalogBaseTable catalogBaseTable,
 			FlinkStatistic statistic,
-			@Nullable TableFactory tableFactory,
+			Catalog catalog,
 			boolean isStreaming,
 			boolean isTemporary) {
 		this.tableIdentifier = tableIdentifier;
 		this.catalogBaseTable = catalogBaseTable;
 		this.statistic = statistic;
-		this.tableFactory = tableFactory;
+		this.catalog = catalog;
 		this.isStreamingMode = isStreaming;
 		this.isTemporary = isTemporary;
 	}
 
 	//~ Methods ----------------------------------------------------------------
 
-	public Optional<TableFactory> getTableFactory() {
-		return Optional.ofNullable(tableFactory);
+	public Catalog getCatalog() {
+		return catalog;
 	}
 
 	public ObjectIdentifier getTableIdentifier() {

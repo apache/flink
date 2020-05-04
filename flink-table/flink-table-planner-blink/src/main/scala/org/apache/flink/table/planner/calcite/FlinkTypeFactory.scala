@@ -234,6 +234,17 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
     b.build
   }
 
+  /**
+   * Returns a projected [[RelDataType]] of the structure type.
+   */
+  def projectStructType(relType: RelDataType, selectedFields: Array[Int]): RelDataType = {
+    this.createStructType(
+        selectedFields
+          .map(idx => relType.getFieldList.get(idx))
+          .toList
+          .asJava)
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def getJavaClass(`type`: RelDataType): java.lang.reflect.Type = {

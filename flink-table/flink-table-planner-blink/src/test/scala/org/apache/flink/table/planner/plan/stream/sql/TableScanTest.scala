@@ -19,9 +19,12 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.expressions.utils.Func0
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.{MockedFilterPushDownTableSource, MockedLookupTableSource}
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.Test
 
 class TableScanTest extends TableTestBase {
@@ -29,7 +32,7 @@ class TableScanTest extends TableTestBase {
   private val util = streamTestUtil()
 
   @Test
-  def testTableSourceScan(): Unit = {
+  def testLegacyTableSourceScan(): Unit = {
     util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     util.verifyPlan("SELECT * FROM MyTable")
   }
@@ -50,8 +53,7 @@ class TableScanTest extends TableTestBase {
         |  b DOUBLE,
         |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
         |) WITH (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
+        |  'connector' = 'values'
         |)
       """.stripMargin)
     util.verifyPlan("SELECT * FROM src WHERE a > 1")
@@ -70,8 +72,7 @@ class TableScanTest extends TableTestBase {
          |  d as to_timestamp(b),
          |  e as my_udf(a)
          |) with (
-         |  'connector' = 'COLLECTION',
-         |  'is-bounded' = 'false'
+         |  'connector' = 'values'
          |)
        """.stripMargin)
     util.verifyPlan("SELECT * FROM t1")
@@ -91,8 +92,7 @@ class TableScanTest extends TableTestBase {
          |  e as my_udf(a),
          |  WATERMARK FOR d AS d - INTERVAL '0.001' SECOND
          |) with (
-         |  'connector' = 'COLLECTION',
-         |  'is-bounded' = 'false'
+         |  'connector' = 'values'
          |)
        """.stripMargin)
     util.verifyPlan("SELECT * FROM t1")
@@ -110,8 +110,7 @@ class TableScanTest extends TableTestBase {
         |  proc AS PROCTIME(),
         |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
         |) WITH (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
+        |  'connector' = 'values'
         |)
       """.stripMargin)
     util.verifyPlan("SELECT * FROM src WHERE a > 1")
@@ -133,10 +132,154 @@ class TableScanTest extends TableTestBase {
          |  `timestamp` AS json_row.`timestamp`,
          |  WATERMARK FOR `timestamp` AS `timestamp`
          |) with (
-         |  'connector' = 'COLLECTION',
-         |  'is-bounded' = 'false'
+         |  'connector' = 'values'
          |)
        """.stripMargin)
     util.verifyPlan("SELECT * FROM t1")
+  }
+
+  @Test
+  def testScanOnBoundedSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'bounded' = 'true'
+        |)
+      """.stripMargin)
+    // pass
+    util.verifyPlanWithTrait("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testScanOnChangelogSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UA,UB,D'
+        |)
+      """.stripMargin)
+    util.verifyPlanWithTrait("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testAggregateOnChangelogSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UA,UB'
+        |)
+      """.stripMargin)
+    util.verifyPlanWithTrait("SELECT COUNT(*) FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testInvalidSourceChangelogMode(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UB,D'
+        |)
+      """.stripMargin)
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(
+      "'default_catalog.default_database.src' source produces ChangelogMode " +
+        "which contains UPDATE_BEFORE but doesn't contain UPDATE_AFTER, this is invalid.")
+    util.verifyPlanWithTrait("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testUnsupportedSourceChangelogMode(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UA,D'
+        |)
+      """.stripMargin)
+    thrown.expect(classOf[UnsupportedOperationException])
+    thrown.expectMessage("Currently, ScanTableSource doesn't support producing " +
+      "ChangelogMode which contains UPDATE_AFTER but no UPDATE_BEFORE. " +
+      "Please adapt the implementation of 'TestValues' source.")
+    util.verifyPlanWithTrait("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testUnsupportedWatermarkAndChangelogSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  WATERMARK FOR `ts` AS `ts` - INTERVAL '5' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UB,UA,D'
+        |)
+      """.stripMargin)
+    thrown.expect(classOf[UnsupportedOperationException])
+    thrown.expectMessage(
+      "Currently, defining WATERMARK on a changelog source is not supported.")
+    util.verifyPlanWithTrait("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testInvalidScanOnLookupSource(): Unit = {
+    util.addTable(
+      s"""
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'table-source-class' = '${classOf[MockedLookupTableSource].getName}'
+        |)
+      """.stripMargin)
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
+    util.verifyPlanWithTrait("SELECT * FROM src")
+  }
+
+  @Test
+  def testUnsupportedAbilityInterface(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE src (
+         |  ts TIMESTAMP(3),
+         |  a INT,
+         |  b DOUBLE
+         |) WITH (
+         |  'connector' = 'values',
+         |  'table-source-class' = '${classOf[MockedFilterPushDownTableSource].getName}'
+         |)
+      """.stripMargin)
+    thrown.expect(classOf[UnsupportedOperationException])
+    thrown.expectMessage("DynamicTableSource with SupportsFilterPushDown ability is not supported")
+    util.verifyPlanWithTrait("SELECT * FROM src")
   }
 }

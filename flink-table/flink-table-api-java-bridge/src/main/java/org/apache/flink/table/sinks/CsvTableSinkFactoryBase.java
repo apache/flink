@@ -89,6 +89,7 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
+		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_EXPR);
 		// schema watermark
 		properties.add(SCHEMA + "." + DescriptorProperties.WATERMARK + ".*");
 		return properties;
