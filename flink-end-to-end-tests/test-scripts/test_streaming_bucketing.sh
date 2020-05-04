@@ -19,6 +19,8 @@
 
 source "$(dirname "$0")"/common.sh
 
+set_hadoop_classpath
+
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-bucketing-sink-test/target/BucketingSinkTestProgram.jar
 JOB_OUTPUT_DIR=${TEST_DATA_DIR}/out/result
 LOG_DIR=${FLINK_DIR}/log
