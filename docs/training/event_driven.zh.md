@@ -50,7 +50,7 @@ DataStream<Tuple3<Long, Long, Float>> hourlyTips = fares
         .process(new AddTips());
 {% endhighlight %}
 
-使用 `KeyedProcessFunction` 去实现相同的效果是合理、直接且有学习意义的。
+使用 `KeyedProcessFunction` 去实现相同的操作更加直接且更有学习意义。
 让我们开始用以下代码替换上面的代码：
 
 {% highlight java %}
