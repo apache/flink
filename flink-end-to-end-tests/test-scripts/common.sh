@@ -55,6 +55,15 @@ REST_PROTOCOL="http"
 CURL_SSL_ARGS=""
 source "${TEST_INFRA_DIR}/common_ssl.sh"
 
+function set_hadoop_classpath {
+  YARN_CLASSPATH_LOCATION="${TEST_INFRA_DIR}/hadoop/yarn.classpath";
+  if [ ! -f $YARN_CLASSPATH_LOCATION ]; then
+    echo "File '$YARN_CLASSPATH_LOCATION' does not exist."
+    exit 1
+  fi
+  export HADOOP_CLASSPATH=`cat $YARN_CLASSPATH_LOCATION`
+}
+
 function print_mem_use_osx {
     declare -a mem_types=("active" "inactive" "wired down")
     used=""
@@ -353,6 +362,7 @@ function check_logs_for_errors {
       | grep -v "Failed Elasticsearch item request" \
       | grep -v "[Terror] modules" \
       | grep -v "HeapDumpOnOutOfMemoryError" \
+      | grep -v "error_prone_annotations" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files:"

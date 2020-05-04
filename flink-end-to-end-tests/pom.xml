@@ -91,6 +91,23 @@ under the License.
 		<module>flink-netty-shuffle-memory-control-test</module>
 	</modules>
 
+	<dependencies>
+		<dependency>
+			<!-- flink-yarn is required for getting the yarn classpath in the hadoop
+			bash end to end tests -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-yarn-tests</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+	</dependencies>
+
 	<profiles>
 		<profile>
 			<id>e2e-travis1</id>
@@ -153,6 +170,32 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<!-- <version>3.1.0</version> -->
+				<executions>
+					<execution>
+						<id>copy-resources</id>
+						<!-- here the phase you need -->
+						<phase>package</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${basedir}/test-scripts/hadoop</outputDirectory>
+							<resources>
+								<resource>
+									<directory>../flink-yarn-tests/target/</directory>
+									<filtering>true</filtering>
+									<includes>
+										<include>yarn.classpath</include>
+									</includes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-deploy-plugin</artifactId>
