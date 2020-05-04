@@ -19,7 +19,7 @@
 package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.categories.Hadoop;
+import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
@@ -51,9 +51,11 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
@@ -63,7 +65,7 @@ import static org.junit.Assert.assertThat;
  * End-to-end test for the kafka SQL connectors.
  */
 @RunWith(Parameterized.class)
-@Category(value = {TravisGroup1.class, FailsOnJava11.class, Hadoop.class})
+@Category(value = {TravisGroup1.class, FailsOnJava11.class})
 public class SQLClientKafkaITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SQLClientKafkaITCase.class);
@@ -93,9 +95,12 @@ public class SQLClientKafkaITCase extends TestLogger {
 	private Path result;
 	private Path sqlClientSessionConf;
 
+	private static final DownloadCache downloadCache = DownloadCache.get();
+
 	private static final Path sqlAvroJar = TestUtils.getResourceJar(".*avro.jar");
 	private static final Path sqlJsonJar = TestUtils.getResourceJar(".*json.jar");
 	private static final Path sqlToolBoxJar = TestUtils.getResourceJar(".*SqlToolbox.jar");
+	private final List<Path> apacheAvroJars = new ArrayList<>();
 	private final Path sqlConnectorKafkaJar;
 
 	public SQLClientKafkaITCase(String kafkaVersion, String kafkaSQLVersion, String kafkaSQLJarPattern) {
@@ -106,11 +111,16 @@ public class SQLClientKafkaITCase extends TestLogger {
 	}
 
 	@Before
-	public void before() {
+	public void before() throws Exception {
+		downloadCache.before();
 		Path tmpPath = tmp.getRoot().toPath();
 		LOG.info("The current temporary path: {}", tmpPath);
 		this.sqlClientSessionConf = tmpPath.resolve("sql-client-session.conf");
 		this.result = tmpPath.resolve("result");
+
+		apacheAvroJars.add(downloadCache.getOrDownload("https://repo1.maven.org/maven2/org/apache/avro/avro/1.8.2/avro-1.8.2.jar", tmpPath));
+		apacheAvroJars.add(downloadCache.getOrDownload("https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-core-asl/1.9.13/jackson-core-asl-1.9.13.jar", tmpPath));
+		apacheAvroJars.add(downloadCache.getOrDownload("https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-mapper-asl/1.9.13/jackson-mapper-asl-1.9.13.jar", tmpPath));
 	}
 
 	@Test
@@ -179,6 +189,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 		clusterController.submitSQLJob(new SQLJobSubmission.SQLJobSubmissionBuilder(sqlStatement1)
 				.addJar(sqlAvroJar)
+				.addJars(apacheAvroJars)
 				.addJar(sqlJsonJar)
 				.addJar(sqlConnectorKafkaJar)
 				.addJar(sqlToolBoxJar)
@@ -194,6 +205,7 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 		clusterController.submitSQLJob(new SQLJobSubmission.SQLJobSubmissionBuilder(sqlStatement2)
 				.addJar(sqlAvroJar)
+				.addJars(apacheAvroJars)
 				.addJar(sqlJsonJar)
 				.addJar(sqlConnectorKafkaJar)
 				.addJar(sqlToolBoxJar)
