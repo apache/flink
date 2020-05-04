@@ -168,8 +168,7 @@ public class JdbcTableSource implements
 		}
 
 		final JdbcDialect dialect = options.getDialect();
-		String query = dialect.getSelectFromStatement(
-			options.getTableName(), rowTypeInfo.getFieldNames(), new String[0]);
+		String query = getBaseQueryStatement(rowTypeInfo);
 		if (readOptions.getPartitionColumnName().isPresent()) {
 			long lowerBound = readOptions.getPartitionLowerBound().get();
 			long upperBound = readOptions.getPartitionUpperBound().get();
@@ -183,6 +182,12 @@ public class JdbcTableSource implements
 		builder.setQuery(query);
 
 		return builder.finish();
+	}
+
+	private String getBaseQueryStatement(RowTypeInfo rowTypeInfo) {
+		return readOptions.getQuery().orElseGet(() ->
+			options.getDialect().getSelectFromStatement(
+				options.getTableName(), rowTypeInfo.getFieldNames(), new String[0]));
 	}
 
 	@Override
