@@ -55,6 +55,8 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractServerHandler.class);
 
+	private static final long UNKNOWN_REQUEST_ID = -1;
+
 	/** The owning server of this handler. */
 	private final AbstractServerBase<REQ, RESP> server;
 
@@ -101,7 +103,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 		REQ request = null;
-		long requestId = -1L;
+		long requestId = UNKNOWN_REQUEST_ID;
 
 		try {
 			final ByteBuf buf = (ByteBuf) msg;
@@ -135,6 +137,10 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 				ctx.writeAndFlush(failure);
 			}
 		} catch (Throwable t) {
+			LOG.error("Error while handling request with ID [{}]",
+				requestId == UNKNOWN_REQUEST_ID ? "unknown" : requestId,
+				t);
+
 			final String stringifiedCause = ExceptionUtils.stringifyException(t);
 
 			String errMsg;
@@ -148,7 +154,6 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 				err = MessageSerializer.serializeServerFailure(ctx.alloc(), new RuntimeException(errMsg));
 			}
 
-			LOG.debug(errMsg);
 			ctx.writeAndFlush(err);
 
 		} finally {
