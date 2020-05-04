@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
@@ -50,7 +49,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -60,7 +58,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 
@@ -80,12 +77,6 @@ public final class Utils {
 	/** Yarn site xml file name populated in YARN container for secure IT run. */
 	public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
 
-	/** Number of total retries to fetch the remote resources after uploaded in case of FileNotFoundException. */
-	public static final int REMOTE_RESOURCES_FETCH_NUM_RETRY = 3;
-
-	/** Time to wait in milliseconds between each remote resources fetch in case of FileNotFoundException. */
-	public static final int REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI = 100;
-
 	public static void setupYarnClassPath(Configuration conf, Map<String, String> appMasterEnv) {
 		addToEnvironment(
 			appMasterEnv,
@@ -97,85 +88,6 @@ public final class Utils {
 		for (String c : applicationClassPathEntries) {
 			addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), c.trim());
 		}
-	}
-
-	/**
-	 * Copy a local file to a remote file system.
-	 *
-	 * @param fs
-	 * 		remote filesystem
-	 * @param appId
-	 * 		application ID
-	 * @param localSrcPath
-	 * 		path to the local file
-	 * @param homedir
-	 * 		remote home directory base (will be extended)
-	 * @param relativeTargetPath
-	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
-	 * @param replication
-	 * 	    number of replications of a remote file to be created
-	 *
-	 * @return Path to remote file (usually hdfs)
-	 */
-	static Tuple2<Path, Long> uploadLocalFileToRemote(
-		FileSystem fs,
-		String appId,
-		Path localSrcPath,
-		Path homedir,
-		String relativeTargetPath,
-		int replication) throws IOException {
-
-		File localFile = new File(localSrcPath.toUri().getPath());
-		if (localFile.isDirectory()) {
-			throw new IllegalArgumentException("File to copy must not be a directory: " +
-				localSrcPath);
-		}
-
-		// copy resource to HDFS
-		String suffix =
-			".flink/"
-				+ appId
-				+ (relativeTargetPath.isEmpty() ? "" : "/" + relativeTargetPath)
-				+ "/" + localSrcPath.getName();
-
-		Path dst = new Path(homedir, suffix);
-
-		LOG.debug("Copying from {} to {} with replication number {}", localSrcPath, dst, replication);
-		fs.copyFromLocalFile(false, true, localSrcPath, dst);
-		fs.setReplication(dst, (short) replication);
-
-		// Note: If we directly used registerLocalResource(FileSystem, Path) here, we would access the remote
-		//       file once again which has problems with eventually consistent read-after-write file
-		//       systems. Instead, we decide to wait until the remote file be available.
-
-		FileStatus[] fss = null;
-		int iter = 1;
-		while (iter <= REMOTE_RESOURCES_FETCH_NUM_RETRY + 1) {
-			try {
-				fss = fs.listStatus(dst);
-				break;
-			} catch (FileNotFoundException e) {
-				LOG.debug("Got FileNotFoundException while fetching uploaded remote resources at retry num {}", iter);
-				try {
-					LOG.debug("Sleeping for {}ms", REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI);
-					TimeUnit.MILLISECONDS.sleep(REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI);
-				} catch (InterruptedException ie) {
-					LOG.warn("Failed to sleep for {}ms at retry num {} while fetching uploaded remote resources",
-						REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI, iter, ie);
-				}
-				iter++;
-			}
-		}
-
-		final long dstModificationTime;
-		if (fss != null && fss.length >  0) {
-			dstModificationTime = fss[0].getModificationTime();
-			LOG.debug("Got modification time {} from remote path {}", dstModificationTime, dst);
-		} else {
-			dstModificationTime = localFile.lastModified();
-			LOG.debug("Failed to fetch remote modification time from {}, using local timestamp {}", dst, dstModificationTime);
-		}
-		return new Tuple2<>(dst, dstModificationTime);
 	}
 
 	/**

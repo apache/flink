@@ -21,14 +21,18 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.IOUtils;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -40,6 +44,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -48,6 +53,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Javadoc.
  */
 class YarnFileUploader implements AutoCloseable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(YarnFileUploader.class);
 
 	private final FileSystem fileSystem;
 
@@ -127,10 +134,27 @@ class YarnFileUploader implements AutoCloseable {
 	}
 
 	Tuple2<Path, Long> uploadLocalFileToRemote(
-			Path localSrcPath,
-			String relativeTargetPath,
-			int replication) throws IOException {
-		return Utils.uploadLocalFileToRemote(fileSystem, applicationId.toString(), localSrcPath, homeDir, relativeTargetPath, replication);
+			final Path localSrcPath,
+			final String relativeDstPath,
+			final int replicationFactor) throws IOException {
+
+		final File localFile = new File(localSrcPath.toUri().getPath());
+		checkArgument(!localFile.isDirectory(), "File to copy cannot be a directory: " + localSrcPath);
+
+		final Path dst = copyToRemoteApplicationDir(localSrcPath, relativeDstPath, replicationFactor);
+
+		// Note: If we directly used registerLocalResource(FileSystem, Path) here, we would access the remote
+		//       file once again which has problems with eventually consistent read-after-write file
+		//       systems. Instead, we decide to wait until the remote file be available.
+
+		final FileStatus[] fss = waitForTransferToComplete(dst);
+		if (fss == null || fss.length <=  0) {
+			LOG.debug("Failed to fetch remote modification time from {}, using local timestamp {}", dst, localFile.lastModified());
+			return Tuple2.of(dst, localFile.lastModified());
+		}
+
+		LOG.debug("Got modification time {} from remote path {}", fss[0].getModificationTime(), dst);
+		return Tuple2.of(dst, fss[0].getModificationTime());
 	}
 
 	/**
@@ -212,6 +236,44 @@ class YarnFileUploader implements AutoCloseable {
 		resources.stream().sorted().forEach(classPaths::add);
 		archives.stream().sorted().forEach(classPaths::add);
 		return classPaths;
+	}
+
+	private Path copyToRemoteApplicationDir(
+			final Path localSrcPath,
+			final String relativeDstPath,
+			final int replicationFactor) throws IOException {
+
+		final Path applicationDir = getApplicationDirPath(homeDir, applicationId);
+		final String suffix = (relativeDstPath.isEmpty() ? "" : relativeDstPath + "/") + localSrcPath.getName();
+		final Path dst = new Path(applicationDir, suffix);
+
+		LOG.debug("Copying from {} to {} with replication factor {}", localSrcPath, dst, replicationFactor);
+
+		fileSystem.copyFromLocalFile(false, true, localSrcPath, dst);
+		fileSystem.setReplication(dst, (short) replicationFactor);
+		return dst;
+	}
+
+	private FileStatus[] waitForTransferToComplete(Path dst) throws IOException {
+		final int noOfRetries = 3;
+		final int retryDelayMs = 100;
+
+		int iter = 1;
+		while (iter <= noOfRetries + 1) {
+			try {
+				return fileSystem.listStatus(dst);
+			} catch (FileNotFoundException e) {
+				LOG.debug("Got FileNotFoundException while fetching uploaded remote resources at retry num {}", iter);
+				try {
+					LOG.debug("Sleeping for {}ms", retryDelayMs);
+					TimeUnit.MILLISECONDS.sleep(retryDelayMs);
+				} catch (InterruptedException ie) {
+					LOG.warn("Failed to sleep for {}ms at retry num {} while fetching uploaded remote resources", retryDelayMs, iter, ie);
+				}
+				iter++;
+			}
+		}
+		return null;
 	}
 
 	private static boolean isFlinkDistJar(String fileName) {
