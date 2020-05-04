@@ -69,7 +69,7 @@ class CalcValidationTest extends TableTestBase {
     val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
 
     // Must fail. Field foo does not exist
-    t.select("a + 1, foo + 2")
+    t.select($"a" + 1, $"foo" + 2)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -78,7 +78,7 @@ class CalcValidationTest extends TableTestBase {
     val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
 
     // Must fail. Field foo does not exist
-    t.select("a + 1 as foo, b + 2 as foo")
+    t.select($"a" + 1 as "foo", $"b" + 2 as "foo")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -87,7 +87,7 @@ class CalcValidationTest extends TableTestBase {
     val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
 
     // Must fail. Field foo does not exist.
-    t.filter("foo = 17")
+    t.filter($"foo" === 17)
   }
 
   @Test
@@ -110,7 +110,7 @@ class CalcValidationTest extends TableTestBase {
     }
 
     try {
-      util.addTable[(Int, Long, String)]("Table3").as('*, 'b, 'c)
+      util.addTable[(Int, Long, String)]("Table3").as("*", "b", "c")
       fail("ValidationException expected")
     } catch {
       case _: ValidationException => //ignore

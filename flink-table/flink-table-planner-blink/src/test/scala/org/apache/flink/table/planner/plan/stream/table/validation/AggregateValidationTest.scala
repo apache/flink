@@ -105,7 +105,7 @@ class AggregateValidationTest extends TableTestBase {
     table
       .groupBy('a)
       // must fail. Only AggregateFunction can be used in aggregate
-      .aggregate("func(c) as d")
+      .aggregate(call("func", $"c") as "d")
       .select('a, 'd)
   }
 

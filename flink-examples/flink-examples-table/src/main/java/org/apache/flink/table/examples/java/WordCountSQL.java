@@ -23,6 +23,8 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /**
  * Simple example that shows how the Batch SQL API is used in Java.
  *
@@ -49,7 +51,7 @@ public class WordCountSQL {
 			new WC("Hello", 1));
 
 		// register the DataSet as a view "WordCount"
-		tEnv.createTemporaryView("WordCount", input, "word, frequency");
+		tEnv.createTemporaryView("WordCount", input, $("word"), $("frequency"));
 
 		// run a SQL query on the Table and retrieve the result as a new Table
 		Table table = tEnv.sqlQuery(

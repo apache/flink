@@ -322,7 +322,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 					TypeInformation.of(new TypeHint<Either<String, Integer>>() { })
 				),
 				$("either"))
-			.select("either");
+			.select($("either"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();

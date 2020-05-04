@@ -136,8 +136,8 @@ class TableSourceITCase extends AbstractTestBase {
 
     tEnv.registerTableSource(tableName, TestFilterableTableSource())
     tEnv.scan(tableName)
-      .where("amount > 4 && price < 9")
-      .select("id, name")
+      .where($"amount" > 4 && $"price" < 9)
+      .select($"id", $"name")
       .addSink(new StreamITCase.StringSink[Row])
 
     env.execute()

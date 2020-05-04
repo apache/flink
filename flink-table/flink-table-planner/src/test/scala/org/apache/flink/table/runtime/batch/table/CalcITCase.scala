@@ -530,7 +530,7 @@ class CalcITCase(
     data.+=((2, 2L, "John#19"))
     data.+=((3, 2L, "Anna#44"))
     data.+=((4, 3L, "nosharp"))
-    val in = env.fromCollection(data).toTable(tableEnv).as('a, 'b, 'c)
+    val in = env.fromCollection(data).toTable(tableEnv).as("a", "b", "c")
 
     val func0 = new Func13("default")
     val func1 = new Func13("Sunny")

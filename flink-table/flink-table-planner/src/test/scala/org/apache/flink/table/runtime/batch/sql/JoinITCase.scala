@@ -47,8 +47,8 @@ class JoinITCase(
     val tEnv = BatchTableEnvironment.create(env, config)
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e"
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "h")
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
@@ -67,8 +67,8 @@ class JoinITCase(
 
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e AND b < 2"
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "h")
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
@@ -87,8 +87,8 @@ class JoinITCase(
 
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e AND a < 6 AND h < b"
 
-    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "h")
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
@@ -107,8 +107,8 @@ class JoinITCase(
 
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE a = d AND b = h"
 
-    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "h")
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
@@ -130,8 +130,8 @@ class JoinITCase(
       "SELECT Table5.c, T.`1-_./Ü` FROM (SELECT a, b, c AS `1-_./Ü` FROM Table3) AS T, Table5 " +
       "WHERE a = d AND a < 4"
 
-    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'c)
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "c")
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
@@ -191,8 +191,8 @@ class JoinITCase(
 
     val sqlQuery = "SELECT c, g FROM Table3 FULL OUTER JOIN Table5 ON b = e"
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "h")
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
@@ -214,8 +214,8 @@ class JoinITCase(
 
     val sqlQuery = "SELECT c, g FROM Table5 LEFT OUTER JOIN Table3 ON b = e"
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "h")
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
@@ -236,8 +236,8 @@ class JoinITCase(
 
     val sqlQuery = "SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b = e"
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "h")
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
@@ -254,7 +254,7 @@ class JoinITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
-    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
+    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a1", "a2", "a3")
     tEnv.registerTable("A", table)
 
     val sqlQuery2 = "SELECT * FROM (SELECT count(*) FROM A) CROSS JOIN A"
@@ -271,7 +271,7 @@ class JoinITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
-    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
+    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a1", "a2", "a3")
     tEnv.registerTable("A", table)
 
     val sqlQuery1 = "SELECT * FROM A CROSS JOIN (SELECT count(*) FROM A)"
@@ -288,7 +288,7 @@ class JoinITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
-    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
+    val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a1", "a2", "a3")
     tEnv.registerTable("A", table)
 
     val sqlQuery1 = "SELECT * FROM A CROSS JOIN (SELECT count(*) FROM A HAVING count(*) < 0)"
@@ -304,7 +304,7 @@ class JoinITCase(
       "SELECT a, cnt " +
       "FROM (SELECT cnt FROM (SELECT COUNT(*) AS cnt FROM B) WHERE cnt < 0) RIGHT JOIN A ON a < cnt"
 
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("a", "b", "c", "d", "e")
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
     tEnv.registerTable("A", ds1)
     tEnv.registerTable("B", ds2)
@@ -331,7 +331,7 @@ class JoinITCase(
     val sqlQuery =
       "SELECT a, cnt FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt = a"
 
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("a", "b", "c", "d", "e")
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
     tEnv.registerTable("A", ds1)
     tEnv.registerTable("B", ds2)
@@ -355,7 +355,7 @@ class JoinITCase(
     val sqlQuery =
       "SELECT a, cnt FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt > a"
 
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("a", "b", "c", "d", "e")
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
     tEnv.registerTable("A", ds1)
     tEnv.registerTable("B", ds2)
@@ -381,7 +381,7 @@ class JoinITCase(
       "FROM A LEFT JOIN (SELECT cnt FROM (SELECT COUNT(*) AS cnt FROM B) WHERE cnt < 0) ON cnt > a"
 
     val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv)
-    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("A", ds2)
     tEnv.registerTable("B", ds1)
 
@@ -402,7 +402,7 @@ class JoinITCase(
     val sqlQuery =
       "SELECT a, cnt FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) ON cnt = a"
 
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("a", "b", "c", "d", "e")
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
     tEnv.registerTable("A", ds1)
     tEnv.registerTable("B", ds2)
@@ -427,7 +427,7 @@ class JoinITCase(
     val sqlQuery =
       "SELECT a, cnt FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) ON cnt < a"
 
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("a", "b", "c", "d", "e")
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
     tEnv.registerTable("A", ds1)
     tEnv.registerTable("B", ds2)
@@ -453,7 +453,7 @@ class JoinITCase(
       "SELECT a, cnt, cnt2 " +
       "FROM t1 LEFT JOIN (SELECT COUNT(*) AS cnt,COUNT(*) AS cnt2 FROM t2 ) AS x ON a = cnt"
 
-    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("a", "b", "c", "d", "e")
     val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
     tEnv.registerTable("t1", ds1)
     tEnv.registerTable("t2", ds2)

@@ -114,7 +114,7 @@ class TableEnvironmentITCase(
 
     val sqlQuery = "SELECT MyTable.a2, MyTable.a1._2 FROM MyTable"
 
-    val ds = env.fromElements(((12, true), "Hello")).toTable(tEnv).as('a1, 'a2)
+    val ds = env.fromElements(((12, true), "Hello")).toTable(tEnv).as("a1", "a2")
     tEnv.registerTable("MyTable", ds)
 
     val result = tEnv.sqlQuery(sqlQuery)
@@ -131,7 +131,7 @@ class TableEnvironmentITCase(
     val tEnv = BatchTableEnvironment.create(env)
     MemoryTableSourceSinkUtil.clear()
 
-    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e", "f")
@@ -153,7 +153,7 @@ class TableEnvironmentITCase(
     val tEnv = BatchTableEnvironment.create(env)
     MemoryTableSourceSinkUtil.clear()
 
-    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e", "f")
@@ -236,7 +236,7 @@ class TableEnvironmentITCase(
     val tEnv = BatchTableEnvironment.create(env)
     MemoryTableSourceSinkUtil.clear()
 
-    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e", "f")

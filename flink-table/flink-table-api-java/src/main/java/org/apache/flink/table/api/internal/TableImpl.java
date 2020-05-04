@@ -45,12 +45,15 @@ import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.api.Expressions.lit;
 
 /**
  * Implementation for {@link Table}.
@@ -156,8 +159,17 @@ public class TableImpl implements Table {
 	}
 
 	@Override
-	public Table as(String fields) {
-		List<Expression> fieldsExprs = ExpressionParser.parseExpressionList(fields);
+	public Table as(String field, String... fields) {
+		final List<Expression> fieldsExprs;
+		if (fields.length == 0 && operationTree.getTableSchema().getFieldCount() > 1) {
+			fieldsExprs = ExpressionParser.parseExpressionList(field);
+		} else {
+			fieldsExprs = new ArrayList<>();
+			fieldsExprs.add(lit(field));
+			for (String extraField : fields) {
+				fieldsExprs.add(lit(extraField));
+			}
+		}
 		return createTable(operationTreeBuilder.alias(fieldsExprs, operationTree));
 	}
 

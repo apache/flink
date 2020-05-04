@@ -34,7 +34,7 @@ class SetOperatorsTest extends TableTestBase {
     val t = util.addTable[((Int, Int), String, (Int, Int))]("A", 'a, 'b, 'c)
 
     val elements = t.where("b === 'two'").select("a").as("a1")
-    val in = t.select("*").where(s"c.in($elements)")
+    val in = t.select($"*").where(s"c.in($elements)")
 
     val expected = unaryNode(
       "DataSetCalc",

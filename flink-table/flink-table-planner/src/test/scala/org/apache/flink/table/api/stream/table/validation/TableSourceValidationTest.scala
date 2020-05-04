@@ -64,7 +64,7 @@ class TableSourceValidationTest extends TableTestBase {
     val t = util.tableEnv
       .scan("T")
       .select('price, 'id, 'amount)
-      .where("price * 2 < 32")
+      .where($"price" * 2 < 32)
 
     // must fail since pushed filter is not explained in source
     util.explain(t)

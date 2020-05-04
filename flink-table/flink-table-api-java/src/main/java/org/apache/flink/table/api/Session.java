@@ -54,7 +54,9 @@ public final class Session {
 	 * @param gap specifies how long (as interval of milliseconds) to wait for new data before
 	 *            closing the session window.
 	 * @return a partially defined session window
+	 * @deprecated use {@link #withGap(Expression)}
 	 */
+	@Deprecated
 	public static SessionWithGap withGap(String gap) {
 		return withGap(ExpressionParser.parseExpression(gap));
 	}

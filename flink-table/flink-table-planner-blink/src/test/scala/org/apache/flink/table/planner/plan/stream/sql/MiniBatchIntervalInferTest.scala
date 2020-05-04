@@ -160,7 +160,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
 
     util.addFunction(
       "Rates",
-      util.tableEnv.scan("RatesHistory").createTemporalTableFunction("rowtime", "b"))
+      util.tableEnv.scan("RatesHistory").createTemporalTableFunction($"rowtime", $"b"))
 
     val sqlQuery =
       """

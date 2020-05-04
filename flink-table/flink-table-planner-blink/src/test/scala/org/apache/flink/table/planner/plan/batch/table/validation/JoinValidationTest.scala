@@ -114,7 +114,7 @@ class JoinValidationTest extends TableTestBase {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv1, "a, b, c")
     val ds2 = CollectionBatchExecTable.get5TupleDataSet(tEnv2, "d, e, f, g, c")
     // Must fail. Tables are bound to different TableEnvironments.
-    ds1.join(ds2).where("a === d").select("g.count")
+    ds1.join(ds2).where($"a" === $"d").select($"g".count)
   }
 
   @Test(expected = classOf[TableException])

@@ -30,6 +30,7 @@ import org.junit.rules.ExpectedException;
 
 import scala.Some;
 
+import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.database;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.root;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.table;
@@ -106,7 +107,7 @@ public class ViewExpansionTest {
 			).build();
 
 		StreamTableTestUtil util = new StreamTableTestUtil(new Some<>(catalogManager));
-		Table tab = util.javaTableEnv().scan("builtin", "default", "view").select("*");
+		Table tab = util.javaTableEnv().scan("builtin", "default", "view").select($("*"));
 		util.verifyJavaTable(
 			tab,
 			source("builtin", "default", "tab1"));
@@ -138,7 +139,7 @@ public class ViewExpansionTest {
 			).build();
 
 		StreamTableTestUtil util = new StreamTableTestUtil(new Some<>(catalogManager));
-		Table tab = util.javaTableEnv().scan("builtin", "default", "view").select("*");
+		Table tab = util.javaTableEnv().scan("builtin", "default", "view").select($("*"));
 		final String expected = "DataStreamCalc(select=[a, b, CAST(EXPR$2) AS c])\n"
 			+ "DataStreamGroupAggregate(groupBy=[a, b], select=[a, b, COUNT(c) AS EXPR$2])\n"
 			+ "StreamTableSourceScan(table=[[builtin, default, tab1]], fields=[a, b, c], source=[isTemporary=[false]])";
@@ -195,7 +196,7 @@ public class ViewExpansionTest {
 
 		tableEnv.useCatalog("builtin");
 		tableEnv.useDatabase("default");
-		Table tab = tableEnv.scan("builtin", "different", "view").select("*");
+		Table tab = tableEnv.scan("builtin", "different", "view").select($("*"));
 
 		//Note: even though default path is set to builtin.default, the default path for view expansion
 		//is the path of the view.
@@ -235,7 +236,7 @@ public class ViewExpansionTest {
 
 		tableEnv.useCatalog("builtin");
 		tableEnv.useDatabase("default");
-		Table tab = tableEnv.scan("different_cat", "different_db", "view").select("*");
+		Table tab = tableEnv.scan("different_cat", "different_db", "view").select($("*"));
 
 		//Note: even though default path is set to builtin.default, the default catalog for the view expansion
 		//is the catalog of the view.

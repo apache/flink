@@ -71,8 +71,8 @@ class JoinITCase(
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "h")
 
     val joinT = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
 
