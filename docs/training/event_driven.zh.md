@@ -34,12 +34,12 @@ under the License.
 `ProcessFunction` 将事件处理与 Timer 和 State 结合在一起，使其成为流处理应用的强大构建模块。
 这是使用 Flink 创建事件驱动的应用程序的基础。它和 `RichFlatMapFunction` 十分相似， 但是增加了 Timer。
 
-### 实例
+### 示例
 
 如果你已经体验了
 [流式分析训练]({% link training/streaming_analytics.zh.md %})
 的[动手实践]({% link training/streaming_analytics.zh.md %}#hands-on)，
-你会忆起，它是采用 `TumblingEventTimeWindow` 来计算每个小时内每个司机的小费总和，
+你应该记得，它是采用 `TumblingEventTimeWindow` 来计算每个小时内每个司机的小费总和，
 像下面的示例这样：
 
 {% highlight java %}
@@ -227,7 +227,7 @@ RocksDB State Backend 可以附加到 `ListState`，而无需进行（反）序�
 
 旁路输出（Side outputs）是一种方便的方法。除了错误报告之外，旁路输出也是实现流的 n 路分割的好方法。
 
-### 实例
+### 示例
 
 现在你可以对上一节中忽略的延迟事件执行某些操作。
 
