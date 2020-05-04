@@ -63,7 +63,7 @@ under the License.
 			<version>${orc.version}</version>
 			<classifier>nohive</classifier>
 			<exclusions>
-				<!-- Exclude ORC's Hadoop dependency and pull in Flink's shaded Hadoop. -->
+				<!-- Exclude ORC's Hadoop dependency and pull in Flink's Hadoop. -->
 				<exclusion>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-common</artifactId>
@@ -81,12 +81,17 @@ under the License.
 
 		<!-- Replacement for ORC's Hadoop dependency. -->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2</artifactId>
-			<version>${hadoop.version}-${flink.shaded.version}</version>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		
 		<!-- test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -97,6 +102,22 @@ under the License.
 		</dependency>
 
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<!-- This profile adds dependencies needed to execute the tests
+			with Hadoop 3 -->
+			<id>hadoop3-tests</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs-client</artifactId>
+					<version>${hadoop.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
