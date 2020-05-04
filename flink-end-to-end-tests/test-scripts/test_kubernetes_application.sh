@@ -20,27 +20,13 @@
 source "$(dirname "$0")"/common_kubernetes.sh
 
 CLUSTER_ROLE_BINDING="flink-role-binding-default"
-CLUSTER_ID="flink-native-k8s-session-1"
-FLINK_IMAGE_NAME="test_kubernetes_session"
-LOCAL_OUTPUT_PATH="${TEST_DATA_DIR}/out/wc_out"
-OUTPUT_PATH="/tmp/wc_out"
-ARGS="--output ${OUTPUT_PATH}"
+CLUSTER_ID="flink-native-k8s-application-1"
+FLINK_IMAGE_NAME="test_kubernetes_application"
+LOCAL_LOGS_PATH="${TEST_DATA_DIR}/log"
 
 function internal_cleanup {
     kubectl delete deployment ${CLUSTER_ID}
     kubectl delete clusterrolebinding ${CLUSTER_ROLE_BINDING}
-}
-
-function setConsoleLogging {
-    cat >> $FLINK_DIR/conf/log4j.properties <<END
-rootLogger.appenderRef.console.ref = ConsoleAppender
-
-# Log all infos to the console
-appender.console.name = ConsoleAppender
-appender.console.type = CONSOLE
-appender.console.layout.type = PatternLayout
-appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] %-60c %x - %m%n
-END
 }
 
 setConsoleLogging
@@ -48,30 +34,29 @@ setConsoleLogging
 start_kubernetes
 
 cd "$DOCKER_MODULE_DIR"
-# Build a Flink image without any user jars
-build_image_with_jar ${TEST_INFRA_DIR}/test-data/words ${FLINK_IMAGE_NAME}
+build_image_with_jar ${FLINK_DIR}/examples/batch/WordCount.jar ${FLINK_IMAGE_NAME}
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
 
-mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
+mkdir -p "$LOCAL_LOGS_PATH"
 
 # Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
-"$FLINK_DIR"/bin/kubernetes-session.sh -Dkubernetes.cluster-id=${CLUSTER_ID} \
+"$FLINK_DIR"/bin/flink run-application -t kubernetes-application \
+    -Dkubernetes.cluster-id=${CLUSTER_ID} \
     -Dkubernetes.container.image=${FLINK_IMAGE_NAME} \
     -Djobmanager.memory.process.size=1088m \
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
     -Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%" \
-    -Dkubernetes.rest-service.exposed.type=NodePort
+    -Dkubernetes.rest-service.exposed.type=NodePort \
+    local:///opt/flink/usrlib/WordCount.jar
 
 kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
 wait_rest_endpoint_up_k8s $jm_pod_name
 
-"$FLINK_DIR"/bin/flink run -e kubernetes-session \
-    -Dkubernetes.cluster-id=${CLUSTER_ID} \
-    ${FLINK_DIR}/examples/batch/WordCount.jar ${ARGS}
+# The Flink cluster will be destroyed immediately once the job finished or failed. So we check jobmanager logs
+# instead of checking the result
+kubectl logs -f $jm_pod_name >$LOCAL_LOGS_PATH/jobmanager.log
+grep -E "Job [A-Za-z0-9]+ reached globally terminal state FINISHED" $LOCAL_LOGS_PATH/jobmanager.log
 
-kubectl cp `kubectl get pods | awk '/taskmanager/ {print $1}'`:${OUTPUT_PATH} ${LOCAL_OUTPUT_PATH}
-
-check_result_hash "WordCount" "${LOCAL_OUTPUT_PATH}" "${RESULT_HASH}"

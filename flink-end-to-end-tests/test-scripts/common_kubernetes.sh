@@ -157,4 +157,25 @@ function wait_rest_endpoint_up_k8s {
   exit 1
 }
 
+function cleanup {
+    if [ $TRAPPED_EXIT_CODE != 0 ];then
+      debug_and_show_logs
+    fi
+    internal_cleanup
+    kubectl wait --for=delete pod --all=true
+    stop_kubernetes
+}
+
+function setConsoleLogging {
+    cat >> $FLINK_DIR/conf/log4j.properties <<END
+rootLogger.appenderRef.console.ref = ConsoleAppender
+
+# Log all infos to the console
+appender.console.name = ConsoleAppender
+appender.console.type = CONSOLE
+appender.console.layout.type = PatternLayout
+appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] %-60c %x - %m%n
+END
+}
+
 on_exit cleanup

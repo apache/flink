@@ -26,16 +26,10 @@ export OUTPUT_FILE=kubernetes_wc_out
 export FLINK_JOB_PARALLELISM=1
 export FLINK_JOB_ARGUMENTS='"--output", "/cache/kubernetes_wc_out"'
 
-SUCCEEDED=1
-
-function cleanup {
-    if [ $SUCCEEDED != 0 ];then
-      debug_and_show_logs
-    fi
+function internal_cleanup {
     kubectl delete job flink-job-cluster
     kubectl delete service flink-job-cluster
     kubectl delete deployment flink-task-manager
-    stop_kubernetes
 }
 
 start_kubernetes
@@ -54,4 +48,3 @@ kubectl wait --for=condition=complete job/flink-job-cluster --timeout=1h
 kubectl cp `kubectl get pods | awk '/task-manager/ {print $1}'`:/cache/${OUTPUT_FILE} ${OUTPUT_VOLUME}/${OUTPUT_FILE}
 
 check_result_hash "WordCount" ${OUTPUT_VOLUME}/${OUTPUT_FILE} "${RESULT_HASH}"
-SUCCEEDED=$?
