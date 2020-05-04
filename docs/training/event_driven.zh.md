@@ -218,7 +218,7 @@ RocksDB State Backend 可以附加到 `ListState`，而无需进行（反）序�
 
 ### 介绍
 
-有几个很好的理由希望从 Flink operator 获得多个输出流，如下报告条目：
+有几个很好的理由希望从 Flink 算子获得多个输出流，如下报告条目：
 
 * 异常情况（exceptions）
 * 格式错误的事件（malformed events）
