@@ -276,7 +276,7 @@ ProcessFunctions 的另一个常见用例是过期过时 State。如果你回想
 [Rides and Fares Exercise](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %}/rides-and-fares)，
 其中使用 `RichCoFlatMapFunction` 来计算简单 Join，那么示例解决方案假设 TaxiRides 和 TaxiFares 
 完全匹配，每个 `rideId` 一对一。如果某个事件丢失，则同一 `rideId` 的另一个事件将永远保持 State。
-这可以作为 `Keyedcomprocessfunction` 实现，并且可以使用计时器来检测和清除任何过时的 State。
+这可以作为 `KeyedCoProcessFunction` 实现，并且可以使用计时器来检测和清除任何过时的 State。
 
 {% top %}
 
