@@ -192,11 +192,13 @@ public class YarnFileStageTest extends TestLogger {
 		try {
 			final List<Path> remotePaths = new ArrayList<>();
 			final HashMap<String, LocalResource> localResources = new HashMap<>();
-			final List<String> classpath = YarnClusterDescriptor.uploadAndRegisterFiles(
+
+			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
+			final YarnFileUploader uploader = YarnFileUploader.initialize(
+					targetFileSystem, targetDir, applicationId);
+
+			final List<String> classpath = uploader.uploadAndRegisterFiles(
 				Collections.singletonList(new File(srcPath.toUri().getPath())),
-				targetFileSystem,
-				targetDir,
-				ApplicationId.newInstance(0, 0),
 				remotePaths,
 				localResources,
 				localResourceDirectory,
@@ -255,11 +257,13 @@ public class YarnFileStageTest extends TestLogger {
 		try {
 			final List<Path> remotePaths = new ArrayList<>();
 			final HashMap<String, LocalResource> localResources = new HashMap<>();
-			final List<String> classpath = YarnClusterDescriptor.uploadAndRegisterFiles(
+
+			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
+			final YarnFileUploader uploader = YarnFileUploader.initialize(
+					targetFileSystem, targetDir, applicationId);
+
+			final List<String> classpath = uploader.uploadAndRegisterFiles(
 				Collections.singletonList(new File(srcDir, localFile)),
-				targetFileSystem,
-				targetDir,
-				ApplicationId.newInstance(0, 0),
 				remotePaths,
 				localResources,
 				localResourceDirectory,

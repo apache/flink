@@ -100,39 +100,6 @@ public final class Utils {
 	}
 
 	/**
-	 * Copy a local file to a remote file system and register as Local Resource.
-	 *
-	 * @param fs
-	 * 		remote filesystem
-	 * @param appId
-	 * 		application ID
-	 * @param localSrcPath
-	 * 		path to the local file
-	 * @param homedir
-	 * 		remote home directory base (will be extended)
-	 * @param relativeTargetPath
-	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
-	 * @param replication
-	 * 	    number of replications of a remote file to be created
-	 *
-	 * @return Path to remote file (usually hdfs)
-	 */
-	static Tuple2<Path, LocalResource> setupLocalResource(
-		FileSystem fs,
-		String appId,
-		Path localSrcPath,
-		Path homedir,
-		String relativeTargetPath,
-		int replication) throws IOException {
-
-		File localFile = new File(localSrcPath.toUri().getPath());
-		Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(fs, appId, localSrcPath, homedir, relativeTargetPath, replication);
-		// now create the resource instance
-		LocalResource resource = registerLocalResource(remoteFileInfo.f0, localFile.length(), remoteFileInfo.f1);
-		return Tuple2.of(remoteFileInfo.f0, resource);
-	}
-
-	/**
 	 * Copy a local file to a remote file system.
 	 *
 	 * @param fs
@@ -243,7 +210,7 @@ public final class Utils {
 	 *
 	 * @return YARN resource
 	 */
-	private static LocalResource registerLocalResource(
+	static LocalResource registerLocalResource(
 			Path remoteRsrcPath,
 			long resourceSize,
 			long resourceModificationTime) {
