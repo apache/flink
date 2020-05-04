@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 /**
  * Utility class for converting between Flink {@link WorkerResourceSpec} and Yarn {@link Resource}.
  */
-public class WorkerSpecContainerResourceAdapter {
+class WorkerSpecContainerResourceAdapter {
 	private static final Logger LOG = LoggerFactory.getLogger(WorkerSpecContainerResourceAdapter.class);
 
 	private final Configuration flinkConfig;
@@ -141,7 +141,7 @@ public class WorkerSpecContainerResourceAdapter {
 		return MathUtils.divideRoundUp(value, unitValue) * unitValue;
 	}
 
-	boolean resourceWithinMaxAllocation(final InternalContainerResource resource) {
+	private boolean resourceWithinMaxAllocation(final InternalContainerResource resource) {
 		return resource.memory <= maxMemMB && resource.vcores <= maxVcore;
 	}
 
