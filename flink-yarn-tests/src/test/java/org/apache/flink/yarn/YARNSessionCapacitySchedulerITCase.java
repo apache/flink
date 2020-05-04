@@ -155,9 +155,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	public void testStartYarnSessionClusterInQaTeamQueue() throws Exception {
 		runTest(() -> runWithArgs(new String[]{
 				"-j", flinkUberjar.getAbsolutePath(),
-				"-t", flinkLibFolder.getAbsolutePath(),
-				"-t", flinkShadedHadoopDir.getAbsolutePath(),
-				"-jm", "768m",
+				"-t", flinkLibFolder.getAbsolutePath(), "-jm", "768m",
 				"-tm", "1024m", "-qu", "qa-team"},
 			"JobManager Web Interface:", null, RunTypes.YARN_SESSION, 0));
 	}
@@ -177,7 +175,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			runWithArgs(new String[]{"run", "-m", "yarn-cluster",
 					"-yj", flinkUberjar.getAbsolutePath(),
 					"-yt", flinkLibFolder.getAbsolutePath(),
-					"-yt", flinkShadedHadoopDir.getAbsolutePath(),
 					"-ys", "2", //test that the job is executed with a DOP of 2
 					"-yjm", "768m",
 					"-ytm", "1024m", exampleJarLocation.getAbsolutePath()},
@@ -213,7 +210,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			runWithArgs(new String[]{"run", "-m", "yarn-cluster",
 					"-yj", flinkUberjar.getAbsolutePath(),
 					"-yt", flinkLibFolder.getAbsolutePath(),
-					"-yt", flinkShadedHadoopDir.getAbsolutePath(),
 					"-ys", "2", //test that the job is executed with a DOP of 2
 					"-yjm", "768m",
 					"-ytm", taskManagerMemoryMB + "m",
@@ -251,7 +247,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			final Runner yarnSessionClusterRunner = startWithArgs(new String[]{
 					"-j", flinkUberjar.getAbsolutePath(),
 					"-t", flinkLibFolder.getAbsolutePath(),
-					"-t", flinkShadedHadoopDir.getAbsolutePath(),
 					"-jm", "768m",
 					"-tm", "1024m",
 					"-s", "3", // set the slots 3 to check if the vCores are set properly!
@@ -393,7 +388,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			try {
 				runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 					"-t", flinkLibFolder.getAbsolutePath(),
-					"-t", flinkShadedHadoopDir.getAbsolutePath(),
 					"-jm", "768m",
 					"-tm", "1024m",
 					"-qu", "doesntExist"}, "to unknown queue: doesntExist", null, RunTypes.YARN_SESSION, 1);
@@ -420,7 +414,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 					"-m", "yarn-cluster",
 					"-yj", flinkUberjar.getAbsolutePath(),
 					"-yt", flinkLibFolder.getAbsolutePath(),
-					"-yt", flinkShadedHadoopDir.getAbsolutePath(),
 					"-ys", "2",
 					"-yjm", "768m",
 					"-ytm", "1024m", exampleJarLocation.getAbsolutePath()},
@@ -495,7 +488,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"run", "-m", "yarn-cluster",
 				"-yj", flinkUberjar.getAbsolutePath(),
 				"-yt", flinkLibFolder.getAbsolutePath(),
-				"-yt", flinkShadedHadoopDir.getAbsolutePath(),
 				"-yjm", "768m",
 				"-yD", YarnConfigOptions.APPLICATION_TAGS.key() + "=test-tag",
 				"-ytm", "1024m",

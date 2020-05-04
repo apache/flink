@@ -74,7 +74,6 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -160,8 +159,6 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 				OperatingSystem.isLinux() || OperatingSystem.isMac() || OperatingSystem.isFreeBSD() || OperatingSystem.isSolaris());
 
 			final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
-			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
-
 			final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
 
 			try {
@@ -186,8 +183,6 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	public void testJobRecoversAfterKillingTaskManager() throws Exception {
 		runTest(() -> {
 			final YarnClusterDescriptor yarnClusterDescriptor = setupYarnClusterDescriptor();
-			yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkShadedHadoopDir.listFiles()));
-
 			final RestClusterClient<ApplicationId> restClusterClient = deploySessionCluster(yarnClusterDescriptor);
 			try {
 				final JobID jobId = submitJob(restClusterClient);
