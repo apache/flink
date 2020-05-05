@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -52,6 +53,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.IntStream;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -104,6 +107,50 @@ public class StreamTaskNetworkInputTest {
 
 		assertHasNextElement(input, output);
 		assertEquals(0, output.getNumberOfEmittedRecords());
+	}
+
+	@Test
+	public void testSnapshotAfterEndOfPartition() throws Exception {
+		int numInputChannels = 1;
+		int channelId = 0;
+		int checkpointId = 0;
+
+		VerifyRecordsDataOutput<Long> output = new VerifyRecordsDataOutput<>();
+		LongSerializer inSerializer = LongSerializer.INSTANCE;
+		StreamTestSingleInputGate<Long> inputGate = new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
+		TestRecordDeserializer[] deserializers = IntStream.range(0, numInputChannels)
+			.mapToObj(index -> new TestRecordDeserializer(ioManager.getSpillingDirectoriesPaths()))
+			.toArray(TestRecordDeserializer[]::new);
+		StreamTaskNetworkInput<Long> input = new StreamTaskNetworkInput<>(
+			new CheckpointedInputGate(
+				inputGate.getInputGate(),
+				new CheckpointBarrierUnaligner(
+					new int[] { numInputChannels },
+					ChannelStateWriter.NO_OP,
+					"test",
+					new DummyCheckpointInvokable())),
+			inSerializer,
+			new StatusWatermarkValve(numInputChannels, output),
+			0,
+			deserializers);
+
+		inputGate.sendEvent(
+			new CheckpointBarrier(checkpointId, 0L, CheckpointOptions.forCheckpointWithDefaultLocation()),
+			channelId);
+		inputGate.sendElement(new StreamRecord<>(42L), channelId);
+
+		assertHasNextElement(input, output);
+		assertHasNextElement(input, output);
+		assertEquals(1, output.getNumberOfEmittedRecords());
+
+		// send EndOfPartitionEvent and ensure that deserializer has been released
+		inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, channelId);
+		input.emitNext(output);
+		assertNull(deserializers[channelId]);
+
+		// now snapshot all inflight buffers
+		CompletableFuture<Void> completableFuture = input.prepareSnapshot(ChannelStateWriter.NO_OP, checkpointId);
+		completableFuture.join();
 	}
 
 	@Test

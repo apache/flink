@@ -248,7 +248,8 @@ public abstract class AbstractInvokable {
 			ThrowingRunnable<E> runnable,
 			String descriptionFormat,
 			Object... descriptionArgs) throws E {
-		throw new UnsupportedOperationException(String.format("runInTaskThread not supported by %s", this.getClass().getName()));
+		throw new UnsupportedOperationException(
+			String.format("executeInTaskThread not supported by %s", getClass().getName()));
 	}
 
 	/**
