@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -36,13 +37,12 @@ import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.state.api.output.operators.BroadcastStateBootstrapOperator;
 import org.apache.flink.state.api.output.partitioner.HashSelector;
 import org.apache.flink.state.api.output.partitioner.KeyGroupRangePartitioner;
-import org.apache.flink.state.api.runtime.BoundedStreamConfig;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import java.util.OptionalInt;
 
 /**
@@ -175,12 +175,16 @@ public class BootstrapTransformation<T> {
 
 	@VisibleForTesting
 	StreamConfig getConfig(OperatorID operatorID, StateBackend stateBackend, StreamOperator<TaggedOperatorSubtaskState> operator) {
-		final StreamConfig config;
-		if (keyType == null) {
-			config = new BoundedStreamConfig();
-		} else {
+		final StreamConfig config = new StreamConfig(new Configuration());
+		config.setChainStart();
+		config.setCheckpointingEnabled(true);
+		config.setCheckpointMode(CheckpointingMode.EXACTLY_ONCE);
+
+		if (keyType != null) {
 			TypeSerializer<?> keySerializer = keyType.createSerializer(dataSet.getExecutionEnvironment().getConfig());
-			config = new BoundedStreamConfig(keySerializer, originalKeySelector);
+
+			config.setStateKeySerializer(keySerializer);
+			config.setStatePartitioner(0, originalKeySelector);
 		}
 
 		config.setStreamOperator(operator);
