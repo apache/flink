@@ -19,6 +19,8 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -176,7 +178,9 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 		}
 		try {
 			for (Buffer buffer : data) {
-				Preconditions.checkArgument(buffer.isBuffer());
+				if (!buffer.isBuffer()) {
+					throw new IllegalArgumentException(buildBufferTypeErrorMessage(buffer));
+				}
 			}
 		} catch (Exception e) {
 			for (Buffer buffer : data) {
@@ -189,4 +193,13 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 		return data;
 	}
 
+	private static String buildBufferTypeErrorMessage(Buffer buffer) {
+		try {
+			AbstractEvent event = EventSerializer.fromBuffer(buffer, ChannelStateWriterImpl.class.getClassLoader());
+			return String.format("Should be buffer but [%s] found", event);
+		}
+		catch (Exception ex) {
+			return "Should be buffer";
+		}
+	}
 }
