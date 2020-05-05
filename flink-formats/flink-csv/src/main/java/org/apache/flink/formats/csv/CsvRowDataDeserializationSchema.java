@@ -389,6 +389,7 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
 	private int convertToTime(JsonNode jsonNode) {
 		// csv currently is using Time.valueOf() to parse time string
 		LocalTime localTime = Time.valueOf(jsonNode.asText()).toLocalTime();
+		// TODO: FLINK-17525 support millisecond and nanosecond
 		// get number of milliseconds of the day
 		return localTime.toSecondOfDay() * 1000;
 	}
