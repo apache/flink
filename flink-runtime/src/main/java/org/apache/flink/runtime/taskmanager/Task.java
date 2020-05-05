@@ -1082,8 +1082,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 							Runnable cancelWatchdog = new TaskCancelerWatchDog(
 									executingThread,
 									taskManagerActions,
-									taskCancellationTimeout,
-									LOG);
+									taskCancellationTimeout);
 
 							Thread watchDogThread = new Thread(
 									executingThread.getThreadGroup(),
@@ -1460,9 +1459,6 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	 */
 	private static class TaskCancelerWatchDog implements Runnable {
 
-		/** The logger to report on the fatal condition. */
-		private final Logger log;
-
 		/** The executing task thread that we wait for to terminate. */
 		private final Thread executerThread;
 
@@ -1475,12 +1471,10 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		TaskCancelerWatchDog(
 				Thread executerThread,
 				TaskManagerActions taskManager,
-				long timeoutMillis,
-				Logger log) {
+				long timeoutMillis) {
 
 			checkArgument(timeoutMillis > 0);
 
-			this.log = log;
 			this.executerThread = executerThread;
 			this.taskManager = taskManager;
 			this.timeoutMillis = timeoutMillis;
@@ -1509,8 +1503,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				}
 			}
 			catch (Throwable t) {
-				ExceptionUtils.rethrowIfFatalError(t);
-				log.error("Error in Task Cancellation Watch Dog", t);
+				throw new FlinkRuntimeException("Error in Task Cancellation Watch Dog", t);
 			}
 		}
 	}
