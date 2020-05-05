@@ -32,6 +32,8 @@ import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -46,7 +48,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
  * Utility methods for dealing with field types in {@link org.apache.flink.table.sources.TableSource}
@@ -157,19 +161,35 @@ public final class TypeMappingUtils {
 			String physicalFieldName,
 			String logicalFieldName,
 			boolean isSource) {
-		checkIfCompatible(
-			physicalFieldType,
-			logicalFieldType,
-			(cause) -> new ValidationException(
+		Function<Throwable, ValidationException> exceptionSupplier = (cause) ->
+			new ValidationException(
 				String.format(
 					"Type %s of table field '%s' does not match with " +
-						"the physical type %s of the '%s' field of the %s.",
+						"the physical type %s of the '%s' field of the %s type.",
 					logicalFieldType,
 					logicalFieldName,
 					physicalFieldType,
 					physicalFieldName,
-					isSource ? "TableSource return type" : "TableSink consumed type"),
-				cause));
+					isSource ? "TableSource return" : "TableSink consumed"),
+				cause);
+		try {
+			final boolean typesCompatible;
+			if (isSource) {
+				typesCompatible = checkIfCompatible(
+					physicalFieldType,
+					logicalFieldType);
+			} else {
+				typesCompatible = checkIfCompatible(
+					logicalFieldType,
+					physicalFieldType);
+			}
+
+			if (!typesCompatible) {
+				throw exceptionSupplier.apply(null);
+			}
+		} catch (Exception e) {
+			throw exceptionSupplier.apply(e);
+		}
 	}
 
 	private static void verifyTimeAttributeType(TableColumn logicalColumn, String rowtimeOrProctime) {
@@ -243,38 +263,85 @@ public final class TypeMappingUtils {
 		);
 	}
 
-	private static void checkIfCompatible(
-			LogicalType physicalFieldType,
-			LogicalType logicalFieldType,
-			Function<Throwable, ValidationException> exceptionSupplier) {
-		if (LogicalTypeChecks.areTypesCompatible(physicalFieldType, logicalFieldType)) {
-			return;
+	private static boolean checkIfCompatible(
+			LogicalType sourceType,
+			LogicalType targetType) {
+		if (LogicalTypeChecks.areTypesCompatible(sourceType, targetType)) {
+			return true;
 		}
 
-		physicalFieldType.accept(new LogicalTypeDefaultVisitor<Void>() {
+		Boolean targetTypeCompatible = targetType.accept(new LogicalTypeDefaultVisitor<Boolean>() {
+
 			@Override
-			public Void visit(LogicalType other) {
+			public Boolean visit(VarCharType targetType) {
+				if (sourceType.isNullable() && !targetType.isNullable()) {
+					return false;
+				}
+				// CHAR and VARCHAR are very compatible within bounds
+				if ((hasRoot(sourceType, LogicalTypeRoot.CHAR) || hasRoot(sourceType, LogicalTypeRoot.VARCHAR)) &&
+					getLength(sourceType) <= targetType.getLength()) {
+					return true;
+				}
+				return defaultMethod(targetType);
+			}
+
+			@Override
+			public Boolean visit(VarBinaryType targetType) {
+				if (sourceType.isNullable() && !targetType.isNullable()) {
+					return false;
+				}
+				// BINARY and VARBINARY are very compatible within bounds
+				if ((hasRoot(sourceType, LogicalTypeRoot.BINARY) || hasRoot(sourceType, LogicalTypeRoot.VARBINARY)) &&
+					getLength(sourceType) <= targetType.getLength()) {
+					return true;
+				}
+				return defaultMethod(targetType);
+			}
+
+			@Override
+			protected Boolean defaultMethod(LogicalType logicalType) {
+				return false;
+			}
+		});
+
+		if (targetTypeCompatible) {
+			return true;
+		}
+
+		return sourceType.accept(new LogicalTypeDefaultVisitor<Boolean>() {
+			@Override
+			public Boolean visit(DecimalType sourceType1) {
+				//When targetType is a legacy decimal type, pass the check.
+				if (targetType instanceof LegacyTypeInformationType
+					&& targetType.getTypeRoot() == LogicalTypeRoot.DECIMAL) {
+					return true;
+				}
+				return defaultMethod(sourceType1);
+			}
+
+			@Override
+			public Boolean visit(LogicalType other) {
 				if (other instanceof LegacyTypeInformationType && other.getTypeRoot() == LogicalTypeRoot.DECIMAL) {
-					if (!(logicalFieldType instanceof DecimalType)) {
-						throw exceptionSupplier.apply(null);
+					if (!(targetType instanceof DecimalType)) {
+						return false;
 					}
 
-					DecimalType logicalDecimalType = (DecimalType) logicalFieldType;
+					DecimalType logicalDecimalType = (DecimalType) targetType;
 					if (logicalDecimalType.getPrecision() != DecimalType.MAX_PRECISION ||
-							logicalDecimalType.getScale() != 18) {
-						throw exceptionSupplier.apply(new ValidationException(
-							"Legacy decimal type can only be mapped to DECIMAL(38, 18)."));
+						logicalDecimalType.getScale() != 18) {
+						throw new ValidationException(
+							"Legacy decimal type can only be mapped to DECIMAL(38, 18).");
 					}
 
-					return null;
+					return true;
 				}
 
 				return defaultMethod(other);
 			}
 
 			@Override
-			protected Void defaultMethod(LogicalType logicalType) {
-				throw exceptionSupplier.apply(null);
+			protected Boolean defaultMethod(LogicalType logicalType) {
+				return false;
 			}
 		});
 	}
