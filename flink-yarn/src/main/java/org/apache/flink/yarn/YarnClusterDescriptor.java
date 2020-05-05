@@ -255,7 +255,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	 * Adds the given files to the list of files to ship.
 	 *
 	 * <p>Note that any file matching "<tt>flink-dist*.jar</tt>" will be excluded from the upload by
-	 * {@link YarnFileUploader#uploadAndRegisterFiles(Collection, List, Map, String, StringBuilder, int)}
+	 * {@link YarnApplicationFileUploader#setupMultipleLocalResources(Collection, List, Map, String, StringBuilder, int)}
 	 * since we upload the Flink uber jar ourselves and do not need to deploy it multiple times.
 	 *
 	 * @param shipFiles files to ship
@@ -441,7 +441,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			yarnClient.killApplication(applicationId);
 
 			try (final FileSystem fs = FileSystem.get(yarnConfiguration)) {
-				final Path applicationDir = YarnFileUploader
+				final Path applicationDir = YarnApplicationFileUploader
 						.getApplicationDirPath(fs.getHomeDirectory(), applicationId);
 
 				Utils.deleteApplicationFiles(Collections.singletonMap(
@@ -677,7 +677,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
-		final YarnFileUploader fileUploader = YarnFileUploader.initialize(
+		final YarnApplicationFileUploader fileUploader = YarnApplicationFileUploader.initialize(
 				fs, fs.getHomeDirectory(), appContext.getApplicationId()
 		);
 
@@ -768,7 +768,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		StringBuilder envShipFileList = new StringBuilder();
 
 		// upload and register ship files, these files will be added to classpath.
-		List<String> systemClassPaths = fileUploader.uploadAndRegisterFiles(
+		List<String> systemClassPaths = fileUploader.setupMultipleLocalResources(
 			systemShipFiles,
 			paths,
 			localResources,
@@ -777,7 +777,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			fileReplication);
 
 		// upload and register ship-only files
-		fileUploader.uploadAndRegisterFiles(
+		fileUploader.setupMultipleLocalResources(
 			shipOnlyFiles,
 			paths,
 			localResources,
@@ -785,7 +785,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			envShipFileList,
 			fileReplication);
 
-		final List<String> userClassPaths = fileUploader.uploadAndRegisterFiles(
+		final List<String> userClassPaths = fileUploader.setupMultipleLocalResources(
 			userJarFiles,
 			paths,
 			localResources,

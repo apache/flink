@@ -194,10 +194,10 @@ public class YarnFileStageTest extends TestLogger {
 			final HashMap<String, LocalResource> localResources = new HashMap<>();
 
 			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
-			final YarnFileUploader uploader = YarnFileUploader.initialize(
+			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.initialize(
 					targetFileSystem, targetDir, applicationId);
 
-			final List<String> classpath = uploader.uploadAndRegisterFiles(
+			final List<String> classpath = uploader.setupMultipleLocalResources(
 				Collections.singletonList(new File(srcPath.toUri().getPath())),
 				remotePaths,
 				localResources,
@@ -259,10 +259,10 @@ public class YarnFileStageTest extends TestLogger {
 			final HashMap<String, LocalResource> localResources = new HashMap<>();
 
 			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
-			final YarnFileUploader uploader = YarnFileUploader.initialize(
+			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.initialize(
 					targetFileSystem, targetDir, applicationId);
 
-			final List<String> classpath = uploader.uploadAndRegisterFiles(
+			final List<String> classpath = uploader.setupMultipleLocalResources(
 				Collections.singletonList(new File(srcDir, localFile)),
 				remotePaths,
 				localResources,

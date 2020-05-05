@@ -50,11 +50,12 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Javadoc.
+ * A class with utilities for uploading files
+ * related to the deployment of a single application.
  */
-class YarnFileUploader implements AutoCloseable {
+class YarnApplicationFileUploader implements AutoCloseable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(YarnFileUploader.class);
+	private static final Logger LOG = LoggerFactory.getLogger(YarnApplicationFileUploader.class);
 
 	private final FileSystem fileSystem;
 
@@ -64,7 +65,7 @@ class YarnFileUploader implements AutoCloseable {
 
 	private final Path applicationDir;
 
-	private YarnFileUploader(
+	private YarnApplicationFileUploader(
 			final FileSystem fileSystem,
 			final Path homeDir,
 			final ApplicationId applicationId) throws IOException {
@@ -82,52 +83,30 @@ class YarnFileUploader implements AutoCloseable {
 		return applicationDir;
 	}
 
-	private Path getApplicationDir(final ApplicationId applicationId) throws IOException {
-		final Path applicationDir = getApplicationDirPath(homeDir, applicationId);
-		if (!fileSystem.exists(applicationDir)) {
-			final FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
-			fileSystem.mkdirs(applicationDir, permission);
-		}
-		return applicationDir;
-	}
-
 	@Override
 	public void close() {
 		IOUtils.closeQuietly(fileSystem);
 	}
 
-	static YarnFileUploader initialize(
-			final FileSystem fileSystem,
-			final Path homeDirectory,
-			final ApplicationId applicationId) throws IOException {
-		final FileSystem fs = checkNotNull(fileSystem);
-		final Path homeDir = checkNotNull(homeDirectory);
-		return new YarnFileUploader(fs, homeDir, applicationId);
-	}
-
 	/**
 	 * Uploads and registers a single resource and adds it to <tt>localResources</tt>.
-	 *
-	 * @param key
-	 * 		the key to add the resource under
-	 * @param localSrcPath
-	 * 		local path to the file
-	 * @param localResources
-	 * 		map of resources
-	 * @param replication
-	 * 	    number of replications of a remote file to be created
-	 *
+	 * @param key the key to add the resource under
+	 * @param localSrcPath local path to the file
+	 * @param localResources map of resources
+	 * @param relativeDstPath the relative path at the target location
+	 *                              (this will be prefixed by the application-specific directory)
+	 * @param replicationFactor number of replications of a remote file to be created
 	 * @return the remote path to the uploaded resource
 	 */
 	Path setupSingleLocalResource(
-			String key,
-			Path localSrcPath,
-			Map<String, LocalResource> localResources,
-			String relativeTargetPath,
-			int replication) throws IOException {
+			final String key,
+			final Path localSrcPath,
+			final Map<String, LocalResource> localResources,
+			final String relativeDstPath,
+			final int replicationFactor) throws IOException {
 
 		File localFile = new File(localSrcPath.toUri().getPath());
-		Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(localSrcPath, relativeTargetPath, replication);
+		Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(localSrcPath, relativeDstPath, replicationFactor);
 		LocalResource resource = Utils.registerLocalResource(remoteFileInfo.f0, localFile.length(), remoteFileInfo.f1);
 		localResources.put(key, resource);
 		return remoteFileInfo.f0;
@@ -171,20 +150,20 @@ class YarnFileUploader implements AutoCloseable {
 	 *		the directory the localResources are uploaded to
 	 * @param envShipFileList
 	 * 		list of shipped files in a format understood by {@link Utils#createTaskExecutorContext}
-	 * @param replication
+	 * @param replicationFactor
 	 * 	     number of replications of a remote file to be created
 	 *
 	 * @return list of class paths with the the proper resource keys from the registration
 	 */
-	List<String> uploadAndRegisterFiles(
-			Collection<File> shipFiles,
-			List<Path> remotePaths,
-			Map<String, LocalResource> localResources,
-			String localResourcesDirectory,
-			StringBuilder envShipFileList,
-			int replication) throws IOException {
+	List<String> setupMultipleLocalResources(
+			final Collection<File> shipFiles,
+			final List<Path> remotePaths,
+			final Map<String, LocalResource> localResources,
+			final String localResourcesDirectory,
+			final StringBuilder envShipFileList,
+			final int replicationFactor) throws IOException {
 
-		checkArgument(replication >= 1);
+		checkArgument(replicationFactor >= 1);
 		final List<Path> localPaths = new ArrayList<>();
 		final List<Path> relativePaths = new ArrayList<>();
 		for (File shipFile : shipFiles) {
@@ -218,7 +197,7 @@ class YarnFileUploader implements AutoCloseable {
 						localPath,
 						localResources,
 						relativePath.getParent().toString(),
-						replication);
+						replicationFactor);
 				remotePaths.add(remotePath);
 				envShipFileList.append(key).append("=").append(remotePath).append(",");
 				// add files to the classpath
@@ -236,6 +215,15 @@ class YarnFileUploader implements AutoCloseable {
 		resources.stream().sorted().forEach(classPaths::add);
 		archives.stream().sorted().forEach(classPaths::add);
 		return classPaths;
+	}
+
+	static YarnApplicationFileUploader initialize(
+			final FileSystem fileSystem,
+			final Path homeDirectory,
+			final ApplicationId applicationId) throws IOException {
+		final FileSystem fs = checkNotNull(fileSystem);
+		final Path homeDir = checkNotNull(homeDirectory);
+		return new YarnApplicationFileUploader(fs, homeDir, applicationId);
 	}
 
 	private Path copyToRemoteApplicationDir(
@@ -282,5 +270,14 @@ class YarnFileUploader implements AutoCloseable {
 
 	static Path getApplicationDirPath(final Path homeDir, final ApplicationId applicationId) {
 		return new Path(checkNotNull(homeDir), ".flink/" + checkNotNull(applicationId) + '/');
+	}
+
+	private Path getApplicationDir(final ApplicationId applicationId) throws IOException {
+		final Path applicationDir = getApplicationDirPath(homeDir, applicationId);
+		if (!fileSystem.exists(applicationDir)) {
+			final FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
+			fileSystem.mkdirs(applicationDir, permission);
+		}
+		return applicationDir;
 	}
 }
