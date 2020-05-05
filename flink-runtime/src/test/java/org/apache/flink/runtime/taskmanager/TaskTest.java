@@ -75,7 +75,9 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -797,12 +799,13 @@ public class TaskTest extends TestLogger {
 	 */
 	@Test
 	public void testFatalErrorAfterUnInterruptibleInvoke() throws Exception {
-		final AwaitFatalErrorTaskManagerActions taskManagerActions =
-			new AwaitFatalErrorTaskManagerActions();
+		final CompletableFuture<Throwable> fatalErrorFuture = new CompletableFuture<>();
+		final TestingTaskManagerActions taskManagerActions = TestingTaskManagerActions.newBuilder()
+			.setNotifyFatalErrorConsumer((s, throwable) -> fatalErrorFuture.complete(throwable))
+			.build();
 
 		final Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 10);
 
 		final Task task = createTaskBuilder()
 			.setInvokable(InvokableUnInterruptibleBlockingInvoke.class)
@@ -818,7 +821,8 @@ public class TaskTest extends TestLogger {
 			task.cancelExecution();
 
 			// wait for the notification of notifyFatalError
-			taskManagerActions.latch.await();
+			final Throwable fatalError = fatalErrorFuture.join();
+			assertThat(fatalError, is(notNullValue()));
 		} finally {
 			// Interrupt again to clean up Thread
 			triggerLatch.trigger();
@@ -832,8 +836,10 @@ public class TaskTest extends TestLogger {
 	 */
 	@Test
 	public void testFatalErrorOnCanceling() throws Exception {
-		final AwaitFatalErrorTaskManagerActions taskManagerActions =
-			new AwaitFatalErrorTaskManagerActions();
+		final CompletableFuture<Throwable> fatalErrorFuture = new CompletableFuture<>();
+		final TestingTaskManagerActions taskManagerActions = TestingTaskManagerActions.newBuilder()
+			.setNotifyFatalErrorConsumer((s, throwable) -> fatalErrorFuture.complete(throwable))
+			.build();
 
 		final Configuration config = new Configuration();
 		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
@@ -845,7 +851,8 @@ public class TaskTest extends TestLogger {
 			.setTaskManagerActions(taskManagerActions)
 			.build());
 
-		doThrow(OutOfMemoryError.class).when(task).cancelOrFailAndCancelInvokableInternal(eq(ExecutionState.CANCELING), eq(null));
+		final Class<OutOfMemoryError> fatalErrorType = OutOfMemoryError.class;
+		doThrow(fatalErrorType).when(task).cancelOrFailAndCancelInvokableInternal(eq(ExecutionState.CANCELING), eq(null));
 
 		try {
 			task.startTaskThread();
@@ -855,9 +862,8 @@ public class TaskTest extends TestLogger {
 			task.cancelExecution();
 
 			// wait for the notification of notifyFatalError
-			taskManagerActions.latch.await();
-		} catch (Throwable t) {
-			fail("No exception is expected to be thrown by fatal error handling");
+			final Throwable fatalError = fatalErrorFuture.join();
+			assertThat(fatalError, instanceOf(fatalErrorType));
 		} finally {
 			triggerLatch.trigger();
 		}
@@ -1006,18 +1012,6 @@ public class TaskTest extends TestLogger {
 		@Override
 		public void notifyFatalError(String message, Throwable cause) {
 			throw new RuntimeException("Unexpected FatalError notification");
-		}
-	}
-
-	/**
-	 * Customized TaskManagerActions that waits for a call of notifyFatalError.
-	 */
-	private static class AwaitFatalErrorTaskManagerActions extends NoOpTaskManagerActions {
-		private final OneShotLatch latch = new OneShotLatch();
-
-		@Override
-		public void notifyFatalError(String message, Throwable cause) {
-			latch.trigger();
 		}
 	}
 
