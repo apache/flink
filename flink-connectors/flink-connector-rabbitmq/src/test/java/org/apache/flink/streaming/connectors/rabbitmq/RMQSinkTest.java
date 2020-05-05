@@ -87,14 +87,14 @@ public class RMQSinkTest {
 	public void openCallDeclaresQueueInStandardMode() throws Exception {
 		createRMQSink();
 
-		verify(channel).queueDeclare(QUEUE_NAME, false, false, false, null);
+		verify(channel).queueDeclare(QUEUE_NAME, true, false, false, null);
 	}
 
 	@Test
 	public void openCallDontDeclaresQueueInWithOptionsMode() throws Exception {
 		createRMQSinkWithOptions(false, false);
 
-		verify(channel, never()).queueDeclare(null, false, false, false, null);
+		verify(channel, never()).queueDeclare(null, true, false, false, null);
 	}
 
 	@Test

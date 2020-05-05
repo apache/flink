@@ -89,13 +89,21 @@ public class RMQSourceTest {
 
 	private volatile Exception exception;
 
-	@Before
-	public void beforeTest() throws Exception {
-
+	/**
+	 * Gets a mock context for initializing the source's state via {@link org.apache.flink.streaming.api.checkpoint.CheckpointedFunction#initializeState}.
+	 * @throws Exception
+	 */
+	FunctionInitializationContext getMockContext() throws Exception {
 		OperatorStateStore mockStore = Mockito.mock(OperatorStateStore.class);
 		FunctionInitializationContext mockContext = Mockito.mock(FunctionInitializationContext.class);
 		Mockito.when(mockContext.getOperatorStateStore()).thenReturn(mockStore);
 		Mockito.when(mockStore.getSerializableListState(any(String.class))).thenReturn(null);
+		return mockContext;
+	}
+
+	@Before
+	public void beforeTest() throws Exception {
+		FunctionInitializationContext mockContext = getMockContext();
 
 		source = new RMQTestSource();
 		source.initializeState(mockContext);
@@ -138,6 +146,26 @@ public class RMQSourceTest {
 		} catch (RuntimeException ex) {
 			assertEquals("None of RabbitMQ channels are available", ex.getMessage());
 		}
+	}
+
+	@Test
+	public void testOpenCallDeclaresQueueInStandardMode() throws Exception {
+		FunctionInitializationContext mockContext = getMockContext();
+
+		RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
+		ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
+		Connection connection = Mockito.mock(Connection.class);
+		Channel channel = Mockito.mock(Channel.class);
+
+		Mockito.when(connectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
+		Mockito.when(connectionFactory.newConnection()).thenReturn(connection);
+		Mockito.when(connection.createChannel()).thenReturn(channel);
+
+		RMQSource<String> rmqSource = new RMQMockedRuntimeTestSource(connectionConfig);
+		rmqSource.initializeState(mockContext);
+		rmqSource.open(new Configuration());
+
+		Mockito.verify(channel).queueDeclare(RMQTestSource.QUEUE_NAME, true, false, false, null);
 	}
 
 	@Test
@@ -354,19 +382,50 @@ public class RMQSourceTest {
 		}
 	}
 
-	private class RMQTestSource extends RMQSource<String> {
+	/**
+	 * A base class of {@link RMQTestSource} for testing functions that rely on the {@link RuntimeContext}.
+	 */
+	private static class RMQMockedRuntimeTestSource extends RMQSource<String> {
+		static final String QUEUE_NAME = "queueDummy";
 
+		static final RMQConnectionConfig CONNECTION_CONFIG = new RMQConnectionConfig
+			.Builder()
+			.setHost("hostTest")
+			.setPort(999)
+			.setUserName("userTest")
+			.setPassword("passTest")
+			.setVirtualHost("/")
+			.build();
+
+		protected RuntimeContext runtimeContext = Mockito.mock(StreamingRuntimeContext.class);
+
+		public RMQMockedRuntimeTestSource(RMQConnectionConfig connectionConfig, DeserializationSchema<String> deserializationSchema) {
+			super(connectionConfig, QUEUE_NAME, true, deserializationSchema);
+		}
+
+		public RMQMockedRuntimeTestSource(DeserializationSchema<String> deserializationSchema) {
+			this(CONNECTION_CONFIG, deserializationSchema);
+		}
+
+		public RMQMockedRuntimeTestSource(RMQConnectionConfig connectionConfig) {
+			this(connectionConfig, new StringDeserializationScheme());
+		}
+
+		@Override
+		public RuntimeContext getRuntimeContext() {
+			return runtimeContext;
+		}
+	}
+
+	private class RMQTestSource extends RMQMockedRuntimeTestSource {
 		private ArrayDeque<Tuple2<Long, Set<String>>> restoredState;
-		private RuntimeContext runtimeContext = Mockito.mock(StreamingRuntimeContext.class);
 
 		public RMQTestSource() {
 			this(new StringDeserializationScheme());
 		}
 
 		public RMQTestSource(DeserializationSchema<String> deserializationSchema) {
-			super(new RMQConnectionConfig.Builder().setHost("hostTest")
-					.setPort(999).setUserName("userTest").setPassword("passTest").setVirtualHost("/").build()
-				, "queueDummy", true, deserializationSchema);
+			super(deserializationSchema);
 		}
 
 		@Override
@@ -435,11 +494,6 @@ public class RMQSourceTest {
 		@Override
 		public void setRuntimeContext(RuntimeContext t) {
 			this.runtimeContext = t;
-		}
-
-		@Override
-		public RuntimeContext getRuntimeContext() {
-			return runtimeContext;
 		}
 
 		@Override
