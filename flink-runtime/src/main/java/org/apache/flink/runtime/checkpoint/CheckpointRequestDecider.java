@@ -20,19 +20,25 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator.CheckpointTriggerRequest;
 import org.apache.flink.runtime.util.clock.Clock;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.concurrent.GuardedBy;
 
 import java.util.Comparator;
+import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.PriorityQueue;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import static java.lang.System.identityHashCode;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS;
-import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.TOO_MANY_CONCURRENT_CHECKPOINTS;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.TOO_MANY_CHECKPOINT_REQUESTS;
 
 @SuppressWarnings("ConstantConditions")
 class CheckpointRequestDecider {
-	private static final int MAX_QUEUED_REQUESTS = 1000;
+	private static final int DEFAULT_MAX_QUEUED_REQUESTS = 1000;
 
 	private final int maxConcurrentCheckpointAttempts;
 	private final Consumer<Long> rescheduleTrigger;
@@ -40,7 +46,9 @@ class CheckpointRequestDecider {
 	private final long minPauseBetweenCheckpoints;
 	private final Supplier<Integer> pendingCheckpointsSizeSupplier;
 	private final Object lock;
-	private final PriorityQueue<CheckpointTriggerRequest> triggerRequestQueue = new PriorityQueue<>(checkpointTriggerRequestsComparator());
+	@GuardedBy("lock")
+	private final NavigableSet<CheckpointTriggerRequest> queuedRequests = new TreeSet<>(checkpointTriggerRequestsComparator());
+	private final int maxQueuedRequests;
 
 	CheckpointRequestDecider(
 			int maxConcurrentCheckpointAttempts,
@@ -49,20 +57,56 @@ class CheckpointRequestDecider {
 			long minPauseBetweenCheckpoints,
 			Supplier<Integer> pendingCheckpointsSizeSupplier,
 			Object lock) {
+		this(
+			maxConcurrentCheckpointAttempts,
+			rescheduleTrigger,
+			clock,
+			minPauseBetweenCheckpoints,
+			pendingCheckpointsSizeSupplier,
+			lock,
+			DEFAULT_MAX_QUEUED_REQUESTS
+		);
+	}
+
+	CheckpointRequestDecider(
+			int maxConcurrentCheckpointAttempts,
+			Consumer<Long> rescheduleTrigger,
+			Clock clock,
+			long minPauseBetweenCheckpoints,
+			Supplier<Integer> pendingCheckpointsSizeSupplier,
+			Object lock,
+			int maxQueuedRequests) {
+		Preconditions.checkArgument(maxConcurrentCheckpointAttempts > 0);
+		Preconditions.checkArgument(maxQueuedRequests > 0);
 		this.maxConcurrentCheckpointAttempts = maxConcurrentCheckpointAttempts;
 		this.rescheduleTrigger = rescheduleTrigger;
 		this.clock = clock;
 		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
 		this.pendingCheckpointsSizeSupplier = pendingCheckpointsSizeSupplier;
 		this.lock = lock;
+		this.maxQueuedRequests = maxQueuedRequests;
 	}
 
 	Optional<CheckpointTriggerRequest> chooseRequestToExecute(CheckpointTriggerRequest newRequest, boolean isTriggering, long lastCompletionMs) {
-		return chooseRequestToExecute(false, () -> newRequest, isTriggering, lastCompletionMs);
+		synchronized (lock) {
+			if (queuedRequests.size() >= maxQueuedRequests && !queuedRequests.last().isPeriodic) {
+				// there are only non-periodic (ie user-submitted) requests enqueued - retain them and drop the new one
+				newRequest.completeExceptionally(new CheckpointException(TOO_MANY_CHECKPOINT_REQUESTS));
+				return Optional.empty();
+			} else {
+				queuedRequests.add(newRequest);
+				if (queuedRequests.size() > maxQueuedRequests) {
+					queuedRequests.pollLast().completeExceptionally(new CheckpointException(TOO_MANY_CHECKPOINT_REQUESTS));
+				}
+				return chooseRequestToExecute(isTriggering, lastCompletionMs);
+			}
+		}
 	}
 
 	Optional<CheckpointTriggerRequest> chooseQueuedRequestToExecute(boolean isTriggering, long lastCompletionMs) {
-		return chooseRequestToExecute(true, triggerRequestQueue::peek, isTriggering, lastCompletionMs);
+		synchronized (lock) {
+			return chooseRequestToExecute(isTriggering, lastCompletionMs);
+		}
 	}
 
 	/**
@@ -70,60 +114,36 @@ class CheckpointRequestDecider {
 	 * current state. Acquires a lock and may update the state.
 	 * @return request to execute, if any.
 	 */
-	private Optional<CheckpointTriggerRequest> chooseRequestToExecute(
-			boolean isEnqueued,
-			Supplier<CheckpointTriggerRequest> candidateSupplier,
-			boolean isTriggering,
-			long lastCompletionMs) {
-		synchronized (lock) {
-			final CheckpointTriggerRequest candidate = candidateSupplier.get();
-			if (candidate == null) {
-				return Optional.empty();
-			} else if (isTriggering) {
-				return onCantTriggerNow(candidate, isEnqueued);
-			} else if (pendingCheckpointsSizeSupplier.get() >= maxConcurrentCheckpointAttempts) {
-				return onCantCheckpointNow(candidate, TOO_MANY_CONCURRENT_CHECKPOINTS, () -> { /* not used */ }, isEnqueued);
-			} else if (nextTriggerDelayMillis(lastCompletionMs) > 0) {
-				return onCantCheckpointNow(candidate, MINIMUM_TIME_BETWEEN_CHECKPOINTS, () -> rescheduleTrigger.accept(nextTriggerDelayMillis(lastCompletionMs)), isEnqueued);
-			} else if (candidate != triggerRequestQueue.peek()) {
-				triggerRequestQueue.offer(candidate);
-				return Optional.of(triggerRequestQueue.poll());
-			} else {
-				return Optional.of(isEnqueued ? triggerRequestQueue.poll() : candidate);
-			}
+	private Optional<CheckpointTriggerRequest> chooseRequestToExecute(boolean isTriggering, long lastCompletionMs) {
+		Preconditions.checkState(Thread.holdsLock(lock));
+		if (isTriggering || queuedRequests.isEmpty()) {
+			return Optional.empty();
 		}
-	}
 
-	private Optional<CheckpointTriggerRequest> onCantTriggerNow(CheckpointTriggerRequest candidate, boolean isEnqueued) {
-		offerIfNeeded(candidate, isEnqueued);
-		return Optional.empty();
-	}
-
-	private Optional<CheckpointTriggerRequest> onCantCheckpointNow(
-			CheckpointTriggerRequest candidate,
-			CheckpointFailureReason dropReason,
-			Runnable postDrop,
-			boolean isEnqueued) {
-		if (candidate.props.forceCheckpoint()) {
-			return Optional.of(isEnqueued ? triggerRequestQueue.poll() : candidate);
-		} else if (candidate.isPeriodic) {
-			if (isEnqueued) {
-				triggerRequestQueue.poll();
-			}
-			candidate.completeExceptionally(new CheckpointException(dropReason));
-			postDrop.run();
+		if (pendingCheckpointsSizeSupplier.get() >= maxConcurrentCheckpointAttempts) {
+			return Optional.of(queuedRequests.first())
+				.filter(CheckpointTriggerRequest::isForce)
+				.map(unused -> queuedRequests.pollFirst());
 		}
-		offerIfNeeded(candidate, isEnqueued);
-		return Optional.empty();
+
+		long nextTriggerDelayMillis = nextTriggerDelayMillis(lastCompletionMs);
+		if (nextTriggerDelayMillis > 0) {
+			return onTooEarly(nextTriggerDelayMillis);
+		}
+
+		return Optional.of(queuedRequests.pollFirst());
 	}
 
-	private void offerIfNeeded(CheckpointTriggerRequest candidate, boolean isEnqueued) {
-		if (!isEnqueued) {
-			if (triggerRequestQueue.size() < MAX_QUEUED_REQUESTS) {
-				triggerRequestQueue.offer(candidate);
-			} else {
-				candidate.completeExceptionally(new CheckpointException(CheckpointFailureReason.TOO_MANY_CHECKPOINT_REQUESTS));
-			}
+	private Optional<CheckpointTriggerRequest> onTooEarly(long nextTriggerDelayMillis) {
+		CheckpointTriggerRequest first = queuedRequests.first();
+		if (first.isForce()) {
+			return Optional.of(queuedRequests.pollFirst());
+		} else if (first.isPeriodic) {
+			queuedRequests.pollFirst().completeExceptionally(new CheckpointException(MINIMUM_TIME_BETWEEN_CHECKPOINTS));
+			rescheduleTrigger.accept(nextTriggerDelayMillis);
+			return Optional.empty();
+		} else {
+			return Optional.empty();
 		}
 	}
 
@@ -132,16 +152,23 @@ class CheckpointRequestDecider {
 	}
 
 	@VisibleForTesting
+	@Deprecated
 	PriorityQueue<CheckpointTriggerRequest> getTriggerRequestQueue() {
 		synchronized (lock) {
-			return triggerRequestQueue;
+			return new PriorityQueue<>(queuedRequests);
 		}
 	}
 
 	void abortAll(CheckpointException exception) {
-		CheckpointTriggerRequest request;
-		while ((request = getTriggerRequestQueue().poll()) != null) {
-			request.completeExceptionally(exception);
+		Preconditions.checkState(Thread.holdsLock(lock));
+		while (!queuedRequests.isEmpty()) {
+			queuedRequests.pollFirst().completeExceptionally(exception);
+		}
+	}
+
+	int getNumQueuedRequests() {
+		synchronized (lock) {
+			return queuedRequests.size();
 		}
 	}
 
@@ -149,12 +176,14 @@ class CheckpointRequestDecider {
 		return (r1, r2) -> {
 			if (r1.props.isSavepoint() != r2.props.isSavepoint()) {
 				return r1.props.isSavepoint() ? -1 : 1;
-			} else if (r1.props.forceCheckpoint() != r2.props.forceCheckpoint()) {
-				return r1.props.forceCheckpoint() ? -1 : 1;
+			} else if (r1.isForce() != r2.isForce()) {
+				return r1.isForce() ? -1 : 1;
 			} else if (r1.isPeriodic != r2.isPeriodic) {
 				return r1.isPeriodic ? 1 : -1;
-			} else {
+			} else if (r1.timestamp != r2.timestamp) {
 				return Long.compare(r1.timestamp, r2.timestamp);
+			} else {
+				return Integer.compare(identityHashCode(r1), identityHashCode(r2));
 			}
 		};
 	}

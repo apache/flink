@@ -2267,19 +2267,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			while (activeRequests < checkpointRequestsToSend) {
 				checkpointFutures.add(coordinator.triggerCheckpoint(activeRequests++, true));
 			}
-			assertEquals(activeRequests - maxConcurrentCheckpoints, coordinator.getTriggerRequestQueue().size());
+			assertEquals(activeRequests - maxConcurrentCheckpoints, coordinator.getNumQueuedRequests());
 
 			Future<?> savepointFuture = coordinator.triggerSavepoint(0L, "/tmp");
 			manuallyTriggeredScheduledExecutor.triggerAll();
-			assertEquals(++activeRequests - maxConcurrentCheckpoints, coordinator.getTriggerRequestQueue().size());
+			assertEquals(++activeRequests - maxConcurrentCheckpoints, coordinator.getNumQueuedRequests());
 
 			coordinator.receiveDeclineMessage(new DeclineCheckpoint(jobId, new ExecutionAttemptID(), 1L), "none");
 			manuallyTriggeredScheduledExecutor.triggerAll();
 
 			activeRequests--; // savepoint triggered
-			activeRequests--; // onTriggerSuccess dropped one enqueued checkpoint request (can't be executed now)
-			assertEquals(activeRequests - maxConcurrentCheckpoints , coordinator.getTriggerRequestQueue().size());
-			assertEquals(2, checkpointFutures.stream().filter(Future::isDone).count());
+			assertEquals(activeRequests - maxConcurrentCheckpoints , coordinator.getNumQueuedRequests());
+			assertEquals(1, checkpointFutures.stream().filter(Future::isDone).count());
 
 			assertFalse(savepointFuture.isDone());
 			assertEquals(maxConcurrentCheckpoints, coordinator.getNumberOfPendingCheckpoints());

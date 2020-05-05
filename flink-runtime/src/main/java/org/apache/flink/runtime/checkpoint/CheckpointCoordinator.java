@@ -1276,6 +1276,11 @@ public class CheckpointCoordinator {
 		return checkpointTimeout;
 	}
 
+	/**
+	 * @deprecated use {@link #getNumQueuedRequests()}
+	 */
+	@Deprecated
+	@VisibleForTesting
 	PriorityQueue<CheckpointTriggerRequest> getTriggerRequestQueue() {
 		return requestDecider.getTriggerRequestQueue();
 	}
@@ -1390,6 +1395,10 @@ public class CheckpointCoordinator {
 
 			return jobStatusListener;
 		}
+	}
+
+	int getNumQueuedRequests() {
+		return requestDecider.getNumQueuedRequests();
 	}
 
 	// ------------------------------------------------------------------------
@@ -1602,12 +1611,16 @@ public class CheckpointCoordinator {
 			this.advanceToEndOfTime = advanceToEndOfTime;
 		}
 
-		private CompletableFuture<CompletedCheckpoint> getOnCompletionFuture() {
+		CompletableFuture<CompletedCheckpoint> getOnCompletionFuture() {
 			return onCompletionPromise;
 		}
 
 		public void completeExceptionally(CheckpointException exception) {
 			onCompletionPromise.completeExceptionally(exception);
+		}
+
+		public boolean isForce() {
+			return props.forceCheckpoint();
 		}
 	}
 }
