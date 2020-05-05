@@ -314,6 +314,18 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 		return new LocatableInputSplitAssigner(inputSplits);
 	}
 
+	int[] getSelectedFields() {
+		return selectedFields;
+	}
+
+	String[] getFieldNames() {
+		return fieldNames;
+	}
+
+	DataType[] getFieldTypes() {
+		return fieldTypes;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom serialization methods
 	// --------------------------------------------------------------------------------------------

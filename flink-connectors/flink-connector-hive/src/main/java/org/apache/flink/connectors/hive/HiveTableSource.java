@@ -24,6 +24,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveContinuousMonitoringFunction;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
+import org.apache.flink.connectors.hive.read.HiveTableLookupFunction;
 import org.apache.flink.connectors.hive.read.TimestampedHiveInputSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -41,9 +42,12 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sources.LimitableTableSource;
+import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.PartitionableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -92,7 +96,8 @@ public class HiveTableSource implements
 		StreamTableSource<RowData>,
 		PartitionableTableSource,
 		ProjectableTableSource<RowData>,
-		LimitableTableSource<RowData> {
+		LimitableTableSource<RowData>,
+		LookupableTableSource<RowData> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveTableSource.class);
 
@@ -480,5 +485,21 @@ public class HiveTableSource implements
 			explain += String.format(", LimitPushDown %s, Limit %d", isLimitPushDown, limit);
 		}
 		return TableConnectorUtils.generateRuntimeName(getClass(), getTableSchema().getFieldNames()) + explain;
+	}
+
+	@Override
+	public TableFunction<RowData> getLookupFunction(String[] lookupKeys) {
+		// always use MR reader for the lookup function
+		return new HiveTableLookupFunction(getInputFormat(initAllPartitions(), true), lookupKeys);
+	}
+
+	@Override
+	public AsyncTableFunction<RowData> getAsyncLookupFunction(String[] lookupKeys) {
+		return null;
+	}
+
+	@Override
+	public boolean isAsyncEnabled() {
+		return false;
 	}
 }
