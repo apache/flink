@@ -55,7 +55,7 @@ The **Code Walkthroughs** are a great way to get started quickly with a step-by-
 one of Flink's APIs. Each walkthrough provides instructions for bootstrapping a small skeleton
 project, and then shows how to extend it to a simple application.
 
-* The [**DataStream API**]({% link getting-started/walkthroughs/datastream_api.md %}) code walkthrough shows how
+* The [**DataStream API**  code walkthrough]({% link getting-started/walkthroughs/datastream_api.md %}) shows how
   to implement a simple DataStream application and how to extend it to be stateful and use timers.
   The DataStream API is Flink's main abstraction for implementing stateful streaming applications
   with sophisticated time semantics in Java or Scala.
