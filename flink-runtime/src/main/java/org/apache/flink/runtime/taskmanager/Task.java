@@ -1557,8 +1557,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				}
 			}
 			catch (Throwable t) {
-				ExceptionUtils.rethrowIfFatalError(t);
-				log.error("Error in Task Cancellation Watch Dog", t);
+				throw new FlinkRuntimeException("Error in Task Cancellation Watch Dog", t);
 			}
 		}
 	}
