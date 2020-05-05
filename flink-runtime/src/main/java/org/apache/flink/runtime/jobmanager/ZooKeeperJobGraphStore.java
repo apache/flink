@@ -308,7 +308,7 @@ public class ZooKeeperJobGraphStore implements JobGraphStore {
 
 		for (String path : paths) {
 			try {
-				jobIds.add(jobIdfromPath(path));
+				jobIds.add(jobIdFromPath(path));
 			} catch (Exception exception) {
 				LOG.warn("Could not parse job id from {}. This indicates a malformed path.", path, exception);
 			}
@@ -445,7 +445,7 @@ public class ZooKeeperJobGraphStore implements JobGraphStore {
 	 * @param path in ZooKeeper
 	 * @return JobID associated with the given path
 	 */
-	public static JobID jobIdfromPath(final String path) {
+	public static JobID jobIdFromPath(final String path) {
 		return JobID.fromHexString(path);
 	}
 }
