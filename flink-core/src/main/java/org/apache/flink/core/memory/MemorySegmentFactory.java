@@ -112,12 +112,13 @@ public final class MemorySegmentFactory {
 			// once we find a common way to handle OOM errors in netty threads.
 			// Here we enrich it to propagate better OOM message to the receiver
 			// if it happens in a netty thread.
-			OutOfMemoryError enrichedOutOfMemoryError = (OutOfMemoryError) ExceptionUtils
-				.enrichTaskManagerOutOfMemoryError(outOfMemoryError);
+			Throwable enrichedOutOfMemoryError = ExceptionUtils.tryEnrichTaskManagerError(outOfMemoryError);
 			if (ExceptionUtils.isDirectOutOfMemoryError(outOfMemoryError)) {
 				LOG.error("Cannot allocate direct memory segment", enrichedOutOfMemoryError);
 			}
-			throw enrichedOutOfMemoryError;
+
+			ExceptionUtils.rethrow(enrichedOutOfMemoryError);
+			return null;
 		}
 	}
 
