@@ -37,14 +37,14 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -70,6 +70,9 @@ public class MiniDispatcherTest extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+	@Rule
+	public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource = new TestingFatalErrorHandlerResource();
+
 	private static JobGraph jobGraph;
 
 	private static ArchivedExecutionGraph archivedExecutionGraph;
@@ -87,8 +90,6 @@ public class MiniDispatcherTest extends TestLogger {
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
 
 	private TestingHighAvailabilityServices highAvailabilityServices;
-
-	private TestingFatalErrorHandler testingFatalErrorHandler;
 
 	private TestingJobManagerRunnerFactory testingJobManagerRunnerFactory;
 
@@ -112,14 +113,8 @@ public class MiniDispatcherTest extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		highAvailabilityServices = new TestingHighAvailabilityServicesBuilder().build();
-		testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory();
-	}
-
-	@After
-	public void teardown() throws Exception {
-		testingFatalErrorHandler.rethrowError();
 	}
 
 	@AfterClass
@@ -222,7 +217,7 @@ public class MiniDispatcherTest extends TestLogger {
 				blobServer,
 				heartbeatServices,
 				archivedExecutionGraphStore,
-				testingFatalErrorHandler,
+				testingFatalErrorHandlerResource.getFatalErrorHandler(),
 				VoidHistoryServerArchivist.INSTANCE,
 				null,
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
