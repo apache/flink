@@ -864,8 +864,6 @@ public class TaskTest extends TestLogger {
 			// wait for the notification of notifyFatalError
 			final Throwable fatalError = fatalErrorFuture.join();
 			assertThat(fatalError, instanceOf(fatalErrorType));
-		} catch (Throwable t) {
-			fail("No exception is expected to be thrown by fatal error handling");
 		} finally {
 			triggerLatch.trigger();
 		}
