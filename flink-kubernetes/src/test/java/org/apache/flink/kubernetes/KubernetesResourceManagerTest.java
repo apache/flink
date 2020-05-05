@@ -64,7 +64,7 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
@@ -80,9 +80,9 @@ import io.fabric8.kubernetes.api.model.PodStatusBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import org.hamcrest.Matchers;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -111,7 +111,8 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 	private static final String JOB_MANAGER_HOST = "jm-host1";
 	private static final Time TESTING_POD_CREATION_RETRY_INTERVAL = Time.milliseconds(50L);
 
-	private TestingFatalErrorHandler testingFatalErrorHandler;
+	@Rule
+	public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource = new TestingFatalErrorHandlerResource();
 
 	@Before
 	public void setup() throws Exception {
@@ -120,21 +121,12 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 		flinkConfig.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1024m"));
 		flinkConfig.setString(TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
 
-		testingFatalErrorHandler = new TestingFatalErrorHandler();
-
 		final Deployment mockDeployment = new DeploymentBuilder()
 			.editOrNewMetadata()
 				.withName(KubernetesUtils.getDeploymentName(CLUSTER_ID))
 				.endMetadata()
 			.build();
 		kubeClient.apps().deployments().inNamespace(NAMESPACE).create(mockDeployment);
-	}
-
-	@After
-	public void teardown() throws Exception {
-		if (testingFatalErrorHandler != null) {
-			testingFatalErrorHandler.rethrowError();
-		}
 	}
 
 	class TestingKubernetesResourceManager extends KubernetesResourceManager {
@@ -544,7 +536,7 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 				rmServices.slotManager,
 				rmServices.jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
-				testingFatalErrorHandler,
+				testingFatalErrorHandlerResource.getFatalErrorHandler(),
 				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
 				flinkKubeClient,
 				new KubernetesResourceManagerConfiguration(CLUSTER_ID, TESTING_POD_CREATION_RETRY_INTERVAL));

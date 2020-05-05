@@ -54,7 +54,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -96,6 +96,9 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
 
+	@Rule
+	public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource = new TestingFatalErrorHandlerResource();
+
 	private static final Time timeout = Time.seconds(10L);
 
 	private static TestingRpcService rpcService;
@@ -115,8 +118,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	private TestingDispatcher dispatcher;
 
 	private DispatcherGateway dispatcherGateway;
-
-	private TestingFatalErrorHandler fatalErrorHandler;
 
 	private BlobServer blobServer;
 
@@ -171,8 +172,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 		// verify that we stored the blob also in the BlobStore
 		assertThat(storedHABlobFuture.get(), equalTo(permanentBlobKey));
-
-		fatalErrorHandler = new TestingFatalErrorHandler();
 	}
 
 	private TestingJobManagerRunnerFactory startDispatcherAndSubmitJob() throws Exception {
@@ -202,7 +201,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 				blobServer,
 				heartbeatServices,
 				archivedExecutionGraphStore,
-				fatalErrorHandler,
+				testingFatalErrorHandlerResource.getFatalErrorHandler(),
 				VoidHistoryServerArchivist.INSTANCE,
 				null,
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
@@ -218,10 +217,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	public void teardown() throws Exception {
 		if (dispatcher != null) {
 			dispatcher.close();
-		}
-
-		if (fatalErrorHandler != null) {
-			fatalErrorHandler.rethrowError();
 		}
 	}
 
