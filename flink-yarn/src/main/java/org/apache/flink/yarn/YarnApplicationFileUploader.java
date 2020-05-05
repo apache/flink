@@ -217,7 +217,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		return classPaths;
 	}
 
-	static YarnApplicationFileUploader initialize(
+	static YarnApplicationFileUploader from(
 			final FileSystem fileSystem,
 			final Path homeDirectory,
 			final ApplicationId applicationId) throws IOException {

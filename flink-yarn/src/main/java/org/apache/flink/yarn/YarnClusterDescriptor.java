@@ -677,7 +677,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
-		final YarnApplicationFileUploader fileUploader = YarnApplicationFileUploader.initialize(
+		final YarnApplicationFileUploader fileUploader = YarnApplicationFileUploader.from(
 				fs, fs.getHomeDirectory(), appContext.getApplicationId()
 		);
 

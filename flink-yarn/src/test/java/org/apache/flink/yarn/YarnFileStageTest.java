@@ -194,7 +194,7 @@ public class YarnFileStageTest extends TestLogger {
 			final HashMap<String, LocalResource> localResources = new HashMap<>();
 
 			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
-			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.initialize(
+			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.from(
 					targetFileSystem, targetDir, applicationId);
 
 			final List<String> classpath = uploader.setupMultipleLocalResources(
@@ -259,7 +259,7 @@ public class YarnFileStageTest extends TestLogger {
 			final HashMap<String, LocalResource> localResources = new HashMap<>();
 
 			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
-			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.initialize(
+			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.from(
 					targetFileSystem, targetDir, applicationId);
 
 			final List<String> classpath = uploader.setupMultipleLocalResources(
