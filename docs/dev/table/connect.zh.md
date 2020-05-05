@@ -1252,6 +1252,7 @@ To use JDBC connector, need to choose an actual driver to use. Here are drivers 
 
 | Name        |      Group Id      |      Artifact Id     |      JAR         |
 | :-----------| :------------------| :--------------------| :----------------|
+| Oracle      |  com.oracle.ojdbc  |        ojdbc8        | [Download](https://mvnrepository.com/artifact/com.oracle.ojdbc/ojdbc8/) |
 | MySQL       |        mysql       | mysql-connector-java | [Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
 | PostgreSQL  |   org.postgresql   |      postgresql      | [Download](https://jdbc.postgresql.org/download.html) |
 | Derby       |  org.apache.derby  |        derby         | [Download](http://db.apache.org/derby/derby_downloads.html) |
