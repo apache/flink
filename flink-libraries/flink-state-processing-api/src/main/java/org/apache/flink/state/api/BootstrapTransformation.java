@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -176,7 +175,7 @@ public class BootstrapTransformation<T> {
 
 	@VisibleForTesting
 	StreamConfig getConfig(OperatorID operatorID, StateBackend stateBackend, StreamOperator<TaggedOperatorSubtaskState> operator) {
-		final StreamConfig config = new StreamConfig(new Configuration());
+		final StreamConfig config = new StreamConfig(dataSet.getExecutionEnvironment().getConfiguration());
 		config.setChainStart();
 		config.setCheckpointingEnabled(true);
 		config.setCheckpointMode(CheckpointingMode.EXACTLY_ONCE);

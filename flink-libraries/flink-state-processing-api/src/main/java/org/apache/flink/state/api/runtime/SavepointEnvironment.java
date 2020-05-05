@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -104,7 +105,7 @@ public class SavepointEnvironment implements Environment {
 
 		this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
 		this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
-		this.ioManager = new IOManagerAsync();
+		this.ioManager = new IOManagerAsync(ConfigurationUtils.parseTempDirectories(configuration));
 		this.memoryManager = MemoryManager.forDefaultPageSize(64 * 1024 * 1024);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
 	}
