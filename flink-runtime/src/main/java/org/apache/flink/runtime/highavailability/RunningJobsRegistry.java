@@ -49,7 +49,7 @@ public interface RunningJobsRegistry {
 		RUNNING,
 
 		/** Job has been finished, successfully or unsuccessfully. */
-		DONE;
+		DONE
 	}
 
 	// ------------------------------------------------------------------------
