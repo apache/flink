@@ -21,6 +21,7 @@ package org.apache.flink.api.java.io.jdbc.dialect;
 import org.apache.flink.api.java.io.jdbc.source.row.converter.DerbyRowConverter;
 import org.apache.flink.api.java.io.jdbc.source.row.converter.JDBCRowConverter;
 import org.apache.flink.api.java.io.jdbc.source.row.converter.MySQLRowConverter;
+import org.apache.flink.api.java.io.jdbc.source.row.converter.OracleRowConverter;
 import org.apache.flink.api.java.io.jdbc.source.row.converter.PostgresRowConverter;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -44,7 +45,8 @@ public final class JDBCDialects {
 	private static final List<JDBCDialect> DIALECTS = Arrays.asList(
 		new DerbyDialect(),
 		new MySQLDialect(),
-		new PostgresDialect()
+		new PostgresDialect(),
+		new OracleDialect()
 	);
 
 	/**
@@ -331,7 +333,7 @@ public final class JDBCDialects {
 		private static final int MAX_TIMESTAMP_PRECISION = 6;
 		private static final int MIN_TIMESTAMP_PRECISION = 1;
 
-		// Define MAX/MIN precision of TIMESTAMP type according to PostgreSQL docs:
+		// Define MAX/MIN precision of DECIMAL type according to PostgreSQL docs:
 		// https://www.postgresql.org/docs/12/datatype-numeric.html#DATATYPE-NUMERIC-DECIMAL
 		private static final int MAX_DECIMAL_PRECISION = 1000;
 		private static final int MIN_DECIMAL_PRECISION = 1;
@@ -419,6 +421,107 @@ public final class JDBCDialects {
 					LogicalTypeRoot.RAW,
 					LogicalTypeRoot.SYMBOL,
 					LogicalTypeRoot.UNRESOLVED
+			);
+
+		}
+	}
+
+	/**
+	 * Oracle dialect.
+	 */
+	public static class OracleDialect extends AbstractDialect {
+
+		private static final long serialVersionUID = 1L;
+
+		// Define MAX/MIN precision of TIMESTAMP type according to Oracle docs:
+		// https://www.techonthenet.com/oracle/datatypes.php
+		private static final int MAX_TIMESTAMP_PRECISION = 9;
+		private static final int MIN_TIMESTAMP_PRECISION = 1;
+
+		// Define MAX/MIN precision of DECIMAL type according to Oracle docs:
+		// https://www.techonthenet.com/oracle/datatypes.php
+		private static final int MAX_DECIMAL_PRECISION = 38;
+		private static final int MIN_DECIMAL_PRECISION = 1;
+
+		@Override
+		public boolean canHandle(String url) {
+			return url.startsWith("jdbc:oracle:");
+		}
+
+		@Override
+		public JDBCRowConverter getRowConverter(RowType rowType) {
+			return new OracleRowConverter(rowType);
+		}
+
+		@Override
+		public Optional<String> defaultDriverName() {
+			return Optional.of("oracle.jdbc.OracleDriver");
+		}
+
+		/**
+		 * Oracle upsert query. It use MERGE INTO to inset or replace into Oracle.
+		 */
+		@Override
+		public Optional<String> getUpsertStatement(String tableName, String[] fieldNames, String[] uniqueKeyFields) {
+			String sourceFieldValues = Arrays.stream(fieldNames)
+				.map(f -> "? " + quoteIdentifier(f))
+				.collect(Collectors.joining(", "));
+			String sourceSelect = "SELECT " + sourceFieldValues + " FROM DUAL";
+			return Optional.of(getMergeIntoStatement(tableName, fieldNames, uniqueKeyFields, sourceSelect));
+		}
+
+		@Override
+		public String quoteIdentifier(String identifier) {
+			//return "\"" + identifier + "\""; //if we use this then Oracle becomes case-sensitive
+			return identifier;
+		}
+
+		@Override
+		public String dialectName() {
+			return "oracle";
+		}
+
+		@Override
+		public int maxDecimalPrecision() {
+			return MAX_DECIMAL_PRECISION;
+		}
+
+		@Override
+		public int minDecimalPrecision() {
+			return MIN_DECIMAL_PRECISION;
+		}
+
+		@Override
+		public int maxTimestampPrecision() {
+			return MAX_TIMESTAMP_PRECISION;
+		}
+
+		@Override
+		public int minTimestampPrecision() {
+			return MIN_TIMESTAMP_PRECISION;
+		}
+
+		@Override
+		public List<LogicalTypeRoot> unsupportedTypes() {
+			// The data types used in Oracle are list at:
+			// https://www.techonthenet.com/oracle/datatypes.php
+
+			// TODO: We can't convert BINARY data type to
+			//  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in LegacyTypeInfoDataTypeConverter.
+			return Arrays.asList(
+				LogicalTypeRoot.BINARY,
+				LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE,
+				LogicalTypeRoot.INTERVAL_YEAR_MONTH,
+				LogicalTypeRoot.INTERVAL_DAY_TIME,
+				LogicalTypeRoot.MULTISET,
+				LogicalTypeRoot.MAP,
+				LogicalTypeRoot.ROW,
+				LogicalTypeRoot.DISTINCT_TYPE,
+				LogicalTypeRoot.STRUCTURED_TYPE,
+				LogicalTypeRoot.NULL,
+				LogicalTypeRoot.RAW,
+				LogicalTypeRoot.SYMBOL,
+				LogicalTypeRoot.UNRESOLVED
 			);
 
 		}

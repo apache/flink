@@ -102,6 +102,24 @@ public class JDBCDataTypeTest {
 			createTestItem("postgresql", "VARBINARY"),
 			createTestItem("postgresql", "ARRAY<INTEGER>"),
 
+			createTestItem("oracle", "CHAR"),
+			createTestItem("oracle", "VARCHAR"),
+			createTestItem("oracle", "BOOLEAN"),
+			createTestItem("oracle", "TINYINT"),
+			createTestItem("oracle", "SMALLINT"),
+			createTestItem("oracle", "INTEGER"),
+			createTestItem("oracle", "BIGINT"),
+			createTestItem("oracle", "FLOAT"),
+			createTestItem("oracle", "DOUBLE"),
+			createTestItem("oracle", "DECIMAL(10, 4)"),
+			createTestItem("oracle", "DECIMAL(38, 18)"),
+			createTestItem("oracle", "DATE"),
+			createTestItem("oracle", "TIME"),
+			createTestItem("oracle", "TIMESTAMP(3)"),
+			createTestItem("oracle", "TIMESTAMP WITHOUT TIME ZONE"),
+			createTestItem("oracle", "VARBINARY"),
+			createTestItem("oracle", "ARRAY<INTEGER>"),
+
 			// Unsupported types throws errors.
 			createTestItem("derby", "BINARY", "The derby dialect doesn't support type: BINARY(1)."),
 			createTestItem("derby", "VARBINARY(10)", "The derby dialect doesn't support type: VARBINARY(10)."),
@@ -122,7 +140,12 @@ public class JDBCDataTypeTest {
 			createTestItem("postgresql", "TIMESTAMP(9) WITHOUT TIME ZONE",
 					"The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by postgresql dialect."),
 			createTestItem("postgresql", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
-					"The postgresql dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE.")
+					"The postgresql dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE."),
+
+			createTestItem("oracle", "BINARY", "The oracle dialect doesn't support type: BINARY(1)."),
+			createTestItem("oracle", "VARBINARY(10)", "The oracle dialect doesn't support type: VARBINARY(10)."),
+			createTestItem("oracle", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
+				"The oracle dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE.")
 		);
 	}
 
