@@ -68,6 +68,13 @@ sed -i -e ''$(($position + 1))'i\
 
 sed -i -e "s/org.apache.flink.quickstart.StreamingJob/org.apache.flink.quickstart.$TEST_CLASS_NAME/" pom.xml
 
+if [[ $PROFILE == *"scala-2.12"* ]]; then
+  echo "Changing scala version"
+  sed -i -e "s/scala.binary.version>2.11<\/scala.binary/scala.binary.version>2.12<\/scala.binary/" pom.xml
+  # for flink-quickstart-scala, also change scala version
+  sed -i -e "s/scala.version>2.11.12<\/scala.ver/scala.version>2.12.7<\/scala.ver/" pom.xml
+fi
+
 run_mvn clean package
 
 cd target
