@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.format.Format;
 import org.apache.flink.table.connector.format.ScanFormat;
@@ -37,7 +37,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
  *
  * @param <I> runtime interface needed by the table source
  */
-@Internal
+@PublicEvolving
 public interface ScanFormatFactory<I> extends Factory {
 
 	/**

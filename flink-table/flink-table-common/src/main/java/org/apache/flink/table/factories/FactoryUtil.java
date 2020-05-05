@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
 /**
  * Utility for working with {@link Factory}s.
  */
-@Internal
+@PublicEvolving
 public final class FactoryUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FactoryUtil.class);
@@ -244,22 +244,22 @@ public final class FactoryUtil {
 	public static void validateFactoryOptions(Factory factory, ReadableConfig options) {
 		// currently Flink's options have no validation feature which is why we access them eagerly
 		// to provoke a parsing error
-		factory.requiredOptions()
-			.forEach(option -> {
-				final Object value = readOption(options, option);
-				if (value == null) {
-					throw new ValidationException(
-						String.format(
-							"A value for required option '%s' is missing.\n\n" +
-							"Required options are:\n\n" +
-							"%s",
-							option.key(),
-							factory.requiredOptions().stream()
-								.map(ConfigOption::key)
-								.sorted()
-								.collect(Collectors.joining("\n"))));
-				}
-			});
+
+		final List<String> missingRequiredOptions = factory.requiredOptions().stream()
+			.filter(option -> readOption(options, option) == null)
+			.map(ConfigOption::key)
+			.sorted()
+			.collect(Collectors.toList());
+
+		if (!missingRequiredOptions.isEmpty()) {
+			throw new ValidationException(
+				String.format(
+					"One or more required options are missing.\n\n" +
+					"Missing required options are:\n\n" +
+					"%s",
+					String.join("\n", missingRequiredOptions)));
+		}
+
 		factory.optionalOptions()
 			.forEach(option -> readOption(options, option));
 	}
@@ -387,7 +387,7 @@ public final class FactoryUtil {
 			return discoverOptionalScanFormat(formatFactoryClass, formatOption, formatPrefix)
 				.orElseThrow(() ->
 					new ValidationException(
-						String.format("Could not find required scan format option '%s'.", formatOption.key())));
+						String.format("Could not find required scan format '%s'.", formatOption.key())));
 		}
 
 		/**
@@ -427,7 +427,7 @@ public final class FactoryUtil {
 			return discoverOptionalSinkFormat(formatFactoryClass, formatOption, formatPrefix)
 				.orElseThrow(() ->
 					new ValidationException(
-						String.format("Could not find required scan format option '%s'.", formatOption.key())));
+						String.format("Could not find required sink format '%s'.", formatOption.key())));
 		}
 
 		/**

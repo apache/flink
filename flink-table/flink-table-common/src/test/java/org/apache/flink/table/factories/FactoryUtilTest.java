@@ -71,10 +71,9 @@ public class FactoryUtilTest {
 	@Test
 	public void testMissingConnectorOption() {
 		expectError(
-			"A value for required option 'target' is missing.\n\n" +
-			"Required options are:\n\n" +
-			"target\n" +
-			"value.format.kind");
+			"One or more required options are missing.\n\n" +
+			"Missing required options are:\n\n" +
+			"target");
 		testError(options -> options.remove("target"));
 	}
 
@@ -86,7 +85,7 @@ public class FactoryUtilTest {
 
 	@Test
 	public void testMissingFormat() {
-		expectError("Could not find required scan format option 'value.format.kind'.");
+		expectError("Could not find required scan format 'value.format.kind'.");
 		testError(options -> options.remove("value.format.kind"));
 	}
 
@@ -105,8 +104,8 @@ public class FactoryUtilTest {
 		expectError(
 			"Error creating scan format 'test-format' in option space 'key.format.'.");
 		expectError(
-			"A value for required option 'delimiter' is missing.\n\n" +
-			"Required options are:\n\n" +
+			"One or more required options are missing.\n\n" +
+			"Missing required options are:\n\n" +
 			"delimiter");
 		testError(options -> options.remove("key.format.delimiter"));
 	}

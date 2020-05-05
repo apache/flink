@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.connector.format;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.types.DataType;
@@ -28,8 +28,8 @@ import org.apache.flink.table.types.DataType;
  *
  * @param <I> runtime interface needed by the table sink
  */
-@Internal
-public interface SinkFormat<I> extends Format<I> {
+@PublicEvolving
+public interface SinkFormat<I> extends Format {
 
 	/**
 	 * Creates runtime implementation that is configured to consume data of the given data type.

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.connector.format;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.types.DataType;
 
@@ -27,8 +27,8 @@ import org.apache.flink.table.types.DataType;
  *
  * @param <I> runtime interface needed by the table source
  */
-@Internal
-public interface ScanFormat<I> extends Format<I> {
+@PublicEvolving
+public interface ScanFormat<I> extends Format {
 
 	/**
 	 * Creates runtime implementation that is configured to produce data of the given data type.

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.connector.format;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -43,15 +43,13 @@ import org.apache.flink.table.factories.DynamicTableFactory;
  *
  * @see ScanFormat
  * @see SinkFormat
- *
- * @param <I> underlying runtime interface
  */
-@Internal
-public interface Format<I> {
+@PublicEvolving
+public interface Format {
 
 	/**
 	 * Returns the set of changes that a connector (and transitively the planner) can expect during
 	 * runtime.
 	 */
-	ChangelogMode createChangelogMode();
+	ChangelogMode getChangelogMode();
 }

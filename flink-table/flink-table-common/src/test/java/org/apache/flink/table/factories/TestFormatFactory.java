@@ -111,7 +111,7 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 		}
 
 		@Override
-		public ChangelogMode createChangelogMode() {
+		public ChangelogMode getChangelogMode() {
 			return null;
 		}
 
@@ -156,7 +156,7 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 		}
 
 		@Override
-		public ChangelogMode createChangelogMode() {
+		public ChangelogMode getChangelogMode() {
 			return null;
 		}
 

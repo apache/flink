@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.table.connector.format.SinkFormat;
 import org.apache.flink.table.data.RowData;
@@ -28,7 +28,7 @@ import org.apache.flink.table.data.RowData;
  *
  * @see FactoryUtil#createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)
  */
-@Internal
+@PublicEvolving
 public interface SerializationFormatFactory extends SinkFormatFactory<SerializationSchema<RowData>> {
   // interface is used for discovery but is already fully specified by the generics
 }

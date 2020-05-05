@@ -70,7 +70,10 @@ public interface Catalog {
 	 * instances stored in this catalog, instances such as source/sink.
 	 *
 	 * @return an optional TableFactory instance
+	 * @deprecated Use {@link #getFactory()} for the new factory stack. The new factory stack uses the
+	 *             new table sources and sinks defined in FLIP-95 and a slightly different discovery mechanism.
 	 */
+	@Deprecated
 	default Optional<TableFactory> getTableFactory() {
 		return Optional.empty();
 	}
