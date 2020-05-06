@@ -75,6 +75,11 @@ public class HiveVectorizedParquetSplitReader implements SplitReader {
 	}
 
 	@Override
+	public void seekToRow(long rowCount, RowData reuse) throws IOException {
+		this.reader.seekToRow(rowCount);
+	}
+
+	@Override
 	public boolean reachedEnd() throws IOException {
 		return this.reader.reachedEnd();
 	}

@@ -290,6 +290,37 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 		totalCountLoadedSoFar += pages.getRowCount();
 	}
 
+	/**
+	 * Seek to a particular row number.
+	 */
+	public void seekToRow(long rowCount) throws IOException {
+		if (totalCountLoadedSoFar != 0) {
+			throw new UnsupportedOperationException("Only support seek at first.");
+		}
+
+		List<BlockMetaData> blockMetaData = reader.getRowGroups();
+
+		for (BlockMetaData metaData : blockMetaData) {
+			if (metaData.getRowCount() > rowCount) {
+				break;
+			} else {
+				reader.skipNextRowGroup();
+				rowsReturned += metaData.getRowCount();
+				totalCountLoadedSoFar += metaData.getRowCount();
+				rowsInBatch = (int) metaData.getRowCount();
+				nextRow = (int) metaData.getRowCount();
+				rowCount -= metaData.getRowCount();
+			}
+		}
+		for (int i = 0; i < rowCount; i++) {
+			boolean end = reachedEnd();
+			if (end) {
+				throw new RuntimeException("Seek to many rows.");
+			}
+			nextRecord();
+		}
+	}
+
 	@Override
 	public void close() throws IOException {
 		if (reader != null) {
