@@ -58,9 +58,8 @@ public interface JobLeaderService {
 	 * Remove the given job from being monitored by the job leader service.
 	 *
 	 * @param jobId identifying the job to remove from monitoring
-	 * @throws Exception if an error occurred while stopping the leader retrieval service and listener
 	 */
-	void removeJob(JobID jobId) throws Exception;
+	void removeJob(JobID jobId);
 
 	/**
 	 * Add the given job to be monitored. This means that the service tries to detect leaders for
