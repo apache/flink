@@ -33,6 +33,7 @@ import org.apache.flink.table.sources.LimitableTableSource;
 import org.apache.flink.table.sources.PartitionableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.PartitionPathUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;

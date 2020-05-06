@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.filesystem;
+package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -24,8 +24,12 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -199,6 +203,49 @@ public class PartitionPathUtils {
 			ret.add(new Tuple2<>(extractPartitionSpecFromPath(part.getPath()), part.getPath()));
 		}
 		return ret;
+	}
+
+	/**
+	 * Restore partition value from string and type.
+	 *
+	 * @param valStr string partition value.
+	 * @param type type of partition field.
+	 * @return partition value.
+	 */
+	public static Object restorePartValueFromType(String valStr, DataType type) {
+		if (valStr == null) {
+			return null;
+		}
+
+		LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
+		switch (typeRoot) {
+			case CHAR:
+			case VARCHAR:
+				return valStr;
+			case BOOLEAN:
+				return Boolean.parseBoolean(valStr);
+			case TINYINT:
+				return Integer.valueOf(valStr).byteValue();
+			case SMALLINT:
+				return Short.valueOf(valStr);
+			case INTEGER:
+				return Integer.valueOf(valStr);
+			case BIGINT:
+				return Long.valueOf(valStr);
+			case FLOAT:
+				return Float.valueOf(valStr);
+			case DOUBLE:
+				return Double.valueOf(valStr);
+			case DATE:
+				return LocalDate.parse(valStr);
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return LocalDateTime.parse(valStr);
+			default:
+				throw new RuntimeException(String.format(
+					"Can not convert %s to type %s for partition value",
+					valStr,
+					type));
+		}
 	}
 
 	private static FileStatus[] getFileStatusRecurse(Path path, int expectLevel, FileSystem fs) {

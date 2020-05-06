@@ -24,7 +24,7 @@ import org.apache.flink.api.common.io.OutputFormat;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.table.filesystem.PartitionPathUtils.generatePartitionPath;
+import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 
 /**
  * Dynamic partition writer to writing multiple partitions at the same time, it maybe consumes more memory.
