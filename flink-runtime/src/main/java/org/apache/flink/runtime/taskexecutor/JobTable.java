@@ -26,7 +26,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -36,7 +36,7 @@ import java.util.Optional;
  * of a job on the {@link TaskExecutor}.
  *
  * <p>There can always only be at most one job per {@link JobID}. In order
- * to create a {@link Job} one needs to provide a {@link LibraryCacheManager}
+ * to create a {@link Job} one needs to provide a {@link JobTable.JobServices}
  * instance which is owned by the job.
  *
  * <p>A job can be connected to a leading JobManager or can be disconnected.
@@ -47,7 +47,8 @@ import java.util.Optional;
  *
  * <p>In order to clean up a {@link Job} one first needs to disconnect from the
  * leading JobManager. In order to completely remove the {@link Job} from the
- * {@link JobTable}, one needs to call {@link Job#close}.
+ * {@link JobTable}, one needs to call {@link Job#close} which also closes the
+ * associated {@link JobTable.JobServices} instance.
  */
 public interface JobTable extends AutoCloseable {
 
@@ -55,14 +56,14 @@ public interface JobTable extends AutoCloseable {
 	 * Gets a registered {@link Job} or creates one if not present.
 	 *
 	 * @param jobId jobId identifies the job to get
-	 * @param jobServicesFactory jobServicesFactory registers a
-	 * {@link LibraryCacheManager.ClassLoaderLease} if a new job needs to be created
+	 * @param jobServicesSupplier jobServicesSupplier create new
+	 * {@link JobTable.JobServices} if a new job needs to be created
 	 * @return the current job (existing or created) registered under jobId
 	 * @throws E if the job services could not be created
 	 */
 	<E extends Exception> Job getOrCreateJob(
 		JobID jobId,
-		FunctionWithException<JobID, ? extends LibraryCacheManager.ClassLoaderLease, E> jobServicesFactory) throws E;
+		SupplierWithException<? extends JobTable.JobServices, E> jobServicesSupplier) throws E;
 
 	/**
 	 * Gets the job registered under jobId.
@@ -204,5 +205,27 @@ public interface JobTable extends AutoCloseable {
 		JobID getJobId();
 
 		ResourceID getResourceId();
+	}
+
+	/**
+	 * Services associated with a job. The services need to provide a
+	 * {@link LibraryCacheManager.ClassLoaderHandle} and will be closed once the associated
+	 * {@link JobTable.Job} is being closed.
+	 */
+	interface JobServices {
+
+		/**
+		 * Gets the {@link LibraryCacheManager.ClassLoaderHandle} for the associated job.
+		 *
+		 * @return {@link LibraryCacheManager.ClassLoaderHandle} for the associated job
+		 */
+		LibraryCacheManager.ClassLoaderHandle getClassLoaderHandle();
+
+		/**
+		 * Closes the job services.
+		 *
+		 * <p>This method is called once the {@link JobTable.Job} is being closed.
+		 */
+		void close();
 	}
 }

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -893,7 +894,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final JobTable.Job job;
 
 		try {
-			job = jobTable.getOrCreateJob(jobId, id -> registerNewJobAndCreateServices(id, targetAddress));
+			job = jobTable.getOrCreateJob(jobId, () -> registerNewJobAndCreateServices(jobId, targetAddress));
 		} catch (Exception e) {
 			// free the allocated slot
 			try {
@@ -922,12 +923,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
-	private LibraryCacheManager.ClassLoaderLease registerNewJobAndCreateServices(JobID jobId, String targetAddress) throws Exception {
+	private TaskExecutorJobServices registerNewJobAndCreateServices(JobID jobId, String targetAddress) throws Exception {
 		jobLeaderService.addJob(jobId, targetAddress);
+		final PermanentBlobCache permanentBlobService = blobCacheService.getPermanentBlobService();
+		permanentBlobService.registerJob(jobId);
 
-		blobCacheService.getPermanentBlobService().registerJob(jobId);
-
-		return libraryCacheManager.registerClassLoaderLease(jobId);
+		return TaskExecutorJobServices.create(
+			libraryCacheManager.registerClassLoaderLease(jobId),
+			() -> permanentBlobService.releaseJob(jobId));
 	}
 
 	private void allocateSlot(
@@ -1368,7 +1371,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			jobManagerConnection -> disconnectJobManagerConnection(jobManagerConnection, cause));
 
 		job.close();
-		blobCacheService.getPermanentBlobService().releaseJob(job.getJobId());
 	}
 
 	private void disconnectJobManagerConnection(JobTable.Connection jobManagerConnection, Exception cause) {
@@ -1988,6 +1990,41 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		public TaskExecutorHeartbeatPayload retrievePayload(ResourceID resourceID) {
 			validateRunsInMainThread();
 			return new TaskExecutorHeartbeatPayload(taskSlotTable.createSlotReport(getResourceID()), partitionTracker.createClusterPartitionReport());
+		}
+	}
+
+	@VisibleForTesting
+	static final class TaskExecutorJobServices implements JobTable.JobServices {
+
+		private final LibraryCacheManager.ClassLoaderLease classLoaderLease;
+
+		private final Runnable closeHook;
+
+		private TaskExecutorJobServices(
+			LibraryCacheManager.ClassLoaderLease classLoaderLease,
+			Runnable closeHook) {
+			this.classLoaderLease = classLoaderLease;
+			this.closeHook = closeHook;
+		}
+
+		@Override
+		public LibraryCacheManager.ClassLoaderHandle getClassLoaderHandle() {
+			return classLoaderLease;
+		}
+
+		@Override
+		public void close() {
+			classLoaderLease.release();
+			closeHook.run();
+		}
+
+		@VisibleForTesting
+		static TaskExecutorJobServices create(
+			LibraryCacheManager.ClassLoaderLease classLoaderLease,
+			Runnable closeHook) {
+			return new TaskExecutorJobServices(
+				classLoaderLease,
+				closeHook);
 		}
 	}
 }
