@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
@@ -1211,7 +1212,8 @@ public class TypeExtractor {
 	 * Tries to find a concrete value (Class, ParameterizedType etc. ) for a TypeVariable by traversing the type hierarchy downwards.
 	 * If a value could not be found it will return the most bottom type variable in the hierarchy.
 	 */
-	private static Type materializeTypeVariable(List<ParameterizedType> typeHierarchy, TypeVariable<?> typeVar) {
+	@VisibleForTesting
+	static Type materializeTypeVariable(List<ParameterizedType> typeHierarchy, TypeVariable<?> typeVar) {
 		TypeVariable<?> inTypeTypeVar = typeVar;
 		// iterate thru hierarchy from top to bottom until type variable gets a class assigned
 		for (int i = typeHierarchy.size() - 1; i >= 0; i--) {
@@ -1738,7 +1740,7 @@ public class TypeExtractor {
 	 * @param traverseInterface whether to traverse the interface type
 	 * @return the parameterized type hierarchy.
 	 */
-	private static List<ParameterizedType> buildParameterizedTypeHierarchy(
+	static List<ParameterizedType> buildParameterizedTypeHierarchy(
 		final Class<?> subClass,
 		final Class<?> baseClass,
 		final boolean traverseInterface) {
