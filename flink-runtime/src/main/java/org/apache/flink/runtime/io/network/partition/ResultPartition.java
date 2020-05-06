@@ -156,6 +156,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		for (ResultSubpartition subpartition : subpartitions) {
 			subpartition.readRecoveredState(stateReader);
 		}
+		LOG.debug("{}: Finished reading recovered state.", this);
 	}
 
 	public String getOwningTaskName() {
