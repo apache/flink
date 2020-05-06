@@ -67,7 +67,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -863,7 +862,7 @@ public class TypeExtractor {
 		}
 		// check if type is a subclass of tuple
 		else if (isClassType(t) && Tuple.class.isAssignableFrom(typeToClass(t))) {
-			final List<Type> typeHierarchy = new ArrayList<>(Arrays.asList(t));
+			final List<Type> typeHierarchy = new ArrayList<>();
 
 			Type curT = t;
 
@@ -1042,16 +1041,13 @@ public class TypeExtractor {
 		Map<TypeVariable<?>, TypeInformation<?>> typeVariableBindings,
 		List<Class<?>> extractingClasses) {
 
-		final List<Type> factoryHierarchy = new ArrayList<>(Arrays.asList(t));
+		final List<Type> factoryHierarchy = new ArrayList<>();
 		final TypeInfoFactory<? super OUT> factory = getClosestFactory(factoryHierarchy, t);
 		if (factory == null) {
 			return null;
 		}
-		final Type factoryDefiningType =
-			resolveTypeFromTypeHierarchy(
-				factoryHierarchy.get(factoryHierarchy.size() - 1),
-				factoryHierarchy,
-				true);
+		final Type factoryDefiningType = factoryHierarchy.size() < 1 ? t :
+			resolveTypeFromTypeHierarchy(factoryHierarchy.get(factoryHierarchy.size() - 1), factoryHierarchy, true);
 
 		// infer possible type parameters from input
 		final Map<String, TypeInformation<?>> genericParams;
@@ -1967,29 +1963,24 @@ public class TypeExtractor {
 		final Type inType,
 		final TypeInformation<?> inTypeInfo) {
 
-		final List<Type> factoryHierarchy = new ArrayList<>(Arrays.asList(inType));
+		final List<Type> factoryHierarchy = new ArrayList<>();
 		final TypeInfoFactory<?> factory = getClosestFactory(factoryHierarchy, inType);
 
 		if (factory != null) {
-			final Type factoryDefiningType =
-				resolveTypeFromTypeHierarchy(
-					factoryHierarchy.get(factoryHierarchy.size() - 1),
-					factoryHierarchy,
-					true);
+			final Type factoryDefiningType = factoryHierarchy.size() < 1 ? inType :
+				resolveTypeFromTypeHierarchy(factoryHierarchy.get(factoryHierarchy.size() - 1), factoryHierarchy, true);
 			return bindTypeVariableFromGenericParameters(factoryDefiningType, inTypeInfo);
 		} else if (inType instanceof GenericArrayType) {
 			return bindTypeVariableFromGenericArray(inType, inTypeInfo);
 		} else if (inTypeInfo instanceof TupleTypeInfo && isClassType(inType) && Tuple.class.isAssignableFrom(typeToClass(inType))) {
-			final List<Type> typeHierarchy = new ArrayList<>(Arrays.asList(inType));
+			final List<Type> typeHierarchy = new ArrayList<>();
 			Type curType = inType;
 			// get tuple from possible tuple subclass
 			while (!(isClassType(curType) && typeToClass(curType).getSuperclass().equals(Tuple.class))) {
 				typeHierarchy.add(curType);
 				curType = typeToClass(curType).getGenericSuperclass();
 			}
-			if (curType != inType) {
-				typeHierarchy.add(curType);
-			}
+			typeHierarchy.add(curType);
 			final Type tupleBaseClass = resolveTypeFromTypeHierarchy(curType, typeHierarchy, true);
 			return bindTypeVariableFromGenericParameters(tupleBaseClass, inTypeInfo);
 		} else if (inTypeInfo instanceof PojoTypeInfo && isClassType(inType)) {
@@ -2069,7 +2060,7 @@ public class TypeExtractor {
 
 		final Map<TypeVariable<?>, TypeInformation<?>> typeVariableBindings = new HashMap<>();
 
-		final List<Type> pojoHierarchy = new ArrayList<>(Arrays.asList(type));
+		final List<Type> pojoHierarchy = new ArrayList<>();
 		// build the entire type hierarchy for the pojo
 		getTypeHierarchy(pojoHierarchy, type, Object.class);
 		// determine a field containing the type variable
