@@ -1740,6 +1740,7 @@ public class TypeExtractor {
 	 * @param traverseInterface whether to traverse the interface type
 	 * @return the parameterized type hierarchy.
 	 */
+	@VisibleForTesting
 	static List<ParameterizedType> buildParameterizedTypeHierarchy(
 		final Class<?> subClass,
 		final Class<?> baseClass,

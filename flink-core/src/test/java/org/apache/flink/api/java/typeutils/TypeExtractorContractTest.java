@@ -8,6 +8,7 @@ import org.junit.Test;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import java.util.Collections;
 import java.util.List;
 
 public class TypeExtractorContractTest {
@@ -54,6 +55,35 @@ public class TypeExtractorContractTest {
 		Assert.assertEquals(firstTypeVariableOfRichInterface, materializedFirstTypeVariable);
 		Assert.assertEquals(secondTypeVariableOfRichInterface, materializedSecondTypeVariable);
 
+	}
+
+	@Test
+	public void testBuildParameterizedTypeHierarchyFromBothSuperClassAndInterface() {
+		final List<ParameterizedType> parameterizedTypeHierarchy =
+			TypeExtractor.buildParameterizedTypeHierarchy(MyUdf.class, BasicInterface.class, true);
+
+		Assert.assertEquals(3, parameterizedTypeHierarchy.size());
+		Assert.assertEquals(UDF.class, parameterizedTypeHierarchy.get(0).getRawType());
+		Assert.assertEquals(RichInterface.class, parameterizedTypeHierarchy.get(1).getRawType());
+		Assert.assertEquals(BasicInterface.class, parameterizedTypeHierarchy.get(2).getRawType());
+
+	}
+
+	@Test
+	public void testBuildParameterizedTypeHierarchyOnlyFromSuperClass() {
+		final List<ParameterizedType> parameterizedTypeHierarchy =
+			TypeExtractor.buildParameterizedTypeHierarchy(MyUdf.class, Object.class, false);
+
+		Assert.assertEquals(1, parameterizedTypeHierarchy.size());
+		Assert.assertEquals(UDF.class, parameterizedTypeHierarchy.get(0).getRawType());
+	}
+
+	@Test
+	public void testBuildParameterizedTypeHierarchyWithoutInheritance() {
+		final List<ParameterizedType> parameterizedTypeHierarchy =
+			TypeExtractor.buildParameterizedTypeHierarchy(MyUdf.class, TypeExtractorContractTest.class, true);
+
+		Assert.assertEquals(Collections.emptyList(), parameterizedTypeHierarchy);
 	}
 
 	interface BasicInterface<X, Y> {
