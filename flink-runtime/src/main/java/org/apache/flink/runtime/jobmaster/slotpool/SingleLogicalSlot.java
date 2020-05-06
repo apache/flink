@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
@@ -70,17 +71,32 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 	// LogicalSlot.Payload of this slot
 	private volatile Payload payload;
 
+	private boolean slotWillBeOccupiedIndefinitely;
+
+	@VisibleForTesting
+	public SingleLogicalSlot(
+		SlotRequestId slotRequestId,
+		SlotContext slotContext,
+		@Nullable SlotSharingGroupId slotSharingGroupId,
+		Locality locality,
+		SlotOwner slotOwner) {
+
+		this(slotRequestId, slotContext, slotSharingGroupId, locality, slotOwner, true);
+	}
+
 	public SingleLogicalSlot(
 			SlotRequestId slotRequestId,
 			SlotContext slotContext,
 			@Nullable SlotSharingGroupId slotSharingGroupId,
 			Locality locality,
-			SlotOwner slotOwner) {
+			SlotOwner slotOwner,
+			boolean slotWillBeOccupiedIndefinitely) {
 		this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
 		this.slotContext = Preconditions.checkNotNull(slotContext);
 		this.slotSharingGroupId = slotSharingGroupId;
 		this.locality = Preconditions.checkNotNull(locality);
 		this.slotOwner = Preconditions.checkNotNull(slotOwner);
+		this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
 		this.releaseFuture = new CompletableFuture<>();
 
 		this.state = State.ALIVE;
@@ -166,6 +182,11 @@ public class SingleLogicalSlot implements LogicalSlot, PhysicalSlot.Payload {
 		}
 		markReleased();
 		releaseFuture.complete(null);
+	}
+
+	@Override
+	public boolean willOccupySlotIndefinitely() {
+		return slotWillBeOccupiedIndefinitely;
 	}
 
 	private void signalPayloadRelease(Throwable cause) {

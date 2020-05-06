@@ -108,6 +108,11 @@ class AllocatedSlot implements PhysicalSlot {
 	}
 
 	@Override
+	public boolean willBeOccupiedIndefinitely() {
+		return isUsed() && payloadReference.get().willOccupySlotIndefinitely();
+	}
+
+	@Override
 	public TaskManagerLocation getTaskManagerLocation() {
 		return taskManagerLocation;
 	}

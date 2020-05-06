@@ -359,6 +359,11 @@ public class SlotSharingManager {
 		 * Gets the total reserved resources of the slot and its descendants.
 		 */
 		public abstract ResourceProfile getReservedResources();
+
+		/**
+		 * Gets whether the slot will be occupied indefinitely.
+		 */
+		public abstract boolean willBeOccupiedIndefinitely();
 	}
 
 	/**
@@ -472,6 +477,15 @@ public class SlotSharingManager {
 			return inner;
 		}
 
+		@VisibleForTesting
+		SingleTaskSlot allocateSingleTaskSlot(
+				SlotRequestId slotRequestId,
+				ResourceProfile resourceProfile,
+				AbstractID groupId,
+				Locality locality) {
+			return allocateSingleTaskSlot(slotRequestId, resourceProfile, groupId, locality, true);
+		}
+
 		/**
 		 * Allocates a {@link SingleTaskSlot} and registers it under the given groupId at
 		 * this MultiTaskSlot.
@@ -479,13 +493,15 @@ public class SlotSharingManager {
 		 * @param slotRequestId of the new single task slot
 		 * @param groupId under which the new single task slot is registered
 		 * @param locality of the allocation
+		 * @param slotWillBeOccupiedIndefinitely whether the slot will be occupied indefinitely
 		 * @return the newly allocated {@link SingleTaskSlot}
 		 */
 		SingleTaskSlot allocateSingleTaskSlot(
 				SlotRequestId slotRequestId,
 				ResourceProfile resourceProfile,
 				AbstractID groupId,
-				Locality locality) {
+				Locality locality,
+				boolean slotWillBeOccupiedIndefinitely) {
 			Preconditions.checkState(!super.contains(groupId));
 
 			LOG.debug("Create single task slot [{}] in multi task slot [{}] for group {}.", slotRequestId, getSlotRequestId(), groupId);
@@ -495,7 +511,8 @@ public class SlotSharingManager {
 				resourceProfile,
 				groupId,
 				this,
-				locality);
+				locality,
+				slotWillBeOccupiedIndefinitely);
 
 			children.put(groupId, leaf);
 
@@ -576,6 +593,22 @@ public class SlotSharingManager {
 		@Override
 		public ResourceProfile getReservedResources() {
 			return reservedResources;
+		}
+
+		@Override
+		public boolean willBeOccupiedIndefinitely() {
+			for (TaskSlot taskSlot : children.values()) {
+				if (taskSlot.willBeOccupiedIndefinitely()) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		@Override
+		public boolean willOccupySlotIndefinitely() {
+			return willBeOccupiedIndefinitely();
 		}
 
 		/**
@@ -692,16 +725,20 @@ public class SlotSharingManager {
 		// the resource profile of this slot.
 		private final ResourceProfile resourceProfile;
 
+		private final boolean willBeOccupiedIndefinitely;
+
 		private SingleTaskSlot(
 				SlotRequestId slotRequestId,
 				ResourceProfile resourceProfile,
 				AbstractID groupId,
 				MultiTaskSlot parent,
-				Locality locality) {
+				Locality locality,
+				boolean willBeOccupiedIndefinitely) {
 			super(slotRequestId, groupId);
 
 			this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
 			this.parent = Preconditions.checkNotNull(parent);
+			this.willBeOccupiedIndefinitely = willBeOccupiedIndefinitely;
 
 			Preconditions.checkNotNull(locality);
 			singleLogicalSlotFuture = parent.getSlotContextFuture()
@@ -713,7 +750,8 @@ public class SlotSharingManager {
 							slotContext,
 							slotSharingGroupId,
 							locality,
-							slotOwner);
+							slotOwner,
+							willBeOccupiedIndefinitely);
 					});
 		}
 
@@ -738,6 +776,11 @@ public class SlotSharingManager {
 		@Override
 		public ResourceProfile getReservedResources() {
 			return resourceProfile;
+		}
+
+		@Override
+		public boolean willBeOccupiedIndefinitely() {
+			return willBeOccupiedIndefinitely;
 		}
 
 		@Override

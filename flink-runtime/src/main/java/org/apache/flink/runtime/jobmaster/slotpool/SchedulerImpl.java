@@ -114,6 +114,7 @@ public class SchedulerImpl implements Scheduler {
 			slotRequestId,
 			scheduledUnit,
 			slotProfile,
+			true,
 			allocationTimeout);
 	}
 
@@ -126,6 +127,7 @@ public class SchedulerImpl implements Scheduler {
 			slotRequestId,
 			scheduledUnit,
 			slotProfile,
+			false,
 			null);
 	}
 
@@ -134,6 +136,7 @@ public class SchedulerImpl implements Scheduler {
 		SlotRequestId slotRequestId,
 		ScheduledUnit scheduledUnit,
 		SlotProfile slotProfile,
+		boolean slotWillBeOccupiedIndefinitely,
 		@Nullable Time allocationTimeout) {
 		log.debug("Received slot request [{}] for task: {}", slotRequestId, scheduledUnit.getJobVertexId());
 
@@ -145,6 +148,7 @@ public class SchedulerImpl implements Scheduler {
 				slotRequestId,
 				scheduledUnit,
 				slotProfile,
+				slotWillBeOccupiedIndefinitely,
 				allocationTimeout);
 		return allocationResultFuture;
 	}
@@ -154,10 +158,11 @@ public class SchedulerImpl implements Scheduler {
 			SlotRequestId slotRequestId,
 			ScheduledUnit scheduledUnit,
 			SlotProfile slotProfile,
+			boolean slotWillBeOccupiedIndefinitely,
 			Time allocationTimeout) {
 		CompletableFuture<LogicalSlot> allocationFuture = scheduledUnit.getSlotSharingGroupId() == null ?
-			allocateSingleSlot(slotRequestId, slotProfile, allocationTimeout) :
-			allocateSharedSlot(slotRequestId, scheduledUnit, slotProfile, allocationTimeout);
+			allocateSingleSlot(slotRequestId, slotProfile, slotWillBeOccupiedIndefinitely, allocationTimeout) :
+			allocateSharedSlot(slotRequestId, scheduledUnit, slotProfile, slotWillBeOccupiedIndefinitely, allocationTimeout);
 
 		allocationFuture.whenComplete((LogicalSlot slot, Throwable failure) -> {
 			if (failure != null) {
@@ -200,6 +205,7 @@ public class SchedulerImpl implements Scheduler {
 	private CompletableFuture<LogicalSlot> allocateSingleSlot(
 			SlotRequestId slotRequestId,
 			SlotProfile slotProfile,
+			boolean slotWillBeOccupiedIndefinitely,
 			@Nullable Time allocationTimeout) {
 
 		Optional<SlotAndLocality> slotAndLocality = tryAllocateFromAvailable(slotRequestId, slotProfile);
@@ -208,7 +214,7 @@ public class SchedulerImpl implements Scheduler {
 			// already successful from available
 			try {
 				return CompletableFuture.completedFuture(
-					completeAllocationByAssigningPayload(slotRequestId, slotAndLocality.get()));
+					completeAllocationByAssigningPayload(slotRequestId, slotAndLocality.get(), slotWillBeOccupiedIndefinitely));
 			} catch (FlinkException e) {
 				return FutureUtils.completedExceptionally(e);
 			}
@@ -217,7 +223,10 @@ public class SchedulerImpl implements Scheduler {
 			return requestNewAllocatedSlot(slotRequestId, slotProfile, allocationTimeout)
 				.thenApply((PhysicalSlot allocatedSlot) -> {
 					try {
-						return completeAllocationByAssigningPayload(slotRequestId, new SlotAndLocality(allocatedSlot, Locality.UNKNOWN));
+						return completeAllocationByAssigningPayload(
+							slotRequestId,
+							new SlotAndLocality(allocatedSlot, Locality.UNKNOWN),
+							slotWillBeOccupiedIndefinitely);
 					} catch (FlinkException e) {
 						throw new CompletionException(e);
 					}
@@ -240,7 +249,8 @@ public class SchedulerImpl implements Scheduler {
 	@Nonnull
 	private LogicalSlot completeAllocationByAssigningPayload(
 		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull SlotAndLocality slotAndLocality) throws FlinkException {
+		@Nonnull SlotAndLocality slotAndLocality,
+		boolean slotWillBeOccupiedIndefinitely) throws FlinkException {
 
 		final PhysicalSlot allocatedSlot = slotAndLocality.getSlot();
 
@@ -249,7 +259,8 @@ public class SchedulerImpl implements Scheduler {
 			allocatedSlot,
 			null,
 			slotAndLocality.getLocality(),
-			this);
+			this,
+			slotWillBeOccupiedIndefinitely);
 
 		if (allocatedSlot.tryAssignPayload(singleTaskSlot)) {
 			return singleTaskSlot;
@@ -290,6 +301,7 @@ public class SchedulerImpl implements Scheduler {
 		SlotRequestId slotRequestId,
 		ScheduledUnit scheduledUnit,
 		SlotProfile slotProfile,
+		boolean slotWillBeOccupiedIndefinitely,
 		@Nullable Time allocationTimeout) {
 		// allocate slot with slot sharing
 		final SlotSharingManager multiTaskSlotManager = slotSharingManagers.computeIfAbsent(
@@ -325,7 +337,8 @@ public class SchedulerImpl implements Scheduler {
 			slotRequestId,
 			slotProfile.getTaskResourceProfile(),
 			scheduledUnit.getJobVertexId(),
-			multiTaskSlotLocality.getLocality());
+			multiTaskSlotLocality.getLocality(),
+			slotWillBeOccupiedIndefinitely);
 		return leaf.getLogicalSlotFuture();
 	}
 
