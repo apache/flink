@@ -32,14 +32,21 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<!-- Override the flink-parent dependencyManagement definition for hadoop-common to ensure
-		${fs.hadoopshaded.version} is used for this file system -->
 	<dependencyManagement>
 		<dependencies>
+			<!-- Override the flink-parent dependencyManagement definition for hadoop-common to ensure
+				${fs.hadoopshaded.version} is used for this file system -->
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>
 				<version>${fs.hadoopshaded.version}</version>
+			</dependency>
+
+			<!-- aws-sdk requires httpclient >= 4.5.9 due to api compatibility breakage -->
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>4.5.9</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -86,17 +93,6 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-			<!-- aws-sdk requires httpclient >= 4.5.9 due to api compatibility breakage -->
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpclient</artifactId>
-				<version>4.5.9</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<build>
 		<plugins>
