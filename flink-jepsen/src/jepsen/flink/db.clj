@@ -38,21 +38,21 @@
 
 (defn- default-flink-configuration
   [test node]
-  {:high-availability                     "zookeeper"
-   :high-availability.zookeeper.quorum    (zookeeper-quorum test)
-   :high-availability.storageDir          "hdfs:///flink/ha"
-   :jobmanager.memory.process.size        "2048m"
-   :jobmanager.rpc.address                node
-   :state.savepoints.dir                  "hdfs:///flink/savepoints"
-   :rest.address                          node
-   :rest.port                             8081
-   :rest.bind-address                     "0.0.0.0"
-   :taskmanager.numberOfTaskSlots         taskmanager-slots
-   :yarn.application-attempts             99999
-   :slotmanager.taskmanager-timeout       10000
-   :state.backend.local-recovery          "true"
-   :taskmanager.memory.process.size "2048m"
-   :taskmanager.registration.timeout      "30 s"})
+  {:high-availability                  "zookeeper"
+   :high-availability.zookeeper.quorum (zookeeper-quorum test)
+   :high-availability.storageDir       "hdfs:///flink/ha"
+   :jobmanager.memory.process.size     "2048m"
+   :jobmanager.rpc.address             node
+   :state.savepoints.dir               "hdfs:///flink/savepoints"
+   :rest.address                       node
+   :rest.port                          8081
+   :rest.bind-address                  "0.0.0.0"
+   :taskmanager.numberOfTaskSlots      taskmanager-slots
+   :yarn.application-attempts          99999
+   :slotmanager.taskmanager-timeout    10000
+   :state.backend.local-recovery       "true"
+   :taskmanager.memory.process.size    "2048m"
+   :taskmanager.registration.timeout   "30 s"})
 
 (defn flink-configuration
   [test node]
