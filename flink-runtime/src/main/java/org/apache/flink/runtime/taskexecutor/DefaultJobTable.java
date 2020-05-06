@@ -27,7 +27,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
 
@@ -51,11 +51,11 @@ public final class DefaultJobTable implements JobTable {
 	}
 
 	@Override
-	public <E extends Exception> Job getOrCreateJob(JobID jobId, FunctionWithException<JobID, ? extends LibraryCacheManager.ClassLoaderLease, E> jobServicesFactory) throws E {
+	public <E extends Exception> Job getOrCreateJob(JobID jobId, SupplierWithException<? extends JobTable.JobServices, E> jobServicesSupplier) throws E {
 		JobOrConnection job = jobs.get(jobId);
 
 		if (job == null) {
-			job = new JobOrConnection(jobId, jobServicesFactory.apply(jobId));
+			job = new JobOrConnection(jobId, jobServicesSupplier.get());
 			jobs.put(jobId, job);
 		}
 
@@ -108,16 +108,16 @@ public final class DefaultJobTable implements JobTable {
 
 		private final JobID jobId;
 
-		private final LibraryCacheManager.ClassLoaderLease classLoaderLease;
+		private final JobTable.JobServices jobServices;
 
 		@Nullable
 		private EstablishedConnection connection;
 
 		private boolean isClosed;
 
-		private JobOrConnection(JobID jobId, LibraryCacheManager.ClassLoaderLease classLoaderLease) {
+		private JobOrConnection(JobID jobId, JobTable.JobServices jobServices) {
 			this.jobId = jobId;
-			this.classLoaderLease = classLoaderLease;
+			this.jobServices = jobServices;
 			this.connection = null;
 			this.isClosed = false;
 		}
@@ -164,7 +164,7 @@ public final class DefaultJobTable implements JobTable {
 		@Override
 		public LibraryCacheManager.ClassLoaderHandle getClassLoaderHandle() {
 			verifyJobIsNotClosed();
-			return classLoaderLease;
+			return jobServices.getClassLoaderHandle();
 		}
 
 		@Override
@@ -229,7 +229,7 @@ public final class DefaultJobTable implements JobTable {
 					disconnect();
 				}
 
-				classLoaderLease.close();
+				jobServices.close();
 				jobs.remove(jobId);
 
 				isClosed = true;

@@ -21,14 +21,12 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.After;
 import org.junit.Before;
@@ -47,7 +45,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class DefaultJobTableTest extends TestLogger {
 
-	private static final FunctionWithException<JobID, LibraryCacheManager.ClassLoaderLease, RuntimeException> DEFAULT_LIBRARY_SUPPLIER = ignored -> TestingClassLoaderLease.newBuilder().build();
+	private static final SupplierWithException<JobTable.JobServices, RuntimeException> DEFAULT_JOB_SERVICES_SUPPLIER = () -> TestingJobServices.newBuilder().build();
 
 	private final JobID jobId = new JobID();
 
@@ -67,7 +65,7 @@ public class DefaultJobTableTest extends TestLogger {
 
 	@Test
 	public void getOrCreateJob_NoRegisteredJob_WillCreateNewJob() {
-		final JobTable.Job newJob = jobTable.getOrCreateJob(jobId, DEFAULT_LIBRARY_SUPPLIER);
+		final JobTable.Job newJob = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
 		assertThat(newJob.getJobId(), is(jobId));
 		assertTrue(jobTable.getJob(jobId).isPresent());
@@ -75,19 +73,19 @@ public class DefaultJobTableTest extends TestLogger {
 
 	@Test
 	public void getOrCreateJob_RegisteredJob_WillReturnRegisteredJob() {
-		final JobTable.Job newJob = jobTable.getOrCreateJob(jobId, DEFAULT_LIBRARY_SUPPLIER);
-		final JobTable.Job otherJob = jobTable.getOrCreateJob(jobId, DEFAULT_LIBRARY_SUPPLIER);
+		final JobTable.Job newJob = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
+		final JobTable.Job otherJob = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
 		assertThat(otherJob, sameInstance(newJob));
 	}
 
 	@Test
-	public void closeJob_WillCloseClassLoaderLease() throws InterruptedException {
+	public void closeJob_WillCloseJobServices() throws InterruptedException {
 		final OneShotLatch shutdownLibraryCacheManagerLatch = new OneShotLatch();
-		final TestingClassLoaderLease classLoaderLease = TestingClassLoaderLease.newBuilder()
+		final TestingJobServices jobServices = TestingJobServices.newBuilder()
 			.setCloseRunnable(shutdownLibraryCacheManagerLatch::trigger)
 			.build();
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, ignored -> classLoaderLease);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, () -> jobServices);
 
 		job.close();
 
@@ -96,7 +94,7 @@ public class DefaultJobTableTest extends TestLogger {
 
 	@Test
 	public void closeJob_WillRemoveItFromJobTable() {
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_LIBRARY_SUPPLIER);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
 		job.close();
 
@@ -105,7 +103,7 @@ public class DefaultJobTableTest extends TestLogger {
 
 	@Test
 	public void connectJob_NotConnected_Succeeds() {
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_LIBRARY_SUPPLIER);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
 		final ResourceID resourceId = ResourceID.generate();
 		final JobTable.Connection connection = connectJob(job, resourceId);
@@ -129,7 +127,7 @@ public class DefaultJobTableTest extends TestLogger {
 
 	@Test(expected = IllegalStateException.class)
 	public void connectJob_Connected_Fails() {
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_LIBRARY_SUPPLIER);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
 		connectJob(job, ResourceID.generate());
 		connectJob(job, ResourceID.generate());
@@ -137,7 +135,7 @@ public class DefaultJobTableTest extends TestLogger {
 
 	@Test
 	public void disconnectConnection_RemovesConnection() {
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_LIBRARY_SUPPLIER);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
 		final ResourceID resourceId = ResourceID.generate();
 		final JobTable.Connection connection = connectJob(job, resourceId);
@@ -150,7 +148,7 @@ public class DefaultJobTableTest extends TestLogger {
 
 	@Test(expected = IllegalStateException.class)
 	public void access_AfterBeingClosed_WillFail() {
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_LIBRARY_SUPPLIER);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
 		job.close();
 
@@ -159,7 +157,7 @@ public class DefaultJobTableTest extends TestLogger {
 
 	@Test(expected = IllegalStateException.class)
 	public void connectJob_AfterBeingClosed_WillFail() {
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_LIBRARY_SUPPLIER);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
 		job.close();
 
@@ -168,7 +166,7 @@ public class DefaultJobTableTest extends TestLogger {
 
 	@Test(expected = IllegalStateException.class)
 	public void accessJobManagerGateway_AfterBeingDisconnected_WillFail() {
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_LIBRARY_SUPPLIER);
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
 		final JobTable.Connection connection = connectJob(job, ResourceID.generate());
 
@@ -180,15 +178,15 @@ public class DefaultJobTableTest extends TestLogger {
 	@Test
 	public void close_WillCloseAllRegisteredJobs() throws InterruptedException {
 		final CountDownLatch shutdownLibraryCacheManagerLatch = new CountDownLatch(2);
-		final TestingClassLoaderLease classLoaderLease1 = TestingClassLoaderLease.newBuilder()
+		final TestingJobServices jobServices1 = TestingJobServices.newBuilder()
 			.setCloseRunnable(shutdownLibraryCacheManagerLatch::countDown)
 			.build();
-		final TestingClassLoaderLease classLoaderLease2 = TestingClassLoaderLease.newBuilder()
+		final TestingJobServices jobServices2 = TestingJobServices.newBuilder()
 			.setCloseRunnable(shutdownLibraryCacheManagerLatch::countDown)
 			.build();
 
-		jobTable.getOrCreateJob(jobId, ignored -> classLoaderLease1);
-		jobTable.getOrCreateJob(new JobID(), ignored -> classLoaderLease2);
+		jobTable.getOrCreateJob(jobId, () -> jobServices1);
+		jobTable.getOrCreateJob(new JobID(), () -> jobServices2);
 
 		jobTable.close();
 

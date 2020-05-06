@@ -29,7 +29,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -176,7 +175,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			JobMasterGateway jobMasterGateway,
 			TaskManagerActions taskManagerActions,
 			Time timeout) {
-		final JobTable.Job job = jobTable.getOrCreateJob(jobId, ignored -> TestingClassLoaderLease.newBuilder().build());
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, () -> TestingJobServices.newBuilder().build());
 		job.connect(
 			ResourceID.generate(),
 			jobMasterGateway,

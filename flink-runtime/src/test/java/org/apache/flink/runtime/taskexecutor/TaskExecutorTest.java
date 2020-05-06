@@ -41,6 +41,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorBuilder;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
@@ -1810,6 +1811,23 @@ public class TaskExecutorTest extends TestLogger {
 				new SlotStatus(new SlotID(resourceId, 1), DEFAULT_RESOURCE_PROFILE),
 				new SlotStatus(SlotID.generateDynamicSlotID(resourceId), resourceProfile, jobId, allocationId)));
 		}
+	}
+
+	@Test
+	public void taskExecutorJobServicesCloseClassLoaderLeaseUponClosing() throws InterruptedException {
+		final OneShotLatch leaseReleaseLatch = new OneShotLatch();
+		final OneShotLatch closeHookLatch = new OneShotLatch();
+		final TestingClassLoaderLease classLoaderLease = TestingClassLoaderLease.newBuilder()
+			.setCloseRunnable(leaseReleaseLatch::trigger)
+			.build();
+
+		final TaskExecutor.TaskExecutorJobServices taskExecutorJobServices = TaskExecutor.TaskExecutorJobServices.create(
+			classLoaderLease,
+			closeHookLatch::trigger);
+
+		taskExecutorJobServices.close();
+		leaseReleaseLatch.await();
+		closeHookLatch.await();
 	}
 
 	private TaskExecutorLocalStateStoresManager createTaskExecutorLocalStateStoresManager() throws IOException {
