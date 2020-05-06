@@ -33,7 +33,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<fs.s3.aws.version>1.11.271</fs.s3.aws.version>
+		<fs.s3.aws.version>1.11.754</fs.s3.aws.version>
 	</properties>
 
 	<dependencies>
@@ -202,6 +202,11 @@ under the License.
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-dynamodb</artifactId>
+			<version>${fs.s3.aws.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-sts</artifactId>
 			<version>${fs.s3.aws.version}</version>
 		</dependency>
 
