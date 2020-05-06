@@ -23,7 +23,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.QuadConsumer;
-import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.util.function.Consumer;
@@ -36,7 +35,7 @@ public class TestingJobLeaderService implements JobLeaderService {
 
 	private final QuadConsumer<String, RpcService, HighAvailabilityServices, JobLeaderListener> startConsumer;
 	private final ThrowingRunnable<? extends Exception> stopRunnable;
-	private final ThrowingConsumer<JobID, ? extends Exception> removeJobConsumer;
+	private final Consumer<JobID> removeJobConsumer;
 	private final BiConsumerWithException<JobID, String, ? extends Exception> addJobConsumer;
 	private final Consumer<JobID> reconnectConsumer;
 	private final Function<JobID, Boolean> containsJobFunction;
@@ -44,7 +43,7 @@ public class TestingJobLeaderService implements JobLeaderService {
 	TestingJobLeaderService(
 			QuadConsumer<String, RpcService, HighAvailabilityServices, JobLeaderListener> startConsumer,
 			ThrowingRunnable<? extends Exception> stopRunnable,
-			ThrowingConsumer<JobID, ? extends Exception> removeJobConsumer,
+			Consumer<JobID> removeJobConsumer,
 			BiConsumerWithException<JobID, String, ? extends Exception> addJobConsumer,
 			Consumer<JobID> reconnectConsumer,
 			Function<JobID, Boolean> containsJobFunction) {
@@ -71,7 +70,7 @@ public class TestingJobLeaderService implements JobLeaderService {
 	}
 
 	@Override
-	public void removeJob(JobID jobId) throws Exception {
+	public void removeJob(JobID jobId) {
 		removeJobConsumer.accept(jobId);
 	}
 
@@ -97,7 +96,7 @@ public class TestingJobLeaderService implements JobLeaderService {
 	public static final class Builder {
 		private QuadConsumer<String, RpcService, HighAvailabilityServices, JobLeaderListener> startConsumer = (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
 		private ThrowingRunnable<? extends Exception> stopRunnable = () -> {};
-		private ThrowingConsumer<JobID, ? extends Exception> removeJobConsumer = (ignored) -> {};
+		private Consumer<JobID> removeJobConsumer = (ignored) -> {};
 		private BiConsumerWithException<JobID, String, ? extends Exception> addJobConsumer = (ignoredA, ignoredB) -> {};
 		private Consumer<JobID> reconnectConsumer = (ignored) -> {};
 		private Function<JobID, Boolean> containsJobFunction = (ignored) -> false;
@@ -114,7 +113,7 @@ public class TestingJobLeaderService implements JobLeaderService {
 			return this;
 		}
 
-		public Builder setRemoveJobConsumer(ThrowingConsumer<JobID, ? extends Exception> removeJobConsumer) {
+		public Builder setRemoveJobConsumer(Consumer<JobID> removeJobConsumer) {
 			this.removeJobConsumer = removeJobConsumer;
 			return this;
 		}

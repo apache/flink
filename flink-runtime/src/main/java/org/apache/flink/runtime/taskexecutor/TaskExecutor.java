@@ -1608,11 +1608,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		// check whether we still have allocated slots for the same job
 		if (taskSlotTable.getAllocationIdsPerJob(jobId).isEmpty() && !partitionTracker.isTrackingPartitionsFor(jobId)) {
 			// we can remove the job from the job leader service
-			try {
-				jobLeaderService.removeJob(jobId);
-			} catch (Exception e) {
-				log.info("Could not remove job {} from JobLeaderService.", jobId, e);
-			}
+			jobLeaderService.removeJob(jobId);
 
 			jobTable.getJob(jobId).ifPresent(
 				job -> closeJob(

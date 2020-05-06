@@ -144,7 +144,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
 	}
 
 	@Override
-	public void removeJob(JobID jobId) throws Exception {
+	public void removeJob(JobID jobId) {
 		Preconditions.checkState(DefaultJobLeaderService.State.STARTED == state, "The service is currently not running.");
 
 		Tuple2<LeaderRetrievalService, DefaultJobLeaderService.JobManagerLeaderListener> entry = jobLeaderServices.remove(jobId);
@@ -155,8 +155,13 @@ public class DefaultJobLeaderService implements JobLeaderService {
 			LeaderRetrievalService leaderRetrievalService = entry.f0;
 			DefaultJobLeaderService.JobManagerLeaderListener jobManagerLeaderListener = entry.f1;
 
-			leaderRetrievalService.stop();
 			jobManagerLeaderListener.stop();
+
+			try {
+				leaderRetrievalService.stop();
+			} catch (Exception e) {
+				LOG.info("Could not properly stop the LeaderRetrievalService for job {}.", jobId, e);
+			}
 		}
 	}
 

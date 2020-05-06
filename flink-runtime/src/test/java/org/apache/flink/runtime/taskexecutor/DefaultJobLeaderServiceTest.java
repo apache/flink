@@ -33,6 +33,7 @@ import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -41,11 +42,15 @@ import org.junit.Test;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link DefaultJobLeaderService}.
@@ -181,6 +186,45 @@ public class DefaultJobLeaderServiceTest extends TestLogger {
 			assertThat(leadershipQueue.take(), is(jobId));
 		} finally {
 			jobLeaderService.stop();
+		}
+	}
+
+	@Test
+	public void removeJobWithFailingLeaderRetrievalServiceStopWillStopListeningToLeaderNotifications() throws Exception {
+		final FailingSettableLeaderRetrievalService leaderRetrievalService = new FailingSettableLeaderRetrievalService();
+		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServicesBuilder()
+			.setJobMasterLeaderRetrieverFunction(ignored -> leaderRetrievalService)
+			.build();
+
+		final JobID jobId = new JobID();
+		final CompletableFuture<JobID> newLeaderFuture = new CompletableFuture<>();
+		final TestingJobLeaderListener testingJobLeaderListener = new TestingJobLeaderListener(newLeaderFuture::complete);
+
+		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder().build();
+		rpcServiceResource.getTestingRpcService().registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+		final JobLeaderService jobLeaderService = createAndStartJobLeaderService(haServices, testingJobLeaderListener);
+
+		try {
+			jobLeaderService.addJob(jobId, "foobar");
+
+			jobLeaderService.removeJob(jobId);
+
+			leaderRetrievalService.notifyListener(jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
+
+			try {
+				newLeaderFuture.get(10, TimeUnit.MILLISECONDS);
+				fail("The leader future should not be completed.");
+			} catch (TimeoutException expected) {}
+		} finally {
+			jobLeaderService.stop();
+		}
+	}
+
+	private static final class FailingSettableLeaderRetrievalService extends SettableLeaderRetrievalService {
+		@Override
+		public void stop() throws FlinkException {
+			throw new FlinkException("Test exception");
 		}
 	}
 
