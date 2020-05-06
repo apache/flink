@@ -1352,85 +1352,7 @@ public class TypeExtractorTest {
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) inType);
 		Assert.assertTrue(ti instanceof PojoTypeInfo);
 	}
-	
-	@Test
-	public void testFunctionDependingOnInputWithTupleInputWithTypeMismatch() {
-		IdentityMapper2<Boolean> function = new IdentityMapper2<Boolean>();
 
-		TypeInformation<Tuple2<Boolean, String>> inputType = new TupleTypeInfo<Tuple2<Boolean, String>>(BasicTypeInfo.BOOLEAN_TYPE_INFO,
-				BasicTypeInfo.INT_TYPE_INFO);
-		
-		// input is: Tuple2<Boolean, Integer>
-		// allowed: Tuple2<?, String>
-
-		try {
-			TypeExtractor.getMapReturnTypes(function, inputType);
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
-		}
-	}
-	
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	@Test
-	public void testInputMismatchExceptions() {
-		
-		RichMapFunction<?, ?> function = new RichMapFunction<Tuple2<String, String>, String>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public String map(Tuple2<String, String> value) throws Exception {
-				return null;
-			}
-		};
-		
-		try {
-			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple2<Integer, String>>(){}));
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
-		}
-		
-		try {
-			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple3<String, String, String>>(){}));
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
-		}
-		
-		RichMapFunction<?, ?> function2 = new RichMapFunction<StringValue, String>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public String map(StringValue value) throws Exception {
-				return null;
-			}
-		};
-		
-		try {
-			TypeExtractor.getMapReturnTypes(function2, (TypeInformation) TypeInformation.of(new TypeHint<IntValue>(){}));
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
-		}
-		
-		RichMapFunction<?, ?> function3 = new RichMapFunction<Tuple1<Integer>[], String>() {
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public String map(Tuple1<Integer>[] value) throws Exception {
-				return null;
-			}
-		};
-		
-		try {
-			TypeExtractor.getMapReturnTypes(function3, (TypeInformation) TypeInformation.of(new TypeHint<Integer[]>(){}));
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
-		}
-	}
-	
 	public static class DummyFlatMapFunction<A,B,C,D> extends RichFlatMapFunction<Tuple2<A,B>, Tuple2<C,D>> {
 		private static final long serialVersionUID = 1L;
 
@@ -1574,30 +1496,7 @@ public class TypeExtractorTest {
 		ti = TypeExtractor.createTypeInfo(func, MapFunction.class, func.getClass(), 0);
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
 	}
-	
-	@SuppressWarnings({ "serial", "unchecked", "rawtypes" })
-	@Test
-	public void testExtractKeySelector() {
-		KeySelector<String, Integer> selector = new KeySelector<String, Integer>() {
-			@Override
-			public Integer getKey(String value) { return null; }
-		};
 
-		TypeInformation<?> ti = TypeExtractor.getKeySelectorTypes(selector, BasicTypeInfo.STRING_TYPE_INFO);
-		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
-		
-		try {
-			TypeExtractor.getKeySelectorTypes((KeySelector) selector, BasicTypeInfo.BOOLEAN_TYPE_INFO);
-			Assert.fail();
-		}
-		catch (InvalidTypesException e) {
-			// good
-		}
-		catch (Exception e) {
-			Assert.fail("wrong exception type");
-		}
-	}
-	
 	public static class DuplicateValue<T> implements MapFunction<Tuple1<T>, Tuple2<T, T>> {
 		private static final long serialVersionUID = 1L;
 
@@ -1971,22 +1870,6 @@ public class TypeExtractorTest {
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) inputType);
 		TypeInformation<?> expected = TypeExtractor.createTypeInfo(Map.class);
 		Assert.assertEquals(expected, ti);
-	}
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Test(expected=InvalidTypesException.class)
-	public void testGenericTypeWithSuperclassInput() {
-		TypeInformation<?> inputType = TypeExtractor.createTypeInfo(Map.class);
-
-		MapFunction<?, ?> function = new MapFunction<HashMap<String, Object>,Map<String, Object>>(){
-
-			@Override
-			public Map<String, Object> map(HashMap<String, Object> stringObjectMap) throws Exception {
-				return stringObjectMap;
-			}
-		};
-
-		TypeExtractor.getMapReturnTypes(function, (TypeInformation) inputType);
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })

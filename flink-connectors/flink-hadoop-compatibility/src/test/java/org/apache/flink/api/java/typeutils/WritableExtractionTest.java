@@ -75,38 +75,6 @@ public class WritableExtractionTest {
 	}
 
 	@Test
-	public void testValidateTypeInfo() {
-		// validate unrelated type info
-		TypeExtractor.validateIfWritable(BasicTypeInfo.STRING_TYPE_INFO, String.class);
-
-		// validate writable type info correctly
-		TypeExtractor.validateIfWritable(new WritableTypeInfo<>(
-				DirectWritable.class), DirectWritable.class);
-		TypeExtractor.validateIfWritable(new WritableTypeInfo<>(
-				ViaInterfaceExtension.class), ViaInterfaceExtension.class);
-		TypeExtractor.validateIfWritable(new WritableTypeInfo<>(
-				ViaAbstractClassExtension.class), ViaAbstractClassExtension.class);
-
-		// incorrect case: not writable at all
-		try {
-			TypeExtractor.validateIfWritable(new WritableTypeInfo<>(
-					DirectWritable.class), String.class);
-			fail("should have failed with an exception");
-		} catch (InvalidTypesException e) {
-			// expected
-		}
-
-		// incorrect case: wrong writable
-		try {
-			TypeExtractor.validateIfWritable(new WritableTypeInfo<>(
-					ViaInterfaceExtension.class), DirectWritable.class);
-			fail("should have failed with an exception");
-		} catch (InvalidTypesException e) {
-			// expected
-		}
-	}
-
-	@Test
 	public void testExtractFromFunction() {
 		RichMapFunction<DirectWritable, DirectWritable> function = new RichMapFunction<DirectWritable, DirectWritable>() {
 			@Override
