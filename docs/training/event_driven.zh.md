@@ -32,7 +32,7 @@ under the License.
 ### 介绍
 
 `ProcessFunction` 将事件处理与 Timer 和 State 结合在一起，使其成为流处理应用的强大构建模块。
-这是使用 Flink 创建事件驱动的应用程序的基础。它和 `RichFlatMapFunction` 十分相似， 但是增加了 Timer。
+这是使用 Flink 创建事件驱动应用程序的基础。它和 `RichFlatMapFunction` 十分相似， 但是增加了 Timer。
 
 ### 示例
 
@@ -60,7 +60,7 @@ DataStream<Tuple3<Long, Long, Float>> hourlyTips = fares
         .process(new PseudoWindow(Time.hours(1)));
 {% endhighlight %}
 
-在这个代码片段中，一个名为 `PseudoWindow` 的 `KeyedProcessFunction` 被应用于 KeyedStream ，
+在这个代码片段中，一个名为 `PseudoWindow` 的 `KeyedProcessFunction` 被应用于 KeyedStream，
 其结果是一个 `DataStream<Tuple3<Long, Long, Float>>` （与使用 Flink 内置时间窗口的实现生成的流相同）。
 
 `PseudoWindow` 的总体轮廓示意如下：
@@ -106,8 +106,8 @@ public static class PseudoWindow extends
 
 注意事项：
 
-* 有几种类型的 ProcessFunctions -- 不仅包括 `KeyedProcessFunction`， 还包括
-  `CoProcessFunctions`、 `BroadcastProcessFunctions` 等. 
+* 有几种类型的 ProcessFunctions -- 不仅包括 `KeyedProcessFunction`，还包括
+  `CoProcessFunctions`、`BroadcastProcessFunctions` 等. 
 
 * `KeyedProcessFunction` 是一种 `RichFunction`。作为 `RichFunction`，它可以访问使用 Managed Keyed State 所需的 `open`
   和 `getRuntimeContext` 方法。
