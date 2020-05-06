@@ -182,6 +182,13 @@ jobs:
     - script: ./tools/azure-pipelines/free_disk_space.sh
       displayName: Free up disk space
     - script: sudo apt-get install -y bc
+      displayName: Install bc
+    - script: |
+        sudo apt remove -y zulu-8-azure-jdk; sudo apt-get install -y openjdk-8-jdk
+        echo "##vso[task.setvariable variable=JAVA_HOME]/usr/lib/jvm/java-8-openjdk-amd64/"
+        echo "##vso[task.setvariable variable=PATH]/usr/lib/jvm/java-8-openjdk-amd64/bin:$PATH"
+      displayName: Install OpenJDK8
+      condition: eq('${{parameters.jdk}}', 'jdk8')
     - script: ${{parameters.environment}} STAGE=compile ./tools/azure_controller.sh compile
       displayName: Build Flink
     # TODO remove pre-commit tests script by adding the tests to the nightly script
