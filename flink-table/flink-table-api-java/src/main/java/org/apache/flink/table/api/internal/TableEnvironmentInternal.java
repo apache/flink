@@ -30,6 +30,9 @@ import java.util.List;
 /**
  * An internal interface of {@link TableEnvironment}
  * that defines extended methods used for {@link TableImpl}.
+ *
+ * <p>Once old planner is removed, this class also can be removed.
+ * By then, these methods can be moved into TableEnvironmentImpl.
  */
 @Internal
 interface TableEnvironmentInternal extends TableEnvironment {
