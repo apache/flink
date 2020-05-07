@@ -187,6 +187,9 @@ public class TypeExtractorContractTest {
 
 		final TypeInformation<String> typeInformation = TypeInformation.of(new TypeHint<String>() {});
 
+		final Map<TypeVariable<?>, TypeInformation<?>> expectedResult = new HashMap<>();
+		expectedResult.put(inputTypeVariable, typeInformation);
+
 		final Map<TypeVariable<?>, TypeInformation<?>> result =
 			TypeExtractor.bindTypeVariablesWithTypeInformationFromInputs(
 				myUdf.getClass(),
@@ -195,8 +198,7 @@ public class TypeExtractorContractTest {
 				0,
 				null,
 				1);
-		Assert.assertEquals(1, result.size());
-		Assert.assertEquals(typeInformation, result.get(inputTypeVariable));
+		Assert.assertEquals(expectedResult, result);
 	}
 
 	@Test
