@@ -58,6 +58,8 @@ import org.apache.commons.lang3.ClassUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
@@ -1940,12 +1942,13 @@ public class TypeExtractor {
 	 * @param <IN2> the type of the second input
 	 * @return the mapping relation between {@link TypeVariable} and {@link TypeInformation}
 	 */
-	private static <IN1, IN2> Map<TypeVariable<?>, TypeInformation<?>> bindTypeVariablesWithTypeInformationFromInputs(
+	@VisibleForTesting
+	static <IN1, IN2> Map<TypeVariable<?>, TypeInformation<?>> bindTypeVariablesWithTypeInformationFromInputs(
 		final Class<?> clazz,
 		final Class<?> baseClazz,
-		final TypeInformation<IN1> in1TypeInfo,
+		@Nullable final TypeInformation<IN1> in1TypeInfo,
 		final int in1Pos,
-		final TypeInformation<IN2> in2TypeInfo,
+		@Nullable final TypeInformation<IN2> in2TypeInfo,
 		final int in2Pos) {
 
 		Map<TypeVariable<?>, TypeInformation<?>> typeVariableBindings = Collections.emptyMap();
