@@ -33,7 +33,6 @@ __all__ = [
     'Csv',
     'Avro',
     'Json',
-    'FileSystem',
     'ConnectTableDescriptor',
     'StreamTableDescriptor',
     'BatchTableDescriptor',
