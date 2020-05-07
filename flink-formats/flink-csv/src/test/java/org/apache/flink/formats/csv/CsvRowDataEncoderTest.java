@@ -19,10 +19,12 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.serialization.Encoder;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.Assert;
@@ -45,15 +47,16 @@ public class CsvRowDataEncoderTest {
 	@ClassRule
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
-	public static TableSchema tableSchema = TableSchema.builder()
-		.field("f0", DataTypes.INT())
-		.field("f1", DataTypes.STRING())
-		.build();
+	public static RowType rowType = RowType.of(
+		new LogicalType[]{new IntType(), new VarCharType()},
+		new String[]{"f0", "f1"});
 
 	@Test
 	public void testEncoder() throws Exception {
-		Encoder<RowData> encoder = CsvRowDataEncoder.builder(tableSchema)
-			.setLineDelimiter("\r").build();
+		CsvRowDataSerializationSchema serializationSchema = new CsvRowDataSerializationSchema.Builder(rowType)
+			.setLineDelimiter("\r")
+			.build();
+		Encoder<RowData> encoder = new CsvRowDataEncoder(serializationSchema);
 		test(encoder,
 			Arrays.asList(rowData(123, "abcde")),
 			"123,abcde\r");
@@ -61,8 +64,10 @@ public class CsvRowDataEncoderTest {
 
 	@Test
 	public void testEncoderMultiline() throws Exception {
-		Encoder<RowData> encoder = CsvRowDataEncoder.builder(tableSchema)
-			.setFieldDelimiter(';').build();
+		CsvRowDataSerializationSchema serializationSchema = new CsvRowDataSerializationSchema.Builder(rowType)
+			.setFieldDelimiter(';')
+			.build();
+		Encoder<RowData> encoder = new CsvRowDataEncoder(serializationSchema);
 		test(encoder,
 			Arrays.asList(
 				rowData(123, "abc"),
