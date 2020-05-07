@@ -71,7 +71,13 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
-
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

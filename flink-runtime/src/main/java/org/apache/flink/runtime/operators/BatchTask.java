@@ -64,6 +64,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1023,18 +1024,16 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.eventualOutputs = new ArrayList<RecordWriter<?>>();
 
-		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
-
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 
-		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs,
+		this.output = initOutputs(this, getEnvironment().getUserCodeClassLoader(), this.config, this.chainedTasks, this.eventualOutputs,
 				this.getExecutionConfig(), this.accumulatorMap);
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
 		Environment env = getEnvironment();
 
-		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
+		return new DistributedRuntimeUDFContext(env.getTaskInfo(), env.getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics, env.getExternalResourceInfoProvider());
 	}
 
@@ -1272,13 +1271,14 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 * The output collector applies the configured shipping strategy.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> Collector<T> initOutputs(AbstractInvokable containingTask, ClassLoader cl, TaskConfig config,
-										List<ChainedDriver<?, ?>> chainedTasksTarget,
-										List<RecordWriter<?>> eventualOutputs,
-										ExecutionConfig executionConfig,
-										Map<String, Accumulator<?,?>> accumulatorMap)
-	throws Exception
-	{
+	public static <T> Collector<T> initOutputs(
+			AbstractInvokable containingTask,
+			UserCodeClassLoader cl,
+			TaskConfig config,
+			List<ChainedDriver<?, ?>> chainedTasksTarget,
+			List<RecordWriter<?>> eventualOutputs,
+			ExecutionConfig executionConfig,
+			Map<String, Accumulator<?,?>> accumulatorMap) throws Exception {
 		final int numOutputs = config.getNumOutputs();
 
 		// check whether we got any chained tasks
@@ -1310,7 +1310,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 				if (i == numChained - 1) {
 					// last in chain, instantiate the output collector for this task
-					previous = getOutputCollector(containingTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs());
+					previous = getOutputCollector(containingTask, chainedStubConf, cl.asClassLoader(), eventualOutputs, 0, chainedStubConf.getNumOutputs());
 				}
 
 				ct.setup(chainedStubConf, taskName, previous, containingTask, cl, executionConfig, accumulatorMap);
@@ -1328,7 +1328,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		// else
 
 		// instantiate the output collector the default way from this configuration
-		return getOutputCollector(containingTask , config, cl, eventualOutputs, 0, numOutputs);
+		return getOutputCollector(containingTask , config, cl.asClassLoader(), eventualOutputs, 0, numOutputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------

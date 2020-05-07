@@ -53,6 +53,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -111,7 +112,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final int bufferSize;
 
-	private final ClassLoader userCodeClassLoader;
+	private final UserCodeClassLoader userCodeClassLoader;
 
 	private final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
@@ -141,7 +142,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex,
-			ClassLoader userCodeClassLoader,
+			UserCodeClassLoader userCodeClassLoader,
 			TaskMetricGroup taskMetricGroup,
 			TaskManagerRuntimeInfo taskManagerRuntimeInfo,
 			MemoryManager memManager,
@@ -268,7 +269,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	}
 
 	@Override
-	public ClassLoader getUserClassLoader() {
+	public UserCodeClassLoader getUserCodeClassLoader() {
 		return userCodeClassLoader;
 	}
 

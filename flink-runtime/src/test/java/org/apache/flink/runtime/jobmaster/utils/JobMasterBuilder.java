@@ -45,6 +45,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.TestingUserCodeClassLoader;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -173,7 +174,7 @@ public class JobMasterBuilder {
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			onCompletionActions,
 			fatalErrorHandler,
-			JobMasterBuilder.class.getClassLoader(),
+			TestingUserCodeClassLoader.newBuilder().build(),
 			SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration),
 			shuffleMaster,
 			partitionTrackerFactory,

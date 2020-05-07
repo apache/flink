@@ -1,3 +1,4 @@
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -25,6 +26,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoader;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -220,7 +222,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 			this.isReleased = false;
 		}
 
-		private ClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> libraries, Collection<URL> classPaths) throws IOException {
+		private UserCodeClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> libraries, Collection<URL> classPaths) throws IOException {
 			synchronized (lockObject) {
 				verifyIsNotReleased();
 
@@ -230,7 +232,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 					resolvedClassLoader.verifyClassLoader(libraries, classPaths);
 				}
 
-				return resolvedClassLoader.getClassLoader();
+				return resolvedClassLoader;
 			}
 		}
 
@@ -317,7 +319,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		}
 
 		@Override
-		public ClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) throws IOException {
+		public UserCodeClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) throws IOException {
 			verifyIsNotClosed();
 			return libraryCacheEntry.getOrResolveClassLoader(
 				requiredJarFiles,
@@ -344,7 +346,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		}
 	}
 
-	private static final class ResolvedClassLoader {
+	private static final class ResolvedClassLoader implements UserCodeClassLoader {
 		private final URLClassLoader classLoader;
 
 		/**
@@ -363,6 +365,8 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		 */
 		private final Set<String> classPaths;
 
+		private final Map<String, Runnable> releaseHooks;
+
 		private ResolvedClassLoader(URLClassLoader classLoader, Collection<PermanentBlobKey> requiredLibraries, Collection<URL> requiredClassPaths) {
 			this.classLoader = classLoader;
 
@@ -374,10 +378,18 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 				classPaths.add(url.toString());
 			}
 			this.libraries = new HashSet<>(requiredLibraries);
+
+			this.releaseHooks = new HashMap<>();
 		}
 
-		private URLClassLoader getClassLoader() {
+		@Override
+		public ClassLoader asClassLoader() {
 			return classLoader;
+		}
+
+		@Override
+		public void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
+			releaseHooks.putIfAbsent(releaseHookName, releaseHook);
 		}
 
 		private void verifyClassLoader(Collection<PermanentBlobKey> requiredLibraries, Collection<URL> requiredClassPaths) {
@@ -413,6 +425,20 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		 * and the cached libraries are deleted immediately.
 		 */
 		private void releaseClassLoader() {
+			Set<Map.Entry<String, Runnable>> hooks = releaseHooks.entrySet();
+			if (!hooks.isEmpty()) {
+				LOG.debug("Running {} class loader shutdown hook(s): {}.", hooks.size(), releaseHooks.keySet());
+				for (Map.Entry<String, Runnable> hookEntry : hooks) {
+					try {
+						hookEntry.getValue().run();
+					} catch (Throwable t) {
+						LOG.debug("Failed to run release hook '{}' for user code class loader.", hookEntry.getValue(), t);
+					}
+				}
+
+				releaseHooks.clear();
+			}
+
 			try {
 				classLoader.close();
 			} catch (IOException e) {
