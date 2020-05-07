@@ -165,6 +165,11 @@ public class FieldInfoUtils {
 		// This prevents confusing cases like ('f2, 'f0, 'myName) for a Tuple3 where fields are renamed
 		// by position but the user might assume reordering instead of renaming.
 		return Arrays.stream(fields).allMatch(f -> {
+			if (f instanceof UnresolvedCallExpression &&
+				((UnresolvedCallExpression) f).getFunctionDefinition() == BuiltInFunctionDefinitions.AS &&
+				f.getChildren().get(0) instanceof UnresolvedReferenceExpression) {
+				return false;
+			}
 			if (f instanceof UnresolvedReferenceExpression) {
 				return !inputNames.contains(((UnresolvedReferenceExpression) f).getName());
 			}
