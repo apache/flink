@@ -32,6 +32,17 @@ under the License.
 	<artifactId>flink-metrics-influxdb_${scala.binary.version}</artifactId>
 	<name>flink-metrics-influxdb</name>
 
+	<!-- Set dependency version for transitive dependencies -->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.squareup.okhttp3</groupId>
+				<artifactId>okhttp</artifactId>
+				<version>3.14.8</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
