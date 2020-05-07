@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -41,9 +42,11 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -129,6 +132,55 @@ public class SchedulerImpl implements Scheduler {
 			slotProfile,
 			false,
 			null);
+	}
+
+	@Override
+	public CompletableFuture<List<LogicalSlot>> allocateSlots(
+			final List<LogicalSlotRequest> slotRequests,
+			final Time allocationTimeout) {
+
+		final List<CompletableFuture<LogicalSlot>> slotFutures = new ArrayList<>(slotRequests.size());
+		for (LogicalSlotRequest slotRequest : slotRequests) {
+			final boolean slotWillBeOccupiedIndefinitely = slotRequest.getSlotWillBeOccupiedIndefinitely();
+			final CompletableFuture<LogicalSlot> slotFuture = allocateSlotInternal(
+				slotRequest.getSlotRequestId(),
+				slotRequest.getScheduledUnit(),
+				slotRequest.getSlotProfile(),
+				slotWillBeOccupiedIndefinitely,
+				slotWillBeOccupiedIndefinitely ? allocationTimeout : null);
+			slotFutures.add(slotFuture);
+		}
+
+		return FutureUtils.combineAll(slotFutures)
+			.handle((ignored, throwable) -> {
+				if (throwable != null) {
+					final Exception cause = new FlinkException(
+						"Bulk slot allocation failed.",
+						ExceptionUtils.stripCompletionException(throwable));
+
+					for (int i = 0; i < slotFutures.size(); i++) {
+						final CompletableFuture<LogicalSlot> slotFuture = slotFutures.get(i);
+						final LogicalSlotRequest request = slotRequests.get(i);
+						if (!slotFuture.isDone()) {
+							slotFuture.cancel(false);
+							cancelSlotRequest(
+								request.getSlotRequestId(),
+								request.getScheduledUnit().getSlotSharingGroupId(),
+								cause);
+						} else if (!slotFuture.isCompletedExceptionally()) {
+							slotFuture.getNow(null).releaseSlot(cause);
+						}
+					}
+
+					throw new CompletionException(cause);
+				} else {
+					final List<LogicalSlot> slots = new ArrayList<>(slotFutures.size());
+					for (CompletableFuture<LogicalSlot> slotFuture : slotFutures) {
+						slots.add(slotFuture.getNow(null));
+					}
+					return slots;
+				}
+			});
 	}
 
 	@Nonnull

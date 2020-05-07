@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -89,6 +90,20 @@ public interface SlotProvider {
 			scheduledUnit,
 			slotProfile,
 			allocationTimeout);
+	}
+
+	/**
+	 * Allocates a bulk of slots.
+	 *
+	 * @param slotRequests a bulk of slot requests
+	 * @param allocationTimeout after which the allocation fails with a timeout exception
+	 * @return future of the allocation which will be completed normally only when all the requests succeed.
+	 *         The slot and its corresponding request are in the same order.
+	 */
+	default CompletableFuture<List<LogicalSlot>> allocateSlots(
+		List<LogicalSlotRequest> slotRequests,
+		Time allocationTimeout) {
+		throw new UnsupportedOperationException("Not properly implemented.");
 	}
 
 	/**
