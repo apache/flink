@@ -199,4 +199,10 @@ public interface HiveShim extends Serializable {
 	 * Converts a Hive primitive java object to corresponding Writable object.
 	 */
 	@Nullable Writable hivePrimitiveToWritable(@Nullable Object value);
+
+	/**
+	 * Creates a table with PK and NOT NULL constraints.
+	 */
+	void createTableWithConstraints(IMetaStoreClient client, Table table, Configuration conf,
+			UniqueConstraint pk, List<Byte> pkTraits, List<String> notNullCols, List<Byte> nnTraits);
 }
