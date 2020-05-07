@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.FailingBlockingInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
@@ -237,8 +238,10 @@ public class BlobsCleanupITCase extends TestLogger {
 	@Nonnull
 	private JobGraph createJobGraph(TestCase testCase, int numTasks) {
 		JobVertex source = new JobVertex("Source");
-		if (testCase == TestCase.JOB_FAILS || testCase == TestCase.JOB_IS_CANCELLED) {
+		if (testCase == TestCase.JOB_FAILS) {
 			source.setInvokableClass(FailingBlockingInvokable.class);
+		} else if (testCase == TestCase.JOB_IS_CANCELLED) {
+			source.setInvokableClass(BlockingNoOpInvokable.class);
 		} else {
 			source.setInvokableClass(NoOpInvokable.class);
 		}
