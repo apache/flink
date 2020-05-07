@@ -19,6 +19,7 @@
 package org.apache.flink.fs.s3.common.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.RefCountedFile;
 import org.apache.flink.util.IOUtils;
 
 import java.io.File;
