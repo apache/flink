@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.factories;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTrackerImpl;
@@ -90,7 +91,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 	public JobMaster createJobMasterService(
 			JobGraph jobGraph,
 			OnCompletionActions jobCompletionActions,
-			ClassLoader userCodeClassloader) throws Exception {
+			LibraryCacheManager.UserCodeClassLoader userCodeClassloader) throws Exception {
 
 		return new JobMaster(
 			rpcService,

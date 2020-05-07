@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.factories;
 
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobMasterService;
@@ -30,5 +31,5 @@ public interface JobMasterServiceFactory {
 	JobMasterService createJobMasterService(
 		JobGraph jobGraph,
 		OnCompletionActions jobCompletionActions,
-		ClassLoader userCodeClassloader) throws Exception;
+		LibraryCacheManager.UserCodeClassLoader userCodeClassloader) throws Exception;
 }

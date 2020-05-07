@@ -32,6 +32,7 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
+import org.apache.flink.runtime.execution.librarycache.TestingUserCodeClassLoader;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
@@ -158,7 +159,9 @@ public class TaskAsyncCallTest extends TestLogger {
 
 	private Task createTask(Class<? extends AbstractInvokable> invokableClass) throws Exception {
 		final TestingClassLoaderLease classLoaderHandle = TestingClassLoaderLease.newBuilder()
-			.setGetOrResolveClassLoaderFunction((permanentBlobKeys, urls) -> new TestUserCodeClassLoader())
+			.setGetOrResolveClassLoaderFunction((permanentBlobKeys, urls) -> TestingUserCodeClassLoader.newBuilder()
+				.setClassLoader(new TestUserCodeClassLoader())
+				.build())
 			.build();
 
 		ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();

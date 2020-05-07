@@ -124,7 +124,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
 
 			// libraries and class loader first
-			final ClassLoader userCodeLoader;
+			final LibraryCacheManager.UserCodeClassLoader userCodeLoader;
 			try {
 				userCodeLoader = classLoaderLease.getOrResolveClassLoader(
 					jobGraph.getUserJarBlobKeys(),

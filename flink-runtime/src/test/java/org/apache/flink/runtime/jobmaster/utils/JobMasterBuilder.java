@@ -21,6 +21,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.SchedulerNGFactoryFactory;
+import org.apache.flink.runtime.execution.librarycache.TestingUserCodeClassLoader;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -166,7 +167,7 @@ public class JobMasterBuilder {
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			onCompletionActions,
 			fatalErrorHandler,
-			JobMasterBuilder.class.getClassLoader(),
+			TestingUserCodeClassLoader.newBuilder().build(),
 			SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration, jobManagerSharedServices.getRestartStrategyFactory()),
 			shuffleMaster,
 			partitionTrackerFactory);

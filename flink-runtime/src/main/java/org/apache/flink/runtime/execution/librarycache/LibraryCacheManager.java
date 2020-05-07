@@ -77,7 +77,7 @@ public interface LibraryCacheManager {
 		 * @throws IOException if the required jar files cannot be downloaded
 		 * @throws IllegalStateException if the cached user code class loader does not fulfill the requirements
 		 */
-		ClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) throws IOException;
+		UserCodeClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) throws IOException;
 	}
 
 	/**
@@ -94,5 +94,28 @@ public interface LibraryCacheManager {
 		 * user code class loader.
 		 */
 		void release();
+	}
+
+	/**
+	 * UserCodeClassLoader allows to register release hooks for a user code class loader.
+	 * These release hooks are being executed just before the user code class loader is
+	 * being released.
+	 */
+	interface UserCodeClassLoader {
+
+		/**
+		 * Obtains the actual class loader.
+		 *
+		 * @return actual class loader
+		 */
+		ClassLoader asClassLoader();
+
+		/**
+		 * Registers a release hook which is being executed before the user code class
+		 * loader is being released.
+		 *
+		 * @param releaseHook releaseHook which is executed before the user code class loader is being released.
+		 */
+		void registerReleaseHook(Runnable releaseHook);
 	}
 }

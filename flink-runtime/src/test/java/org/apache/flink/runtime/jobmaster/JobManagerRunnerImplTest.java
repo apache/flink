@@ -23,6 +23,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
+import org.apache.flink.runtime.execution.librarycache.TestingUserCodeClassLoader;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -180,10 +181,11 @@ public class JobManagerRunnerImplTest extends TestLogger {
 	public void testLibraryCacheManagerRegistration() throws Exception {
 		final OneShotLatch registerClassLoaderLatch = new OneShotLatch();
 		final OneShotLatch closeClassLoaderLeaseLatch = new OneShotLatch();
+		final TestingUserCodeClassLoader userCodeClassLoader = TestingUserCodeClassLoader.newBuilder().build();
 		final TestingClassLoaderLease classLoaderLease = TestingClassLoaderLease.newBuilder()
 			.setGetOrResolveClassLoaderFunction((permanentBlobKeys, urls) -> {
 				registerClassLoaderLatch.trigger();
-				return JobManagerRunnerImplTest.class.getClassLoader();
+				return userCodeClassLoader;
 			})
 			.setCloseRunnable(closeClassLoaderLeaseLatch::trigger)
 			.build();
