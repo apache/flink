@@ -62,6 +62,8 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
 	private static final ComponentMainThreadExecutor mainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
 	public static final Time TIMEOUT = Time.seconds(10L);
 
+	private static long requestBulkCounter = 0;
+
 	private TestingResourceManagerGateway resourceManagerGateway;
 
 	@Before
@@ -167,7 +169,9 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
 	}
 
 	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(SlotPoolImpl slotPool, SlotRequestId slotRequestId, Time timeout) {
-		return slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, timeout);
+		return slotPool.requestNewAllocatedSlot(
+			PhysicalSlotRequest.createPhysicalSlotRequest(slotRequestId, ResourceProfile.UNKNOWN, true, requestBulkCounter++),
+			timeout);
 	}
 
 	private SlotPoolImpl setUpSlotPool() throws Exception {

@@ -85,7 +85,9 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
 
 			final List<CompletableFuture<PhysicalSlot>> slotRequests = slotRequestIds
 				.stream()
-				.map(slotRequestId -> slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, TIMEOUT))
+				.map(slotRequestId -> slotPool.requestNewAllocatedSlot(
+					PhysicalSlotRequest.createPhysicalSlotRequest(slotRequestId, ResourceProfile.UNKNOWN, true, 0),
+					TIMEOUT))
 				.collect(Collectors.toList());
 
 			actionAfterSlotRequest.accept(slotPool);

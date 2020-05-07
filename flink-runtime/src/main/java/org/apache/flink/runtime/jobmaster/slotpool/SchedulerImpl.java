@@ -80,6 +80,8 @@ public class SchedulerImpl implements Scheduler {
 	@Nonnull
 	private final Map<SlotSharingGroupId, SlotSharingManager> slotSharingManagers;
 
+	private long currentSlotRequestBulkId = 0;
+
 	public SchedulerImpl(
 		@Nonnull SlotSelectionStrategy slotSelectionStrategy,
 		@Nonnull SlotPool slotPool) {
@@ -113,6 +115,9 @@ public class SchedulerImpl implements Scheduler {
 			ScheduledUnit scheduledUnit,
 			SlotProfile slotProfile,
 			Time allocationTimeout) {
+
+		currentSlotRequestBulkId++;
+
 		return allocateSlotInternal(
 			slotRequestId,
 			scheduledUnit,
@@ -126,6 +131,9 @@ public class SchedulerImpl implements Scheduler {
 			SlotRequestId slotRequestId,
 			ScheduledUnit scheduledUnit,
 			SlotProfile slotProfile) {
+
+		currentSlotRequestBulkId++;
+
 		return allocateSlotInternal(
 			slotRequestId,
 			scheduledUnit,
@@ -138,6 +146,8 @@ public class SchedulerImpl implements Scheduler {
 	public CompletableFuture<List<LogicalSlot>> allocateSlots(
 			final List<LogicalSlotRequest> slotRequests,
 			final Time allocationTimeout) {
+
+		currentSlotRequestBulkId++;
 
 		final List<CompletableFuture<LogicalSlot>> slotFutures = new ArrayList<>(slotRequests.size());
 		for (LogicalSlotRequest slotRequest : slotRequests) {
@@ -291,11 +301,13 @@ public class SchedulerImpl implements Scheduler {
 			SlotRequestId slotRequestId,
 			SlotProfile slotProfile,
 			@Nullable Time allocationTimeout) {
-		if (allocationTimeout == null) {
-			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile());
-		} else {
-			return slotPool.requestNewAllocatedSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile(), allocationTimeout);
-		}
+		return slotPool.requestNewAllocatedSlot(
+			PhysicalSlotRequest.createPhysicalSlotRequest(
+				slotRequestId,
+				slotProfile.getPhysicalSlotResourceProfile(),
+				allocationTimeout != null,
+				currentSlotRequestBulkId),
+			allocationTimeout);
 	}
 
 	@Nonnull

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
 
@@ -70,13 +69,12 @@ public class TestingSlotPoolImpl extends SlotPoolImpl {
 
 	@Override
 	public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-			final SlotRequestId slotRequestId,
-			final ResourceProfile resourceProfile,
+			final PhysicalSlotRequest request,
 			final Time timeout) {
 
-		this.lastRequestedSlotResourceProfile = resourceProfile;
+		this.lastRequestedSlotResourceProfile = request.getResourceProfile();
 
-		return super.requestNewAllocatedSlot(slotRequestId, resourceProfile, timeout);
+		return super.requestNewAllocatedSlot(request, timeout);
 	}
 
 	public ResourceProfile getLastRequestedSlotResourceProfile() {

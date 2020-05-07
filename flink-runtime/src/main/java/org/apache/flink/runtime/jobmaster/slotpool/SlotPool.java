@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
@@ -32,6 +31,7 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -152,30 +152,13 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	 * already available slots from the pool, but instead will add a new slot to that pool that is immediately allocated
 	 * and returned.
 	 *
-	 * @param slotRequestId identifying the requested slot
-	 * @param resourceProfile resource profile that specifies the resource requirements for the requested slot
+	 * @param request for a physical slot
 	 * @param timeout timeout for the allocation procedure
 	 * @return a newly allocated slot that was previously not available.
 	 */
-	@Nonnull
 	CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull ResourceProfile resourceProfile,
-		Time timeout);
-
-	/**
-	 * Requests the allocation of a new batch slot from the resource manager. Unlike the normal slot, a batch
-	 * slot will only time out if the slot pool does not contain a suitable slot. Moreover, it won't react to
-	 * failure signals from the resource manager.
-	 *
-	 * @param slotRequestId identifying the requested slot
-	 * @param resourceProfile resource profile that specifies the resource requirements for the requested batch slot
-	 * @return a future which is completed with newly allocated batch slot
-	 */
-	@Nonnull
-	CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
-		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull ResourceProfile resourceProfile);
+		PhysicalSlotRequest request,
+		@Nullable Time timeout);
 
 	/**
 	 * Create report about the allocated slots belonging to the specified task manager.

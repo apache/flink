@@ -410,26 +410,26 @@ public class SlotPoolImpl implements SlotPool {
 	@Nonnull
 	@Override
 	public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-			@Nonnull SlotRequestId slotRequestId,
-			@Nonnull ResourceProfile resourceProfile,
-			Time timeout) {
+			final PhysicalSlotRequest request,
+			@Nullable final Time timeout) {
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 
-		final PendingRequest pendingRequest = PendingRequest.createStreamingRequest(slotRequestId, resourceProfile);
+		final PendingRequest pendingRequest;
+		final Time slotRequestTimeout;
+		if (request.getSlotWillBeOccupiedIndefinitely()) {
+			pendingRequest = PendingRequest.createStreamingRequest(
+				request.getSlotRequestId(),
+				request.getResourceProfile());
+			slotRequestTimeout = checkNotNull(timeout);
+		} else {
+			pendingRequest = PendingRequest.createBatchRequest(
+				request.getSlotRequestId(),
+				request.getResourceProfile());
+			slotRequestTimeout = batchSlotTimeout;
+		}
 
-		return requestNewAllocatedSlotInternal(pendingRequest, timeout);
-	}
-
-	@Nonnull
-	@Override
-	public CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
-		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull ResourceProfile resourceProfile) {
-
-		final PendingRequest pendingRequest = PendingRequest.createBatchRequest(slotRequestId, resourceProfile);
-
-		return requestNewAllocatedSlotInternal(pendingRequest, batchSlotTimeout);
+		return requestNewAllocatedSlotInternal(pendingRequest, slotRequestTimeout);
 	}
 
 	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlotInternal(

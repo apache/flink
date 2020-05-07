@@ -45,6 +45,8 @@ import static org.hamcrest.Matchers.is;
  */
 public class SlotPoolUtils {
 
+	private static long requestBulkCounter = 0;
+
 	private SlotPoolUtils() {
 		throw new UnsupportedOperationException("Cannot instantiate this class.");
 	}
@@ -54,7 +56,10 @@ public class SlotPoolUtils {
 		ComponentMainThreadExecutor mainThreadExecutor,
 		ResourceProfile resourceProfile) {
 		return CompletableFuture
-			.supplyAsync(() -> slotPool.requestNewAllocatedBatchSlot(new SlotRequestId(), resourceProfile), mainThreadExecutor)
+			.supplyAsync(() -> slotPool.requestNewAllocatedSlot(
+					PhysicalSlotRequest.createPhysicalSlotRequest(new SlotRequestId(), resourceProfile, false, requestBulkCounter++),
+					null),
+				mainThreadExecutor)
 			.thenCompose(Function.identity());
 	}
 
