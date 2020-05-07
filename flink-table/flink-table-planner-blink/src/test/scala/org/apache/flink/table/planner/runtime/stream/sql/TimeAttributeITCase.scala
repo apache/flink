@@ -38,13 +38,13 @@ import java.util.TimeZone
 class TimeAttributeITCase extends StreamingTestBase {
 
   val data = List(
-    row("1970-01-01 00:00:00.001", localDateTime(1L), 1, 1d),
-    row("1970-01-01 00:00:00.002", localDateTime(2L), 1, 2d),
-    row("1970-01-01 00:00:00.003", localDateTime(3L), 1, 2d),
-    row("1970-01-01 00:00:00.004", localDateTime(4L), 1, 5d),
-    row("1970-01-01 00:00:00.007", localDateTime(7L), 1, 3d),
-    row("1970-01-01 00:00:00.008", localDateTime(8L), 1, 3d),
-    row("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d))
+    rowOf("1970-01-01 00:00:00.001", localDateTime(1L), 1, 1d),
+    rowOf("1970-01-01 00:00:00.002", localDateTime(2L), 1, 2d),
+    rowOf("1970-01-01 00:00:00.003", localDateTime(3L), 1, 2d),
+    rowOf("1970-01-01 00:00:00.004", localDateTime(4L), 1, 5d),
+    rowOf("1970-01-01 00:00:00.007", localDateTime(7L), 1, 3d),
+    rowOf("1970-01-01 00:00:00.008", localDateTime(8L), 1, 3d),
+    rowOf("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d))
 
   val dataId: String = TestValuesTableFactory.registerData(data)
 
@@ -188,14 +188,6 @@ class TimeAttributeITCase extends StreamingTestBase {
 
   private def localDateTime(ts: Long): LocalDateTime = {
     new Timestamp(ts - TimeZone.getDefault.getOffset(ts)).toLocalDateTime
-  }
-
-  private def row(args: Any*): Row = {
-    val row = new Row(args.length)
-    0 until args.length foreach {
-      i => row.setField(i, args(i))
-    }
-    row
   }
 
 }

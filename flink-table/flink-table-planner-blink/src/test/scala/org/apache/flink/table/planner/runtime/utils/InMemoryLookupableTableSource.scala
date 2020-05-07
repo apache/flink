@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
-import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableEnvironment, TableSchema}
@@ -27,12 +26,13 @@ import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, Descriptor
 import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.{AsyncTableFunction, FunctionContext, TableFunction}
-import org.apache.flink.table.planner.runtime.utils.InMemoryLookupableTableSource.{InMemoryAsyncLookupFunction, InMemoryLookupFunction}
+import org.apache.flink.table.planner.runtime.utils.InMemoryLookupableTableSource.{InMemoryAsyncLookupFunction, InMemoryLookupFunction, RESOURCE_COUNTER}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
+
 import java.util
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
@@ -54,14 +54,12 @@ class InMemoryLookupableTableSource(
   extends LookupableTableSource[Row]
   with StreamTableSource[Row] {
 
-  val resourceCounter = new AtomicInteger(0)
-
   override def getLookupFunction(lookupKeys: Array[String]): TableFunction[Row] = {
-    new InMemoryLookupFunction(convertDataToMap(lookupKeys), resourceCounter)
+    new InMemoryLookupFunction(convertDataToMap(lookupKeys), RESOURCE_COUNTER)
   }
 
   override def getAsyncLookupFunction(lookupKeys: Array[String]): AsyncTableFunction[Row] = {
-    new InMemoryAsyncLookupFunction(convertDataToMap(lookupKeys), resourceCounter)
+    new InMemoryAsyncLookupFunction(convertDataToMap(lookupKeys), RESOURCE_COUNTER)
   }
 
   private def convertDataToMap(lookupKeys: Array[String]): Map[Row, List[Row]] = {
@@ -92,28 +90,23 @@ class InMemoryLookupableTableSource(
 
   override def isBounded: Boolean = bounded
 
-  @VisibleForTesting
-  def getResourceCounter: Int = resourceCounter.get()
 }
 
 class InMemoryLookupableTableFactory extends TableSourceFactory[Row] {
+
   override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
     val dp = new DescriptorProperties
     dp.putProperties(properties)
     val tableSchema = dp.getTableSchema(SCHEMA)
 
     val serializedData = dp.getString("data")
-    val data = EncodingUtils.decodeStringToObject(serializedData, classOf[List[Product]])
-
-    val rowData = data.map { entry =>
-      Row.of((0 until entry.productArity).map(entry.productElement(_).asInstanceOf[Object]): _*)
-    }
+    val data = EncodingUtils.decodeStringToObject(serializedData, classOf[List[Row]])
 
     val asyncEnabled = dp.getOptionalBoolean("is-async").orElse(false)
 
     val bounded = dp.getOptionalBoolean("is-bounded").orElse(false)
 
-    new InMemoryLookupableTableSource(tableSchema, rowData, asyncEnabled, bounded)
+    new InMemoryLookupableTableSource(tableSchema, data, asyncEnabled, bounded)
   }
 
   override def requiredContext(): util.Map[String, String] = {
@@ -131,10 +124,12 @@ class InMemoryLookupableTableFactory extends TableSourceFactory[Row] {
 
 object InMemoryLookupableTableSource {
 
+  val RESOURCE_COUNTER = new AtomicInteger()
+
   def createTemporaryTable(
       tEnv: TableEnvironment,
       isAsync: Boolean,
-      data: List[Product],
+      data: List[Row],
       schema: TableSchema,
       tableName: String,
       isBounded: Boolean = false): Unit = {
