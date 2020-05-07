@@ -121,7 +121,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	 */
 	protected void setupQueue() throws IOException {
 		if (queueName != null) {
-			channel.queueDeclare(queueName, true, false, false, null);
+			Util.declareQueueDefaults(channel, queueName);
 		}
 	}
 
