@@ -268,12 +268,12 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 
 	private void advanceTimeAndTriggerCheckBatchSlotTimeout(TestingSlotPoolImpl slotPool, ManualClock clock, Time batchSlotTimeout) {
 		// trigger batch slot timeout check which marks unfulfillable slots
-		slotPool.triggerCheckBatchSlotTimeout();
+		slotPool.triggerCheckPendingRequestsTimeout(batchSlotTimeout);
 
 		// advance clock behind timeout
 		clock.advanceTime(batchSlotTimeout.toMilliseconds() + 1L, TimeUnit.MILLISECONDS);
 
 		// timeout all as unfulfillable marked slots
-		slotPool.triggerCheckBatchSlotTimeout();
+		slotPool.triggerCheckPendingRequestsTimeout(batchSlotTimeout);
 	}
 }

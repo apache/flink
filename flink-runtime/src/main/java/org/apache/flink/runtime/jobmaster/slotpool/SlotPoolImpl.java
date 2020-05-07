@@ -68,7 +68,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -211,7 +210,6 @@ public class SlotPoolImpl implements SlotPool {
 		this.componentMainThreadExecutor = componentMainThreadExecutor;
 
 		scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);
-		scheduleRunAsync(this::checkBatchSlotTimeout, batchSlotTimeout);
 
 		if (log.isDebugEnabled()) {
 			scheduleRunAsync(this::scheduledLogStatus, STATUS_LOG_INTERVAL_MS, TimeUnit.MILLISECONDS);
@@ -420,22 +418,7 @@ public class SlotPoolImpl implements SlotPool {
 
 		final PendingRequest pendingRequest = PendingRequest.createStreamingRequest(slotRequestId, resourceProfile);
 
-		// register request timeout
-		FutureUtils
-			.orTimeout(
-				pendingRequest.getAllocatedSlotFuture(),
-				timeout.toMilliseconds(),
-				TimeUnit.MILLISECONDS,
-				componentMainThreadExecutor)
-			.whenComplete(
-				(AllocatedSlot ignored, Throwable throwable) -> {
-					if (throwable instanceof TimeoutException) {
-						timeoutPendingSlotRequest(slotRequestId);
-					}
-				});
-
-		return requestNewAllocatedSlotInternal(pendingRequest)
-			.thenApply((Function.identity()));
+		return requestNewAllocatedSlotInternal(pendingRequest, timeout);
 	}
 
 	@Nonnull
@@ -444,9 +427,19 @@ public class SlotPoolImpl implements SlotPool {
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile) {
 
-		componentMainThreadExecutor.assertRunningInMainThread();
-
 		final PendingRequest pendingRequest = PendingRequest.createBatchRequest(slotRequestId, resourceProfile);
+
+		return requestNewAllocatedSlotInternal(pendingRequest, batchSlotTimeout);
+	}
+
+	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlotInternal(
+			final PendingRequest pendingRequest,
+			final Time slotRequestTimeout) {
+
+		final long currentTimestamp = clock.relativeTimeMillis();
+		pendingRequest.markUnfulfillable(currentTimestamp);
+
+		schedulePendingRequestTimeoutCheck(pendingRequest, slotRequestTimeout);
 
 		return requestNewAllocatedSlotInternal(pendingRequest)
 			.thenApply(Function.identity());
@@ -870,65 +863,62 @@ public class SlotPoolImpl implements SlotPool {
 		scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);
 	}
 
-	protected void checkBatchSlotTimeout() {
-		final Collection<PendingRequest> pendingBatchRequests = getPendingBatchRequests();
-
-		if (!pendingBatchRequests.isEmpty()) {
-			final Set<ResourceProfile> allocatedResourceProfiles = getAllocatedResourceProfiles();
-
-			final Map<Boolean, List<PendingRequest>> fulfillableAndUnfulfillableRequests = pendingBatchRequests
-				.stream()
-				.collect(Collectors.partitioningBy(canBeFulfilledWithAllocatedSlot(allocatedResourceProfiles)));
-
-			final List<PendingRequest> fulfillableRequests = fulfillableAndUnfulfillableRequests.get(true);
-			final List<PendingRequest> unfulfillableRequests = fulfillableAndUnfulfillableRequests.get(false);
-
-			final long currentTimestamp = clock.relativeTimeMillis();
-
-			for (PendingRequest fulfillableRequest : fulfillableRequests) {
-				fulfillableRequest.markFulfillable();
+	private void schedulePendingRequestTimeoutCheck(final PendingRequest pendingRequest, final Time slotRequestTimeout) {
+		scheduleRunAsync(() -> {
+			if (!checkPendingRequestTimeout(pendingRequest, slotRequestTimeout)) {
+				schedulePendingRequestTimeoutCheck(pendingRequest, slotRequestTimeout);
 			}
+		}, slotRequestTimeout);
+	}
 
-			for (PendingRequest unfulfillableRequest : unfulfillableRequests) {
-				unfulfillableRequest.markUnfulfillable(currentTimestamp);
+	/**
+	 * Check slot request and timeout it if it has been unfilfillable for too long.
+	 * @param pendingRequest slot request to check
+	 * @param slotRequestTimeout indicates how long a pending request can be unfilfillable
+	 * @return false if the request is still pending. true if the request is done or timed out
+	 */
+	@VisibleForTesting
+	protected boolean checkPendingRequestTimeout(final PendingRequest pendingRequest, final Time slotRequestTimeout) {
+		if (pendingRequest.getAllocatedSlotFuture().isDone()) {
+			return true;
+		}
 
-				if (unfulfillableRequest.getUnfulfillableSince() + batchSlotTimeout.toMilliseconds() <= currentTimestamp) {
-					timeoutPendingSlotRequest(unfulfillableRequest.getSlotRequestId());
-				}
+		final boolean fulfillable = isSlotRequestFulfillableWithReusableSlots(pendingRequest);
+
+		final long currentTimestamp = clock.relativeTimeMillis();
+		if (fulfillable) {
+			pendingRequest.markFulfillable();
+		} else {
+			pendingRequest.markUnfulfillable(currentTimestamp);
+
+			if (pendingRequest.getUnfulfillableSince() + slotRequestTimeout.toMilliseconds() <= currentTimestamp) {
+				timeoutPendingSlotRequest(pendingRequest.getSlotRequestId());
+				return true;
 			}
 		}
 
-		scheduleRunAsync(this::checkBatchSlotTimeout, batchSlotTimeout);
+		return false;
 	}
 
-	private Set<ResourceProfile> getAllocatedResourceProfiles() {
+	private Set<SlotInfo> getReusableSlots() {
 		return Stream
 			.concat(
 				getAvailableSlotsInformation().stream(),
 				getAllocatedSlotsInformation().stream())
-			.map(SlotInfo::getResourceProfile)
+			.filter(slotInfo -> !slotInfo.willBeOccupiedIndefinitely())
 			.collect(Collectors.toSet());
 	}
 
-	private Collection<PendingRequest> getPendingBatchRequests() {
-		return Stream
-			.concat(
-				pendingRequests.values().stream(),
-				waitingForResourceManager.values().stream())
-			.filter(PendingRequest::isBatchRequest)
-			.collect(Collectors.toList());
-	}
+	private boolean isSlotRequestFulfillableWithReusableSlots(final PendingRequest pendingRequest) {
+		final Set<SlotInfo> reusableSlots = getReusableSlots();
 
-	private Predicate<PendingRequest> canBeFulfilledWithAllocatedSlot(Set<ResourceProfile> allocatedResourceProfiles) {
-		return pendingRequest -> {
-			for (ResourceProfile allocatedResourceProfile : allocatedResourceProfiles) {
-				if (allocatedResourceProfile.isMatching(pendingRequest.getResourceProfile())) {
-					return true;
-				}
+		for (SlotInfo slotInfo : reusableSlots) {
+			if (slotInfo.getResourceProfile().isMatching(pendingRequest.getResourceProfile())) {
+				return true;
 			}
+		}
 
-			return false;
-		};
+		return false;
 	}
 
 	/**

@@ -27,6 +27,8 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -59,8 +61,11 @@ public class TestingSlotPoolImpl extends SlotPoolImpl {
 		runAsync(this::checkIdleSlot);
 	}
 
-	void triggerCheckBatchSlotTimeout() {
-		runAsync(this::checkBatchSlotTimeout);
+	void triggerCheckPendingRequestsTimeout(final Time timeout) {
+		runAsync(() -> {
+			final Set<PendingRequest> pendingRequests = new HashSet<>(getPendingRequests().values());
+			pendingRequests.forEach(request -> checkPendingRequestTimeout(request, timeout));
+		});
 	}
 
 	@Override
