@@ -33,9 +33,10 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, TestLogger}
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Assert, Before, Test}
+import org.junit.{Assert, Before, Rule, Test}
 
 import _root_.java.io.{File, FileFilter}
 import _root_.java.lang.{Long => JLong}
@@ -45,6 +46,11 @@ import _root_.scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger {
+
+  private val _tempFolder = new TemporaryFolder()
+
+  @Rule
+  def tempFolder: TemporaryFolder = _tempFolder
 
   var tEnv: TableEnvironment = _
 
@@ -375,7 +381,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testExecuteInsert(): Unit = {
-    val sinkPath = registerCsvTableSink(tEnv, Array("first"), Array(STRING), "MySink")
+    val sinkPath = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink")
     checkEmptyFile(sinkPath)
     val table = tEnv.sqlQuery("select first from MyTable")
     val tableResult = table.executeInsert("MySink")
