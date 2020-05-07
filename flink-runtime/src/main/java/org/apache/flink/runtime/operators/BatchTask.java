@@ -1026,14 +1026,14 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 
-		this.output = initOutputs(this, getEnvironment().getUserClassLoader(), this.config, this.chainedTasks, this.eventualOutputs,
+		this.output = initOutputs(this, getEnvironment().getUserCodeClassLoader(), this.config, this.chainedTasks, this.eventualOutputs,
 				this.getExecutionConfig(), this.accumulatorMap);
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
 		Environment env = getEnvironment();
 
-		return new DistributedRuntimeUDFContext(env.getTaskInfo(), env.getUserClassLoader(),
+		return new DistributedRuntimeUDFContext(env.getTaskInfo(), env.getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics);
 	}
 

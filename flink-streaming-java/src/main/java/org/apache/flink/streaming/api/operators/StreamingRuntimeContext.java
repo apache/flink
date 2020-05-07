@@ -89,7 +89,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 			ProcessingTimeService processingTimeService,
 			@Nullable KeyedStateStore keyedStateStore) {
 		super(checkNotNull(env).getTaskInfo(),
-				env.getUserClassLoader(),
+				env.getUserCodeClassLoader(),
 				env.getExecutionConfig(),
 				accumulators,
 				env.getDistributedCacheEntries(),

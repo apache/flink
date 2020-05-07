@@ -148,7 +148,7 @@ public interface Environment {
 	/**
 	 * Returns the user code class loader
 	 */
-	UserCodeClassLoader getUserClassLoader();
+	UserCodeClassLoader getUserCodeClassLoader();
 
 	Map<String, Future<Path>> getDistributedCacheEntries();
 

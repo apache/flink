@@ -104,7 +104,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		LOG.debug(getLogString("Start registering input and output"));
 
 		try {
-			initOutputs(getEnvironment().getUserClassLoader());
+			initOutputs(getEnvironment().getUserCodeClassLoader());
 		} catch (Exception ex) {
 			throw new RuntimeException("The initialization of the DataSource's outputs caused an error: " +
 					ex.getMessage(), ex);
@@ -405,7 +405,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 
 		String sourceName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
 		sourceName = sourceName.startsWith("CHAIN") ? sourceName.substring(6) : sourceName;
-		return new DistributedRuntimeUDFContext(env.getTaskInfo(), env.getUserClassLoader(),
+		return new DistributedRuntimeUDFContext(env.getTaskInfo(), env.getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap(), 
 				getEnvironment().getMetricGroup().getOrAddOperator(sourceName));
 	}

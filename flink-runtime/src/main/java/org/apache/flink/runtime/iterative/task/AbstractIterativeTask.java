@@ -184,7 +184,7 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	@Override
 	public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
 		Environment env = getEnvironment();
-		return new IterativeRuntimeUdfContext(env.getTaskInfo(), env.getUserClassLoader(),
+		return new IterativeRuntimeUdfContext(env.getTaskInfo(), env.getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics);
 	}
 

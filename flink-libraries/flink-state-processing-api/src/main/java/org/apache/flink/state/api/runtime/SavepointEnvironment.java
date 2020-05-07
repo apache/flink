@@ -179,7 +179,7 @@ public class SavepointEnvironment implements Environment {
 	}
 
 	@Override
-	public UserCodeClassLoader getUserClassLoader() {
+	public UserCodeClassLoader getUserCodeClassLoader() {
 		return userCodeClassLoader;
 	}
 

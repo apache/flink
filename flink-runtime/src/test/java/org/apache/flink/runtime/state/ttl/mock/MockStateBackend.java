@@ -137,7 +137,7 @@ public class MockStateBackend extends AbstractStateBackend {
 		return new MockKeyedStateBackendBuilder<>(
 			new KvStateRegistry().createTaskRegistry(jobID, new JobVertexID()),
 			keySerializer,
-			env.getUserClassLoader().asClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			numberOfKeyGroups,
 			keyGroupRange,
 			env.getExecutionConfig(),
