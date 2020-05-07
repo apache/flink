@@ -109,8 +109,10 @@ object TestTableSourceSinks {
       tEnv: TableEnvironment,
       schema: TableSchema,
       tableName: String,
-      path: String,
-      numFiles: Int = 1): Unit = {
+      numFiles: Int = 1): String = {
+    val tempFile = File.createTempFile("csv-test", null)
+    tempFile.deleteOnExit()
+    val path = tempFile.getAbsolutePath
     tEnv.connect(new FileSystem().path(path))
       .withFormat(
         new OldCsv()
@@ -119,6 +121,7 @@ object TestTableSourceSinks {
       .withSchema(
         new Schema().schema(schema))
       .createTemporaryTable(tableName)
+    path
   }
 
   lazy val getPersonCsvPath = {

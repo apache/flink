@@ -96,7 +96,7 @@ class TableEnvironmentTest {
     TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
 
     TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", "/tmp", -1)
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
 
     val table1 = tEnv.sqlQuery("select first from MyTable")
     tEnv.insertInto(table1, "MySink")

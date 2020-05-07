@@ -33,10 +33,9 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, TestLogger}
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Assert, Before, Rule, Test}
+import org.junit.{Assert, Before, Test}
 
 import _root_.java.io.File
 import _root_.java.util
@@ -45,11 +44,6 @@ import _root_.scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger {
-
-  private val _tempFolder = new TemporaryFolder()
-
-  @Rule
-  def tempFolder: TemporaryFolder = _tempFolder
 
   var tEnv: TableEnvironment = _
 
@@ -74,13 +68,11 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testExecuteTwiceUsingSameTableEnv(): Unit = {
-    val sink1Path = _tempFolder.newFile().getAbsolutePath
-    TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1", sink1Path)
+    val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
 
-    val sink2Path = _tempFolder.newFile().getAbsolutePath
-    TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink2", sink2Path)
+    val sink2Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink2")
 
 
     checkEmptyFile(sink1Path)
@@ -105,9 +97,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testExplainAndExecuteSingleSink(): Unit = {
-    val sinkPath = _tempFolder.newFile().getAbsolutePath
-    TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1", sinkPath)
+    val sinkPath = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
 
     val table1 = tEnv.sqlQuery("select first from MyTable")
     tEnv.insertInto(table1, "MySink1")
@@ -119,13 +110,11 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testExplainAndExecuteMultipleSink(): Unit = {
-    val sink1Path = _tempFolder.newFile().getAbsolutePath
-    TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1", sink1Path)
+    val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
 
-    val sink2Path = _tempFolder.newFile().getAbsolutePath
-    TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink2", sink2Path)
+    val sink2Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink2")
 
     val table1 = tEnv.sqlQuery("select first from MyTable")
     tEnv.insertInto(table1, "MySink1")
@@ -140,13 +129,11 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testExplainTwice(): Unit = {
-    val sink1Path = _tempFolder.newFile().getAbsolutePath
-    TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1", sink1Path)
+    val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
 
-    val sink2Path = _tempFolder.newFile().getAbsolutePath
-    TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink2", sink2Path)
+    val sink2Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink2")
 
     val table1 = tEnv.sqlQuery("select first from MyTable")
     tEnv.insertInto(table1, "MySink1")
@@ -166,9 +153,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val streamEnv = StreamExecutionEnvironment.getExecutionEnvironment
     val streamTableEnv = StreamTableEnvironment.create(streamEnv, settings)
     TestTableSourceSinks.createPersonCsvTemporaryTable(streamTableEnv, "MyTable")
-    val sink1Path = _tempFolder.newFile().getAbsolutePath
-    TestTableSourceSinks.createCsvTemporarySinkTable(
-      streamTableEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1", sink1Path)
+    val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      streamTableEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
     checkEmptyFile(sink1Path)
 
     streamTableEnv.sqlUpdate("insert into MySink1 select first from MyTable")
@@ -205,9 +191,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val streamEnv = StreamExecutionEnvironment.getExecutionEnvironment
     val streamTableEnv = StreamTableEnvironment.create(streamEnv, settings)
     TestTableSourceSinks.createPersonCsvTemporaryTable(streamTableEnv, "MyTable")
-    val sink1Path = _tempFolder.newFile().getAbsolutePath
-    TestTableSourceSinks.createCsvTemporarySinkTable(
-      streamTableEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1", sink1Path)
+    val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      streamTableEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
     checkEmptyFile(sink1Path)
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
@@ -243,9 +228,8 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val t = streamEnv.fromCollection(getPersonData)
       .toTable(streamTableEnv, 'first, 'id, 'score, 'last)
     streamTableEnv.registerTable("MyTable", t)
-    val sink1Path = _tempFolder.newFile().getAbsolutePath
-    TestTableSourceSinks.createCsvTemporarySinkTable(
-      streamTableEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1", sink1Path)
+    val sink1Path = TestTableSourceSinks.createCsvTemporarySinkTable(
+      streamTableEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
     checkEmptyFile(sink1Path)
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")

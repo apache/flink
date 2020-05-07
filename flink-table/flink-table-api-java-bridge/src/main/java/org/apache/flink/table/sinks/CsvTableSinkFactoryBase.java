@@ -81,8 +81,6 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
 		properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
 		properties.add(FORMAT_FIELD_DELIMITER);
-		properties.add(FORMAT_WRITE_MODE);
-		properties.add(FORMAT_NUM_FILES);
 		properties.add(CONNECTOR_PATH);
 		properties.add(FORMAT_WRITE_MODE);
 		properties.add(FORMAT_NUM_FILES);
