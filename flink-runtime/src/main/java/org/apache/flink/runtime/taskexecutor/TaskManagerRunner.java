@@ -138,7 +138,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			MetricRegistryConfiguration.fromConfiguration(configuration),
 			ReporterSetup.fromConfiguration(configuration, pluginManager));
 
-		final RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(configuration, rpcService.getAddress());
+		final RpcService metricQueryServiceRpcService = MetricUtils.startRemoteMetricsRpcService(configuration, rpcService.getAddress());
 		metricRegistry.startQueryService(metricQueryServiceRpcService, resourceId);
 
 		blobCacheService = new BlobCacheService(

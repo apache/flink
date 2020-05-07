@@ -132,11 +132,21 @@ public class MetricUtils {
 		instantiateCPUMetrics(jvm.addGroup("CPU"));
 	}
 
-	public static RpcService startMetricsRpcService(Configuration configuration, String hostname) throws Exception {
+	public static RpcService startRemoteMetricsRpcService(Configuration configuration, String hostname) throws Exception {
 		final String portRange = configuration.getString(MetricOptions.QUERY_SERVICE_PORT);
+
+		return startMetricRpcService(configuration, AkkaRpcServiceUtils.remoteServiceBuilder(configuration, hostname, portRange));
+	}
+
+	public static RpcService startLocalMetricsRpcService(Configuration configuration) throws Exception {
+		return startMetricRpcService(configuration, AkkaRpcServiceUtils.localServiceBuilder(configuration));
+	}
+
+	private static RpcService startMetricRpcService(
+			Configuration configuration, AkkaRpcServiceUtils.AkkaRpcServiceBuilder rpcServiceBuilder) throws Exception {
 		final int threadPriority = configuration.getInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
 
-		return AkkaRpcServiceUtils.remoteServiceBuilder(configuration, hostname, portRange)
+		return rpcServiceBuilder
 			.withActorSystemName(METRICS_ACTOR_SYSTEM_NAME)
 			.withActorSystemExecutorConfiguration(new BootstrapTools.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority))
 			.createAndStart();
