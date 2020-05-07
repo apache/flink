@@ -823,7 +823,7 @@ public class TypeExtractor {
 		}
 
 		final Type baseClassType =
-			resolveTypeFromTypeHierarchy(typeHierarchy.get(typeHierarchy.size() - 1), typeHierarchy, true);
+			resolveTypeFromTypeHierarchy(typeHierarchy.get(typeHierarchy.size() - 1), typeHierarchy, false);
 
 		final Type returnType = ((ParameterizedType) baseClassType).getActualTypeArguments()[returnParamPos];
 
@@ -1951,16 +1951,16 @@ public class TypeExtractor {
 		@Nullable final TypeInformation<IN2> in2TypeInfo,
 		final int in2Pos) {
 
-		Map<TypeVariable<?>, TypeInformation<?>> typeVariableBindings = Collections.emptyMap();
+		final Map<TypeVariable<?>, TypeInformation<?>> typeVariableBindings = new HashMap<>();
 
 		if (in1TypeInfo == null && in2TypeInfo == null) {
-			return typeVariableBindings;
+			return Collections.emptyMap();
 		}
 
 		final List<ParameterizedType> functionTypeHierarchy = buildParameterizedTypeHierarchy(clazz, baseClazz, true);
 
 		if (functionTypeHierarchy.size() < 1) {
-			return typeVariableBindings;
+			return Collections.emptyMap();
 		}
 
 		final ParameterizedType baseClass = functionTypeHierarchy.get(functionTypeHierarchy.size() - 1);
@@ -1968,17 +1968,15 @@ public class TypeExtractor {
 		if (in1TypeInfo != null) {
 			final Type in1Type = baseClass.getActualTypeArguments()[in1Pos];
 			final Type resolvedIn1Type = resolveTypeFromTypeHierarchy(in1Type, functionTypeHierarchy, false);
-			typeVariableBindings = bindTypeVariablesWithTypeInformationFromInput(resolvedIn1Type, in1TypeInfo);
+			typeVariableBindings.putAll(bindTypeVariablesWithTypeInformationFromInput(resolvedIn1Type, in1TypeInfo));
 		}
 
 		if (in2TypeInfo != null) {
 			final Type in2Type = baseClass.getActualTypeArguments()[in2Pos];
 			final Type resolvedIn2Type = resolveTypeFromTypeHierarchy(in2Type, functionTypeHierarchy, false);
-			if (!typeVariableBindings.equals(Collections.emptyMap())) {
-				typeVariableBindings.putAll(bindTypeVariablesWithTypeInformationFromInput(resolvedIn2Type, in2TypeInfo));
-			}
+			typeVariableBindings.putAll(bindTypeVariablesWithTypeInformationFromInput(resolvedIn2Type, in2TypeInfo));
 		}
-		return typeVariableBindings;
+		return typeVariableBindings.isEmpty() ? Collections.emptyMap() : typeVariableBindings;
 	}
 
 	/**
