@@ -52,6 +52,7 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
@@ -84,9 +85,14 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 	private static final String TIME = "time";
 	private static final String EVENT_TIME = "event-time";
 	private static final String PROC_TIME = "proc-time";
+	private static final String WATERMARK_EXPRESSION = EVENT_TIME + " - INTERVAL '5' SECOND";
+	private static final DataType WATERMARK_DATATYPE = DataTypes.TIMESTAMP(3);
+	private static final String COMPUTED_COLUMN_NAME = "computed-column";
+	private static final String COMPUTED_COLUMN_EXPRESSION = COUNT + " + 1.0";
+	private static final DataType COMPUTED_COLUMN_DATATYPE = DataTypes.DECIMAL(10, 3);
+
 	private static final Properties KAFKA_PROPERTIES = new Properties();
 	static {
-		KAFKA_PROPERTIES.setProperty("zookeeper.connect", "dummy");
 		KAFKA_PROPERTIES.setProperty("group.id", "dummy");
 		KAFKA_PROPERTIES.setProperty("bootstrap.servers", "dummy");
 	}
@@ -103,7 +109,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		// prepare parameters for Kafka table source
 		final TableSchema schema = TableSchema.builder()
 			.field(FRUIT_NAME, DataTypes.STRING())
-			.field(COUNT, DataTypes.DECIMAL(10, 3))
+			.field(COUNT, DataTypes.DECIMAL(38, 18))
 			.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
 			.field(PROC_TIME, DataTypes.TIMESTAMP(3))
 			.build();
@@ -124,10 +130,9 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		final TestDeserializationSchema deserializationSchema = new TestDeserializationSchema(
 			TableSchema.builder()
 				.field(NAME, DataTypes.STRING())
-				.field(COUNT, DataTypes.DECIMAL(10, 3))
+				.field(COUNT, DataTypes.DECIMAL(38, 18))
 				.field(TIME, DataTypes.TIMESTAMP(3))
-				.build()
-				.toRowType()
+				.build().toRowType()
 		);
 
 		final KafkaTableSourceBase expected = getExpectedKafkaTableSource(
@@ -139,12 +144,21 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			KAFKA_PROPERTIES,
 			deserializationSchema,
 			StartupMode.SPECIFIC_OFFSETS,
-			specificOffsets);
+			specificOffsets,
+			0L);
 
-		TableSourceValidation.validateTableSource(expected);
+		TableSourceValidation.validateTableSource(expected, schema);
 
 		// construct table source using descriptors and table source factory
-		final Map<String, String> propertiesMap = createKafkaSourceProperties();
+		final Map<String, String> propertiesMap = new HashMap<>();
+		propertiesMap.putAll(createKafkaSourceProperties());
+		propertiesMap.put("schema.watermark.0.rowtime", EVENT_TIME);
+		propertiesMap.put("schema.watermark.0.strategy.expr", WATERMARK_EXPRESSION);
+		propertiesMap.put("schema.watermark.0.strategy.data-type", WATERMARK_DATATYPE.toString());
+		propertiesMap.put("schema.4.name", COMPUTED_COLUMN_NAME);
+		propertiesMap.put("schema.4.data-type", COMPUTED_COLUMN_DATATYPE.toString());
+		propertiesMap.put("schema.4.expr", COMPUTED_COLUMN_EXPRESSION);
+
 		final TableSource<?> actualSource = TableFactoryService.find(StreamTableSourceFactory.class, propertiesMap)
 			.createStreamTableSource(propertiesMap);
 
@@ -163,7 +177,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		// prepare parameters for Kafka table source
 		final TableSchema schema = TableSchema.builder()
 			.field(FRUIT_NAME, DataTypes.STRING())
-			.field(COUNT, DataTypes.DECIMAL(10, 3))
+			.field(COUNT, DataTypes.DECIMAL(38, 18))
 			.field(EVENT_TIME, DataTypes.TIMESTAMP(3))
 			.field(PROC_TIME, DataTypes.TIMESTAMP(3))
 			.build();
@@ -184,10 +198,9 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		final TestDeserializationSchema deserializationSchema = new TestDeserializationSchema(
 			TableSchema.builder()
 				.field(NAME, DataTypes.STRING())
-				.field(COUNT, DataTypes.DECIMAL(10, 3))
+				.field(COUNT, DataTypes.DECIMAL(38, 18))
 				.field(TIME, DataTypes.TIMESTAMP(3))
-				.build()
-				.toRowType()
+				.build().toRowType()
 		);
 
 		final KafkaTableSourceBase expected = getExpectedKafkaTableSource(
@@ -199,9 +212,10 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			KAFKA_PROPERTIES,
 			deserializationSchema,
 			StartupMode.SPECIFIC_OFFSETS,
-			specificOffsets);
+			specificOffsets,
+			0L);
 
-		TableSourceValidation.validateTableSource(expected);
+		TableSourceValidation.validateTableSource(expected, schema);
 
 		// construct table source using descriptors and table source factory
 		final Map<String, String> legacyPropertiesMap = new HashMap<>();
@@ -209,20 +223,21 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 
 		// use legacy properties
 		legacyPropertiesMap.remove("connector.specific-offsets");
-		legacyPropertiesMap.remove("connector.properties.zookeeper.connect");
 		legacyPropertiesMap.remove("connector.properties.bootstrap.servers");
 		legacyPropertiesMap.remove("connector.properties.group.id");
 
+		// keep compatible with a specified update-mode
+		legacyPropertiesMap.put("update-mode", "append");
+
+		// legacy properties for specific-offsets and properties
 		legacyPropertiesMap.put("connector.specific-offsets.0.partition", "0");
 		legacyPropertiesMap.put("connector.specific-offsets.0.offset", "100");
 		legacyPropertiesMap.put("connector.specific-offsets.1.partition", "1");
 		legacyPropertiesMap.put("connector.specific-offsets.1.offset", "123");
-		legacyPropertiesMap.put("connector.properties.0.key", "zookeeper.connect");
+		legacyPropertiesMap.put("connector.properties.0.key", "bootstrap.servers");
 		legacyPropertiesMap.put("connector.properties.0.value", "dummy");
-		legacyPropertiesMap.put("connector.properties.1.key", "bootstrap.servers");
+		legacyPropertiesMap.put("connector.properties.1.key", "group.id");
 		legacyPropertiesMap.put("connector.properties.1.value", "dummy");
-		legacyPropertiesMap.put("connector.properties.2.key", "group.id");
-		legacyPropertiesMap.put("connector.properties.2.value", "dummy");
 
 		final TableSource<?> actualSource = TableFactoryService.find(StreamTableSourceFactory.class, legacyPropertiesMap)
 			.createStreamTableSource(legacyPropertiesMap);
@@ -248,11 +263,10 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 				.withSchema(
 					new Schema()
 						.field(FRUIT_NAME, DataTypes.STRING()).from(NAME)
-						.field(COUNT, DataTypes.DECIMAL(10, 3)) // no from so it must match with the input
+						.field(COUNT, DataTypes.DECIMAL(38, 18)) // no from so it must match with the input
 						.field(EVENT_TIME, DataTypes.TIMESTAMP(3)).rowtime(
 							new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending())
-							.field(PROC_TIME, DataTypes.TIMESTAMP(3)).proctime())
-				.inAppendMode()
+						.field(PROC_TIME, DataTypes.TIMESTAMP(3)).proctime())
 				.toProperties();
 	}
 
@@ -286,7 +300,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		// test Kafka producer
 		final KafkaTableSinkBase actualKafkaSink = (KafkaTableSinkBase) actualSink;
 		final DataStreamMock streamMock = new DataStreamMock(new StreamExecutionEnvironmentMock(), schema.toRowType());
-		actualKafkaSink.emitDataStream(streamMock);
+		actualKafkaSink.consumeDataStream(streamMock);
 		assertTrue(getExpectedFlinkKafkaProducer().isAssignableFrom(streamMock.sinkFunction.getClass()));
 	}
 
@@ -312,20 +326,21 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 
 		// use legacy properties
 		legacyPropertiesMap.remove("connector.specific-offsets");
-		legacyPropertiesMap.remove("connector.properties.zookeeper.connect");
 		legacyPropertiesMap.remove("connector.properties.bootstrap.servers");
 		legacyPropertiesMap.remove("connector.properties.group.id");
 
+		// keep compatible with a specified update-mode
+		legacyPropertiesMap.put("update-mode", "append");
+
+		// legacy properties for specific-offsets and properties
 		legacyPropertiesMap.put("connector.specific-offsets.0.partition", "0");
 		legacyPropertiesMap.put("connector.specific-offsets.0.offset", "100");
 		legacyPropertiesMap.put("connector.specific-offsets.1.partition", "1");
 		legacyPropertiesMap.put("connector.specific-offsets.1.offset", "123");
-		legacyPropertiesMap.put("connector.properties.0.key", "zookeeper.connect");
+		legacyPropertiesMap.put("connector.properties.0.key", "bootstrap.servers");
 		legacyPropertiesMap.put("connector.properties.0.value", "dummy");
-		legacyPropertiesMap.put("connector.properties.1.key", "bootstrap.servers");
+		legacyPropertiesMap.put("connector.properties.1.key", "group.id");
 		legacyPropertiesMap.put("connector.properties.1.value", "dummy");
-		legacyPropertiesMap.put("connector.properties.2.key", "group.id");
-		legacyPropertiesMap.put("connector.properties.2.value", "dummy");
 
 		final TableSink<?> actualSink = TableFactoryService.find(StreamTableSinkFactory.class, legacyPropertiesMap)
 			.createStreamTableSink(legacyPropertiesMap);
@@ -335,7 +350,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		// test Kafka producer
 		final KafkaTableSinkBase actualKafkaSink = (KafkaTableSinkBase) actualSink;
 		final DataStreamMock streamMock = new DataStreamMock(new StreamExecutionEnvironmentMock(), schema.toRowType());
-		actualKafkaSink.emitDataStream(streamMock);
+		actualKafkaSink.consumeDataStream(streamMock);
 		assertTrue(getExpectedFlinkKafkaProducer().isAssignableFrom(streamMock.sinkFunction.getClass()));
 	}
 
@@ -419,7 +434,8 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema,
 		StartupMode startupMode,
-		Map<KafkaTopicPartition, Long> specificStartupOffsets);
+		Map<KafkaTopicPartition, Long> specificStartupOffsets,
+		long startupTimestampMillis);
 
 	protected abstract KafkaTableSinkBase getExpectedKafkaTableSink(
 		TableSchema schema,

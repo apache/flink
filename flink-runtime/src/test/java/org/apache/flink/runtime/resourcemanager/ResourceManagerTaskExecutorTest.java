@@ -28,6 +28,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -51,7 +52,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
-import akka.pattern.AskTimeoutException;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -63,9 +63,11 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -152,16 +154,17 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 		StandaloneResourceManager resourceManager =
 			new StandaloneResourceManager(
 				rpcService,
-				ResourceManager.RESOURCE_MANAGER_NAME + UUID.randomUUID(),
 				resourceManagerResourceID,
 				highAvailabilityServices,
 				heartbeatServices,
 				slotManager,
+				NoOpResourceManagerPartitionTracker::get,
 				jobLeaderIdService,
 				new ClusterInformation("localhost", 1234),
 				fatalErrorHandler,
 				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
-				Time.minutes(5L));
+				Time.minutes(5L),
+				RpcUtils.INF_TIMEOUT);
 
 		resourceManager.start();
 
@@ -249,7 +252,9 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				firstFuture.get();
 				fail("Should have failed because connection to taskmanager is delayed beyond timeout");
 			} catch (Exception e) {
-				assertThat(ExceptionUtils.stripExecutionException(e), instanceOf(AskTimeoutException.class));
+				final Throwable cause = ExceptionUtils.stripExecutionException(e);
+				assertThat(cause, instanceOf(TimeoutException.class));
+				assertThat(cause.getMessage(), containsString("ResourceManagerGateway.registerTaskExecutor"));
 			}
 
 			startConnection.await();

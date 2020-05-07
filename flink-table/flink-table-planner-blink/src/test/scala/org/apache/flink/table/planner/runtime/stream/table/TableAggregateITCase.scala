@@ -25,17 +25,16 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
-import org.apache.flink.table.planner.utils.{EmptyTableAggFuncWithoutEmit, TableAggSum, Top3, Top3WithMapView, Top3WithRetractInput}
+import org.apache.flink.table.planner.utils.{TableAggSum, Top3, Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 /**
   * Tests of groupby (without window) table aggregations
   */
-@Ignore("Remove this ignore when FLINK-13740 is solved.")
 @RunWith(classOf[Parameterized])
 class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
@@ -53,7 +52,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
@@ -87,7 +86,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     val resultTable = source
       .flatAggregate(top3('a))
       .select('f0, 'f1)
-      .as('v1, 'v2)
+      .as("v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
@@ -109,7 +108,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
       .groupBy('category)
       .select('category, 'v1.max)
 
@@ -136,7 +135,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
@@ -216,24 +215,6 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .select('b, 'a.sum as 'a)
       .flatAggregate(top3('a) as ('v1, 'v2))
-      .select('v1, 'v2)
-      .toRetractStream[Row]
-
-    env.execute()
-  }
-
-  @Test
-  def testTableAggFunctionWithoutEmitValueMethod(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Function class " +
-      "'org.apache.flink.table.planner.utils.EmptyTableAggFuncWithoutEmit' does not " +
-      "implement at least one method named 'emitValue' which is public, " +
-      "not abstract and (in case of table functions) not static.")
-
-    val func = new EmptyTableAggFuncWithoutEmit
-    val source = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    source
-      .flatAggregate(func('a) as ('v1, 'v2))
       .select('v1, 'v2)
       .toRetractStream[Row]
 

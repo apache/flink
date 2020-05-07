@@ -1,7 +1,7 @@
 ---
 title: "Data Types"
 nav-parent_id: tableapi
-nav-pos: 1
+nav-pos: 20
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -60,7 +60,7 @@ The Apache Flink project supports the following file systems:
   - **[Azure Blob Storage](./azure.html)** is supported by `flink-azure-fs-hadoop` and registered under the *wasb(s)://* URI schemes.
   The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
 
-Except **MapR FS**, you can use any of them as plugins. 
+Except **MapR FS**, you can and should use any of them as [plugins](../plugins.html). 
 
 To use a pluggable file systems, copy the corresponding JAR file from the `opt` directory to a directory under `plugins` directory
 of your Flink distribution before starting Flink, e.g.
@@ -70,13 +70,14 @@ mkdir ./plugins/s3-fs-hadoop
 cp ./opt/flink-s3-fs-hadoop-{{ site.version }}.jar ./plugins/s3-fs-hadoop/
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> The plugin mechanism for file systems was introduced in Flink version `1.9` to
+<span class="label label-danger">Attention</span> The [plugin](../plugins.html) mechanism for file systems was introduced in Flink version `1.9` to
 support dedicated Java class loaders per plugin and to move away from the class shading mechanism.
 You can still use the provided file systems (or your own implementations) via the old mechanism by copying the corresponding
-JAR file into `lib` directory.
+JAR file into `lib` directory. However, **since 1.10, s3 plugins must be loaded through the plugin mechanism**; the old
+way no longer works as these plugins are not shaded anymore (or more specifically the classes are not relocated since 1.10).
 
-It's encouraged to use the plugin-based loading mechanism for file systems that support it. Loading file systems components from the `lib`
-directory may be not supported in future Flink versions.
+It's encouraged to use the [plugins](../plugins.html)-based loading mechanism for file systems that support it. Loading file systems components from the `lib`
+directory will not supported in future Flink versions.
 
 ## Adding a new pluggable File System implementation
 
@@ -93,7 +94,7 @@ During plugins discovery, the file system factory class will be loaded by a dedi
 The same class loader should be used during file system instantiation and the file system operation calls.
 
 <span class="label label-warning">Warning</span> In practice, it means you should avoid using `Thread.currentThread().getContextClassLoader()` class loader
-in your implementation. 
+in your implementation.
 
 ## Hadoop File System (HDFS) and its other implementations
 

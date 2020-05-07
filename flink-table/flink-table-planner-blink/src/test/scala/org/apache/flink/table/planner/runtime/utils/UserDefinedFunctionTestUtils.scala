@@ -20,12 +20,12 @@ package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple1, Tuple2}
-import org.apache.flink.api.java.typeutils.{ListTypeInfo, PojoField, PojoTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.dataformat.{BaseRow, BinaryString}
+import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.types.Row
 
@@ -203,7 +203,7 @@ object UserDefinedFunctionTestUtils {
 
   @SerialVersionUID(1L)
   object BinaryStringFunction extends ScalarFunction {
-    def eval(s: BinaryString): BinaryString = s
+    def eval(s: StringData): StringData = s
   }
 
   @SerialVersionUID(1L)
@@ -254,7 +254,7 @@ object UserDefinedFunctionTestUtils {
 
   @SerialVersionUID(1L)
   object RowToStrFunc extends ScalarFunction {
-    def eval(s: BaseRow): String = s.getString(0).toString
+    def eval(s: RowData): String = s.getString(0).toString
   }
 
   // generic.
@@ -370,6 +370,20 @@ object UserDefinedFunctionTestUtils {
     }
   }
 
+  @SerialVersionUID(1L)
+  object MyNegative extends ScalarFunction {
+    def eval(d: java.math.BigDecimal): java.lang.Object = d.negate()
+
+    override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = Types.JAVA_BIG_DEC
+  }
+
+  @SerialVersionUID(1L)
+  object IsNullUDF extends ScalarFunction {
+    def eval(v: Any): Boolean = v == null
+
+    override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = Types.BOOLEAN
+  }
+
   // ------------------------------------------------------------------------------------
   // POJOs
   // ------------------------------------------------------------------------------------
@@ -434,5 +448,31 @@ object UserDefinedFunctionTestUtils {
     tempFile.deleteOnExit()
     Files.write(contents, tempFile, Charsets.UTF_8)
     tempFile.getAbsolutePath
+  }
+}
+
+class RandomClass(var i: Int)
+
+class GenericAggregateFunction extends AggregateFunction[java.lang.Integer, RandomClass] {
+  override def getValue(accumulator: RandomClass): java.lang.Integer = accumulator.i
+
+  override def createAccumulator(): RandomClass = new RandomClass(0)
+
+  override def getResultType: TypeInformation[java.lang.Integer] =
+    new GenericTypeInfo[Integer](classOf[Integer])
+
+  override def getAccumulatorType: TypeInformation[RandomClass] = new GenericTypeInfo[RandomClass](
+    classOf[RandomClass])
+
+  def accumulate(acc: RandomClass, value: Int): Unit = {
+    acc.i = value
+  }
+
+  def retract(acc: RandomClass, value: Int): Unit = {
+    acc.i = value
+  }
+
+  def resetAccumulator(acc: RandomClass): Unit = {
+    acc.i = 0
   }
 }

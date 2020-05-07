@@ -32,20 +32,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CatalogFunctionImpl implements CatalogFunction {
 	private final String className; // Fully qualified class name of the function
 	private final FunctionLanguage functionLanguage;
-	private final boolean isTemporary;
 
 	public CatalogFunctionImpl(String className) {
-		this(className, FunctionLanguage.JAVA, false);
+		this(className, FunctionLanguage.JAVA);
 	}
 
 	public CatalogFunctionImpl(
 			String className,
-			FunctionLanguage functionLanguage,
-			boolean isTemporary) {
+			FunctionLanguage functionLanguage) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
 		this.className = className;
 		this.functionLanguage = checkNotNull(functionLanguage, "functionLanguage cannot be null");
-		this.isTemporary = isTemporary;
 	}
 
 	@Override
@@ -55,7 +52,7 @@ public class CatalogFunctionImpl implements CatalogFunction {
 
 	@Override
 	public CatalogFunction copy() {
-		return new CatalogFunctionImpl(getClassName(), functionLanguage, isTemporary);
+		return new CatalogFunctionImpl(getClassName(), functionLanguage);
 	}
 
 	@Override
@@ -70,6 +67,9 @@ public class CatalogFunctionImpl implements CatalogFunction {
 
 	@Override
 	public boolean isGeneric() {
+		if (functionLanguage == FunctionLanguage.PYTHON) {
+			return true;
+		}
 		try {
 			Class c = Class.forName(className);
 			if (UserDefinedFunction.class.isAssignableFrom(c)) {
@@ -82,11 +82,6 @@ public class CatalogFunctionImpl implements CatalogFunction {
 	}
 
 	@Override
-	public boolean isTemporary() {
-		return isTemporary;
-	}
-
-	@Override
 	public FunctionLanguage getFunctionLanguage() {
 		return functionLanguage;
 	}
@@ -96,8 +91,7 @@ public class CatalogFunctionImpl implements CatalogFunction {
 		return "CatalogFunctionImpl{" +
 			"className='" + getClassName() + "', " +
 			"functionLanguage='" + getFunctionLanguage() + "', " +
-			"isGeneric='" + isGeneric() + "', " +
-			"isTemporary='" + isTemporary() +
+			"isGeneric='" + isGeneric() +
 			"'}";
 	}
 }

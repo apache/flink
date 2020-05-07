@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Array;
@@ -38,10 +39,10 @@ import java.util.Set;
 @PublicEvolving
 public final class ArrayType extends LogicalType {
 
-	private static final String FORMAT = "ARRAY<%s>";
+	public static final String FORMAT = "ARRAY<%s>";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
-		"org.apache.flink.table.dataformat.BinaryArray");
+		ArrayData.class.getName());
 
 	private final LogicalType elementType;
 

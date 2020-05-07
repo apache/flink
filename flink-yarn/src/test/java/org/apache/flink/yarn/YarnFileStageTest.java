@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
@@ -191,15 +192,18 @@ public class YarnFileStageTest extends TestLogger {
 		try {
 			final List<Path> remotePaths = new ArrayList<>();
 			final HashMap<String, LocalResource> localResources = new HashMap<>();
-			final List<String> classpath = YarnClusterDescriptor.uploadAndRegisterFiles(
+
+			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
+			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.from(
+					targetFileSystem, targetDir, applicationId);
+
+			final List<String> classpath = uploader.setupMultipleLocalResources(
 				Collections.singletonList(new File(srcPath.toUri().getPath())),
-				targetFileSystem,
-				targetDir,
-				ApplicationId.newInstance(0, 0),
 				remotePaths,
 				localResources,
 				localResourceDirectory,
-				new StringBuilder());
+				new StringBuilder(),
+				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
 			final Path basePath = new Path(localResourceDirectory, srcDir.getName());
 			final Path nestedPath = new Path(basePath, "nested");
@@ -253,15 +257,18 @@ public class YarnFileStageTest extends TestLogger {
 		try {
 			final List<Path> remotePaths = new ArrayList<>();
 			final HashMap<String, LocalResource> localResources = new HashMap<>();
-			final List<String> classpath = YarnClusterDescriptor.uploadAndRegisterFiles(
+
+			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
+			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.from(
+					targetFileSystem, targetDir, applicationId);
+
+			final List<String> classpath = uploader.setupMultipleLocalResources(
 				Collections.singletonList(new File(srcDir, localFile)),
-				targetFileSystem,
-				targetDir,
-				ApplicationId.newInstance(0, 0),
 				remotePaths,
 				localResources,
 				localResourceDirectory,
-				new StringBuilder());
+				new StringBuilder(),
+				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
 			assertThat(classpath, containsInAnyOrder(new Path(localResourceDirectory, localFile).toString()));
 

@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
-import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import javax.annotation.Nonnull;
 
@@ -51,9 +51,9 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
 	@Override
 	public void execute(
-		@Nonnull final RunnableWithException command,
-		final String descriptionFormat,
-		final Object... descriptionArgs) {
+			final ThrowingRunnable<? extends Exception> command,
+			final String descriptionFormat,
+			final Object... descriptionArgs) {
 		try {
 			mailbox.put(new Mail(command, priority, actionExecutor, descriptionFormat, descriptionArgs));
 		} catch (IllegalStateException mbex) {

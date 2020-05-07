@@ -137,13 +137,13 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
 		listener.resetAvailable();
 		assertFalse(listener.isAvailable);
 
-		final BufferAndBacklog buffer1 = subpartitionView.getNextBuffer(true);
-		final BufferAndBacklog buffer2 = subpartitionView.getNextBuffer(true);
+		final BufferAndBacklog buffer1 = subpartitionView.getNextBuffer();
+		final BufferAndBacklog buffer2 = subpartitionView.getNextBuffer();
 		assertNotNull(buffer1);
 		assertNotNull(buffer2);
 
 		// the next buffer is null in view because FileBufferReader has no available buffers for reading ahead
-		assertFalse(subpartitionView.isAvailable());
+		assertFalse(subpartitionView.isAvailable(Integer.MAX_VALUE));
 		// recycle a buffer to trigger notification of data available
 		buffer1.buffer().recycleBuffer();
 		assertTrue(listener.isAvailable);

@@ -34,6 +34,7 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -435,7 +436,7 @@ public class SavepointITCase extends TestLogger {
 			JobID jobID = submissionResult.getJobID();
 
 			// wait for the Tasks to be ready
-			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			assertTrue(StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
 			savepointPath = client.triggerSavepoint(jobID, null).get();
 			LOG.info("Retrieved savepoint: " + savepointPath + ".");
@@ -483,10 +484,10 @@ public class SavepointITCase extends TestLogger {
 			// Submit the job
 			ClientUtils.submitJob(client, modifiedJobGraph);
 			// Await state is restored
-			StatefulCounter.getRestoreLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			assertTrue(StatefulCounter.getRestoreLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
 			// Await some progress after restore
-			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			assertTrue(StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 		} finally {
 			cluster.after();
 		}
@@ -662,7 +663,7 @@ public class SavepointITCase extends TestLogger {
 
 		Configuration config = getFileBasedCheckpointsConfig();
 		config.addAll(jobGraph.getJobConfiguration());
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.ZERO);
 
 		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()

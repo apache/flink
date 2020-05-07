@@ -75,9 +75,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 	@Override
 	PipelinedSubpartition createSubpartition() {
-		final ResultPartition parent = PartitionTestUtils.createPartition();
-
-		return new PipelinedSubpartition(0, parent);
+		return createPipelinedSubpartition();
 	}
 
 	@Override
@@ -316,8 +314,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		ResultSubpartitionView view = partition.createReadView(listener);
 
 		// The added bufferConsumer and end-of-partition event
-		assertNotNull(view.getNextBuffer(true));
-		assertNotNull(view.getNextBuffer(true));
+		assertNotNull(view.getNextBuffer());
+		assertNotNull(view.getNextBuffer());
 
 		// Release the parent
 		assertFalse(view.isReleased());
@@ -325,5 +323,11 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		// Verify that parent release is reflected at partition view
 		assertTrue(view.isReleased());
+	}
+
+	public static PipelinedSubpartition createPipelinedSubpartition() {
+		final ResultPartition parent = PartitionTestUtils.createPartition();
+
+		return new PipelinedSubpartition(0, parent);
 	}
 }

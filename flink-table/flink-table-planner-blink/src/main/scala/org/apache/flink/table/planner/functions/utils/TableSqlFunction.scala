@@ -56,7 +56,8 @@ class TableSqlFunction(
     functionImpl: FlinkTableFunction,
     operandTypeInfer: Option[SqlOperandTypeChecker] = None)
   extends SqlUserDefinedTableFunction(
-    new SqlIdentifier(identifier.getNames, SqlParserPos.ZERO),
+    Option(identifier).map(id => new SqlIdentifier(id.toList, SqlParserPos.ZERO))
+      .getOrElse(new SqlIdentifier(udtf.functionIdentifier(), SqlParserPos.ZERO)),
     ReturnTypes.CURSOR,
     // type inference has the UNKNOWN operand types.
     createOperandTypeInference(displayName, udtf, typeFactory),
@@ -84,13 +85,7 @@ class TableSqlFunction(
   override def getRowType(
       typeFactory: RelDataTypeFactory,
       operandList: util.List[SqlNode]): RelDataType = {
-    val arguments = SqlUserDefinedTableMacro.convertArguments(
-      typeFactory, operandList, function, getNameAsId, false).toArray
-
-    functionImpl.getRowType(typeFactory, arguments, arguments.map {
-      case null => null.asInstanceOf[Class[_]]
-      case o => o.getClass
-    })
+    functionImpl.getRowType(typeFactory)
   }
 }
 

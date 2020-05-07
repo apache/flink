@@ -35,6 +35,8 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.FINAL
 
+import java.util.{Collections => JCollections}
+
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -464,6 +466,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       updatedAggCalls)
   }
 
+  override def visit(modify: LogicalTableModify): RelNode = {
+    val input = modify.getInput.accept(this)
+    modify.copy(modify.getTraitSet, JCollections.singletonList(input))
+  }
 }
 
 object RelTimeIndicatorConverter {
@@ -642,7 +648,7 @@ class RexTimeIndicatorMaterializer(
 
       // materialize function's result and operands
       case _ if isTimeIndicatorType(updatedCall.getType) =>
-        if (updatedCall.getOperator == FlinkSqlOperatorTable.PROCTIME_MATERIALIZE) {
+        if (updatedCall.getOperator == FlinkSqlOperatorTable.PROCTIME) {
           updatedCall
         } else {
           updatedCall.clone(timestamp(updatedCall.getType.isNullable), materializedOperands)

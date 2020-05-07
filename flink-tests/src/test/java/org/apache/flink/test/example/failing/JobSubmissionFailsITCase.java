@@ -22,6 +22,7 @@ package org.apache.flink.test.example.failing;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -68,10 +69,10 @@ public class JobSubmissionFailsITCase extends TestLogger {
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
 
 		// to accommodate for 10 netty arenas (NUM_SLOTS / NUM_TM) x 16Mb (NettyBufferPool.ARENA_SIZE)
-		config.setString(TaskManagerOptions.SHUFFLE_MEMORY_MIN, "256m");
+		config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("256m"));
 
 		return config;
 	}

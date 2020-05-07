@@ -247,6 +247,22 @@ public final class ConfigConstants {
 	 */
 	public static final String TASK_MANAGER_LOG_PATH_KEY = "taskmanager.log.path";
 
+	/** @deprecated Use {@link TaskManagerOptions#MANAGED_MEMORY_SIZE} instead */
+	@Deprecated
+	public static final String TASK_MANAGER_MEMORY_SIZE_KEY = "taskmanager.memory.size";
+
+	/** @deprecated has no effect */
+	@Deprecated
+	public static final String TASK_MANAGER_MEMORY_FRACTION_KEY = "taskmanager.memory.fraction";
+
+	/** @deprecated has no effect */
+	@Deprecated
+	public static final String TASK_MANAGER_MEMORY_OFF_HEAP_KEY = "taskmanager.memory.off-heap";
+
+	/** @deprecated has no effect */
+	@Deprecated
+	public static final String TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY = "taskmanager.memory.preallocate";
+
 	/**
 	 * The config parameter defining the number of buffers used in the network stack. This defines the
 	 * number of possible tasks and shuffles.
@@ -307,7 +323,7 @@ public final class ConfigConstants {
 	 * The initial registration pause between two consecutive registration attempts. The pause
 	 * is doubled for each new registration attempt until it reaches the maximum registration pause.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#INITIAL_REGISTRATION_BACKOFF} instead
+	 * @deprecated use {@link ClusterOptions#INITIAL_REGISTRATION_TIMEOUT} instead
 	 */
 	@Deprecated
 	public static final String TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "taskmanager.initial-registration-pause";
@@ -315,7 +331,7 @@ public final class ConfigConstants {
 	/**
 	 * The maximum registration pause between two consecutive registration attempts.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#REGISTRATION_MAX_BACKOFF} instead
+	 * @deprecated use {@link ClusterOptions#MAX_REGISTRATION_TIMEOUT} instead
 	 */
 	@Deprecated
 	public static final String TASK_MANAGER_MAX_REGISTARTION_PAUSE = "taskmanager.max-registration-pause";
@@ -323,10 +339,14 @@ public final class ConfigConstants {
 	/**
 	 * The pause after a registration has been refused by the job manager before retrying to connect.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#REFUSED_REGISTRATION_BACKOFF} instead
+	 * @deprecated use {@link ClusterOptions#REFUSED_REGISTRATION_DELAY} instead
 	 */
 	@Deprecated
 	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
+
+	/** @deprecated has no effect */
+	@Deprecated
+	public static final boolean DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE = false;
 
 	/**
 	 * @deprecated Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
@@ -370,16 +390,16 @@ public final class ConfigConstants {
 	// -------- Common Resource Framework Configuration (YARN & Mesos) --------
 
 	/**
-	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
+	 * Percentage of heap space to remove from containers (YARN / Mesos / Kubernetes), to compensate
 	 * for other JVM memory usage.
-	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_RATIO} instead.
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final String CONTAINERIZED_HEAP_CUTOFF_RATIO = "containerized.heap-cutoff-ratio";
 
 	/**
 	 * Minimum amount of heap memory to remove in containers, as a safety margin.
-	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_MIN} instead.
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final String CONTAINERIZED_HEAP_CUTOFF_MIN = "containerized.heap-cutoff-min";
@@ -414,14 +434,14 @@ public final class ConfigConstants {
 
 	/**
 	 * Percentage of heap space to remove from containers started by YARN.
-	 * @deprecated in favor of {@code #CONTAINERIZED_HEAP_CUTOFF_RATIO}
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_RATIO = "yarn.heap-cutoff-ratio";
 
 	/**
 	 * Minimum amount of memory to remove from the heap space as a safety margin.
-	 * @deprecated in favor of {@code #CONTAINERIZED_HEAP_CUTOFF_MIN}
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_MIN = "yarn.heap-cutoff-min";
@@ -1392,6 +1412,10 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_TMP_PATH = System.getProperty("java.io.tmpdir");
 
+	/** @deprecated has no effect */
+	@Deprecated
+	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION = 0.7f;
+
 	/**
 	 * Config key has been deprecated. Therefore, no default value required.
 	 *
@@ -1441,7 +1465,7 @@ public final class ConfigConstants {
 	/**
 	 * The default task manager's initial registration pause.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#INITIAL_REGISTRATION_BACKOFF} instead
+	 * @deprecated use {@link ClusterOptions#INITIAL_REGISTRATION_TIMEOUT} instead
 	 */
 	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_INITIAL_REGISTRATION_PAUSE = "500 ms";
@@ -1449,7 +1473,7 @@ public final class ConfigConstants {
 	/**
 	 * The default task manager's maximum registration pause.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#REGISTRATION_MAX_BACKOFF} instead
+	 * @deprecated use {@link ClusterOptions#MAX_REGISTRATION_TIMEOUT} instead
 	 */
 	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_PAUSE = "30 s";
@@ -1457,7 +1481,7 @@ public final class ConfigConstants {
 	/**
 	 * The default task manager's refused registration pause.
 	 *
-	 * @deprecated use {@link TaskManagerOptions#REFUSED_REGISTRATION_BACKOFF} instead
+	 * @deprecated use {@link ClusterOptions#REFUSED_REGISTRATION_DELAY} instead
 	 */
 	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "10 s";
@@ -1502,7 +1526,7 @@ public final class ConfigConstants {
 	/**
 	 * Minimum amount of memory to subtract from the process memory to get the TaskManager
 	 * heap size. We came up with these values experimentally.
-	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_MIN} instead.
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final int DEFAULT_YARN_HEAP_CUTOFF = 600;
@@ -1510,7 +1534,7 @@ public final class ConfigConstants {
 	/**
 	 * Relative amount of memory to subtract from Java process memory to get the TaskManager
 	 * heap size.
-	 * @deprecated Use {@link ResourceManagerOptions#CONTAINERIZED_HEAP_CUTOFF_RATIO} instead.
+	 * @deprecated Not used anymore, but remain here until Flink 2.0
 	 */
 	@Deprecated
 	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;

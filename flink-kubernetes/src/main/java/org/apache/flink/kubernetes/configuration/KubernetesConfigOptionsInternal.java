@@ -28,23 +28,11 @@ import org.apache.flink.configuration.ConfigOptions;
 @Internal
 public class KubernetesConfigOptionsInternal {
 
-	public static final ConfigOption<String> SERVICE_ID = ConfigOptions
-		.key("kubernetes.internal.service.id")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("The service id will be set in configuration after created. It will be used for gc.");
-
 	public static final ConfigOption<String> ENTRY_POINT_CLASS = ConfigOptions
 		.key("kubernetes.internal.jobmanager.entrypoint.class")
 		.stringType()
 		.noDefaultValue()
 		.withDescription("The entrypoint class for jobmanager. It will be set in kubernetesClusterDescriptor.");
-
-	public static final ConfigOption<String> ENTRY_POINT_CLASS_ARGS = ConfigOptions
-		.key("kubernetes.internal.jobmanager.entrypoint.class.args")
-		.stringType()
-		.noDefaultValue()
-		.withDescription("The args of entrypoint class for jobmanager. It will be set in FlinkKubernetesCustomCli.");
 
 	/** This class is not meant to be instantiated. */
 	private KubernetesConfigOptionsInternal() {}

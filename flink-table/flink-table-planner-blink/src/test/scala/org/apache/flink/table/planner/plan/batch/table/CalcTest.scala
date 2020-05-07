@@ -104,7 +104,7 @@ class CalcTest extends TableTestBase {
 
     util.tableEnv.registerFunction("hashCode", MyHashCode)
 
-    val resultTable = sourceTable.select("hashCode(c), b")
+    val resultTable = sourceTable.select(call("hashCode", $"c"), $"b")
 
     util.verifyPlan(resultTable)
   }

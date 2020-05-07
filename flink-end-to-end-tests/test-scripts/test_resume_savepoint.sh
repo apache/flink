@@ -47,7 +47,7 @@ ORIGINAL_DOP=$1
 NEW_DOP=$2
 STATE_BACKEND_TYPE=${3:-file}
 STATE_BACKEND_FILE_ASYNC=${4:-true}
-STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE=${5:-heap}
+STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE=${5:-rocks}
 
 if (( $ORIGINAL_DOP >= $NEW_DOP )); then
   NUM_SLOTS=$ORIGINAL_DOP
@@ -57,8 +57,8 @@ fi
 
 set_config_key "taskmanager.numberOfTaskSlots" "${NUM_SLOTS}"
 
-if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'rocks' ]; then
-  set_config_key "state.backend.rocksdb.timer-service.factory" "rocksdb"
+if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'heap' ]; then
+  set_config_key "state.backend.rocksdb.timer-service.factory" "heap"
 fi
 set_config_key "metrics.fetcher.update-interval" "2000"
 

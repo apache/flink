@@ -18,8 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
@@ -51,7 +49,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -61,7 +58,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 
@@ -73,45 +69,13 @@ public final class Utils {
 	private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
 	/** Keytab file name populated in YARN container. */
-	public static final String KEYTAB_FILE_NAME = "krb5.keytab";
+	public static final String DEFAULT_KEYTAB_FILE = "krb5.keytab";
 
 	/** KRB5 file name populated in YARN container for secure IT run. */
 	public static final String KRB5_FILE_NAME = "krb5.conf";
 
 	/** Yarn site xml file name populated in YARN container for secure IT run. */
 	public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
-
-	/** Number of total retries to fetch the remote resources after uploaded in case of FileNotFoundException. */
-	public static final int REMOTE_RESOURCES_FETCH_NUM_RETRY = 3;
-
-	/** Time to wait in milliseconds between each remote resources fetch in case of FileNotFoundException. */
-	public static final int REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI = 100;
-
-	/**
-	 * See documentation.
-	 */
-	public static int calculateHeapSize(int memory, org.apache.flink.configuration.Configuration conf) {
-
-		float memoryCutoffRatio = conf.getFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);
-		int minCutoff = conf.getInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);
-
-		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
-			throw new IllegalArgumentException("The configuration value '"
-				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key()
-				+ "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
-		}
-		if (minCutoff > memory) {
-			throw new IllegalArgumentException("The configuration value '"
-				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key()
-				+ "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
-		}
-
-		int heapLimit = (int) ((float) memory * memoryCutoffRatio);
-		if (heapLimit < minCutoff) {
-			heapLimit = minCutoff;
-		}
-		return memory - heapLimit;
-	}
 
 	public static void setupYarnClassPath(Configuration conf, Map<String, String> appMasterEnv) {
 		addToEnvironment(
@@ -124,112 +88,6 @@ public final class Utils {
 		for (String c : applicationClassPathEntries) {
 			addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), c.trim());
 		}
-	}
-
-	/**
-	 * Copy a local file to a remote file system and register as Local Resource.
-	 *
-	 * @param fs
-	 * 		remote filesystem
-	 * @param appId
-	 * 		application ID
-	 * @param localSrcPath
-	 * 		path to the local file
-	 * @param homedir
-	 * 		remote home directory base (will be extended)
-	 * @param relativeTargetPath
-	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
-	 *
-	 * @return Path to remote file (usually hdfs)
-	 */
-	static Tuple2<Path, LocalResource> setupLocalResource(
-		FileSystem fs,
-		String appId,
-		Path localSrcPath,
-		Path homedir,
-		String relativeTargetPath) throws IOException {
-
-		File localFile = new File(localSrcPath.toUri().getPath());
-		Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(fs, appId, localSrcPath, homedir, relativeTargetPath);
-		// now create the resource instance
-		LocalResource resource = registerLocalResource(remoteFileInfo.f0, localFile.length(), remoteFileInfo.f1);
-		return Tuple2.of(remoteFileInfo.f0, resource);
-	}
-
-	/**
-	 * Copy a local file to a remote file system.
-	 *
-	 * @param fs
-	 * 		remote filesystem
-	 * @param appId
-	 * 		application ID
-	 * @param localSrcPath
-	 * 		path to the local file
-	 * @param homedir
-	 * 		remote home directory base (will be extended)
-	 * @param relativeTargetPath
-	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
-	 *
-	 * @return Path to remote file (usually hdfs)
-	 */
-	static Tuple2<Path, Long> uploadLocalFileToRemote(
-		FileSystem fs,
-		String appId,
-		Path localSrcPath,
-		Path homedir,
-		String relativeTargetPath) throws IOException {
-
-		File localFile = new File(localSrcPath.toUri().getPath());
-		if (localFile.isDirectory()) {
-			throw new IllegalArgumentException("File to copy must not be a directory: " +
-				localSrcPath);
-		}
-
-		// copy resource to HDFS
-		String suffix =
-			".flink/"
-				+ appId
-				+ (relativeTargetPath.isEmpty() ? "" : "/" + relativeTargetPath)
-				+ "/" + localSrcPath.getName();
-
-		Path dst = new Path(homedir, suffix);
-
-		LOG.debug("Copying from {} to {}", localSrcPath, dst);
-
-		fs.copyFromLocalFile(false, true, localSrcPath, dst);
-
-		// Note: If we directly used registerLocalResource(FileSystem, Path) here, we would access the remote
-		//       file once again which has problems with eventually consistent read-after-write file
-		//       systems. Instead, we decide to wait until the remote file be available.
-
-		FileStatus[] fss = null;
-		int iter = 1;
-		while (iter <= REMOTE_RESOURCES_FETCH_NUM_RETRY + 1) {
-			try {
-				fss = fs.listStatus(dst);
-				break;
-			} catch (FileNotFoundException e) {
-				LOG.debug("Got FileNotFoundException while fetching uploaded remote resources at retry num {}", iter);
-				try {
-					LOG.debug("Sleeping for {}ms", REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI);
-					TimeUnit.MILLISECONDS.sleep(REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI);
-				} catch (InterruptedException ie) {
-					LOG.warn("Failed to sleep for {}ms at retry num {} while fetching uploaded remote resources",
-						REMOTE_RESOURCES_FETCH_WAIT_IN_MILLI, iter, ie);
-				}
-				iter++;
-			}
-		}
-
-		final long dstModificationTime;
-		if (fss != null && fss.length >  0) {
-			dstModificationTime = fss[0].getModificationTime();
-			LOG.debug("Got modification time {} from remote path {}", dstModificationTime, dst);
-		} else {
-			dstModificationTime = localFile.lastModified();
-			LOG.debug("Failed to fetch remote modification time from {}, using local timestamp {}", dst, dstModificationTime);
-		}
-		return new Tuple2<>(dst, dstModificationTime);
 	}
 
 	/**
@@ -264,7 +122,7 @@ public final class Utils {
 	 *
 	 * @return YARN resource
 	 */
-	private static LocalResource registerLocalResource(
+	static LocalResource registerLocalResource(
 			Path remoteRsrcPath,
 			long resourceSize,
 			long resourceModificationTime) {
@@ -381,28 +239,41 @@ public final class Utils {
 	}
 
 	/**
+	 * Resolve keytab path either as absolute path or relative to working directory.
+	 *
+	 * @param workingDir current working directory
+	 * @param keytabPath configured keytab path.
+	 * @return resolved keytab path, or null if not found.
+	 */
+	public static String resolveKeytabPath(String workingDir, String keytabPath) {
+		String keytab = null;
+		if (keytabPath != null) {
+			File f;
+			f = new File(keytabPath);
+			if (f.exists()) {
+				keytab = f.getAbsolutePath();
+				LOG.info("Resolved keytab path: {}", keytab);
+			} else {
+				// try using relative paths, this is the case when the keytab was shipped
+				// as a local resource
+				f = new File(workingDir, keytabPath);
+				if (f.exists()) {
+					keytab = f.getAbsolutePath();
+					LOG.info("Resolved keytab path: {}", keytab);
+				} else {
+					LOG.warn("Could not resolve keytab path with: {}", keytabPath);
+					keytab = null;
+				}
+			}
+		}
+		return keytab;
+	}
+
+	/**
 	 * Private constructor to prevent instantiation.
 	 */
 	private Utils() {
 		throw new RuntimeException();
-	}
-
-	/**
-	 * Method to extract environment variables from the flinkConfiguration based on the given prefix String.
-	 *
-	 * @param envPrefix Prefix for the environment variables key
-	 * @param flinkConfiguration The Flink config to get the environment variable definition from
-	 */
-	public static Map<String, String> getEnvironmentVariables(String envPrefix, org.apache.flink.configuration.Configuration flinkConfiguration) {
-		Map<String, String> result  = new HashMap<>();
-		for (Map.Entry<String, String> entry: flinkConfiguration.toMap().entrySet()) {
-			if (entry.getKey().startsWith(envPrefix) && entry.getKey().length() > envPrefix.length()) {
-				// remove prefix
-				String key = entry.getKey().substring(envPrefix.length());
-				result.put(key, entry.getValue());
-			}
-		}
-		return result;
 	}
 
 	/**
@@ -463,14 +334,16 @@ public final class Utils {
 		String yarnClientUsername = env.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
 		require(yarnClientUsername != null, "Environment variable %s not set", YarnConfigKeys.ENV_HADOOP_USER_NAME);
 
-		final String remoteKeytabPath = env.get(YarnConfigKeys.KEYTAB_PATH);
-		final String remoteKeytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
+		final String remoteKeytabPath = env.get(YarnConfigKeys.REMOTE_KEYTAB_PATH);
+		final String localKeytabPath = env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH);
+		final String keytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 		final String remoteYarnConfPath = env.get(YarnConfigKeys.ENV_YARN_SITE_XML_PATH);
 		final String remoteKrb5Path = env.get(YarnConfigKeys.ENV_KRB5_PATH);
 
 		if (log.isDebugEnabled()) {
 			log.debug("TM:remote keytab path obtained {}", remoteKeytabPath);
-			log.debug("TM:remote keytab principal obtained {}", remoteKeytabPrincipal);
+			log.debug("TM:local keytab path obtained {}", localKeytabPath);
+			log.debug("TM:keytab principal obtained {}", keytabPrincipal);
 			log.debug("TM:remote yarn conf path obtained {}", remoteYarnConfPath);
 			log.debug("TM:remote krb5 path obtained {}", remoteKrb5Path);
 		}
@@ -528,7 +401,7 @@ public final class Utils {
 			taskManagerLocalResources.put(KRB5_FILE_NAME, krb5ConfResource);
 		}
 		if (keytabResource != null) {
-			taskManagerLocalResources.put(KEYTAB_FILE_NAME, keytabResource);
+			taskManagerLocalResources.put(localKeytabPath, keytabResource);
 		}
 
 		// prepare additional files to be shipped
@@ -572,9 +445,13 @@ public final class Utils {
 
 		containerEnv.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, UserGroupInformation.getCurrentUser().getUserName());
 
-		if (remoteKeytabPath != null && remoteKeytabPrincipal != null) {
-			containerEnv.put(YarnConfigKeys.KEYTAB_PATH, remoteKeytabPath);
-			containerEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, remoteKeytabPrincipal);
+		if (remoteKeytabPath != null && localKeytabPath != null && keytabPrincipal != null) {
+			containerEnv.put(YarnConfigKeys.REMOTE_KEYTAB_PATH, remoteKeytabPath);
+			containerEnv.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, localKeytabPath);
+			containerEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, keytabPrincipal);
+		} else if (localKeytabPath != null && keytabPrincipal != null) {
+			containerEnv.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, localKeytabPath);
+			containerEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, keytabPrincipal);
 		}
 
 		ctx.setEnvironment(containerEnv);
@@ -633,5 +510,4 @@ public final class Utils {
 			throw new RuntimeException(String.format(message, values));
 		}
 	}
-
 }

@@ -22,21 +22,23 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT_TYPE_INFO, LONG_TYPE_INFO}
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.sinks.CollectRowTableSink
-import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Assert, Before, Ignore, Test}
-
+import org.junit.{Assert, Before, Test}
 import java.util
+
+import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, SinkTransformation, TwoInputTransformation}
+import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.sinks.CollectRowTableSink
+import org.apache.flink.table.planner.utils.TestingTableEnvironment
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 
 import scala.collection.JavaConversions._
 import scala.collection.Seq
@@ -94,28 +96,39 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       ))
   }
 
-  @Ignore // TODO support lazy from source
   @Test
   def testLongHashJoinGenerator(): Unit = {
     if (expectedJoinType == HashJoin) {
       val sink = (new CollectRowTableSink).configure(Array("c"), Array(Types.STRING))
-      tEnv.registerTableSink("collect", sink)
-      tEnv.insertInto("collect", tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e"))
+      tEnv.registerTableSink("outputTable", sink)
+      tEnv.insertInto("outputTable", tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e"))
+      val testingTEnv = tEnv.asInstanceOf[TestingTableEnvironment]
+      val transforms = testingTEnv.getPlanner.asInstanceOf[PlannerBase]
+        .translate(testingTEnv.getBufferedOperations)
       var haveTwoOp = false
-      env.getStreamGraph.getAllOperatorFactory.foreach(o =>
-        o.f1 match {
+
+      @scala.annotation.tailrec
+      def findTwoInputTransform(t: Transformation[_]): TwoInputTransformation[_, _, _] = {
+        t match {
+          case sink: SinkTransformation[_] => findTwoInputTransform(sink.getInput)
+          case one: OneInputTransformation[_, _] => findTwoInputTransform(one.getInput)
+          case two: TwoInputTransformation[_, _, _] => two
+        }
+      }
+
+      transforms.map(findTwoInputTransform).foreach { transform =>
+        transform.getOperatorFactory match {
           case factory: CodeGenOperatorFactory[_] =>
             if (factory.getGeneratedClass.getCode.contains("LongHashJoinOperator")) {
               haveTwoOp = true
             }
           case _ =>
         }
-      )
+      }
       Assert.assertTrue(haveTwoOp)
     }
   }
 
-  @Ignore
   @Test
   def testOneSideSmjFieldError(): Unit = {
     if (expectedJoinType == SortMergeJoin) {
@@ -445,7 +458,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Ignore // TODO not support same source until set lazy_from_source
   @Test
   def testFullOuterJoinWithoutEqualCond(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
@@ -458,7 +470,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Ignore // TODO not support same source until set lazy_from_source
   @Test
   def testSingleRowFullOuterJoinWithoutEqualCond(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
@@ -471,7 +482,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Ignore // TODO not support same source until set lazy_from_source
   @Test
   def testSingleRowFullOuterJoinWithoutEqualCondNoMatch(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
@@ -514,7 +524,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       ))
   }
 
-  // join with agg
   @Test
   def testJoinWithAggregation(): Unit = {
     checkResult(
@@ -522,7 +531,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq(row(6L, 6L)))
   }
 
-  @Ignore
   @Test
   def testJoinConditionNeedSimplify(): Unit = {
     checkResult(
@@ -530,7 +538,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq(row(1), row(3), row(3), row(3)))
   }
 
-  @Ignore
   @Test
   def testJoinConditionDerivedFromCorrelatedSubQueryNeedSimplify(): Unit = {
     checkResult(
@@ -539,7 +546,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq(row(1), row(2)))
   }
 
-  @Ignore
   @Test
   def testSimple(): Unit = {
     checkResult(
@@ -567,7 +573,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Ignore
   @Test
   def testCorrelatedExist(): Unit = {
     checkResult(
@@ -579,7 +584,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq(row(2, 1.0), row(2, 1.0)))
   }
 
-  @Ignore
   @Test
   def testCorrelatedNotExist(): Unit = {
     checkResult(
@@ -587,7 +591,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq(row(1, 2.0), row(1, 2.0), row(6, null), row(null, 5.0), row(null, null)))
   }
 
-  @Ignore
   @Test
   def testUncorrelatedScalar(): Unit = {
     checkResult(
@@ -603,7 +606,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq(row(1)))
   }
 
-  @Ignore
   @Test
   def testEqualWithAggScalar(): Unit = {
     checkResult(
@@ -611,7 +613,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq(row(2, 1.0), row(2, 1.0)))
   }
 
-  @Ignore
   @Test
   def testComparisonsScalar(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
@@ -628,7 +629,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       row(2, 1.0) :: row(2, 1.0) :: Nil)
   }
 
-  @Ignore // TODO not support same source until set lazy_from_source
   @Test
   def testJoinWithNull(): Unit = {
     // TODO enable all
@@ -670,7 +670,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Ignore // TODO not support same source until set lazy_from_source
   @Test
   def testSingleRowJoin(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
@@ -712,7 +711,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Ignore // TODO not support same source until set lazy_from_source
   @Test
   def testNonEmptyTableJoinEmptyTable(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
@@ -775,7 +773,6 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Ignore
   @Test
   def testJoinCollation(): Unit = {
     checkResult(

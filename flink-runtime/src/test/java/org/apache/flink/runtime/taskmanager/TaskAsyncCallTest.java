@@ -209,6 +209,7 @@ public class TaskAsyncCallTest extends TestLogger {
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
+			new NoOpTaskOperatorEventGateway(),
 			new TestGlobalAggregateManager(),
 			blobService,
 			libCache,
@@ -270,7 +271,7 @@ public class TaskAsyncCallTest extends TestLogger {
 		}
 
 		@Override
-		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception {
+		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) {
 			throw new UnsupportedOperationException("Should not be called");
 		}
 

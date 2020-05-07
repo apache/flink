@@ -135,6 +135,13 @@ Open the project settings window (File -> Project Structure -> Project Settings:
 SDK.
 You may have to revert this after switching back to the new Flink version if you want to use JDK 11.
 
+- Examples fail with a `NoClassDefFoundError` for Flink classes.
+
+This is likely due to Flink dependencies being set to provided, resulting in them not being put automatically on the 
+classpath.
+You can either tick the "Include dependencies with 'Provided' scope" box in the run configuration, or create a test
+that calls the `main()` method of the example (`provided` dependencies are available on the test classpath).
+
 ## Eclipse
 
 **NOTE:** From our experience, this setup does not work with Flink

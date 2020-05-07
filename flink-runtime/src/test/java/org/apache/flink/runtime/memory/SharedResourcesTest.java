@@ -20,6 +20,8 @@ package org.apache.flink.runtime.memory;
 
 import org.junit.Test;
 
+import java.util.function.Consumer;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -100,6 +102,20 @@ public class SharedResourcesTest {
 	}
 
 	@Test
+	public void testLastReleaseCallsReleaseHook() throws Exception {
+		final String type = "theType";
+		final long size = 100;
+		final SharedResources resources = new SharedResources();
+		final Object leaseHolder = new Object();
+		final TestReleaseHook hook = new TestReleaseHook(size);
+
+		resources.getOrAllocateSharedResource(type, leaseHolder, TestResource::new, size);
+		resources.release(type, leaseHolder, hook);
+
+		assertTrue(hook.wasCalled);
+	}
+
+	@Test
 	public void testReleaseNoneExistingLease() throws Exception {
 		final SharedResources resources = new SharedResources();
 
@@ -122,6 +138,25 @@ public class SharedResourcesTest {
 		@Override
 		public void close() {
 			closed = true;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static final class TestReleaseHook implements Consumer<Long> {
+
+		private final long expectedValue;
+
+		boolean wasCalled;
+
+		TestReleaseHook(long expectedValue) {
+			this.expectedValue = expectedValue;
+		}
+
+		@Override
+		public void accept(Long value) {
+			wasCalled = true;
+			assertEquals(expectedValue, value.longValue());
 		}
 	}
 }

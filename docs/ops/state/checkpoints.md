@@ -67,16 +67,17 @@ The current checkpoint directory layout ([introduced by FLINK-8531](https://issu
 
 {% highlight yaml %}
 /user-defined-checkpoint-dir
-    |
-    + --shared/
-    + --taskowned/
-    + --chk-00001/
-    + --chk-00002/
-    + --chk-00003/
-    ...
+    /{job-id}
+        |
+        + --shared/
+        + --taskowned/
+        + --chk-1/
+        + --chk-2/
+        + --chk-3/
+        ...
 {% endhighlight %}
 
-The **SHARED** directory is for state that is possibly part of multiple checkpoints, **TASKOWNED** is for state that must never by dropped by the JobManager, and **EXCLUSIVE** is for state that belongs to one checkpoint only. 
+The **SHARED** directory is for state that is possibly part of multiple checkpoints, **TASKOWNED** is for state that must never be dropped by the JobManager, and **EXCLUSIVE** is for state that belongs to one checkpoint only. 
 
 <div class="alert alert-warning">
   <strong>Attention:</strong> The checkpoint directory is not part of a public API and can be changed in the future release.

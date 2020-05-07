@@ -99,7 +99,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private ClosureCleanerLevel closureCleanerLevel = ClosureCleanerLevel.RECURSIVE;
 
-	private int parallelism = PARALLELISM_DEFAULT;
+	private int parallelism = CoreOptions.DEFAULT_PARALLELISM.defaultValue();
 
 	/**
 	 * The program wide maximum parallelism used for operators which haven't specified a maximum

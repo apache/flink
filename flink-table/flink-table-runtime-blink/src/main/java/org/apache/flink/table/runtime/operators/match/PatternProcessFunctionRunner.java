@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.match;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.util.Collector;
 
@@ -32,13 +32,13 @@ import java.util.Map;
  * A {@link PatternProcessFunction} wrapper to delegate invocation to the code generated
  * {@link PatternProcessFunction}.
  */
-public class PatternProcessFunctionRunner extends PatternProcessFunction<BaseRow, BaseRow> {
+public class PatternProcessFunctionRunner extends PatternProcessFunction<RowData, RowData> {
 	private static final long serialVersionUID = 1L;
 
-	private final GeneratedFunction<PatternProcessFunction<BaseRow, BaseRow>> generatedFunction;
-	private transient PatternProcessFunction<BaseRow, BaseRow> function;
+	private final GeneratedFunction<PatternProcessFunction<RowData, RowData>> generatedFunction;
+	private transient PatternProcessFunction<RowData, RowData> function;
 
-	public PatternProcessFunctionRunner(GeneratedFunction<PatternProcessFunction<BaseRow, BaseRow>> generatedFunction) {
+	public PatternProcessFunctionRunner(GeneratedFunction<PatternProcessFunction<RowData, RowData>> generatedFunction) {
 		this.generatedFunction = generatedFunction;
 	}
 
@@ -50,7 +50,7 @@ public class PatternProcessFunctionRunner extends PatternProcessFunction<BaseRow
 	}
 
 	@Override
-	public void processMatch(Map<String, List<BaseRow>> match, Context ctx, Collector<BaseRow> out) throws Exception {
+	public void processMatch(Map<String, List<RowData>> match, Context ctx, Collector<RowData> out) throws Exception {
 		function.processMatch(match, ctx, out);
 	}
 

@@ -54,7 +54,7 @@ Flink 支持对状态和时间的细粒度控制，以此来实现复杂的事�
 
 首先，你需要在你的电脑上准备以下环境：
 
-* Java 8
+* Java 8 or 11
 * Maven
 
 一个准备好的 Flink Maven Archetype 能够快速创建一个包含了必要依赖的 Flink 程序骨架，基于此，你可以把精力集中在编写业务逻辑上即可。
@@ -95,7 +95,27 @@ $ mvn archetype:generate \
 
 {% unless site.is_stable %}
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-    <b>说明</b>: 对于 Maven 3.0 或者更高的版本，已经不再支持通过命令行参数 -DarchetypeCatalog 来指定 repository。如果你使用的是 snapshot repository，你需要添加一个 repository 地址在你的 settings.xml 配置文件中。具体细节参考：<a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>
+    <b>注意</b>：Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
+    请参阅 <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven 官方文档</a>
+    如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
+{% highlight bash %}
+<settings>
+  <activeProfiles>
+    <activeProfile>apache</activeProfile>
+  </activeProfiles>
+  <profiles>
+    <profile>
+      <id>apache</id>
+      <repositories>
+        <repository>
+          <id>apache-snapshots</id>
+          <url>https://repository.apache.org/content/repositories/snapshots/</url>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+</settings>
+{% endhighlight %}
 </p>
 {% endunless %}
 
@@ -502,65 +522,65 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-    @Override
-    public void processElement(
-            Transaction transaction,
-            Context context,
-            Collector<Alert> collector) throws Exception {
+@Override
+public void processElement(
+        Transaction transaction,
+        Context context,
+        Collector<Alert> collector) throws Exception {
 
-        // Get the current state for the current key
-        Boolean lastTransactionWasSmall = flagState.value();
+    // Get the current state for the current key
+    Boolean lastTransactionWasSmall = flagState.value();
 
-        // Check if the flag is set
-        if (lastTransactionWasSmall != null) {
-            if (transaction.getAmount() > LARGE_AMOUNT) {
-                // Output an alert downstream
-                Alert alert = new Alert();
-                alert.setId(transaction.getAccountId());
+    // Check if the flag is set
+    if (lastTransactionWasSmall != null) {
+        if (transaction.getAmount() > LARGE_AMOUNT) {
+            // Output an alert downstream
+            Alert alert = new Alert();
+            alert.setId(transaction.getAccountId());
 
-                collector.collect(alert);
-            }
-
-            // Clean up our state
-            flagState.clear();
+            collector.collect(alert);
         }
 
-        if (transaction.getAmount() < SMALL_AMOUNT) {
-            // Set the flag to true
-            flagState.update(true);
-        }
+        // Clean up our state
+        flagState.clear();
     }
+
+    if (transaction.getAmount() < SMALL_AMOUNT) {
+        // Set the flag to true
+        flagState.update(true);
+    }
+}
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-  override def processElement(
-      transaction: Transaction,
-      context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
-      collector: Collector[Alert]): Unit = {
+override def processElement(
+    transaction: Transaction,
+    context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
+    collector: Collector[Alert]): Unit = {
 
-    // Get the current state for the current key
-    val lastTransactionWasSmall = flagState.value
+  // Get the current state for the current key
+  val lastTransactionWasSmall = flagState.value
 
-    // Check if the flag is set
-    if (lastTransactionWasSmall != null) {
-      if (transaction.getAmount > FraudDetector.LARGE_AMOUNT) {
-        // Output an alert downstream
-        val alert = new Alert
-        alert.setId(transaction.getAccountId)
+  // Check if the flag is set
+  if (lastTransactionWasSmall != null) {
+    if (transaction.getAmount > FraudDetector.LARGE_AMOUNT) {
+      // Output an alert downstream
+      val alert = new Alert
+      alert.setId(transaction.getAccountId)
 
-        collector.collect(alert)
-      }
-      // Clean up our state
-      flagState.clear()
+      collector.collect(alert)
     }
-
-    if (transaction.getAmount < FraudDetector.SMALL_AMOUNT) {
-      // set the flag to true
-      flagState.update(true)
-    }
+    // Clean up our state
+    flagState.clear()
   }
+
+  if (transaction.getAmount < FraudDetector.SMALL_AMOUNT) {
+    // set the flag to true
+    flagState.update(true)
+  }
+}
 {% endhighlight %}
 </div>
 </div>
@@ -594,21 +614,21 @@ Flink 中的 `KeyedProcessFunction` 允许您设置计时器，该计时器在�
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-    private transient ValueState<Boolean> flagState;
-    private transient ValueState<Long> timerState;
+private transient ValueState<Boolean> flagState;
+private transient ValueState<Long> timerState;
 
-    @Override
-    public void open(Configuration parameters) {
-        ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
-                "flag",
-                Types.BOOLEAN);
-        flagState = getRuntimeContext().getState(flagDescriptor);
+@Override
+public void open(Configuration parameters) {
+    ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
+            "flag",
+            Types.BOOLEAN);
+    flagState = getRuntimeContext().getState(flagDescriptor);
 
-        ValueStateDescriptor<Long> timerDescriptor = new ValueStateDescriptor<>(
-                "timer-state",
-                Types.LONG);
-        timerState = getRuntimeContext().getState(timerDescriptor);
-    }
+    ValueStateDescriptor<Long> timerDescriptor = new ValueStateDescriptor<>(
+            "timer-state",
+            Types.LONG);
+    timerState = getRuntimeContext().getState(timerDescriptor);
+}
 {% endhighlight %}
 </div>
 

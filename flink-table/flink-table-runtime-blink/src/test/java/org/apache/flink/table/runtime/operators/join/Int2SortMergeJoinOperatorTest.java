@@ -23,7 +23,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
@@ -91,8 +91,8 @@ public class Int2SortMergeJoinOperatorTest {
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
 
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys, buildValsPerKey, false);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, FlinkJoinType.INNER, numKeys * buildValsPerKey * probeValsPerKey,
 				numKeys, 165);
@@ -106,8 +106,8 @@ public class Int2SortMergeJoinOperatorTest {
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
 
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, FlinkJoinType.LEFT, numKeys1 * buildValsPerKey * probeValsPerKey,
 				numKeys1, 165);
@@ -120,8 +120,8 @@ public class Int2SortMergeJoinOperatorTest {
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
 
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, FlinkJoinType.RIGHT, 280, numKeys2, -1);
 	}
@@ -133,8 +133,8 @@ public class Int2SortMergeJoinOperatorTest {
 		int buildValsPerKey = 3;
 		int probeValsPerKey = 10;
 
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		buildJoin(buildInput, probeInput, FlinkJoinType.FULL, 280, numKeys2, -1);
 	}
@@ -146,8 +146,8 @@ public class Int2SortMergeJoinOperatorTest {
 		int numKeys2 = 9;
 		int buildValsPerKey = 10;
 		int probeValsPerKey = 3;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		StreamOperator operator = newOperator(FlinkJoinType.SEMI, false);
 		joinAndAssert(operator, buildInput, probeInput, 90, 9, 45, true);
@@ -160,16 +160,16 @@ public class Int2SortMergeJoinOperatorTest {
 		int numKeys2 = 9;
 		int buildValsPerKey = 10;
 		int probeValsPerKey = 3;
-		MutableObjectIterator<BinaryRow> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
-		MutableObjectIterator<BinaryRow> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> buildInput = new UniformBinaryRowGenerator(numKeys1, buildValsPerKey, true);
+		MutableObjectIterator<BinaryRowData> probeInput = new UniformBinaryRowGenerator(numKeys2, probeValsPerKey, true);
 
 		StreamOperator operator = newOperator(FlinkJoinType.ANTI, false);
 		joinAndAssert(operator, buildInput, probeInput, 10, 1, 45, true);
 	}
 
 	private void buildJoin(
-			MutableObjectIterator<BinaryRow> input1,
-			MutableObjectIterator<BinaryRow> input2,
+			MutableObjectIterator<BinaryRowData> input1,
+			MutableObjectIterator<BinaryRowData> input2,
 			FlinkJoinType type,
 			int expertOutSize, int expertOutKeySize, int expertOutVal) throws Exception {
 

@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.BooleanFirstValueAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.ByteFirstValueAggFunction;
@@ -31,359 +32,455 @@ import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFuncti
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.LongFirstValueAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.ShortFirstValueAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.StringFirstValueAggFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
 
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Function;
 
 /**
  * Test case for built-in FirstValue aggregate function.
  * This class tests `accumulate` method with order argument.
  */
-@RunWith(Parameterized.class)
-public class FirstValueAggFunctionWithOrderTest<T> extends FirstLastValueAggFunctionWithOrderTestBase<T> {
+@RunWith(Enclosed.class)
+public final class FirstValueAggFunctionWithOrderTest {
 
-	@Parameterized.Parameter
-	public AggFunctionWithOrderTestSpec<T> aggFunctionTestSpec;
+	// --------------------------------------------------------------------------------------------
+	// Test sets for a particular type being aggregated
+	//
+	// Actual tests are implemented in:
+	//  - FirstLastValueAggFunctionWithOrderTestBase -> tests specific for FirstValue and LastValue
+	//  - AggFunctionTestBase -> tests that apply to all aggregate functions
+	// --------------------------------------------------------------------------------------------
 
-	private static final int DECIMAL_PRECISION = 20;
-	private static final int DECIMAL_SCALE = 6;
+	/**
+	 * Test for ByteFirstValueAggFunction.
+	 */
+	public static final class ByteFirstValueAggFunctionWithOrderTest
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Byte> {
 
-	@Override
-	protected List<List<Long>> getInputOrderSets() {
-		return aggFunctionTestSpec.inputOrderSets;
+		@Override
+		protected Byte getValue(String v) {
+			return Byte.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Byte, GenericRowData> getAggregator() {
+			return new ByteFirstValueAggFunction();
+		}
 	}
 
-	@Override
-	protected List<List<T>> getInputValueSets() {
-		return aggFunctionTestSpec.inputValueSets;
+	/**
+	 * Test for ShortFirstValueAggFunction.
+	 */
+	public static final class ShortFirstValueAggFunctionWithOrderTest
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Short> {
+
+		@Override
+		protected Short getValue(String v) {
+			return Short.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Short, GenericRowData> getAggregator() {
+			return new ShortFirstValueAggFunction();
+		}
 	}
 
-	@Override
-	protected List<T> getExpectedResults() {
-		return aggFunctionTestSpec.expectedResults;
+	/**
+	 * Test for IntFirstValueAggFunction.
+	 */
+	public static final class IntFirstValueAggFunctionWithOrderTest
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Integer> {
+
+		@Override
+		protected Integer getValue(String v) {
+			return Integer.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Integer, GenericRowData> getAggregator() {
+			return new IntFirstValueAggFunction();
+		}
 	}
 
-	@Override
-	protected AggregateFunction<T, GenericRow> getAggregator() {
-		return aggFunctionTestSpec.aggregator;
+	/**
+	 * Test for LongFirstValueAggFunction.
+	 */
+	public static final class LongFirstValueAggFunctionWithOrderTest
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Long> {
+
+		@Override
+		protected Long getValue(String v) {
+			return Long.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Long, GenericRowData> getAggregator() {
+			return new LongFirstValueAggFunction();
+		}
 	}
 
-	@Parameterized.Parameters(name = "{index}: {0}")
-	public static List<AggFunctionTestSpec> testData() {
-		return Arrays.asList(
-				/**
-				 * Test for ByteFirstValueAggFunction.
-				 */
-				new AggFunctionWithOrderTestSpec<>(
-						new ByteFirstValueAggFunction(),
-						numberInputOrderSets(),
-						numberInputValueSets(Byte::valueOf),
-						numberExpectedResults(Byte::valueOf)
+	/**
+	 * Test for FloatFirstValueAggFunction.
+	 */
+	public static final class FloatFirstValueAggFunctionWithOrderTest
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Float> {
+
+		@Override
+		protected Float getValue(String v) {
+			return Float.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Float, GenericRowData> getAggregator() {
+			return new FloatFirstValueAggFunction();
+		}
+	}
+
+	/**
+	 * Test for DoubleFirstValueAggFunction.
+	 */
+	public static final class DoubleFirstValueAggFunctionWithOrderTest
+			extends NumberFirstValueAggFunctionWithOrderTestBase<Double> {
+
+		@Override
+		protected Double getValue(String v) {
+			return Double.valueOf(v);
+		}
+
+		@Override
+		protected AggregateFunction<Double, GenericRowData> getAggregator() {
+			return new DoubleFirstValueAggFunction();
+		}
+	}
+
+	/**
+	 * Test for BooleanFirstValueAggFunction.
+	 */
+	public static final class BooleanFirstValueAggFunctionWithOrderTest
+			extends FirstLastValueAggFunctionWithOrderTestBase<Boolean> {
+
+		@Override
+		protected List<List<Boolean>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							false,
+							false,
+							false
+					),
+					Arrays.asList(
+							true,
+							true,
+							true
+					),
+					Arrays.asList(
+							true,
+							false,
+							null,
+							true,
+							false,
+							true,
+							null
+					),
+					Arrays.asList(
+							null,
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							true
+					));
+		}
+
+		@Override
+		protected List<List<Long>> getInputOrderSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							6L,
+							2L,
+							3L
+					),
+					Arrays.asList(
+							1L,
+							2L,
+							3L
+					),
+					Arrays.asList(
+							10L,
+							2L,
+							5L,
+							11L,
+							3L,
+							7L,
+							5L
+					),
+					Arrays.asList(
+							6L,
+							9L,
+							5L
+					),
+					Arrays.asList(
+							4L,
+							3L
+					)
+			);
+		}
+
+		@Override
+		protected List<Boolean> getExpectedResults() {
+			return Arrays.asList(
+					false,
+					true,
+					false,
+					null,
+					true
+			);
+		}
+
+		@Override
+		protected AggregateFunction<Boolean, GenericRowData> getAggregator() {
+			return new BooleanFirstValueAggFunction();
+		}
+	}
+
+	/**
+	 * Test for DecimalFirstValueAggFunction.
+	 */
+	public static final class DecimalFirstValueAggFunctionWithOrderTest
+			extends FirstLastValueAggFunctionWithOrderTestBase<DecimalData> {
+
+		private int precision = 20;
+		private int scale = 6;
+
+		@Override
+		protected List<List<DecimalData>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							DecimalDataUtils.castFrom("1", precision, scale),
+							DecimalDataUtils.castFrom("1000.000001", precision, scale),
+							DecimalDataUtils.castFrom("-1", precision, scale),
+							DecimalDataUtils.castFrom("-999.998999", precision, scale),
+							null,
+							DecimalDataUtils.castFrom("0", precision, scale),
+							DecimalDataUtils.castFrom("-999.999", precision, scale),
+							null,
+							DecimalDataUtils.castFrom("999.999", precision, scale)
+					),
+					Arrays.asList(
+							null,
+							null,
+							null,
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							DecimalDataUtils.castFrom("0", precision, scale)
+					)
+			);
+		}
+
+		@Override
+		protected List<List<Long>> getInputOrderSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							10L,
+							2L,
+							1L,
+							5L,
+							null,
+							3L,
+							1L,
+							5L,
+							2L
+					),
+					Arrays.asList(
+							6L,
+							5L,
+							null,
+							8L,
+							null
+					),
+					Arrays.asList(
+							8L,
+							6L
+					)
+			);
+		}
+
+		@Override
+		protected List<DecimalData> getExpectedResults() {
+			return Arrays.asList(
+					DecimalDataUtils.castFrom("-1", precision, scale),
+					null,
+					DecimalDataUtils.castFrom("0", precision, scale)
+			);
+		}
+
+		@Override
+		protected AggregateFunction<DecimalData, GenericRowData> getAggregator() {
+			return new DecimalFirstValueAggFunction(DecimalDataTypeInfo.of(precision, scale));
+		}
+	}
+
+	/**
+	 * Test for StringFirstValueAggFunction.
+	 */
+	public static final class StringFirstValueAggFunctionWithOrderTest
+			extends FirstLastValueAggFunctionWithOrderTestBase<StringData> {
+
+		@Override
+		protected List<List<StringData>> getInputValueSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							StringData.fromString("abc"),
+							StringData.fromString("def"),
+							StringData.fromString("ghi"),
+							null,
+							StringData.fromString("jkl"),
+							null,
+							StringData.fromString("zzz")
+					),
+					Arrays.asList(
+							null,
+							null
+					),
+					Arrays.asList(
+							null,
+							StringData.fromString("a")
+					),
+					Arrays.asList(
+							StringData.fromString("x"),
+							null,
+							StringData.fromString("e")
+					)
+			);
+		}
+
+		@Override
+		protected List<List<Long>> getInputOrderSets() {
+			return Arrays.asList(
+					Arrays.asList(
+							10L,
+							2L,
+							5L,
+							null,
+							3L,
+							1L,
+							5L
+					),
+					Arrays.asList(
+							6L,
+							5L
+					),
+					Arrays.asList(
+							8L,
+							6L
+					),
+					Arrays.asList(
+							6L,
+							4L,
+							3L
+					)
+			);
+		}
+
+		@Override
+		protected List<StringData> getExpectedResults() {
+			return Arrays.asList(
+					StringData.fromString("def"),
+					null,
+					StringData.fromString("a"),
+					StringData.fromString("e")
+			);
+		}
+
+		@Override
+		protected AggregateFunction<StringData, GenericRowData> getAggregator() {
+			return new StringFirstValueAggFunction();
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// This section contain base classes that provide:
+	//  - common inputs
+	// for tests declared above.
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Test FirstValueAggFunction for number type.
+	 */
+	public abstract static class NumberFirstValueAggFunctionWithOrderTestBase<T>
+		extends FirstLastValueAggFunctionWithOrderTestBase<T> {
+		protected abstract T getValue(String v);
+
+		@Override
+		protected List<List<T>> getInputValueSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					getValue("1"),
+					null,
+					getValue("-99"),
+					getValue("3"),
+					null,
+					getValue("3"),
+					getValue("2"),
+					getValue("-99")
 				),
-				/**
-				 * Test for ShortFirstValueAggFunction.
-				 */
-				new AggFunctionWithOrderTestSpec<>(
-						new ShortFirstValueAggFunction(),
-						numberInputOrderSets(),
-						numberInputValueSets(Short::valueOf),
-						numberExpectedResults(Short::valueOf)
+				Arrays.asList(
+					null,
+					null,
+					null,
+					null
 				),
-				/**
-				 * Test for IntFirstValueAggFunction.
-				 */
-				new AggFunctionWithOrderTestSpec<>(
-						new IntFirstValueAggFunction(),
-						numberInputOrderSets(),
-						numberInputValueSets(Integer::valueOf),
-						numberExpectedResults(Integer::valueOf)
-				),
-				/**
-				 * Test for LongFirstValueAggFunction.
-				 */
-				new AggFunctionWithOrderTestSpec<>(
-						new LongFirstValueAggFunction(),
-						numberInputOrderSets(),
-						numberInputValueSets(Long::valueOf),
-						numberExpectedResults(Long::valueOf)
-				),
-				/**
-				 * Test for FloatFirstValueAggFunction.
-				 */
-				new AggFunctionWithOrderTestSpec<>(
-						new FloatFirstValueAggFunction(),
-						numberInputOrderSets(),
-						numberInputValueSets(Float::valueOf),
-						numberExpectedResults(Float::valueOf)
-				),
-				/**
-				 * Test for DoubleFirstValueAggFunction.
-				 */
-				new AggFunctionWithOrderTestSpec<>(
-						new DoubleFirstValueAggFunction(),
-						numberInputOrderSets(),
-						numberInputValueSets(Double::valueOf),
-						numberExpectedResults(Double::valueOf)
-				),
-				/**
-				 * Test for BooleanFirstValueAggFunction.
-				 */
-				new AggFunctionWithOrderTestSpec<>(
-						new BooleanFirstValueAggFunction(),
-						Arrays.asList(
-								Arrays.asList(
-										6L,
-										2L,
-										3L
-								),
-								Arrays.asList(
-										1L,
-										2L,
-										3L
-								),
-								Arrays.asList(
-										10L,
-										2L,
-										5L,
-										11L,
-										3L,
-										7L,
-										5L
-								),
-								Arrays.asList(
-										6L,
-										9L,
-										5L
-								),
-								Arrays.asList(
-										4L,
-										3L
-								)
-						),
-						Arrays.asList(
-								Arrays.asList(
-										false,
-										false,
-										false
-								),
-								Arrays.asList(
-										true,
-										true,
-										true
-								),
-								Arrays.asList(
-										true,
-										false,
-										null,
-										true,
-										false,
-										true,
-										null
-								),
-								Arrays.asList(
-										null,
-										null,
-										null
-								),
-								Arrays.asList(
-										null,
-										true
-								)
-						),
-						Arrays.asList(
-								false,
-								true,
-								false,
-								null,
-								true
-						)
-				),
-				/**
-				 * Test for DecimalFirstValueAggFunction.
-				 */
-				new AggFunctionWithOrderTestSpec<>(
-						new DecimalFirstValueAggFunction(DecimalTypeInfo.of(DECIMAL_PRECISION, DECIMAL_SCALE)),
-						Arrays.asList(
-								Arrays.asList(
-										10L,
-										2L,
-										1L,
-										5L,
-										null,
-										3L,
-										1L,
-										5L,
-										2L
-								),
-								Arrays.asList(
-										6L,
-										5L,
-										null,
-										8L,
-										null
-								),
-								Arrays.asList(
-										8L,
-										6L
-								)
-						),
-						Arrays.asList(
-								Arrays.asList(
-										Decimal.castFrom("1", DECIMAL_PRECISION, DECIMAL_SCALE),
-										Decimal.castFrom("1000.000001", DECIMAL_PRECISION, DECIMAL_SCALE),
-										Decimal.castFrom("-1", DECIMAL_PRECISION, DECIMAL_SCALE),
-										Decimal.castFrom("-999.998999", DECIMAL_PRECISION, DECIMAL_SCALE),
-										null,
-										Decimal.castFrom("0", DECIMAL_PRECISION, DECIMAL_SCALE),
-										Decimal.castFrom("-999.999", DECIMAL_PRECISION, DECIMAL_SCALE),
-										null,
-										Decimal.castFrom("999.999", DECIMAL_PRECISION, DECIMAL_SCALE)
-								),
-								Arrays.asList(
-										null,
-										null,
-										null,
-										null,
-										null
-								),
-								Arrays.asList(
-										null,
-										Decimal.castFrom("0", DECIMAL_PRECISION, DECIMAL_SCALE)
-								)
-						),
-						Arrays.asList(
-								Decimal.castFrom("-1", DECIMAL_PRECISION, DECIMAL_SCALE),
-								null,
-								Decimal.castFrom("0", DECIMAL_PRECISION, DECIMAL_SCALE)
-						)
-				),
-				/**
-				 * Test for StringFirstValueAggFunction.
-				 */
-				new AggFunctionWithOrderTestSpec<>(
-						new StringFirstValueAggFunction(),
-						Arrays.asList(
-								Arrays.asList(
-										10L,
-										2L,
-										5L,
-										null,
-										3L,
-										1L,
-										5L
-								),
-								Arrays.asList(
-										6L,
-										5L
-								),
-								Arrays.asList(
-										8L,
-										6L
-								),
-								Arrays.asList(
-										6L,
-										4L,
-										3L
-								)
-						),
-						Arrays.asList(
-								Arrays.asList(
-										BinaryString.fromString("abc"),
-										BinaryString.fromString("def"),
-										BinaryString.fromString("ghi"),
-										null,
-										BinaryString.fromString("jkl"),
-										null,
-										BinaryString.fromString("zzz")
-								),
-								Arrays.asList(
-										null,
-										null
-								),
-								Arrays.asList(
-										null,
-										BinaryString.fromString("a")
-								),
-								Arrays.asList(
-										BinaryString.fromString("x"),
-										null,
-										BinaryString.fromString("e")
-								)
-						),
-						Arrays.asList(
-								BinaryString.fromString("def"),
-								null,
-								BinaryString.fromString("a"),
-								BinaryString.fromString("e")
-						)
+				Arrays.asList(
+					null,
+					getValue("10"),
+					null,
+					getValue("5")
 				)
-				);
-	}
+			);
+		}
 
-	private static List<List<Long>> numberInputOrderSets() {
-		return Arrays.asList(
+		@Override
+		protected List<List<Long>> getInputOrderSets() {
+			return Arrays.asList(
 				Arrays.asList(
-						10L,
-						2L,
-						5L,
-						6L,
-						11L,
-						3L,
-						7L,
-						5L
+					10L,
+					2L,
+					5L,
+					6L,
+					11L,
+					3L,
+					7L,
+					5L
 				),
 				Arrays.asList(
-						8L,
-						6L,
-						9L,
-						5L
+					8L,
+					6L,
+					9L,
+					5L
 				),
 				Arrays.asList(
-						null,
-						6L,
-						4L,
-						3L
+					null,
+					6L,
+					4L,
+					3L
 				)
-		);
-	}
+			);
+		}
 
-	private static <N> List<List<N>> numberInputValueSets(Function<String, N> strToValueFun) {
-		return Arrays.asList(
-				Arrays.asList(
-						strToValueFun.apply("1"),
-						null,
-						strToValueFun.apply("-99"),
-						strToValueFun.apply("3"),
-						null,
-						strToValueFun.apply("3"),
-						strToValueFun.apply("2"),
-						strToValueFun.apply("-99")
-				),
-				Arrays.asList(
-						null,
-						null,
-						null,
-						null
-				),
-				Arrays.asList(
-						null,
-						strToValueFun.apply("10"),
-						null,
-						strToValueFun.apply("5")
-				)
-		);
-	}
-
-	private static <N> List<N> numberExpectedResults(Function<String, N> strToValueFun) {
-		return Arrays.asList(
-				strToValueFun.apply("3"),
+		@Override
+		protected List<T> getExpectedResults() {
+			return Arrays.asList(
+				getValue("3"),
 				null,
-				strToValueFun.apply("5")
-		);
+				getValue("5")
+			);
+		}
 	}
 }

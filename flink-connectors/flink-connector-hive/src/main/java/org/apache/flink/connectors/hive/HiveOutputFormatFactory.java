@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.filesystem.OutputFormatFactory;
@@ -60,7 +61,7 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final String outputFormat;
+	private final Class hiveOutputFormatClz;
 
 	private final SerDeInfo serDeInfo;
 
@@ -75,6 +76,8 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 	private final JobConfWrapper confWrapper;
 
 	private final HiveShim hiveShim;
+
+	private final boolean isCompressed;
 
 	// number of non-partitioning columns
 	private transient int numNonPartitionColumns;
@@ -92,20 +95,24 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 
 	public HiveOutputFormatFactory(
 			JobConf jobConf,
-			String outputFormat,
+			Class hiveOutputFormatClz,
 			SerDeInfo serDeInfo,
 			TableSchema schema,
 			String[] partitionColumns,
 			Properties tableProperties,
-			HiveShim hiveShim) {
+			HiveShim hiveShim,
+			boolean isCompressed) {
+		Preconditions.checkArgument(org.apache.hadoop.hive.ql.io.HiveOutputFormat.class.isAssignableFrom(hiveOutputFormatClz),
+				"The output format should be an instance of HiveOutputFormat");
 		this.confWrapper = new JobConfWrapper(jobConf);
-		this.outputFormat = outputFormat;
+		this.hiveOutputFormatClz = hiveOutputFormatClz;
 		this.serDeInfo = serDeInfo;
 		this.allColumns = schema.getFieldNames();
 		this.allTypes = schema.getFieldDataTypes();
 		this.partitionColumns = partitionColumns;
 		this.tableProperties = tableProperties;
 		this.hiveShim = hiveShim;
+		this.isCompressed = isCompressed;
 	}
 
 	private void init() throws Exception {
@@ -144,7 +151,6 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 
 			JobConf conf = new JobConf(confWrapper.conf());
 
-			final boolean isCompressed = conf.getBoolean(HiveConf.ConfVars.COMPRESSRESULT.varname, false);
 			if (isCompressed) {
 				String codecStr = conf.get(HiveConf.ConfVars.COMPRESSINTERMEDIATECODEC.varname);
 				if (!StringUtils.isNullOrWhitespaceOnly(codecStr)) {
@@ -163,11 +169,11 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 
 			RecordWriter recordWriter = hiveShim.getHiveRecordWriter(
 					conf,
-					outputFormat,
+					hiveOutputFormatClz,
 					recordSerDe.getSerializedClass(),
 					isCompressed,
 					tableProperties,
-					new org.apache.hadoop.fs.Path(outPath.getPath()));
+					HadoopFileSystem.toHadoopPath(outPath));
 			return new HiveOutputFormat(recordWriter);
 		} catch (Exception e) {
 			throw new FlinkHiveException(e);

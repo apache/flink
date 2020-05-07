@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -30,12 +31,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.table.api.Expressions.$;
 import static org.junit.Assert.assertEquals;
 
 /**
  * IT case for {@link TableUtils} in streaming mode.
  */
-public class TableUtilsStreamingITCase {
+public class TableUtilsStreamingITCase extends TestLogger {
 
 	private StreamExecutionEnvironment env;
 	private StreamTableEnvironment tEnv;
@@ -46,7 +48,7 @@ public class TableUtilsStreamingITCase {
 		env.setParallelism(4);
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
 		tEnv = StreamTableEnvironment.create(env, settings);
 	}
 
@@ -58,7 +60,7 @@ public class TableUtilsStreamingITCase {
 			Row.of(2, 21L),
 			Row.of(2, 22L),
 			Row.of(3, 31L));
-		tEnv.registerTable("T", tEnv.fromDataStream(env.fromCollection(sourceData), "a, b"));
+		tEnv.registerTable("T", tEnv.fromDataStream(env.fromCollection(sourceData), $("a"), $("b")));
 
 		String sql = "SELECT b FROM T WHERE a NOT IN (1, 2, 4, 5)";
 		List<Row> expected = Collections.singletonList(Row.of(31L));

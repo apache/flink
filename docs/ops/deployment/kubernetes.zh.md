@@ -1,8 +1,8 @@
 ---
-title:  "Kubernetes 安装"
+title:  "Kubernetes 设置"
 nav-title: Kubernetes
 nav-parent_id: deployment
-nav-pos: 4
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -27,6 +27,8 @@ This page describes how to deploy a Flink job and session cluster on [Kubernetes
 
 * This will be replaced by the TOC
 {:toc}
+
+{% info %} This page describes deploying a [standalone](#cluster_setup.html) Flink session on top of Kubernetes. For information on native Kubernetes deployments read [here]({{ site.baseurl }}/zh/ops/deployment/native_kubernetes.html).
 
 ## Setup Kubernetes
 
@@ -98,6 +100,19 @@ The Flink job cluster image needs to contain the user code jars of the job for w
 Therefore, one needs to build a dedicated container image for every job.
 Please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/docker/README.md) to build the Docker image.
 
+### Using plugins
+
+As described in the [plugins]({{ site.baseurl }}/zh/ops/plugins.html) documentation page: in order to use plugins they must be
+copied to the correct location in the flink installation for them to work.
+
+The simplest way to enable plugins for use on Kubernetes is to modify the provided Flink docker image by adding
+an additional layer. This does however assume you have a docker registry available where you can push images to and
+that is accessible by your Kubernetes cluster.
+
+How this can be done is described on the [Docker Setup]({{ site.baseurl }}/zh/ops/deployment/docker.html#using-plugins) page.
+
+With such an image created you can now start your Kubernetes based Flink cluster which can use the enabled plugins.
+
 ### Deploy Flink job cluster on Kubernetes
 
 In order to deploy the a job cluster on Kubernetes please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/kubernetes/README.md#deploy-flink-job-cluster).
@@ -128,19 +143,27 @@ data:
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    jobmanager.heap.size: 1024m
-    taskmanager.memory.total-process.size: 1024m
+    jobmanager.memory.process.size: 1472m
+    taskmanager.memory.process.size: 1024m
   log4j.properties: |+
-    log4j.rootLogger=INFO, file
-    log4j.logger.akka=INFO
-    log4j.logger.org.apache.kafka=INFO
-    log4j.logger.org.apache.hadoop=INFO
-    log4j.logger.org.apache.zookeeper=INFO
-    log4j.appender.file=org.apache.log4j.FileAppender
-    log4j.appender.file.file=${log.file}
-    log4j.appender.file.layout=org.apache.log4j.PatternLayout
-    log4j.appender.file.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
-    log4j.logger.org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline=ERROR, file
+    rootLogger.level = INFO
+    rootLogger.appenderRef.file.ref = MainAppender
+    logger.akka.name = akka
+    logger.akka.level = INFO
+    logger.kafka.name= org.apache.kafka
+    logger.kafka.level = INFO
+    logger.hadoop.name = org.apache.hadoop
+    logger.hadoop.level = INFO
+    logger.zookeeper.name = org.apache.zookeeper
+    logger.zookeeper.level = INFO
+    appender.main.name = MainAppender
+    appender.main.type = File
+    appender.main.append = false
+    appender.main.fileName = ${sys:log.file}
+    appender.main.layout.type = PatternLayout
+    appender.main.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    logger.netty.name = org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline
+    logger.netty.level = ERROR
 {% endhighlight %}
 
 `jobmanager-deployment.yaml`

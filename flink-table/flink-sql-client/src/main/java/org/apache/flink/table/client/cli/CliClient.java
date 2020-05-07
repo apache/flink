@@ -83,7 +83,7 @@ public class CliClient {
 	 * afterwards using {@link #close()}.
 	 */
 	@VisibleForTesting
-	public CliClient(Terminal terminal, String sessionId, Executor executor) {
+	public CliClient(Terminal terminal, String sessionId, Executor executor, Path historyFilePath) {
 		this.terminal = terminal;
 		this.sessionId = sessionId;
 		this.executor = executor;
@@ -106,6 +106,18 @@ public class CliClient {
 		lineReader.setVariable(LineReader.ERRORS, 1);
 		// perform code completion case insensitive
 		lineReader.option(LineReader.Option.CASE_INSENSITIVE, true);
+		// set history file path
+		if (Files.exists(historyFilePath) || CliUtils.createFile(historyFilePath)) {
+			String msg = "Command history file path: " + historyFilePath;
+			// print it in the command line as well as log file
+			System.out.println(msg);
+			LOG.info(msg);
+			lineReader.setVariable(LineReader.HISTORY_FILE, historyFilePath);
+		} else {
+			String msg = "Unable to create history file: " + historyFilePath;
+			System.out.println(msg);
+			LOG.warn(msg);
+		}
 
 		// create prompt
 		prompt = new AttributedStringBuilder()
@@ -120,8 +132,8 @@ public class CliClient {
 	 * Creates a CLI instance with a prepared terminal. Make sure to close the CLI instance
 	 * afterwards using {@link #close()}.
 	 */
-	public CliClient(String sessionId, Executor executor) {
-		this(createDefaultTerminal(), sessionId, executor);
+	public CliClient(String sessionId, Executor executor, Path historyFilePath) {
+		this(createDefaultTerminal(), sessionId, executor, historyFilePath);
 	}
 
 	public Terminal getTerminal() {
@@ -224,11 +236,12 @@ public class CliClient {
 		terminal.flush();
 
 		final Optional<SqlCommandCall> parsedStatement = parseCommand(statement);
-		// only support INSERT INTO
+		// only support INSERT INTO/OVERWRITE
 		return parsedStatement.map(cmdCall -> {
 			switch (cmdCall.command) {
 				case INSERT_INTO:
-					return callInsertInto(cmdCall);
+				case INSERT_OVERWRITE:
+					return callInsert(cmdCall);
 				default:
 					printError(CliStrings.MESSAGE_UNSUPPORTED_SQL);
 					return false;
@@ -284,6 +297,7 @@ public class CliClient {
 			case USE:
 				callUseDatabase(cmdCall);
 				break;
+			case DESC:
 			case DESCRIBE:
 				callDescribe(cmdCall);
 				break;
@@ -294,7 +308,8 @@ public class CliClient {
 				callSelect(cmdCall);
 				break;
 			case INSERT_INTO:
-				callInsertInto(cmdCall);
+			case INSERT_OVERWRITE:
+				callInsert(cmdCall);
 				break;
 			case CREATE_TABLE:
 				callCreateTable(cmdCall);
@@ -365,7 +380,7 @@ public class CliClient {
 		}
 		// set a property
 		else {
-			executor.setSessionProperty(sessionId, cmdCall.operands[0], cmdCall.operands[1]);
+			executor.setSessionProperty(sessionId, cmdCall.operands[0], cmdCall.operands[1].trim());
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_SET).toAnsi());
 		}
 		terminal.flush();
@@ -510,25 +525,39 @@ public class CliClient {
 			printExecutionException(e);
 			return;
 		}
-		final CliResultView view;
-		if (resultDesc.isMaterialized()) {
-			view = new CliTableResultView(this, resultDesc);
+
+		if (resultDesc.isTableauMode()) {
+			try (CliTableauResultView tableauResultView = new CliTableauResultView(
+					terminal, executor, sessionId, resultDesc)) {
+				if (resultDesc.isMaterialized()) {
+					tableauResultView.displayBatchResults();
+				} else {
+					tableauResultView.displayStreamResults();
+				}
+			} catch (SqlExecutionException e) {
+				printExecutionException(e);
+			}
 		} else {
-			view = new CliChangelogResultView(this, resultDesc);
-		}
+			final CliResultView view;
+			if (resultDesc.isMaterialized()) {
+				view = new CliTableResultView(this, resultDesc);
+			} else {
+				view = new CliChangelogResultView(this, resultDesc);
+			}
 
-		// enter view
-		try {
-			view.open();
+			// enter view
+			try {
+				view.open();
 
-			// view left
-			printInfo(CliStrings.MESSAGE_RESULT_QUIT);
-		} catch (SqlExecutionException e) {
-			printExecutionException(e);
+				// view left
+				printInfo(CliStrings.MESSAGE_RESULT_QUIT);
+			} catch (SqlExecutionException e) {
+				printExecutionException(e);
+			}
 		}
 	}
 
-	private boolean callInsertInto(SqlCommandCall cmdCall) {
+	private boolean callInsert(SqlCommandCall cmdCall) {
 		printInfo(CliStrings.MESSAGE_SUBMITTING_STATEMENT);
 
 		try {

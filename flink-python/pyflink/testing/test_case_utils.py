@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
+import glob
 import logging
 import os
 import re
@@ -27,11 +28,13 @@ from abc import abstractmethod
 from py4j.java_gateway import JavaObject
 from py4j.protocol import Py4JJavaError
 
+from pyflink.table import TableConfig
 from pyflink.table.sources import CsvTableSource
-from pyflink.dataset import ExecutionEnvironment
-from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.find_flink_home import _find_flink_home
-from pyflink.table import BatchTableEnvironment, StreamTableEnvironment, EnvironmentSettings
+from pyflink.dataset.execution_environment import ExecutionEnvironment
+from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
+from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
+from pyflink.table.table_environment import BatchTableEnvironment, StreamTableEnvironment
+from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.java_gateway import get_gateway
 
 
@@ -121,7 +124,10 @@ class PyFlinkStreamTableTestCase(PyFlinkTestCase):
         super(PyFlinkStreamTableTestCase, self).setUp()
         self.env = StreamExecutionEnvironment.get_execution_environment()
         self.env.set_parallelism(2)
-        self.t_env = StreamTableEnvironment.create(self.env)
+        self.t_env = StreamTableEnvironment.create(
+            self.env,
+            environment_settings=EnvironmentSettings.new_instance()
+                .in_streaming_mode().use_old_planner().build())
 
 
 class PyFlinkBatchTableTestCase(PyFlinkTestCase):
@@ -133,7 +139,7 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
         super(PyFlinkBatchTableTestCase, self).setUp()
         self.env = ExecutionEnvironment.get_execution_environment()
         self.env.set_parallelism(2)
-        self.t_env = BatchTableEnvironment.create(self.env)
+        self.t_env = BatchTableEnvironment.create(self.env, TableConfig())
 
     def collect(self, table):
         j_table = table._j_table
@@ -287,3 +293,37 @@ class TestEnv(object):
         for item in self.result:
             result[item.f0] = item.f1
         return result
+
+
+class MLTestCase(PyFlinkTestCase):
+    """
+    Base class for testing ML.
+    """
+
+    _inited = False
+
+    @staticmethod
+    def _ensure_path(pattern):
+        if not glob.glob(pattern):
+            raise unittest.SkipTest(
+                "'%s' is not available. Will skip the related tests." % pattern)
+
+    @classmethod
+    def _ensure_initialized(cls):
+        if MLTestCase._inited:
+            return
+
+        flink_source_root_dir = _find_flink_source_root()
+        api_path_pattern = (
+            "flink-ml-parent/flink-ml-api/target/flink-ml-api*-SNAPSHOT.jar")
+        lib_path_pattern = (
+            "flink-ml-parent/flink-ml-lib/target/flink-ml-lib*-SNAPSHOT.jar")
+
+        MLTestCase._ensure_path(os.path.join(flink_source_root_dir, api_path_pattern))
+        MLTestCase._ensure_path(os.path.join(flink_source_root_dir, lib_path_pattern))
+
+        MLTestCase._inited = True
+
+    def setUp(self):
+        super(MLTestCase, self).setUp()
+        MLTestCase._ensure_initialized()

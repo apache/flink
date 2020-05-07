@@ -44,7 +44,7 @@ object WordCountSQL {
     val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
 
     // register the DataSet as a view "WordCount"
-    tEnv.createTemporaryView("WordCount", input, 'word, 'frequency)
+    tEnv.createTemporaryView("WordCount", input, $"word", $"frequency")
 
     // run a SQL query on the Table and retrieve the result as a new Table
     val table = tEnv.sqlQuery("SELECT word, SUM(frequency) FROM WordCount GROUP BY word")

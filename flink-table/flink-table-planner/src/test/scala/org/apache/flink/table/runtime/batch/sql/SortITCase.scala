@@ -57,7 +57,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
       (- x.productElement(0).asInstanceOf[Int], - x.productElement(1).asInstanceOf[Long]))
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
+    tEnv.createTemporaryView("MyTable", ds)
 
     val expected = sortExpectedly(tupleDataSetStrings)
     // squash all rows inside a partition into one element
@@ -94,7 +94,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
       - x.productElement(0).asInstanceOf[Int] )
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
+    tEnv.createTemporaryView("MyTable", ds)
 
     val expected = sortExpectedly(tupleDataSetStrings, 2, 21)
     // squash all rows inside a partition into one element
@@ -125,7 +125,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
       x.productElement(0).asInstanceOf[Int] )
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
+    tEnv.createTemporaryView("MyTable", ds)
 
     val expected = sortExpectedly(tupleDataSetStrings, 2, 7)
     // squash all rows inside a partition into one element
@@ -156,7 +156,7 @@ class SortITCase(mode: TestExecutionMode, configMode: TableConfigMode)
       (x.productElement(1).asInstanceOf[Long], x.productElement(0).asInstanceOf[Int]) )
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    tEnv.registerDataSet("MyTable", ds)
+    tEnv.createTemporaryView("MyTable", ds)
 
     val expected = sortExpectedly(tupleDataSetStrings, 0, 5)
     // squash all rows inside a partition into one element

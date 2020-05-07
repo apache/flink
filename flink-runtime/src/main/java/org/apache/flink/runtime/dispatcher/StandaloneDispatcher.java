@@ -22,8 +22,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.RpcService;
 
-import java.util.Collection;
-
 /**
  * Dispatcher implementation which spawns a {@link JobMaster} for each
  * submitted {@link JobGraph} within in the same process. This dispatcher
@@ -32,15 +30,13 @@ import java.util.Collection;
 public class StandaloneDispatcher extends Dispatcher {
 	public StandaloneDispatcher(
 			RpcService rpcService,
-			String endpointId,
 			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
+			DispatcherBootstrap dispatcherBootstrap,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
-			endpointId,
 			fencingToken,
-			recoveredJobs,
+			dispatcherBootstrap,
 			dispatcherServices);
 	}
 }

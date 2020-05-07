@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 /**
- * Interface for code generated hash code of {@link BaseRow}, which will select some
+ * Interface for code generated hash code of {@link RowData}, which will select some
  * fields to hash.
  */
 public interface HashFunction {
 
-	int hashCode(BaseRow row);
+	int hashCode(RowData row);
 
 }

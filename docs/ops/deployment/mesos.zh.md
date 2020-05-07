@@ -1,8 +1,8 @@
 ---
-title:  "Mesos 安装"
+title:  "Mesos 设置"
 nav-title: Mesos
 nav-parent_id: deployment
-nav-pos: 3
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -215,11 +215,10 @@ For example:
 
     bin/mesos-appmaster.sh \
         -Dmesos.master=master.foobar.org:5050 \
-        -Djobmanager.heap.size=1024m \
+        -Djobmanager.memory.process.size=1472m \
         -Djobmanager.rpc.port=6123 \
         -Drest.port=8081 \
-        -Dmesos.resourcemanager.tasks.mem=4096 \
-        -Dtaskmanager.memory.total-process.size=3500m \
+        -Dtaskmanager.memory.process.size=3500m \
         -Dtaskmanager.numberOfTaskSlots=2 \
         -Dparallelism.default=10
 
@@ -237,7 +236,7 @@ Here is an example configuration for Marathon:
 
     {
         "id": "flink",
-        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.size=1024m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.size=1024m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
+        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.memory.process.size=1472m -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dtaskmanager.memory.process.size=1024m -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
         "cpus": 1.0,
         "mem": 1024
     }

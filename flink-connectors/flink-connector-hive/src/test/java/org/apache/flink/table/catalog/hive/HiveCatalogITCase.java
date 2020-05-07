@@ -18,13 +18,17 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.connectors.hive.FlinkStandaloneHiveRunner;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.Types;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableBuilder;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -32,6 +36,7 @@ import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FileUtils;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -46,9 +51,12 @@ import org.junit.runner.RunWith;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -88,11 +96,60 @@ public class HiveCatalogITCase {
 	}
 
 	@Test
-	public void testGenericTable() throws Exception {
-		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
-		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
+	public void testCsvTableViaSQL() throws Exception {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+		TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 		tableEnv.registerCatalog("myhive", hiveCatalog);
+		tableEnv.useCatalog("myhive");
+
+		String path = this.getClass().getResource("/csv/test.csv").getPath();
+
+		tableEnv.sqlUpdate("create table test2 (name String, age Int) with (\n" +
+			"   'connector.type' = 'filesystem',\n" +
+			"   'connector.path' = 'file://" + path + "',\n" +
+			"   'format.type' = 'csv'\n" +
+			")");
+
+		Table t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.test2");
+
+		List<Row> result = TableUtils.collectToList(t);
+
+		// assert query result
+		assertEquals(
+			new HashSet<>(Arrays.asList(
+				Row.of("1", 1),
+				Row.of("2", 2),
+				Row.of("3", 3))),
+			new HashSet<>(result)
+		);
+
+		tableEnv.sqlUpdate("ALTER TABLE test2 RENAME TO newtable");
+
+		t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.newtable");
+
+		result = TableUtils.collectToList(t);
+
+		// assert query result
+		assertEquals(
+			new HashSet<>(Arrays.asList(
+				Row.of("1", 1),
+				Row.of("2", 2),
+				Row.of("3", 3))),
+			new HashSet<>(result)
+		);
+
+		tableEnv.sqlUpdate("DROP TABLE newtable");
+	}
+
+	@Test
+	public void testCsvTableViaAPI() throws Exception {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+		TableEnvironment tableEnv = TableEnvironment.create(settings);
+		tableEnv.getConfig().addConfiguration(new Configuration().set(CoreOptions.DEFAULT_PARALLELISM, 1));
+
+		tableEnv.registerCatalog("myhive", hiveCatalog);
+		tableEnv.useCatalog("myhive");
 
 		TableSchema schema = TableSchema.builder()
 			.field("name", DataTypes.STRING())
@@ -138,7 +195,8 @@ public class HiveCatalogITCase {
 		Table t = tableEnv.sqlQuery(
 			String.format("select * from myhive.`default`.%s", sourceTableName));
 
-		List<Row> result = tableEnv.toDataSet(t, Row.class).collect();
+		List<Row> result = TableUtils.collectToList(t);
+		result.sort(Comparator.comparing(String::valueOf));
 
 		// assert query result
 		assertEquals(
@@ -166,5 +224,41 @@ public class HiveCatalogITCase {
 
 		// No more line
 		assertNull(reader.readLine());
+
+		tableEnv.sqlUpdate(String.format("DROP TABLE %s", sourceTableName));
+		tableEnv.sqlUpdate(String.format("DROP TABLE %s", sinkTableName));
+	}
+
+	@Test
+	public void testReadWriteCsv() throws Exception {
+		// similar to CatalogTableITCase::testReadWriteCsvUsingDDL but uses HiveCatalog
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+		TableEnvironment tableEnv = TableEnvironment.create(settings);
+		tableEnv.getConfig().getConfiguration().setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+
+		tableEnv.registerCatalog("myhive", hiveCatalog);
+		tableEnv.useCatalog("myhive");
+
+		String srcPath = this.getClass().getResource("/csv/test3.csv").getPath();
+
+		tableEnv.sqlUpdate("CREATE TABLE src (" +
+				"price DECIMAL(10, 2),currency STRING,ts6 TIMESTAMP(6),ts AS CAST(ts6 AS TIMESTAMP(3)),WATERMARK FOR ts AS ts) " +
+				String.format("WITH ('connector.type' = 'filesystem','connector.path' = 'file://%s','format.type' = 'csv')", srcPath));
+
+		String sinkPath = new File(tempFolder.newFolder(), "csv-order-sink").toURI().toString();
+
+		tableEnv.sqlUpdate("CREATE TABLE sink (" +
+				"window_end TIMESTAMP(3),max_ts TIMESTAMP(6),counter BIGINT,total_price DECIMAL(10, 2)) " +
+				String.format("WITH ('connector.type' = 'filesystem','connector.path' = '%s','format.type' = 'csv')", sinkPath));
+
+		tableEnv.sqlUpdate("INSERT INTO sink " +
+				"SELECT TUMBLE_END(ts, INTERVAL '5' SECOND),MAX(ts6),COUNT(*),MAX(price) FROM src " +
+				"GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)");
+
+		tableEnv.execute("testJob");
+
+		String expected = "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
+				"2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n";
+		assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkPath))));
 	}
 }

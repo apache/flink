@@ -97,7 +97,7 @@ public class BufferOrEvent {
 		this.channelIndex = channelIndex;
 	}
 
-	boolean moreAvailable() {
+	public boolean moreAvailable() {
 		return moreAvailable;
 	}
 

@@ -26,6 +26,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -108,6 +109,33 @@ public class EnvironmentTest {
 			createModule("module1", "test"),
 			createModule("module2", "test"),
 			createModule("module2", "test")));
+	}
+
+	@Test
+	public void testModuleOrder() {
+		Environment env1 = new Environment();
+		Environment env2 = new Environment();
+		env1.setModules(Arrays.asList(
+			createModule("b", "test"),
+			createModule("d", "test")));
+
+		env2.setModules(Arrays.asList(
+			createModule("c", "test"),
+			createModule("a", "test")));
+
+		assertEquals(
+			Arrays.asList("b", "d"), new ArrayList<>(env1.getModules().keySet())
+		);
+
+		assertEquals(
+			Arrays.asList("c", "a"), new ArrayList<>(env2.getModules().keySet())
+		);
+
+		Environment env = Environment.merge(env1, env2);
+
+		assertEquals(
+			Arrays.asList("b", "d", "c", "a"), new ArrayList<>(env.getModules().keySet())
+		);
 	}
 
 	private static Map<String, Object> createCatalog(String name, String type) {

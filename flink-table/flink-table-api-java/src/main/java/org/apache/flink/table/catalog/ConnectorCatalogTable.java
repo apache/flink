@@ -55,16 +55,16 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 	// NOTES: this should be false in BLINK planner, because BLINK planner always uses StreamTableSource.
 	private final boolean isBatch;
 
-	public static <T1> ConnectorCatalogTable source(TableSource<T1> source, boolean isBatch) {
+	public static <T1> ConnectorCatalogTable<T1, ?> source(TableSource<T1> source, boolean isBatch) {
 		final TableSchema tableSchema = calculateSourceSchema(source, isBatch);
 		return new ConnectorCatalogTable<>(source, null, tableSchema, isBatch);
 	}
 
-	public static <T2> ConnectorCatalogTable sink(TableSink<T2> sink, boolean isBatch) {
+	public static <T2> ConnectorCatalogTable<?, T2> sink(TableSink<T2> sink, boolean isBatch) {
 		return new ConnectorCatalogTable<>(null, sink, sink.getTableSchema(), isBatch);
 	}
 
-	public static <T1, T2> ConnectorCatalogTable sourceAndSink(
+	public static <T1, T2> ConnectorCatalogTable<T1, T2> sourceAndSink(
 			TableSource<T1> source,
 			TableSink<T2> sink,
 			boolean isBatch) {
@@ -100,6 +100,11 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 	public Map<String, String> toProperties() {
 		// This effectively makes sure the table cannot be persisted in a catalog.
 		throw new UnsupportedOperationException("ConnectorCatalogTable cannot be converted to properties");
+	}
+
+	@Override
+	public CatalogTable copy(Map<String, String> options) {
+		throw new UnsupportedOperationException("ConnectorCatalogTable cannot copy with new table options");
 	}
 
 	@Override

@@ -236,7 +236,7 @@ public class BulkWriterTest extends TestLogger {
 	/**
 	 * A {@link BulkWriter.Factory} used for the tests.
 	 */
-	private static class TestBulkWriterFactory implements BulkWriter.Factory<Tuple2<String, Integer>> {
+	public static final class TestBulkWriterFactory implements BulkWriter.Factory<Tuple2<String, Integer>> {
 
 		private static final long serialVersionUID = 1L;
 

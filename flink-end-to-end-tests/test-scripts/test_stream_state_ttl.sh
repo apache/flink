@@ -74,4 +74,12 @@ wait_job_running ${JOB}
 wait_oper_metric_num_in_records TtlVerifyUpdateFunction.0 ${UPDATE_NUM} "State TTL test job"
 
 # if verification fails job produces failed TTL'ed state updates,
-# output would be non-empty and the test will not pass
+# output would be non-empty and contains TTL verification failed:
+local EXIT_CODE=0
+check_logs_for_non_empty_out_files
+
+if [ $EXIT_CODE != 0 ]; then
+  echo "The TTL verification logic failed. See *.out file for more information."
+fi
+
+exit ${EXIT_CODE}

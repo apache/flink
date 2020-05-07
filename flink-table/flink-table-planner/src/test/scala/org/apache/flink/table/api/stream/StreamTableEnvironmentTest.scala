@@ -25,21 +25,23 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecEnv}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.api.java.internal.{StreamTableEnvironmentImpl => JStreamTableEnvironmentImpl}
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JStreamTableEnv}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableConfig, Types, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, Expressions, TableConfig, Types, ValidationException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.utils.StreamTestData
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.{CatalogManagerMocks, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
 import org.apache.flink.types.Row
+
 import org.junit.Test
 import org.mockito.Mockito.{mock, when}
-import java.lang.{Integer => JInt, Long => JLong}
 
+import java.lang.{Integer => JInt, Long => JLong}
 import org.apache.flink.table.module.ModuleManager
 
 class StreamTableEnvironmentTest extends TableTestBase {
@@ -81,7 +83,8 @@ class StreamTableEnvironmentTest extends TableTestBase {
       " in order to handle add and retract messages.")
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
 
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'id, 'num, 'text)
 
@@ -170,31 +173,39 @@ class StreamTableEnvironmentTest extends TableTestBase {
   @Test
   def testProctimeAttributeParsed(): Unit = {
     val (jTEnv, ds) = prepareSchemaExpressionParser
-    jTEnv.fromDataStream(ds, "a, b, c, d, e, pt.proctime")
+    jTEnv.fromDataStream(ds, $("a"), $("b"), $("c"), $("d"), $("e"), $("pt").proctime())
   }
 
   @Test
   def testReplacingRowtimeAttributeParsed(): Unit = {
     val (jTEnv, ds) = prepareSchemaExpressionParser
-    jTEnv.fromDataStream(ds, "a.rowtime, b, c, d, e")
+    jTEnv.fromDataStream(ds, $("a").rowtime(), $("b"), $("c"), $("d"), $("e"))
   }
 
   @Test
   def testAppedingRowtimeAttributeParsed(): Unit = {
     val (jTEnv, ds) = prepareSchemaExpressionParser
-    jTEnv.fromDataStream(ds, "a, b, c, d, e, rt.rowtime")
+    jTEnv.fromDataStream(ds, $("a"), $("b"), $("c"), $("d"), $("e"), $("rt").rowtime())
   }
 
   @Test
   def testRowtimeAndProctimeAttributeParsed1(): Unit = {
     val (jTEnv, ds) = prepareSchemaExpressionParser
-    jTEnv.fromDataStream(ds, "a, b, c, d, e, pt.proctime, rt.rowtime")
+    jTEnv.fromDataStream(
+      ds,
+      $("a"),
+      $("b"),
+      $("c"),
+      $("d"),
+      $("e"),
+      $("pt").proctime(),
+      $("rt").rowtime())
   }
 
   @Test
   def testRowtimeAndProctimeAttributeParsed2(): Unit = {
     val (jTEnv, ds) = prepareSchemaExpressionParser
-    jTEnv.fromDataStream(ds, "rt.rowtime, b, c, d, e, pt.proctime")
+    jTEnv.fromDataStream(ds, $("rt").rowtime(), $("b"), $("c"), $("d"), $("e"), $("pt").proctime())
   }
 
   private def prepareSchemaExpressionParser:
@@ -203,15 +214,13 @@ class StreamTableEnvironmentTest extends TableTestBase {
     val jStreamExecEnv = mock(classOf[JStreamExecEnv])
     when(jStreamExecEnv.getStreamTimeCharacteristic).thenReturn(TimeCharacteristic.EventTime)
     val config = new TableConfig
-    val manager: CatalogManager = new CatalogManager(
-      "default_catalog",
-      new GenericInMemoryCatalog("default_catalog", "default_database"))
+    val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val moduleManager: ModuleManager = new ModuleManager
     val executor: StreamExecutor = new StreamExecutor(jStreamExecEnv)
-    val functionCatalog = new FunctionCatalog(manager, moduleManager)
-    val streamPlanner = new StreamPlanner(executor, config, functionCatalog, manager)
+    val functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager)
+    val streamPlanner = new StreamPlanner(executor, config, functionCatalog, catalogManager)
     val jTEnv = new JStreamTableEnvironmentImpl(
-      manager,
+      catalogManager,
       moduleManager,
       functionCatalog,
       config,

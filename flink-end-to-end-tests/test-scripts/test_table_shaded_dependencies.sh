@@ -61,6 +61,9 @@ function checkCodeDependencies {
       grep -v "^\s*\-> org.json" |\
       grep -v "^\s*\-> org.apache.tapestry5.json." |\
       grep -v "^\s*\-> org.codehaus.jettison" |\
+      grep -v "^\s*\-> org.apiguardian.api" |\
+      grep -v "^\s*\-> org.apache.commons.io.input" |\
+      grep -v "^\s*\-> com.ibm.icu" |\
       grep -v "^\s*\-> net.minidev.json" > $CONTENTS_FILE
   if [[ `cat $CONTENTS_FILE | wc -l` -eq '0' ]]; then
       echo "Success: There are no unwanted dependencies in the ${JAR} jar."
@@ -81,6 +84,7 @@ function checkAllowedPackages {
       grep -v "org/codehaus/janino" |\
       grep -v "org/codehaus/commons" |\
       grep -v "org/apache/calcite" |\
+      grep -v "com/ibm/icu" |\
       grep -v "org/apache/flink" > $CONTENTS_FILE
   if [[ `cat $CONTENTS_FILE | wc -l` -eq '0' ]]; then
       echo "Success: There are no unwanted classes in the ${JAR} jar."

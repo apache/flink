@@ -62,7 +62,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
@@ -169,8 +168,7 @@ public class LocalInputChannelTest {
 				results.add(CompletableFuture.supplyAsync(CheckedSupplier.unchecked(consumer::call), executor));
 			}
 
-			FutureUtils.waitForAll(results)
-				.get(60_000L, TimeUnit.MILLISECONDS);
+			FutureUtils.waitForAll(results).get();
 		}
 		finally {
 			networkBuffers.destroyAllBufferPools();
@@ -286,7 +284,7 @@ public class LocalInputChannelTest {
 		final LocalInputChannel localChannel = createLocalInputChannel(
 			inputGate, new ResultPartitionManager(), 1, 1);
 
-		inputGate.setInputChannel(localChannel.getPartitionId().getPartitionId(), localChannel);
+		inputGate.setInputChannels(localChannel);
 		localChannel.requestSubpartition(0);
 
 		// The timer should be initialized at the first time of retriggering partition request.
@@ -387,7 +385,7 @@ public class LocalInputChannelTest {
 			public void run() {
 				try {
 					channel.requestSubpartition(0);
-				} catch (IOException | InterruptedException ignored) {
+				} catch (IOException ignored) {
 				}
 			}
 		};
@@ -439,6 +437,15 @@ public class LocalInputChannelTest {
 		Optional<InputChannel.BufferAndAvailability> bufferAndAvailability = channel.getNextBuffer();
 		assertTrue(bufferAndAvailability.isPresent());
 		assertFalse(bufferAndAvailability.get().buffer().isCompressed());
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testUnblockReleasedChannel() throws Exception {
+		SingleInputGate inputGate = createSingleInputGate(1);
+		LocalInputChannel localChannel = createLocalInputChannel(inputGate, new ResultPartitionManager());
+
+		localChannel.releaseAllResources();
+		localChannel.resumeConsumption();
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -530,17 +537,19 @@ public class LocalInputChannelTest {
 				.setNumberOfChannels(numberOfInputChannels)
 				.setBufferPoolFactory(bufferPool)
 				.build();
+			InputChannel[] inputChannels = new InputChannel[numberOfInputChannels];
 
 			// Setup input channels
 			for (int i = 0; i < numberOfInputChannels; i++) {
-				InputChannelBuilder.newBuilder()
+				inputChannels[i] = InputChannelBuilder.newBuilder()
 					.setChannelIndex(i)
 					.setPartitionManager(partitionManager)
 					.setPartitionId(consumedPartitionIds[i])
 					.setTaskEventPublisher(taskEventDispatcher)
-					.buildLocalAndSetToGate(inputGate);
+					.buildLocalChannel(inputGate);
 			}
 
+			inputGate.setInputChannels(inputChannels);
 			inputGate.setup();
 
 			this.numberOfInputChannels = numberOfInputChannels;

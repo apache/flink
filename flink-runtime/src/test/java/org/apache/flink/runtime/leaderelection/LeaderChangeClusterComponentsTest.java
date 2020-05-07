@@ -142,7 +142,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
 		highAvailabilityServices.revokeJobMasterLeadership(jobId).get();
 
-		assertThat(jobResultFuture.isDone(), is(false));
+		JobResultUtils.assertIncomplete(jobResultFuture);
 		BlockingOperator.isBlocking = false;
 
 		highAvailabilityServices.grantJobMasterLeadership(jobId);

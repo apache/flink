@@ -179,7 +179,7 @@ class JoinValidationTest extends TableTestBase {
 
     val left = util.tableEnv.sqlQuery(sql1)
     val right = util.tableEnv.sqlQuery(sql2)
-    val result = left.join(right).where("id === r_id && t1 === t2").select("id, t1")
+    val result = left.join(right).where($"id" === $"r_id" && $"t1" === $"t2").select($"id", $"t1")
 
     util.verifyTable(result, "n/a")
   }

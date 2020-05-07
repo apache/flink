@@ -453,6 +453,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true,
 			false,
+			false,
 			0);
 		return new CheckpointCoordinator(
 				jid,
@@ -460,6 +461,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 				new ExecutionVertex[0],
 				ackVertices,
 				new ExecutionVertex[0],
+				Collections.emptyList(),
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(10),
 				new MemoryStateBackend(),

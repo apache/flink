@@ -126,7 +126,8 @@ class RelNodeBlock(val outputNode: RelNode) {
 
   private var optimizedPlan: Option[RelNode] = None
 
-  private var updateAsRetract: Boolean = false
+  // whether any parent block requires UPDATE_BEFORE messages
+  private var updateBeforeRequired: Boolean = false
 
   private var miniBatchInterval: MiniBatchInterval = MiniBatchInterval.NONE
 
@@ -146,14 +147,19 @@ class RelNodeBlock(val outputNode: RelNode) {
 
   def getOptimizedPlan: RelNode = optimizedPlan.orNull
 
-  def setUpdateAsRetraction(updateAsRetract: Boolean): Unit = {
-    // set child block updateAsRetract, a child may have multi father.
-    if (updateAsRetract) {
-      this.updateAsRetract = true
+  def setUpdateBeforeRequired(requireUpdateBefore: Boolean): Unit = {
+    // set the child block whether need to produce update before messages for updates,
+    // a child block may have multiple parents (outputs), if one of the parents require
+    // update before message, then this child block has to produce update before for updates.
+    if (requireUpdateBefore) {
+      this.updateBeforeRequired = true
     }
   }
 
-  def isUpdateAsRetraction: Boolean = updateAsRetract
+  /**
+   * Returns true if any parent block requires UPDATE_BEFORE messages for updates.
+   */
+  def isUpdateBeforeRequired: Boolean = updateBeforeRequired
 
   def setMiniBatchInterval(miniBatchInterval: MiniBatchInterval): Unit = {
     this.miniBatchInterval = miniBatchInterval

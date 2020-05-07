@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
+import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -85,8 +86,7 @@ public class StreamTaskNetworkInputTest {
 		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				new MockInputGate(1, buffers, false),
-				new EmptyBufferStorage(),
-				new CheckpointBarrierTracker(1)),
+				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
 			LongSerializer.INSTANCE,
 			ioManager,
 			new StatusWatermarkValve(1, output),
@@ -103,7 +103,7 @@ public class StreamTaskNetworkInputTest {
 
 		int numInputChannels = 2;
 		LongSerializer inSerializer = LongSerializer.INSTANCE;
-		StreamTestSingleInputGate inputGate = new StreamTestSingleInputGate<>(numInputChannels, 1024, inSerializer);
+		StreamTestSingleInputGate inputGate = new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
 
 		TestRecordDeserializer[] deserializers = new TestRecordDeserializer[numInputChannels];
 		for (int i = 0; i < deserializers.length; i++) {
@@ -115,8 +115,7 @@ public class StreamTaskNetworkInputTest {
 		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				inputGate.getInputGate(),
-				new EmptyBufferStorage(),
-				new CheckpointBarrierTracker(1)),
+				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
 			inSerializer,
 			new StatusWatermarkValve(1, output),
 			0,

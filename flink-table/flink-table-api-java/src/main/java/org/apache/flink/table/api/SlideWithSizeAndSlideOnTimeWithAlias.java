@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 
 /**
@@ -31,13 +32,13 @@ public final class SlideWithSizeAndSlideOnTimeWithAlias extends GroupWindow {
 	private final Expression slide;
 
 	SlideWithSizeAndSlideOnTimeWithAlias(
-		Expression alias,
-		Expression timeField,
-		Expression size,
-		Expression slide) {
+			Expression alias,
+			Expression timeField,
+			Expression size,
+			Expression slide) {
 		super(alias, timeField);
-		this.size = size;
-		this.slide = slide;
+		this.size = ApiExpressionUtils.unwrapFromApi(size);
+		this.slide = ApiExpressionUtils.unwrapFromApi(slide);
 	}
 
 	public Expression getSize() {

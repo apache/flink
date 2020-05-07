@@ -30,12 +30,9 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAndAvailabilityProvider;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 
-import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -61,10 +58,11 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 
 	@SuppressWarnings("unchecked")
 	public StreamTestSingleInputGate(
-		int numInputChannels,
-		int bufferSize,
-		TypeSerializer<T> serializer) throws IOException, InterruptedException {
-		super(numInputChannels, false);
+			int numInputChannels,
+			int gateIndex,
+			TypeSerializer<T> serializer,
+			int bufferSize) {
+		super(numInputChannels, gateIndex, false);
 
 		this.bufferSize = bufferSize;
 		this.serializer = serializer;
@@ -78,15 +76,15 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void setupInputChannels() throws IOException, InterruptedException {
+	private void setupInputChannels() {
 
 		for (int i = 0; i < numInputChannels; i++) {
 			final int channelIndex = i;
 			final RecordSerializer<SerializationDelegate<Object>> recordSerializer = new SpanningRecordSerializer<SerializationDelegate<Object>>();
 			final SerializationDelegate<Object> delegate = (SerializationDelegate<Object>) (SerializationDelegate<?>)
-				new SerializationDelegate<StreamElement>(new StreamElementSerializer<T>(serializer));
+				new SerializationDelegate<>(new StreamElementSerializer<T>(serializer));
 
-			inputQueues[channelIndex] = new ConcurrentLinkedQueue<InputValue<Object>>();
+			inputQueues[channelIndex] = new ConcurrentLinkedQueue<>();
 			inputChannels[channelIndex] = new TestInputChannel(inputGate, i);
 
 			final BufferAndAvailabilityProvider answer = () -> {
@@ -125,10 +123,8 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			};
 
 			inputChannels[channelIndex].addBufferAndAvailability(answer);
-
-			inputGate.setInputChannel(new IntermediateResultPartitionID(),
-				inputChannels[channelIndex]);
 		}
+		inputGate.setInputChannels(inputChannels);
 	}
 
 	public void sendElement(Object element, int channel) {
@@ -161,14 +157,6 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 	 * Returns true iff all input queues are empty.
 	 */
 	public boolean allQueuesEmpty() {
-//		for (int i = 0; i < numInputChannels; i++) {
-//			synchronized (inputQueues[i]) {
-//				inputQueues[i].add(InputValue.<T>event(new DummyEvent()));
-//				inputQueues[i].notifyAll();
-//				inputGate.onAvailableBuffer(inputChannels[i].getInputChannel());
-//			}
-//		}
-
 		for (int i = 0; i < numInputChannels; i++) {
 			if (inputQueues[i].size() > 0) {
 				return false;

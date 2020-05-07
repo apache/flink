@@ -28,6 +28,8 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import java.util.Arrays;
 import java.util.Objects;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /**
  * Simple example for demonstrating the use of SQL on a Stream Table in Java.
  *
@@ -48,19 +50,23 @@ public class StreamSQLExample {
 	public static void main(String[] args) throws Exception {
 
 		final ParameterTool params = ParameterTool.fromArgs(args);
-		String planner = params.has("planner") ? params.get("planner") : "flink";
+		String planner = params.has("planner") ? params.get("planner") : "blink";
 
 		// set up execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv;
 		if (Objects.equals(planner, "blink")) {	// use blink planner in streaming mode
 			EnvironmentSettings settings = EnvironmentSettings.newInstance()
-				.useBlinkPlanner()
-				.inStreamingMode()
-				.build();
+					.inStreamingMode()
+					.useBlinkPlanner()
+					.build();
 			tEnv = StreamTableEnvironment.create(env, settings);
 		} else if (Objects.equals(planner, "flink")) {	// use flink planner in streaming mode
-			tEnv = StreamTableEnvironment.create(env);
+			EnvironmentSettings settings = EnvironmentSettings.newInstance()
+					.inStreamingMode()
+					.useOldPlanner()
+					.build();
+			tEnv = StreamTableEnvironment.create(env, settings);
 		} else {
 			System.err.println("The planner is incorrect. Please run 'StreamSQLExample --planner <planner>', " +
 				"where planner (it is either flink or blink, and the default is flink) indicates whether the " +
@@ -79,9 +85,9 @@ public class StreamSQLExample {
 			new Order(4L, "beer", 1)));
 
 		// convert DataStream to Table
-		Table tableA = tEnv.fromDataStream(orderA, "user, product, amount");
+		Table tableA = tEnv.fromDataStream(orderA, $("user"), $("product"), $("amount"));
 		// register DataStream as Table
-		tEnv.registerDataStream("OrderB", orderB, "user, product, amount");
+		tEnv.createTemporaryView("OrderB", orderB, $("user"), $("product"), $("amount"));
 
 		// union the two tables
 		Table result = tEnv.sqlQuery("SELECT * FROM " + tableA + " WHERE amount > 2 UNION ALL " +
@@ -89,6 +95,8 @@ public class StreamSQLExample {
 
 		tEnv.toAppendStream(result, Order.class).print();
 
+		// after the table program is converted to DataStream program,
+		// we must use `env.execute()` to submit the job.
 		env.execute();
 	}
 

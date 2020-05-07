@@ -88,9 +88,4 @@ public class TestableKinesisDataFetcherForShardConsumerException<T> extends Test
 			throw e;
 		}
 	}
-
-	@Override
-	protected KinesisDeserializationSchema<T> getClonedDeserializationSchema() {
-		return super.getClonedDeserializationSchema();
-	}
 }

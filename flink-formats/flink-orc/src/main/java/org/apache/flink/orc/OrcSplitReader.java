@@ -19,21 +19,16 @@
 package org.apache.flink.orc;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.orc.shim.OrcShim;
+import org.apache.flink.orc.vector.OrcVectorizedBatchWrapper;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
-import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
-import org.apache.hadoop.hive.ql.io.sarg.SearchArgumentFactory;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
-import org.apache.orc.OrcConf;
-import org.apache.orc.OrcFile;
-import org.apache.orc.Reader;
 import org.apache.orc.RecordReader;
-import org.apache.orc.StripeInformation;
 import org.apache.orc.TypeDescription;
 
 import java.io.Closeable;
@@ -49,15 +44,15 @@ import java.util.List;
  * Orc split reader to read record from orc file. The reader is only responsible for reading the data
  * of a single split.
  */
-public abstract class OrcSplitReader<T> implements Closeable {
+public abstract class OrcSplitReader<T, BATCH> implements Closeable {
+
+	private final OrcShim<BATCH> shim;
 
 	// the ORC reader
 	private RecordReader orcRowsReader;
 
 	// the vectorized row data to be read in a batch
-	protected final VectorizedRowBatch rowBatch;
-
-	private final Reader.Options options;
+	protected final OrcVectorizedBatchWrapper<BATCH> rowBatchWrapper;
 
 	// the number of rows in the current batch
 	private int rowsInBatch;
@@ -65,6 +60,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	protected int nextRow;
 
 	public OrcSplitReader(
+			OrcShim<BATCH> shim,
 			Configuration conf,
 			TypeDescription schema,
 			int[] selectedFields,
@@ -73,45 +69,19 @@ public abstract class OrcSplitReader<T> implements Closeable {
 			Path path,
 			long splitStart,
 			long splitLength) throws IOException {
-		// open ORC file and create reader
-		org.apache.hadoop.fs.Path hPath = new org.apache.hadoop.fs.Path(path.getPath());
-		Reader orcReader = OrcFile.createReader(hPath, OrcFile.readerOptions(conf));
+		this.shim = shim;
+		this.orcRowsReader = shim.createRecordReader(
+				conf, schema, selectedFields, conjunctPredicates, path, splitStart, splitLength);
 
-		// get offset and length for the stripes that start in the split
-		Tuple2<Long, Long> offsetAndLength = getOffsetAndLengthForSplit(
-				splitStart, splitLength, getStripes(orcReader));
-
-		// create ORC row reader configuration
-		this.options = orcReader.options()
-				.schema(schema)
-				.range(offsetAndLength.f0, offsetAndLength.f1)
-				.useZeroCopy(OrcConf.USE_ZEROCOPY.getBoolean(conf))
-				.skipCorruptRecords(OrcConf.SKIP_CORRUPT_DATA.getBoolean(conf))
-				.tolerateMissingSchema(OrcConf.TOLERATE_MISSING_SCHEMA.getBoolean(conf));
-
-		// configure filters
-		if (!conjunctPredicates.isEmpty()) {
-			SearchArgument.Builder b = SearchArgumentFactory.newBuilder();
-			b = b.startAnd();
-			for (Predicate predicate : conjunctPredicates) {
-				predicate.add(b);
-			}
-			b = b.end();
-			options.searchArgument(b.build(), new String[]{});
-		}
-
-		// configure selected fields
-		options.include(computeProjectionMask(schema, selectedFields));
-
-		// create ORC row reader
-		this.orcRowsReader = orcReader.rows(options);
-
-		// assign ids
-		schema.getId();
 		// create row batch
-		this.rowBatch = schema.createRowBatch(batchSize);
+		this.rowBatchWrapper = shim.createBatchWrapper(schema, batchSize);
 		rowsInBatch = 0;
 		nextRow = 0;
+	}
+
+	@VisibleForTesting
+	public RecordReader getRecordReader() {
+		return orcRowsReader;
 	}
 
 	/**
@@ -154,7 +124,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 			// No more rows available in the Rows array.
 			nextRow = 0;
 			// Try to read the next batch if rows from the ORC file.
-			boolean moreRows = orcRowsReader.nextBatch(rowBatch);
+			boolean moreRows = shim.nextBatch(orcRowsReader, rowBatchWrapper.getBatch());
 
 			if (moreRows) {
 				// Load the data into the Rows array.
@@ -164,57 +134,6 @@ public abstract class OrcSplitReader<T> implements Closeable {
 		}
 		// there is at least one Row left in the Rows array.
 		return true;
-	}
-
-	private Tuple2<Long, Long> getOffsetAndLengthForSplit(
-			long splitStart, long splitLength, List<StripeInformation> stripes) {
-		long splitEnd = splitStart + splitLength;
-		long readStart = Long.MAX_VALUE;
-		long readEnd = Long.MIN_VALUE;
-
-		for (StripeInformation s : stripes) {
-			if (splitStart <= s.getOffset() && s.getOffset() < splitEnd) {
-				// stripe starts in split, so it is included
-				readStart = Math.min(readStart, s.getOffset());
-				readEnd = Math.max(readEnd, s.getOffset() + s.getLength());
-			}
-		}
-
-		if (readStart < Long.MAX_VALUE) {
-			// at least one split is included
-			return Tuple2.of(readStart, readEnd - readStart);
-		} else {
-			return Tuple2.of(0L, 0L);
-		}
-	}
-
-	@VisibleForTesting
-	Reader.Options getOptions() {
-		return options;
-	}
-
-	@VisibleForTesting
-	List<StripeInformation> getStripes(Reader orcReader) {
-		return orcReader.getStripes();
-	}
-
-	/**
-	 * Computes the ORC projection mask of the fields to include from the selected fields.rowOrcInputFormat.nextRecord(null).
-	 *
-	 * @return The ORC projection mask.
-	 */
-	private boolean[] computeProjectionMask(TypeDescription schema, int[] selectedFields) {
-		// mask with all fields of the schema
-		boolean[] projectionMask = new boolean[schema.getMaximumId() + 1];
-		// for each selected field
-		for (int inIdx : selectedFields) {
-			// set all nested fields of a selected field to true
-			TypeDescription fieldSchema = schema.getChildren().get(inIdx);
-			for (int i = fieldSchema.getId(); i <= fieldSchema.getMaximumId(); i++) {
-				projectionMask[i] = true;
-			}
-		}
-		return projectionMask;
 	}
 
 	@Override
@@ -233,7 +152,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 	 * A filter predicate that can be evaluated by the OrcInputFormat.
 	 */
 	public abstract static class Predicate implements Serializable {
-		protected abstract SearchArgument.Builder add(SearchArgument.Builder builder);
+		public abstract SearchArgument.Builder add(SearchArgument.Builder builder);
 	}
 
 	abstract static class ColumnPredicate extends Predicate {
@@ -334,7 +253,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 		}
 
 		@Override
-		protected SearchArgument.Builder add(SearchArgument.Builder builder) {
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
 			return builder.equals(columnName, literalType, castLiteral(literal));
 		}
 
@@ -360,7 +279,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 		}
 
 		@Override
-		protected SearchArgument.Builder add(SearchArgument.Builder builder) {
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
 			return builder.nullSafeEquals(columnName, literalType, castLiteral(literal));
 		}
 
@@ -386,7 +305,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 		}
 
 		@Override
-		protected SearchArgument.Builder add(SearchArgument.Builder builder) {
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
 			return builder.lessThan(columnName, literalType, castLiteral(literal));
 		}
 
@@ -412,7 +331,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 		}
 
 		@Override
-		protected SearchArgument.Builder add(SearchArgument.Builder builder) {
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
 			return builder.lessThanEquals(columnName, literalType, castLiteral(literal));
 		}
 
@@ -437,7 +356,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 		}
 
 		@Override
-		protected SearchArgument.Builder add(SearchArgument.Builder builder) {
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
 			return builder.isNull(columnName, literalType);
 		}
 
@@ -469,7 +388,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 		}
 
 		@Override
-		protected SearchArgument.Builder add(SearchArgument.Builder builder) {
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
 			return builder.between(columnName, literalType, castLiteral(lowerBound), castLiteral(upperBound));
 		}
 
@@ -498,7 +417,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 		}
 
 		@Override
-		protected SearchArgument.Builder add(SearchArgument.Builder builder) {
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
 			Object[] castedLiterals = new Object[literals.length];
 			for (int i = 0; i < literals.length; i++) {
 				castedLiterals[i] = castLiteral(literals[i]);
@@ -527,7 +446,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 			this.pred = predicate;
 		}
 
-		protected SearchArgument.Builder add(SearchArgument.Builder builder) {
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
 			return pred.add(builder.startNot()).end();
 		}
 
@@ -557,7 +476,7 @@ public abstract class OrcSplitReader<T> implements Closeable {
 		}
 
 		@Override
-		protected SearchArgument.Builder add(SearchArgument.Builder builder) {
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
 			SearchArgument.Builder withOr = builder.startOr();
 			for (Predicate p : preds) {
 				withOr = p.add(withOr);

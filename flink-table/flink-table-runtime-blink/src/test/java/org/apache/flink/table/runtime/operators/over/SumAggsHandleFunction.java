@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.StateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 
@@ -40,22 +40,22 @@ public class SumAggsHandleFunction implements AggsHandleFunction {
 	}
 
 	@Override
-	public void accumulate(BaseRow input) throws Exception {
+	public void accumulate(RowData input) throws Exception {
 		sum += input.getLong(inputIndex);
 	}
 
 	@Override
-	public void retract(BaseRow input) throws Exception {
+	public void retract(RowData input) throws Exception {
 		sum -= input.getLong(inputIndex);
 	}
 
 	@Override
-	public void merge(BaseRow accumulator) throws Exception {
+	public void merge(RowData accumulator) throws Exception {
 		sum += accumulator.getLong(0);
 	}
 
 	@Override
-	public void setAccumulators(BaseRow accumulator) throws Exception {
+	public void setAccumulators(RowData accumulator) throws Exception {
 		sum = accumulator.getLong(0);
 	}
 
@@ -65,17 +65,17 @@ public class SumAggsHandleFunction implements AggsHandleFunction {
 	}
 
 	@Override
-	public BaseRow getAccumulators() throws Exception {
-		return GenericRow.of(sum);
+	public RowData getAccumulators() throws Exception {
+		return GenericRowData.of(sum);
 	}
 
 	@Override
-	public BaseRow createAccumulators() throws Exception {
-		return GenericRow.of(0L);
+	public RowData createAccumulators() throws Exception {
+		return GenericRowData.of(0L);
 	}
 
 	@Override
-	public BaseRow getValue() throws Exception {
+	public RowData getValue() throws Exception {
 		return getAccumulators();
 	}
 

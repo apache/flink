@@ -19,7 +19,7 @@
 package org.apache.flink.client.deployment;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.client.deployment.executors.StandaloneSessionClusterExecutor;
+import org.apache.flink.client.deployment.executors.RemoteExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 
@@ -36,7 +36,7 @@ public class StandaloneClientFactory implements ClusterClientFactory<StandaloneC
 	@Override
 	public boolean isCompatibleWith(Configuration configuration) {
 		checkNotNull(configuration);
-		return StandaloneSessionClusterExecutor.NAME.equalsIgnoreCase(configuration.getString(DeploymentOptions.TARGET));
+		return RemoteExecutor.NAME.equalsIgnoreCase(configuration.getString(DeploymentOptions.TARGET));
 	}
 
 	@Override

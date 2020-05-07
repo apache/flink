@@ -28,8 +28,8 @@ import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter}
-import org.apache.flink.table.dataformat.{Decimal, SqlTimestamp}
+import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
+import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
@@ -43,6 +43,7 @@ import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampTo
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit._
+
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
 import java.time.{LocalDate, LocalDateTime, ZoneId}
@@ -64,7 +65,7 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testSelectStar(): Unit = {
     checkResult(
-      "SELECT * FROM Table3",
+      "SELECT * FROM Table3 where a is not null",
       data3)
   }
 
@@ -306,6 +307,14 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testDecimalReturnType(): Unit = {
+    registerFunction("myNegative", MyNegative)
+    checkResult("SELECT myNegative(5.1)",
+      Seq(row(new java.math.BigDecimal("-5.100000000000000000"))
+      ))
+  }
+
+  @Test
   def testUDFWithInternalClass(): Unit = {
     registerFunction("func", BinaryStringFunction)
     val data = Seq(row("a"), row("b"), row("c"))
@@ -335,7 +344,7 @@ class CalcITCase extends BatchTestBase {
     tEnv.getConfig.setLocalTimeZone(pairs)
     checkResult(
       "SELECT CAST(a AS VARCHAR), b, CAST(b AS VARCHAR) FROM T",
-      Seq(row("1969-07-20 16:17:39", "1969-07-20T20:17:39Z", "1969-07-20 21:17:39"))
+      Seq(row("1969-07-20 16:17:39.000", "1969-07-20T20:17:39Z", "1969-07-20 21:17:39.000"))
     )
   }
 
@@ -448,7 +457,6 @@ class CalcITCase extends BatchTestBase {
       ))
   }
 
-  @Ignore // TODO support agg
   @Test
   def testExternalTypeFunc2(): Unit = {
     registerFunction("func1", RowFunc)
@@ -597,7 +605,6 @@ class CalcITCase extends BatchTestBase {
       Seq(row("Hello"), row("Hello world")))
   }
 
-  @Ignore // TODO support substring
   @Test
   def testComplexNotInLargeValues(): Unit = {
     checkResult(
@@ -643,7 +650,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testRowTypeWithDecimal(): Unit = {
-    val d = Decimal.castFrom(2.0002, 5, 4).toBigDecimal
+    val d = DecimalDataUtils.castFrom(2.0002, 5, 4).toBigDecimal
     checkResult(
       "SELECT ROW(CAST(2.0002 AS DECIMAL(5, 4)), a, c) FROM SmallTable3",
       Seq(
@@ -732,10 +739,10 @@ class CalcITCase extends BatchTestBase {
         "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24.001')")
     val result = executeQuery(table)
 
-    val baseRow = result.head.getField(0).asInstanceOf[Row]
-    assertEquals(data.head.getField(0), baseRow.getField(0))
-    assertEquals(data.head.getField(1), baseRow.getField(1))
-    assertEquals(data.head.getField(2), baseRow.getField(2))
+    val nestedRow = result.head.getField(0).asInstanceOf[Row]
+    assertEquals(data.head.getField(0), nestedRow.getField(0))
+    assertEquals(data.head.getField(1), nestedRow.getField(1))
+    assertEquals(data.head.getField(2), nestedRow.getField(2))
 
     val arr = result.head.getField(1).asInstanceOf[Array[Integer]]
     assertEquals(12, arr(0))
@@ -794,7 +801,6 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
-  @Ignore //TODO support cast string to bigint.
   @Test
   def testSelectStarFromNestedValues2(): Unit = {
     val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
@@ -1026,7 +1032,7 @@ class CalcITCase extends BatchTestBase {
 
     val table = parseQuery("SELECT CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
-    val ts1 = SqlTimestamp.fromLocalDateTime(
+    val ts1 = TimestampData.fromLocalDateTime(
       result.toList.head.getField(0).asInstanceOf[LocalDateTime]).getMillisecond
 
     val ts2 = System.currentTimeMillis()
@@ -1069,7 +1075,6 @@ class CalcITCase extends BatchTestBase {
     * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]-[h]h:[m]m
     * T[h]h:[m]m:[s]s.[ms][ms][ms][us][us][us]+[h]h:[m]m
     */
-  @Ignore
   @Test
   def testTimestampCompareWithDateString(): Unit = {
     //j 2015-05-20 10:00:00.887

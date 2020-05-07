@@ -49,9 +49,9 @@ public class NettyShuffleEnvironmentBuilder {
 
 	private int floatingNetworkBuffersPerGate = 8;
 
-	private boolean blockingShuffleCompressionEnabled = false;
+	private int maxBuffersPerChannel = Integer.MAX_VALUE;
 
-	private boolean pipelinedShuffleCompressionEnabled = false;
+	private boolean blockingShuffleCompressionEnabled = false;
 
 	private String compressionCodec = "LZ4";
 
@@ -91,13 +91,13 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setBlockingShuffleCompressionEnabled(boolean blockingShuffleCompressionEnabled) {
-		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
+	public NettyShuffleEnvironmentBuilder setMaxBuffersPerChannel(int maxBuffersPerChannel) {
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setPipelinedShuffleCompressionEnabled(boolean pipelinedShuffleCompressionEnabled) {
-		this.pipelinedShuffleCompressionEnabled = pipelinedShuffleCompressionEnabled;
+	public NettyShuffleEnvironmentBuilder setBlockingShuffleCompressionEnabled(boolean blockingShuffleCompressionEnabled) {
+		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		return this;
 	}
 
@@ -132,8 +132,8 @@ public class NettyShuffleEnvironmentBuilder {
 				BoundedBlockingSubpartitionType.AUTO,
 				false,
 				blockingShuffleCompressionEnabled,
-				pipelinedShuffleCompressionEnabled,
-				compressionCodec),
+				compressionCodec,
+				maxBuffersPerChannel),
 			taskManagerLocation,
 			new TaskEventDispatcher(),
 			metricGroup);

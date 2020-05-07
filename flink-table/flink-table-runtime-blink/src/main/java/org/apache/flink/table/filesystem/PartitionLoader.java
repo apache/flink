@@ -71,9 +71,7 @@ public class PartitionLoader implements Closeable {
 				metaStore.getLocationPath(), generatePartitionPath(partSpec)));
 
 		overwriteAndRenameFiles(srcDirs, path);
-		if (!pathFromMeta.isPresent()) {
-			metaStore.createPartition(partSpec, path);
-		}
+		metaStore.createOrAlterPartition(partSpec, path);
 	}
 
 	/**

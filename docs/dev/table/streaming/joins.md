@@ -26,7 +26,7 @@ Joins are a common and well-understood operation in batch data processing to con
 
 Because of that, there are a couple of ways to actually perform a join using either Table API or SQL.
 
-For more information regarding the syntax, please check the join sections in [Table API](../tableApi.html#joins) and [SQL](../sql.html#joins).
+For more information regarding the syntax, please check the join sections in [Table API](../tableApi.html#joins) and [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#joins).
 
 * This will be replaced by the TOC
 {:toc}
@@ -63,7 +63,7 @@ WHERE o.id = s.orderId AND
       o.ordertime BETWEEN s.shiptime - INTERVAL '4' HOUR AND s.shiptime
 {% endhighlight %}
 
-Compared to a regular join operation, this kind of join only supports append-only tables with time attributes. Since time attributes are quasi-monontic increasing, Flink can remove old values from its state without affecting the correctness of the result.
+Compared to a regular join operation, this kind of join only supports append-only tables with time attributes. Since time attributes are quasi-monotonic increasing, Flink can remove old values from its state without affecting the correctness of the result.
 
 Join with a Temporal Table Function
 --------------------------

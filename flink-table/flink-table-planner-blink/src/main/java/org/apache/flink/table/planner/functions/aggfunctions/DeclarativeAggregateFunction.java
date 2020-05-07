@@ -18,18 +18,20 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 
 /**
  * API for aggregation functions that are expressed in terms of expressions.
@@ -171,5 +173,10 @@ public abstract class DeclarativeAggregateFunction extends UserDefinedFunction {
 	@Override
 	public final FunctionKind getKind() {
 		return FunctionKind.OTHER;
+	}
+
+	@Override
+	public TypeInference getTypeInference(DataTypeFactory factory) {
+		throw new UnsupportedOperationException();
 	}
 }

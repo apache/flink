@@ -65,9 +65,9 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -75,7 +75,9 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -83,7 +85,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -255,7 +256,7 @@ public class TaskTest extends TestLogger {
 			shuffleDescriptor,
 			1,
 			false);
-		testExecutionFailsInNetworkRegistration(Collections.singleton(dummyPartition), Collections.emptyList());
+		testExecutionFailsInNetworkRegistration(Collections.singletonList(dummyPartition), Collections.emptyList());
 	}
 
 	@Test
@@ -266,12 +267,12 @@ public class TaskTest extends TestLogger {
 			ResultPartitionType.PIPELINED,
 			0,
 			new ShuffleDescriptor[] { dummyChannel });
-		testExecutionFailsInNetworkRegistration(Collections.emptyList(), Collections.singleton(dummyGate));
+		testExecutionFailsInNetworkRegistration(Collections.emptyList(), Collections.singletonList(dummyGate));
 	}
 
 	private void testExecutionFailsInNetworkRegistration(
-			Collection<ResultPartitionDeploymentDescriptor> resultPartitions,
-			Collection<InputGateDeploymentDescriptor> inputGates) throws Exception {
+			List<ResultPartitionDeploymentDescriptor> resultPartitions,
+			List<InputGateDeploymentDescriptor> inputGates) throws Exception {
 		final String errorMessage = "Network buffer pool has already been destroyed.";
 
 		final ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
@@ -798,12 +799,13 @@ public class TaskTest extends TestLogger {
 	 */
 	@Test
 	public void testFatalErrorAfterUnInterruptibleInvoke() throws Exception {
-		final AwaitFatalErrorTaskManagerActions taskManagerActions =
-			new AwaitFatalErrorTaskManagerActions();
+		final CompletableFuture<Throwable> fatalErrorFuture = new CompletableFuture<>();
+		final TestingTaskManagerActions taskManagerActions = TestingTaskManagerActions.newBuilder()
+			.setNotifyFatalErrorConsumer((s, throwable) -> fatalErrorFuture.complete(throwable))
+			.build();
 
 		final Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
-		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 50);
+		config.setLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, 10);
 
 		final Task task = createTaskBuilder()
 			.setInvokable(InvokableUnInterruptibleBlockingInvoke.class)
@@ -819,7 +821,8 @@ public class TaskTest extends TestLogger {
 			task.cancelExecution();
 
 			// wait for the notification of notifyFatalError
-			taskManagerActions.latch.await();
+			final Throwable fatalError = fatalErrorFuture.join();
+			assertThat(fatalError, is(notNullValue()));
 		} finally {
 			// Interrupt again to clean up Thread
 			triggerLatch.trigger();
@@ -833,8 +836,10 @@ public class TaskTest extends TestLogger {
 	 */
 	@Test
 	public void testFatalErrorOnCanceling() throws Exception {
-		final AwaitFatalErrorTaskManagerActions taskManagerActions =
-			new AwaitFatalErrorTaskManagerActions();
+		final CompletableFuture<Throwable> fatalErrorFuture = new CompletableFuture<>();
+		final TestingTaskManagerActions taskManagerActions = TestingTaskManagerActions.newBuilder()
+			.setNotifyFatalErrorConsumer((s, throwable) -> fatalErrorFuture.complete(throwable))
+			.build();
 
 		final Configuration config = new Configuration();
 		config.setLong(TaskManagerOptions.TASK_CANCELLATION_INTERVAL, 5);
@@ -846,7 +851,8 @@ public class TaskTest extends TestLogger {
 			.setTaskManagerActions(taskManagerActions)
 			.build());
 
-		doThrow(OutOfMemoryError.class).when(task).cancelOrFailAndCancelInvokableInternal(eq(ExecutionState.CANCELING), eq(null));
+		final Class<OutOfMemoryError> fatalErrorType = OutOfMemoryError.class;
+		doThrow(fatalErrorType).when(task).cancelOrFailAndCancelInvokableInternal(eq(ExecutionState.CANCELING), eq(null));
 
 		try {
 			task.startTaskThread();
@@ -856,9 +862,8 @@ public class TaskTest extends TestLogger {
 			task.cancelExecution();
 
 			// wait for the notification of notifyFatalError
-			taskManagerActions.latch.await();
-		} catch (Throwable t) {
-			fail("No exception is expected to be thrown by fatal error handling");
+			final Throwable fatalError = fatalErrorFuture.join();
+			assertThat(fatalError, instanceOf(fatalErrorType));
 		} finally {
 			triggerLatch.trigger();
 		}
@@ -1007,18 +1012,6 @@ public class TaskTest extends TestLogger {
 		@Override
 		public void notifyFatalError(String message, Throwable cause) {
 			throw new RuntimeException("Unexpected FatalError notification");
-		}
-	}
-
-	/**
-	 * Customized TaskManagerActions that waits for a call of notifyFatalError.
-	 */
-	private static class AwaitFatalErrorTaskManagerActions extends NoOpTaskManagerActions {
-		private final OneShotLatch latch = new OneShotLatch();
-
-		@Override
-		public void notifyFatalError(String message, Throwable cause) {
-			latch.trigger();
 		}
 	}
 

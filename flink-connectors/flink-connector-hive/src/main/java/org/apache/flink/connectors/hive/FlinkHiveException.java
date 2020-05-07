@@ -25,6 +25,10 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class FlinkHiveException extends RuntimeException {
 
+	public FlinkHiveException(String message) {
+		super(message);
+	}
+
 	public FlinkHiveException(Throwable cause) {
 		super(cause);
 	}

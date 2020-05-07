@@ -21,18 +21,20 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
-import org.apache.flink.table.dataformat.{GenericRow, SqlTimestamp}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
+import org.apache.flink.table.data.{GenericRowData, TimestampData}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.planner.calcite.{FlinkPlannerImpl, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
+import org.apache.flink.table.utils.CatalogManagerMocks
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.ConventionTraitDef
+
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
@@ -45,11 +47,11 @@ import java.util.Collections
 class WatermarkGeneratorCodeGenTest {
 
   // mock FlinkPlannerImpl to avoid discovering TableEnvironment and Executor.
-  val catalog = new GenericInMemoryCatalog("MockCatalog", "default")
-  val catalogManager = new CatalogManager("builtin", catalog)
-  val functionCatalog = new FunctionCatalog(catalogManager, new ModuleManager)
+  val config = new TableConfig
+  val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
+  val functionCatalog = new FunctionCatalog(config, catalogManager, new ModuleManager)
   val plannerContext = new PlannerContext(
-    new TableConfig,
+    config,
     functionCatalog,
     catalogManager,
     asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
@@ -59,12 +61,12 @@ class WatermarkGeneratorCodeGenTest {
     catalogManager.getCurrentDatabase)
 
   val data = List(
-    GenericRow.of(SqlTimestamp.fromEpochMillis(1000L), JInt.valueOf(5)),
-    GenericRow.of(null, JInt.valueOf(4)),
-    GenericRow.of(SqlTimestamp.fromEpochMillis(3000L), null),
-    GenericRow.of(SqlTimestamp.fromEpochMillis(5000L), JInt.valueOf(3)),
-    GenericRow.of(SqlTimestamp.fromEpochMillis(4000L), JInt.valueOf(10)),
-    GenericRow.of(SqlTimestamp.fromEpochMillis(6000L), JInt.valueOf(8))
+    GenericRowData.of(TimestampData.fromEpochMillis(1000L), JInt.valueOf(5)),
+    GenericRowData.of(null, JInt.valueOf(4)),
+    GenericRowData.of(TimestampData.fromEpochMillis(3000L), null),
+    GenericRowData.of(TimestampData.fromEpochMillis(5000L), JInt.valueOf(3)),
+    GenericRowData.of(TimestampData.fromEpochMillis(4000L), JInt.valueOf(10)),
+    GenericRowData.of(TimestampData.fromEpochMillis(6000L), JInt.valueOf(8))
   )
 
   @Test
@@ -100,7 +102,10 @@ class WatermarkGeneratorCodeGenTest {
     JavaFunc5.openCalled = false
     JavaFunc5.closeCalled = false
     functionCatalog.registerTempCatalogScalarFunction(
-      ObjectIdentifier.of("builtin", "default", "myFunc"),
+      ObjectIdentifier.of(
+        CatalogManagerMocks.DEFAULT_CATALOG,
+        CatalogManagerMocks.DEFAULT_DATABASE,
+        "myFunc"),
       new JavaFunc5
     )
     val generator = generateWatermarkGenerator("myFunc(ts, `offset`)")
@@ -129,7 +134,13 @@ class WatermarkGeneratorCodeGenTest {
         new IntType()
       ))
     val rowType = FlinkTypeFactory.toLogicalRowType(tableRowType)
-    val converter = planner.createSqlExprToRexConverter(tableRowType)
+    val converter = planner.createToRelContext()
+        .getCluster
+        .getPlanner
+        .getContext
+        .unwrap(classOf[FlinkContext])
+        .getSqlExprToRexConverterFactory
+        .create(tableRowType)
     val rexNode = converter.convertToRexNode(expr)
     val generated = WatermarkGeneratorCodeGenerator
       .generateWatermarkGenerator(new TableConfig(), rowType, rexNode)

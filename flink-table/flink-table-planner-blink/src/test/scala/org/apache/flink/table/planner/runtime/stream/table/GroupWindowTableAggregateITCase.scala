@@ -31,11 +31,10 @@ import org.apache.flink.table.planner.utils.Top3
 import org.apache.flink.types.Row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.junit.Assert._
-import org.junit.{Ignore, Test}
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-@Ignore("Remove this ignore when FLINK-13740 is solved.")
 @RunWith(classOf[Parameterized])
 class GroupWindowTableAggregateITCase(mode: StateBackendMode)
   extends StreamingWithStateTestBase(mode) {

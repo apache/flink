@@ -65,6 +65,6 @@ public class ResourceBudgetManagerTest {
 	}
 
 	private static ResourceProfile createResourceProfile(double cpus, int memory) {
-		return ResourceProfile.newBuilder().setCpuCores(cpus).setTaskHeapMemory(MemorySize.parse(memory + "m")).build();
+		return ResourceProfile.newBuilder().setCpuCores(cpus).setTaskHeapMemory(MemorySize.ofMebiBytes(memory)).build();
 	}
 }

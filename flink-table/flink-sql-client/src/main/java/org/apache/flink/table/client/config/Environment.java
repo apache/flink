@@ -69,7 +69,7 @@ public class Environment {
 	private DeploymentEntry deployment;
 
 	public Environment() {
-		this.modules = Collections.emptyMap();
+		this.modules = new LinkedHashMap<>();
 		this.catalogs = Collections.emptyMap();
 		this.tables = Collections.emptyMap();
 		this.functions = Collections.emptyMap();
@@ -83,7 +83,7 @@ public class Environment {
 	}
 
 	public void setModules(List<Map<String, Object>> modules) {
-		this.modules = new HashMap<>(modules.size());
+		this.modules = new LinkedHashMap<>(modules.size());
 
 		modules.forEach(config -> {
 			final ModuleEntry entry = ModuleEntry.create(config);
@@ -235,7 +235,7 @@ public class Environment {
 		final Environment mergedEnv = new Environment();
 
 		// merge modules
-		final Map<String, ModuleEntry> modules = new HashMap<>(env1.getModules());
+		final Map<String, ModuleEntry> modules = new LinkedHashMap<>(env1.getModules());
 		modules.putAll(env2.getModules());
 		mergedEnv.modules = modules;
 

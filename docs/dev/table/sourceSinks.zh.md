@@ -1,7 +1,7 @@
 ---
 title: "User-defined Sources & Sinks"
 nav-parent_id: tableapi
-nav-pos: 40
+nav-pos: 130
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-A `TableSource` provides access to data which is stored in external systems (database, key-value store, message queue) or files. After a [TableSource is registered in a TableEnvironment](common.html#register-a-tablesource) it can be accessed by [Table API](tableApi.html) or [SQL](sql.html) queries.
+A `TableSource` provides access to data which is stored in external systems (database, key-value store, message queue) or files. After a [TableSource is registered in a TableEnvironment](common.html#register-a-tablesource) it can be accessed by [Table API](tableApi.html) or [SQL]({{ site.baseurl }}/dev/table/sql/queries.html) queries.
 
 A `TableSink` [emits a Table](common.html#emit-a-table) to an external storage system, such as a database, key-value store, message queue, or file system (in different encodings, e.g., CSV, Parquet, or ORC).
 
@@ -71,13 +71,13 @@ TableSource[T] {
 </div>
 </div>
 
-* `getTableSchema()`: Returns the schema of the table, i.e., the names and types of the fields of the table. The field types are defined using Flink's `TypeInformation` (see [Table API types](tableApi.html#data-types) and [SQL types](sql.html#data-types)).
+* `getTableSchema()`: Returns the schema of the produced table, i.e., the names and types of the fields of the table. The field types are defined using Flink's `DataType` (see [Table API types]({{ site.baseurl }}/dev/table/types.html) and [SQL types]({{ site.baseurl }}/dev/table/sql/index.html#data-types)). Note that the returned `TableSchema` shouldn't contain computed columns to reflect the schema of the physical `TableSource`.
 
 * `getReturnType()`: Returns the physical type of the `DataStream` (`StreamTableSource`) or `DataSet` (`BatchTableSource`) and the records that are produced by the `TableSource`.
 
 * `explainSource()`: Returns a String that describes the `TableSource`. This method is optional and used for display purposes only.
 
-The `TableSource` interface separates the logical table schema from the physical type of the returned `DataStream` or `DataSet`. As a consequence, all fields of the table schema (`getTableSchema()`) must be mapped to a field with corresponding type of the physical return type (`getReturnType()`). By default, this mapping is done based on field names. For example, a `TableSource` that defines a table schema with two fields `[name: String, size: Integer]` requires a `TypeInformation` with at least two fields called `name` and `size` of type `String` and `Integer`, respectively. This could be a `PojoTypeInfo` or a `RowTypeInfo` that have two fields named `name` and `size` with matching types. 
+The `TableSource` interface separates the logical table schema from the physical type of the returned `DataStream` or `DataSet`. As a consequence, all fields of the table schema (`getTableSchema()`) must be mapped to a field with corresponding type of the physical return type (`getReturnType()`). By default, this mapping is done based on field names. For example, a `TableSource` that defines a table schema with two fields `[name: String, size: Integer]` requires a `TypeInformation` with at least two fields called `name` and `size` of type `String` and `Integer`, respectively. This could be a `PojoTypeInfo` or a `RowTypeInfo` that have two fields named `name` and `size` with matching types.
 
 However, some types, such as Tuple or CaseClass types, do support custom field names. If a `TableSource` returns a `DataStream` or `DataSet` of a type with fixed field names, it can implement the `DefinedFieldMapping` interface to map field names from the table schema to field names of the physical return type.
 
@@ -111,7 +111,7 @@ BatchTableSource[T] extends TableSource[T] {
 
 ### Defining a StreamTableSource
 
-The `StreamTableSource` interface extends the `TableSource` interface and defines one additional method: 
+The `StreamTableSource` interface extends the `TableSource` interface and defines one additional method:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -139,7 +139,7 @@ StreamTableSource[T] extends TableSource[T] {
 
 ### Defining a TableSource with Time Attributes
 
-Time-based operations of streaming [Table API](tableApi.html#group-windows) and [SQL](sql.html#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes](streaming/time_attributes.html).
+Time-based operations of streaming [Table API](tableApi.html#group-windows) and [SQL]({{ site.baseurl }}/dev/table/sql/queries.html#group-windows) queries, such as windowed aggregations or joins, require explicitly specified [time attributes](streaming/time_attributes.html).
 
 A `TableSource` defines a time attribute as a field of type `Types.SQL_TIMESTAMP` in its table schema. In contrast to all regular fields in the schema, a time attribute must not be matched to a physical field in the return type of the table source. Instead, a `TableSource` defines a time attribute by implementing a certain interface.
 
@@ -175,9 +175,9 @@ DefinedProctimeAttribute {
 
 [Rowtime attributes](streaming/time_attributes.html#event-time) are attributes of type `TIMESTAMP` and handled in a unified way in stream and batch queries.
 
-A table schema field of type `SQL_TIMESTAMP` can be declared as rowtime attribute by specifying 
+A table schema field of type `SQL_TIMESTAMP` can be declared as rowtime attribute by specifying
 
-* the name of the field, 
+* the name of the field,
 * a `TimestampExtractor` that computes the actual value for the attribute (usually from one or more other fields), and
 * a `WatermarkStrategy` that specifies how watermarks are generated for the the rowtime attribute.
 
@@ -263,7 +263,7 @@ ProjectableTableSource[T] {
 
 * `projectFields(fields)`: Returns a *copy* of the `TableSource` with adjusted physical return type. The `fields` parameter provides the indexes of the fields that must be provided by the `TableSource`. The indexes relate to the `TypeInformation` of the physical return type, *not* to the logical table schema. The copied `TableSource` must adjust its return type and the returned `DataStream` or `DataSet`. The `TableSchema` of the copied `TableSource` must not be changed, i.e, it must be the same as the original `TableSource`. If the `TableSource` implements the `DefinedFieldMapping` interface, the field mapping must be adjusted to the new return type.
 
-<span class="label label-danger">Attention</span> In order for Flink to distinguish a projection push-down table source from its original form, `explainSource` method must be override to include information regarding the projected fields.   
+<span class="label label-danger">Attention</span> In order for Flink to distinguish a projection push-down table source from its original form, `explainSource` method must be override to include information regarding the projected fields.
 
 The `ProjectableTableSource` adds support to project flat fields. If the `TableSource` defines a table with nested schema, it can implement the `NestedFieldsProjectableTableSource` to extend the projection to nested fields. The `NestedFieldsProjectableTableSource` is defined as follows:
 
@@ -287,7 +287,7 @@ NestedFieldsProjectableTableSource[T] {
 </div>
 </div>
 
-* `projectNestedField(fields, nestedFields)`: Returns a *copy* of the `TableSource` with adjusted physical return type. Fields of the physical return type may be removed or reordered but their type must not be changed. The contract of this method is essentially the same as for the `ProjectableTableSource.projectFields()` method. In addition, the `nestedFields` parameter contains for each field index in the `fields` list, a list of paths to all nested fields that are accessed by the query. All other nested fields do not need to be read, parsed, and set in the records that are produced by the `TableSource`. 
+* `projectNestedField(fields, nestedFields)`: Returns a *copy* of the `TableSource` with adjusted physical return type. Fields of the physical return type may be removed or reordered but their type must not be changed. The contract of this method is essentially the same as for the `ProjectableTableSource.projectFields()` method. In addition, the `nestedFields` parameter contains for each field index in the `fields` list, a list of paths to all nested fields that are accessed by the query. All other nested fields do not need to be read, parsed, and set in the records that are produced by the `TableSource`.
 
 <span class="label label-danger">Attention</span> the types of the projected fields must not be changed but unused fields may be set to null or to a default value.
 
@@ -323,7 +323,7 @@ FilterableTableSource[T] {
 </div>
 </div>
 
-* `applyPredicate(predicates)`: Returns a *copy* of the `TableSource` with added predicates. The `predicates` parameter is a mutable list of conjunctive predicates that are "offered" to the `TableSource`. The `TableSource` accepts to evaluate a predicate by removing it from the list. Predicates that are left in the list will be evaluated by a subsequent filter operator. 
+* `applyPredicate(predicates)`: Returns a *copy* of the `TableSource` with added predicates. The `predicates` parameter is a mutable list of conjunctive predicates that are "offered" to the `TableSource`. The `TableSource` accepts to evaluate a predicate by removing it from the list. Predicates that are left in the list will be evaluated by a subsequent filter operator.
 * `isFilterPushedDown()`: Returns true if the `applyPredicate()` method was called before. Hence, `isFilterPushedDown()` must return true for all `TableSource` instances returned from a `applyPredicate()` call.
 
 <span class="label label-danger">Attention</span> In order for Flink to distinguish a filter push-down table source from its original form, `explainSource` method must be override to include information regarding the push-down filters.
@@ -367,7 +367,7 @@ LookupableTableSource[T] extends TableSource[T] {
 </div>
 
 * `getLookupFunction(lookupkeys)`: Returns a `TableFunction` which used to lookup the matched row(s) via lookup keys. The lookupkeys are the field names of `LookupableTableSource` in the join equal conditions. The eval method parameters of the returned `TableFunction`'s should be in the order which `lookupkeys` defined. It is recommended to define the parameters in varargs (e.g. `eval(Object... lookupkeys)` to match all the cases). The return type of the `TableFunction` must be identical to the return type defined by the `TableSource.getReturnType()` method.
-* `getAsyncLookupFunction(lookupkeys)`: Optional. Similar to `getLookupFunction`, but the `AsyncLookupFunction` lookups the matched row(s) asynchronously. The underlying of `AsyncLookupFunction` will be called via [Async I/O](/dev/stream/operators/asyncio.html). The first argument of the eval method of the returned `AsyncTableFunction` should be defined as `java.util.concurrent.CompletableFuture` to collect results asynchronously (e.g. `eval(CompletableFuture<Collection<String>> result, Object... lookupkeys)`). The implementation of this method can throw an exception if the TableSource doesn't support asynchronously lookup.
+* `getAsyncLookupFunction(lookupkeys)`: Optional. Similar to `getLookupFunction`, but the `AsyncLookupFunction` lookups the matched row(s) asynchronously. The underlying of `AsyncLookupFunction` will be called via [Async I/O]({{ site.baseurl }}/dev/stream/operators/asyncio.html). The first argument of the eval method of the returned `AsyncTableFunction` should be defined as `java.util.concurrent.CompletableFuture` to collect results asynchronously (e.g. `eval(CompletableFuture<Collection<String>> result, Object... lookupkeys)`). The implementation of this method can throw an exception if the TableSource doesn't support asynchronously lookup.
 * `isAsyncEnabled()`: Returns true if async lookup is enabled. It requires `getAsyncLookupFunction(lookupkeys)` is implemented if `isAsyncEnabled` returns true.
 
 {% top %}
@@ -411,7 +411,7 @@ TableSink[T] {
 </div>
 </div>
 
-The `TableSink#configure` method is called to pass the schema of the Table (field names and types) to emit to the `TableSink`. The method must return a new instance of the TableSink which is configured to emit the provided Table schema.
+The `TableSink#configure` method is called to pass the schema of the Table (field names and types) to emit to the `TableSink`. The method must return a new instance of the TableSink which is configured to emit the provided Table schema. Note that the provided `TableSchema` shouldn't contain computed columns to reflect the schema of the physical `TableSink`.
 
 ### BatchTableSink
 
@@ -452,7 +452,7 @@ The interface looks as follows:
 {% highlight java %}
 AppendStreamTableSink<T> implements TableSink<T> {
 
-  public void emitDataStream(DataStream<T> dataStream);
+  public DataStreamSink<?> consumeDataStream(DataStream<T> dataStream);
 }
 {% endhighlight %}
 </div>
@@ -461,7 +461,7 @@ AppendStreamTableSink<T> implements TableSink<T> {
 {% highlight scala %}
 AppendStreamTableSink[T] extends TableSink[T] {
 
-  def emitDataStream(dataStream: DataStream[T]): Unit
+  def consumeDataStream(dataStream: DataStream[T]): DataStreamSink[_]
 }
 {% endhighlight %}
 </div>
@@ -484,7 +484,7 @@ RetractStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public TypeInformation<T> getRecordType();
 
-  public void emitDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
+  public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
 }
 {% endhighlight %}
 </div>
@@ -495,7 +495,7 @@ RetractStreamTableSink[T] extends TableSink[Tuple2[Boolean, T]] {
 
   def getRecordType: TypeInformation[T]
 
-  def emitDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): Unit
+  def consumeDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): DataStreamSink[_]
 }
 {% endhighlight %}
 </div>
@@ -522,7 +522,7 @@ UpsertStreamTableSink<T> implements TableSink<Tuple2<Boolean, T>> {
 
   public TypeInformation<T> getRecordType();
 
-  public void emitDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
+  public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, T>> dataStream);
 }
 {% endhighlight %}
 </div>
@@ -537,7 +537,7 @@ UpsertStreamTableSink[T] extends TableSink[Tuple2[Boolean, T]] {
 
   def getRecordType: TypeInformation[T]
 
-  def emitDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): Unit
+  def consumeDataStream(dataStream: DataStream[Tuple2[Boolean, T]]): DataStreamSink[_]
 }
 {% endhighlight %}
 </div>
@@ -756,6 +756,7 @@ tableEnv
   .inAppendMode()
   .createTemporaryTable("MySystemTable");
 {% endhighlight %}
+
 </div>
 
 <div data-lang="scala" markdown="1">
@@ -771,7 +772,7 @@ import java.util.Map
   * Connector to MySystem with debug mode.
   */
 class MySystemConnector(isDebug: Boolean) extends ConnectorDescriptor("my-system", 1, false) {
-  
+
   override protected def toConnectorProperties(): Map[String, String] = {
     val properties = new HashMap[String, String]
     properties.put("connector.debug", isDebug.toString)
@@ -793,6 +794,7 @@ tableEnv
 {% endhighlight %}
 
 </div>
+
 <div data-lang="python" markdown="1">
 
 You can use a Java `TableFactory` from Python using the `CustomConnectorDescriptor`.
@@ -809,7 +811,7 @@ st_env\
     .create_temporary_table("MySystemTable")
 {% endhighlight %}
 </div>
-</div>
 
+</div>
 
 {% top %}

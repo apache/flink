@@ -18,19 +18,17 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
@@ -40,15 +38,15 @@ import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.sort.BinaryExternalSorter;
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.util.BitSet;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -61,8 +59,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>NOTE: SEMI and ANTI join output input1 instead of input2. (Contrary to {@link HashJoinOperator}).
  */
-public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
-		implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow>, BoundedMultiInput {
+public class SortMergeJoinOperator extends TableStreamOperator<RowData>
+		implements TwoInputStreamOperator<RowData, RowData, RowData>, BoundedMultiInput {
 
 	private final double externalBufferMemRatio;
 	private final FlinkJoinType type;
@@ -82,20 +80,20 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	private transient long externalBufferMemory;
 	private transient MemoryManager memManager;
 	private transient IOManager ioManager;
-	private transient BinaryRowSerializer serializer1;
-	private transient BinaryRowSerializer serializer2;
+	private transient BinaryRowDataSerializer serializer1;
+	private transient BinaryRowDataSerializer serializer2;
 	private transient BinaryExternalSorter sorter1;
 	private transient BinaryExternalSorter sorter2;
-	private transient Collector<BaseRow> collector;
+	private transient Collector<RowData> collector;
 	private transient boolean[] isFinished;
 	private transient JoinCondition condFunc;
 	private transient RecordComparator keyComparator;
-	private transient Projection<BaseRow, BinaryRow> projection1;
-	private transient Projection<BaseRow, BinaryRow> projection2;
+	private transient Projection<RowData, BinaryRowData> projection1;
+	private transient Projection<RowData, BinaryRowData> projection2;
 
-	private transient BaseRow leftNullRow;
-	private transient BaseRow rightNullRow;
-	private transient JoinedRow joinedRow;
+	private transient RowData leftNullRow;
+	private transient RowData rightNullRow;
+	private transient JoinedRowData joinedRow;
 
 	public SortMergeJoinOperator(
 			double externalBufferMemRatio,
@@ -131,11 +129,11 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		collector = new StreamRecordCollector<>(output);
 
 		ClassLoader cl = getUserCodeClassloader();
-		AbstractRowSerializer inputSerializer1 = (AbstractRowSerializer) getOperatorConfig().getTypeSerializerIn1(cl);
-		this.serializer1 = new BinaryRowSerializer(inputSerializer1.getArity());
+		AbstractRowDataSerializer inputSerializer1 = (AbstractRowDataSerializer) getOperatorConfig().getTypeSerializerIn1(cl);
+		this.serializer1 = new BinaryRowDataSerializer(inputSerializer1.getArity());
 
-		AbstractRowSerializer inputSerializer2 = (AbstractRowSerializer) getOperatorConfig().getTypeSerializerIn2(cl);
-		this.serializer2 = new BinaryRowSerializer(inputSerializer2.getArity());
+		AbstractRowDataSerializer inputSerializer2 = (AbstractRowDataSerializer) getOperatorConfig().getTypeSerializerIn2(cl);
+		this.serializer2 = new BinaryRowDataSerializer(inputSerializer2.getArity());
 
 		this.memManager = this.getContainingTask().getEnvironment().getMemoryManager();
 		this.ioManager = this.getContainingTask().getEnvironment().getIOManager();
@@ -186,9 +184,9 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		projection1 = projectionCode1.newInstance(cl);
 		projection2 = projectionCode2.newInstance(cl);
 
-		this.leftNullRow = new GenericRow(serializer1.getArity());
-		this.rightNullRow = new GenericRow(serializer2.getArity());
-		this.joinedRow = new JoinedRow();
+		this.leftNullRow = new GenericRowData(serializer1.getArity());
+		this.rightNullRow = new GenericRowData(serializer2.getArity());
+		this.joinedRow = new JoinedRowData();
 
 		condFuncCode = null;
 		computer1 = null;
@@ -210,12 +208,12 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	}
 
 	@Override
-	public void processElement1(StreamRecord<BaseRow> element) throws Exception {
+	public void processElement1(StreamRecord<RowData> element) throws Exception {
 		this.sorter1.write(element.getValue());
 	}
 
 	@Override
-	public void processElement2(StreamRecord<BaseRow> element) throws Exception {
+	public void processElement2(StreamRecord<RowData> element) throws Exception {
 		this.sorter2.write(element.getValue());
 	}
 
@@ -269,11 +267,11 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 					serializer1, serializer2, projection1, projection2,
 					keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls)) {
 				while (joinIterator.nextInnerJoin()) {
-					BaseRow probeRow = joinIterator.getProbeRow();
+					RowData probeRow = joinIterator.getProbeRow();
 					boolean matched = false;
 					try (ResettableExternalBuffer.BufferIterator iter = joinIterator.getMatchBuffer().newIterator()) {
 						while (iter.advanceNext()) {
-							BaseRow row = iter.getRow();
+							RowData row = iter.getRow();
 							if (condFunc.apply(probeRow, row)) {
 								matched = true;
 								break;
@@ -290,13 +288,13 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 					serializer1, serializer2, projection1, projection2,
 					keyComparator, iterator1, iterator2, newBuffer(serializer2), filterNulls)) {
 				while (joinIterator.nextOuterJoin()) {
-					BaseRow probeRow = joinIterator.getProbeRow();
+					RowData probeRow = joinIterator.getProbeRow();
 					ResettableExternalBuffer matchBuffer = joinIterator.getMatchBuffer();
 					boolean matched = false;
 					if (matchBuffer != null) {
 						try (ResettableExternalBuffer.BufferIterator iter = matchBuffer.newIterator()) {
 							while (iter.advanceNext()) {
-								BaseRow row = iter.getRow();
+								RowData row = iter.getRow();
 								if (condFunc.apply(probeRow, row)) {
 									matched = true;
 									break;
@@ -317,10 +315,10 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	private void innerJoin(
 			SortMergeInnerJoinIterator iterator, boolean reverseInvoke) throws Exception {
 		while (iterator.nextInnerJoin()) {
-			BaseRow probeRow = iterator.getProbeRow();
+			RowData probeRow = iterator.getProbeRow();
 			ResettableExternalBuffer.BufferIterator iter = iterator.getMatchBuffer().newIterator();
 			while (iter.advanceNext()) {
-				BaseRow row = iter.getRow();
+				RowData row = iter.getRow();
 				joinWithCondition(probeRow, row, reverseInvoke);
 			}
 			iter.close();
@@ -329,15 +327,15 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 
 	private void oneSideOuterJoin(
 			SortMergeOneSideOuterJoinIterator iterator, boolean reverseInvoke,
-			BaseRow buildNullRow) throws Exception {
+			RowData buildNullRow) throws Exception {
 		while (iterator.nextOuterJoin()) {
-			BaseRow probeRow = iterator.getProbeRow();
+			RowData probeRow = iterator.getProbeRow();
 			boolean found = false;
 
 			if (iterator.getMatchKey() != null) {
 				ResettableExternalBuffer.BufferIterator iter = iterator.getMatchBuffer().newIterator();
 				while (iter.advanceNext()) {
-					BaseRow row = iter.getRow();
+					RowData row = iter.getRow();
 					found |= joinWithCondition(probeRow, row, reverseInvoke);
 				}
 				iter.close();
@@ -355,33 +353,33 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		while (iterator.nextOuterJoin()) {
 
 			bitSet.clear();
-			BinaryRow matchKey = iterator.getMatchKey();
+			BinaryRowData matchKey = iterator.getMatchKey();
 			ResettableExternalBuffer buffer1 = iterator.getBuffer1();
 			ResettableExternalBuffer buffer2 = iterator.getBuffer2();
 
 			if (matchKey == null && buffer1.size() > 0) { // left outer join.
 				ResettableExternalBuffer.BufferIterator iter = buffer1.newIterator();
 				while (iter.advanceNext()) {
-					BaseRow row1 = iter.getRow();
+					RowData row1 = iter.getRow();
 					collector.collect(joinedRow.replace(row1, rightNullRow));
 				}
 				iter.close();
 			} else if (matchKey == null && buffer2.size() > 0) { // right outer join.
 				ResettableExternalBuffer.BufferIterator iter = buffer2.newIterator();
 				while (iter.advanceNext()) {
-					BaseRow row2 = iter.getRow();
+					RowData row2 = iter.getRow();
 					collector.collect(joinedRow.replace(leftNullRow, row2));
 				}
 				iter.close();
 			} else if (matchKey != null) { // match join.
 				ResettableExternalBuffer.BufferIterator iter1 = buffer1.newIterator();
 				while (iter1.advanceNext()) {
-					BaseRow row1 = iter1.getRow();
+					RowData row1 = iter1.getRow();
 					boolean found = false;
 					int index = 0;
 					ResettableExternalBuffer.BufferIterator iter2 = buffer2.newIterator();
 					while (iter2.advanceNext()) {
-						BaseRow row2 = iter2.getRow();
+						RowData row2 = iter2.getRow();
 						if (condFunc.apply(row1, row2)) {
 							collector.collect(joinedRow.replace(row1, row2));
 							found = true;
@@ -400,7 +398,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 				int index = 0;
 				ResettableExternalBuffer.BufferIterator iter2 = buffer2.newIterator();
 				while (iter2.advanceNext()) {
-					BaseRow row2 = iter2.getRow();
+					RowData row2 = iter2.getRow();
 					if (!bitSet.get(index)) {
 						collector.collect(joinedRow.replace(leftNullRow, row2));
 					}
@@ -414,7 +412,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	}
 
 	private boolean joinWithCondition(
-			BaseRow row1, BaseRow row2, boolean reverseInvoke) throws Exception {
+			RowData row1, RowData row2, boolean reverseInvoke) throws Exception {
 		if (reverseInvoke) {
 			if (condFunc.apply(row2, row1)) {
 				collector.collect(joinedRow.replace(row2, row1));
@@ -430,7 +428,7 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 	}
 
 	private void collect(
-			BaseRow row1, BaseRow row2, boolean reverseInvoke) {
+			RowData row1, RowData row2, boolean reverseInvoke) {
 		if (reverseInvoke) {
 			collector.collect(joinedRow.replace(row2, row1));
 		} else {
@@ -438,10 +436,12 @@ public class SortMergeJoinOperator extends TableStreamOperator<BaseRow>
 		}
 	}
 
-	private ResettableExternalBuffer newBuffer(BinaryRowSerializer serializer) throws MemoryAllocationException {
-		List<MemorySegment> externalBufferSegments = memManager.allocatePages(
-				this.getContainingTask(), (int) (externalBufferMemory / memManager.getPageSize()));
-		return new ResettableExternalBuffer(memManager, ioManager, externalBufferSegments, serializer,
+	private ResettableExternalBuffer newBuffer(BinaryRowDataSerializer serializer) {
+		LazyMemorySegmentPool pool = new LazyMemorySegmentPool(
+				this.getContainingTask(),
+				memManager,
+				(int) (externalBufferMemory / memManager.getPageSize()));
+		return new ResettableExternalBuffer(ioManager, pool, serializer,
 				false /* we don't use newIterator(int beginRow), so don't need use this optimization*/);
 	}
 

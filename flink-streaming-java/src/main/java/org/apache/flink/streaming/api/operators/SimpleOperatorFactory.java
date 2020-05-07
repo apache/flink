@@ -23,9 +23,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -35,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <OUT> The output type of the operator
  */
 @Internal
-public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
+public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OUT> {
 
 	private final StreamOperator<OUT> operator;
 
@@ -61,6 +58,9 @@ public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 
 	protected SimpleOperatorFactory(StreamOperator<OUT> operator) {
 		this.operator = checkNotNull(operator);
+		if (operator instanceof SetupableStreamOperator) {
+			this.chainingStrategy = ((SetupableStreamOperator) operator).getChainingStrategy();
+		}
 	}
 
 	public StreamOperator<OUT> getOperator() {
@@ -69,22 +69,25 @@ public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends StreamOperator<OUT>> T createStreamOperator(StreamTask<?, ?> containingTask,
-			StreamConfig config, Output<StreamRecord<OUT>> output) {
+	public <T extends StreamOperator<OUT>> T createStreamOperator(StreamOperatorParameters<OUT> parameters) {
+		if (operator instanceof AbstractStreamOperator) {
+			((AbstractStreamOperator) operator).setProcessingTimeService(processingTimeService);
+		}
 		if (operator instanceof SetupableStreamOperator) {
-			((SetupableStreamOperator) operator).setup(containingTask, config, output);
+			((SetupableStreamOperator) operator).setup(
+				parameters.getContainingTask(),
+				parameters.getStreamConfig(),
+				parameters.getOutput());
 		}
 		return (T) operator;
 	}
 
 	@Override
 	public void setChainingStrategy(ChainingStrategy strategy) {
-		operator.setChainingStrategy(strategy);
-	}
-
-	@Override
-	public ChainingStrategy getChainingStrategy() {
-		return operator.getChainingStrategy();
+		this.chainingStrategy = strategy;
+		if (operator instanceof SetupableStreamOperator) {
+			((SetupableStreamOperator) operator).setChainingStrategy(strategy);
+		}
 	}
 
 	@Override

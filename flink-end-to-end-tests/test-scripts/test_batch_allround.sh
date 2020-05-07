@@ -26,8 +26,8 @@ TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-dataset-allround-test/target/DataSetAll
 echo "Run DataSet-Allround-Test Program"
 
 # modify configuration to include spilling to disk
-set_config_key "taskmanager.memory.shuffle.min" "111149056"
-set_config_key "taskmanager.memory.shuffle.max" "111149056"
+set_config_key "taskmanager.memory.network.min" "111149056"
+set_config_key "taskmanager.memory.network.max" "111149056"
 
 set_conf_ssl "server"
 start_cluster

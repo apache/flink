@@ -290,7 +290,7 @@ class JoinTest extends TableTestBase {
           ),
           unaryNode("DataStreamCalc",
             streamTableNode(t2),
-            term("select", "a", "c", "proctime", "CAST(12:BIGINT) AS nullField")
+            term("select", "a", "c", "proctime", "12:BIGINT AS nullField")
           ),
           term("where", "AND(=(a, a0), =(nullField, nullField0), >=(PROCTIME(proctime), " +
             "-(PROCTIME(proctime0), 5000:INTERVAL SECOND)), <=(PROCTIME(proctime), " +

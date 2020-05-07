@@ -49,4 +49,9 @@ modules:
   - name: mymodule
     type: ModuleDependencyTest
     test: test
+  - name: myhive
+    type: hive
+  - name: myhive2
+    type: hive
+    hive-version: 2.3.4
 

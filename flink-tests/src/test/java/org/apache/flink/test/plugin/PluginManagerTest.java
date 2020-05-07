@@ -83,7 +83,8 @@ public class PluginManagerTest extends PluginTestBase {
 	@Test
 	public void testPluginLoading() {
 
-		final PluginManager pluginManager = new PluginManager(descriptors, PARENT_CLASS_LOADER, new String[0]);
+		String[] parentPatterns = { TestSpi.class.getName(), OtherTestSpi.class.getName() };
+		final PluginManager pluginManager = new PluginManager(descriptors, PARENT_CLASS_LOADER, parentPatterns);
 		final List<TestSpi> serviceImplList = Lists.newArrayList(pluginManager.load(TestSpi.class));
 		Assert.assertEquals(2, serviceImplList.size());
 

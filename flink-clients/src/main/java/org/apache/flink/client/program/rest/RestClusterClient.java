@@ -157,9 +157,20 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 	public RestClusterClient(Configuration config, T clusterId) throws Exception {
 		this(
 			config,
+			clusterId,
+			HighAvailabilityServicesUtils.createClientHAService(config));
+	}
+
+	public RestClusterClient(
+			Configuration config,
+			T clusterId,
+			ClientHighAvailabilityServices clientHAServices) throws Exception {
+		this(
+			config,
 			null,
 			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L));
+			new ExponentialWaitStrategy(10L, 2000L),
+			clientHAServices);
 	}
 
 	@VisibleForTesting
@@ -168,7 +179,20 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 		@Nullable RestClient restClient,
 		T clusterId,
 		WaitStrategy waitStrategy) throws Exception {
+		this(
+			configuration,
+			restClient,
+			clusterId,
+			waitStrategy,
+			HighAvailabilityServicesUtils.createClientHAService(configuration));
+	}
 
+	private RestClusterClient(
+		Configuration configuration,
+		@Nullable RestClient restClient,
+		T clusterId,
+		WaitStrategy waitStrategy,
+		ClientHighAvailabilityServices clientHAServices) throws Exception {
 		this.configuration = checkNotNull(configuration);
 
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
@@ -182,7 +206,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 		this.waitStrategy = checkNotNull(waitStrategy);
 		this.clusterId = checkNotNull(clusterId);
 
-		this.clientHAServices = HighAvailabilityServicesUtils.createClientHAService(configuration);
+		this.clientHAServices = checkNotNull(clientHAServices);
 
 		this.webMonitorRetrievalService = clientHAServices.getClusterRestEndpointLeaderRetriever();
 		this.retryExecutorService = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
@@ -288,8 +312,17 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 			}
 
 			for (Map.Entry<String, DistributedCache.DistributedCacheEntry> artifacts : jobGraph.getUserArtifacts().entrySet()) {
-				artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), new Path(artifacts.getValue().filePath).getName()));
-				filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
+				final Path artifactFilePath = new Path(artifacts.getValue().filePath);
+				try {
+					// Only local artifacts need to be uploaded.
+					if (!artifactFilePath.getFileSystem().isDistributedFS()) {
+						artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), artifactFilePath.getName()));
+						filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
+					}
+				} catch (IOException e) {
+					throw new CompletionException(
+						new FlinkException("Failed to get the FileSystem of artifact " + artifactFilePath + ".", e));
+				}
 			}
 
 			final JobSubmitRequestBody requestBody = new JobSubmitRequestBody(

@@ -19,16 +19,18 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
+import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.TableSource
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.shaded.guava18.com.google.common.base.Preconditions
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 
 import java.util
-import java.util.{List => JList}
+import java.util.{Collections, List => JList}
 
 import scala.collection.JavaConverters._
 
@@ -51,7 +53,8 @@ class TableSourceTable[T](
     statistic: FlinkStatistic,
     val tableSource: TableSource[T],
     val isStreamingMode: Boolean,
-    val catalogTable: CatalogTable)
+    val catalogTable: CatalogTable,
+    val dynamicOptions: JMap[String, String])
   extends FlinkPreparingTableBase(
     relOptSchema,
     rowType,
@@ -61,11 +64,33 @@ class TableSourceTable[T](
       tableIdentifier.getObjectName),
     statistic) {
 
+  def this(relOptSchema: RelOptSchema,
+    tableIdentifier: ObjectIdentifier,
+    rowType: RelDataType,
+    statistic: FlinkStatistic,
+    tableSource: TableSource[T],
+    isStreamingMode: Boolean,
+    catalogTable: CatalogTable) = this(relOptSchema, tableIdentifier, rowType, statistic,
+    tableSource, isStreamingMode, catalogTable, Collections.emptyMap())
+
   Preconditions.checkNotNull(tableSource)
   Preconditions.checkNotNull(statistic)
   Preconditions.checkNotNull(catalogTable)
 
-  override def getQualifiedName: JList[String] = explainSourceAsString(tableSource)
+  override def getQualifiedName: JList[String] = {
+    val sourceExplain = explainSourceAsString(tableSource)
+    if (dynamicOptions.size() == 0) {
+      sourceExplain
+    } else {
+      // Add the dynamic options as part of the table digest,
+      // this is a temporary solution, we expect to avoid this
+      // before Calcite 1.23.0.
+      ImmutableList.builder[String]()
+        .addAll(sourceExplain)
+        .add(s"dynamic options: $dynamicOptions")
+        .build()
+    }
+  }
 
   /**
     * Creates a copy of this table, changing table source and statistic.
@@ -82,7 +107,8 @@ class TableSourceTable[T](
       statistic,
       tableSource.asInstanceOf[TableSource[T]],
       isStreamingMode,
-      catalogTable)
+      catalogTable,
+      dynamicOptions)
   }
 
   /**
@@ -109,6 +135,7 @@ class TableSourceTable[T](
       statistic,
       tableSource.asInstanceOf[TableSource[T]],
       isStreamingMode,
-      catalogTable)
+      catalogTable,
+      dynamicOptions)
   }
 }

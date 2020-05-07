@@ -184,4 +184,13 @@ else
 
 fi
 
-docker build --build-arg flink_dist="${FLINK_DIST}" --build-arg job_artifacts="${JOB_ARTIFACTS_TARGET}" --build-arg hadoop_jar="${SHADED_HADOOP}" --build-arg python_version="${PYTHON_VERSION}" -t "${IMAGE_NAME}" .
+if [[ `uname -i` == 'aarch64' ]]; then
+    # openjdk:8-jre-alpine doesn't work on ARM. See bug: https://icedtea.classpath.org/bugzilla/show_bug.cgi?id=3740
+    cp Dockerfile Dockerfile-ARM
+    sed -i 's/openjdk:8-jre-alpine/arm64v8\/openjdk:8u201-jdk-alpine/' Dockerfile-ARM
+    DOCKERFILE="Dockerfile-ARM"
+else
+    DOCKERFILE="Dockerfile"
+fi
+
+docker build --build-arg flink_dist="${FLINK_DIST}" --build-arg job_artifacts="${JOB_ARTIFACTS_TARGET}" --build-arg hadoop_jar="${SHADED_HADOOP}" --build-arg python_version="${PYTHON_VERSION}" -t "${IMAGE_NAME}" -f $DOCKERFILE .

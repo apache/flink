@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.codegen.over
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils}
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
@@ -116,7 +116,7 @@ class RangeBoundComparatorCodeGenerator(
         }
 
         @Override
-        public int compare($BASE_ROW $input, $BASE_ROW $current) {
+        public int compare($ROW_DATA $input, $ROW_DATA $current) {
           ${comparatorCode.mkString}
         }
       }

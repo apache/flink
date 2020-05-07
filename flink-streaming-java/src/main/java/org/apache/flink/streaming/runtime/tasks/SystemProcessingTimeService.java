@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.NeverCompleteFuture;
 
 import org.slf4j.Logger;
@@ -28,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -58,6 +58,8 @@ public class SystemProcessingTimeService implements TimerService {
 	private final ExceptionHandler exceptionHandler;
 	private final AtomicInteger status;
 
+	private final CompletableFuture<Void> quiesceCompletedFuture;
+
 	@VisibleForTesting
 	SystemProcessingTimeService(ExceptionHandler exceptionHandler) {
 		this(exceptionHandler, null);
@@ -67,11 +69,12 @@ public class SystemProcessingTimeService implements TimerService {
 
 		this.exceptionHandler = checkNotNull(exceptionHandler);
 		this.status = new AtomicInteger(STATUS_ALIVE);
+		this.quiesceCompletedFuture = new CompletableFuture<>();
 
 		if (threadFactory == null) {
-			this.timerService = new ScheduledThreadPoolExecutor(1);
+			this.timerService = new ScheduledTaskExecutor(1);
 		} else {
-			this.timerService = new ScheduledThreadPoolExecutor(1, threadFactory);
+			this.timerService = new ScheduledTaskExecutor(1, threadFactory);
 		}
 
 		// tasks should be removed if the future is canceled
@@ -99,10 +102,7 @@ public class SystemProcessingTimeService implements TimerService {
 	@Override
 	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback callback) {
 
-		// delay the firing of the timer by 1 ms to align the semantics with watermark. A watermark
-		// T says we won't see elements in the future with a timestamp smaller or equal to T.
-		// With processing time, we therefore need to delay firing the timer by one ms.
-		long delay = Math.max(timestamp - getCurrentProcessingTime(), 0) + 1;
+		long delay = ProcessingTimeServiceUtil.getProcessingTimeDelay(timestamp, getCurrentProcessingTime());
 
 		// we directly try to register the timer and only react to the status on exception
 		// that way we save unnecessary volatile accesses for each timer
@@ -166,20 +166,12 @@ public class SystemProcessingTimeService implements TimerService {
 	}
 
 	@Override
-	public void quiesce() throws InterruptedException {
+	public CompletableFuture<Void> quiesce() {
 		if (status.compareAndSet(STATUS_ALIVE, STATUS_QUIESCED)) {
 			timerService.shutdown();
 		}
-	}
 
-	@Override
-	public void awaitPendingAfterQuiesce() throws InterruptedException {
-		if (!timerService.isTerminated()) {
-			Preconditions.checkState(timerService.isTerminating() || timerService.isShutdown());
-
-			// await forever (almost)
-			timerService.awaitTermination(365L, TimeUnit.DAYS);
-		}
+		return quiesceCompletedFuture;
 	}
 
 	@Override
@@ -248,6 +240,23 @@ public class SystemProcessingTimeService implements TimerService {
 	}
 
 	// ------------------------------------------------------------------------
+
+	private class ScheduledTaskExecutor extends ScheduledThreadPoolExecutor {
+
+		public ScheduledTaskExecutor(int corePoolSize) {
+			super(corePoolSize);
+		}
+
+		public ScheduledTaskExecutor(int corePoolSize, ThreadFactory threadFactory) {
+			super(corePoolSize, threadFactory);
+		}
+
+		@Override
+		protected void terminated() {
+			super.terminated();
+			quiesceCompletedFuture.complete(null);
+		}
+	}
 
 	/**
 	 * An exception handler, called when {@link ProcessingTimeCallback} throws an exception.

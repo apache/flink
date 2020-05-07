@@ -27,11 +27,14 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -67,7 +70,10 @@ public class JobVertex implements java.io.Serializable {
 	/** List of edges with incoming data. One per Reader. */
 	private final ArrayList<JobEdge> inputs = new ArrayList<>();
 
-	/** Number of subtasks to split this task into at runtime. */
+	/** The list of factories for operator coordinators. */
+	private final ArrayList<SerializedValue<OperatorCoordinator.Provider>> operatorCoordinators = new ArrayList<>();
+
+	/** Number of subtasks to split this task into at runtime.*/
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
 	/** Maximum number of subtasks to split this task into a runtime. */
@@ -357,6 +363,14 @@ public class JobVertex implements java.io.Serializable {
 
 	public List<JobEdge> getInputs() {
 		return this.inputs;
+	}
+
+	public List<SerializedValue<OperatorCoordinator.Provider>> getOperatorCoordinators() {
+		return Collections.unmodifiableList(operatorCoordinators);
+	}
+
+	public void addOperatorCoordinator(SerializedValue<OperatorCoordinator.Provider> serializedCoordinatorProvider) {
+		operatorCoordinators.add(serializedCoordinatorProvider);
 	}
 
 	/**

@@ -19,8 +19,9 @@
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, Over}
+import org.apache.flink.table.api.{DataTypes, Expressions, Over}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{CountDistinct, CountDistinctWithRetractAndReset, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -261,12 +262,12 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val stream = failingDataSource(data)
     val table = stream.toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
 
-    val windowedTable = table.select("a, b, c, d, e, proctime")
+    val windowedTable = table.select($"a", $"b", $"c", $"d", $"e", $"proctime")
       .window(Over
-        .partitionBy("a")
-        .orderBy("proctime")
-        .preceding("4.rows")
-        .following("CURRENT_ROW")
+        .partitionBy($("a"))
+        .orderBy($("proctime"))
+        .preceding(Expressions.rowInterval(4L))
+        .following(Expressions.CURRENT_ROW)
         .as("w"))
       .select('a, 'c.sum over 'w, 'c.min over 'w, countDist('e) over 'w)
 

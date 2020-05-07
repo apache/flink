@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -56,15 +56,7 @@ class StreamExecLookupJoin(
     joinInfo,
     joinType)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -93,9 +85,9 @@ class StreamExecLookupJoin(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
     val transformation = translateToPlanInternal(
       inputTransformation,
       planner.getExecEnv,

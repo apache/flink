@@ -21,12 +21,10 @@ package org.apache.flink.mesos.runtime.clusterframework;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceSpec;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
+import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.Preconditions;
 
 import com.netflix.fenzo.ConstraintEvaluator;
@@ -54,14 +52,6 @@ public class MesosTaskManagerParameters {
 	/** Pattern replaced in the {@link #MESOS_TM_HOSTNAME} by the actual task id of the Mesos task. */
 	public static final Pattern TASK_ID_PATTERN = Pattern.compile("_TASK_", Pattern.LITERAL);
 
-	public static final ConfigOption<Integer> MESOS_RM_TASKS_SLOTS =
-		TaskManagerOptions.NUM_TASK_SLOTS;
-
-	public static final ConfigOption<Integer> MESOS_RM_TASKS_MEMORY_MB =
-		key("mesos.resourcemanager.tasks.mem")
-		.defaultValue(1024)
-		.withDescription("Memory to assign to the Mesos workers in MB.");
-
 	public static final ConfigOption<Integer> MESOS_RM_TASKS_DISK_MB =
 		key("mesos.resourcemanager.tasks.disk")
 		.defaultValue(0)
@@ -69,6 +59,7 @@ public class MesosTaskManagerParameters {
 
 	public static final ConfigOption<Double> MESOS_RM_TASKS_CPUS =
 		key("mesos.resourcemanager.tasks.cpus")
+		.doubleType()
 		.defaultValue(0.0)
 		.withDescription("CPUs to assign to the Mesos workers.");
 
@@ -209,7 +200,7 @@ public class MesosTaskManagerParameters {
 	 * Get the CPU units to use for the TaskManager process.
 	 */
 	public double cpus() {
-		return containeredParameters.getTaskExecutorResourceSpec().getCpuCores().getValue().doubleValue();
+		return containeredParameters.getTaskExecutorProcessSpec().getCpuCores().getValue().doubleValue();
 	}
 
 	/**
@@ -404,22 +395,18 @@ public class MesosTaskManagerParameters {
 
 	private static ContaineredTaskManagerParameters createContaineredTaskManagerParameters(final Configuration flinkConfig) {
 		double cpus = getCpuCores(flinkConfig);
-		MemorySize totalProcessMemory = MemorySize.parse(flinkConfig.getInteger(MESOS_RM_TASKS_MEMORY_MB) + "m");
-		TaskExecutorResourceSpec taskExecutorResourceSpec = TaskExecutorResourceUtils
-			.newResourceSpecBuilder(flinkConfig)
+		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils
+			.newProcessSpecBuilder(flinkConfig)
 			.withCpuCores(cpus)
-			.withTotalProcessMemory(totalProcessMemory)
 			.build();
 
 		return ContaineredTaskManagerParameters.create(
 			flinkConfig,
-			taskExecutorResourceSpec,
-			flinkConfig.getInteger(MESOS_RM_TASKS_SLOTS));
+			taskExecutorProcessSpec);
 	}
 
 	private static double getCpuCores(final Configuration configuration) {
-		double fallback = configuration.getInteger(MESOS_RM_TASKS_SLOTS);
-		return TaskExecutorResourceUtils.getCpuCoresWithFallback(configuration, fallback).getValue().doubleValue();
+		return TaskExecutorProcessUtils.getCpuCoresWithFallbackConfigOption(configuration, MESOS_RM_TASKS_CPUS);
 	}
 
 	private static List<ConstraintEvaluator> parseConstraints(String mesosConstraints) {

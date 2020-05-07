@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.deployment;
 
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
@@ -52,6 +53,20 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
 	ClusterClientProvider<T> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException;
 
 	/**
+	 * Triggers deployment of an application cluster. This corresponds to a cluster dedicated to the execution of a
+	 * predefined application. The cluster will be 	created on application submission and torn down upon application termination.
+	 * In addition, the {@code main()} of the application's user code will be executed on the cluster, rather than the client.
+	 *
+	 * @param clusterSpecification Cluster specification defining the cluster to deploy
+	 * @param applicationConfiguration Application-specific configuration parameters
+	 * @return Client for the cluster
+	 * @throws ClusterDeploymentException if the cluster could not be deployed
+	 */
+	ClusterClientProvider<T> deployApplicationCluster(
+			final ClusterSpecification clusterSpecification,
+			final ApplicationConfiguration applicationConfiguration) throws ClusterDeploymentException;
+
+	/**
 	 * Deploys a per-job cluster with the given job on the cluster.
 	 *
 	 * @param clusterSpecification Initial cluster specification with which the Flink cluster is launched
@@ -73,4 +88,7 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
 	 * @throws FlinkException if the cluster could not be terminated
 	 */
 	void killCluster(T clusterId) throws FlinkException;
+
+	@Override
+	void close();
 }

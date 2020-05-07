@@ -22,12 +22,14 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -36,12 +38,14 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -98,7 +102,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
  * subpartitions -- one for each parallel reduce subtask.
  */
-public class SingleInputGate extends InputGate {
+public class SingleInputGate extends IndexedInputGate {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SingleInputGate.class);
 
@@ -107,6 +111,8 @@ public class SingleInputGate extends InputGate {
 
 	/** The name of the owning task, for logging purposes. */
 	private final String owningTaskName;
+
+	private final int gateIndex;
 
 	/**
 	 * The ID of the consumed intermediate result. Each input gate consumes partitions of the
@@ -132,6 +138,9 @@ public class SingleInputGate extends InputGate {
 	 * We store this in a map for runtime updates of single channels.
 	 */
 	private final Map<IntermediateResultPartitionID, InputChannel> inputChannels;
+
+	@GuardedBy("requestLock")
+	private final InputChannel[] channels;
 
 	/** Channels, which notified this input gate about available data. */
 	private final ArrayDeque<InputChannel> inputChannelsWithData = new ArrayDeque<>();
@@ -170,10 +179,14 @@ public class SingleInputGate extends InputGate {
 	private final CompletableFuture<Void> closeFuture;
 
 	@Nullable
+	private volatile BufferReceivedListener bufferReceivedListener;
+
+	@Nullable
 	private final BufferDecompressor bufferDecompressor;
 
 	public SingleInputGate(
 		String owningTaskName,
+		int gateIndex,
 		IntermediateDataSetID consumedResultId,
 		final ResultPartitionType consumedPartitionType,
 		int consumedSubpartitionIndex,
@@ -183,6 +196,8 @@ public class SingleInputGate extends InputGate {
 		@Nullable BufferDecompressor bufferDecompressor) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
+		Preconditions.checkArgument(0 <= gateIndex, "The gate index must be positive.");
+		this.gateIndex = gateIndex;
 
 		this.consumedResultId = checkNotNull(consumedResultId);
 		this.consumedPartitionType = checkNotNull(consumedPartitionType);
@@ -195,6 +210,7 @@ public class SingleInputGate extends InputGate {
 		this.numberOfInputChannels = numberOfInputChannels;
 
 		this.inputChannels = new HashMap<>(numberOfInputChannels);
+		this.channels = new InputChannel[numberOfInputChannels];
 		this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
 		this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
 
@@ -244,6 +260,12 @@ public class SingleInputGate extends InputGate {
 		}
 	}
 
+	@Override
+	public void registerBufferReceivedListener(BufferReceivedListener bufferReceivedListener) {
+		checkState(this.bufferReceivedListener == null, "Trying to overwrite the buffer received listener");
+		this.bufferReceivedListener = checkNotNull(bufferReceivedListener);
+	}
+
 	// ------------------------------------------------------------------------
 	// Properties
 	// ------------------------------------------------------------------------
@@ -253,8 +275,14 @@ public class SingleInputGate extends InputGate {
 		return numberOfInputChannels;
 	}
 
-	public IntermediateDataSetID getConsumedResultId() {
-		return consumedResultId;
+	@Override
+	public int getGateIndex() {
+		return gateIndex;
+	}
+
+	@Nullable
+	BufferReceivedListener getBufferReceivedListener() {
+		return bufferReceivedListener;
 	}
 
 	/**
@@ -296,6 +324,11 @@ public class SingleInputGate extends InputGate {
 		return closeFuture;
 	}
 
+	@Override
+	public InputChannel getChannel(int channelIndex) {
+		return channels[channelIndex];
+	}
+
 	// ------------------------------------------------------------------------
 	// Setup/Life-cycle
 	// ------------------------------------------------------------------------
@@ -321,12 +354,20 @@ public class SingleInputGate extends InputGate {
 		}
 	}
 
-	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
+	public void setInputChannels(InputChannel... channels) {
+		if (channels.length != numberOfInputChannels) {
+			throw new IllegalArgumentException("Expected " + numberOfInputChannels + " channels, " +
+				"but got " + channels.length);
+		}
 		synchronized (requestLock) {
-			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null
+			System.arraycopy(channels, 0, this.channels, 0, numberOfInputChannels);
+			for (InputChannel inputChannel : channels) {
+				IntermediateResultPartitionID partitionId = inputChannel.getPartitionId().getPartitionId();
+				if (inputChannels.put(partitionId, inputChannel) == null
 					&& inputChannel instanceof UnknownInputChannel) {
 
-				numberOfUninitializedChannels++;
+					numberOfUninitializedChannels++;
+				}
 			}
 		}
 	}
@@ -359,6 +400,7 @@ public class SingleInputGate extends InputGate {
 				LOG.debug("{}: Updated unknown input channel to {}.", owningTaskName, newChannel);
 
 				inputChannels.put(partitionId, newChannel);
+				channels[current.getChannelIndex()] = newChannel;
 
 				if (requestedPartitionsFlag) {
 					newChannel.requestSubpartition(consumedSubpartitionIndex);
@@ -480,7 +522,7 @@ public class SingleInputGate extends InputGate {
 		}
 
 		if (closeFuture.isDone()) {
-			throw new IllegalStateException("Released");
+			throw new CancelTaskException("Input gate is already closed.");
 		}
 
 		Optional<InputWithData<InputChannel, BufferAndAvailability>> next = waitAndGetNextData(blocking);
@@ -605,6 +647,15 @@ public class SingleInputGate extends InputGate {
 				pendingEvents.add(event);
 			}
 		}
+	}
+
+	@Override
+	public void resumeConsumption(int channelIndex) {
+		// BEWARE: consumption resumption only happens for streaming jobs in which all slots
+		// are allocated together so there should be no UnknownInputChannel. As a result, it
+		// is safe to not synchronize the requestLock here. We will refactor the code to not
+		// rely on this assumption in the future.
+		channels[channelIndex].resumeConsumption();
 	}
 
 	// ------------------------------------------------------------------------

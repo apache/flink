@@ -64,7 +64,13 @@ public class KafkaTest extends DescriptorTestBase {
 				.properties(properties)
 				.sinkPartitionerCustom(FlinkFixedPartitioner.class);
 
-		return Arrays.asList(earliestDesc, specificOffsetsDesc, specificOffsetsMapDesc);
+		final Descriptor timestampDesc =
+			new Kafka()
+				.version("0.11")
+				.topic("MyTable")
+				.startFromTimestamp(1577014729000L);
+
+		return Arrays.asList(earliestDesc, specificOffsetsDesc, specificOffsetsMapDesc, timestampDesc);
 	}
 
 	@Override
@@ -98,7 +104,15 @@ public class KafkaTest extends DescriptorTestBase {
 		props3.put("connector.sink-partitioner", "custom");
 		props3.put("connector.sink-partitioner-class", FlinkFixedPartitioner.class.getName());
 
-		return Arrays.asList(props1, props2, props3);
+		final Map<String, String> props4 = new HashMap<>();
+		props4.put("connector.property-version", "1");
+		props4.put("connector.type", "kafka");
+		props4.put("connector.version", "0.11");
+		props4.put("connector.topic", "MyTable");
+		props4.put("connector.startup-mode", "timestamp");
+		props4.put("connector.startup-timestamp-millis", "1577014729000");
+
+		return Arrays.asList(props1, props2, props3, props4);
 	}
 
 	@Override

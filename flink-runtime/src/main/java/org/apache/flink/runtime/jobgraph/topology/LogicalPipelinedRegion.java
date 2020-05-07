@@ -19,36 +19,13 @@
 
 package org.apache.flink.runtime.jobgraph.topology;
 
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.runtime.topology.PipelinedRegion;
 
 /**
- * Set of {@link LogicalVertex} that are connected through pipelined {@link LogicalResult}.
+ * Pipelined region on logical level, i.e., {@link JobVertex} level.
  */
-public class LogicalPipelinedRegion {
-
-	private final Set<JobVertexID> vertexIDs;
-
-	public LogicalPipelinedRegion(final Set<? extends LogicalVertex<?, ?>> logicalVertices) {
-		checkNotNull(logicalVertices);
-
-		this.vertexIDs = logicalVertices.stream()
-			.map(LogicalVertex::getId)
-			.collect(Collectors.toSet());
-	}
-
-	public Set<JobVertexID> getVertexIDs() {
-		return vertexIDs;
-	}
-
-	@Override
-	public String toString() {
-		return "LogicalPipelinedRegion{" +
-			"vertexIDs=" + vertexIDs +
-			'}';
-	}
+public interface LogicalPipelinedRegion<V extends LogicalVertex<V, R>, R extends LogicalResult<V, R>> extends PipelinedRegion<JobVertexID, IntermediateDataSetID, V, R> {
 }

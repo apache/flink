@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 
 import org.junit.After;
 import org.junit.Test;
@@ -52,7 +53,6 @@ public class CheckpointBarrierTrackerTest {
 	public void ensureEmpty() throws Exception {
 		assertFalse(inputGate.pollNext().isPresent());
 		assertTrue(inputGate.isFinished());
-		assertTrue(inputGate.isEmpty());
 	}
 
 	@Test
@@ -284,7 +284,6 @@ public class CheckpointBarrierTrackerTest {
 			if (boe.isBuffer()) {
 				assertEquals(boe, inputGate.pollNext().get());
 			}
-			assertTrue(inputGate.isEmpty());
 		}
 	}
 
@@ -366,7 +365,7 @@ public class CheckpointBarrierTrackerTest {
 	//  Utils
 	// ------------------------------------------------------------------------
 	private static CheckpointedInputGate createBarrierTracker(int numberOfChannels, BufferOrEvent[] sequence) {
-		return createBarrierTracker(numberOfChannels, sequence, null);
+		return createBarrierTracker(numberOfChannels, sequence, new DummyCheckpointInvokable());
 	}
 
 	private static CheckpointedInputGate createBarrierTracker(
@@ -376,7 +375,6 @@ public class CheckpointBarrierTrackerTest {
 		MockInputGate gate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
 		return new CheckpointedInputGate(
 			gate,
-			new CachedBufferStorage(PAGE_SIZE, -1, "Testing"),
 			new CheckpointBarrierTracker(gate.getNumberOfInputChannels(), toNotifyOnCheckpoint));
 	}
 

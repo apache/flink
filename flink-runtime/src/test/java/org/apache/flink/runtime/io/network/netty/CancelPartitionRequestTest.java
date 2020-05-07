@@ -186,7 +186,7 @@ public class CancelPartitionRequestTest {
 
 		@Nullable
 		@Override
-		public BufferAndBacklog getNextBuffer(boolean isLocalChannel) throws IOException {
+		public BufferAndBacklog getNextBuffer() throws IOException {
 			Buffer buffer = bufferProvider.requestBuffer();
 			if (buffer != null) {
 				buffer.setSize(buffer.getMaxCapacity()); // fake some data
@@ -211,12 +211,11 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
-		public boolean nextBufferIsEvent() {
-			return false;
+		public void resumeConsumption() {
 		}
 
 		@Override
-		public boolean isAvailable() {
+		public boolean isAvailable(int numCreditsAvailable) {
 			return true;
 		}
 

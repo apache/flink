@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+################################################################################
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+set -o pipefail
+
+source "$(dirname "$0")"/common.sh
+
+docker --version
+docker-compose --version
+
+function containers_health_check() {
+  local container_names=${@:1}
+  for container in ${container_names}; do
+    if ! [ $(docker inspect -f '{{.State.Running}}' ${container} 2>&1) = 'true' ];
+    then
+      return 1;
+    fi
+  done
+}
+
+function build_image_with_jar() {
+    local job_artifacts=$1
+    local image_name=${2:-flink-job}
+    ./build.sh --from-local-dist --job-artifacts ${job_artifacts} --image-name ${image_name}
+}

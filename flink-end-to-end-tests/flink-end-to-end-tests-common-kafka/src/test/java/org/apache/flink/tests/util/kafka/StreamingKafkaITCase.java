@@ -25,6 +25,7 @@ import org.apache.flink.tests.util.categories.PreCommit;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
+import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.TestLogger;
@@ -58,7 +59,7 @@ public class StreamingKafkaITCase extends TestLogger {
 		return Arrays.asList(new Object[][]{
 			{"flink-streaming-kafka010-test.*", "0.10.2.0"},
 			{"flink-streaming-kafka011-test.*", "0.11.0.2"},
-			{"flink-streaming-kafka-test.*", "2.2.0"}
+			{"flink-streaming-kafka-test.*", "2.2.2"}
 		});
 	}
 
@@ -68,7 +69,14 @@ public class StreamingKafkaITCase extends TestLogger {
 	public final KafkaResource kafka;
 
 	@Rule
-	public final FlinkResource flink = FlinkResource.get();
+	public final FlinkResource flink = FlinkResource.get(FlinkResourceSetup.builder().addConfiguration(getConfiguration()).build());
+
+	private static Configuration getConfiguration() {
+		// modify configuration to have enough slots
+		final Configuration flinkConfig = new Configuration();
+		flinkConfig.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+		return flinkConfig;
+	}
 
 	public StreamingKafkaITCase(final String kafkaExampleJarPattern, final String kafkaVersion) {
 		this.kafkaExampleJar = TestUtils.getResourceJar(kafkaExampleJarPattern);
@@ -77,11 +85,6 @@ public class StreamingKafkaITCase extends TestLogger {
 
 	@Test
 	public void testKafka() throws Exception {
-		// modify configuration to have enough slots
-		final Configuration flinkConfig = new Configuration();
-		flinkConfig.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
-		flink.addConfiguration(flinkConfig);
-
 		try (final ClusterController clusterController = flink.startCluster(1)) {
 
 			final String inputTopic = "test-input";
@@ -98,7 +101,6 @@ public class StreamingKafkaITCase extends TestLogger {
 				.addArgument("--output-topic", outputTopic)
 				.addArgument("--prefix", "PREFIX")
 				.addArgument("--bootstrap.servers", kafka.getBootstrapServerAddresses().stream().map(address -> address.getHostString() + ':' + address.getPort()).collect(Collectors.joining(",")))
-				.addArgument("--zookeeper.connect ", kafka.getZookeeperAddress().getHostString() + ':' + kafka.getZookeeperAddress().getPort())
 				.addArgument("--group.id", "myconsumer")
 				.addArgument("--auto.offset.reset", "earliest")
 				.addArgument("--transaction.timeout.ms", "900000")

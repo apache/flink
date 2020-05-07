@@ -33,6 +33,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -326,10 +327,10 @@ public class DataStreamTest extends TestLogger {
 		int id3 = createDownStreamId(group3);
 		int id4 = createDownStreamId(group4);
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), id1)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), id2)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), id3)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), id4)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id1)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id2)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id3)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), id4)));
 
 		assertTrue(isKeyed(group1));
 		assertTrue(isKeyed(group2));
@@ -347,10 +348,10 @@ public class DataStreamTest extends TestLogger {
 		int pid3 = createDownStreamId(partition3);
 		int pid4 = createDownStreamId(partition4);
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), pid1)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), pid2)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), pid3)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), pid4)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid1)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid2)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid3)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), pid4)));
 
 		assertTrue(isKeyed(partition1));
 		assertTrue(isKeyed(partition3));
@@ -373,9 +374,9 @@ public class DataStreamTest extends TestLogger {
 		int cid2 = createDownStreamId(customPartition3);
 		int cid3 = createDownStreamId(customPartition4);
 
-		assertTrue(isCustomPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), cid1)));
-		assertTrue(isCustomPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), cid2)));
-		assertTrue(isCustomPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), cid3)));
+		assertTrue(isCustomPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), cid1)));
+		assertTrue(isCustomPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), cid2)));
+		assertTrue(isCustomPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), cid3)));
 
 		assertFalse(isKeyed(customPartition1));
 		assertFalse(isKeyed(customPartition3));
@@ -397,20 +398,20 @@ public class DataStreamTest extends TestLogger {
 		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedGroup5 = connected.keyBy(new FirstSelector(), new FirstSelector());
 		Integer downStreamId5 = createDownStreamId(connectedGroup5);
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), downStreamId1)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src2.getId(), downStreamId1)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), downStreamId1)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(), downStreamId1)));
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), downStreamId2)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src2.getId(), downStreamId2)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), downStreamId2)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(), downStreamId2)));
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), downStreamId3)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src2.getId(), downStreamId3)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), downStreamId3)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(), downStreamId3)));
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), downStreamId4)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src2.getId(), downStreamId4)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), downStreamId4)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(), downStreamId4)));
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(), downStreamId5)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src2.getId(), downStreamId5)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(), downStreamId5)));
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(), downStreamId5)));
 
 		assertTrue(isKeyed(connectedGroup1));
 		assertTrue(isKeyed(connectedGroup2));
@@ -434,29 +435,29 @@ public class DataStreamTest extends TestLogger {
 		ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connectedPartition5 = connected.keyBy(new FirstSelector(), new FirstSelector());
 		Integer connectDownStreamId5 = createDownStreamId(connectedPartition5);
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(),
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(),
 				connectDownStreamId1)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src2.getId(),
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(),
 				connectDownStreamId1)));
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(),
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(),
 				connectDownStreamId2)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src2.getId(),
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(),
 				connectDownStreamId2)));
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(),
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(),
 				connectDownStreamId3)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src2.getId(),
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(),
 				connectDownStreamId3)));
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(),
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(),
 				connectDownStreamId4)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src2.getId(),
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(),
 				connectDownStreamId4)));
 
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src1.getId(),
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src1.getId(),
 				connectDownStreamId5)));
-		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdges(src2.getId(),
+		assertTrue(isPartitioned(getStreamGraph(env).getStreamEdgesOrThrow(src2.getId(),
 				connectDownStreamId5)));
 
 		assertTrue(isKeyed(connectedPartition1));
@@ -942,13 +943,13 @@ public class DataStreamTest extends TestLogger {
 		assertEquals(filterFunction, getFunctionForDataStream(unionFilter));
 
 		try {
-			getStreamGraph(env).getStreamEdges(map.getId(), unionFilter.getId());
+			getStreamGraph(env).getStreamEdgesOrThrow(map.getId(), unionFilter.getId());
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
 
 		try {
-			getStreamGraph(env).getStreamEdges(flatMap.getId(), unionFilter.getId());
+			getStreamGraph(env).getStreamEdgesOrThrow(flatMap.getId(), unionFilter.getId());
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
@@ -990,13 +991,13 @@ public class DataStreamTest extends TestLogger {
 		assertEquals(coMapper, getFunctionForDataStream(coMap));
 
 		try {
-			getStreamGraph(env).getStreamEdges(map.getId(), coMap.getId());
+			getStreamGraph(env).getStreamEdgesOrThrow(map.getId(), coMap.getId());
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
 
 		try {
-			getStreamGraph(env).getStreamEdges(flatMap.getId(), coMap.getId());
+			getStreamGraph(env).getStreamEdgesOrThrow(flatMap.getId(), coMap.getId());
 		} catch (RuntimeException e) {
 			fail(e.getMessage());
 		}
@@ -1007,7 +1008,7 @@ public class DataStreamTest extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStreamSink<Long> sink = env.generateSequence(1, 100).print();
-		assertTrue(getStreamGraph(env).getStreamNode(sink.getTransformation().getId()).getStatePartitioner1() == null);
+		assertEquals(0, getStreamGraph(env).getStreamNode(sink.getTransformation().getId()).getStatePartitioners().length);
 		assertTrue(getStreamGraph(env).getStreamNode(sink.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof ForwardPartitioner);
 
 		KeySelector<Long, Long> key1 = new KeySelector<Long, Long>() {
@@ -1022,10 +1023,10 @@ public class DataStreamTest extends TestLogger {
 
 		DataStreamSink<Long> sink2 = env.generateSequence(1, 100).keyBy(key1).print();
 
-		assertNotNull(getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStatePartitioner1());
+		assertEquals(1, getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStatePartitioners().length);
 		assertNotNull(getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStateKeySerializer());
 		assertNotNull(getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStateKeySerializer());
-		assertEquals(key1, getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStatePartitioner1());
+		assertEquals(key1, getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getStatePartitioners()[0]);
 		assertTrue(getStreamGraph(env).getStreamNode(sink2.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof KeyGroupStreamPartitioner);
 
 		KeySelector<Long, Long> key2 = new KeySelector<Long, Long>() {
@@ -1040,8 +1041,8 @@ public class DataStreamTest extends TestLogger {
 
 		DataStreamSink<Long> sink3 = env.generateSequence(1, 100).keyBy(key2).print();
 
-		assertTrue(getStreamGraph(env).getStreamNode(sink3.getTransformation().getId()).getStatePartitioner1() != null);
-		assertEquals(key2, getStreamGraph(env).getStreamNode(sink3.getTransformation().getId()).getStatePartitioner1());
+		assertEquals(1, getStreamGraph(env).getStreamNode(sink3.getTransformation().getId()).getStatePartitioners().length);
+		assertEquals(key2, getStreamGraph(env).getStreamNode(sink3.getTransformation().getId()).getStatePartitioners()[0]);
 		assertTrue(getStreamGraph(env).getStreamNode(sink3.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof KeyGroupStreamPartitioner);
 	}
 
@@ -1192,7 +1193,7 @@ public class DataStreamTest extends TestLogger {
 			}
 		};
 
-		testKeyRejection(keySelector, PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
+		assertArrayKeyRejection(keySelector, PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO);
 	}
 
 	@Test
@@ -1207,7 +1208,7 @@ public class DataStreamTest extends TestLogger {
 			}
 		};
 
-		testKeyRejection(keySelector, BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO);
+		assertArrayKeyRejection(keySelector, BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO);
 	}
 
 	@Test
@@ -1229,15 +1230,14 @@ public class DataStreamTest extends TestLogger {
 		ObjectArrayTypeInfo<Object[], Object> keyTypeInfo = ObjectArrayTypeInfo.getInfoFor(
 				Object[].class, new GenericTypeInfo<>(Object.class));
 
-		testKeyRejection(keySelector, keyTypeInfo);
+		assertArrayKeyRejection(keySelector, keyTypeInfo);
 	}
 
-	private <K> void testKeyRejection(KeySelector<Tuple2<Integer[], String>, K> keySelector, TypeInformation<K> expectedKeyType) {
+	private <K> void assertArrayKeyRejection(KeySelector<Tuple2<Integer[], String>, K> keySelector, TypeInformation<K> expectedKeyType) {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Tuple2<Integer[], String>> input = env.fromElements(
-				new Tuple2<>(new Integer[] {1, 2}, "barfoo")
-		);
+				new Tuple2<>(new Integer[] {1, 2}, "barfoo"));
 
 		Assert.assertEquals(expectedKeyType, TypeExtractor.getKeySelectorTypes(keySelector, input.getType()));
 
@@ -1247,6 +1247,23 @@ public class DataStreamTest extends TestLogger {
 
 		input.keyBy(keySelector);
 	}
+
+	@Test
+	public void testEnumKeyRejection() {
+		KeySelector<Tuple2<TestEnum, String>, TestEnum> keySelector = value -> value.f0;
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Tuple2<TestEnum, String>> input = env.fromElements(
+				Tuple2.of(TestEnum.FOO, "Foo"),
+				Tuple2.of(TestEnum.BAR, "Bar"));
+
+		expectedException.expect(InvalidProgramException.class);
+		expectedException.expectMessage(new StringStartsWith("Type " + EnumTypeInfo.of(TestEnum.class) + " cannot be used as key."));
+
+		input.keyBy(keySelector);
+	}
+
 
 	////////////////			Composite Key Tests : POJOs			////////////////
 
@@ -1512,6 +1529,10 @@ public class DataStreamTest extends TestLogger {
 		public int getI() {
 			return i;
 		}
+	}
+
+	private enum TestEnum {
+		FOO, BAR
 	}
 
 	private class DummyOutputSelector<Integer> implements OutputSelector<Integer> {

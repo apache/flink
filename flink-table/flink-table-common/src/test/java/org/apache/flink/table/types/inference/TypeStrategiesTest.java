@@ -40,8 +40,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.table.types.inference.TypeStrategies.MISSING;
+import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.util.CoreMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -52,7 +54,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 @RunWith(Parameterized.class)
 public class TypeStrategiesTest {
 
-	@Parameters
+	@Parameters(name = "{index}: {0}")
 	public static List<TestSpec> testData() {
 		return Arrays.asList(
 			// missing strategy with arbitrary argument
@@ -67,21 +69,40 @@ public class TypeStrategiesTest {
 				.inputTypes()
 				.expectDataType(DataTypes.BIGINT()),
 
+			// infer from input
+			TestSpec
+				.forStrategy(argument(0))
+				.inputTypes(DataTypes.INT(), DataTypes.STRING())
+				.expectDataType(DataTypes.INT()),
+
+			// infer from not existing input
+			TestSpec
+				.forStrategy(argument(0))
+				.inputTypes()
+				.expectErrorMessage("Could not infer an output type for the given arguments."),
+
 			// (INT, BOOLEAN) -> STRING
 			TestSpec
-				.forStrategy(createMatchingTypeStrategy())
+				.forStrategy(createMappingTypeStrategy())
 				.inputTypes(DataTypes.INT(), DataTypes.BOOLEAN())
 				.expectDataType(DataTypes.STRING()),
 
 			// (INT, STRING) -> BOOLEAN
 			TestSpec
-				.forStrategy(createMatchingTypeStrategy())
+				.forStrategy(createMappingTypeStrategy())
 				.inputTypes(DataTypes.INT(), DataTypes.STRING())
-				.expectDataType(DataTypes.BOOLEAN()),
+				.expectDataType(DataTypes.BOOLEAN().bridgedTo(boolean.class)),
 
-			// invalid matching strategy
+			// (INT, CHAR(10)) -> BOOLEAN
+			// but avoiding casts (mapping actually expects STRING)
 			TestSpec
-				.forStrategy(createMatchingTypeStrategy())
+				.forStrategy(createMappingTypeStrategy())
+				.inputTypes(DataTypes.INT(), DataTypes.CHAR(10))
+				.expectDataType(DataTypes.BOOLEAN().bridgedTo(boolean.class)),
+
+			// invalid mapping strategy
+			TestSpec
+				.forStrategy(createMappingTypeStrategy())
 				.inputTypes(DataTypes.INT(), DataTypes.INT())
 				.expectErrorMessage("Could not infer an output type for the given arguments."),
 
@@ -89,7 +110,27 @@ public class TypeStrategiesTest {
 			TestSpec
 				.forStrategy(TypeStrategies.explicit(DataTypes.NULL()))
 				.inputTypes()
-				.expectErrorMessage("Could not infer an output type for the given arguments. Untyped NULL received.")
+				.expectErrorMessage("Could not infer an output type for the given arguments. Untyped NULL received."),
+
+			TestSpec.forStrategy(
+				"Infer a row type",
+				TypeStrategies.ROW)
+				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING())
+				.expectDataType(DataTypes.ROW(
+					DataTypes.FIELD("f0", DataTypes.BIGINT()),
+					DataTypes.FIELD("f1", DataTypes.STRING()))),
+
+			TestSpec.forStrategy(
+				"Infer an array type",
+				TypeStrategies.ARRAY)
+				.inputTypes(DataTypes.BIGINT(), DataTypes.BIGINT())
+				.expectDataType(DataTypes.ARRAY(DataTypes.BIGINT())),
+
+			TestSpec.forStrategy(
+				"Infer a map type",
+				TypeStrategies.MAP)
+				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING().notNull())
+				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()))
 		);
 	}
 
@@ -120,9 +161,10 @@ public class TypeStrategiesTest {
 		callContextMock.functionDefinition = functionDefinitionMock;
 		callContextMock.argumentDataTypes = testSpec.inputTypes;
 		callContextMock.name = "f";
+		callContextMock.outputDataType = Optional.empty();
 
 		final TypeInference typeInference = TypeInference.newBuilder()
-			.inputTypeValidator(InputTypeValidators.PASSING)
+			.inputTypeStrategy(InputTypeStrategies.WILDCARD)
 			.outputTypeStrategy(testSpec.strategy)
 			.build();
 		return TypeInferenceUtil.runTypeInference(typeInference, callContextMock, null);
@@ -132,6 +174,8 @@ public class TypeStrategiesTest {
 
 	private static class TestSpec {
 
+		private @Nullable final String description;
+
 		private final TypeStrategy strategy;
 
 		private List<DataType> inputTypes;
@@ -140,12 +184,17 @@ public class TypeStrategiesTest {
 
 		private @Nullable String expectedErrorMessage;
 
-		private TestSpec(TypeStrategy strategy) {
+		private TestSpec(@Nullable String description, TypeStrategy strategy) {
+			this.description = description;
 			this.strategy = strategy;
 		}
 
 		static TestSpec forStrategy(TypeStrategy strategy) {
-			return new TestSpec(strategy);
+			return new TestSpec(null, strategy);
+		}
+
+		static TestSpec forStrategy(String description, TypeStrategy strategy) {
+			return new TestSpec(description, strategy);
 		}
 
 		TestSpec inputTypes(DataType... dataTypes) {
@@ -162,20 +211,25 @@ public class TypeStrategiesTest {
 			this.expectedErrorMessage = expectedErrorMessage;
 			return this;
 		}
+
+		@Override
+		public String toString() {
+			return description != null ? description : "";
+		}
 	}
 
-	private static TypeStrategy createMatchingTypeStrategy() {
-		final Map<InputTypeValidator, TypeStrategy> matchers = new HashMap<>();
-		matchers.put(
-			InputTypeValidators.sequence(
-				InputTypeValidators.explicit(DataTypes.INT()),
-				InputTypeValidators.explicit(DataTypes.STRING())),
-			TypeStrategies.explicit(DataTypes.BOOLEAN()));
-		matchers.put(
-			InputTypeValidators.sequence(
-				InputTypeValidators.explicit(DataTypes.INT()),
-				InputTypeValidators.explicit(DataTypes.BOOLEAN())),
+	private static TypeStrategy createMappingTypeStrategy() {
+		final Map<InputTypeStrategy, TypeStrategy> mappings = new HashMap<>();
+		mappings.put(
+			InputTypeStrategies.sequence(
+				InputTypeStrategies.explicit(DataTypes.INT()),
+				InputTypeStrategies.explicit(DataTypes.STRING())),
+			TypeStrategies.explicit(DataTypes.BOOLEAN().bridgedTo(boolean.class)));
+		mappings.put(
+			InputTypeStrategies.sequence(
+				InputTypeStrategies.explicit(DataTypes.INT()),
+				InputTypeStrategies.explicit(DataTypes.BOOLEAN())),
 			TypeStrategies.explicit(DataTypes.STRING()));
-		return TypeStrategies.matching(matchers);
+		return TypeStrategies.mapping(mappings);
 	}
 }

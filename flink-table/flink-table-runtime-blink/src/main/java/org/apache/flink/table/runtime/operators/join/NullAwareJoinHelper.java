@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.binary.BinaryRowData;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -45,7 +45,7 @@ public class NullAwareJoinHelper {
 
 	public static boolean shouldFilter(
 			boolean nullSafe, boolean filterAllNulls,
-			int[] nullFilterKeys, BinaryRow key) {
+			int[] nullFilterKeys, BinaryRowData key) {
 		return !nullSafe && (filterAllNulls ? key.anyNull() : key.anyNull(nullFilterKeys));
 	}
 }

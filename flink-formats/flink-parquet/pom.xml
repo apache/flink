@@ -73,19 +73,32 @@ under the License.
 			<optional>true</optional>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<optional>true</optional>
+		</dependency>
+
 		<!-- Parquet Dependencies -->
 
 		<dependency>
 			<groupId>org.apache.parquet</groupId>
 			<artifactId>parquet-hadoop</artifactId>
 			<version>${flink.format.parquet.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.xerial.snappy</groupId>
+					<artifactId>snappy-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Hadoop is needed by Parquet -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-hadoop-2</artifactId>
-			<version>${hadoop.version}-${flink.shaded.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -139,6 +152,21 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -175,6 +203,25 @@ under the License.
 						<configuration>
 							<skip>true</skip>
 						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- build a jar-with-dependencies SQL Client uber jars -->
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<configuration>
+					<descriptorRefs>
+						<descriptorRef>jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+				</configuration>
+				<executions>
+					<execution>
+						<id>make-assembly</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>

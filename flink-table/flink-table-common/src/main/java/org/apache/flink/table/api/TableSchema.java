@@ -227,15 +227,34 @@ public class TableSchema {
 	}
 
 	/**
-	 * Converts a table schema into a (nested) data type describing a
-	 * {@link DataTypes#ROW(Field...)}.
+	 * Converts all columns of this schema into a (possibly nested) row data type.
 	 *
-	 * <p>Note that the returned row type contains field types for all the columns, including
-	 * normal columns and computed columns. Be caution with the computed column data types, because
-	 * they are not expected to be included in the row type of TableSource or TableSink.
+	 * <p>Note: The returned row data type contains both physical and computed columns. Be careful when
+	 * using this method in a table source or table sink. In many cases, {@link #toPhysicalRowDataType()}
+	 * might be more appropriate.
+	 *
+	 * @see DataTypes#ROW(Field...)
+	 * @see #toPhysicalRowDataType()
 	 */
 	public DataType toRowDataType() {
 		final Field[] fields = columns.stream()
+			.map(column -> FIELD(column.getName(), column.getType()))
+			.toArray(Field[]::new);
+		return ROW(fields);
+	}
+
+	/**
+	 * Converts all physical columns of this schema into a (possibly nested) row data type.
+	 *
+	 * <p>Note: The returned row data type contains only physical columns. It does not include computed
+	 * columns.
+	 *
+	 * @see DataTypes#ROW(Field...)
+	 * @see #toRowDataType()
+	 */
+	public DataType toPhysicalRowDataType() {
+		final Field[] fields = columns.stream()
+			.filter(column -> !column.isGenerated())
 			.map(column -> FIELD(column.getName(), column.getType()))
 			.toArray(Field[]::new);
 		return ROW(fields);
@@ -283,7 +302,7 @@ public class TableSchema {
 			for (WatermarkSpec watermark : watermarkSpecs) {
 				sb.append(" |-- ").append("WATERMARK FOR ")
 					.append(watermark.getRowtimeAttribute()).append(" AS ")
-					.append(watermark.getWatermarkExpressionString());
+					.append(watermark.getWatermarkExpr());
 			}
 		}
 
@@ -398,7 +417,7 @@ public class TableSchema {
 			if (watermarkOutputType.getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
 				throw new ValidationException(String.format(
 					"Watermark strategy '%s' must be of type TIMESTAMP but is of type '%s'.",
-					watermark.getWatermarkExpressionString(),
+					watermark.getWatermarkExpr(),
 					watermarkOutputType.asSerializableString()));
 			}
 		}

@@ -44,7 +44,6 @@ import org.apache.flink.streaming.connectors.kafka.internal.TransactionalIdsGene
 import org.apache.flink.streaming.connectors.kafka.internal.metrics.KafkaMetricMutableWrapper;
 import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
-import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.ExceptionUtils;
@@ -616,6 +615,11 @@ public class FlinkKafkaProducer011<IN>
 			};
 		}
 
+		if (schema instanceof KeyedSerializationSchemaWrapper) {
+			((KeyedSerializationSchemaWrapper<IN>) schema).getSerializationSchema()
+				.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+		}
+
 		super.open(configuration);
 	}
 
@@ -978,10 +982,6 @@ public class FlinkKafkaProducer011<IN>
 		RuntimeContext ctx = getRuntimeContext();
 
 		if (flinkKafkaPartitioner != null) {
-			if (flinkKafkaPartitioner instanceof FlinkKafkaDelegatePartitioner) {
-				((FlinkKafkaDelegatePartitioner) flinkKafkaPartitioner).setPartitions(
-					getPartitionsByTopic(this.defaultTopicId, producer));
-			}
 			flinkKafkaPartitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks());
 		}
 

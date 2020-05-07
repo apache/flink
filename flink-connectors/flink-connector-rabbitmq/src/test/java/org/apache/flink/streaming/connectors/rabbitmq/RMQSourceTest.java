@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.MockDeserializationSchema;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
@@ -55,8 +56,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -285,6 +288,19 @@ public class RMQSourceTest {
 		assertEquals("passTest", testObj.getFactory().getPassword());
 	}
 
+	@Test
+	public void testOpen() throws Exception {
+		MockDeserializationSchema<String> deserializationSchema = new MockDeserializationSchema<>();
+
+		RMQSource<String> consumer = new RMQTestSource(deserializationSchema);
+		AbstractStreamOperatorTestHarness<String> testHarness = new AbstractStreamOperatorTestHarness<>(
+			new StreamSource<>(consumer), 1, 1, 0
+		);
+
+		testHarness.open();
+		assertThat("Open method was not called", deserializationSchema.isOpenCalled(), is(true));
+	}
+
 	private static class ConstructorTestClass extends RMQSource<String> {
 
 		private ConnectionFactory factory;
@@ -341,11 +357,16 @@ public class RMQSourceTest {
 	private class RMQTestSource extends RMQSource<String> {
 
 		private ArrayDeque<Tuple2<Long, Set<String>>> restoredState;
+		private RuntimeContext runtimeContext = Mockito.mock(StreamingRuntimeContext.class);
 
 		public RMQTestSource() {
+			this(new StringDeserializationScheme());
+		}
+
+		public RMQTestSource(DeserializationSchema<String> deserializationSchema) {
 			super(new RMQConnectionConfig.Builder().setHost("hostTest")
 					.setPort(999).setUserName("userTest").setPassword("passTest").setVirtualHost("/").build()
-				, "queueDummy", true, new StringDeserializationScheme());
+				, "queueDummy", true, deserializationSchema);
 		}
 
 		@Override
@@ -412,8 +433,13 @@ public class RMQSourceTest {
 		}
 
 		@Override
+		public void setRuntimeContext(RuntimeContext t) {
+			this.runtimeContext = t;
+		}
+
+		@Override
 		public RuntimeContext getRuntimeContext() {
-			return Mockito.mock(StreamingRuntimeContext.class);
+			return runtimeContext;
 		}
 
 		@Override

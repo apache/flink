@@ -29,8 +29,6 @@ Important classes of Flink Table API:
       It is necessary when creating :class:`TableEnvironment`.
     - :class:`pyflink.table.EnvironmentSettings`
       Defines all parameters that initialize a table environment.
-    - :class:`pyflink.table.StreamQueryConfig` and :class:`pyflink.table.BatchQueryConfig`
-      A query config holds parameters to configure the behavior of queries.
     - :class:`pyflink.table.TableSource`
       Defines an external data source as a table.
     - :class:`pyflink.table.TableSink`

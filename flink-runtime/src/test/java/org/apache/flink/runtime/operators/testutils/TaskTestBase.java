@@ -56,7 +56,7 @@ public abstract class TaskTestBase extends TestLogger {
 		this.inputSplitProvider = new MockInputSplitProvider();
 		this.mockEnv = new MockEnvironmentBuilder()
 			.setTaskName("mock task")
-			.setMemorySize(this.memorySize)
+			.setManagedMemorySize(this.memorySize)
 			.setInputSplitProvider(this.inputSplitProvider)
 			.setBufferSize(bufferSize)
 			.build();

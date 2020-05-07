@@ -98,7 +98,6 @@ public class CheckpointFailureManager {
 		CheckpointFailureReason reason = exception.getCheckpointFailureReason();
 		switch (reason) {
 			case PERIODIC_SCHEDULER_SHUTDOWN:
-			case ALREADY_QUEUED:
 			case TOO_MANY_CONCURRENT_CHECKPOINTS:
 			case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
 			case NOT_ALL_REQUIRED_TASKS_RUNNING:
@@ -117,6 +116,7 @@ public class CheckpointFailureManager {
 
 			case EXCEPTION:
 			case CHECKPOINT_EXPIRED:
+			case TASK_FAILURE:
 			case TASK_CHECKPOINT_FAILURE:
 			case TRIGGER_CHECKPOINT_FAILURE:
 			case FINALIZE_CHECKPOINT_FAILURE:
@@ -142,7 +142,7 @@ public class CheckpointFailureManager {
 	 * @param checkpointId the failed checkpoint id used to count the continuous failure number based on
 	 *                     checkpoint id sequence.
 	 */
-	public void handleCheckpointSuccess(long checkpointId) {
+	public void handleCheckpointSuccess(@SuppressWarnings("unused") long checkpointId) {
 		clearCount();
 	}
 

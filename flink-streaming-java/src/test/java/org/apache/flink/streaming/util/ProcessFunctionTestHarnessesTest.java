@@ -38,7 +38,7 @@ import java.util.Collections;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link ProcessFunctionTestHarnessesTest}.
+ * Tests for {@link ProcessFunctionTestHarnesses}.
  */
 public class ProcessFunctionTestHarnessesTest extends TestLogger {
 

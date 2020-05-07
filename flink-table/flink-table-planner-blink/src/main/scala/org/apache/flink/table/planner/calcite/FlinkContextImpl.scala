@@ -24,7 +24,8 @@ import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 class FlinkContextImpl(
     tableConfig: TableConfig,
     functionCatalog: FunctionCatalog,
-    catalogManager: CatalogManager)
+    catalogManager: CatalogManager,
+    toRexFactory: SqlExprToRexConverterFactory)
   extends FlinkContext {
 
   override def getTableConfig: TableConfig = tableConfig
@@ -32,4 +33,6 @@ class FlinkContextImpl(
   override def getFunctionCatalog: FunctionCatalog = functionCatalog
 
   override def getCatalogManager: CatalogManager = catalogManager
+
+  override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory = toRexFactory
 }

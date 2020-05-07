@@ -23,6 +23,7 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -63,6 +64,8 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -106,7 +109,7 @@ public class WebFrontendITCase extends TestLogger {
 		}
 
 		// !!DO NOT REMOVE!! next line is required for tests
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "12m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("12m"));
 
 		return config;
 	}
@@ -119,8 +122,7 @@ public class WebFrontendITCase extends TestLogger {
 	@Test
 	public void getFrontPage() throws Exception {
 		String fromHTTP = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/index.html");
-		String text = "Apache Flink Web Dashboard";
-		assertTrue("Startpage should contain " + text, fromHTTP.contains(text));
+		assertThat(fromHTTP, containsString("Apache Flink Web Dashboard"));
 	}
 
 	private int getRestPort() {
@@ -194,11 +196,24 @@ public class WebFrontendITCase extends TestLogger {
 
 		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
 		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/log");
-		assertTrue(logs.contains("job manager log"));
+		assertThat(logs, containsString("job manager log"));
 
 		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
 		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/stdout");
-		assertTrue(logs.contains("job manager out"));
+		assertThat(logs, containsString("job manager out"));
+	}
+
+	@Test
+	public void getCustomLogFiles() throws Exception {
+		WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
+
+		String customFileName = "test.log";
+		final String logDir = logFiles.logFile.getParent();
+		final String expectedLogContent = "job manager custom log";
+		FileUtils.writeStringToFile(new File(logDir, customFileName), expectedLogContent);
+
+		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/logs/" + customFileName);
+		assertThat(logs, containsString(expectedLogContent));
 	}
 
 	@Test
@@ -216,11 +231,11 @@ public class WebFrontendITCase extends TestLogger {
 		//we check for job manager log files, since no separate taskmanager logs exist
 		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
 		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/log");
-		assertTrue(logs.contains("job manager log"));
+		assertThat(logs, containsString("job manager log"));
 
 		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
 		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/stdout");
-		assertTrue(logs.contains("job manager out"));
+		assertThat(logs, containsString("job manager out"));
 	}
 
 	@Test
@@ -228,8 +243,8 @@ public class WebFrontendITCase extends TestLogger {
 		String config = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/config");
 		Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
 
-		String expected = CLUSTER_CONFIGURATION.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE);
-		String actual = conf.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key());
+		MemorySize expected = CLUSTER_CONFIGURATION.get(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+		MemorySize actual = MemorySize.parse(conf.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key()));
 
 		assertEquals(expected, actual);
 	}
@@ -286,7 +301,7 @@ public class WebFrontendITCase extends TestLogger {
 			assertEquals("application/json; charset=UTF-8", response.getType());
 			assertEquals("{\"jid\":\"" + jid + "\",\"name\":\"Stoppable streaming test job\"," +
 				"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"Cluster level default restart strategy\"," +
-				"\"job-parallelism\":-1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
+				"\"job-parallelism\":1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
 		}
 
 		BlockingInvokable.reset();

@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.influxdb;
 
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.metrics.MetricConfig;
@@ -27,6 +28,7 @@ import org.influxdb.InfluxDB;
 /**
  * Config options for {@link InfluxdbReporter}.
  */
+@Documentation.SuffixOption
 public class InfluxdbReporterOptions {
 
 	public static final ConfigOption<String> HOST = ConfigOptions

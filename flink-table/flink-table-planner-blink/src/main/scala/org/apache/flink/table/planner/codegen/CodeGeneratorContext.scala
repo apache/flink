@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{Function, RuntimeContext}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
@@ -108,6 +108,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   private var currentMethodNameForLocalVariables = "DEFAULT"
 
+  /**
+   * Flag that indicates whether the generated code is split into several methods.
+   */
+  private var isCodeSplit = false
+
   // map of local variable statements. It will be placed in method if method code not excess
   // max code length, otherwise will be placed in member area of the class. The statements
   // are maintained for multiple methods, so that it's a map from method_name to variables.
@@ -143,6 +148,13 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableLocalVariableStatements(methodName) = mutable.LinkedHashSet[String]()
   }
 
+  /**
+   * Set the flag [[isCodeSplit]] to be true, which indicates the generated code is split into
+   * several methods.
+   */
+  def setCodeSplit(): Unit = {
+    isCodeSplit = true
+  }
 
   /**
     * Adds a reusable local variable statement with the given type term and field name.
@@ -197,7 +209,15 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     *         (e.g. member variables and their initialization)
     */
   def reuseMemberCode(): String = {
-    reusableMemberStatements.mkString("\n")
+    val result = reusableMemberStatements.mkString("\n")
+    if (isCodeSplit) {
+      val localVariableAsMember = reusableLocalVariableStatements.map(
+        statements => statements._2.map("private " + _).mkString("\n")
+      ).mkString("\n")
+      result + "\n" + localVariableAsMember
+    } else {
+      result
+    }
   }
 
   /**
@@ -205,7 +225,9 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     *         if generated code is split or in local variables of method
     */
   def reuseLocalVariableCode(methodName: String = null): String = {
-    if (methodName == null) {
+    if (isCodeSplit) {
+      GeneratedExpression.NO_CODE
+    } else if (methodName == null) {
       reusableLocalVariableStatements(currentMethodNameForLocalVariables).mkString("\n")
     } else {
       reusableLocalVariableStatements(methodName).mkString("\n")
@@ -358,12 +380,12 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   }
 
   /**
-    * Adds a reusable null [[org.apache.flink.table.dataformat.GenericRow]] to the member area.
+    * Adds a reusable null [[org.apache.flink.table.dataformat.GenericRowData]] to the member area.
     */
   def addReusableNullRow(rowTerm: String, arity: Int): Unit = {
     addReusableOutputRecord(
       RowType.of((0 until arity).map(_ => new IntType()): _*),
-      classOf[GenericRow],
+      classOf[GenericRowData],
       rowTerm)
   }
 
@@ -408,10 +430,13 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   def addReusableTimestamp(): String = {
     val fieldTerm = s"timestamp"
+
+    reusableMemberStatements.add(s"private $TIMESTAMP_DATA $fieldTerm;")
+
     val field =
       s"""
-         |final $SQL_TIMESTAMP $fieldTerm =
-         |  $SQL_TIMESTAMP.fromEpochMillis(java.lang.System.currentTimeMillis());
+         |$fieldTerm =
+         |  $TIMESTAMP_DATA.fromEpochMillis(java.lang.System.currentTimeMillis());
          |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -450,12 +475,12 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val timestamp = addReusableTimestamp()
 
     // declaration
-    reusableMemberStatements.add(s"private $SQL_TIMESTAMP $fieldTerm;")
+    reusableMemberStatements.add(s"private $TIMESTAMP_DATA $fieldTerm;")
 
     // assignment
     val field =
       s"""
-         |$fieldTerm = $SQL_TIMESTAMP.fromEpochMillis(
+         |$fieldTerm = $TIMESTAMP_DATA.fromEpochMillis(
          |  $timestamp.getMillisecond() +
          |  java.util.TimeZone.getDefault().getOffset($timestamp.getMillisecond()));
          |""".stripMargin
@@ -512,7 +537,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   /**
     * Adds a reusable TimeZone to the member area of the generated class.
     */
-  def addReusableTimeZone(): String = {
+  def addReusableSessionTimeZone(): String = {
     val zoneID = TimeZone.getTimeZone(tableConfig.getLocalTimeZone).getID
     val stmt =
       s"""private static final java.util.TimeZone $DEFAULT_TIMEZONE_TERM =
@@ -614,7 +639,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       function: UserDefinedFunction,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
       contextTerm: String = null): String = {
-    val classQualifier = function.getClass.getCanonicalName
+    val classQualifier = function.getClass.getName
     val fieldTerm = CodeGenUtils.udfFieldName(function)
 
     addReusableObjectInternal(function, fieldTerm, classQualifier)

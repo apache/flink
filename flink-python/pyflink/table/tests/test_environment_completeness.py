@@ -41,9 +41,16 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Te
         # TODO add TableEnvironment#create method with EnvironmentSettings as a parameter
         return {
             'getCompletionHints',
+            'fromValues',
             'create',
             'loadModule',
-            'unloadModule'}
+            'unloadModule',
+            'createTemporarySystemFunction',
+            'dropTemporarySystemFunction',
+            'createFunction',
+            'dropFunction',
+            'createTemporaryFunction',
+            'dropTemporaryFunction'}
 
     @classmethod
     def java_method_name(cls, python_method_name):

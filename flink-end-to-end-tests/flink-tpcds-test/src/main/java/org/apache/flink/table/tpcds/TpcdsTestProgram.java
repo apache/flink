@@ -18,10 +18,8 @@
 
 package org.apache.flink.table.tpcds;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -29,7 +27,6 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.sources.CsvTableSource;
 import org.apache.flink.table.tpcds.schema.TpcdsSchema;
@@ -42,7 +39,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -50,7 +46,7 @@ import java.util.stream.Stream;
  */
 public class TpcdsTestProgram {
 
-	private static final List<String> TCPDS_TABLES = Arrays.asList(
+	private static final List<String> TPCDS_TABLES = Arrays.asList(
 			"catalog_sales", "catalog_returns", "inventory", "store_sales",
 			"store_returns", "web_sales", "web_returns", "call_center", "catalog_page",
 			"customer", "customer_address", "customer_demographics", "date_dim",
@@ -97,17 +93,13 @@ public class TpcdsTestProgram {
 			String sinkTableName = QUERY_PREFIX + queryId + "_sinkTable";
 			tableEnvironment.registerTableSink(sinkTableName,
 					new CsvTableSink(
-							sinkTablePath + FILE_SEPARATOR + queryId + RESULT_SUFFIX,
-							COL_DELIMITER,
-							1,
-							FileSystem.WriteMode.OVERWRITE)
-							.configure(
-									resultTable.getSchema().getFieldNames(),
-									Arrays.stream(resultTable.getSchema().getFieldDataTypes())
-											.map(r -> TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(r))
-											.collect(Collectors.toList())
-											.toArray(new TypeInformation[0])
-							));
+						sinkTablePath + FILE_SEPARATOR + queryId + RESULT_SUFFIX,
+						COL_DELIMITER,
+						1,
+						FileSystem.WriteMode.OVERWRITE,
+						resultTable.getSchema().getFieldNames(),
+						resultTable.getSchema().getFieldDataTypes()
+					));
 			tableEnvironment.insertInto(resultTable, sinkTableName);
 			tableEnvironment.execute(queryName);
 			System.out.println("[INFO]Run TPC-DS query " + queryId + " success.");
@@ -131,8 +123,6 @@ public class TpcdsTestProgram {
 
 		//config Optimizer parameters
 		tEnv.getConfig().getConfiguration()
-				.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.BATCH.toString());
-		tEnv.getConfig().getConfiguration()
 				.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4);
 		tEnv.getConfig().getConfiguration()
 				.setLong(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, 10 * 1024 * 1024);
@@ -140,7 +130,7 @@ public class TpcdsTestProgram {
 				.setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
 
 		//register TPC-DS tables
-		TCPDS_TABLES.forEach(table -> {
+		TPCDS_TABLES.forEach(table -> {
 			TpcdsSchema schema = TpcdsSchemaProvider.getTableSchema(table);
 			CsvTableSource.Builder builder = CsvTableSource.builder();
 			builder.path(sourceTablePath + FILE_SEPARATOR + table + DATA_SUFFIX);

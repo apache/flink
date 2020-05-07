@@ -53,7 +53,7 @@ public class BufferConsumer implements Closeable {
 			PositionMarker currentWriterPosition,
 			int currentReaderPosition) {
 		this(
-			new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), true),
+			new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler)),
 			currentWriterPosition,
 			currentReaderPosition);
 	}
@@ -61,15 +61,15 @@ public class BufferConsumer implements Closeable {
 	/**
 	 * Constructs {@link BufferConsumer} instance with static content.
 	 */
-	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer) {
-		this(memorySegment, recycler, memorySegment.size(), isBuffer);
+	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, Buffer.DataType dataType) {
+		this(memorySegment, recycler, memorySegment.size(), dataType);
 	}
 
 	/**
 	 * Constructs {@link BufferConsumer} instance with static content of a certain size.
 	 */
-	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, int size, boolean isBuffer) {
-		this(new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), isBuffer),
+	public BufferConsumer(MemorySegment memorySegment, BufferRecycler recycler, int size, Buffer.DataType dataType) {
+		this(new NetworkBuffer(checkNotNull(memorySegment), checkNotNull(recycler), dataType),
 				() -> -size,
 				0);
 		checkState(memorySegment.size() > 0);

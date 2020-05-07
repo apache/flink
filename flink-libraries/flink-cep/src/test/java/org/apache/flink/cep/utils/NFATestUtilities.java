@@ -41,7 +41,7 @@ public class NFATestUtilities {
 		return nfaTestHarness.feedRecords(inputEvents);
 	}
 
-	public static void compareMaps(List<List<Event>> actual, List<List<Event>> expected) {
+	public static void comparePatterns(List<List<Event>> actual, List<List<Event>> expected) {
 		Assert.assertEquals(expected.size(), actual.size());
 
 		for (List<Event> p: actual) {

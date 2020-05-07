@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
@@ -28,15 +29,13 @@ import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
-import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
-import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import java.util.ArrayList;
@@ -44,10 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
-
-import static org.apache.flink.table.catalog.hive.HiveCatalogConfig.DEFAULT_LIST_COLUMN_TYPES_SEPARATOR;
 
 /**
  * Utils to for Hive-backed table.
@@ -111,34 +107,6 @@ public class HiveTableUtil {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Create properties info to initialize a SerDe.
-	 * @param storageDescriptor
-	 * @return
-	 */
-	public static Properties createPropertiesFromStorageDescriptor(StorageDescriptor storageDescriptor) {
-		SerDeInfo serDeInfo = storageDescriptor.getSerdeInfo();
-		Map<String, String> parameters = serDeInfo.getParameters();
-		Properties properties = new Properties();
-		properties.setProperty(
-				serdeConstants.SERIALIZATION_FORMAT,
-				parameters.get(serdeConstants.SERIALIZATION_FORMAT));
-		List<String> colTypes = new ArrayList<>();
-		List<String> colNames = new ArrayList<>();
-		List<FieldSchema> cols = storageDescriptor.getCols();
-		for (FieldSchema col: cols){
-			colTypes.add(col.getType());
-			colNames.add(col.getName());
-		}
-		properties.setProperty(serdeConstants.LIST_COLUMNS, StringUtils.join(colNames, String.valueOf(SerDeUtils.COMMA)));
-		// Note: serdeConstants.COLUMN_NAME_DELIMITER is not defined in previous Hive. We use a literal to save on shim
-		properties.setProperty("column.name.delimite", String.valueOf(SerDeUtils.COMMA));
-		properties.setProperty(serdeConstants.LIST_COLUMN_TYPES, StringUtils.join(colTypes, DEFAULT_LIST_COLUMN_TYPES_SEPARATOR));
-		properties.setProperty(serdeConstants.SERIALIZATION_NULL_FORMAT, "NULL");
-		properties.putAll(parameters);
-		return properties;
-	}
-
-	/**
 	 * Creates a Hive partition instance.
 	 */
 	public static Partition createHivePartition(String dbName, String tableName, List<String> values,
@@ -193,9 +161,10 @@ public class HiveTableUtil {
 	 * @param expressions  The filter expressions in CNF form
 	 * @return an Optional filter string equivalent to the expressions, which is empty if the expressions can't be handled
 	 */
-	public static Optional<String> makePartitionFilter(int partColOffset, List<String> partColNames, List<Expression> expressions) {
+	public static Optional<String> makePartitionFilter(
+			int partColOffset, List<String> partColNames, List<Expression> expressions, HiveShim hiveShim) {
 		List<String> filters = new ArrayList<>(expressions.size());
-		ExpressionExtractor extractor = new ExpressionExtractor(partColOffset, partColNames);
+		ExpressionExtractor extractor = new ExpressionExtractor(partColOffset, partColNames, hiveShim);
 		for (Expression expression : expressions) {
 			String str = expression.accept(extractor);
 			if (str == null) {
@@ -225,10 +194,12 @@ public class HiveTableUtil {
 		// used to shift field reference index
 		private final int partColOffset;
 		private final List<String> partColNames;
+		private final HiveShim hiveShim;
 
-		ExpressionExtractor(int partColOffset, List<String> partColNames) {
+		ExpressionExtractor(int partColOffset, List<String> partColNames, HiveShim hiveShim) {
 			this.partColOffset = partColOffset;
 			this.partColNames = partColNames;
+			this.hiveShim = hiveShim;
 		}
 
 		@Override
@@ -250,7 +221,29 @@ public class HiveTableUtil {
 
 		@Override
 		public String visit(ValueLiteralExpression valueLiteral) {
-			return valueLiteral.asSummaryString();
+			DataType dataType = valueLiteral.getOutputDataType();
+			Object value = valueLiteral.getValueAs(Object.class).orElse(null);
+			if (value == null) {
+				return "null";
+			}
+			value = HiveInspectors.getConversion(HiveInspectors.getObjectInspector(dataType), dataType.getLogicalType(), hiveShim)
+					.toHiveObject(value);
+			String res = value.toString();
+			LogicalTypeRoot typeRoot = dataType.getLogicalType().getTypeRoot();
+			switch (typeRoot) {
+				case CHAR:
+				case VARCHAR:
+					res = "'" + res.replace("'", "''") + "'";
+					break;
+				case DATE:
+				case TIMESTAMP_WITHOUT_TIME_ZONE:
+				case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+					// hive not support partition filter push down with these types.
+					return null;
+				default:
+					break;
+			}
+			return res;
 		}
 
 		@Override

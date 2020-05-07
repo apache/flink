@@ -1,8 +1,7 @@
 ---
 title: "Catalogs"
-is_beta: true
 nav-parent_id: tableapi
-nav-pos: 100
+nav-pos: 80
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -29,6 +28,10 @@ One of the most crucial aspects of data processing is managing metadata.
 It may be transient metadata like temporary tables, or UDFs registered against the table environment.
 Or permanent metadata, like that in a Hive Metastore. Catalogs provide a unified API for managing metadata and making it accessible from the Table API and SQL Queries. 
 
+Catalog enables users to reference existing metadata in their data systems, and automatically maps them to Flink's corresponding metadata. 
+For example, Flink can map JDBC tables to Flink table automatically, and users don't have to manually re-writing DDLs in Flink.
+Catalog greatly simplifies steps required to get started with Flink with users' existing system, and greatly enhanced user experiences.
+
 * This will be replaced by the TOC
 {:toc}
 
@@ -37,6 +40,97 @@ Or permanent metadata, like that in a Hive Metastore. Catalogs provide a unified
 ### GenericInMemoryCatalog
 
 The `GenericInMemoryCatalog` is an in-memory implementation of a catalog. All objects will be available only for the lifetime of the session.
+
+### JDBCCatalog
+
+The `JDBCCatalog` enables users to connect Flink to relational databases over JDBC protocol.
+
+#### PostgresCatalog
+
+`PostgresCatalog` is the only implementation of JDBC Catalog at the moment.
+
+#### Usage of JDBCCatalog
+
+Set a `JDBCatalog` with the following parameters:
+
+- name: required, name of the catalog
+- default database: required, default database to connect to
+- username: required, username of Postgres account
+- password: required, password of the account
+- base url: required, should be of format "jdbc:postgresql://<ip>:<port>", and should not contain database name here
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java" markdown="1">
+{% highlight java %}
+
+EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+TableEnvironment tableEnv = TableEnvironment.create(settings);
+
+String name            = "mypg";
+String defaultDatabase = "mydb";
+String username        = "...";
+String password        = "...";
+String baseUrl         = "..."
+
+JDBCCatalog catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl);
+tableEnv.registerCatalog("mypg", catalog);
+
+// set the JDBCCatalog as the current catalog of the session
+tableEnv.useCatalog("mypg");
+{% endhighlight %}
+</div>
+<div data-lang="Scala" markdown="1">
+{% highlight scala %}
+
+val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+val tableEnv = TableEnvironment.create(settings)
+
+val name            = "mypg"
+val defaultDatabase = "mydb"
+val username        = "..."
+val password        = "..."
+val baseUrl         = "..."
+
+val catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl)
+tableEnv.registerCatalog("mypg", catalog)
+
+// set the JDBCCatalog as the current catalog of the session
+tableEnv.useCatalog("mypg")
+{% endhighlight %}
+</div>
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE CATALOG mypg WITH(
+    'type'='jdbc',
+    'default-database'='...',
+    'username'='...',
+    'password'='...',
+    'base-url'='...'
+);
+
+USE CATALOG mypg;
+{% endhighlight %}
+</div>
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+
+execution:
+    planner: blink
+    ...
+    current-catalog: mypg  # set the JDBCCatalog as the current catalog of the session
+    current-database: mydb
+    
+catalogs:
+   - name: mypg
+     type: jdbc
+     default-database: mydb
+     username: ...
+     password: ...
+     base-url: ...
+{% endhighlight %}
+</div>
+</div>
+
 
 ### HiveCatalog
 
@@ -79,7 +173,7 @@ tableEnv.sqlUpdate("CREATE DATABASE mydb WITH (...)");
 // Create a catalog table
 tableEnv.sqlUpdate("CREATE TABLE mytable (name STRING, age INT) WITH (...)");
 
-tableEnv.sqlQuery("SHOW TABLES"); // should see the table
+tableEnv.listTables(); // should return the tables in current catalog and database.
 
 {% endhighlight %}
 </div>
@@ -97,7 +191,7 @@ Flink SQL> SHOW TABLES;
 mytable
 {% endhighlight %}
 
-For detailed information, please check out [Flink SQL DDL](({{ site.baseurl }}/dev/table/sql.html#create-table)).
+For detailed information, please check out [Flink SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
 
 ### Using Java/Scala/Python API
 
@@ -135,7 +229,8 @@ catalog.createTable(
         )
     );
     
-List<String> tables = catalog.listTables("mydb); // tables should contain "mytable"
+List<String> tables = catalog.listTables("mydb"); // tables should contain "mytable"
+{% endhighlight %}
 
 </div>
 </div>
@@ -143,7 +238,7 @@ List<String> tables = catalog.listTables("mydb); // tables should contain "mytab
 ## Catalog API
 
 Note: only catalog program APIs are listed here. Users can achieve many of the same funtionalities with SQL DDL. 
-For detailed DDL information, please refer to [SQL DDL](https://ci.apache.org/projects/flink/flink-docs-release-1.9/dev/table/sql.html#ddl).
+For detailed DDL information, please refer to [SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
 
 
 ### Database operations

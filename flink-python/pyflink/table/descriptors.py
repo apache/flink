@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import warnings
 from abc import ABCMeta
 
 from py4j.java_gateway import get_method
@@ -30,6 +29,7 @@ __all__ = [
     'FileSystem',
     'Kafka',
     'Elasticsearch',
+    'HBase',
     'Csv',
     'Avro',
     'Json',
@@ -841,6 +841,26 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.startFromSpecificOffset(int(partition), int(specific_offset))
         return self
 
+    def start_from_timestamp(self, timestamp):
+        """
+        Specifies the consumer to start reading partitions from a specified timestamp.
+        The specified timestamp must be before the current timestamp.
+        This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
+
+        The consumer will look up the earliest offset whose timestamp is greater than or equal
+        to the specific timestamp from Kafka. If there's no such offset, the consumer will use the
+        latest offset to read data from kafka.
+
+        This method does not affect where partitions are read from when the consumer is restored
+        from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
+        savepoint, only the offsets in the restored state will be used.
+
+        :param timestamp timestamp for the startup offsets, as milliseconds from epoch.
+        :return: This object.
+        """
+        self._j_kafka = self._j_kafka.startFromTimestamp(int(timestamp))
+        return self
+
     def sink_partitioner_fixed(self):
         """
         Configures how to partition records from Flink's partitions into Kafka's partitions.
@@ -1177,6 +1197,101 @@ class Elasticsearch(ConnectorDescriptor):
         return self
 
 
+class HBase(ConnectorDescriptor):
+    """
+    Connector descriptor for Apache HBase.
+    """
+
+    def __init__(self):
+        gateway = get_gateway()
+        self._j_hbase = gateway.jvm.HBase()
+        super(HBase, self).__init__(self._j_hbase)
+
+    def version(self, version):
+        """
+        Set the Apache HBase version to be used, Required.
+
+        :param version: HBase version. E.g., "1.4.3".
+        :return: This object.
+        """
+        if not isinstance(version, str):
+            version = str(version)
+        self._j_hbase = self._j_hbase.version(version)
+        return self
+
+    def table_name(self, table_name):
+        """
+        Set the HBase table name, Required.
+
+        :param table_name: Name of HBase table. E.g., "testNamespace:testTable", "testDefaultTable"
+        :return: This object.
+        """
+        self._j_hbase = self._j_hbase.tableName(table_name)
+        return self
+
+    def zookeeper_quorum(self, zookeeper_quorum):
+        """
+        Set the zookeeper quorum address to connect the HBase cluster, Required.
+
+        :param zookeeper_quorum: zookeeper quorum address to connect the HBase cluster. E.g.,
+                                 "localhost:2181,localhost:2182,localhost:2183"
+        :return: This object.
+        """
+        self._j_hbase = self._j_hbase.zookeeperQuorum(zookeeper_quorum)
+        return self
+
+    def zookeeper_node_parent(self, zookeeper_node_parent):
+        """
+        Set the zookeeper node parent path of HBase cluster. Default to use "/hbase", Optional.
+
+        :param zookeeper_node_parent: zookeeper node path of hbase cluster. E.g,
+                                      "/hbase/example-root-znode".
+        :return: This object
+        """
+        self._j_hbase = self._j_hbase.zookeeperNodeParent(zookeeper_node_parent)
+        return self
+
+    def write_buffer_flush_max_size(self, max_size):
+        """
+        Set threshold when to flush buffered request based on the memory byte size of rows currently
+        added.
+
+        :param max_size: the maximum size.
+        :return: This object.
+        """
+        if not isinstance(max_size, str):
+            max_size = str(max_size)
+        self._j_hbase = self._j_hbase.writeBufferFlushMaxSize(max_size)
+        return self
+
+    def write_buffer_flush_max_rows(self, write_buffer_flush_max_rows):
+        """
+        Set threshold when to flush buffered request based on the number of rows currently added.
+        Defaults to not set, i.e. won;t flush based on the number of buffered rows, Optional.
+
+        :param write_buffer_flush_max_rows: number of added rows when begin the request flushing.
+        :return: This object.
+        """
+        self._j_hbase = self._j_hbase.writeBufferFlushMaxRows(write_buffer_flush_max_rows)
+        return self
+
+    def write_buffer_flush_interval(self, interval):
+        """
+        Set an interval when to flushing buffered requesting if the interval passes, in
+        milliseconds.
+        Defaults to not set, i.e. won't flush based on flush interval, Optional.
+
+        :param interval: flush interval. The string should be in format
+                         "{length value}{time unit label}" E.g, "123ms", "1 s", if not time unit
+                         label is specified, it will be considered as milliseconds.
+        :return: This object.
+        """
+        if not isinstance(interval, str):
+            interval = str(interval)
+        self._j_hbase = self._j_hbase.writeBufferFlushInterval(interval)
+        return self
+
+
 class CustomConnectorDescriptor(ConnectorDescriptor):
     """
     Describes a custom connector to an other system.
@@ -1264,50 +1379,6 @@ class ConnectTableDescriptor(Descriptor):
         """
         self._j_connect_table_descriptor = \
             self._j_connect_table_descriptor.withSchema(schema._j_schema)
-        return self
-
-    def register_table_sink(self, name):
-        """
-        Searches for the specified table sink, configures it accordingly, and registers it as
-        a table under the given name.
-
-        :param name: Table name to be registered in the table environment.
-        :return: This object.
-
-        .. note:: Deprecated in 1.10. Use :func:`create_temporary_table` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use create_temporary_table instead.", DeprecationWarning)
-        self._j_connect_table_descriptor = self._j_connect_table_descriptor.registerTableSink(name)
-        return self
-
-    def register_table_source(self, name):
-        """
-        Searches for the specified table source, configures it accordingly, and registers it as
-        a table under the given name.
-
-        :param name: Table name to be registered in the table environment.
-        :return: This object.
-
-        .. note:: Deprecated in 1.10. Use :func:`create_temporary_table` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use create_temporary_table instead.", DeprecationWarning)
-        self._j_connect_table_descriptor = \
-            self._j_connect_table_descriptor.registerTableSource(name)
-        return self
-
-    def register_table_source_and_sink(self, name):
-        """
-        Searches for the specified table source and sink, configures them accordingly, and
-        registers them as a table under the given name.
-
-        :param name: Table name to be registered in the table environment.
-        :return: This object.
-
-        .. note:: Deprecated in 1.10. Use :func:`create_temporary_table` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use create_temporary_table instead.", DeprecationWarning)
-        self._j_connect_table_descriptor = \
-            self._j_connect_table_descriptor.registerTableSourceAndSink(name)
         return self
 
     def create_temporary_table(self, path):

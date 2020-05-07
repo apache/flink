@@ -20,8 +20,8 @@ package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.error.SqlValidateException;
+import org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec;
 
-import org.apache.calcite.sql.ExtendedSqlRowTypeNameSpec;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
@@ -69,11 +69,13 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	private final SqlNodeList partitionKeyList;
 
-	@Nullable
 	private final SqlWatermark watermark;
 
-	@Nullable
 	private final SqlCharStringLiteral comment;
+
+	private final SqlTableLike tableLike;
+
+	private final boolean isTemporary;
 
 	public SqlCreateTable(
 			SqlParserPos pos,
@@ -83,17 +85,21 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			List<SqlNodeList> uniqueKeysList,
 			SqlNodeList propertyList,
 			SqlNodeList partitionKeyList,
-			SqlWatermark watermark,
-			SqlCharStringLiteral comment) {
+			@Nullable SqlWatermark watermark,
+			@Nullable SqlCharStringLiteral comment,
+			@Nullable SqlTableLike tableLike,
+			boolean isTemporary) {
 		super(OPERATOR, pos, false, false);
 		this.tableName = requireNonNull(tableName, "tableName should not be null");
 		this.columnList = requireNonNull(columnList, "columnList should not be null");
-		this.primaryKeyList = requireNonNull(primaryKeyList, "primayKeyList should not be null");
+		this.primaryKeyList = requireNonNull(primaryKeyList, "primaryKeyList should not be null");
 		this.uniqueKeysList = requireNonNull(uniqueKeysList, "uniqueKeysList should not be null");
 		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
 		this.partitionKeyList = requireNonNull(partitionKeyList, "partitionKeyList should not be null");
 		this.watermark = watermark;
 		this.comment = comment;
+		this.tableLike = tableLike;
+		this.isTemporary = isTemporary;
 	}
 
 	@Override
@@ -104,7 +110,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	@Override
 	public List<SqlNode> getOperandList() {
 		return ImmutableNullableList.of(tableName, columnList, primaryKeyList,
-			propertyList, partitionKeyList, watermark, comment);
+			propertyList, partitionKeyList, watermark, comment, tableLike);
 	}
 
 	public SqlIdentifier getTableName() {
@@ -139,10 +145,19 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		return Optional.ofNullable(comment);
 	}
 
+	public Optional<SqlTableLike> getTableLike() {
+		return Optional.ofNullable(tableLike);
+	}
+
 	public boolean isIfNotExists() {
 		return ifNotExists;
 	}
 
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
+	@Override
 	public void validate() throws SqlValidateException {
 		ColumnValidator validator = new ColumnValidator();
 		for (SqlNode column : columnList) {
@@ -190,6 +205,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 						watermark.getEventTimeColumnName().getParserPosition());
 			}
 		}
+
+		if (tableLike != null) {
+			tableLike.validate();
+		}
 	}
 
 	public boolean containsComputedColumn() {
@@ -219,10 +238,12 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	 * have been reversed.
 	 */
 	public String getColumnSqlString() {
-		SqlPrettyWriter writer = new SqlPrettyWriter(AnsiSqlDialect.DEFAULT);
-		writer.setAlwaysUseParentheses(true);
-		writer.setSelectListItemsOnSeparateLines(false);
-		writer.setIndentation(0);
+		SqlPrettyWriter writer = new SqlPrettyWriter(
+			SqlPrettyWriter.config()
+				.withDialect(AnsiSqlDialect.DEFAULT)
+				.withAlwaysUseParentheses(true)
+				.withSelectListItemsOnSeparateLines(false)
+				.withIndentation(0));
 		writer.startList("", "");
 		for (SqlNode column : columnList) {
 			writer.sep(",");
@@ -242,7 +263,11 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			SqlWriter writer,
 			int leftPrec,
 			int rightPrec) {
-		writer.keyword("CREATE TABLE");
+		writer.keyword("CREATE");
+		if (isTemporary()) {
+			writer.keyword("TEMPORARY");
+		}
+		writer.keyword("TABLE");
 		tableName.unparse(writer, leftPrec, rightPrec);
 		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
 		for (SqlNode column : columnList) {
@@ -306,6 +331,11 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			}
 			writer.newlineAndIndent();
 			writer.endList(withFrame);
+		}
+
+		if (this.tableLike != null) {
+			writer.newlineAndIndent();
+			this.tableLike.unparse(writer, leftPrec, rightPrec);
 		}
 	}
 

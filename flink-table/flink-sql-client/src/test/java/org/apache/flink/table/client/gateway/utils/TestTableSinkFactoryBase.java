@@ -20,14 +20,15 @@ package org.apache.flink.table.client.gateway.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
+import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
@@ -36,6 +37,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_FROM;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_TYPE;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE;
@@ -74,19 +80,23 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
 		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
+		properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
 		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
 		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM);
 		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE);
+		// watermark
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+
 		return properties;
 	}
 
 	@Override
-	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
-		final DescriptorProperties params = new DescriptorProperties(true);
-		params.putProperties(properties);
+	public StreamTableSink<Row> createTableSink(TableSinkFactory.Context context) {
 		return new TestTableSink(
-				SchemaValidator.deriveTableSinkSchema(params),
-				properties.get(testProperty));
+				context.getTable().getSchema(),
+				context.getTable().getProperties().get(testProperty));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -100,7 +110,7 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
 		private final String property;
 
 		public TestTableSink(TableSchema schema, String property) {
-			this.schema = schema;
+			this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
 			this.property = property;
 		}
 
@@ -129,8 +139,8 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
 		}
 
 		@Override
-		public void emitDataStream(DataStream<Row> dataStream) {
-			// do nothing
+		public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
+			return null;
 		}
 	}
 }

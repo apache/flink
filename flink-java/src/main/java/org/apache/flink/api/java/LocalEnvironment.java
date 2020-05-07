@@ -64,7 +64,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		}
 
 		final Configuration effectiveConfiguration = new Configuration(checkNotNull(configuration));
-		effectiveConfiguration.set(DeploymentOptions.TARGET, "local-executor");
+		effectiveConfiguration.set(DeploymentOptions.TARGET, "local");
 		effectiveConfiguration.set(DeploymentOptions.ATTACHED, true);
 		return effectiveConfiguration;
 	}

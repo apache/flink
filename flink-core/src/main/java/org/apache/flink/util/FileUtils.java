@@ -51,6 +51,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -75,7 +76,7 @@ public final class FileUtils {
 
 	/**
 	 * The maximum size of array to allocate for reading. See
-	 * {@link java.nio.file.Files#MAX_BUFFER_SIZE} for more.
+	 * {@code MAX_BUFFER_SIZE} in {@link java.nio.file.Files} for more.
 	 */
 	private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
 
@@ -94,6 +95,17 @@ public final class FileUtils {
 	public static void writeCompletely(WritableByteChannel channel, ByteBuffer src) throws IOException {
 		while (src.hasRemaining()) {
 			channel.write(src);
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Lists the given directory in a resource-leak-safe way.
+	 */
+	public static java.nio.file.Path[] listDirectory(java.nio.file.Path directory) throws IOException {
+		try (Stream<java.nio.file.Path> stream = Files.list(directory)) {
+			return stream.toArray(java.nio.file.Path[]::new);
 		}
 	}
 
@@ -342,6 +354,10 @@ public final class FileUtils {
 	}
 
 	private static void cleanDirectoryInternal(File directory) throws IOException {
+		if (Files.isSymbolicLink(directory.toPath())) {
+			// the user directories which symbolic links point to should not be cleaned.
+			return;
+		}
 		if (directory.isDirectory()) {
 			final File[] files = directory.listFiles();
 
@@ -493,8 +509,9 @@ public final class FileUtils {
 		FileSystem sourceFs = directory.getFileSystem();
 		FileSystem targetFs = target.getFileSystem();
 
+		Path absolutePath = absolutizePath(directory);
 		try (ZipOutputStream out = new ZipOutputStream(targetFs.create(target, FileSystem.WriteMode.NO_OVERWRITE))) {
-			addToZip(directory, sourceFs, directory.getParent(), out);
+			addToZip(absolutePath, sourceFs, absolutePath.getParent(), out);
 		}
 		return target;
 	}
@@ -574,6 +591,21 @@ public final class FileUtils {
 			filterFileVisitor);
 
 		return filterFileVisitor.getFiles();
+	}
+
+	/**
+	 * Absolutize the given path if it is relative.
+	 *
+	 * @param pathToAbsolutize path which is being absolutized if it is a relative path
+	 * @return the absolutized path
+	 */
+	public static Path absolutizePath(Path pathToAbsolutize) throws IOException {
+		if (!pathToAbsolutize.isAbsolute()) {
+			FileSystem fs = pathToAbsolutize.getFileSystem();
+			return new Path(fs.getWorkingDirectory(), pathToAbsolutize);
+		} else {
+			return pathToAbsolutize;
+		}
 	}
 
 	/**

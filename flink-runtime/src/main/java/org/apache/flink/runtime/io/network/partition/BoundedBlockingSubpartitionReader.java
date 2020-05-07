@@ -78,7 +78,7 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 
 	@Nullable
 	@Override
-	public BufferAndBacklog getNextBuffer(boolean isLocalChannel) throws IOException {
+	public BufferAndBacklog getNextBuffer() throws IOException {
 		final Buffer current = nextBuffer; // copy reference to stack
 
 		if (current == null) {
@@ -146,13 +146,17 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	}
 
 	@Override
-	public boolean nextBufferIsEvent() {
-		return nextBuffer != null && !nextBuffer.isBuffer();
+	public void resumeConsumption() {
+		throw new UnsupportedOperationException("Method should never be called.");
 	}
 
 	@Override
-	public boolean isAvailable() {
-		return nextBuffer != null;
+	public boolean isAvailable(int numCreditsAvailable) {
+		if (numCreditsAvailable > 0) {
+			return nextBuffer != null;
+		}
+
+		return nextBuffer != null && !nextBuffer.isBuffer();
 	}
 
 	@Override
@@ -170,6 +174,6 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	public String toString() {
 		return String.format("Blocking Subpartition Reader: ID=%s, index=%d",
 				parent.parent.getPartitionId(),
-				parent.index);
+				parent.getSubPartitionIndex());
 	}
 }

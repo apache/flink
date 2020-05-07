@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.StringSerializer;
+import org.apache.flink.runtime.checkpoint.PendingCheckpoint.TaskAcknowledgeResult;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -30,10 +31,14 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinator;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
 
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,6 +51,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -59,11 +65,12 @@ import java.util.concurrent.ScheduledFuture;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -189,7 +196,6 @@ public class PendingCheckpointTest {
 	 * Tests that abort discards state.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testAbortDiscardsState() throws Exception {
 		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
 		QueueExecutor executor = new QueueExecutor();
@@ -428,21 +434,109 @@ public class PendingCheckpointTest {
 		assertEquals("state", deserializedState);
 	}
 
+	@Test
+	public void testInitiallyUnacknowledgedCoordinatorStates() throws Exception {
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(
+				createOperatorCoordinator(), createOperatorCoordinator());
+
+		assertEquals(2, checkpoint.getNumberOfNonAcknowledgedOperatorCoordinators());
+		assertFalse(checkpoint.isFullyAcknowledged());
+	}
+
+	@Test
+	public void testAcknowledgedCoordinatorStates() throws Exception {
+		final OperatorCoordinatorCheckpointContext coord1 = createOperatorCoordinator();
+		final OperatorCoordinatorCheckpointContext coord2 = createOperatorCoordinator();
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(coord1, coord2);
+
+		final TaskAcknowledgeResult ack1 = checkpoint.acknowledgeCoordinatorState(coord1, new TestingStreamStateHandle());
+		final TaskAcknowledgeResult ack2 = checkpoint.acknowledgeCoordinatorState(coord2, null);
+
+		assertEquals(TaskAcknowledgeResult.SUCCESS, ack1);
+		assertEquals(TaskAcknowledgeResult.SUCCESS, ack2);
+		assertEquals(0, checkpoint.getNumberOfNonAcknowledgedOperatorCoordinators());
+		assertTrue(checkpoint.isFullyAcknowledged());
+		assertThat(checkpoint.getOperatorStates().keySet(), Matchers.contains(coord1.operatorId()));
+	}
+
+	@Test
+	public void testDuplicateAcknowledgeCoordinator() throws Exception {
+		final OperatorCoordinatorCheckpointContext coordinator = createOperatorCoordinator();
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(coordinator);
+
+		checkpoint.acknowledgeCoordinatorState(coordinator, new TestingStreamStateHandle());
+		final TaskAcknowledgeResult secondAck = checkpoint.acknowledgeCoordinatorState(coordinator, null);
+
+		assertEquals(TaskAcknowledgeResult.DUPLICATE, secondAck);
+	}
+
+	@Test
+	public void testAcknowledgeUnknownCoordinator() throws Exception {
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(createOperatorCoordinator());
+
+		final TaskAcknowledgeResult ack = checkpoint.acknowledgeCoordinatorState(createOperatorCoordinator(), null);
+
+		assertEquals(TaskAcknowledgeResult.UNKNOWN, ack);
+	}
+
+	@Test
+	public void testDisposeDisposesCoordinatorStates() throws Exception {
+		final TestingStreamStateHandle handle1 = new TestingStreamStateHandle();
+		final TestingStreamStateHandle handle2 = new TestingStreamStateHandle();
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithAcknowledgedCoordinators(handle1, handle2);
+
+		checkpoint.abort(CheckpointFailureReason.CHECKPOINT_EXPIRED);
+
+		assertTrue(handle1.isDisposed());
+		assertTrue(handle2.isDisposed());
+	}
+
 	// ------------------------------------------------------------------------
 
 	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props) throws IOException {
-		return createPendingCheckpoint(props, Collections.emptyList(), Executors.directExecutor());
+		return createPendingCheckpoint(props, Collections.emptyList(), Collections.emptyList(), Executors.directExecutor());
 	}
 
 	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Executor executor) throws IOException {
-		return createPendingCheckpoint(props, Collections.emptyList(), executor);
+		return createPendingCheckpoint(props, Collections.emptyList(), Collections.emptyList(), executor);
 	}
 
 	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Collection<String> masterStateIdentifiers) throws IOException {
-		return createPendingCheckpoint(props, masterStateIdentifiers, Executors.directExecutor());
+		return createPendingCheckpoint(props, Collections.emptyList(), masterStateIdentifiers, Executors.directExecutor());
 	}
 
-	private PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, Collection<String> masterStateIdentifiers, Executor executor) throws IOException {
+	private PendingCheckpoint createPendingCheckpointWithCoordinators(
+			OperatorCoordinatorCheckpointContext... coordinators) throws IOException {
+
+		final PendingCheckpoint checkpoint = createPendingCheckpoint(
+				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+				OperatorCoordinatorCheckpointContext.getIds(Arrays.asList(coordinators)),
+				Collections.emptyList(),
+				Executors.directExecutor());
+
+		checkpoint.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
+		return checkpoint;
+	}
+
+	private PendingCheckpoint createPendingCheckpointWithAcknowledgedCoordinators(StreamStateHandle... handles) throws IOException {
+		OperatorCoordinatorCheckpointContext[] coords = new OperatorCoordinatorCheckpointContext[handles.length];
+		for (int i = 0; i < handles.length; i++) {
+			coords[i] = createOperatorCoordinator();
+		}
+
+		final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(coords);
+		for (int i = 0; i < handles.length; i++) {
+			checkpoint.acknowledgeCoordinatorState(coords[i], handles[i]);
+		}
+
+		return checkpoint;
+	}
+
+	private PendingCheckpoint createPendingCheckpoint(
+			CheckpointProperties props,
+			Collection<OperatorID> operatorCoordinators,
+			Collection<String> masterStateIdentifiers,
+			Executor executor) throws IOException {
 
 		final Path checkpointDir = new Path(tmpFolder.newFolder().toURI());
 		final FsCheckpointStorageLocation location = new FsCheckpointStorageLocation(
@@ -459,10 +553,20 @@ public class PendingCheckpointTest {
 			0,
 			1,
 			ackTasks,
+			operatorCoordinators,
 			masterStateIdentifiers,
 			props,
 			location,
-			executor);
+			executor,
+			new CompletableFuture<>());
+	}
+
+	private static OperatorCoordinatorCheckpointContext createOperatorCoordinator() {
+		return new OperatorCoordinatorCheckpointContext(
+				new MockOperatorCoordinator(),
+				new OperatorID(),
+				256,
+				50);
 	}
 
 	@SuppressWarnings("unchecked")

@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream.state;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 /**
  * A {@link OuterJoinRecordStateView} is an extension to {@link JoinRecordStateView}.
@@ -40,17 +40,17 @@ public interface OuterJoinRecordStateView extends JoinRecordStateView {
 	 * @param record the added record
 	 * @param numOfAssociations the number of records associated with other side
 	 */
-	void addRecord(BaseRow record, int numOfAssociations) throws Exception;
+	void addRecord(RowData record, int numOfAssociations) throws Exception;
 
 	/**
 	 * Updates the number of associations belongs to the record.
 	 * @param record the record to update
 	 * @param numOfAssociations the new number of records associated with other side
 	 */
-	void updateNumOfAssociations(BaseRow record, int numOfAssociations) throws Exception;
+	void updateNumOfAssociations(RowData record, int numOfAssociations) throws Exception;
 
 	/**
 	 * Gets all the records and number of associations under the current context (i.e. join key).
 	 */
-	Iterable<Tuple2<BaseRow, Integer>> getRecordsAndNumOfAssociations() throws Exception;
+	Iterable<Tuple2<RowData, Integer>> getRecordsAndNumOfAssociations() throws Exception;
 }

@@ -40,6 +40,8 @@ public class ResultPartitionBuilder {
 
 	private BoundedBlockingSubpartitionType blockingSubpartitionType = BoundedBlockingSubpartitionType.AUTO;
 
+	private int partitionIndex = 0;
+
 	private int numberOfSubpartitions = 1;
 
 	private int numTargetKeyGroups = 1;
@@ -54,6 +56,8 @@ public class ResultPartitionBuilder {
 
 	private int floatingNetworkBuffersPerGate = 1;
 
+	private int maxBuffersPerChannel = Integer.MAX_VALUE;
+
 	private int networkBufferSize = 1;
 
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -63,9 +67,12 @@ public class ResultPartitionBuilder {
 
 	private boolean blockingShuffleCompressionEnabled = false;
 
-	private boolean pipelinedShuffleCompressionEnabled = false;
-
 	private String compressionCodec = "LZ4";
+
+	public ResultPartitionBuilder setResultPartitionIndex(int partitionIndex) {
+		this.partitionIndex = partitionIndex;
+		return this;
+	}
 
 	public ResultPartitionBuilder setResultPartitionId(ResultPartitionID partitionId) {
 		this.partitionId = partitionId;
@@ -140,11 +147,6 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
-	public ResultPartitionBuilder setPipelinedShuffleCompressionEnabled(boolean pipelinedShuffleCompressionEnabled) {
-		this.pipelinedShuffleCompressionEnabled = pipelinedShuffleCompressionEnabled;
-		return this;
-	}
-
 	public ResultPartitionBuilder setCompressionCodec(String compressionCodec) {
 		this.compressionCodec = compressionCodec;
 		return this;
@@ -167,14 +169,15 @@ public class ResultPartitionBuilder {
 			networkBufferSize,
 			releasedOnConsumption,
 			blockingShuffleCompressionEnabled,
-			pipelinedShuffleCompressionEnabled,
-			compressionCodec);
+			compressionCodec,
+			maxBuffersPerChannel);
 
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));
 
 		return resultPartitionFactory.create(
 			"Result Partition task",
+			partitionIndex,
 			partitionId,
 			partitionType,
 			numberOfSubpartitions,

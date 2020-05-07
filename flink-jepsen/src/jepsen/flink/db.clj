@@ -41,7 +41,7 @@
   {:high-availability                     "zookeeper"
    :high-availability.zookeeper.quorum    (zookeeper-quorum test)
    :high-availability.storageDir          "hdfs:///flink/ha"
-   :jobmanager.heap.size                  "2048m"
+   :jobmanager.memory.process.size        "2048m"
    :jobmanager.rpc.address                node
    :state.savepoints.dir                  "hdfs:///flink/savepoints"
    :rest.address                          node
@@ -51,7 +51,7 @@
    :yarn.application-attempts             99999
    :slotmanager.taskmanager-timeout       10000
    :state.backend.local-recovery          "true"
-   :taskmanager.memory.total-process.size "2048m"
+   :taskmanager.memory.process.size "2048m"
    :taskmanager.registration.timeout      "30 s"})
 
 (defn flink-configuration
@@ -67,7 +67,7 @@
                                          (seq (flink-configuration test node))))]
     (c/exec :echo c :> conf-file)
     ;; TODO: write log4j.properties properly
-    (c/exec (c/lit (str "sed -i'.bak' -e '/log4j.rootLogger=/ s/=.*/=DEBUG, file/' " install-dir "/conf/log4j.properties")))))
+    (c/exec (c/lit (str "sed -i'.bak' -e '/rootLogger\\.level/ s/=.*/= DEBUG/' " install-dir "/conf/log4j.properties")))))
 
 (defn- file-name
   [path]
@@ -89,7 +89,7 @@
     (info "Installing Flink from" url)
     (cu/install-archive! url install-dir)
     (info "Enable S3 FS")
-    (c/exec (c/lit (str "ls " install-dir "/opt/flink-s3-fs-hadoop* | xargs -I {} mv {} " install-dir "/lib")))
+    (c/exec (c/lit (str "mkdir " install-dir "/plugins/s3-fs-hadoop && ls " install-dir "/opt/flink-s3-fs-hadoop* | xargs -I {} mv {} " install-dir "/plugins/s3-fs-hadoop")))
     (upload-job-jars! (->> test :test-spec :jobs (map :job-jar)))
     (write-configuration! test node)))
 
@@ -303,7 +303,7 @@
     "-Djobmanager.rpc.address=$(hostname -f)"
     "-Djobmanager.rpc.port=6123"
     "-Dmesos.resourcemanager.tasks.cpus=1"
-    "-Dmesos.resourcemanager.tasks.mem=2048" ;; FLINK-15082: this option must be set instead of taskmanager.memory.total-process.size
+    "-Dtaskmanager.memory.process.size=2048m"
     "-Drest.bind-address=$(hostname -f)"))
 
 (defn- start-mesos-session!

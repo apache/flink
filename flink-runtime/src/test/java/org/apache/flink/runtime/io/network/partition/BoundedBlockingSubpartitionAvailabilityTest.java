@@ -72,8 +72,8 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 		final List<BufferAndBacklog> data = drainAvailableData(reader);
 
 		// assert
-		assertFalse(reader.isAvailable());
-		assertFalse(data.get(data.size() - 1).isMoreAvailable());
+		assertFalse(reader.isAvailable(Integer.MAX_VALUE));
+		assertFalse(data.get(data.size() - 1).isDataAvailable());
 
 		// cleanup
 		reader.releaseAllResources();
@@ -93,7 +93,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 		data.get(1).buffer().recycleBuffer();
 
 		// assert
-		assertTrue(reader.isAvailable());
+		assertTrue(reader.isAvailable(Integer.MAX_VALUE));
 		assertEquals(2, listener.numNotifications); // one initial, one for new availability
 
 		// cleanup
@@ -111,7 +111,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 		drainAllData(reader);
 
 		// assert
-		assertFalse(reader.isAvailable());
+		assertFalse(reader.isAvailable(Integer.MAX_VALUE));
 
 		// cleanup
 		reader.releaseAllResources();
@@ -142,7 +142,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 		final ArrayList<BufferAndBacklog> list = new ArrayList<>();
 
 		BufferAndBacklog bab;
-		while ((bab = reader.getNextBuffer(true)) != null) {
+		while ((bab = reader.getNextBuffer()) != null) {
 			list.add(bab);
 		}
 
@@ -151,7 +151,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 
 	private static void drainAllData(ResultSubpartitionView reader) throws Exception {
 		BufferAndBacklog bab;
-		while ((bab = reader.getNextBuffer(true)) != null) {
+		while ((bab = reader.getNextBuffer()) != null) {
 			bab.buffer().recycleBuffer();
 		}
 	}

@@ -35,4 +35,12 @@ public interface ClusterController extends AutoCloseableAsync {
 	 * @throws IOException
 	 */
 	JobController submitJob(JobSubmission job) throws IOException;
+
+	/**
+	 * Submits the given SQL job to the cluster.
+	 *
+	 * @param job job to submit.
+	 * @throws IOException if any IO error happen.
+	 */
+	void submitSQLJob(SQLJobSubmission job) throws IOException;
 }

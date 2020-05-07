@@ -33,12 +33,11 @@ import org.codehaus.commons.nullanalysis.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,7 +49,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * The ProcessPythonEnvironmentManager is used to prepare the working dir of python UDF worker and create
@@ -62,6 +60,8 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 
 	private static final Logger LOG = LoggerFactory.getLogger(ProcessPythonEnvironmentManager.class);
 
+	@VisibleForTesting
+	static final String PYFLINK_GATEWAY_DISABLED = "PYFLINK_GATEWAY_DISABLED";
 	@VisibleForTesting
 	public static final String PYTHON_REQUIREMENTS_FILE = "_PYTHON_REQUIREMENTS_FILE";
 	@VisibleForTesting
@@ -77,6 +77,9 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	static final String PYTHON_ARCHIVES_DIR = "python-archives";
 	@VisibleForTesting
 	static final String PYTHON_FILES_DIR = "python-files";
+
+	private static final long CHECK_INTERVAL = 20;
+	private static final long CHECK_TIMEOUT = 1000;
 
 	private transient String baseDirectory;
 
@@ -100,16 +103,13 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	@NotNull private final PythonDependencyInfo dependencyInfo;
 	@NotNull private final Map<String, String> systemEnv;
 	@NotNull private final String[] tmpDirectories;
-	@Nullable private final String logDirectory;
 
 	public ProcessPythonEnvironmentManager(
 		@NotNull PythonDependencyInfo dependencyInfo,
 		@NotNull String[] tmpDirectories,
-		@Nullable String logDirectory,
 		@NotNull Map<String, String> systemEnv) {
 		this.dependencyInfo = Objects.requireNonNull(dependencyInfo);
 		this.tmpDirectories = Objects.requireNonNull(tmpDirectories);
-		this.logDirectory = logDirectory;
 		this.systemEnv = Objects.requireNonNull(systemEnv);
 	}
 
@@ -130,24 +130,48 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	}
 
 	@Override
-	public void close() {
-		FileUtils.deleteDirectoryQuietly(new File(baseDirectory));
-		if (shutdownHook != null) {
-			ShutdownHookUtil.removeShutdownHook(
-				shutdownHook, ProcessPythonEnvironmentManager.class.getSimpleName(), LOG);
-			shutdownHook = null;
+	public void close() throws Exception {
+		try {
+			int retries = 0;
+			while (true) {
+				try {
+					FileUtils.deleteDirectory(new File(baseDirectory));
+					break;
+				} catch (Throwable t) {
+					retries++;
+					if (retries <= CHECK_TIMEOUT / CHECK_INTERVAL) {
+						LOG.warn(
+							String.format(
+								"Failed to delete the working directory %s of the Python UDF worker. Retrying...",
+								baseDirectory),
+							t);
+					} else {
+						LOG.warn(
+							String.format(
+								"Failed to delete the working directory %s of the Python UDF worker.", baseDirectory),
+							t);
+						break;
+					}
+				}
+			}
+		} finally {
+			if (shutdownHook != null) {
+				ShutdownHookUtil.removeShutdownHook(
+					shutdownHook, ProcessPythonEnvironmentManager.class.getSimpleName(), LOG);
+				shutdownHook = null;
+			}
 		}
 	}
 
 	@Override
 	public RunnerApi.Environment createEnvironment() throws IOException, InterruptedException {
 		Map<String, String> env = constructEnvironmentVariables();
-		String pythonWorkerCommand = String.join(File.separator, baseDirectory, "pyflink-udf-runner.sh");
+		File runnerScript = ResourceUtil.extractUdfRunner(baseDirectory);
 
 		return Environments.createProcessEnvironment(
 			"",
 			"",
-			pythonWorkerCommand,
+			runnerScript.getPath(),
 			env);
 	}
 
@@ -185,37 +209,27 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 			throws IOException, IllegalArgumentException, InterruptedException {
 		Map<String, String> env = new HashMap<>(this.systemEnv);
 
-		constructBuiltInDependencies(env);
-
 		constructFilesDirectory(env);
 
 		constructArchivesDirectory(env);
 
 		constructRequirementsDirectory(env);
 
-		// set FLINK_LOG_DIR if the log directory exists
-		if (!Strings.isNullOrEmpty(logDirectory)) {
-			env.put("FLINK_LOG_DIR", logDirectory);
-		}
+		// set BOOT_LOG_DIR.
+		env.put("BOOT_LOG_DIR", baseDirectory);
+
+		// disable the launching of gateway server to prevent from this dead loop:
+		// launch UDF worker -> import udf -> import job code
+		//        ^                                    | (If the job code is not enclosed in a
+		//        									   |  if name == 'main' statement)
+		//        |                                    V
+		// execute job in local mode <- launch gateway server and submit job to local executor
+		env.put(PYFLINK_GATEWAY_DISABLED, "true");
 
 		// set the path of python interpreter, it will be used to execute the udf worker.
-		if (dependencyInfo.getPythonExec().isPresent()) {
-			env.put("python", dependencyInfo.getPythonExec().get());
-			LOG.info("Python interpreter path: {}", dependencyInfo.getPythonExec());
-		}
+		env.put("python", dependencyInfo.getPythonExec());
+		LOG.info("Python interpreter path: {}", dependencyInfo.getPythonExec());
 		return env;
-	}
-
-	private void constructBuiltInDependencies(Map<String, String> env) throws IOException, InterruptedException {
-		// Extract built-in python dependencies and udf runner script.
-		ResourceUtil.extractBuiltInDependencies(baseDirectory, "", false);
-
-		// add the built-in python dependencies to PYTHONPATH
-		List<String> builtInDependencies = Arrays.stream(ResourceUtil.BUILT_IN_PYTHON_DEPENDENCIES)
-			.filter(file -> file.endsWith(".zip"))
-			.map(file -> String.join(File.separator, baseDirectory, file))
-			.collect(Collectors.toList());
-		appendToPythonPath(env, builtInDependencies);
 	}
 
 	private void constructFilesDirectory(Map<String, String> env) throws IOException {
@@ -303,6 +317,17 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	@VisibleForTesting
 	String getBaseDirectory() {
 		return baseDirectory;
+	}
+
+	@Override
+	public String getBootLog() throws Exception {
+		File bootLogFile = new File(baseDirectory + File.separator + "flink-python-udf-boot.log");
+		String msg = "Failed to create stage bundle factory!";
+		if (bootLogFile.exists()) {
+			byte[] output = Files.readAllBytes(bootLogFile.toPath());
+			msg += String.format(" %s", new String(output, Charset.defaultCharset()));
+		}
+		return msg;
 	}
 
 	private static void appendToPythonPath(Map<String, String> env, List<String> pythonDependencies) {

@@ -21,11 +21,12 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, Types}
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral
+import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.DecimalType
 import org.apache.flink.types.Row
+
 import org.junit.{Ignore, Test}
 
 class DecimalTypeTest extends ExpressionTestBase {
@@ -132,7 +133,7 @@ class DecimalTypeTest extends ExpressionTestBase {
   @Ignore
   @Test
   def testDefaultDecimalCasting(): Unit = {
-    // from String
+//    // from String
     testTableApi(
       "123456789123456789123456789".cast(DataTypes.DECIMAL(38, 0)),
       "'123456789123456789123456789'.cast(DECIMAL)",
@@ -189,6 +190,12 @@ class DecimalTypeTest extends ExpressionTestBase {
       BigDecimal("123456789.123456789123456789").cast(DataTypes.DOUBLE),
       "(123456789.123456789123456789p).cast(DOUBLE)",
       "1.2345678912345679E8")
+
+    // testing padding behaviour
+    testSqlApi(
+      "CAST(CAST(f67 AS DECIMAL(10, 5)) AS VARCHAR)",
+      "1.00000"
+    )
   }
 
   @Test
@@ -698,13 +705,13 @@ class DecimalTypeTest extends ExpressionTestBase {
       'f42 % 'f41,
       "f42 % f41",
       "mod(f42, f41)",
-      "2.00")
+      "2.0000")
 
     testAllApis(
       'f41 % 'f43,
       "f41 % f43",
       "mod(f41, f43)",
-      "3")
+      "3.00")
 
     testAllApis(
       'f43 % 'f41,
@@ -743,7 +750,7 @@ class DecimalTypeTest extends ExpressionTestBase {
       'f46 % 'f47,
       "f46 % f47",
       "mod(f46, f47)",
-      "3.12")
+      "3.1234")
   }
 
   @Test  // functions that treat Decimal as exact value
@@ -1213,6 +1220,11 @@ class DecimalTypeTest extends ExpressionTestBase {
     testSqlApi(
       "f66 between 0 and f63",
       "true")
+  }
+
+  @Test
+  def testCompareDecimalColWithNull(): Unit = {
+    testSqlApi("f35>cast(1234567890123.123 as decimal(20,16))", "null")
   }
 
   // ----------------------------------------------------------------------------------------------

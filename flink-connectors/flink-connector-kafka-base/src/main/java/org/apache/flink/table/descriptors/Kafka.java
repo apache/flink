@@ -39,6 +39,7 @@ import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIF
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_OFFSET;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_PARTITION;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_MODE;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_TIMESTAMP_MILLIS;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TOPIC;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TYPE_VALUE_KAFKA;
 
@@ -52,6 +53,7 @@ public class Kafka extends ConnectorDescriptor {
 	private String topic;
 	private StartupMode startupMode;
 	private Map<Integer, Long> specificOffsets;
+	private long startTimestampMillis;
 	private Map<String, String> kafkaProperties;
 	private String sinkPartitionerType;
 	private Class<? extends FlinkKafkaPartitioner> sinkPartitionerClass;
@@ -180,6 +182,19 @@ public class Kafka extends ConnectorDescriptor {
 	}
 
 	/**
+	 * Configures to start reading from partition offsets of the specified timestamp.
+	 *
+	 * @param startTimestampMillis timestamp to start reading from
+	 * @see FlinkKafkaConsumerBase#setStartFromTimestamp(long)
+	 */
+	public Kafka startFromTimestamp(long startTimestampMillis) {
+		this.startupMode = StartupMode.TIMESTAMP;
+		this.specificOffsets = null;
+		this.startTimestampMillis = startTimestampMillis;
+		return this;
+	}
+
+	/**
 	 * Configures how to partition records from Flink's partitions into Kafka's partitions.
 	 *
 	 * <p>This strategy ensures that each Flink partition ends up in one Kafka partition.
@@ -275,6 +290,10 @@ public class Kafka extends ConnectorDescriptor {
 				i++;
 			}
 			properties.putString(CONNECTOR_SPECIFIC_OFFSETS, stringBuilder.toString());
+		}
+
+		if (startTimestampMillis > 0) {
+			properties.putString(CONNECTOR_STARTUP_TIMESTAMP_MILLIS, String.valueOf(startTimestampMillis));
 		}
 
 		if (kafkaProperties != null) {

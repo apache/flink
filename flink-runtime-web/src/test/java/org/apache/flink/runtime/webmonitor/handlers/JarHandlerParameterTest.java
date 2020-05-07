@@ -21,6 +21,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -301,7 +302,7 @@ public abstract class JarHandlerParameterTest
 	JobGraph validateDefaultGraph() {
 		JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null);
 		Assert.assertEquals(0, ParameterProgram.actualArguments.length);
-		Assert.assertEquals(ExecutionConfig.PARALLELISM_DEFAULT, getExecutionConfig(jobGraph).getParallelism());
+		Assert.assertEquals(CoreOptions.DEFAULT_PARALLELISM.defaultValue().intValue(), getExecutionConfig(jobGraph).getParallelism());
 		return jobGraph;
 	}
 

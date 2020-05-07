@@ -22,13 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.python.PythonConfig;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -68,18 +65,18 @@ public final class PythonDependencyInfo {
 	 * The path of the python interpreter (e.g. /usr/local/bin/python) specified by
 	 * pyflink.table.TableConfig#set_python_executable() or command line option "-pyexec".
 	 */
-	@Nullable private final String pythonExec;
+	@Nonnull private final String pythonExec;
 
 	public PythonDependencyInfo(
 		@Nonnull Map<String, String> pythonFiles,
 		@Nullable String requirementsFilePath,
 		@Nullable String requirementsCacheDir,
 		@Nonnull Map<String, String> archives,
-		@Nullable String pythonExec) {
+		@Nonnull String pythonExec) {
 		this.pythonFiles = Objects.requireNonNull(pythonFiles);
 		this.requirementsFilePath = requirementsFilePath;
 		this.requirementsCacheDir = requirementsCacheDir;
-		this.pythonExec = pythonExec;
+		this.pythonExec = Objects.requireNonNull(pythonExec);
 		this.archives = Objects.requireNonNull(archives);
 	}
 
@@ -95,8 +92,8 @@ public final class PythonDependencyInfo {
 		return Optional.ofNullable(requirementsCacheDir);
 	}
 
-	public Optional<String> getPythonExec() {
-		return Optional.ofNullable(pythonExec);
+	public String getPythonExec() {
+		return pythonExec;
 	}
 
 	public Map<String, String> getArchives() {
@@ -110,19 +107,13 @@ public final class PythonDependencyInfo {
 	 * @param distributedCache The DistributedCache object of current task.
 	 * @return The PythonDependencyInfo object that contains whole information of python dependency.
 	 */
-	public static PythonDependencyInfo create(PythonConfig pythonConfig, DistributedCache distributedCache)
-		throws IOException {
-		ObjectMapper mapper = new ObjectMapper();
+	public static PythonDependencyInfo create(PythonConfig pythonConfig, DistributedCache distributedCache) {
 
 		Map<String, String> pythonFiles = new HashMap<>();
-		if (pythonConfig.getPythonFilesInfo().isPresent()) {
-			Map<String, String> filesIdToFilesName =
-				mapper.readValue(pythonConfig.getPythonFilesInfo().get(), HashMap.class);
-			for (Map.Entry<String, String> entry: filesIdToFilesName.entrySet()) {
-				File pythonFile = distributedCache.getFile(entry.getKey());
-				String filePath = pythonFile.getAbsolutePath();
-				pythonFiles.put(filePath, entry.getValue());
-			}
+		for (Map.Entry<String, String> entry: pythonConfig.getPythonFilesInfo().entrySet()) {
+			File pythonFile = distributedCache.getFile(entry.getKey());
+			String filePath = pythonFile.getAbsolutePath();
+			pythonFiles.put(filePath, entry.getValue());
 		}
 
 		String requirementsFilePath = null;
@@ -137,18 +128,13 @@ public final class PythonDependencyInfo {
 		}
 
 		Map<String, String> archives = new HashMap<>();
-		if (pythonConfig.getPythonArchivesInfo().isPresent()) {
-			Map<String, String> archivesMap =
-				mapper.readValue(pythonConfig.getPythonArchivesInfo().get(), HashMap.class);
-
-			for (Map.Entry<String, String> entry: archivesMap.entrySet()) {
-				String archiveFilePath = distributedCache.getFile(entry.getKey()).getAbsolutePath();
-				String targetPath = entry.getValue();
-				archives.put(archiveFilePath, targetPath);
-			}
+		for (Map.Entry<String, String> entry: pythonConfig.getPythonArchivesInfo().entrySet()) {
+			String archiveFilePath = distributedCache.getFile(entry.getKey()).getAbsolutePath();
+			String targetPath = entry.getValue();
+			archives.put(archiveFilePath, targetPath);
 		}
 
-		String pythonExec = pythonConfig.getPythonExec().orElse(null);
+		String pythonExec = pythonConfig.getPythonExec();
 
 		return new PythonDependencyInfo(
 			pythonFiles,

@@ -46,9 +46,9 @@
         </tr>
         <tr>
             <td><h5>taskmanager.network.netty.transport</h5></td>
-            <td style="word-wrap: break-word;">"nio"</td>
+            <td style="word-wrap: break-word;">"auto"</td>
             <td>String</td>
-            <td>The Netty transport type, either "nio" or "epoll"</td>
+            <td>The Netty transport type, either "nio" or "epoll". The "auto" means selecting the property mode automatically based on the platform. Note that the "epoll" mode can get better performance, less GC and have more advanced features which are only available on modern Linux.</td>
         </tr>
     </tbody>
 </table>

@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.window.assigners;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.internal.InternalWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
@@ -28,7 +28,6 @@ import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
-
 
 /**
  * A {@code WindowAssigner} assigns zero or more {@link Window Windows} to an element.
@@ -58,7 +57,7 @@ public abstract class WindowAssigner<W extends Window> implements Serializable {
 	 * @param timestamp The timestamp of the element when {@link #isEventTime()} returns true,
 	 *                  or the current system time when {@link #isEventTime()} returns false.
 	 */
-	public abstract Collection<W> assignWindows(BaseRow element, long timestamp) throws IOException;
+	public abstract Collection<W> assignWindows(RowData element, long timestamp) throws IOException;
 
 	/**
 	 * Returns a {@link TypeSerializer} for serializing windows that are assigned by

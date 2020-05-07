@@ -169,7 +169,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 			for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpointStateHandle : initialCheckpoints) {
 
-				CompletedCheckpoint completedCheckpoint = null;
+				CompletedCheckpoint completedCheckpoint;
 
 				try {
 					completedCheckpoint = retrieveCompletedCheckpoint(checkpointStateHandle);
@@ -245,8 +245,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 	@Override
 	public List<CompletedCheckpoint> getAllCheckpoints() throws Exception {
-		List<CompletedCheckpoint> checkpoints = new ArrayList<>(completedCheckpoints);
-		return checkpoints;
+		return new ArrayList<>(completedCheckpoints);
 	}
 
 	@Override

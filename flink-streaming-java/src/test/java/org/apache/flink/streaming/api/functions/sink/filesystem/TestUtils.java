@@ -27,6 +27,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
@@ -157,6 +158,7 @@ public class TestUtils {
 			.forBulkFormat(new Path(outDir.toURI()), writer)
 			.withBucketAssigner(bucketer)
 			.withBucketCheckInterval(bucketCheckInterval)
+			.withRollingPolicy(OnCheckpointRollingPolicy.build())
 			.withBucketFactory(bucketFactory)
 			.withOutputFileConfig(outputFileConfig)
 			.build();
@@ -197,6 +199,7 @@ public class TestUtils {
 		StreamingFileSink<Tuple2<String, Integer>> sink = StreamingFileSink
 				.forBulkFormat(new Path(outDir.toURI()), writer)
 				.withNewBucketAssigner(bucketer)
+				.withRollingPolicy(OnCheckpointRollingPolicy.build())
 				.withBucketCheckInterval(bucketCheckInterval)
 				.withBucketFactory(bucketFactory)
 				.withOutputFileConfig(outputFileConfig)

@@ -34,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ShuffleEnvironmentContext {
 	private final Configuration configuration;
 	private final ResourceID taskExecutorResourceId;
-	private final MemorySize shuffleMemorySize;
+	private final MemorySize networkMemorySize;
 	private final boolean localCommunicationOnly;
 	private final InetAddress hostAddress;
 	private final TaskEventPublisher eventPublisher;
@@ -43,14 +43,14 @@ public class ShuffleEnvironmentContext {
 	public ShuffleEnvironmentContext(
 			Configuration configuration,
 			ResourceID taskExecutorResourceId,
-			MemorySize shuffleMemorySize,
+			MemorySize networkMemorySize,
 			boolean localCommunicationOnly,
 			InetAddress hostAddress,
 			TaskEventPublisher eventPublisher,
 			MetricGroup parentMetricGroup) {
 		this.configuration = checkNotNull(configuration);
 		this.taskExecutorResourceId = checkNotNull(taskExecutorResourceId);
-		this.shuffleMemorySize = shuffleMemorySize;
+		this.networkMemorySize = networkMemorySize;
 		this.localCommunicationOnly = localCommunicationOnly;
 		this.hostAddress = checkNotNull(hostAddress);
 		this.eventPublisher = checkNotNull(eventPublisher);
@@ -65,8 +65,8 @@ public class ShuffleEnvironmentContext {
 		return taskExecutorResourceId;
 	}
 
-	public MemorySize getShuffleMemorySize() {
-		return shuffleMemorySize;
+	public MemorySize getNetworkMemorySize() {
+		return networkMemorySize;
 	}
 
 	public boolean isLocalCommunicationOnly() {

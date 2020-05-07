@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -28,6 +29,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -75,6 +77,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -86,10 +89,12 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
@@ -843,7 +848,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 		subscribedStreamsToLastDiscoveredShardIds.put(streamName, null);
 
 		final KinesisDeserializationSchema<String> deserializationSchema =
-			new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema());
+			new KinesisDeserializationSchemaWrapper<>(new OpenCheckingStringSchema());
 		Properties props = new Properties();
 		props.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
 		props.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS, Long.toString(10L));
@@ -920,6 +925,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 		testHarness.open();
 
 		final ConcurrentLinkedQueue<Object> results = testHarness.getOutput();
+		final AtomicBoolean throwOnCollect = new AtomicBoolean();
 
 		@SuppressWarnings("unchecked")
 		SourceFunction.SourceContext<String> sourceContext = new CollectingSourceContext(
@@ -929,11 +935,20 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 			}
 
 			@Override
+			public void collect(Serializable element) {
+				if (throwOnCollect.get()) {
+					throw new RuntimeException("expected");
+				}
+				super.collect(element);
+			}
+
+			@Override
 			public void emitWatermark(Watermark mark) {
 				results.add(mark);
 			}
 		};
 
+		final AtomicReference<Exception> sourceThreadError = new AtomicReference<>();
 		new Thread(
 			() -> {
 				try {
@@ -941,7 +956,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 				} catch (InterruptedException e) {
 					// expected on cancel
 				} catch (Exception e) {
-					throw new RuntimeException(e);
+					sourceThreadError.set(e);
 				}
 			})
 			.start();
@@ -999,6 +1014,18 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 		expectedResults.add(new Watermark(3000));
 		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
 
+		// verify exception propagation
+		Assert.assertNull(sourceThreadError.get());
+		throwOnCollect.set(true);
+		shard1.put(Long.toString(record2 + 1));
+
+		deadline  = Deadline.fromNow(Duration.ofSeconds(10));
+		while (deadline.hasTimeLeft() && sourceThreadError.get() == null) {
+			Thread.sleep(10);
+		}
+		Assert.assertNotNull(sourceThreadError.get());
+		Assert.assertNotNull("expected", sourceThreadError.get().getMessage());
+
 		sourceFunc.cancel();
 		testHarness.close();
 	}
@@ -1007,6 +1034,24 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 		Deadline deadline  = Deadline.fromNow(Duration.ofSeconds(10));
 		while (deadline.hasTimeLeft() && queue.size() < count) {
 			Thread.sleep(10);
+		}
+	}
+
+	private static class OpenCheckingStringSchema extends SimpleStringSchema {
+		private boolean opened = false;
+
+		@Override
+		public void open(DeserializationSchema.InitializationContext context) throws Exception {
+			assertThat(context.getMetricGroup(), notNullValue(MetricGroup.class));
+			this.opened = true;
+		}
+
+		@Override
+		public String deserialize(byte[] message) {
+			if (!opened) {
+				throw new AssertionError("DeserializationSchema was not opened before deserialization.");
+			}
+			return super.deserialize(message);
 		}
 	}
 

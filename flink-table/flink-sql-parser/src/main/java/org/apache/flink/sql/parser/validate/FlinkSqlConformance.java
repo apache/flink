@@ -146,25 +146,13 @@ public enum FlinkSqlConformance implements SqlConformance {
 		return false;
 	}
 
-	/**
-	 * Whether to allow "insert into tbl1 partition(col1=val1)" grammar.
-	 */
-	public boolean allowInsertIntoPartition() {
-		switch (this) {
-			case HIVE:
-				return true;
-		}
+	@Override
+	public boolean allowPluralTimeUnits() {
 		return false;
 	}
 
-	/**
-	 * Whether to allow "insert overwrite tbl1 partition(col1=val1)" grammar.
-	 */
-	public boolean allowInsertOverwrite() {
-		switch (this) {
-			case HIVE:
-				return true;
-		}
-		return false;
+	@Override
+	public boolean allowQualifyingCommonColumn() {
+		return true;
 	}
 }

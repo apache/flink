@@ -35,4 +35,9 @@ class DefaultExecutionVertexOperations implements ExecutionVertexOperations {
 	public CompletableFuture<?> cancel(final ExecutionVertex executionVertex) {
 		return executionVertex.cancel();
 	}
+
+	@Override
+	public void markFailed(final ExecutionVertex executionVertex, final Throwable cause) {
+		executionVertex.markFailed(cause);
+	}
 }

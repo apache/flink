@@ -18,9 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.error.SqlValidateException;
-
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -43,12 +40,13 @@ import static java.util.Objects.requireNonNull;
 /**
  * CREATE VIEW DDL sql call.
  */
-public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
+public class SqlCreateView extends SqlCreate {
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE_VIEW", SqlKind.CREATE_VIEW);
 
 	private final SqlIdentifier viewName;
 	private final SqlNodeList fieldList;
 	private final SqlNode query;
+	private final boolean isTemporary;
 
 	@Nullable
 	private final SqlCharStringLiteral comment;
@@ -59,11 +57,14 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 			SqlNodeList fieldList,
 			SqlNode query,
 			boolean replace,
+			boolean isTemporary,
+			boolean ifNotExists,
 			SqlCharStringLiteral comment) {
-		super(OPERATOR, pos, replace, false);
+		super(OPERATOR, pos, replace, ifNotExists);
 		this.viewName = requireNonNull(viewName, "viewName should not be null");
 		this.fieldList = requireNonNull(fieldList, "fieldList should not be null");
 		this.query = requireNonNull(query, "query should not be null");
+		this.isTemporary = requireNonNull(isTemporary, "isTemporary should not be null");
 		this.comment = comment;
 	}
 
@@ -96,10 +97,13 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("CREATE");
-		if (getReplace()) {
-			writer.keyword("OR REPLACE");
+		if (isTemporary()) {
+			writer.keyword("TEMPORARY");
 		}
 		writer.keyword("VIEW");
+		if (isIfNotExists()) {
+			writer.keyword("IF NOT EXISTS");
+		}
 		viewName.unparse(writer, leftPrec, rightPrec);
 		if (fieldList.size() > 0) {
 			fieldList.unparse(writer, 1, rightPrec);
@@ -121,8 +125,15 @@ public class SqlCreateView extends SqlCreate implements ExtendedSqlNode {
 		writer.print("  ");
 	}
 
-	@Override
-	public void validate() throws SqlValidateException {
-		// no-op
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
+	public boolean isIfNotExists() {
+		return ifNotExists;
+	}
+
+	public String[] fullViewName() {
+		return viewName.names.toArray(new String[0]);
 	}
 }

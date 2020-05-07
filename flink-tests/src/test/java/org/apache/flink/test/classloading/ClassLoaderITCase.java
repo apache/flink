@@ -26,6 +26,7 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobCancellationException;
@@ -115,7 +116,7 @@ public class ClassLoaderITCase extends TestLogger {
 				FOLDER.newFolder().getAbsoluteFile().toURI().toString());
 
 		// required as we otherwise run out of memory
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "80m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("80m"));
 
 		miniClusterResource = new MiniClusterResource(
 			new MiniClusterResourceConfiguration.Builder()

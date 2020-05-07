@@ -20,19 +20,18 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.SimpleCollectingOutputView;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -43,7 +42,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 
 	private static final int MIN_REQUIRED_BUFFERS = 3;
 
-	private AbstractRowSerializer<BaseRow> inputSerializer;
+	private AbstractRowDataSerializer<RowData> inputSerializer;
 	private final ArrayList<MemorySegment> recordBufferSegments;
 	private final SimpleCollectingOutputView recordCollector;
 	private final int totalNumBuffers;
@@ -56,29 +55,28 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 	 */
 	public static BinaryInMemorySortBuffer createBuffer(
 			NormalizedKeyComputer normalizedKeyComputer,
-			AbstractRowSerializer<BaseRow> inputSerializer,
-			BinaryRowSerializer serializer,
+			AbstractRowDataSerializer<RowData> inputSerializer,
+			BinaryRowDataSerializer serializer,
 			RecordComparator comparator,
-			List<MemorySegment> memory) throws IOException {
-		checkArgument(memory.size() >= MIN_REQUIRED_BUFFERS);
-		int totalNumBuffers = memory.size();
-		ListMemorySegmentPool pool = new ListMemorySegmentPool(memory);
+			MemorySegmentPool memoryPool) {
+		checkArgument(memoryPool.freePages() >= MIN_REQUIRED_BUFFERS);
+		int totalNumBuffers = memoryPool.freePages();
 		ArrayList<MemorySegment> recordBufferSegments = new ArrayList<>(16);
 		return new BinaryInMemorySortBuffer(
 				normalizedKeyComputer, inputSerializer, serializer, comparator, recordBufferSegments,
-				new SimpleCollectingOutputView(recordBufferSegments, pool, pool.pageSize()),
-				pool, totalNumBuffers);
+				new SimpleCollectingOutputView(recordBufferSegments, memoryPool, memoryPool.pageSize()),
+				memoryPool, totalNumBuffers);
 	}
 
 	private BinaryInMemorySortBuffer(
 			NormalizedKeyComputer normalizedKeyComputer,
-			AbstractRowSerializer<BaseRow> inputSerializer,
-			BinaryRowSerializer serializer,
+			AbstractRowDataSerializer<RowData> inputSerializer,
+			BinaryRowDataSerializer serializer,
 			RecordComparator comparator,
 			ArrayList<MemorySegment> recordBufferSegments,
 			SimpleCollectingOutputView recordCollector,
 			MemorySegmentPool pool,
-			int totalNumBuffers) throws IOException {
+			int totalNumBuffers) {
 		super(normalizedKeyComputer, serializer, comparator, recordBufferSegments, pool);
 		this.inputSerializer = inputSerializer;
 		this.recordBufferSegments = recordBufferSegments;
@@ -147,7 +145,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 	 * @return True, if the record was successfully written, false, if the sort buffer was full.
 	 * @throws IOException Thrown, if an error occurred while serializing the record into the buffers.
 	 */
-	public boolean write(BaseRow record) throws IOException {
+	public boolean write(RowData record) throws IOException {
 		//check whether we need a new memory segment for the sort index
 		if (!checkNextIndexOffset()) {
 			return false;
@@ -171,7 +169,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 		return true;
 	}
 
-	private BinaryRow getRecordFromBuffer(BinaryRow reuse, long pointer) throws IOException {
+	private BinaryRowData getRecordFromBuffer(BinaryRowData reuse, long pointer) throws IOException {
 		this.recordBuffer.setReadPosition(pointer);
 		return this.serializer.mapFromPages(reuse, this.recordBuffer);
 	}
@@ -183,8 +181,8 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 	 *
 	 * @return An iterator returning the records in their logical order.
 	 */
-	public final MutableObjectIterator<BinaryRow> getIterator() {
-		return new MutableObjectIterator<BinaryRow>() {
+	public final MutableObjectIterator<BinaryRowData> getIterator() {
+		return new MutableObjectIterator<BinaryRowData>() {
 			private final int size = size();
 			private int current = 0;
 
@@ -194,7 +192,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 			private MemorySegment currentIndexSegment = sortIndex.get(0);
 
 			@Override
-			public BinaryRow next(BinaryRow target) {
+			public BinaryRowData next(BinaryRowData target) {
 				if (this.current < this.size) {
 					this.current++;
 					if (this.currentOffset > lastIndexEntryOffset) {
@@ -216,7 +214,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 			}
 
 			@Override
-			public BinaryRow next() {
+			public BinaryRowData next() {
 				throw new RuntimeException("Not support!");
 			}
 		};

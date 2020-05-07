@@ -58,7 +58,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 		checkNotNull(shuffleEnvironmentContext);
 		NettyShuffleEnvironmentConfiguration networkConfig = NettyShuffleEnvironmentConfiguration.fromConfiguration(
 			shuffleEnvironmentContext.getConfiguration(),
-			shuffleEnvironmentContext.getShuffleMemorySize(),
+			shuffleEnvironmentContext.getNetworkMemorySize(),
 			shuffleEnvironmentContext.isLocalCommunicationOnly(),
 			shuffleEnvironmentContext.getHostAddress());
 		return createNettyShuffleEnvironment(
@@ -107,8 +107,8 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			config.networkBufferSize(),
 			config.isForcePartitionReleaseOnConsumption(),
 			config.isBlockingShuffleCompressionEnabled(),
-			config.isPipelinedShuffleCompressionEnabled(),
-			config.getCompressionCodec());
+			config.getCompressionCodec(),
+			config.getMaxBuffersPerChannel());
 
 		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
 			taskExecutorResourceId,

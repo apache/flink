@@ -33,6 +33,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToInternal;
@@ -41,7 +42,7 @@ import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.dateToIn
  * This column vector is used to adapt hive's ColumnVector to Flink's ColumnVector.
  */
 public abstract class AbstractOrcColumnVector implements
-		org.apache.flink.table.dataformat.vector.ColumnVector {
+		org.apache.flink.table.data.vector.ColumnVector {
 
 	private ColumnVector vector;
 
@@ -54,12 +55,7 @@ public abstract class AbstractOrcColumnVector implements
 		return !vector.noNulls && vector.isNull[vector.isRepeating ? 0 : i];
 	}
 
-	@Override
-	public void reset() {
-		throw new UnsupportedOperationException();
-	}
-
-	public static org.apache.flink.table.dataformat.vector.ColumnVector createVector(
+	public static org.apache.flink.table.data.vector.ColumnVector createFlinkVector(
 			ColumnVector vector) {
 		if (vector instanceof LongColumnVector) {
 			return new OrcLongColumnVector((LongColumnVector) vector);
@@ -79,9 +75,9 @@ public abstract class AbstractOrcColumnVector implements
 	/**
 	 * Create flink vector by hive vector from constant.
 	 */
-	public static org.apache.flink.table.dataformat.vector.ColumnVector createVectorFromConstant(
+	public static org.apache.flink.table.data.vector.ColumnVector createFlinkVectorFromConstant(
 			LogicalType type, Object value, int batchSize) {
-		return createVector(createHiveVectorFromConstant(type, value, batchSize));
+		return createFlinkVector(createHiveVectorFromConstant(type, value, batchSize));
 	}
 
 	/**
@@ -111,6 +107,9 @@ public abstract class AbstractOrcColumnVector implements
 			case DOUBLE:
 				return createDoubleVector(batchSize, value);
 			case DATE:
+				if (value instanceof LocalDate) {
+					value = Date.valueOf((LocalDate) value);
+				}
 				return createLongVector(batchSize, dateToInternal((Date) value));
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return createTimestampVector(batchSize, value);
@@ -139,9 +138,11 @@ public abstract class AbstractOrcColumnVector implements
 			bcv.isNull[0] = true;
 			bcv.isRepeating = true;
 		} else {
-			bcv.fill(value instanceof byte[] ?
+			byte[] bytes = value instanceof byte[] ?
 					(byte[]) value :
-					value.toString().getBytes(StandardCharsets.UTF_8));
+					value.toString().getBytes(StandardCharsets.UTF_8);
+			bcv.initBuffer(bytes.length);
+			bcv.fill(bytes);
 			bcv.isNull[0] = false;
 		}
 		return bcv;

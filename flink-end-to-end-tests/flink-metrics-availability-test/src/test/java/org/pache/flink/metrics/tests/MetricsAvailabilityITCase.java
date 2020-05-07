@@ -36,8 +36,11 @@ import org.apache.flink.runtime.rest.messages.job.metrics.TaskManagerMetricsMess
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
-import org.apache.flink.tests.util.FlinkDistribution;
 import org.apache.flink.tests.util.categories.TravisGroup1;
+import org.apache.flink.tests.util.flink.ClusterController;
+import org.apache.flink.tests.util.flink.FlinkResource;
+import org.apache.flink.tests.util.flink.FlinkResourceSetup;
+import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -72,7 +75,8 @@ public class MetricsAvailabilityITCase extends TestLogger {
 	private static final int PORT = 8081;
 
 	@Rule
-	public final FlinkDistribution dist = new FlinkDistribution();
+	public final FlinkResource dist = new LocalStandaloneFlinkResourceFactory()
+		.create(FlinkResourceSetup.builder().build());
 
 	@Nullable
 	private static ScheduledExecutorService scheduledExecutorService = null;
@@ -91,16 +95,16 @@ public class MetricsAvailabilityITCase extends TestLogger {
 
 	@Test
 	public void testReporter() throws Exception {
-		dist.startFlinkCluster();
+		try (ClusterController ignored = dist.startCluster(1)) {
+			final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), scheduledExecutorService);
 
-		final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), scheduledExecutorService);
+			checkJobManagerMetricAvailability(restClient);
 
-		checkJobManagerMetricAvailability(restClient);
+			final Collection<ResourceID> taskManagerIds = getTaskManagerIds(restClient);
 
-		final Collection<ResourceID> taskManagerIds = getTaskManagerIds(restClient);
-
-		for (final ResourceID taskManagerId : taskManagerIds) {
-			checkTaskManagerMetricAvailability(restClient, taskManagerId);
+			for (final ResourceID taskManagerId : taskManagerIds) {
+				checkTaskManagerMetricAvailability(restClient, taskManagerId);
+			}
 		}
 	}
 

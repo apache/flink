@@ -54,31 +54,29 @@ public class SingleInputGateFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(SingleInputGateFactory.class);
 
 	@Nonnull
-	private final ResourceID taskExecutorResourceId;
+	protected final ResourceID taskExecutorResourceId;
 
-	private final int partitionRequestInitialBackoff;
+	protected final int partitionRequestInitialBackoff;
 
-	private final int partitionRequestMaxBackoff;
-
-	@Nonnull
-	private final ConnectionManager connectionManager;
+	protected final int partitionRequestMaxBackoff;
 
 	@Nonnull
-	private final ResultPartitionManager partitionManager;
+	protected final ConnectionManager connectionManager;
 
 	@Nonnull
-	private final TaskEventPublisher taskEventPublisher;
+	protected final ResultPartitionManager partitionManager;
 
 	@Nonnull
-	private final NetworkBufferPool networkBufferPool;
+	protected final TaskEventPublisher taskEventPublisher;
+
+	@Nonnull
+	protected final NetworkBufferPool networkBufferPool;
 
 	private final int networkBuffersPerChannel;
 
 	private final int floatingNetworkBuffersPerGate;
 
 	private final boolean blockingShuffleCompressionEnabled;
-
-	private final boolean pipelinedShuffleCompressionEnabled;
 
 	private final String compressionCodec;
 
@@ -97,7 +95,6 @@ public class SingleInputGateFactory {
 		this.networkBuffersPerChannel = networkConfig.networkBuffersPerChannel();
 		this.floatingNetworkBuffersPerGate = networkConfig.floatingNetworkBuffersPerGate();
 		this.blockingShuffleCompressionEnabled = networkConfig.isBlockingShuffleCompressionEnabled();
-		this.pipelinedShuffleCompressionEnabled = networkConfig.isPipelinedShuffleCompressionEnabled();
 		this.compressionCodec = networkConfig.getCompressionCodec();
 		this.networkBufferSize = networkConfig.networkBufferSize();
 		this.connectionManager = connectionManager;
@@ -111,6 +108,7 @@ public class SingleInputGateFactory {
 	 */
 	public SingleInputGate create(
 			@Nonnull String owningTaskName,
+			int gateIndex,
 			@Nonnull InputGateDeploymentDescriptor igdd,
 			@Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
 			@Nonnull InputChannelMetrics metrics) {
@@ -122,13 +120,13 @@ public class SingleInputGateFactory {
 			igdd.getConsumedPartitionType());
 
 		BufferDecompressor bufferDecompressor = null;
-		if (igdd.getConsumedPartitionType().isBlocking() && blockingShuffleCompressionEnabled
-			|| igdd.getConsumedPartitionType().isPipelined() && pipelinedShuffleCompressionEnabled) {
+		if (igdd.getConsumedPartitionType().isBlocking() && blockingShuffleCompressionEnabled) {
 			bufferDecompressor = new BufferDecompressor(networkBufferSize, compressionCodec);
 		}
 
 		SingleInputGate inputGate = new SingleInputGate(
 			owningTaskName,
+			gateIndex,
 			igdd.getConsumedResultId(),
 			igdd.getConsumedPartitionType(),
 			igdd.getConsumedSubpartitionIndex(),
@@ -160,9 +158,8 @@ public class SingleInputGateFactory {
 				shuffleDescriptors[i],
 				channelStatistics,
 				metrics);
-			ResultPartitionID resultPartitionID = inputChannels[i].getPartitionId();
-			inputGate.setInputChannel(resultPartitionID.getPartitionId(), inputChannels[i]);
 		}
+		inputGate.setInputChannels(inputChannels);
 
 		LOG.debug("{}: Created {} input channels ({}).",
 			owningTaskName,
@@ -202,7 +199,8 @@ public class SingleInputGateFactory {
 					metrics));
 	}
 
-	private InputChannel createKnownInputChannel(
+	@VisibleForTesting
+	protected InputChannel createKnownInputChannel(
 			SingleInputGate inputGate,
 			int index,
 			NettyShuffleDescriptor inputChannelDescriptor,
@@ -247,7 +245,10 @@ public class SingleInputGateFactory {
 		return () -> bufferPoolFactory.createBufferPool(0, floatingNetworkBuffersPerGate);
 	}
 
-	private static class ChannelStatistics {
+	/**
+	 * Statistics of input channels.
+	 */
+	protected static class ChannelStatistics {
 		int numLocalChannels;
 		int numRemoteChannels;
 		int numUnknownChannels;

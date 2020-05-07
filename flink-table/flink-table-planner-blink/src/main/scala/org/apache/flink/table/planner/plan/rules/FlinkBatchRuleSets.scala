@@ -55,8 +55,7 @@ object FlinkBatchRuleSets {
     */
   val EXPAND_PLAN_RULES: RuleSet = RuleSets.ofList(
     LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER,
-    LogicalCorrelateToJoinFromTemporalTableRule.WITHOUT_FILTER,
-    TableScanRule.INSTANCE)
+    LogicalCorrelateToJoinFromTemporalTableRule.WITHOUT_FILTER)
 
   val POST_EXPAND_CLEAN_UP_RULES: RuleSet = RuleSets.ofList(
     EnumerableToLogicalTableScan.INSTANCE)
@@ -65,7 +64,6 @@ object FlinkBatchRuleSets {
     * Convert table references before query decorrelation.
     */
   val TABLE_REF_RULES: RuleSet = RuleSets.ofList(
-    TableScanRule.INSTANCE,
     EnumerableToLogicalTableScan.INSTANCE
   )
 
@@ -362,11 +360,17 @@ object FlinkBatchRuleSets {
     // Rule that splits python ScalarFunctions from
     // java/scala ScalarFunctions in correlate conditions
     SplitPythonConditionFromCorrelateRule.INSTANCE,
+    // Rule that transpose the conditions after the Python correlate node.
+    CalcPythonCorrelateTransposeRule.INSTANCE,
+    // Rule that splits java calls from python TableFunction
+    PythonCorrelateSplitRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
+    PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
+    PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT
   )
@@ -415,6 +419,7 @@ object FlinkBatchRuleSets {
     // correlate
     BatchExecConstantTableFunctionScanRule.INSTANCE,
     BatchExecCorrelateRule.INSTANCE,
+    BatchExecPythonCorrelateRule.INSTANCE,
     // sink
     BatchExecSinkRule.INSTANCE
   )

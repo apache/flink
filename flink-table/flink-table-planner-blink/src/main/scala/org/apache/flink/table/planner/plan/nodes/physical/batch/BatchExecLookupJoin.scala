@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
@@ -57,7 +57,7 @@ class BatchExecLookupJoin(
     joinInfo,
     joinType)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecLookupJoin(
@@ -86,9 +86,9 @@ class BatchExecLookupJoin(
   }
 
   override protected def translateToPlanInternal(
-    planner: BatchPlanner): Transformation[BaseRow] = {
+    planner: BatchPlanner): Transformation[RowData] = {
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
     translateToPlanInternal(
       inputTransformation,
       planner.getExecEnv,

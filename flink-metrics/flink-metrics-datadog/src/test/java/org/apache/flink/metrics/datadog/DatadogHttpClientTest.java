@@ -24,14 +24,7 @@ import org.apache.flink.metrics.Meter;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 
-import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.api.support.membermodification.MemberMatcher;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -44,45 +37,31 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the DatadogHttpClient.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({DMetric.class, DatadogHttpClient.class})
-@PowerMockIgnore("javax.net.ssl.*")
 public class DatadogHttpClientTest {
 
 	private static List<String> tags = Arrays.asList("tag1", "tag2");
 
 	private static final long MOCKED_SYSTEM_MILLIS = 123L;
 
-	@Before
-	public void mockSystemMillis() {
-		PowerMockito.mockStatic(DMetric.class);
-		PowerMockito.when(DMetric.getUnixEpochTimestamp()).thenReturn(MOCKED_SYSTEM_MILLIS);
-	}
-
-	@Before
-	public void suppressValidateApiKey() {
-		PowerMockito.suppress(MemberMatcher.method(DatadogHttpClient.class, "validateApiKey"));
-	}
-
 	@Test(expected = IllegalArgumentException.class)
 	public void testClientWithEmptyKey() {
-		new DatadogHttpClient("", null, 123);
+		new DatadogHttpClient("", null, 123, DataCenter.US, false);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testClientWithNullKey() {
-		new DatadogHttpClient(null, null, 123);
+		new DatadogHttpClient(null, null, 123, DataCenter.US, false);
 	}
 
 	@Test
 	public void testGetProxyWithNullProxyHost() {
-		DatadogHttpClient client = new DatadogHttpClient("anApiKey", null, 123);
+		DatadogHttpClient client = new DatadogHttpClient("anApiKey", null, 123, DataCenter.US, false);
 		assert(client.getProxy() == Proxy.NO_PROXY);
 	}
 
 	@Test
 	public void testGetProxy() {
-		DatadogHttpClient client = new DatadogHttpClient("anApiKey", "localhost", 123);
+		DatadogHttpClient client = new DatadogHttpClient("anApiKey", "localhost", 123, DataCenter.US, false);
 
 		assertTrue(client.getProxy().address() instanceof InetSocketAddress);
 
@@ -100,7 +79,7 @@ public class DatadogHttpClientTest {
 			public Number getValue() {
 				return 1;
 			}
-		}, "testCounter", "localhost", tags);
+		}, "testCounter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
 			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
@@ -115,7 +94,7 @@ public class DatadogHttpClientTest {
 			public Number getValue() {
 				return 1;
 			}
-		}, "testCounter", null, tags);
+		}, "testCounter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
 			"{\"metric\":\"testCounter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
@@ -141,10 +120,10 @@ public class DatadogHttpClientTest {
 			public long getCount() {
 				return 1;
 			}
-		}, "testCounter", "localhost", tags);
+		}, "testCounter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
-			"{\"metric\":\"testCounter\",\"type\":\"counter\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
+			"{\"metric\":\"testCounter\",\"type\":\"count\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
 			DatadogHttpClient.serialize(c));
 	}
 
@@ -167,10 +146,10 @@ public class DatadogHttpClientTest {
 			public long getCount() {
 				return 1;
 			}
-		}, "testCounter", null, tags);
+		}, "testCounter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
-			"{\"metric\":\"testCounter\",\"type\":\"counter\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
+			"{\"metric\":\"testCounter\",\"type\":\"count\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1]]}",
 			DatadogHttpClient.serialize(c));
 	}
 
@@ -193,7 +172,7 @@ public class DatadogHttpClientTest {
 			public long getCount() {
 				return 0;
 			}
-		}, "testMeter", "localhost", tags);
+		}, "testMeter", "localhost", tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
 			"{\"metric\":\"testMeter\",\"type\":\"gauge\",\"host\":\"localhost\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1.0]]}",
@@ -219,7 +198,7 @@ public class DatadogHttpClientTest {
 			public long getCount() {
 				return 0;
 			}
-		}, "testMeter", null, tags);
+		}, "testMeter", null, tags, () -> MOCKED_SYSTEM_MILLIS);
 
 		assertEquals(
 			"{\"metric\":\"testMeter\",\"type\":\"gauge\",\"tags\":[\"tag1\",\"tag2\"],\"points\":[[123,1.0]]}",

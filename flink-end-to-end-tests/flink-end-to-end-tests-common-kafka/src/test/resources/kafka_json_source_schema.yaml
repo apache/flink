@@ -1,0 +1,138 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+tables:
+  - name: $TABLE_NAME
+    type: source-table
+    update-mode: append
+    schema:
+      - name: rowtime
+        type: TIMESTAMP
+        rowtime:
+          timestamps:
+            type: from-field
+            from: timestamp
+          watermarks:
+            type: periodic-bounded
+            delay: 2000
+      - name: user
+        type: VARCHAR
+      - name: event
+        type: ROW<type VARCHAR, message VARCHAR>
+    connector:
+      type: kafka
+      version: "$KAFKA_SQL_VERSION"
+      topic: $TOPIC_NAME
+      startup-mode: earliest-offset
+      properties:
+        bootstrap.servers: $KAFKA_BOOTSTRAP_SERVERS
+    format:
+      type: json
+      json-schema: >
+        {
+          "type": "object",
+          "properties": {
+            "timestamp": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "user": {
+              "type": ["string", "null"]
+            },
+            "event": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+  - name: AvroBothTable
+    type: source-sink-table
+    update-mode: append
+    schema:
+      - name: event_timestamp
+        type: VARCHAR
+      - name: user
+        type: VARCHAR
+      - name: message
+        type: VARCHAR
+      - name: duplicate_count
+        type: BIGINT
+    connector:
+      type: kafka
+      version: "$KAFKA_SQL_VERSION"
+      topic: test-avro
+      startup-mode: earliest-offset
+      properties:
+        - key: bootstrap.servers
+          value: $KAFKA_BOOTSTRAP_SERVERS
+    format:
+      type: avro
+      avro-schema: >
+        {
+          "namespace": "org.apache.flink.table.tests",
+          "type": "record",
+          "name": "NormalizedEvent",
+            "fields": [
+              {"name": "event_timestamp", "type": "string"},
+              {"name": "user", "type": ["string", "null"]},
+              {"name": "message", "type": "string"},
+              {"name": "duplicate_count", "type": "long"}
+            ]
+        }
+  - name: CsvSinkTable
+    type: sink-table
+    update-mode: append
+    schema:
+      - name: event_timestamp
+        type: VARCHAR
+      - name: user
+        type: VARCHAR
+      - name: message
+        type: VARCHAR
+      - name: duplicate_count
+        type: BIGINT
+      - name: constant
+        type: VARCHAR
+    connector:
+      type: filesystem
+      path: $RESULT
+    format:
+      type: csv
+      fields:
+        - name: event_timestamp
+          type: VARCHAR
+        - name: user
+          type: VARCHAR
+        - name: message
+          type: VARCHAR
+        - name: duplicate_count
+          type: BIGINT
+        - name: constant
+          type: VARCHAR
+
+functions:
+  - name: RegReplace
+    from: class
+    class: org.apache.flink.table.toolbox.StringRegexReplaceFunction

@@ -33,7 +33,8 @@ public class JobExecutionException extends FlinkException {
 
 	/**
 	 * Constructs a new job execution exception.
-	 * 
+	 *
+	 * @param jobID The job's ID.
 	 * @param msg The cause for the execution exception.
 	 * @param cause The cause of the exception
 	 */

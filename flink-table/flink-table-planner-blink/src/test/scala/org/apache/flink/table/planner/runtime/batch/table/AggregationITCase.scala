@@ -317,7 +317,6 @@ class AggregationITCase extends BatchTestBase {
   }
 
   @Test
-  @Ignore // TODO support it
   def testAnalyticAggregation(): Unit = {
     val ds = BatchTableEnvUtil.fromElements(tEnv,
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, BigDecimal.ONE),
@@ -333,13 +332,13 @@ class AggregationITCase extends BatchTestBase {
       '_6.varSamp, '_7.varSamp)
     val expected =
       "0,0,0," +
-        "0,0.5,0.5,0.5," +
+        "0,0.5,0.5,0.500000000000000000," +
         "1,1,1," +
-        "1,0.70710677,0.7071067811865476,0.7071067811865476," +
+        "1,0.70710677,0.7071067811865476,0.707106781186547600," +
         "0,0,0," +
-        "0,0.25,0.25,0.25," +
+        "0,0.25,0.25,0.250000000000000000," +
         "1,1,1," +
-        "1,0.5,0.5,0.5"
+        "1,0.5,0.5,0.500000000000000000"
     val results = executeQuery(res)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

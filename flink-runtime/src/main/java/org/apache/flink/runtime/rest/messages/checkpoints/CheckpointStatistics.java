@@ -65,6 +65,12 @@ public class CheckpointStatistics implements ResponseBody {
 
 	public static final String FIELD_NAME_LATEST_ACK_TIMESTAMP = "latest_ack_timestamp";
 
+	/**
+	 * The accurate name of this field should be 'checkpointed_data_size',
+	 * keep it as before to not break backwards compatibility for old web UI.
+	 *
+	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-13390">FLINK-13390</a>
+	 */
 	public static final String FIELD_NAME_STATE_SIZE = "state_size";
 
 	public static final String FIELD_NAME_DURATION = "end_to_end_duration";
@@ -165,10 +171,6 @@ public class CheckpointStatistics implements ResponseBody {
 		return duration;
 	}
 
-	public long getAlignmentBuffered() {
-		return alignmentBuffered;
-	}
-
 	public int getNumSubtasks() {
 		return numSubtasks;
 	}
@@ -232,7 +234,7 @@ public class CheckpointStatistics implements ResponseBody {
 						taskStateStat.getLatestAckTimestamp(),
 						taskStateStat.getStateSize(),
 						taskStateStat.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
-						taskStateStat.getAlignmentBuffered(),
+						0,
 						taskStateStat.getNumberOfSubtasks(),
 						taskStateStat.getNumberOfAcknowledgedSubtasks()));
 			}
@@ -251,7 +253,7 @@ public class CheckpointStatistics implements ResponseBody {
 				completedCheckpointStats.getLatestAckTimestamp(),
 				completedCheckpointStats.getStateSize(),
 				completedCheckpointStats.getEndToEndDuration(),
-				completedCheckpointStats.getAlignmentBuffered(),
+				0,
 				completedCheckpointStats.getNumberOfSubtasks(),
 				completedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
 				checkpointStatisticsPerTask,
@@ -268,7 +270,7 @@ public class CheckpointStatistics implements ResponseBody {
 				failedCheckpointStats.getLatestAckTimestamp(),
 				failedCheckpointStats.getStateSize(),
 				failedCheckpointStats.getEndToEndDuration(),
-				failedCheckpointStats.getAlignmentBuffered(),
+				0,
 				failedCheckpointStats.getNumberOfSubtasks(),
 				failedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
 				checkpointStatisticsPerTask,
@@ -285,7 +287,7 @@ public class CheckpointStatistics implements ResponseBody {
 				pendingCheckpointStats.getLatestAckTimestamp(),
 				pendingCheckpointStats.getStateSize(),
 				pendingCheckpointStats.getEndToEndDuration(),
-				pendingCheckpointStats.getAlignmentBuffered(),
+				0,
 				pendingCheckpointStats.getNumberOfSubtasks(),
 				pendingCheckpointStats.getNumberOfAcknowledgedSubtasks(),
 				checkpointStatisticsPerTask

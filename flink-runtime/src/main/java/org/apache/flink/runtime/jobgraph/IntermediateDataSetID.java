@@ -21,6 +21,8 @@ package org.apache.flink.runtime.jobgraph;
 import org.apache.flink.runtime.topology.ResultID;
 import org.apache.flink.util.AbstractID;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+
 import java.util.UUID;
 
 /**
@@ -53,5 +55,20 @@ public class IntermediateDataSetID extends AbstractID implements ResultID {
 	 */
 	public IntermediateDataSetID(UUID from) {
 		super(from.getLeastSignificantBits(), from.getMostSignificantBits());
+	}
+
+	private IntermediateDataSetID(long lower, long upper) {
+		super(lower, upper);
+	}
+
+	public void writeTo(ByteBuf buf) {
+		buf.writeLong(lowerPart);
+		buf.writeLong(upperPart);
+	}
+
+	public static IntermediateDataSetID fromByteBuf(ByteBuf buf) {
+		final long lower = buf.readLong();
+		final long upper = buf.readLong();
+		return new IntermediateDataSetID(lower, upper);
 	}
 }

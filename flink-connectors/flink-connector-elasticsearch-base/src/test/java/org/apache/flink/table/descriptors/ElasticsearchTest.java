@@ -134,7 +134,7 @@ public class ElasticsearchTest extends DescriptorTestBase {
 		maximumDesc.put("connector.bulk-flush.backoff.max-retries", "3");
 		maximumDesc.put("connector.bulk-flush.interval", "100");
 		maximumDesc.put("connector.bulk-flush.max-actions", "1000");
-		maximumDesc.put("connector.bulk-flush.max-size", "12582912 bytes");
+		maximumDesc.put("connector.bulk-flush.max-size", "12 mb");
 		maximumDesc.put("connector.failure-handler", "retry-rejected");
 		maximumDesc.put("connector.connection-max-retry-timeout", "100");
 		maximumDesc.put("connector.connection-path-prefix", "/myapp");

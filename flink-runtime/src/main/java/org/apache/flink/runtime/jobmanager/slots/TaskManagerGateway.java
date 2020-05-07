@@ -26,9 +26,13 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
+import org.apache.flink.util.SerializedValue;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -36,7 +40,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Task manager gateway interface to communicate with the task manager.
  */
-public interface TaskManagerGateway {
+public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
 
 	/**
 	 * Return the address of the task manager with which the gateway is associated.
@@ -146,4 +150,10 @@ public interface TaskManagerGateway {
 		final AllocationID allocationId,
 		final Throwable cause,
 		@RpcTimeout final Time timeout);
+
+	@Override
+	CompletableFuture<Acknowledge> sendOperatorEventToTask(
+		ExecutionAttemptID task,
+		OperatorID operator,
+		SerializedValue<OperatorEvent> evt);
 }

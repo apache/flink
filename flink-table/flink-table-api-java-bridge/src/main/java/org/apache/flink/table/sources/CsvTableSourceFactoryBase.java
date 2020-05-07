@@ -27,14 +27,24 @@ import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_PATH;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
@@ -85,6 +95,12 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
+		properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
+		// watermark
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+
 		return properties;
 	}
 
@@ -103,7 +119,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		// build
 		CsvTableSource.Builder csvTableSourceBuilder = new CsvTableSource.Builder();
 
-		TableSchema tableSchema = params.getTableSchema(SCHEMA);
+		TableSchema tableSchema = TableSchemaUtils.getPhysicalSchema(params.getTableSchema(SCHEMA));
 
 		// if a schema is defined, no matter derive schema is set or not, will use the defined schema
 		final boolean hasSchema = params.hasPrefix(FORMAT_FIELDS);
@@ -111,9 +127,13 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 			TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
 			// the CsvTableSource needs some rework first
 			// for now the schema must be equal to the encoding
-			if (!formatSchema.equals(tableSchema)) {
-				throw new TableException(
-					"Encodings that differ from the schema are not supported yet for CsvTableSources.");
+			// Ignore conversion classes in DataType
+			if (!getFieldLogicalTypes(formatSchema).equals(getFieldLogicalTypes(tableSchema))) {
+				throw new TableException(String.format(
+						"Encodings that differ from the schema are not supported yet for" +
+								" CsvTableSource, format schema is '%s', but table schema is '%s'.",
+						formatSchema,
+						tableSchema));
 			}
 		}
 
@@ -122,7 +142,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		params.getOptionalString(FORMAT_LINE_DELIMITER).ifPresent(csvTableSourceBuilder::lineDelimiter);
 
 		for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
-			csvTableSourceBuilder.field(tableSchema.getFieldNames()[i], tableSchema.getFieldTypes()[i]);
+			csvTableSourceBuilder.field(tableSchema.getFieldNames()[i], tableSchema.getFieldDataTypes()[i]);
 		}
 		params.getOptionalCharacter(FORMAT_QUOTE_CHARACTER).ifPresent(csvTableSourceBuilder::quoteCharacter);
 		params.getOptionalString(FORMAT_COMMENT_PREFIX).ifPresent(csvTableSourceBuilder::commentPrefix);
@@ -141,4 +161,10 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		return csvTableSourceBuilder.build();
 	}
 
+	public static List<LogicalType> getFieldLogicalTypes(TableSchema schema) {
+		return Arrays
+				.stream(schema.getFieldDataTypes())
+				.map(DataType::getLogicalType)
+				.collect(Collectors.toList());
+	}
 }

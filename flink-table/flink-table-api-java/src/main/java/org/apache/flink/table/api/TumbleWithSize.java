@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 
@@ -36,7 +37,7 @@ public final class TumbleWithSize {
 	private Expression size;
 
 	TumbleWithSize(Expression size) {
-		this.size = size;
+		this.size = ApiExpressionUtils.unwrapFromApi(size);
 	}
 
 	/**
@@ -64,7 +65,9 @@ public final class TumbleWithSize {
 	 *
 	 * @param timeField time attribute for streaming and batch tables
 	 * @return a tumbling window on event-time
+	 * @deprecated use {@link #on(Expression)}
 	 */
+	@Deprecated
 	public TumbleWithSizeOnTime on(String timeField) {
 		return on(ExpressionParser.parseExpression(timeField));
 	}

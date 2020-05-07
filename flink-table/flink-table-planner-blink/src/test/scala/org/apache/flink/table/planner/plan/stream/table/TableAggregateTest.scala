@@ -64,7 +64,7 @@ class TableAggregateTest extends TableTestBase {
 
     val resultTable = table
       .flatAggregate(emptyFunc('b))
-      .select("*")
+      .select($"*")
 
     util.verifyPlan(resultTable)
   }
@@ -103,9 +103,9 @@ class TableAggregateTest extends TableTestBase {
     util.addFunction("func", func)
 
     val resultTable = table
-      .groupBy("c")
+      .groupBy($"c")
       .flatAggregate("func(a)")
-      .select("*")
+      .select($"*")
 
     util.verifyPlan(resultTable)
   }

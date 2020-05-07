@@ -25,7 +25,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -71,15 +71,15 @@ public class MiniClusterConfiguration {
 			schedulerType = JobManagerOptions.SCHEDULER.defaultValue();
 		}
 
-		if (!configuration.contains(JobManagerOptions.SCHEDULER)) {
-			configuration.setString(JobManagerOptions.SCHEDULER, schedulerType);
+		final Configuration modifiedConfig = new Configuration(configuration);
+
+		if (!modifiedConfig.contains(JobManagerOptions.SCHEDULER)) {
+			modifiedConfig.setString(JobManagerOptions.SCHEDULER, schedulerType);
 		}
 
-		if (!TaskExecutorResourceUtils.isTaskExecutorResourceExplicitlyConfigured(configuration)) {
-			return new UnmodifiableConfiguration(TaskExecutorResourceUtils.adjustConfigurationForLocalExecution(configuration, numTaskManagers));
-		}
+		TaskExecutorResourceUtils.adjustForLocalExecution(modifiedConfig);
 
-		return new UnmodifiableConfiguration(configuration);
+		return new UnmodifiableConfiguration(modifiedConfig);
 	}
 
 	// ------------------------------------------------------------------------
@@ -94,16 +94,36 @@ public class MiniClusterConfiguration {
 		return numTaskManagers;
 	}
 
+	public String getJobManagerExternalAddress() {
+		return commonBindAddress != null ?
+			commonBindAddress :
+			configuration.getString(JobManagerOptions.ADDRESS, "localhost");
+	}
+
+	public String getTaskManagerExternalAddress() {
+		return commonBindAddress != null ?
+			commonBindAddress :
+			configuration.getString(TaskManagerOptions.HOST, "localhost");
+	}
+
+	public String getJobManagerExternalPortRange() {
+		return String.valueOf(configuration.getInteger(JobManagerOptions.PORT, 0));
+	}
+
+	public String getTaskManagerExternalPortRange() {
+		return configuration.getString(TaskManagerOptions.RPC_PORT);
+	}
+
 	public String getJobManagerBindAddress() {
 		return commonBindAddress != null ?
 				commonBindAddress :
-				configuration.getString(JobManagerOptions.ADDRESS, "localhost");
+				configuration.getString(JobManagerOptions.BIND_HOST, "localhost");
 	}
 
 	public String getTaskManagerBindAddress() {
 		return commonBindAddress != null ?
 				commonBindAddress :
-				configuration.getString(TaskManagerOptions.HOST, "localhost");
+				configuration.getString(TaskManagerOptions.BIND_HOST, "localhost");
 	}
 
 	public Time getRpcTimeout() {

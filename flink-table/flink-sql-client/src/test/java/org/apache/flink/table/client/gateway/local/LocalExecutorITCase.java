@@ -28,10 +28,12 @@ import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
@@ -79,8 +81,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.CATALOGS_ENVIRONMENT_FILE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -98,7 +102,6 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
-	private static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
 
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
@@ -123,7 +126,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private static Configuration getConfig() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 		config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
@@ -325,6 +328,37 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test
+	public void testSetSessionProperties() throws Exception {
+		final LocalExecutor executor = createDefaultExecutor(clusterClient);
+		String key = OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY.key();
+
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		// check the config in Environment
+		assertNull(executor.getSessionProperties(sessionId).get(key));
+		// check the config in TableConfig
+		assertNull(executor.getExecutionContext(sessionId)
+				.getTableEnvironment().getConfig().getConfiguration().getString(key, null));
+
+		// modify config
+		executor.setSessionProperty(sessionId, key, "ONE_PHASE");
+		// check the config in Environment again
+		assertEquals("ONE_PHASE", executor.getSessionProperties(sessionId).get(key));
+		// check the config in TableConfig again
+		assertEquals("ONE_PHASE",
+				executor.getExecutionContext(sessionId)
+						.getTableEnvironment().getConfig().getConfiguration().getString(key, null));
+
+		// reset all properties
+		executor.resetSessionProperties(sessionId);
+		// check the config in Environment
+		assertNull(executor.getSessionProperties(sessionId).get(key));
+		// check the config in TableConfig
+		assertNull(executor.getExecutionContext(sessionId)
+				.getTableEnvironment().getConfig().getConfiguration().getString(key, null));
+	}
+
+	@Test
 	public void testGetSessionProperties() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 
@@ -379,8 +413,8 @@ public class LocalExecutorITCase extends TestLogger {
 		final TableSchema actualTableSchema = executor.getTableSchema(sessionId, "TableNumber2");
 
 		final TableSchema expectedTableSchema = new TableSchema(
-			new String[]{"IntegerField2", "StringField2"},
-			new TypeInformation[]{Types.INT, Types.STRING});
+			new String[]{"IntegerField2", "StringField2", "TimestampField2"},
+			new TypeInformation[]{Types.INT, Types.STRING, Types.SQL_TIMESTAMP});
 
 		assertEquals(expectedTableSchema, actualTableSchema);
 		executor.closeSession(sessionId);
@@ -407,7 +441,7 @@ public class LocalExecutorITCase extends TestLogger {
 		executor.closeSession(sessionId);
 	}
 
-	@Test(timeout = 30_000L)
+	@Test(timeout = 90_000L)
 	public void testStreamQueryExecutionChangelog() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
@@ -428,7 +462,7 @@ public class LocalExecutorITCase extends TestLogger {
 			// start job and retrieval
 			final ResultDescriptor desc = executor.executeQuery(
 				sessionId,
-				"SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1");
+				"SELECT scalarUDF(IntegerField1), StringField1, 'ABC' FROM TableNumber1");
 
 			assertFalse(desc.isMaterialized());
 
@@ -436,12 +470,12 @@ public class LocalExecutorITCase extends TestLogger {
 				retrieveChangelogResult(executor, sessionId, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
-			expectedResults.add("(true,47,Hello World)");
-			expectedResults.add("(true,27,Hello World)");
-			expectedResults.add("(true,37,Hello World)");
-			expectedResults.add("(true,37,Hello World)");
-			expectedResults.add("(true,47,Hello World)");
-			expectedResults.add("(true,57,Hello World!!!!)");
+			expectedResults.add("(true,47,Hello World,ABC)");
+			expectedResults.add("(true,27,Hello World,ABC)");
+			expectedResults.add("(true,37,Hello World,ABC)");
+			expectedResults.add("(true,37,Hello World,ABC)");
+			expectedResults.add("(true,47,Hello World,ABC)");
+			expectedResults.add("(true,57,Hello World!!!!,ABC)");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
@@ -449,8 +483,78 @@ public class LocalExecutorITCase extends TestLogger {
 		}
 	}
 
-	@Test(timeout = 30_000L)
+	@Test(timeout = 90_000L)
+	public void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "changelog");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("(true,47,Hello World)");
+		expectedResults.add("(true,27,Hello World)");
+		expectedResults.add("(true,37,Hello World)");
+		expectedResults.add("(true,37,Hello World)");
+		expectedResults.add("(true,47,Hello World)");
+		expectedResults.add("(true,57,Hello World!!!!)");
+
+		try {
+			for (int i = 0; i < 3; i++) {
+				// start job and retrieval
+				final ResultDescriptor desc = executor.executeQuery(
+						sessionId,
+						"SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1");
+
+				assertFalse(desc.isMaterialized());
+
+				final List<String> actualResults =
+						retrieveChangelogResult(executor, sessionId, desc.getResultId());
+
+				TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+			}
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test(timeout = 90_000L)
 	public void testStreamQueryExecutionTable() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+
+		final String query = "SELECT scalarUDF(IntegerField1), StringField1, 'ABC' FROM TableNumber1";
+
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("47,Hello World,ABC");
+		expectedResults.add("27,Hello World,ABC");
+		expectedResults.add("37,Hello World,ABC");
+		expectedResults.add("37,Hello World,ABC");
+		expectedResults.add("47,Hello World,ABC");
+		expectedResults.add("57,Hello World!!!!,ABC");
+
+		executeStreamQueryTable(replaceVars, query, expectedResults);
+	}
+
+	@Test(timeout = 90_000L)
+	public void testStreamQueryExecutionTableMultipleTimes() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 
@@ -472,10 +576,21 @@ public class LocalExecutorITCase extends TestLogger {
 		expectedResults.add("47,Hello World");
 		expectedResults.add("57,Hello World!!!!");
 
-		executeStreamQueryTable(replaceVars, query, expectedResults);
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		try {
+			for (int i = 0; i < 3; i++) {
+				executeStreamQueryTable(replaceVars, query, expectedResults);
+			}
+		} finally {
+			executor.closeSession(sessionId);
+		}
 	}
 
-	@Test(timeout = 30_000L)
+	@Test(timeout = 90_000L)
 	public void testStreamQueryExecutionLimitedTable() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
@@ -496,7 +611,7 @@ public class LocalExecutorITCase extends TestLogger {
 		executeStreamQueryTable(replaceVars, query, expectedResults);
 	}
 
-	@Test(timeout = 30_000L)
+	@Test(timeout = 90_000L)
 	public void testBatchQueryExecution() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
@@ -514,19 +629,19 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals("test-session", sessionId);
 
 		try {
-			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT * FROM TestView1");
+			final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT *, 'ABC' FROM TestView1");
 
 			assertTrue(desc.isMaterialized());
 
 			final List<String> actualResults = retrieveTableResult(executor, sessionId, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
-			expectedResults.add("47");
-			expectedResults.add("27");
-			expectedResults.add("37");
-			expectedResults.add("37");
-			expectedResults.add("47");
-			expectedResults.add("57");
+			expectedResults.add("47,ABC");
+			expectedResults.add("27,ABC");
+			expectedResults.add("37,ABC");
+			expectedResults.add("37,ABC");
+			expectedResults.add("47,ABC");
+			expectedResults.add("57,ABC");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
@@ -534,7 +649,47 @@ public class LocalExecutorITCase extends TestLogger {
 		}
 	}
 
-	@Test(timeout = 30_000L)
+	@Test(timeout = 90_000L)
+	public void testBatchQueryExecutionMultipleTimes() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		assertEquals("test-session", sessionId);
+
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("47");
+		expectedResults.add("27");
+		expectedResults.add("37");
+		expectedResults.add("37");
+		expectedResults.add("47");
+		expectedResults.add("57");
+
+		try {
+			for (int i = 0; i < 3; i++) {
+				final ResultDescriptor desc = executor.executeQuery(sessionId, "SELECT * FROM TestView1");
+
+				assertTrue(desc.isMaterialized());
+
+				final List<String> actualResults = retrieveTableResult(executor, sessionId, desc.getResultId());
+
+				TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+			}
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test(timeout = 90_000L)
 	public void ensureExceptionOnFaultySourceInStreamingChangelogMode() throws Exception {
 		final String missingFileName = "missing-source";
 
@@ -564,7 +719,7 @@ public class LocalExecutorITCase extends TestLogger {
 		assertTrue(throwableWithMessage.isPresent());
 	}
 
-	@Test(timeout = 30_000L)
+	@Test(timeout = 90_000L)
 	public void ensureExceptionOnFaultySourceInStreamingTableMode() throws Exception {
 		final String missingFileName = "missing-source";
 
@@ -594,7 +749,7 @@ public class LocalExecutorITCase extends TestLogger {
 		assertTrue(throwableWithMessage.isPresent());
 	}
 
-	@Test(timeout = 30_000L)
+	@Test(timeout = 90_000L)
 	public void ensureExceptionOnFaultySourceInBatch() throws Exception {
 		final String missingFileName = "missing-source";
 
@@ -660,11 +815,12 @@ public class LocalExecutorITCase extends TestLogger {
 		try {
 			// Case 1: Registered sink
 			// Case 1.1: Registered sink with uppercase insert into keyword.
-			final String statement1 = "INSERT INTO TableSourceSink SELECT IntegerField1 = 42, StringField1 FROM TableNumber1";
+			final String statement1 = "INSERT INTO TableSourceSink SELECT IntegerField1 = 42," +
+					" StringField1, TimestampField1 FROM TableNumber1";
 			executeAndVerifySinkResult(executor, sessionId, statement1, csvOutputPath);
 			// Case 1.2: Registered sink with lowercase insert into keyword.
 			final String statement2 = "insert Into TableSourceSink \n "
-					+ "SELECT IntegerField1 = 42, StringField1 "
+					+ "SELECT IntegerField1 = 42, StringField1, TimestampField1 "
 					+ "FROM TableNumber1";
 			executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
 			// Case 1.3: Execute the same statement again, the results should expect to be the same.
@@ -1031,12 +1187,12 @@ public class LocalExecutorITCase extends TestLogger {
 		final List<String> actualResults = new ArrayList<>();
 		TestBaseUtils.readAllResultLines(actualResults, path);
 		final List<String> expectedResults = new ArrayList<>();
-		expectedResults.add("true,Hello World");
-		expectedResults.add("false,Hello World");
-		expectedResults.add("false,Hello World");
-		expectedResults.add("false,Hello World");
-		expectedResults.add("true,Hello World");
-		expectedResults.add("false,Hello World!!!!");
+		expectedResults.add("true,Hello World,2020-01-01 00:00:01.0");
+		expectedResults.add("false,Hello World,2020-01-01 00:00:02.0");
+		expectedResults.add("false,Hello World,2020-01-01 00:00:03.0");
+		expectedResults.add("false,Hello World,2020-01-01 00:00:04.0");
+		expectedResults.add("true,Hello World,2020-01-01 00:00:05.0");
+		expectedResults.add("false,Hello World!!!!,2020-01-01 00:00:06.0");
 		TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 	}
 

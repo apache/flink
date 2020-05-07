@@ -50,6 +50,7 @@ public final class CliStrings {
 		.append(formatCommand(SqlCommand.EXPLAIN, "Describes the execution plan of a query or table with the given name."))
 		.append(formatCommand(SqlCommand.HELP, "Prints the available commands."))
 		.append(formatCommand(SqlCommand.INSERT_INTO, "Inserts the results of a SQL SELECT query into a declared table sink."))
+		.append(formatCommand(SqlCommand.INSERT_OVERWRITE, "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data."))
 		.append(formatCommand(SqlCommand.QUIT, "Quits the SQL CLI client."))
 		.append(formatCommand(SqlCommand.RESET, "Resets all session configuration properties."))
 		.append(formatCommand(SqlCommand.SELECT, "Executes a SQL SELECT query on the Flink cluster."))

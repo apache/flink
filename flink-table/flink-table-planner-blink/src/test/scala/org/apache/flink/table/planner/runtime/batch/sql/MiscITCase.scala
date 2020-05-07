@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.{buildInData, buildInType}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -317,7 +317,6 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO support lazy from source
   @Test
   def testExcept(): Unit = {
     checkQuery2(
@@ -376,7 +375,6 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO support lazy from source
   @Test
   def testIntersect(): Unit = {
     checkQuery(
@@ -479,16 +477,6 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO: allows 123L="123"
-  @Test
-  def testCompareLongAndString(): Unit = {
-    checkQuery(
-      Seq((123L, "123"), (19157170390056973L, "19157170390056971")),
-      "select f0=f1 from Table1",
-      Seq(Tuple1(true), Tuple1(false))
-    )
-  }
-
   @Test
   def testOrderByOrdinal(): Unit = {
     env.setParallelism(1)
@@ -512,7 +500,6 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO support lazy from source
   @Test
   def testCompareFunctionWithSubquery(): Unit = {
     checkResult("SELECT " +

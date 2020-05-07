@@ -62,6 +62,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.isOneOf;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link org.apache.flink.runtime.jobmaster.JobMaster#triggerSavepoint(String, boolean, Time)}.
@@ -110,11 +111,12 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 				true,
 				false,
+				false,
 				0),
 			null));
 
 		ClientUtils.submitJob(clusterClient, jobGraph);
-		invokeLatch.await(60, TimeUnit.SECONDS);
+		assertTrue(invokeLatch.await(60, TimeUnit.SECONDS));
 		waitForJob();
 	}
 

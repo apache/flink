@@ -78,7 +78,7 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
 		prop1.put("connector.property-version", "1");
 		prop1.put("connector.write.buffer-flush.interval", "2s");
 		prop1.put("connector.write.buffer-flush.max-rows", "100");
-		prop1.put("connector.write.buffer-flush.max-size", "1048576 bytes");
+		prop1.put("connector.write.buffer-flush.max-size", "1 mb");
 
 		return Arrays.asList(prop0, prop1);
 	}

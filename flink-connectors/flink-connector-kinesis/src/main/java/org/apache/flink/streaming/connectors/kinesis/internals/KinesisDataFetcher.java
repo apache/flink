@@ -392,18 +392,20 @@ public class KinesisDataFetcher<T> {
 	 * @param shardMetricsReporter the reporter to report metrics to
 	 * @return shard consumer
 	 */
-	protected ShardConsumer createShardConsumer(
+	protected ShardConsumer<T> createShardConsumer(
 		Integer subscribedShardStateIndex,
 		StreamShardHandle subscribedShard,
 		SequenceNumber lastSequenceNum,
-		ShardMetricsReporter shardMetricsReporter) {
+		ShardMetricsReporter shardMetricsReporter,
+		KinesisDeserializationSchema<T> shardDeserializer) {
 		return new ShardConsumer<>(
 			this,
 			subscribedShardStateIndex,
 			subscribedShard,
 			lastSequenceNum,
 			this.kinesisProxyFactory.create(configProps),
-			shardMetricsReporter);
+			shardMetricsReporter,
+			shardDeserializer);
 	}
 
 	/**
@@ -461,12 +463,20 @@ public class KinesisDataFetcher<T> {
 						seededShardState.getLastProcessedSequenceNum(), seededStateIndex);
 					}
 
+				StreamShardHandle streamShardHandle = subscribedShardsState.get(seededStateIndex)
+					.getStreamShardHandle();
+				KinesisDeserializationSchema<T> shardDeserializationSchema = getClonedDeserializationSchema();
+				shardDeserializationSchema.open(() -> consumerMetricGroup
+					.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
+					.addGroup("shardId", streamShardHandle.getShard().getShardId())
+					.addGroup("user"));
 				shardConsumersExecutor.submit(
 					createShardConsumer(
 						seededStateIndex,
-						subscribedShardsState.get(seededStateIndex).getStreamShardHandle(),
+						streamShardHandle,
 						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum(),
-						registerShardMetrics(consumerMetricGroup, subscribedShardsState.get(seededStateIndex))));
+						registerShardMetrics(consumerMetricGroup, subscribedShardsState.get(seededStateIndex)),
+						shardDeserializationSchema));
 			}
 		}
 
@@ -490,17 +500,31 @@ public class KinesisDataFetcher<T> {
 						getConsumerConfiguration().getProperty(ConsumerConfigConstants.WATERMARK_LOOKAHEAD_MILLIS,
 							Long.toString(0)));
 					recordEmitter.setMaxLookaheadMillis(Math.max(lookaheadMillis, watermarkSyncMillis * 3));
+
+					// record emitter depends on periodic watermark
+					// it runs in a separate thread since main thread is used for discovery
+					Runnable recordEmitterRunnable = new Runnable() {
+						@Override
+						public void run() {
+							try {
+								recordEmitter.run();
+							} catch (Throwable error) {
+								// report the error that terminated the emitter loop to source thread
+								stopWithError(error);
+							}
+						}
+					};
+
+					Thread thread = new Thread(recordEmitterRunnable);
+					thread.setName("recordEmitter-" + runtimeContext.getTaskNameWithSubtasks());
+					thread.setDaemon(true);
+					thread.start();
 				}
 			}
 			this.shardIdleIntervalMillis = Long.parseLong(
 				getConsumerConfiguration().getProperty(ConsumerConfigConstants.SHARD_IDLE_INTERVAL_MILLIS,
 					Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_IDLE_INTERVAL_MILLIS)));
 
-			// run record emitter in separate thread since main thread is used for discovery
-			Thread thread = new Thread(this.recordEmitter);
-			thread.setName("recordEmitter-" + runtimeContext.getTaskNameWithSubtasks());
-			thread.setDaemon(true);
-			thread.start();
 		}
 
 		// ------------------------------------------------------------------------
@@ -541,12 +565,19 @@ public class KinesisDataFetcher<T> {
 						newShardState.getLastProcessedSequenceNum(), newStateIndex);
 				}
 
+				StreamShardHandle streamShardHandle = newShardState.getStreamShardHandle();
+				KinesisDeserializationSchema<T> shardDeserializationSchema = getClonedDeserializationSchema();
+				shardDeserializationSchema.open(() -> consumerMetricGroup
+					.addGroup("subtaskId", String.valueOf(indexOfThisConsumerSubtask))
+					.addGroup("shardId", streamShardHandle.getShard().getShardId())
+					.addGroup("user"));
 				shardConsumersExecutor.submit(
 					createShardConsumer(
 						newStateIndex,
 						newShardState.getStreamShardHandle(),
 						newShardState.getLastProcessedSequenceNum(),
-						registerShardMetrics(consumerMetricGroup, newShardState)));
+						registerShardMetrics(consumerMetricGroup, newShardState),
+						shardDeserializationSchema));
 			}
 
 			// we also check if we are running here so that we won't start the discovery sleep
@@ -700,7 +731,7 @@ public class KinesisDataFetcher<T> {
 		return configProps;
 	}
 
-	protected KinesisDeserializationSchema<T> getClonedDeserializationSchema() {
+	private KinesisDeserializationSchema<T> getClonedDeserializationSchema() {
 		try {
 			return InstantiationUtil.clone(deserializationSchema, runtimeContext.getUserCodeClassLoader());
 		} catch (IOException | ClassNotFoundException ex) {

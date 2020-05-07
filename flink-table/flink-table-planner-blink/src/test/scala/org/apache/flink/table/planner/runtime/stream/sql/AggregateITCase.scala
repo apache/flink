@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.api.common.time.Time
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -31,7 +33,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBa
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithAggTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.{GenericAggregateFunction, StreamingWithAggTestBase, TestData, TestingRetractSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => mLocalTime}
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.types.Row
@@ -544,7 +546,7 @@ class AggregateITCase(
   }
 
   @Test
-  def testConcatAggWithNullData(): Unit = {
+  def testListAggWithNullData(): Unit = {
     val dataWithNull = List(
       (1, 1, null),
       (2, 1, null),
@@ -568,7 +570,7 @@ class AggregateITCase(
   }
 
   @Test
-  def testConcatAggWithoutDelimiterTreatNull(): Unit = {
+  def testListAggWithoutDelimiterTreatNull(): Unit = {
     val dataWithNull = List(
       (1, 1, null),
       (2, 1, null),
@@ -591,6 +593,28 @@ class AggregateITCase(
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
+  @Test
+  def testListAggWithDistinct(): Unit = {
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "A"))
+    data.+=((2, 2L, "B"))
+    data.+=((3, 2L, "B"))
+    data.+=((4, 3L, "C"))
+    data.+=((5, 3L, "C"))
+    data.+=((6, 3L, "A"))
+    data.+=((7, 4L, "EF"))
+    data.+=((1, 1L, "A"))
+    data.+=((8, 4L, "EF"))
+    data.+=((8, 4L, null))
+    val sqlQuery = "SELECT b, LISTAGG(DISTINCT c, '#') FROM MyTable GROUP BY b"
+    tEnv.registerTable("MyTable",
+      failingDataSource(data).toTable(tEnv).as("a", "b", "c"))
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List("1,A", "2,B", "3,C#A", "4,EF")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 
   @Test
   def testUnboundedGroupByCollect(): Unit = {
@@ -641,7 +665,6 @@ class AggregateITCase(
     assertMapStrEquals(expected.sorted.toString, sink.getRetractResults.sorted.toString)
   }
 
-  @Ignore("[FLINK-12088]: JOIN is not supported")
   @Test
   def testGroupBySingleValue(): Unit = {
     val data = new mutable.MutableList[(Int, Long, String)]
@@ -1014,7 +1037,7 @@ class AggregateITCase(
 
   /** Test LISTAGG **/
   @Test
-  def testConcatAgg(): Unit = {
+  def testListAgg(): Unit = {
     tEnv.registerFunction("listagg_retract", new ListAggWithRetractAggFunction)
     tEnv.registerFunction("listagg_ws_retract", new ListAggWsWithRetractAggFunction)
     val sqlQuery =
@@ -1105,7 +1128,7 @@ class AggregateITCase(
   def testCountDistinctWithBinaryRowSource(): Unit = {
     // this case is failed before, because of object reuse problem
     val data = (0 until 100).map {i => ("1", "1", s"${i%50}", "1")}.toList
-    // use BinaryRow source here for BinaryString reuse
+    // use BinaryRowData source here for StringData reuse
     val t = failingBinaryRowSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
     tEnv.registerTable("src", t)
 
@@ -1141,7 +1164,7 @@ class AggregateITCase(
 
   @Test
   def testDistinctWithMultiFilter(): Unit = {
-    val t = failingDataSource(TestData.tupleData3).toTable(tEnv).as('a, 'b, 'c)
+    val t = failingDataSource(TestData.tupleData3).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("MyTable", t)
 
     val sqlQuery =
@@ -1187,4 +1210,47 @@ class AggregateITCase(
     assertEquals(expected, sink.getRetractResults)
   }
 
+  @Test
+  def testGenericTypesWithoutStateClean(): Unit = {
+    // because we don't provide a way to disable state cleanup.
+    // TODO verify all tests with state cleanup closed.
+    tEnv.getConfig.setIdleStateRetentionTime(Time.days(0), Time.days(0))
+    val t = failingDataSource(Seq(1, 2, 3)).toTable(tEnv, 'a)
+    val results = t
+        .select(new GenericAggregateFunction()('a))
+        .toRetractStream[Row]
+
+    val sink = new TestingRetractSink
+    results.addSink(sink).setParallelism(1)
+    env.execute()
+  }
+
+  @Test
+  def testConstantGroupKeyWithUpsertSink(): Unit = {
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "A"))
+    data.+=((2, 2L, "B"))
+    data.+=((3, 2L, "B"))
+    data.+=((4, 3L, "C"))
+    data.+=((5, 3L, "C"))
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val tableSink = new TestingUpsertTableSink(Array(0)).configure(
+      Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
+    tEnv.registerTableSink("testSink", tableSink)
+
+    tEnv.sqlUpdate(
+      """
+        |insert into testSink
+        |select c, max(b) from
+        | (select b, c, true as f from MyTable) t
+        |group by c, f
+      """.stripMargin)
+    tEnv.execute("test")
+
+    val expected = List("A,1", "B,2", "C,3")
+    assertEquals(expected.sorted, tableSink.getUpsertResults.sorted)
+  }
 }

@@ -48,16 +48,19 @@ class StreamPlanner(
       ConventionTraitDef.INSTANCE,
       FlinkRelDistributionTraitDef.INSTANCE,
       MiniBatchIntervalTraitDef.INSTANCE,
-      UpdateAsRetractionTraitDef.INSTANCE,
-      AccModeTraitDef.INSTANCE)
+      ModifyKindSetTraitDef.INSTANCE,
+      UpdateKindTraitDef.INSTANCE)
   }
 
   override protected def getOptimizer: Optimizer = new StreamCommonSubGraphBasedOptimizer(this)
 
   override protected def translateToPlan(
       execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
+    val planner = createDummyPlanner()
+    planner.overrideEnvParallelism()
+
     execNodes.map {
-      case node: StreamExecNode[_] => node.translateToPlan(this)
+      case node: StreamExecNode[_] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
@@ -76,9 +79,7 @@ class StreamPlanner(
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
 
-    val plannerForExplain = createDummyPlannerForExplain()
-    plannerForExplain.overrideEnvParallelism()
-    val transformations = plannerForExplain.translateToPlan(execNodes)
+    val transformations = translateToPlan(execNodes)
     val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
@@ -92,7 +93,7 @@ class StreamPlanner(
 
     sb.append("== Optimized Logical Plan ==")
     sb.append(System.lineSeparator)
-    val (explainLevel, withRetractTraits) = if (extended) {
+    val (explainLevel, withChangelogTraits) = if (extended) {
       (SqlExplainLevel.ALL_ATTRIBUTES, true)
     } else {
       (SqlExplainLevel.DIGEST_ATTRIBUTES, false)
@@ -100,7 +101,7 @@ class StreamPlanner(
     sb.append(ExecNodePlanDumper.dagToString(
       execNodes,
       explainLevel,
-      withRetractTraits = withRetractTraits))
+      withChangelogTraits = withChangelogTraits))
     sb.append(System.lineSeparator)
 
     sb.append("== Physical Execution Plan ==")
@@ -109,7 +110,7 @@ class StreamPlanner(
     sb.toString()
   }
 
-  private def createDummyPlannerForExplain(): StreamPlanner = {
+  private def createDummyPlanner(): StreamPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new StreamExecutor(dummyExecEnv)
     new StreamPlanner(executor, config, functionCatalog, catalogManager)

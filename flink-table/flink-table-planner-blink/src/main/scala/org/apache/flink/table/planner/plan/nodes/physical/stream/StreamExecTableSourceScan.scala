@@ -27,8 +27,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{DataTypes, TableException}
-import org.apache.flink.table.dataformat.DataFormatConverters.DataFormatConverter
-import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters}
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.util.DataFormatConverters
+import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator._
 import org.apache.flink.table.planner.delegation.StreamPlanner
@@ -40,15 +42,18 @@ import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
-import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource}
+import org.apache.flink.table.sources.{DefinedFieldMapping, RowtimeAttributeDescriptor, StreamTableSource}
 import org.apache.flink.table.types.{DataType, FieldsDataType}
+import org.apache.flink.table.utils.TypeMappingUtils
 import org.apache.flink.types.Row
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
 import java.util
+import java.util.function.{Function => JFunction}
 
 import scala.collection.JavaConversions._
 
@@ -61,15 +66,7 @@ class StreamExecTableSourceScan(
     tableSourceTable: TableSourceTable[_])
   extends PhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
+  with StreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = false
 
@@ -96,32 +93,35 @@ class StreamExecTableSourceScan(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
 
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
-      tableSource,
-      tableSourceTable.getRowType,
-      tableSourceTable.isStreamingMode)
+    val fieldIndexes = computeIndexMapping()
 
     val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
 
     // check that declared and actual type of table source DataStream are identical
-    if (inputDataType != TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType)) {
+    if (inputDataType !=
+        TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType)) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
-        s"returned a DataStream of data type $producedDataType that does not match with the " +
+        s"returned a DataStream of data type $inputDataType that does not match with the " +
         s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
         s"Please validate the implementation of the TableSource.")
     }
 
     // get expression to extract rowtime attribute
-    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
+    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeAttributeDescriptor(
       tableSource,
-      tableSourceTable.getRowType,
-      cluster,
-      planner.getRelBuilder
+      tableSourceTable.getRowType
+    ).map(desc =>
+      TableSourceUtil.getRowtimeExtractionExpression(
+        desc.getTimestampExtractor,
+        producedDataType,
+        planner.getRelBuilder,
+        nameMapping
+      )
     )
 
     val streamTransformation = if (needInternalConversion) {
@@ -133,12 +133,18 @@ class StreamExecTableSourceScan(
           ("", "")
         }
       val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
-        classOf[AbstractProcessStreamOperator[BaseRow]])
+        classOf[AbstractProcessStreamOperator[RowData]])
+      // the produced type may not carry the correct precision user defined in DDL, because
+      // it may be converted from legacy type. Fix precision using logical schema from DDL.
+      // Code generation requires the correct precision of input fields.
+      val fixedProducedDataType = TableSourceUtil.fixPrecisionForProducedDataType(
+        tableSource,
+        FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType))
       val conversionTransform = ScanUtil.convertToInternalRow(
         ctx,
         inputTransform.asInstanceOf[Transformation[Any]],
         fieldIndexes,
-        producedDataType,
+        fixedProducedDataType,
         getRowType,
         getTable.getQualifiedName,
         config,
@@ -147,7 +153,7 @@ class StreamExecTableSourceScan(
         afterConvert = resetElement)
       conversionTransform
     } else {
-      inputTransform.asInstanceOf[Transformation[BaseRow]]
+      inputTransform.asInstanceOf[Transformation[RowData]]
     }
 
     val ingestedTable = new DataStream(planner.getExecEnv, streamTransformation)
@@ -180,10 +186,7 @@ class StreamExecTableSourceScan(
   }
 
   private def needInternalConversion: Boolean = {
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
-      tableSource,
-      tableSourceTable.getRowType,
-      tableSourceTable.isStreamingMode)
+    val fieldIndexes = computeIndexMapping()
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(tableSource.getProducedDataType)
   }
@@ -196,6 +199,24 @@ class StreamExecTableSourceScan(
     // The disadvantage is that streaming not support multi-paths.
     env.createInput(format, t).name(tableSource.explainSource()).getTransformation
   }
+
+  private def computeIndexMapping()
+    : Array[Int] = {
+    TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
+      tableSource,
+      FlinkTypeFactory.toTableSchema(getRowType).getTableColumns,
+      true,
+      nameMapping
+    )
+  }
+
+  private lazy val nameMapping: JFunction[String, String] = tableSource match {
+    case mapping: DefinedFieldMapping if mapping.getFieldMapping != null =>
+      new JFunction[String, String] {
+        override def apply(t: String): String = mapping.getFieldMapping.get(t)
+      }
+    case _ => JFunction.identity()
+  }
 }
 
 /**
@@ -207,11 +228,11 @@ class StreamExecTableSourceScan(
 private class PeriodicWatermarkAssignerWrapper(
     timeFieldIdx: Int,
     assigner: PeriodicWatermarkAssigner)
-  extends AssignerWithPeriodicWatermarks[BaseRow] {
+  extends AssignerWithPeriodicWatermarks[RowData] {
 
   override def getCurrentWatermark: Watermark = assigner.getWatermark
 
-  override def extractTimestamp(row: BaseRow, previousElementTimestamp: Long): Long = {
+  override def extractTimestamp(row: RowData, previousElementTimestamp: Long): Long = {
     val timestamp: Long = row.getTimestamp(timeFieldIdx, 3).getMillisecond
     assigner.nextTimestamp(timestamp)
     0L
@@ -228,20 +249,20 @@ private class PunctuatedWatermarkAssignerWrapper(
     timeFieldIdx: Int,
     assigner: PunctuatedWatermarkAssigner,
     sourceType: DataType)
-  extends AssignerWithPunctuatedWatermarks[BaseRow] {
+  extends AssignerWithPunctuatedWatermarks[RowData] {
 
   private val converter =
     DataFormatConverters.getConverterForDataType((sourceType match {
       case _: FieldsDataType => sourceType
       case _ => DataTypes.ROW(DataTypes.FIELD("f0", sourceType))
-    }).bridgedTo(classOf[Row])).asInstanceOf[DataFormatConverter[BaseRow, Row]]
+    }).bridgedTo(classOf[Row])).asInstanceOf[DataFormatConverter[RowData, Row]]
 
-  override def checkAndGetNextWatermark(row: BaseRow, ts: Long): Watermark = {
+  override def checkAndGetNextWatermark(row: RowData, ts: Long): Watermark = {
     val timestamp: Long = row.getLong(timeFieldIdx)
     assigner.getWatermark(converter.toExternal(row), timestamp)
   }
 
-  override def extractTimestamp(element: BaseRow, previousElementTimestamp: Long): Long = {
+  override def extractTimestamp(element: RowData, previousElementTimestamp: Long): Long = {
     0L
   }
 }

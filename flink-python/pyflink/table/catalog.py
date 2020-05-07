@@ -618,9 +618,22 @@ class CatalogBaseTable(object):
     def _get(j_catalog_base_table):
         return CatalogBaseTable(j_catalog_base_table)
 
+    def get_options(self):
+        """
+        Returns a map of string-based options.
+
+        In case of CatalogTable, these options may determine the kind of connector and its
+        configuration for accessing the data in the external system.
+
+        :return: Property map of the table/view.
+        """
+        return dict(self._j_catalog_base_table.getOptions())
+
     def get_properties(self):
         """
         Get the properties of the table.
+
+        This method is deprecated. Use :func:`~pyflink.table.CatalogBaseTable.get_options` instead.
 
         :return: Property map of the table/view.
         """
@@ -794,21 +807,18 @@ class CatalogFunction(object):
         Whether or not is the function a flink UDF.
 
         :return: Whether is the function a flink UDF.
+
+        .. versionadded:: 1.10.0
         """
         return self._j_catalog_function.isGeneric()
-
-    def is_temporary(self):
-        """
-        Wheter or not the function is a temporary function.
-        :return: Wheter is a temporary function.
-        """
-        return self._j_catalog_function.isTemporary()
 
     def get_function_language(self):
         """
         Get the language used for the function definition.
 
         :return: the language type of the function definition
+
+        .. versionadded:: 1.10.0
         """
         return self._j_catalog_function.getFunctionLanguage()
 

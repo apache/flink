@@ -25,7 +25,7 @@ import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
 import org.apache.flink.client.deployment.executors.RemoteExecutor
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader
 import org.apache.flink.client.program.{ClusterClient, MiniClusterClient}
-import org.apache.flink.configuration.{Configuration, DeploymentOptions, GlobalConfiguration, JobManagerOptions, RestOptions}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, DeploymentOptions, GlobalConfiguration, JobManagerOptions, RestOptions, TaskManagerOptions}
 import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration}
 
 import scala.collection.mutable.ArrayBuffer
@@ -342,8 +342,15 @@ object FlinkShell {
   }
 
   private def createLocalCluster(flinkConfig: Configuration) = {
+
+    val numTaskManagers = flinkConfig.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
+      ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER)
+    val numSlotsPerTaskManager = flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS)
+
     val miniClusterConfig = new MiniClusterConfiguration.Builder()
       .setConfiguration(flinkConfig)
+      .setNumSlotsPerTaskManager(numSlotsPerTaskManager)
+      .setNumTaskManagers(numTaskManagers)
       .build()
 
     val cluster = new MiniCluster(miniClusterConfig)

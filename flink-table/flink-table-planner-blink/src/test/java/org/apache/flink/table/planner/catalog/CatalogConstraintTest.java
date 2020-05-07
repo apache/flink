@@ -57,7 +57,7 @@ public class CatalogConstraintTest {
 
 	@Before
 	public void setup() {
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
 		tEnv = TableEnvironment.create(settings);
 		catalog = tEnv.getCatalog(tEnv.getCurrentCatalog()).orElse(null);
 		assertNotNull(catalog);

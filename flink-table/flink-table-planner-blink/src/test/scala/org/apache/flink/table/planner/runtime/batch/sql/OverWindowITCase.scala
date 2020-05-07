@@ -23,16 +23,19 @@ import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.{AggregateFunction, FunctionDefinition, ScalarFunctionDefinition}
+import org.apache.flink.table.module.{CoreModule, Module}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.IsNullUDF
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
 
 import java.lang.{Iterable => JIterable, Long => JLong}
+import java.util.{Collections, Optional}
 
 import scala.collection.Seq
 import scala.util.Random
@@ -989,6 +992,29 @@ class OverWindowITCase extends BatchTestBase {
 
     checkResult(
       "SELECT d, h, dense_rank() over (order by d, h desc) FROM Table5",
+      Seq(
+        row(1, 1, 1),
+        row(2, 2, 2),
+        row(2, 1, 3),
+        row(3, 3, 4),
+        row(3, 2, 5),
+        row(3, 2, 5),
+        row(4, 2, 6),
+        row(4, 2, 6),
+        row(4, 1, 7),
+        row(4, 1, 7),
+        row(5, 3, 8),
+        row(5, 3, 8),
+        row(5, 2, 9),
+        row(5, 2, 9),
+        row(5, 1, 10)
+      )
+    )
+
+    // test tinyint and smallint.
+    checkResult(
+      "SELECT d, h, dense_rank() over (order by cast(d as tinyint), cast(h as smallint) desc)" +
+          " FROM Table5",
       Seq(
         row(1, 1, 1),
         row(2, 2, 2),
@@ -2499,6 +2525,20 @@ class OverWindowITCase extends BatchTestBase {
         row(5, 14L, 30, 1, 15, 1, 1, true, null, false, null),
         row(5, 15L, 30, 1, 15, 1, 1, true, null, false, null)))
   }
+
+  @Test
+  def testRankWithCustomModule(): Unit = {
+    tEnv.unloadModule("core")
+    tEnv.loadModule("test-module", new TestModule)
+    tEnv.loadModule("core", CoreModule.INSTANCE)
+    registerCollection("emp",
+      Seq(row("1", "A", 1), row("1", "B", 2), row("2", "C", 3)),
+      new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO),
+      "dep,name,salary")
+    checkResult(
+      "select dep,name,rank() over (partition by dep order by salary desc) as rnk from emp",
+      Seq(row("1", "A", 2), row("1", "B", 1), row("2", "C", 1)))
+  }
 }
 
 /** The initial accumulator for count aggregate function */
@@ -2552,4 +2592,19 @@ class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
   }
 
   override def getResultType: TypeInformation[JLong] = Types.LONG
+}
+
+private class TestModule extends Module {
+
+  private val funcName = "isnull"
+
+  override def listFunctions(): java.util.Set[String] = Collections.singleton(funcName)
+
+  override def getFunctionDefinition(name: String): Optional[FunctionDefinition] = {
+    if (name.equalsIgnoreCase(funcName)) {
+      Optional.of(new ScalarFunctionDefinition(name, IsNullUDF))
+    } else {
+      Optional.empty()
+    }
+  }
 }

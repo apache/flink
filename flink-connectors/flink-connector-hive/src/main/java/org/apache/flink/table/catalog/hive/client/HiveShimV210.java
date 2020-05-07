@@ -28,6 +28,7 @@ import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.thrift.TApplicationException;
 import org.apache.thrift.TException;
 
 import java.lang.reflect.InvocationTargetException;
@@ -95,8 +96,16 @@ public class HiveShimV210 extends HiveShimV201 {
 			// all pk constraints should have the same name, so let's use the name of the first one
 			String pkName = (String) HiveReflectionUtils.invokeMethod(constraintClz, constraints.get(0), "getPk_name", null, null);
 			return Optional.of(UniqueConstraint.primaryKey(pkName, colNames));
-		} catch (Exception e) {
-			throw new CatalogException("Failed to get PrimaryKey constraints", e);
+		} catch (Throwable t) {
+			if (t instanceof InvocationTargetException) {
+				t = t.getCause();
+			}
+			if (t instanceof TApplicationException &&
+					t.getMessage() != null &&
+					t.getMessage().contains("Invalid method name")) {
+				return Optional.empty();
+			}
+			throw new CatalogException("Failed to get PrimaryKey constraints", t);
 		}
 	}
 

@@ -28,6 +28,7 @@ import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
@@ -48,6 +49,11 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
+import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_EXPR;
 import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_TABLE_NAME;
 import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
 import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_VERSION_VALUE_143;
@@ -78,7 +84,8 @@ public class HBaseTableFactory implements StreamTableSourceFactory<Row>, StreamT
 			.ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
 
 		String hTableName = descriptorProperties.getString(CONNECTOR_TABLE_NAME);
-		TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
+		TableSchema tableSchema = TableSchemaUtils.getPhysicalSchema(
+			descriptorProperties.getTableSchema(SCHEMA));
 		HBaseTableSchema hbaseSchema = validateTableSchema(tableSchema);
 		return new HBaseTableSource(hbaseClientConf, hTableName, hbaseSchema, null);
 	}
@@ -93,7 +100,8 @@ public class HBaseTableFactory implements StreamTableSourceFactory<Row>, StreamT
 			.getOptionalString(CONNECTOR_ZK_NODE_PARENT)
 			.ifPresent(hbaseOptionsBuilder::setZkNodeParent);
 
-		TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
+		TableSchema tableSchema = TableSchemaUtils.getPhysicalSchema(
+			descriptorProperties.getTableSchema(SCHEMA));
 		HBaseTableSchema hbaseSchema = validateTableSchema(tableSchema);
 
 		HBaseWriteOptions.Builder writeBuilder = HBaseWriteOptions.builder();
@@ -176,6 +184,13 @@ public class HBaseTableFactory implements StreamTableSourceFactory<Row>, StreamT
 		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
+		// computed column
+		properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
+
+		// watermark
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
+		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 
 		return properties;
 	}

@@ -27,9 +27,9 @@ from copy import copy
 from functools import reduce
 from threading import RLock
 
-from py4j.java_gateway import JavaClass, JavaObject, get_java_class
+from py4j.java_gateway import get_java_class
 
-from pyflink.util.utils import to_jarray
+from pyflink.util.utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['DataTypes', 'UserDefinedType', 'Row']
@@ -477,6 +477,8 @@ class LocalZonedTimestampType(AtomicType):
     :param nullable: boolean, whether the field can be null (None) or not.
     """
 
+    EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 6
+
     def __init__(self, precision=6, nullable=True):
         super(LocalZonedTimestampType, self).__init__(nullable)
         assert 0 <= precision <= 9
@@ -492,10 +494,11 @@ class LocalZonedTimestampType(AtomicType):
         if dt is not None:
             seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
                        else time.mktime(dt.timetuple()))
-            return int(seconds) * 10 ** 6 + dt.microsecond
+            return int(seconds) * 10 ** 6 + dt.microsecond + self.EPOCH_ORDINAL
 
     def from_sql_type(self, ts):
         if ts is not None:
+            ts = ts - self.EPOCH_ORDINAL
             return datetime.datetime.fromtimestamp(ts // 10 ** 6).replace(microsecond=ts % 10 ** 6)
 
 
@@ -824,7 +827,7 @@ def _from_java_interval_type(j_interval_type):
     :return: :class:`YearMonthIntervalType` or :class:`DayTimeIntervalType`.
     """
     gateway = get_gateway()
-    if _is_instance_of(j_interval_type, gateway.jvm.YearMonthIntervalType):
+    if is_instance_of(j_interval_type, gateway.jvm.YearMonthIntervalType):
         resolution = j_interval_type.getResolution()
         precision = j_interval_type.getYearPrecision()
 
@@ -1175,6 +1178,12 @@ class RowType(DataType):
         ['f1']
         """
         return list(self.names)
+
+    def field_types(self):
+        """
+        Returns all field types in a list.
+        """
+        return list([f.data_type for f in self.fields])
 
     def need_conversion(self):
         # We need convert Row()/namedtuple into tuple()
@@ -1621,33 +1630,77 @@ def _to_java_type(data_type):
                 BigIntType: Types.LONG(),
                 FloatType: Types.FLOAT(),
                 DoubleType: Types.DOUBLE(),
-                DecimalType: Types.DECIMAL(),
                 DateType: Types.SQL_DATE(),
-                TimeType: Types.SQL_TIME(),
-                TimestampType: Types.SQL_TIMESTAMP(),
-                LocalZonedTimestampType: Types.SQL_TIMESTAMP(),
-                CharType: Types.STRING(),
-                VarCharType: Types.STRING(),
-                BinaryType: Types.PRIMITIVE_ARRAY(Types.BYTE()),
-                VarBinaryType: Types.PRIMITIVE_ARRAY(Types.BYTE())
             }
 
-    # NullType
-    if isinstance(data_type, NullType):
-        # null type is still not supported in Java
-        raise NotImplementedError
-
     # basic types
-    elif type(data_type) in _python_java_types_mapping:
+    if type(data_type) in _python_java_types_mapping:
         return _python_java_types_mapping[type(data_type)]
+
+    # DecimalType
+    elif isinstance(data_type, DecimalType):
+        if data_type.precision == 38 and data_type.scale == 18:
+            return Types.DECIMAL()
+        else:
+            raise TypeError("The precision must be 38 and the scale must be 18 for DecimalType, "
+                            "got %s" % repr(data_type))
+
+    # TimeType
+    elif isinstance(data_type, TimeType):
+        if data_type.precision == 0:
+            return Types.SQL_TIME()
+        else:
+            raise TypeError("The precision must be 0 for TimeType, got %s" % repr(data_type))
+
+    # TimestampType
+    elif isinstance(data_type, TimestampType):
+        if data_type.precision == 3:
+            return Types.SQL_TIMESTAMP()
+        else:
+            raise TypeError("The precision must be 3 for TimestampType, got %s" % repr(data_type))
+
+    # LocalZonedTimestampType
+    elif isinstance(data_type, LocalZonedTimestampType):
+        if data_type.precision == 3:
+            return gateway.jvm.org.apache.flink.api.common.typeinfo.Types.INSTANT
+        else:
+            raise TypeError("The precision must be 3 for LocalZonedTimestampType, got %s"
+                            % repr(data_type))
+
+    # VarCharType
+    elif isinstance(data_type, VarCharType):
+        if data_type.length == 0x7fffffff:
+            return Types.STRING()
+        else:
+            raise TypeError("The length limit must be 0x7fffffff(2147483647) for VarCharType, "
+                            "got %s" % repr(data_type))
+
+    # VarBinaryType
+    elif isinstance(data_type, VarBinaryType):
+        if data_type.length == 0x7fffffff:
+            return Types.PRIMITIVE_ARRAY(Types.BYTE())
+        else:
+            raise TypeError("The length limit must be 0x7fffffff(2147483647) for VarBinaryType, "
+                            "got %s" % repr(data_type))
 
     # YearMonthIntervalType
     elif isinstance(data_type, YearMonthIntervalType):
-        return Types.INTERVAL_MONTHS()
+        if data_type.resolution == YearMonthIntervalType.YearMonthResolution.MONTH and \
+                data_type.precision == 2:
+            return Types.INTERVAL_MONTHS()
+        else:
+            raise TypeError("The resolution must be YearMonthResolution.MONTH and the precision "
+                            "must be 2 for YearMonthIntervalType, got %s" % repr(data_type))
 
     # DayTimeIntervalType
     elif isinstance(data_type, DayTimeIntervalType):
-        return Types.INTERVAL_MILLIS()
+        if data_type.resolution == DayTimeIntervalType.DayTimeResolution.SECOND and \
+                data_type.day_precision == 2 and data_type.fractional_precision == 3:
+            return Types.INTERVAL_MILLIS()
+        else:
+            raise TypeError("The resolution must be DayTimeResolution.SECOND, the day_precision "
+                            "must be 2 and the fractional_precision must be 3 for "
+                            "DayTimeIntervalType, got %s" % repr(data_type))
 
     # ArrayType
     elif isinstance(data_type, ArrayType):
@@ -1672,37 +1725,21 @@ def _to_java_type(data_type):
     elif isinstance(data_type, UserDefinedType):
         if data_type.java_udt():
             return gateway.jvm.org.apache.flink.util.InstantiationUtil.instantiate(
-                gateway.jvm.Class.forName(data_type.java_udt()))
+                gateway.jvm.Class.forName(
+                    data_type.java_udt(),
+                    True,
+                    gateway.jvm.Thread.currentThread().getContextClassLoader()))
         else:
             return _to_java_type(data_type.sql_type())
 
     else:
-        raise TypeError("Not supported type: %s" % data_type)
-
-
-def _is_instance_of(java_data_type, java_class):
-    gateway = get_gateway()
-    if isinstance(java_class, str):
-        param = java_class
-    elif isinstance(java_class, JavaClass):
-        param = get_java_class(java_class)
-    elif isinstance(java_class, JavaObject):
-        if not _is_instance_of(java_class, gateway.jvm.Class):
-            param = java_class.getClass()
-        else:
-            param = java_class
-    else:
-        raise TypeError(
-            "java_class must be a string, a JavaClass, or a JavaObject")
-
-    return gateway.jvm.org.apache.flink.api.python.shaded.py4j.reflection.TypeUtil.isInstanceOf(
-        param, java_data_type)
+        raise TypeError("Not supported type: %s" % repr(data_type))
 
 
 def _from_java_type(j_data_type):
     gateway = get_gateway()
 
-    if _is_instance_of(j_data_type, gateway.jvm.TypeInformation):
+    if is_instance_of(j_data_type, gateway.jvm.TypeInformation):
         # input is TypeInformation
         LegacyTypeInfoDataTypeConverter = \
             gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
@@ -1712,50 +1749,50 @@ def _from_java_type(j_data_type):
         java_data_type = j_data_type
 
     # Atomic Type with parameters.
-    if _is_instance_of(java_data_type, gateway.jvm.AtomicDataType):
+    if is_instance_of(java_data_type, gateway.jvm.AtomicDataType):
         logical_type = java_data_type.getLogicalType()
-        if _is_instance_of(logical_type, gateway.jvm.CharType):
+        if is_instance_of(logical_type, gateway.jvm.CharType):
             data_type = DataTypes.CHAR(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.VarCharType):
+        elif is_instance_of(logical_type, gateway.jvm.VarCharType):
             data_type = DataTypes.VARCHAR(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.BinaryType):
+        elif is_instance_of(logical_type, gateway.jvm.BinaryType):
             data_type = DataTypes.BINARY(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.VarBinaryType):
+        elif is_instance_of(logical_type, gateway.jvm.VarBinaryType):
             data_type = DataTypes.VARBINARY(logical_type.getLength(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DecimalType):
+        elif is_instance_of(logical_type, gateway.jvm.DecimalType):
             data_type = DataTypes.DECIMAL(logical_type.getPrecision(),
                                           logical_type.getScale(),
                                           logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DateType):
+        elif is_instance_of(logical_type, gateway.jvm.DateType):
             data_type = DataTypes.DATE(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.TimeType):
+        elif is_instance_of(logical_type, gateway.jvm.TimeType):
             data_type = DataTypes.TIME(logical_type.getPrecision(), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.TimestampType):
-            data_type = DataTypes.TIMESTAMP(nullable=logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.BooleanType):
+        elif is_instance_of(logical_type, gateway.jvm.TimestampType):
+            data_type = DataTypes.TIMESTAMP(precision=3, nullable=logical_type.isNullable())
+        elif is_instance_of(logical_type, gateway.jvm.BooleanType):
             data_type = DataTypes.BOOLEAN(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.TinyIntType):
+        elif is_instance_of(logical_type, gateway.jvm.TinyIntType):
             data_type = DataTypes.TINYINT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.SmallIntType):
+        elif is_instance_of(logical_type, gateway.jvm.SmallIntType):
             data_type = DataTypes.SMALLINT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.IntType):
+        elif is_instance_of(logical_type, gateway.jvm.IntType):
             data_type = DataTypes.INT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.BigIntType):
+        elif is_instance_of(logical_type, gateway.jvm.BigIntType):
             data_type = DataTypes.BIGINT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.FloatType):
+        elif is_instance_of(logical_type, gateway.jvm.FloatType):
             data_type = DataTypes.FLOAT(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DoubleType):
+        elif is_instance_of(logical_type, gateway.jvm.DoubleType):
             data_type = DataTypes.DOUBLE(logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.ZonedTimestampType):
+        elif is_instance_of(logical_type, gateway.jvm.ZonedTimestampType):
             raise \
                 TypeError("Unsupported type: %s, ZonedTimestampType is not supported yet."
                           % j_data_type)
-        elif _is_instance_of(logical_type, gateway.jvm.LocalZonedTimestampType):
+        elif is_instance_of(logical_type, gateway.jvm.LocalZonedTimestampType):
             data_type = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(nullable=logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType) or \
-                _is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
+        elif is_instance_of(logical_type, gateway.jvm.DayTimeIntervalType) or \
+                is_instance_of(logical_type, gateway.jvm.YearMonthIntervalType):
             data_type = _from_java_interval_type(logical_type)
-        elif _is_instance_of(logical_type, gateway.jvm.LegacyTypeInformationType):
+        elif is_instance_of(logical_type, gateway.jvm.LegacyTypeInformationType):
             type_info = logical_type.getTypeInformation()
             BasicArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.\
                 BasicArrayTypeInfo
@@ -1763,7 +1800,7 @@ def _from_java_type(j_data_type):
             if type_info == BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO:
                 data_type = DataTypes.ARRAY(DataTypes.STRING())
             elif type_info == BasicTypeInfo.BIG_DEC_TYPE_INFO:
-                data_type = DataTypes.DECIMAL(10, 0)
+                data_type = DataTypes.DECIMAL(38, 18)
             elif type_info.getClass() == \
                 get_java_class(gateway.jvm.org.apache.flink.table.runtime.typeutils
                                .BigDecimalTypeInfo):
@@ -1778,12 +1815,12 @@ def _from_java_type(j_data_type):
         return data_type
 
     # Array Type, MultiSet Type.
-    elif _is_instance_of(java_data_type, gateway.jvm.CollectionDataType):
+    elif is_instance_of(java_data_type, gateway.jvm.CollectionDataType):
         logical_type = java_data_type.getLogicalType()
         element_type = java_data_type.getElementDataType()
-        if _is_instance_of(logical_type, gateway.jvm.ArrayType):
+        if is_instance_of(logical_type, gateway.jvm.ArrayType):
             data_type = DataTypes.ARRAY(_from_java_type(element_type), logical_type.isNullable())
-        elif _is_instance_of(logical_type, gateway.jvm.MultisetType):
+        elif is_instance_of(logical_type, gateway.jvm.MultisetType):
             data_type = DataTypes.MULTISET(_from_java_type(element_type),
                                            logical_type.isNullable())
         else:
@@ -1792,11 +1829,11 @@ def _from_java_type(j_data_type):
         return data_type
 
     # Map Type.
-    elif _is_instance_of(java_data_type, gateway.jvm.KeyValueDataType):
+    elif is_instance_of(java_data_type, gateway.jvm.KeyValueDataType):
         logical_type = java_data_type.getLogicalType()
         key_type = java_data_type.getKeyDataType()
         value_type = java_data_type.getValueDataType()
-        if _is_instance_of(logical_type, gateway.jvm.MapType):
+        if is_instance_of(logical_type, gateway.jvm.MapType):
             data_type = DataTypes.MAP(
                 _from_java_type(key_type),
                 _from_java_type(value_type),
@@ -1807,13 +1844,12 @@ def _from_java_type(j_data_type):
         return data_type
 
     # Row Type.
-    elif _is_instance_of(java_data_type, gateway.jvm.FieldsDataType):
+    elif is_instance_of(java_data_type, gateway.jvm.FieldsDataType):
         logical_type = java_data_type.getLogicalType()
         field_data_types = java_data_type.getFieldDataTypes()
-        if _is_instance_of(logical_type, gateway.jvm.RowType):
-            fields = [DataTypes.FIELD(item,
-                                      _from_java_type(
-                                          field_data_types[item])) for item in field_data_types]
+        if is_instance_of(logical_type, gateway.jvm.RowType):
+            fields = [DataTypes.FIELD(name, _from_java_type(field_data_types[name]))
+                      for name in logical_type.getFieldNames()]
             data_type = DataTypes.ROW(fields, logical_type.isNullable())
         else:
             raise TypeError("Unsupported row data type: %s" % j_data_type)
@@ -2235,6 +2271,138 @@ def _create_type_verifier(data_type, name=None):
     return verify
 
 
+def create_arrow_schema(field_names, field_types):
+    """
+    Create an Arrow schema with the specified filed names and types.
+    """
+    import pyarrow as pa
+    fields = [pa.field(field_name, to_arrow_type(field_type), field_type._nullable)
+              for field_name, field_type in zip(field_names, field_types)]
+    return pa.schema(fields)
+
+
+def from_arrow_type(arrow_type, nullable=True):
+    """
+    Convert Arrow type to Flink data type.
+    """
+    from pyarrow import types
+    if types.is_boolean(arrow_type):
+        return BooleanType(nullable)
+    elif types.is_int8(arrow_type):
+        return TinyIntType(nullable)
+    elif types.is_int16(arrow_type):
+        return SmallIntType(nullable)
+    elif types.is_int32(arrow_type):
+        return IntType(nullable)
+    elif types.is_int64(arrow_type):
+        return BigIntType(nullable)
+    elif types.is_float32(arrow_type):
+        return FloatType(nullable)
+    elif types.is_float64(arrow_type):
+        return DoubleType(nullable)
+    elif types.is_decimal(arrow_type):
+        return DecimalType(arrow_type.precision, arrow_type.scale, nullable)
+    elif types.is_string(arrow_type):
+        return VarCharType(0x7fffffff, nullable)
+    elif types.is_fixed_size_binary(arrow_type):
+        return BinaryType(arrow_type.byte_width, nullable)
+    elif types.is_binary(arrow_type):
+        return VarBinaryType(0x7fffffff, nullable)
+    elif types.is_date32(arrow_type):
+        return DateType(nullable)
+    elif types.is_time32(arrow_type):
+        if str(arrow_type) == 'time32[s]':
+            return TimeType(0, nullable)
+        else:
+            return TimeType(3, nullable)
+    elif types.is_time64(arrow_type):
+        if str(arrow_type) == 'time64[us]':
+            return TimeType(6, nullable)
+        else:
+            return TimeType(9, nullable)
+    elif types.is_timestamp(arrow_type):
+        if arrow_type.unit == 's':
+            return TimestampType(0, nullable)
+        elif arrow_type.unit == 'ms':
+            return TimestampType(3, nullable)
+        elif arrow_type.unit == 'us':
+            return TimestampType(6, nullable)
+        else:
+            return TimestampType(9, nullable)
+    elif types.is_list(arrow_type):
+        return ArrayType(from_arrow_type(arrow_type.value_type), nullable)
+    elif types.is_struct(arrow_type):
+        if any(types.is_struct(field.type) for field in arrow_type):
+            raise TypeError("Nested RowType is not supported in conversion from Arrow: " +
+                            str(arrow_type))
+        return RowType([RowField(field.name, from_arrow_type(field.type, field.nullable))
+                        for field in arrow_type])
+    else:
+        raise TypeError("Unsupported data type to convert to Arrow type: " + str(dt))
+
+
+def to_arrow_type(data_type):
+    """
+    Converts the specified Flink data type to pyarrow data type.
+    """
+    import pyarrow as pa
+    if type(data_type) == TinyIntType:
+        return pa.int8()
+    elif type(data_type) == SmallIntType:
+        return pa.int16()
+    elif type(data_type) == IntType:
+        return pa.int32()
+    elif type(data_type) == BigIntType:
+        return pa.int64()
+    elif type(data_type) == BooleanType:
+        return pa.bool_()
+    elif type(data_type) == FloatType:
+        return pa.float32()
+    elif type(data_type) == DoubleType:
+        return pa.float64()
+    elif type(data_type) == VarCharType:
+        return pa.utf8()
+    elif type(data_type) == VarBinaryType:
+        return pa.binary()
+    elif type(data_type) == DecimalType:
+        return pa.decimal128(data_type.precision, data_type.scale)
+    elif type(data_type) == DateType:
+        return pa.date32()
+    elif type(data_type) == TimeType:
+        if data_type.precision == 0:
+            return pa.time32('s')
+        elif 1 <= data_type.precision <= 3:
+            return pa.time32('ms')
+        elif 4 <= data_type.precision <= 6:
+            return pa.time64('us')
+        else:
+            return pa.time64('ns')
+    elif type(data_type) in [LocalZonedTimestampType, TimestampType]:
+        if data_type.precision == 0:
+            return pa.timestamp('s')
+        elif 1 <= data_type.precision <= 3:
+            return pa.timestamp('ms')
+        elif 4 <= data_type.precision <= 6:
+            return pa.timestamp('us')
+        else:
+            return pa.timestamp('ns')
+    elif type(data_type) == ArrayType:
+        if type(data_type.element_type) in [LocalZonedTimestampType, RowType]:
+            raise ValueError("%s is not supported to be used as the element type of ArrayType." %
+                             data_type.element_type)
+        return pa.list_(to_arrow_type(data_type.element_type))
+    elif type(data_type) == RowType:
+        for field in data_type:
+            if type(field.data_type) in [LocalZonedTimestampType, RowType]:
+                raise TypeError("%s is not supported to be used as the field type of RowType" %
+                                field.data_type)
+        fields = [pa.field(field.name, to_arrow_type(field.data_type), field.data_type._nullable)
+                  for field in data_type]
+        return pa.struct(fields)
+    else:
+        raise ValueError("field_type %s is not supported." % data_type)
+
+
 class DataTypes(object):
     """
     A :class:`DataType` can be used to declare input and/or output types of operations.
@@ -2252,6 +2420,8 @@ class DataTypes(object):
         define such a type as well.
 
         The null type is an extension to the SQL standard.
+
+        .. note:: `NullType` is still not supported yet.
         """
         return NullType()
 
@@ -2263,6 +2433,8 @@ class DataTypes(object):
         :param length: int, the string representation length. It must have a value
                        between 1 and 2147483647(0x7fffffff) (both inclusive).
         :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. note:: `CharType` is still not supported yet.
         """
         return CharType(length, nullable)
 
@@ -2274,6 +2446,9 @@ class DataTypes(object):
         :param length: int, the maximum string representation length. It must have a
                        value between 1 and 2147483647(0x7fffffff) (both inclusive).
         :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. note:: The length limit must be 0x7fffffff(2147483647) currently.
+        .. seealso:: :func:`~DataTypes.STRING`
         """
         return VarCharType(length, nullable)
 
@@ -2284,6 +2459,8 @@ class DataTypes(object):
         This is a shortcut for ``DataTypes.VARCHAR(2147483647)``.
 
         :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. seealso:: :func:`~DataTypes.VARCHAR`
         """
         return DataTypes.VARCHAR(0x7fffffff, nullable)
 
@@ -2305,6 +2482,8 @@ class DataTypes(object):
         :param length: int, the number of bytes. It must have a value between
                        1 and 2147483647(0x7fffffff) (both inclusive).
         :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. note:: `BinaryType` is still not supported yet.
         """
         return BinaryType(length, nullable)
 
@@ -2316,6 +2495,9 @@ class DataTypes(object):
         :param length: int, the maximum number of bytes. It must have a value
                        between 1 and 2147483647(0x7fffffff) (both inclusive).
         :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. note:: The length limit must be 0x7fffffff(2147483647) currently.
+        .. seealso:: :func:`~DataTypes.BYTES`
         """
         return VarBinaryType(length, nullable)
 
@@ -2326,6 +2508,8 @@ class DataTypes(object):
         defined maximum length. This is a shortcut for ``DataTypes.VARBINARY(2147483647)``.
 
         :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. seealso:: :func:`~DataTypes.VARBINARY`
         """
         return DataTypes.VARBINARY(0x7fffffff, nullable)
 
@@ -2339,6 +2523,8 @@ class DataTypes(object):
         :param scale: the number of digits on right side of dot. It must have
                       a value between 0 and precision (both inclusive).
         :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. note:: The precision must be 38 and the scale must be 18 currently.
         """
         return DecimalType(precision, scale, nullable)
 
@@ -2424,6 +2610,8 @@ class DataTypes(object):
         :param precision: int, the number of digits of fractional seconds. It must
                           have a value between 0 and 9 (both inclusive).
         :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. note:: The precision must be 0 currently.
         """
         return TimeType(precision, nullable)
 
@@ -2447,6 +2635,8 @@ class DataTypes(object):
         :param precision: int, the number of digits of fractional seconds.
                           It must have a value between 0 and 9 (both inclusive). (default: 6)
         :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. note:: The precision must be 3 currently.
         """
         return TimestampType(precision, nullable)
 
@@ -2468,6 +2658,9 @@ class DataTypes(object):
         :param precision: int, the number of digits of fractional seconds.
                           It must have a value between 0 and 9 (both inclusive). (default: 6)
         :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. note:: `LocalZonedTimestampType` is currently only supported in blink planner and the
+                  precision must be 3.
         """
         return LocalZonedTimestampType(precision, nullable)
 
@@ -2553,6 +2746,7 @@ class DataTypes(object):
                           between 0 and 9 (both inclusive), (default: 6).
         :return: the specified :class:`Resolution`.
 
+        .. note:: the precision must be 3 currently.
         .. seealso:: :func:`~pyflink.table.DataTypes.INTERVAL`
         """
         return Resolution(Resolution.IntervalUnit.SECOND, precision)
@@ -2646,6 +2840,8 @@ class DataTypes(object):
         :param upper_resolution: :class:`Resolution`, the upper resolution of the interval.
         :param lower_resolution: :class:`Resolution`, the lower resolution of the interval.
 
+        .. note:: the upper_resolution must be `MONTH` for `YearMonthIntervalType`, `SECOND` for
+                  `DayTimeIntervalType` and the lower_resolution must be None currently.
         .. seealso:: :func:`~pyflink.table.DataTypes.SECOND`
         .. seealso:: :func:`~pyflink.table.DataTypes.MINUTE`
         .. seealso:: :func:`~pyflink.table.DataTypes.HOUR`

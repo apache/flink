@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.dataformat._
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
@@ -28,8 +29,8 @@ import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import scala.collection.mutable
 
 /**
-  * CodeGenerator for projection, Take out some fields of [[BaseRow]] to generate
-  * a new [[BaseRow]].
+  * CodeGenerator for projection, Take out some fields of [[RowData]] to generate
+  * a new [[RowData]].
   */
 object ProjectionCodeGenerator {
 
@@ -45,7 +46,7 @@ object ProjectionCodeGenerator {
       inType: RowType,
       outType: RowType,
       inputMapping: Array[Int],
-      outClass: Class[_ <: BaseRow] = classOf[BinaryRow],
+      outClass: Class[_ <: RowData] = classOf[BinaryRowData],
       inputTerm: String = DEFAULT_INPUT1_TERM,
       outRecordTerm: String = DEFAULT_OUT_RECORD_TERM,
       outRecordWriterTerm: String = DEFAULT_OUT_RECORD_WRITER_TERM,
@@ -73,7 +74,7 @@ object ProjectionCodeGenerator {
 
       val loopIdx = newName("i")
 
-      val fieldVal = CodeGenUtils.baseRowFieldReadAccess(
+      val fieldVal = CodeGenUtils.rowFieldReadAccess(
         ctx, s"$inIdxArr[$loopIdx]", inputTerm, fieldType)
 
       val inIdx = s"$inIdxArr[$loopIdx]"
@@ -81,7 +82,7 @@ object ProjectionCodeGenerator {
       val nullTerm = s"$inputTerm.isNullAt($inIdx)"
       s"""
          |for (int $loopIdx = 0; $loopIdx < $inIdxArr.length; $loopIdx++) {
-         |  ${CodeGenUtils.baseRowSetField(ctx, outClass, outRecordTerm, outIdx,
+         |  ${CodeGenUtils.rowSetField(ctx, outClass, outRecordTerm, outIdx,
                 GeneratedExpression(fieldVal, nullTerm, "", fieldType),
                 Some(outRecordWriterTerm))}
          |}
@@ -111,8 +112,8 @@ object ProjectionCodeGenerator {
         for (i <- inIdxs.indices) {
           val nullTerm = s"$inputTerm.isNullAt(${inIdxs(i)})"
           codeBuffer.append(
-            CodeGenUtils.baseRowSetField(ctx, outClass, outRecordTerm, outIdxs(i).toString,
-              GeneratedExpression(baseRowFieldReadAccess(
+            CodeGenUtils.rowSetField(ctx, outClass, outRecordTerm, outIdxs(i).toString,
+              GeneratedExpression(rowFieldReadAccess(
                 ctx, inIdxs(i), inputTerm, fieldType), nullTerm, "", fieldType),
               Some(outRecordWriterTerm)))
         }
@@ -132,7 +133,7 @@ object ProjectionCodeGenerator {
       }
     }
 
-    val code = if (outClass == classOf[BinaryRow]) {
+    val code = if (outClass == classOf[BinaryRowData]) {
       val writer = outRecordWriterTerm
       val resetWriter = if (ctx.nullCheck) s"$writer.reset();" else s"$writer.resetCursor();"
       val completeWriter: String = s"$writer.complete();"
@@ -164,7 +165,7 @@ object ProjectionCodeGenerator {
       inType: RowType,
       outType: RowType,
       inputMapping: Array[Int],
-      outClass: Class[_ <: BaseRow] = classOf[BinaryRow],
+      outClass: Class[_ <: RowData] = classOf[BinaryRowData],
       inputTerm: String = DEFAULT_INPUT1_TERM,
       outRecordTerm: String = DEFAULT_OUT_RECORD_TERM,
       outRecordWriterTerm: String = DEFAULT_OUT_RECORD_WRITER_TERM,
@@ -180,7 +181,7 @@ object ProjectionCodeGenerator {
     val code =
       s"""
          |public class $className implements ${
-            baseClass.getCanonicalName}<$BASE_ROW, ${outClass.getCanonicalName}> {
+            baseClass.getCanonicalName}<$ROW_DATA, ${outClass.getCanonicalName}> {
          |
          |  ${ctx.reuseMemberCode()}
          |
@@ -189,7 +190,7 @@ object ProjectionCodeGenerator {
          |  }
          |
          |  @Override
-         |  public ${outClass.getCanonicalName} apply($BASE_ROW $inputTerm) {
+         |  public ${outClass.getCanonicalName} apply($ROW_DATA $inputTerm) {
          |    ${ctx.reuseLocalVariableCode()}
          |    ${expression.code}
          |    return ${expression.resultTerm};

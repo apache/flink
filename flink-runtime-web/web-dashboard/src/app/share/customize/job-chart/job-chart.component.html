@@ -18,7 +18,7 @@
 
 <div class="chart">
   <div class="title">
-    <div class="text">{{title}}</div>
+    <div class="text" [attr.title]="title">{{title}}</div>
     <div class="operate">
       <nz-button-group [nzSize]="'small'">
         <button nz-button [nzType]="size === 'big' ? 'primary' : 'default'" (click)="resize('big')">Big</button>

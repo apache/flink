@@ -27,7 +27,7 @@ import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 
 import java.util.Arrays;
 
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.and;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;

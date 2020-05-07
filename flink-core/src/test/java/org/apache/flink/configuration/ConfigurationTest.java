@@ -23,6 +23,12 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -321,6 +327,29 @@ public class ConfigurationTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testToMap() {
+		final ConfigOption<List<String>> listConfigOption = createListStringConfigOption();
+		final Configuration configuration = new Configuration();
+		final String listValues = "value1;value2;value3";
+		configuration.set(listConfigOption, Arrays.asList(listValues.split(";")));
+
+		final ConfigOption<Map<String, String>> mapConfigOption = createMapConfigOption();
+		final String mapValues = "key1:value1,key2:value2";
+		configuration.set(
+			mapConfigOption,
+			Arrays.stream(mapValues.split(","))
+				.collect(Collectors.toMap(e -> e.split(":")[0], e -> e.split(":")[1])));
+
+		final ConfigOption<Duration> durationConfigOption = createDurationConfigOption();
+		final Duration duration = Duration.ofMillis(3000);
+		configuration.set(durationConfigOption, duration);
+
+		assertEquals(listValues, configuration.toMap().get(listConfigOption.key()));
+		assertEquals(mapValues, configuration.toMap().get(mapConfigOption.key()));
+		assertEquals(duration.toNanos() + " ns", configuration.toMap().get(durationConfigOption.key()));
+	}
+
 	enum TestEnum {
 		VALUE1,
 		VALUE2
@@ -329,6 +358,28 @@ public class ConfigurationTest extends TestLogger {
 	private static ConfigOption<String> createStringConfigOption() {
 		return ConfigOptions
 			.key("test-string-key")
+			.noDefaultValue();
+	}
+
+	private static ConfigOption<List<String>> createListStringConfigOption() {
+		return ConfigOptions
+			.key("test-list-key")
+			.stringType()
+			.asList()
+			.noDefaultValue();
+	}
+
+	private static ConfigOption<Map<String, String>> createMapConfigOption() {
+		return ConfigOptions
+			.key("test-map-key")
+			.mapType()
+			.noDefaultValue();
+	}
+
+	private static ConfigOption<Duration> createDurationConfigOption() {
+		return ConfigOptions
+			.key("test-duration-key")
+			.durationType()
 			.noDefaultValue();
 	}
 }

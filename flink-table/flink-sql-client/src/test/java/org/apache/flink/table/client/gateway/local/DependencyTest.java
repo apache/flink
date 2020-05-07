@@ -65,7 +65,6 @@ import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATA
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Dependency tests for {@link LocalExecutor}. Mainly for testing classloading of dependencies.
@@ -213,7 +212,7 @@ public class DependencyTest {
 	public static class TestHiveCatalogFactory extends HiveCatalogFactory {
 		public static final String ADDITIONAL_TEST_DATABASE = "additional_test_database";
 		public static final String TEST_TABLE = "test_table";
-		static final String TABLE_WITH_PARAMETERIZED_TYPES = "para_types_table";
+		static final String TABLE_WITH_PARAMETERIZED_TYPES = "param_types_table";
 
 		@Override
 		public Map<String, String> requiredContext() {
@@ -225,11 +224,15 @@ public class DependencyTest {
 		}
 
 		@Override
-		public Catalog createCatalog(String name, Map<String, String> properties) {
-			// Test HiveCatalogFactory.createCatalog
-			// But not use it for testing purpose
-			assertTrue(super.createCatalog(name, properties) != null);
+		public List<String> supportedProperties() {
+			List<String> list = super.supportedProperties();
+			list.add(CatalogConfig.IS_GENERIC);
 
+			return list;
+		}
+
+		@Override
+		public Catalog createCatalog(String name, Map<String, String> properties) {
 			// Developers may already have their own production/testing hive-site.xml set in their environment,
 			// and Flink tests should avoid using those hive-site.xml.
 			// Thus, explicitly create a testing HiveConf for unit tests here
@@ -249,7 +252,7 @@ public class DependencyTest {
 							.field("testcol", DataTypes.INT())
 							.build(),
 						new HashMap<String, String>() {{
-							put(CatalogConfig.IS_GENERIC, String.valueOf(true));
+							put(CatalogConfig.IS_GENERIC, String.valueOf(false));
 						}},
 						""
 					),
@@ -269,7 +272,12 @@ public class DependencyTest {
 		private CatalogTable tableWithParameterizedTypes() {
 			TableSchema tableSchema = TableSchema.builder().fields(new String[]{"dec", "ch", "vch"},
 					new DataType[]{DataTypes.DECIMAL(10, 10), DataTypes.CHAR(5), DataTypes.VARCHAR(15)}).build();
-			return new CatalogTableImpl(tableSchema, Collections.emptyMap(), "");
+			return new CatalogTableImpl(
+				tableSchema,
+				new HashMap<String, String>() {{
+					put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+				}},
+				"");
 		}
 	}
 }

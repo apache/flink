@@ -81,12 +81,12 @@ import java.util.List;
  *
  * <pre>
  * {@code
- * ParquetTableSource orcSrc = ParquetTableSource.builder()
+ * ParquetTableSource parquetSrc = ParquetTableSource.builder()
  *   .path("file:///my/data/file.parquet")
  *   .schema(messageType)
  *   .build();
  *
- * tEnv.registerTableSource("parquetTable", orcSrc);
+ * tEnv.registerTableSource("parquetTable", parquetSrc);
  * Table res = tableEnv.sqlQuery("SELECT * FROM parquetTable");
  * }
  * </pre>
@@ -156,7 +156,7 @@ public class ParquetTableSource
 
 	@Override
 	public TableSource<Row> projectFields(int[] fields) {
-		return new ParquetTableSource(path, parquetSchema, parquetConfig, recursiveEnumeration, fields, null);
+		return new ParquetTableSource(path, parquetSchema, parquetConfig, recursiveEnumeration, fields, predicate);
 	}
 
 	@Override

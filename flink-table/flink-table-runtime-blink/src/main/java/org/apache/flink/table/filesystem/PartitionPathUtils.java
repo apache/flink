@@ -77,6 +77,9 @@ public class PartitionPathUtils {
 	 * @return An escaped, valid partition name.
 	 */
 	public static String generatePartitionPath(LinkedHashMap<String, String> partitionSpec) {
+		if (partitionSpec.isEmpty()) {
+			return "";
+		}
 		StringBuilder suffixBuf = new StringBuilder();
 		int i = 0;
 		for (Map.Entry<String, String> e : partitionSpec.entrySet()) {
@@ -146,7 +149,7 @@ public class PartitionPathUtils {
 		return fullPartSpec;
 	}
 
-	private static String unescapePathName(String path) {
+	public static String unescapePathName(String path) {
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < path.length(); i++) {
 			char c = path.charAt(i);

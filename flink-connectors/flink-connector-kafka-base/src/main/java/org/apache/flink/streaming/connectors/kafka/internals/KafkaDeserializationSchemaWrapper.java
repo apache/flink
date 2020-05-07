@@ -41,6 +41,11 @@ public class KafkaDeserializationSchemaWrapper<T> implements KafkaDeserializatio
 	}
 
 	@Override
+	public void open(DeserializationSchema.InitializationContext context) throws Exception {
+		this.deserializationSchema.open(context);
+	}
+
+	@Override
 	public T deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
 		return deserializationSchema.deserialize(record.value());
 	}

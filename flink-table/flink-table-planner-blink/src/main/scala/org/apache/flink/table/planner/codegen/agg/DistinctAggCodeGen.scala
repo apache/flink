@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview.MapView
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateFieldAccess, generateInputAccess}
@@ -144,7 +144,7 @@ class DistinctAggCodeGen(
       val code =
         s"""
            |$MAP_VIEW $mapViewTerm = new $MAP_VIEW();
-           |$BINARY_GENERIC $accTerm = ${genToInternal(ctx, externalAccType, mapViewTerm)};
+           |$BINARY_RAW_VALUE $accTerm = ${genToInternal(ctx, externalAccType, mapViewTerm)};
          """.stripMargin
 
       Seq(GeneratedExpression(accTerm, NEVER_NULL, code, internalAccType))
@@ -179,7 +179,7 @@ class DistinctAggCodeGen(
       val accTerm = newName("distinct_acc")
       val code =
         s"""
-           |$BINARY_GENERIC $accTerm = ${genToInternal(ctx, externalAccType, distinctAccTerm)};
+           |$BINARY_RAW_VALUE $accTerm = ${genToInternal(ctx, externalAccType, distinctAccTerm)};
          """.stripMargin
 
       Seq(GeneratedExpression(
@@ -384,6 +384,7 @@ class DistinctAggCodeGen(
     // the key expression of MapView
     if (fieldExprs.length > 1) {
       val keyTerm = newName(DISTINCT_KEY_TERM)
+      val outRowWriter = newName(DEFAULT_OUT_RECORD_WRITER_TERM)
       val valueType = RowType.of(
         fieldExprs.map(_.resultType): _*)
 
@@ -391,8 +392,9 @@ class DistinctAggCodeGen(
       generator.generateResultExpression(
         fieldExprs,
         valueType,
-        classOf[GenericRow],
+        classOf[BinaryRowData],
         outRow = keyTerm,
+        outRowWriter = Some(outRowWriter),
         reusedOutRow = false)
     } else {
       val fieldExpr = fieldExprs.head
@@ -412,7 +414,7 @@ class DistinctAggCodeGen(
 
   /**
     * This method is mainly the same as CodeGenUtils.generateFieldAccess(), the only difference is
-    * that this method using UpdatableRow to wrap BaseRow to handle DataViews.
+    * that this method using UpdatableRow to wrap RowData to handle DataViews.
     */
   private def generateAccumulatorAccess(
     ctx: CodeGeneratorContext,

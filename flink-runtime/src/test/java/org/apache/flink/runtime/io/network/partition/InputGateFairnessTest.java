@@ -90,11 +90,13 @@ public class InputGateFairnessTest {
 		ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
 
 		final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
+		final InputChannel[] inputChannels = new InputChannel[numberOfChannels];
 
 		for (int i = 0; i < numberOfChannels; i++) {
-			createLocalInputChannel(gate, i, resultPartitionManager);
+			inputChannels[i] = createLocalInputChannel(gate, i, resultPartitionManager);
 		}
 
+		gate.setInputChannels(inputChannels);
 		gate.setup();
 
 		// read all the buffers and the EOF event
@@ -137,14 +139,16 @@ public class InputGateFairnessTest {
 			ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
 
 			final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
+			final InputChannel[] inputChannels = new InputChannel[numberOfChannels];
 
 			for (int i = 0; i < numberOfChannels; i++) {
-				createLocalInputChannel(gate, i, resultPartitionManager);
+				inputChannels[i] = createLocalInputChannel(gate, i, resultPartitionManager);
 			}
 
 			// seed one initial buffer
 			sources[12].add(bufferConsumer.copy());
 
+			gate.setInputChannels(inputChannels);
 			gate.setup();
 
 			// read all the buffers and the EOF event
@@ -196,6 +200,7 @@ public class InputGateFairnessTest {
 			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), buffersPerChannel, -1);
 		}
 
+		gate.setInputChannels(channels);
 		gate.setup();
 
 		// read all the buffers and the EOF event
@@ -241,6 +246,7 @@ public class InputGateFairnessTest {
 		channels[11].onBuffer(mockBuffer, 0, -1);
 		channelSequenceNums[11]++;
 
+		gate.setInputChannels(channels);
 		gate.setup();
 
 		// read all the buffers and the EOF event
@@ -331,7 +337,9 @@ public class InputGateFairnessTest {
 				int consumedSubpartitionIndex,
 				int numberOfInputChannels) {
 
-			super(owningTaskName,
+			super(
+				owningTaskName,
+				0,
 				consumedResultId,
 				ResultPartitionType.PIPELINED,
 				consumedSubpartitionIndex,
@@ -385,6 +393,6 @@ public class InputGateFairnessTest {
 			.setChannelIndex(channelIndex)
 			.setConnectionManager(connectionManager)
 			.setMemorySegmentProvider(new UnpooledMemorySegmentProvider(32 * 1024))
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
 	}
 }

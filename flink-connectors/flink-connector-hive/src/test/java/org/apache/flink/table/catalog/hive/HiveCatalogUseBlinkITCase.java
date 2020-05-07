@@ -27,6 +27,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
@@ -154,6 +155,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 	}
 
 	private void testUdf(boolean batch) throws Exception {
+		StreamExecutionEnvironment env = null;
 		TableEnvironment tEnv;
 		EnvironmentSettings.Builder envBuilder = EnvironmentSettings.newInstance().useBlinkPlanner();
 		if (batch) {
@@ -164,8 +166,8 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 		if (batch) {
 			tEnv = TableEnvironment.create(envBuilder.build());
 		} else {
-			tEnv = StreamTableEnvironment.create(
-					StreamExecutionEnvironment.getExecutionEnvironment(), envBuilder.build());
+			env = StreamExecutionEnvironment.getExecutionEnvironment();
+			tEnv = StreamTableEnvironment.create(env, envBuilder.build());
 		}
 
 		BatchTestBase.configForMiniCluster(tEnv.getConfig());
@@ -236,7 +238,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 			streamTEnv.toRetractStream(tEnv.sqlQuery(selectSql), Row.class)
 					.map(new JavaToScala())
 					.addSink((SinkFunction) sink);
-			streamTEnv.execute("");
+			env.execute("");
 			results = JavaScalaConversionUtil.toJava(sink.getRetractResults());
 		}
 
@@ -257,11 +259,11 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 					.addRow(new Object[]{Timestamp.valueOf("2013-07-15 10:00:00")})
 					.addRow(new Object[]{Timestamp.valueOf("2019-05-23 17:32:55")})
 					.commit();
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 			tableEnv.useCatalog(hiveCatalog.getName());
 
-			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select myyear(ts) as y from src"));
+			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select myyear(ts) as y from src"));
 			Assert.assertEquals(2, results.size());
 			Assert.assertEquals("[2013, 2019]", results.toString());
 		} finally {
@@ -281,11 +283,11 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 					.addRow(new Object[]{Date.valueOf("2019-01-19")})
 					.addRow(new Object[]{Date.valueOf("2019-03-02")})
 					.commit();
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 			tableEnv.useCatalog(hiveCatalog.getName());
 
-			List<Row> results = HiveTestUtils.collectTable(tableEnv, tableEnv.sqlQuery("select mymonth(dt) as m from src order by m"));
+			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select mymonth(dt) as m from src order by m"));
 			Assert.assertEquals(2, results.size());
 			Assert.assertEquals("[1, 3]", results.toString());
 		} finally {

@@ -28,7 +28,7 @@ LogicalProject(a=[$0], s=[$3])
    +- LogicalProject(s=[$0])
       +- Uncollect
          +- LogicalProject(c=[$cor0.c])
-            +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+            +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -56,12 +56,12 @@ LogicalProject(b=[$0], s=[$2])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
       :- LogicalProject(b=[$0], set=[$2])
       :  +- LogicalAggregate(group=[{0, 1}], set=[COLLECT($0)])
-      :     +- LogicalProject(b=[$1], $f1=[TUMBLE($3, 3000:INTERVAL SECOND)])
+      :     +- LogicalProject(b=[$1], $f1=[$TUMBLE($3, 3000:INTERVAL SECOND)])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(s=[$0])
          +- Uncollect
             +- LogicalProject(set=[$cor0.set])
-               +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+               +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -90,7 +90,7 @@ LogicalProject(a=[$0], b=[$1], v=[$4])
    +- LogicalProject(k=[$0], v=[$1])
       +- Uncollect
          +- LogicalProject(c=[$cor0.c])
-            +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+            +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -121,7 +121,7 @@ LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
       +- LogicalProject(x=[$0], y=[$1])
          +- Uncollect
             +- LogicalProject(b=[$cor0.b])
-               +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+               +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -151,7 +151,7 @@ LogicalProject(a=[$0], s=[$2])
       +- LogicalProject(s=[$0])
          +- Uncollect
             +- LogicalProject(set=[$cor0.set])
-               +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+               +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -180,7 +180,7 @@ LogicalProject(a=[$0], s=[$3])
    +- LogicalProject(s=[$0])
       +- Uncollect
          +- LogicalProject(c=[$cor0.c])
-            +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+            +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -209,7 +209,7 @@ LogicalProject(b=[$0], id=[$2], point=[$3])
       +- LogicalProject(id=[$0], point=[$1])
          +- Uncollect
             +- LogicalProject(set=[$cor0.set])
-               +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+               +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -238,7 +238,7 @@ LogicalProject(a=[$0], b=[$1], s=[$3])
    +- LogicalProject(s=[$0])
       +- Uncollect
          +- LogicalProject(b=[$cor0.b])
-            +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+            +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -262,7 +262,7 @@ LogicalProject(a=[$0], b=[$1], s=[$2], t=[$3])
       +- LogicalProject(s=[$0], t=[$1])
          +- Uncollect
             +- LogicalProject(b=[$cor0.b])
-               +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+               +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -284,7 +284,7 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b)]]])
       +- Uncollect
          +- LogicalProject(b=[$cor0.b])
-            +- LogicalValues(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+            +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">

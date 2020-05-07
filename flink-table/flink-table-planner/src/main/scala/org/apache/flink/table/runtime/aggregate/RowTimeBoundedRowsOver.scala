@@ -26,7 +26,7 @@ import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.TimestampedCollector
-import org.apache.flink.table.api.StreamQueryConfig
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.util.Logging
@@ -47,8 +47,9 @@ class RowTimeBoundedRowsOver[K](
     inputRowType: CRowTypeInfo,
     precedingOffset: Long,
     rowTimeIdx: Int,
-    queryConfig: StreamQueryConfig)
-  extends ProcessFunctionWithCleanupState[K, CRow, CRow](queryConfig)
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
+  extends ProcessFunctionWithCleanupState[K, CRow, CRow](minRetentionTime, maxRetentionTime)
     with Compiler[GeneratedAggregations]
     with Logging {
 
@@ -267,7 +268,9 @@ class RowTimeBoundedRowsOver[K](
   }
 
   override def close(): Unit = {
-    function.close()
+    if (function != null) {
+      function.close()
+    }
   }
 }
 

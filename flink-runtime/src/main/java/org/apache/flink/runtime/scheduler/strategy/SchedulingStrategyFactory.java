@@ -27,5 +27,5 @@ public interface SchedulingStrategyFactory {
 
 	SchedulingStrategy createInstance(
 			SchedulerOperations schedulerOperations,
-			SchedulingTopology<?, ?> schedulingTopology);
+			SchedulingTopology schedulingTopology);
 }

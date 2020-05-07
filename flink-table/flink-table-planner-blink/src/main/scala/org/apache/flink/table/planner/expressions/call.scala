@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation, Types}
+import org.apache.flink.table.expressions.CallExpression
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
@@ -25,8 +26,22 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLog
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
+
+/**
+ * Wrapper for call expressions resolved already in the API with the new type inference stack.
+ */
+case class ApiResolvedCallExpression(
+    resolvedCall: CallExpression)
+  extends LeafExpression {
+
+  override private[flink] def resultType: TypeInformation[_] = TypeConversions
+    .fromDataTypeToLegacyInfo(
+      resolvedCall
+        .getOutputDataType)
+}
 
 /**
   * Over call with unresolved alias for over window.
@@ -164,7 +179,6 @@ case class PlannerScalarFunctionCall(
   override private[flink] def resultType =
     fromDataTypeToTypeInfo(getResultTypeOfScalarFunction(
       scalarFunction,
-      Array(),
       signature))
 
   override private[flink] def validateInput(): ValidationResult = {
@@ -200,10 +214,6 @@ case class PlannerTableFunctionCall(
   override private[flink] def children: Seq[PlannerExpression] = parameters
 
   override def validateInput(): ValidationResult = {
-    // check if not Scala object
-    UserFunctionsTypeHelper.validateNotSingleton(tableFunction.getClass)
-    // check if class could be instantiated
-    UserFunctionsTypeHelper.validateInstantiation(tableFunction.getClass)
     // look for a signature that matches the input types
     val signature = parameters.map(_.resultType).map(fromLegacyInfoToDataType)
     val foundMethod = getUserDefinedMethod(

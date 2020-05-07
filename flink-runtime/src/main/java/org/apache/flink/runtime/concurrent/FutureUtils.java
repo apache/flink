@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -70,6 +71,21 @@ public class FutureUtils {
 	 */
 	public static CompletableFuture<Void> completedVoidFuture() {
 		return COMPLETED_VOID_FUTURE;
+	}
+
+	/**
+	 * Fakes asynchronous execution by immediately executing the operation and returns a (exceptionally) completed
+	 * future.
+	 *
+	 * @param operation to executed
+	 * @param <T> type of the result
+	 */
+	public static <T> CompletableFuture<T> runSync(Callable<T> operation) {
+		try {
+			return CompletableFuture.completedFuture(operation.call());
+		} catch (Exception e) {
+			return completedExceptionally(e);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -984,6 +1000,24 @@ public class FutureUtils {
 	}
 
 	/**
+	 * Gets the result of a completable future without any exception thrown.
+	 *
+	 * @param future the completable future specified.
+	 * @param <T> the type of result
+	 * @return the result of completable future,
+	 * or null if it's unfinished or finished exceptionally
+	 */
+	public static <T> T getWithoutException(CompletableFuture<T> future) {
+		if (future.isDone() && !future.isCompletedExceptionally()) {
+			try {
+				return future.get();
+			} catch (InterruptedException | ExecutionException ignored) {
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Runnable to complete the given future with a {@link TimeoutException}.
 	 */
 	private static final class Timeout implements Runnable {
@@ -1060,12 +1094,30 @@ public class FutureUtils {
 	 * @param <T> type of the value
 	 */
 	public static <T> void forward(CompletableFuture<T> source, CompletableFuture<T> target) {
-		source.whenComplete((value, throwable) -> {
+		source.whenComplete(forwardTo(target));
+	}
+
+	/**
+	 * Forwards the value from the source future to the target future using the provided executor.
+	 *
+	 * @param source future to forward the value from
+	 * @param target future to forward the value to
+	 * @param executor executor to forward the source value to the target future
+	 * @param <T> type of the value
+	 */
+	public static <T> void forwardAsync(CompletableFuture<T> source, CompletableFuture<T> target, Executor executor) {
+		source.whenCompleteAsync(
+			forwardTo(target),
+			executor);
+	}
+
+	private static <T> BiConsumer<T, Throwable> forwardTo(CompletableFuture<T> target) {
+		return (value, throwable) -> {
 			if (throwable != null) {
 				target.completeExceptionally(throwable);
 			} else {
 				target.complete(value);
 			}
-		});
+		};
 	}
 }
