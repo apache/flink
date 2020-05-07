@@ -24,7 +24,10 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.disk.FileBasedBufferIterator;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.StringUtils;
 
@@ -41,15 +44,18 @@ import java.util.Random;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static org.apache.flink.core.memory.MemorySegmentFactory.wrapCopy;
+import static org.apache.flink.core.memory.MemorySegmentFactory.wrapInt;
 import static org.apache.flink.runtime.io.network.api.serialization.NonSpanningWrapper.singleBufferIterator;
 import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
+import static org.apache.flink.util.CloseableIterator.empty;
 import static org.apache.flink.util.FileUtils.writeCompletely;
 import static org.apache.flink.util.IOUtils.closeAllQuietly;
 
 final class SpanningWrapper {
 
-	private static final int THRESHOLD_FOR_SPILLING = 5 * 1024 * 1024; // 5 MiBytes
-	private static final int FILE_BUFFER_SIZE = 2 * 1024 * 1024;
+	private static final int DEFAULT_THRESHOLD_FOR_SPILLING = 5 * 1024 * 1024; // 5 MiBytes
+	private static final int DEFAULT_FILE_BUFFER_SIZE = 2 * 1024 * 1024;
 
 	private final byte[] initialBuffer = new byte[1024];
 
@@ -60,6 +66,8 @@ final class SpanningWrapper {
 	private final DataInputDeserializer serializationReadBuffer;
 
 	final ByteBuffer lengthBuffer;
+
+	private final int fileBufferSize;
 
 	private FileChannel spillingChannel;
 
@@ -79,16 +87,21 @@ final class SpanningWrapper {
 
 	private DataInputViewStreamWrapper spillFileReader;
 
-	SpanningWrapper(String[] tempDirs) {
-		this.tempDirs = tempDirs;
+	private int thresholdForSpilling;
 
+	SpanningWrapper(String[] tempDirs) {
+		this(tempDirs, DEFAULT_THRESHOLD_FOR_SPILLING, DEFAULT_FILE_BUFFER_SIZE);
+	}
+
+	SpanningWrapper(String[] tempDirectories, int threshold, int fileBufferSize) {
+		this.tempDirs = tempDirectories;
 		this.lengthBuffer = ByteBuffer.allocate(LENGTH_BYTES);
 		this.lengthBuffer.order(ByteOrder.BIG_ENDIAN);
-
 		this.recordLength = -1;
-
 		this.serializationReadBuffer = new DataInputDeserializer();
 		this.buffer = initialBuffer;
+		this.thresholdForSpilling = threshold;
+		this.fileBufferSize = fileBufferSize;
 	}
 
 	/**
@@ -101,7 +114,7 @@ final class SpanningWrapper {
 	}
 
 	private boolean isAboveSpillingThreshold() {
-		return recordLength > THRESHOLD_FOR_SPILLING;
+		return recordLength > thresholdForSpilling;
 	}
 
 	void addNextChunkFromMemorySegment(MemorySegment segment, int offset, int numBytes) throws IOException {
@@ -137,7 +150,7 @@ final class SpanningWrapper {
 		accumulatedRecordBytes += length;
 		if (hasFullRecord()) {
 			spillingChannel.close();
-			spillFileReader = new DataInputViewStreamWrapper(new BufferedInputStream(new FileInputStream(spillFile.getFile()), FILE_BUFFER_SIZE));
+			spillFileReader = new DataInputViewStreamWrapper(new BufferedInputStream(new FileInputStream(spillFile.getFile()), fileBufferSize));
 		}
 	}
 
@@ -170,22 +183,26 @@ final class SpanningWrapper {
 
 	CloseableIterator<Buffer> getUnconsumedSegment() throws IOException {
 		if (isReadingLength()) {
-			return singleBufferIterator(copyLengthBuffer());
+			return singleBufferIterator(wrapCopy(lengthBuffer.array(), 0, lengthBuffer.position()));
 		} else if (isAboveSpillingThreshold()) {
-			throw new UnsupportedOperationException("Unaligned checkpoint currently do not support spilled records.");
+			return createSpilledDataIterator();
 		} else if (recordLength == -1) {
-			return CloseableIterator.empty(); // no remaining partial length or data
+			return empty(); // no remaining partial length or data
 		} else {
 			return singleBufferIterator(copyDataBuffer());
 		}
 	}
 
-	private MemorySegment copyLengthBuffer() {
-		int position = lengthBuffer.position();
-		MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(position);
-		lengthBuffer.position(0);
-		segment.put(0, lengthBuffer, position);
-		return segment;
+	@SuppressWarnings("unchecked")
+	private CloseableIterator<Buffer> createSpilledDataIterator() throws IOException {
+		if (spillingChannel != null && spillingChannel.isOpen()) {
+			spillingChannel.force(false);
+		}
+		return CloseableIterator.flatten(
+			toSingleBufferIterator(wrapInt(recordLength)),
+			new FileBasedBufferIterator(spillFile, min(accumulatedRecordBytes, recordLength), fileBufferSize),
+			leftOverData == null ? empty() : toSingleBufferIterator(wrapCopy(leftOverData.getArray(), leftOverStart, leftOverLimit))
+		);
 	}
 
 	private MemorySegment copyDataBuffer() throws IOException {
@@ -287,6 +304,11 @@ final class SpanningWrapper {
 
 	private boolean isReadingLength() {
 		return lengthBuffer.position() > 0;
+	}
+
+	private static CloseableIterator<Buffer> toSingleBufferIterator(MemorySegment segment) {
+		NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, Buffer.DataType.DATA_BUFFER, segment.size());
+		return CloseableIterator.ofElement(buffer, Buffer::recycleBuffer);
 	}
 
 }
