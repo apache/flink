@@ -39,7 +39,7 @@ public class TypeExtractorContractTest {
 
 	@Test
 	public void testMaterializeTypeVariableToBottomTypeVariable() {
-		final DefaultSimpleUDF myUdf = new DefaultSimpleUDF<String, Long>();
+		final DefaultSimpleUDF myUdf = new DefaultSimpleUDF<String>();
 
 		final List<ParameterizedType> parameterizedTypes =
 			TypeExtractor.buildParameterizedTypeHierarchy(myUdf.getClass(), BaseInterface.class, true);
@@ -181,7 +181,7 @@ public class TypeExtractorContractTest {
 
 	@Test
 	public void testBindTypeVariablesFromSimpleType() {
-		final DefaultSimpleUDF myUdf = new DefaultSimpleUDF<String, Long>();
+		final DefaultSimpleUDF myUdf = new DefaultSimpleUDF<String>();
 
 		final TypeVariable<?> inputTypeVariable =  myUdf.getClass().getTypeParameters()[0];
 
@@ -232,7 +232,7 @@ public class TypeExtractorContractTest {
 
 	@Test
 	public void testBindTypeVariableFromGenericArrayType() {
-		final GenericArrayUDF myGenericArrayUDF = new DefaultGenericArrayUDF<Double, Boolean, Integer>();
+		final GenericArrayUDF myGenericArrayUDF = new DefaultGenericArrayUDF<Double, Boolean>();
 
 		final TypeVariable<?> first = DefaultGenericArrayUDF.class.getTypeParameters()[0];
 		final TypeVariable<?> second = GenericArrayUDF.class.getTypeParameters()[1];
@@ -301,18 +301,18 @@ public class TypeExtractorContractTest {
 		Y foo(X x);
 	}
 
-	interface RichInterface<X, Y, Z> extends NormalInterface<X, Y> {
-		void open(X x, Y y, Z z);
+	interface RichInterface<X, Y> extends NormalInterface<X, Y> {
+		void open(X x, Y y);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	// Generic type does not have composite type.
 	// --------------------------------------------------------------------------------------------
 
-	abstract class AbstractSimpleUDF<X, Y, Z> implements RichInterface<X, Y, Z> {
+	abstract class AbstractSimpleUDF<X, Y> implements RichInterface<X, Y> {
 
 		@Override
-		public void open(X x, Y y, Z z) {
+		public void open(X x, Y y) {
 		}
 
 		@Override
@@ -323,21 +323,21 @@ public class TypeExtractorContractTest {
 		public abstract void bar();
 	}
 
-	class DefaultSimpleUDF<X, Z> extends AbstractSimpleUDF<X, Tuple2<String, Integer>, Z> {
+	class DefaultSimpleUDF<X> extends AbstractSimpleUDF<X, Tuple2<String, Integer>> {
 
 		@Override
 		public void bar() {
 		}
 	}
 
-	class MySimpleUDF extends DefaultSimpleUDF<Integer, Tuple2<Boolean, Double>> {
+	private class MySimpleUDF extends DefaultSimpleUDF<Integer> {
 	}
 
 	// --------------------------------------------------------------------------------------------
 	// Generic type has composite type.
 	// --------------------------------------------------------------------------------------------
 
-	interface CompositeUDF<X, Y, Z> extends RichInterface<X, Tuple2<Y, Z>, X> {
+	interface CompositeUDF<X, Y, Z> extends RichInterface<X, Tuple2<Y, Z>> {
 
 	}
 
@@ -349,23 +349,23 @@ public class TypeExtractorContractTest {
 		}
 
 		@Override
-		public void open(X x, Tuple2<Y, Z> yzTuple2, X x2) {
+		public void open(X x, Tuple2<Y, Z> yzTuple2) {
 
 		}
 	}
 
-	class MyCompositeUDF extends DefaultCompositeUDF<Integer, String, Boolean> {
+	private class MyCompositeUDF extends DefaultCompositeUDF<Integer, String, Boolean> {
 	}
 
 	// --------------------------------------------------------------------------------------------
 	// Generic type has generic array.
 	// --------------------------------------------------------------------------------------------
 
-	interface GenericArrayUDF<X, Y, Z> extends RichInterface<X, Y[], Z> {
+	interface GenericArrayUDF<X, Y> extends RichInterface<X, Y[]> {
 
 	}
 
-	class DefaultGenericArrayUDF<X, Y, Z> implements GenericArrayUDF<X, Y, Z> {
+	class DefaultGenericArrayUDF<X, Y> implements GenericArrayUDF<X, Y> {
 
 		@Override
 		public Y[] foo(X x) {
@@ -373,19 +373,19 @@ public class TypeExtractorContractTest {
 		}
 
 		@Override
-		public void open(X x, Y[] ys, Z z) {
+		public void open(X x, Y[] ys) {
 
 		}
 	}
 
-	class MyGenericArrayUDF extends DefaultGenericArrayUDF<Integer, String, Boolean> {
+	private class MyGenericArrayUDF extends DefaultGenericArrayUDF<Integer, String> {
 	}
 
 	// --------------------------------------------------------------------------------------------
 	// Generic type has pojo type.
 	// --------------------------------------------------------------------------------------------
 
-	interface PojoUDF<X, Y, Z> extends RichInterface<X, Pojo<Y, Z>, Z> {
+	interface PojoUDF<X, Y, Z> extends RichInterface<X, Pojo<Y, Z>> {
 
 	}
 
@@ -397,7 +397,7 @@ public class TypeExtractorContractTest {
 		}
 
 		@Override
-		public void open(X x, Pojo<Y, Z> yzPojo, Z z) {
+		public void open(X x, Pojo<Y, Z> yzPojo) {
 
 		}
 	}
