@@ -17,18 +17,15 @@
 ################################################################################
 import importlib
 import os
-import platform
 import shlex
 import shutil
-import signal
 import struct
 import tempfile
 import time
-from subprocess import Popen, PIPE
 from threading import RLock
 
 from py4j.java_gateway import java_import, JavaGateway, GatewayParameters, CallbackServerParameters
-from pyflink.find_flink_home import _find_flink_home
+from pyflink.pyflink_gateway_server import launch_gateway_server_process
 from pyflink.util.exceptions import install_exception_handler
 
 _gateway = None
@@ -65,6 +62,7 @@ def get_gateway():
             import_flink_view(_gateway)
             install_exception_handler()
             _gateway.entry_point.put("PythonFunctionFactory", PythonFunctionFactory())
+            _gateway.entry_point.put("Watchdog", Watchdog())
     return _gateway
 
 
@@ -78,17 +76,11 @@ def launch_gateway():
                         "which is unexpected. It usually happens when the job codes are "
                         "in the top level of the Python script file and are not enclosed in a "
                         "`if name == 'main'` statement.")
-    FLINK_HOME = _find_flink_home()
-    # TODO windows support
-    on_windows = platform.system() == "Windows"
-    if on_windows:
-        raise Exception("Windows system is not supported currently.")
-    script = "./bin/pyflink-gateway-server.sh"
-    command = [os.path.join(FLINK_HOME, script)]
-    command += ['-c', 'org.apache.flink.client.python.PythonGatewayServer']
+
+    args = ['-c', 'org.apache.flink.client.python.PythonGatewayServer']
 
     submit_args = os.environ.get("SUBMIT_ARGS", "local")
-    command += shlex.split(submit_args)
+    args += shlex.split(submit_args)
 
     # Create a temporary directory where the gateway server should write the connection information.
     conn_info_dir = tempfile.mkdtemp()
@@ -100,13 +92,7 @@ def launch_gateway():
         env = dict(os.environ)
         env["_PYFLINK_CONN_INFO_PATH"] = conn_info_file
 
-        def preexec_func():
-            # ignore ctrl-c / SIGINT
-            signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-        # Launch the Java gateway.
-        # We open a pipe to stdin so that the Java gateway can die when the pipe is broken
-        p = Popen(command, stdin=PIPE, preexec_fn=preexec_func, env=env)
+        p = launch_gateway_server_process(env, args)
 
         while not p.poll() and not os.path.isfile(conn_info_file):
             time.sleep(0.1)
@@ -170,3 +156,15 @@ class PythonFunctionFactory(object):
 
     class Java:
         implements = ["org.apache.flink.client.python.PythonFunctionFactory"]
+
+
+class Watchdog(object):
+    """
+    Used to provide to Java side to check whether its parent process is alive.
+    """
+    def ping(self):
+        time.sleep(10)
+        return True
+
+    class Java:
+        implements = ["org.apache.flink.client.python.PythonGatewayServer$Watchdog"]

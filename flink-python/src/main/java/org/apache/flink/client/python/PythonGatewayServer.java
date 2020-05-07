@@ -26,7 +26,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
+
+import static org.apache.flink.client.python.PythonFunctionFactory.CHECK_INTERVAL;
+import static org.apache.flink.client.python.PythonFunctionFactory.TIMEOUT_MILLIS;
 
 /**
  * The Py4j Gateway Server provides RPC service for user's python process.
@@ -71,10 +75,22 @@ public class PythonGatewayServer {
 		}
 
 		try {
-			// Exit on EOF or broken pipe.  This ensures that the server dies
-			// if its parent program dies.
-			while (System.in.read() != -1) {
-				// Do nothing
+			// This ensures that the server dies if its parent program dies.
+			Map<String, Object> entryPoint = (Map<String, Object>) gatewayServer.getGateway().getEntryPoint();
+
+			for (int i = 0; i < TIMEOUT_MILLIS / CHECK_INTERVAL; i++) {
+				if (entryPoint.containsKey("Watchdog")) {
+					break;
+				}
+				Thread.sleep(CHECK_INTERVAL);
+			}
+			if (!entryPoint.containsKey("Watchdog")) {
+				System.out.println("Unable to get the Python watchdog object, now exit.");
+				System.exit(1);
+			}
+			Watchdog watchdog = (Watchdog) entryPoint.get("Watchdog");
+			while (watchdog.ping()) {
+				Thread.sleep(CHECK_INTERVAL);
 			}
 			gatewayServer.shutdown();
 			System.exit(0);
@@ -82,4 +98,19 @@ public class PythonGatewayServer {
 			System.exit(1);
 		}
 	}
+
+	/**
+	 * A simple watch dog interface.
+	 */
+	public interface Watchdog {
+		boolean ping() throws InterruptedException;
+	}
+
+	/**
+	 * This watchdog object is provided to Python side to check whether its parent process is alive.
+	 */
+	public static Watchdog watchdog = () -> {
+		Thread.sleep(10000);
+		return true;
+	};
 }
