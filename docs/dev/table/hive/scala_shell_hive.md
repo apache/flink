@@ -1,5 +1,5 @@
 ---
-title: "Use Hive connector in scala shell"
+title: "Use Hive connector in Scala Shell"
 nav-parent_id: hive_tableapi
 nav-pos: 3
 ---
@@ -25,15 +25,15 @@ under the License.
 NOTE: since blink planner is not well supported in Scala Shell at the moment, it's **NOT** recommended to use Hive connector in Scala Shell.
 
 [Flink Scala Shell]({{ site.baseurl }}/ops/scala_shell.html) is a convenient quick way to try flink. 
-You can use hive in scala shell as well instead of specifying hive dependencies in pom file, packaging your program and submitting it via flink run command.
-In order to use hive connector in scala shell, you need to put the following [hive connector dependencies]({{ site.baseurl }}/dev/table/hive/#depedencies) under lib folder of flink dist .
+You can use hive in Scala Shell as well instead of specifying hive dependencies in pom file, packaging your program and submitting it via flink run command.
+In order to use hive connector in Scala Shell, you need to put the following [hive connector dependencies]({{ site.baseurl }}/dev/table/hive/#depedencies) under lib folder of flink dist .
 
 * flink-connector-hive_{scala_version}-{flink.version}.jar
 * flink-hadoop-compatibility_{scala_version}-{flink.version}.jar
 * flink-shaded-hadoop-2-uber-{hadoop.version}-{flink-shaded.version}.jar
 * hive-exec-2.x.jar (for Hive 1.x, you need to copy hive-exec-1.x.jar, hive-metastore-1.x.jar, libfb303-0.9.2.jar and libthrift-0.9.2.jar)
 
-Then you can use hive connector in scala shell like following:
+Then you can use hive connector in Scala Shell like following:
 
 {% highlight scala %}
 Scala-Flink> import org.apache.flink.table.catalog.hive.HiveCatalog

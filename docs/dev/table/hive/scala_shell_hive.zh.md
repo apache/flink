@@ -1,5 +1,5 @@
 ---
-title: "Use Hive connector in scala shell"
+title: "在 Scala Shell 中使用 Hive 连接器"
 nav-parent_id: hive_tableapi
 nav-pos: 3
 ---
@@ -22,18 +22,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-NOTE: since blink planner is not well supported in Scala Shell at the moment, it's **NOT** recommended to use Hive connector in Scala Shell.
+注意：目前 blink planner 还不能很好的支持 Scala Shell，因此 **不** 建议在 Scala Shell 中使用 Hive 连接器。
 
-[Flink Scala Shell]({{ site.baseurl }}/ops/scala_shell.html) is a convenient quick way to try flink. 
-You can use hive in scala shell as well instead of specifying hive dependencies in pom file, packaging your program and submitting it via flink run command.
-In order to use hive connector in scala shell, you need to put the following [hive connector dependencies]({{ site.baseurl }}/dev/table/hive/#depedencies) under lib folder of flink dist .
+[Flink Scala Shell]({{ site.baseurl }}/zh/ops/scala_shell.html) 是快速上手 Flink 的好方法。
+你可以在 Scala Shell 中直接使用 Hive 连接器，而不需要在 pom 中引入 Hive 相关依赖，并打包提交作业。
+想要在 Scala Shell 中使用 Hive 连接器，你需要把 [Hive 连接器依赖项]({{ site.baseurl }}/zh/dev/table/hive/#depedencies) 放在 Flink dist 包中的 lib 文件夹下。
 
 * flink-connector-hive_{scala_version}-{flink.version}.jar
 * flink-hadoop-compatibility_{scala_version}-{flink.version}.jar
 * flink-shaded-hadoop-2-uber-{hadoop.version}-{flink-shaded.version}.jar
-* hive-exec-2.x.jar (for Hive 1.x, you need to copy hive-exec-1.x.jar, hive-metastore-1.x.jar, libfb303-0.9.2.jar and libthrift-0.9.2.jar)
+* hive-exec-2.x.jar (对于 Hive 1.x 版本，你需要复制 hive-exec-1.x.jar, hive-metastore-1.x.jar, libfb303-0.9.2.jar and libthrift-0.9.2.jar)
 
-Then you can use hive connector in scala shell like following:
+然后你就可以在 Scala Shell 中使用 Hive 连接器，如下所示：
 
 {% highlight scala %}
 Scala-Flink> import org.apache.flink.table.catalog.hive.HiveCatalog
