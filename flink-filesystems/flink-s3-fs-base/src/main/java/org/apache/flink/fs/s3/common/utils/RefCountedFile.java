@@ -21,11 +21,10 @@ package org.apache.flink.fs.s3.common.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.RefCounted;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,53 +39,18 @@ public class RefCountedFile implements RefCounted {
 
 	private final File file;
 
-	private final OffsetAwareOutputStream stream;
-
 	private final AtomicInteger references;
 
-	private boolean closed;
+	protected boolean closed;
 
-	private RefCountedFile(
-			final File file,
-			final OutputStream currentOut,
-			final long bytesInCurrentPart) {
+	protected RefCountedFile(final File file) {
 		this.file = checkNotNull(file);
 		this.references = new AtomicInteger(1);
-		this.stream = new OffsetAwareOutputStream(
-				currentOut,
-				bytesInCurrentPart);
 		this.closed = false;
 	}
 
 	public File getFile() {
 		return file;
-	}
-
-	public OffsetAwareOutputStream getStream() {
-		return stream;
-	}
-
-	public long getLength() {
-		return stream.getLength();
-	}
-
-	public void write(byte[] b, int off, int len) throws IOException {
-		requireOpened();
-		if (len > 0) {
-			stream.write(b, off, len);
-		}
-	}
-
-	public void flush() throws IOException {
-		requireOpened();
-		stream.flush();
-	}
-
-	public void closeStream() {
-		if (!closed) {
-			IOUtils.closeQuietly(stream);
-			closed = true;
-		}
 	}
 
 	@Override
@@ -119,22 +83,7 @@ public class RefCountedFile implements RefCounted {
 	}
 
 	@VisibleForTesting
-	int getReferenceCounter() {
+	public int getReferenceCounter() {
 		return references.get();
-	}
-
-	// ------------------------------ Factory methods for initializing a temporary file ------------------------------
-
-	public static RefCountedFile newFile(
-			final File file,
-			final OutputStream currentOut) throws IOException {
-		return new RefCountedFile(file, currentOut, 0L);
-	}
-
-	public static RefCountedFile restoredFile(
-			final File file,
-			final OutputStream currentOut,
-			final long bytesInCurrentPart) {
-		return new RefCountedFile(file, currentOut, bytesInCurrentPart);
 	}
 }
