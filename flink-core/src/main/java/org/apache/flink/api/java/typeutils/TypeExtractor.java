@@ -821,7 +821,7 @@ public class TypeExtractor {
 		}
 
 		final Type baseClassType =
-			resolveTypeFromTypeHierarchy(typeHierarchy.get(typeHierarchy.size() - 1), typeHierarchy, false);
+			resolveTypeFromTypeHierarchy(typeHierarchy.get(typeHierarchy.size() - 1), typeHierarchy, true);
 
 		final Type returnType = ((ParameterizedType) baseClassType).getActualTypeArguments()[returnParamPos];
 
@@ -1809,7 +1809,8 @@ public class TypeExtractor {
 	 *                               {@code testParameterizedArrays()})
 	 * @return resolved type
 	 */
-	private static Type resolveTypeFromTypeHierarchy(
+	@VisibleForTesting
+	static Type resolveTypeFromTypeHierarchy(
 		final Type type,
 		final List<ParameterizedType> typeHierarchy,
 		final boolean resolveGenericArray) {

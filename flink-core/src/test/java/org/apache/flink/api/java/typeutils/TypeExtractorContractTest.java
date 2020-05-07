@@ -5,6 +5,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -17,14 +18,14 @@ public class TypeExtractorContractTest {
 	public void testMaterializeTypeVariableToActualType() {
 
 		final List<ParameterizedType> parameterizedTypes =
-			TypeExtractor.buildParameterizedTypeHierarchy(MyUdf.class, BasicInterface.class, true);
+			TypeExtractor.buildParameterizedTypeHierarchy(MySimpleUDF.class, BaseInterface.class, true);
 
-		final ParameterizedType baseInterfaceType = parameterizedTypes.get(parameterizedTypes.size() - 1);
-		final TypeVariable firstTypeVariableOfBaseInterface = (TypeVariable) baseInterfaceType.getActualTypeArguments()[0];
-		final TypeVariable secondTypeVariableOfBaseInterface = (TypeVariable) baseInterfaceType.getActualTypeArguments()[1];
+		final ParameterizedType normalInterfaceType = parameterizedTypes.get(parameterizedTypes.size() - 1);
+		final TypeVariable firstTypeVariableOfNormalInterface = (TypeVariable) normalInterfaceType.getActualTypeArguments()[0];
+		final TypeVariable secondTypeVariableOfNormalInterface = (TypeVariable) normalInterfaceType.getActualTypeArguments()[1];
 
-		final Type materializedFirstTypeVariable = TypeExtractor.materializeTypeVariable(parameterizedTypes, firstTypeVariableOfBaseInterface);
-		final ParameterizedType materializedSecondTypeVariable = (ParameterizedType) TypeExtractor.materializeTypeVariable(parameterizedTypes, secondTypeVariableOfBaseInterface);
+		final Type materializedFirstTypeVariable = TypeExtractor.materializeTypeVariable(parameterizedTypes, firstTypeVariableOfNormalInterface);
+		final ParameterizedType materializedSecondTypeVariable = (ParameterizedType) TypeExtractor.materializeTypeVariable(parameterizedTypes, secondTypeVariableOfNormalInterface);
 
 		Assert.assertEquals(Integer.class, materializedFirstTypeVariable);
 		Assert.assertEquals(String.class, materializedSecondTypeVariable.getActualTypeArguments()[0]);
@@ -34,82 +35,251 @@ public class TypeExtractorContractTest {
 
 	@Test
 	public void testMaterializeTypeVariableToBottomTypeVariable() {
-		final UDF myUdf = new UDF<String, Integer, Long, String>();
+		final SimpleUDF myUdf = new SimpleUDF<String, Integer, Long, String>();
 
 		final List<ParameterizedType> parameterizedTypes =
-			TypeExtractor.buildParameterizedTypeHierarchy(myUdf.getClass(), BasicInterface.class, true);
+			TypeExtractor.buildParameterizedTypeHierarchy(myUdf.getClass(), BaseInterface.class, true);
 
-		final ParameterizedType baseInterfaceType = parameterizedTypes.get(parameterizedTypes.size() - 1);
+		final ParameterizedType normalInterfaceType = parameterizedTypes.get(parameterizedTypes.size() - 1);
 
-		final TypeVariable firstTypeVariableOfBaseInterface = (TypeVariable) baseInterfaceType.getActualTypeArguments()[0];
-		final TypeVariable secondTypeVariableOfBaseInterface = (TypeVariable) baseInterfaceType.getActualTypeArguments()[1];
+		final TypeVariable firstTypeVariableOfNormalInterface = (TypeVariable) normalInterfaceType.getActualTypeArguments()[0];
+		final TypeVariable secondTypeVariableOfNormalInterface = (TypeVariable) normalInterfaceType.getActualTypeArguments()[1];
 
-		final ParameterizedType richInterfaceType = parameterizedTypes.get(parameterizedTypes.size() - 2);
+		final ParameterizedType abstractSimpleUDFType = parameterizedTypes.get(0);
 
-		final TypeVariable firstTypeVariableOfRichInterface = (TypeVariable) richInterfaceType.getActualTypeArguments()[0];
-		final TypeVariable secondTypeVariableOfRichInterface = (TypeVariable) richInterfaceType.getActualTypeArguments()[1];
+		final TypeVariable firstTypeVariableOfAbstractSimpleUDF = (TypeVariable) abstractSimpleUDFType.getActualTypeArguments()[0];
+		final TypeVariable secondTypeVariableOfAbstractSimpleUDF = (TypeVariable) abstractSimpleUDFType.getActualTypeArguments()[1];
+		final Type materializedFirstTypeVariable =
+			TypeExtractor.materializeTypeVariable(parameterizedTypes, firstTypeVariableOfNormalInterface);
+		final Type materializedSecondTypeVariable =
+			TypeExtractor.materializeTypeVariable(parameterizedTypes, secondTypeVariableOfNormalInterface);
 
-		final Type materializedFirstTypeVariable = TypeExtractor.materializeTypeVariable(parameterizedTypes, firstTypeVariableOfBaseInterface);
-		final Type materializedSecondTypeVariable = TypeExtractor.materializeTypeVariable(parameterizedTypes, secondTypeVariableOfBaseInterface);
-
-		Assert.assertEquals(firstTypeVariableOfRichInterface, materializedFirstTypeVariable);
-		Assert.assertEquals(secondTypeVariableOfRichInterface, materializedSecondTypeVariable);
+		Assert.assertEquals(firstTypeVariableOfAbstractSimpleUDF, materializedFirstTypeVariable);
+		Assert.assertEquals(secondTypeVariableOfAbstractSimpleUDF, materializedSecondTypeVariable);
 
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Test build parameterized type hierarchy.
+	// --------------------------------------------------------------------------------------------
+
 	@Test
-	public void testBuildParameterizedTypeHierarchyFromBothSuperClassAndInterface() {
+	public void testBuildParameterizedTypeHierarchyForSimpleType() {
 		final List<ParameterizedType> parameterizedTypeHierarchy =
-			TypeExtractor.buildParameterizedTypeHierarchy(MyUdf.class, BasicInterface.class, true);
+			TypeExtractor.buildParameterizedTypeHierarchy(MySimpleUDF.class, BaseInterface.class, true);
+		final ParameterizedType normalInterfaceType = parameterizedTypeHierarchy.get(parameterizedTypeHierarchy.size() - 1);
 
-		Assert.assertEquals(3, parameterizedTypeHierarchy.size());
-		Assert.assertEquals(UDF.class, parameterizedTypeHierarchy.get(0).getRawType());
-		Assert.assertEquals(RichInterface.class, parameterizedTypeHierarchy.get(1).getRawType());
-		Assert.assertEquals(BasicInterface.class, parameterizedTypeHierarchy.get(2).getRawType());
+		Assert.assertEquals(4, parameterizedTypeHierarchy.size());
+		Assert.assertEquals(SimpleUDF.class, parameterizedTypeHierarchy.get(0).getRawType());
+		Assert.assertEquals(AbstractSimpleUDF.class, parameterizedTypeHierarchy.get(1).getRawType());
+		Assert.assertEquals(RichInterface.class, parameterizedTypeHierarchy.get(2).getRawType());
 
+		Assert.assertEquals(NormalInterface.class, normalInterfaceType.getRawType());
+		Assert.assertTrue(normalInterfaceType.getActualTypeArguments()[0] instanceof TypeVariable);
+		Assert.assertTrue(normalInterfaceType.getActualTypeArguments()[1] instanceof TypeVariable);
+	}
+
+	@Test
+	public void testBuildParameterizedTypeHierarchyForCompositeType() {
+		final List<ParameterizedType> typeHierarchy =
+			TypeExtractor.buildParameterizedTypeHierarchy(MyCompositeUDF.class, BaseInterface.class, true);
+		final ParameterizedType normalInterfaceType = typeHierarchy.get(typeHierarchy.size() - 1);
+
+		Assert.assertTrue(normalInterfaceType.getActualTypeArguments()[0] instanceof TypeVariable);
+		Assert.assertTrue(normalInterfaceType.getActualTypeArguments()[1] instanceof TypeVariable);
 	}
 
 	@Test
 	public void testBuildParameterizedTypeHierarchyOnlyFromSuperClass() {
 		final List<ParameterizedType> parameterizedTypeHierarchy =
-			TypeExtractor.buildParameterizedTypeHierarchy(MyUdf.class, Object.class, false);
+			TypeExtractor.buildParameterizedTypeHierarchy(MySimpleUDF.class, Object.class, false);
 
-		Assert.assertEquals(1, parameterizedTypeHierarchy.size());
-		Assert.assertEquals(UDF.class, parameterizedTypeHierarchy.get(0).getRawType());
+		Assert.assertEquals(2, parameterizedTypeHierarchy.size());
+		Assert.assertEquals(SimpleUDF.class, parameterizedTypeHierarchy.get(0).getRawType());
+		Assert.assertEquals(AbstractSimpleUDF.class, parameterizedTypeHierarchy.get(1).getRawType());
 	}
 
 	@Test
 	public void testBuildParameterizedTypeHierarchyWithoutInheritance() {
 		final List<ParameterizedType> parameterizedTypeHierarchy =
-			TypeExtractor.buildParameterizedTypeHierarchy(MyUdf.class, TypeExtractorContractTest.class, true);
-
+			TypeExtractor.buildParameterizedTypeHierarchy(MySimpleUDF.class, TypeExtractorContractTest.class, true);
 		Assert.assertEquals(Collections.emptyList(), parameterizedTypeHierarchy);
 	}
 
-	interface BasicInterface<X, Y> {
-		X doSomething(Y y);
+	// --------------------------------------------------------------------------------------------
+	// Test resolve type
+	// --------------------------------------------------------------------------------------------
+
+	@Test
+	public void testResolveSimpleType() {
+		final List<ParameterizedType> typeHierarchy =
+			TypeExtractor.buildParameterizedTypeHierarchy(MySimpleUDF.class, BaseInterface.class, true);
+		final ParameterizedType normalInterfaceType = typeHierarchy.get(typeHierarchy.size() - 1);
+
+		final ParameterizedType resolvedNormalInterfaceType =
+			(ParameterizedType) TypeExtractor.resolveTypeFromTypeHierarchy(normalInterfaceType, typeHierarchy, true);
+
+		Assert.assertEquals(Integer.class, resolvedNormalInterfaceType.getActualTypeArguments()[0]);
+
+		final ParameterizedType secondResolvedType = (ParameterizedType) resolvedNormalInterfaceType.getActualTypeArguments()[1];
+
+		Assert.assertEquals(String.class, secondResolvedType.getActualTypeArguments()[0]);
+		Assert.assertEquals(Integer.class, secondResolvedType.getActualTypeArguments()[1]);
 	}
 
-	interface RichInterface<X, Y, Z> extends BasicInterface<X, Y> {
-		Z doSomething(X x, Y y);
+	@Test
+	public void testResolveCompositeType() {
+		final List<ParameterizedType> typeHierarchy =
+			TypeExtractor.buildParameterizedTypeHierarchy(MyCompositeUDF.class, BaseInterface.class, true);
+		final ParameterizedType normalInterfaceType = typeHierarchy.get(typeHierarchy.size() - 1);
+		final ParameterizedType resolvedNormalInterfaceType =
+			(ParameterizedType) TypeExtractor.resolveTypeFromTypeHierarchy(normalInterfaceType, typeHierarchy, true);
+
+		Assert.assertEquals(String.class, resolvedNormalInterfaceType.getActualTypeArguments()[0]);
+
+		final ParameterizedType resolvedTuple2Type = (ParameterizedType) resolvedNormalInterfaceType.getActualTypeArguments()[1];
+
+		Assert.assertEquals(Tuple2.class, resolvedTuple2Type.getRawType());
+		Assert.assertEquals(Integer.class, resolvedTuple2Type.getActualTypeArguments()[0]);
+		Assert.assertEquals(Boolean.class, resolvedTuple2Type.getActualTypeArguments()[1]);
 	}
 
-	class UDF<X, Y, Z, K> implements RichInterface<X, Y, Z> {
+	@Test
+	public void testResolveGenericArrayType() {
+		final List<ParameterizedType> typeHierarchy =
+			TypeExtractor.buildParameterizedTypeHierarchy(MyGenericArrayUDF.class, BaseInterface.class, true);
+
+		final ParameterizedType normalInterfaceType = typeHierarchy.get(typeHierarchy.size() - 1);
+
+		final ParameterizedType resolvedNormalInterfaceType =
+			(ParameterizedType) TypeExtractor.resolveTypeFromTypeHierarchy(normalInterfaceType, typeHierarchy, true);
+
+		final GenericArrayType secondResolvedType = (GenericArrayType) resolvedNormalInterfaceType.getActualTypeArguments()[1];
+
+		Assert.assertEquals(String.class, resolvedNormalInterfaceType.getActualTypeArguments()[0]);
+		Assert.assertEquals(Integer.class, secondResolvedType.getGenericComponentType());
+	}
+
+	@Test
+	public void testDoesNotResolveGenericArrayType() {
+		final List<ParameterizedType> typeHierarchy =
+			TypeExtractor.buildParameterizedTypeHierarchy(MyGenericArrayUDF.class, BaseInterface.class, true);
+
+		final ParameterizedType normalInterfaceType = typeHierarchy.get(typeHierarchy.size() - 1);
+
+		final ParameterizedType resolvedNormalInterfaceType =
+			(ParameterizedType) TypeExtractor.resolveTypeFromTypeHierarchy(normalInterfaceType, typeHierarchy, false);
+
+		final GenericArrayType genericArrayType = (GenericArrayType) resolvedNormalInterfaceType.getActualTypeArguments()[1];
+		Assert.assertEquals(String.class, resolvedNormalInterfaceType.getActualTypeArguments()[0]);
+		Assert.assertTrue(genericArrayType.getGenericComponentType() instanceof TypeVariable);
+
+	}
+	// --------------------------------------------------------------------------------------------
+	// Basic interfaces.
+	// --------------------------------------------------------------------------------------------
+
+	interface BaseInterface {
+	}
+
+	interface NormalInterface<X, Y> extends BaseInterface{
+		Y foo(X x);
+	}
+
+	interface RichInterface<X, Y, Z> extends NormalInterface<X, Y> {
+		void open(X x, Y y, Z z);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Generic type does not have composite type.
+	// --------------------------------------------------------------------------------------------
+
+	abstract class AbstractSimpleUDF<X, Y, Z> implements RichInterface<X, Y, Z> {
+
+		@Override
+		public void open(X x, Y y, Z z) {
+		}
+
+		@Override
+		public Y foo(X x) {
+			return null;
+		}
+
+		public abstract void bar();
+	}
+
+	class SimpleUDF<X, Y, Z, K> extends AbstractSimpleUDF<X, Y, Z> {
 
 		K k;
 
 		@Override
-		public X doSomething(Y y) {
+		public void bar() {
+		}
+	}
+
+	class MySimpleUDF extends SimpleUDF<Integer, Tuple2<String, Integer>, Tuple2<Boolean, Double>, Long> {
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Generic type has composite type.
+	// --------------------------------------------------------------------------------------------
+
+	interface CompositeUDF<X, Y, Z> extends RichInterface<X, Tuple2<Y, Z>, X> {
+
+	}
+
+	abstract class AbstractCompositeUDF<X> implements CompositeUDF<String, X, Boolean> {
+
+		@Override
+		public Tuple2<X, Boolean> foo(String s) {
 			return null;
 		}
 
 		@Override
-		public Z doSomething(X x, Y y) {
-			return null;
+		public void open(String s, Tuple2<X, Boolean> xBooleanTuple2, String s2) {
+
+		}
+
+		public abstract void bar();
+
+	}
+
+	class MyCompositeUDF extends AbstractCompositeUDF<Integer> {
+		@Override
+		public void bar() {
+
 		}
 	}
 
-	class MyUdf extends UDF<Integer, Tuple2<String, Integer>, Tuple2<Integer, Double>, Long> {
+	// --------------------------------------------------------------------------------------------
+	// Generic type has generic array.
+	// --------------------------------------------------------------------------------------------
 
+	interface GenericArrayUDF<X, Y, Z> extends RichInterface<X, Y[], Z> {
+
+	}
+
+	abstract class AbstractGenericArrayUDF<X> implements GenericArrayUDF<String, X, Boolean> {
+
+		@Override
+		public X[] foo(String s) {
+			return null;
+		}
+
+		@Override
+		public void open(String s, X[] xes, Boolean aBoolean) {
+
+		}
+
+		public abstract void bar();
+
+	}
+
+	class MyGenericArrayUDF extends AbstractGenericArrayUDF<Integer> {
+
+		@Override
+		public void bar() {
+
+		}
 	}
 }
