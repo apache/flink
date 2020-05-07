@@ -24,12 +24,15 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalQueries;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -38,6 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 
 /**
  * Utils for file system.
@@ -221,25 +226,26 @@ public class PartitionPathUtils {
 		switch (typeRoot) {
 			case CHAR:
 			case VARCHAR:
-				return valStr;
+				return StringData.fromString(valStr);
 			case BOOLEAN:
 				return Boolean.parseBoolean(valStr);
 			case TINYINT:
-				return Integer.valueOf(valStr).byteValue();
+				return Byte.parseByte(valStr);
 			case SMALLINT:
-				return Short.valueOf(valStr);
+				return Short.parseShort(valStr);
 			case INTEGER:
-				return Integer.valueOf(valStr);
+				return Integer.parseInt(valStr);
 			case BIGINT:
-				return Long.valueOf(valStr);
+				return Long.parseLong(valStr);
 			case FLOAT:
-				return Float.valueOf(valStr);
+				return Float.valueOf(valStr).floatValue();
 			case DOUBLE:
-				return Double.valueOf(valStr);
+				return Double.parseDouble(valStr);
 			case DATE:
-				return LocalDate.parse(valStr);
+				LocalDate date = ISO_LOCAL_DATE.parse(valStr).query(TemporalQueries.localDate());
+				return (int) date.toEpochDay();
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return LocalDateTime.parse(valStr);
+				return TimestampData.fromLocalDateTime(LocalDateTime.parse(valStr));
 			default:
 				throw new RuntimeException(String.format(
 					"Can not convert %s to type %s for partition value",
