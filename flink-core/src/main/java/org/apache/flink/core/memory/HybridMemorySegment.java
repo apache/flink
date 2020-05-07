@@ -195,8 +195,7 @@ public final class HybridMemorySegment extends MemorySegment {
 			throw new IllegalStateException("segment has been freed");
 		}
 		else {
-			// index is in fact invalid
-			throw new IndexOutOfBoundsException();
+			throw new IndexOutOfBoundsException(String.format("pos: %d, length: %d, index: %d, offset: %d", pos, length, index, offset));
 		}
 	}
 
