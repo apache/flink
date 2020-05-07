@@ -28,7 +28,6 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -42,6 +41,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -63,7 +63,7 @@ public class RuntimeEnvironment implements Environment {
 	private final Configuration taskConfiguration;
 	private final ExecutionConfig executionConfig;
 
-	private final LibraryCacheManager.UserCodeClassLoader userCodeClassLoader;
+	private final UserCodeClassLoader userCodeClassLoader;
 
 	private final MemoryManager memManager;
 	private final IOManager ioManager;
@@ -101,7 +101,7 @@ public class RuntimeEnvironment implements Environment {
 			TaskInfo taskInfo,
 			Configuration jobConfiguration,
 			Configuration taskConfiguration,
-			LibraryCacheManager.UserCodeClassLoader userCodeClassLoader,
+			UserCodeClassLoader userCodeClassLoader,
 			MemoryManager memManager,
 			IOManager ioManager,
 			BroadcastVariableManager bcVarManager,
@@ -195,7 +195,7 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public LibraryCacheManager.UserCodeClassLoader getUserClassLoader() {
+	public UserCodeClassLoader getUserClassLoader() {
 		return userCodeClassLoader;
 	}
 

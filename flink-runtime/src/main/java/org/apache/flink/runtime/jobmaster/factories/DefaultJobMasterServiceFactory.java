@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster.factories;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTrackerImpl;
@@ -28,12 +27,13 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
-import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.UserCodeClassLoader;
 
 /**
  * Default implementation of the {@link JobMasterServiceFactory}.
@@ -91,7 +91,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 	public JobMaster createJobMasterService(
 			JobGraph jobGraph,
 			OnCompletionActions jobCompletionActions,
-			LibraryCacheManager.UserCodeClassLoader userCodeClassloader) throws Exception {
+			UserCodeClassLoader userCodeClassloader) throws Exception {
 
 		return new JobMaster(
 			rpcService,

@@ -22,8 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.TestingUserCodeClassLoader;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -37,6 +35,8 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.util.TestingUserCodeClassLoader;
+import org.apache.flink.util.UserCodeClassLoader;
 
 public class MockEnvironmentBuilder {
 	private String taskName = "mock-task";
@@ -49,7 +49,7 @@ public class MockEnvironmentBuilder {
 	private int maxParallelism = 1;
 	private int parallelism = 1;
 	private int subtaskIndex = 0;
-	private LibraryCacheManager.UserCodeClassLoader userCodeClassLoader = TestingUserCodeClassLoader.newBuilder().build();
+	private UserCodeClassLoader userCodeClassLoader = TestingUserCodeClassLoader.newBuilder().build();
 	private JobID jobID = new JobID();
 	private JobVertexID jobVertexID = new JobVertexID();
 	private TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();

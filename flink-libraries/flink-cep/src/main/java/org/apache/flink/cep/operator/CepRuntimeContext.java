@@ -111,6 +111,11 @@ class CepRuntimeContext implements RuntimeContext {
 	}
 
 	@Override
+	public void registerUserCodeClassLoaderReleaseHook(Runnable releaseHook) {
+		runtimeContext.getUserCodeClassLoader();
+	}
+
+	@Override
 	public DistributedCache getDistributedCache() {
 		return runtimeContext.getDistributedCache();
 	}

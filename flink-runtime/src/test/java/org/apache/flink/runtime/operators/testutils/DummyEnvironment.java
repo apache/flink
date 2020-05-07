@@ -28,8 +28,6 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.TestingUserCodeClassLoader;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -50,6 +48,8 @@ import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.util.TestingUserCodeClassLoader;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Collections;
 import java.util.Map;
@@ -66,7 +66,7 @@ public class DummyEnvironment implements Environment {
 	private TaskStateManager taskStateManager;
 	private final GlobalAggregateManager aggregateManager;
 	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
-	private LibraryCacheManager.UserCodeClassLoader userClassLoader;
+	private UserCodeClassLoader userClassLoader;
 
 	public DummyEnvironment() {
 		this("Test Job", 1, 0, 1);
@@ -156,7 +156,7 @@ public class DummyEnvironment implements Environment {
 	}
 
 	@Override
-	public LibraryCacheManager.UserCodeClassLoader getUserClassLoader() {
+	public UserCodeClassLoader getUserClassLoader() {
 		if (userClassLoader == null) {
 			return TestingUserCodeClassLoader.newBuilder().build();
 		} else {

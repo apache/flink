@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,20 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster.factories;
-
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.OnCompletionActions;
-import org.apache.flink.runtime.jobmaster.JobMasterService;
-import org.apache.flink.util.UserCodeClassLoader;
+package org.apache.flink.util;
 
 /**
- * Factory for a {@link JobMasterService}.
+ * Simple {@link UserCodeClassLoader} implementation which assumes that the provided class
+ * loader will never be released and, hence, will never execute the release hooks.
  */
-public interface JobMasterServiceFactory {
+public class SimpleUserCodeClassLoader implements UserCodeClassLoader {
 
-	JobMasterService createJobMasterService(
-		JobGraph jobGraph,
-		OnCompletionActions jobCompletionActions,
-		UserCodeClassLoader userCodeClassloader) throws Exception;
+	private final ClassLoader classLoader;
+
+	private SimpleUserCodeClassLoader(ClassLoader classLoader) {
+		this.classLoader = classLoader;
+	}
+
+	@Override
+	public ClassLoader asClassLoader() {
+		return classLoader;
+	}
+
+	@Override
+	public void registerReleaseHook(Runnable releaseHook) {}
+
+	public static SimpleUserCodeClassLoader create(ClassLoader classLoader) {
+		return new SimpleUserCodeClassLoader(classLoader);
+	}
 }

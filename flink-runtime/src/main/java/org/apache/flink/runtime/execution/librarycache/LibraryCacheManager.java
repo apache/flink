@@ -20,6 +20,7 @@ package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
 import java.net.URL;
@@ -96,26 +97,4 @@ public interface LibraryCacheManager {
 		void release();
 	}
 
-	/**
-	 * UserCodeClassLoader allows to register release hooks for a user code class loader.
-	 * These release hooks are being executed just before the user code class loader is
-	 * being released.
-	 */
-	interface UserCodeClassLoader {
-
-		/**
-		 * Obtains the actual class loader.
-		 *
-		 * @return actual class loader
-		 */
-		ClassLoader asClassLoader();
-
-		/**
-		 * Registers a release hook which is being executed before the user code class
-		 * loader is being released.
-		 *
-		 * @param releaseHook releaseHook which is executed before the user code class loader is being released.
-		 */
-		void registerReleaseHook(Runnable releaseHook);
-	}
 }

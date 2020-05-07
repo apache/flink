@@ -413,7 +413,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	public DistributedRuntimeUDFContext createRuntimeContext() {
 		Environment env = getEnvironment();
 
-		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
+		return new DistributedRuntimeUDFContext(env.getTaskInfo(), env.getUserClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap(), 
 				getEnvironment().getMetricGroup().getOrAddOperator(getEnvironment().getTaskInfo().getTaskName()));
 	}

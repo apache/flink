@@ -23,6 +23,7 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -183,7 +184,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 			this.isReleased = false;
 		}
 
-		private LibraryCacheManager.UserCodeClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> libraries, Collection<URL> classPaths) throws IOException {
+		private UserCodeClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> libraries, Collection<URL> classPaths) throws IOException {
 			synchronized (lockObject) {
 				verifyIsNotReleased();
 
@@ -280,7 +281,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		}
 
 		@Override
-		public LibraryCacheManager.UserCodeClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) throws IOException {
+		public UserCodeClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) throws IOException {
 			verifyIsNotClosed();
 			return libraryCacheEntry.getOrResolveClassLoader(
 				requiredJarFiles,
@@ -307,7 +308,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		}
 	}
 
-	private static final class ResolvedClassLoader implements LibraryCacheManager.UserCodeClassLoader {
+	private static final class ResolvedClassLoader implements UserCodeClassLoader {
 		private final URLClassLoader classLoader;
 
 		/**

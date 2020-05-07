@@ -32,6 +32,7 @@ import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Map;
 
@@ -47,7 +48,7 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 
 	protected Collector<OT> outputCollector;
 	
-	protected ClassLoader userCodeClassLoader;
+	protected UserCodeClassLoader userCodeClassLoader;
 	
 	private DistributedRuntimeUDFContext udfContext;
 
@@ -63,8 +64,8 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 
 	
 	public void setup(TaskConfig config, String taskName, Collector<OT> outputCollector,
-			AbstractInvokable parent, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
-			Map<String, Accumulator<?,?>> accumulatorMap)
+					  AbstractInvokable parent, UserCodeClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
+					  Map<String, Accumulator<?,?>> accumulatorMap)
 	{
 		this.config = config;
 		this.taskName = taskName;

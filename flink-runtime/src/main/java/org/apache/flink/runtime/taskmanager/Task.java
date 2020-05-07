@@ -82,6 +82,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import org.slf4j.Logger;
@@ -272,7 +273,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	private long taskCancellationTimeout;
 
 	/** This class loader should be set as the context class loader for threads that may dynamically load user code. */
-	private LibraryCacheManager.UserCodeClassLoader userCodeClassLoader;
+	private UserCodeClassLoader userCodeClassLoader;
 
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to
@@ -914,11 +915,11 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		}
 	}
 
-	private LibraryCacheManager.UserCodeClassLoader createUserCodeClassloader() throws Exception {
+	private UserCodeClassLoader createUserCodeClassloader() throws Exception {
 		long startDownloadTime = System.currentTimeMillis();
 
 		// triggers the download of all missing jar files from the job manager
-		final LibraryCacheManager.UserCodeClassLoader userCodeClassLoader = classLoaderHandle.getOrResolveClassLoader(requiredJarFiles, requiredClasspaths);
+		final UserCodeClassLoader userCodeClassLoader = classLoaderHandle.getOrResolveClassLoader(requiredJarFiles, requiredClasspaths);
 
 		LOG.debug("Getting user code class loader for task {} at library cache manager took {} milliseconds",
 				executionId, System.currentTimeMillis() - startDownloadTime);

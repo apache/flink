@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.jobmaster.factories;
 
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterService;
 import org.apache.flink.runtime.jobmaster.TestingJobMasterService;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.function.Supplier;
 
@@ -43,7 +43,7 @@ public class TestingJobMasterServiceFactory implements JobMasterServiceFactory {
 	}
 
 	@Override
-	public JobMasterService createJobMasterService(JobGraph jobGraph, OnCompletionActions jobCompletionActions, LibraryCacheManager.UserCodeClassLoader userCodeClassloader) {
+	public JobMasterService createJobMasterService(JobGraph jobGraph, OnCompletionActions jobCompletionActions, UserCodeClassLoader userCodeClassloader) {
 		return jobMasterServiceSupplier.get();
 	}
 }

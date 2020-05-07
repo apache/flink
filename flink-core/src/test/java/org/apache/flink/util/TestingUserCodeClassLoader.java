@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.execution.librarycache;
+package org.apache.flink.util;
 
 import java.util.function.Consumer;
 
 /**
- * Testing implementation of {@link LibraryCacheManager.UserCodeClassLoader}.
+ * Testing implementation of {@link UserCodeClassLoader}.
  */
-public class TestingUserCodeClassLoader implements LibraryCacheManager.UserCodeClassLoader {
+public class TestingUserCodeClassLoader implements UserCodeClassLoader {
 
 	private final ClassLoader classLoader;
 

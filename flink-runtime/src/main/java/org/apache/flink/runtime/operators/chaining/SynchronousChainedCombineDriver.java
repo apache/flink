@@ -87,7 +87,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 
 		@SuppressWarnings("unchecked")
 		final GroupCombineFunction<IN, OUT> combiner =
-			BatchTask.instantiateUserCode(this.config, userCodeClassLoader, GroupCombineFunction.class);
+			BatchTask.instantiateUserCode(this.config, userCodeClassLoader.asClassLoader(), GroupCombineFunction.class);
 		this.combiner = combiner;
 		FunctionUtils.setFunctionRuntimeContext(combiner, getUdfRuntimeContext());
 	}
@@ -101,9 +101,9 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 		// ----------------- Set up the sorter -------------------------
 
 		// instantiate the serializer / comparator
-		final TypeSerializerFactory<IN> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
-		final TypeComparatorFactory<IN> sortingComparatorFactory = this.config.getDriverComparator(0, this.userCodeClassLoader);
-		final TypeComparatorFactory<IN> groupingComparatorFactory = this.config.getDriverComparator(1, this.userCodeClassLoader);
+		final TypeSerializerFactory<IN> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader.asClassLoader());
+		final TypeComparatorFactory<IN> sortingComparatorFactory = this.config.getDriverComparator(0, this.userCodeClassLoader.asClassLoader());
+		final TypeComparatorFactory<IN> groupingComparatorFactory = this.config.getDriverComparator(1, this.userCodeClassLoader.asClassLoader());
 		
 		this.serializer = serializerFactory.getSerializer();
 

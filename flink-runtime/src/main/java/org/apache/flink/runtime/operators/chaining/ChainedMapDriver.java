@@ -35,7 +35,7 @@ public class ChainedMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	@Override
 	public void setup(AbstractInvokable parent) {
 		final MapFunction<IT, OT> mapper =
-			BatchTask.instantiateUserCode(this.config, userCodeClassLoader, MapFunction.class);
+			BatchTask.instantiateUserCode(this.config, userCodeClassLoader.asClassLoader(), MapFunction.class);
 		this.mapper = mapper;
 		FunctionUtils.setFunctionRuntimeContext(mapper, getUdfRuntimeContext());
 	}

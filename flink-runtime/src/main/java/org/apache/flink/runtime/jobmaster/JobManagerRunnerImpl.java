@@ -36,6 +36,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
@@ -124,7 +125,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
 
 			// libraries and class loader first
-			final LibraryCacheManager.UserCodeClassLoader userCodeLoader;
+			final UserCodeClassLoader userCodeLoader;
 			try {
 				userCodeLoader = classLoaderLease.getOrResolveClassLoader(
 					jobGraph.getUserJarBlobKeys(),

@@ -96,7 +96,7 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 
 		strategy = config.getDriverStrategy();
 
-		reducer = BatchTask.instantiateUserCode(config, userCodeClassLoader, ReduceFunction.class);
+		reducer = BatchTask.instantiateUserCode(config, userCodeClassLoader.asClassLoader(), ReduceFunction.class);
 		FunctionUtils.setFunctionRuntimeContext(reducer, getUdfRuntimeContext());
 	}
 
@@ -107,8 +107,8 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 		BatchTask.openUserCode(reducer, stubConfig);
 
 		// instantiate the serializer / comparator
-		serializer = config.<T>getInputSerializer(0, userCodeClassLoader).getSerializer();
-		comparator = config.<T>getDriverComparator(0, userCodeClassLoader).createComparator();
+		serializer = config.<T>getInputSerializer(0, userCodeClassLoader.asClassLoader()).getSerializer();
+		comparator = config.<T>getDriverComparator(0, userCodeClassLoader.asClassLoader()).createComparator();
 
 		MemoryManager memManager = parent.getEnvironment().getMemoryManager();
 		final int numMemoryPages = memManager.computeNumberOfPages(config.getRelativeMemoryDriver());

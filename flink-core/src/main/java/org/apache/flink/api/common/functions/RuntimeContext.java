@@ -124,6 +124,14 @@ public interface RuntimeContext {
 	 */
 	ClassLoader getUserCodeClassLoader();
 
+	/**
+	 * Registers a release hook for the user code class loader which is executed just before the
+	 * user code class loader is being released.
+	 *
+	 * @param releaseHook releaseHook which is executed just before the user code class loader is being released
+	 */
+	void registerUserCodeClassLoaderReleaseHook(Runnable releaseHook);
+
 	// --------------------------------------------------------------------------------------------
 
 	/**

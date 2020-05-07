@@ -36,7 +36,7 @@ public class ChainedFlatMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	public void setup(AbstractInvokable parent) {
 		@SuppressWarnings("unchecked")
 		final FlatMapFunction<IT, OT> mapper =
-			BatchTask.instantiateUserCode(this.config, userCodeClassLoader, FlatMapFunction.class);
+			BatchTask.instantiateUserCode(this.config, userCodeClassLoader.asClassLoader(), FlatMapFunction.class);
 		this.mapper = mapper;
 		FunctionUtils.setFunctionRuntimeContext(mapper, getUdfRuntimeContext());
 	}

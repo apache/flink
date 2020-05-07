@@ -45,6 +45,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -61,7 +62,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final TaskInfo taskInfo;
 
-	private final ClassLoader userCodeClassLoader;
+	private final UserCodeClassLoader userCodeClassLoader;
 
 	private final ExecutionConfig executionConfig;
 
@@ -71,12 +72,13 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final MetricGroup metrics;
 
-	public AbstractRuntimeUDFContext(TaskInfo taskInfo,
-										ClassLoader userCodeClassLoader,
-										ExecutionConfig executionConfig,
-										Map<String, Accumulator<?, ?>> accumulators,
-										Map<String, Future<Path>> cpTasks,
-										MetricGroup metrics) {
+	public AbstractRuntimeUDFContext(
+			TaskInfo taskInfo,
+			UserCodeClassLoader userCodeClassLoader,
+			ExecutionConfig executionConfig,
+			Map<String, Accumulator<?, ?>> accumulators,
+			Map<String, Future<Path>> cpTasks,
+			MetricGroup metrics) {
 		this.taskInfo = checkNotNull(taskInfo);
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
@@ -167,7 +169,12 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	@Override
 	public ClassLoader getUserCodeClassLoader() {
-		return this.userCodeClassLoader;
+		return this.userCodeClassLoader.asClassLoader();
+	}
+
+	@Override
+	public void registerUserCodeClassLoaderReleaseHook(Runnable releaseHook) {
+		userCodeClassLoader.registerReleaseHook(releaseHook);
 	}
 
 	@Override
