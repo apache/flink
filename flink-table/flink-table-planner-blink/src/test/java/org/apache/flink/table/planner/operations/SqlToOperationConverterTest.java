@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.operations;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
@@ -67,10 +66,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.sql.SqlNode;
-import org.hamcrest.Description;
-import org.hamcrest.FeatureMatcher;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -89,7 +84,11 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
-import static org.hamcrest.CoreMatchers.equalTo;
+import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
+import static org.apache.flink.table.planner.utils.OperationMatchers.isCreateTableOperation;
+import static org.apache.flink.table.planner.utils.OperationMatchers.partitionedBy;
+import static org.apache.flink.table.planner.utils.OperationMatchers.withOptions;
+import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -455,8 +454,8 @@ public class SqlToOperationConverterTest {
 
 		assertThat(
 			operation,
-			createTableOperation(
-				hasSchema(
+			isCreateTableOperation(
+				withSchema(
 					TableSchema.builder()
 						.field("f0", DataTypes.INT().notNull())
 						.field("f1", DataTypes.TIMESTAMP(3))
@@ -464,11 +463,11 @@ public class SqlToOperationConverterTest {
 						.watermark("f1", "`f1` - INTERVAL '5' SECOND", DataTypes.TIMESTAMP(3))
 						.build()
 				),
-				hasOptions(
+				withOptions(
 					entry("connector.type", "kafka"),
 					entry("format.type", "json")
 				),
-				hasPartition(
+				partitionedBy(
 					"a", "f0"
 				)
 			)
@@ -510,8 +509,8 @@ public class SqlToOperationConverterTest {
 
 		assertThat(
 			operation,
-			createTableOperation(
-				hasSchema(
+			isCreateTableOperation(
+				withSchema(
 					TableSchema.builder()
 						.field("f0", DataTypes.INT().notNull())
 						.field("f1", DataTypes.TIMESTAMP(3))
@@ -519,11 +518,11 @@ public class SqlToOperationConverterTest {
 						.watermark("f1", "`f1` - INTERVAL '5' SECOND", DataTypes.TIMESTAMP(3))
 						.build()
 				),
-				hasOptions(
+				withOptions(
 					entry("connector.type", "kafka"),
 					entry("format.type", "json")
 				),
-				hasPartition(
+				partitionedBy(
 					"a", "f0"
 				)
 			)
@@ -1101,98 +1100,6 @@ public class SqlToOperationConverterTest {
 		@Override
 		public String toString() {
 			return this.testExpr;
-		}
-	}
-
-	@SafeVarargs
-	private static Matcher<Operation> createTableOperation(Matcher<CreateTableOperation>... nestedMatchers) {
-		return new CreateTableOperationMatcher(nestedMatchers);
-	}
-
-	@SafeVarargs
-	private static Matcher<CreateTableOperation> hasOptions(Tuple2<String, String>... entries) {
-		return new FeatureMatcher<CreateTableOperation, Map<String, String>>(
-			equalTo(mapOf(entries)),
-			"options of the derived table",
-			"options"
-		) {
-			@Override
-			protected Map<String, String> featureValueOf(CreateTableOperation actual) {
-				return actual.getCatalogTable().getProperties();
-			}
-		};
-	}
-
-	@SafeVarargs
-	private static Map<String, String> mapOf(Tuple2<String, String>... entries) {
-		Map<String, String> map = new HashMap<>();
-		for (Tuple2<String, String> entry : entries) {
-			map.put(entry.f0, entry.f1);
-		}
-
-		return map;
-	}
-
-	private static Tuple2<String, String> entry(String key, String value) {
-		return Tuple2.of(key, value);
-	}
-
-	private static Matcher<CreateTableOperation> hasPartition(String... fields) {
-		return new FeatureMatcher<CreateTableOperation, List<String>>(
-			equalTo(Arrays.asList(fields)),
-			"partitions of the derived table",
-			"partitions"
-		) {
-			@Override
-			protected List<String> featureValueOf(CreateTableOperation actual) {
-				return actual.getCatalogTable().getPartitionKeys();
-			}
-		};
-	}
-
-	private static Matcher<CreateTableOperation> hasSchema(TableSchema schema) {
-		return new FeatureMatcher<CreateTableOperation, TableSchema>(
-			equalTo(schema),
-			"table schema of the derived table",
-			"table schema") {
-			@Override
-			protected TableSchema featureValueOf(CreateTableOperation actual) {
-				return actual.getCatalogTable().getSchema();
-			}
-		};
-	}
-
-	private static class CreateTableOperationMatcher extends TypeSafeDiagnosingMatcher<Operation> {
-		private final Matcher<CreateTableOperation>[] nestedMatchers;
-
-		public CreateTableOperationMatcher(Matcher<CreateTableOperation>[] nestedMatchers) {
-			this.nestedMatchers = nestedMatchers;
-		}
-
-		@Override
-		protected boolean matchesSafely(Operation item, Description mismatchDescription) {
-			if (!(item instanceof CreateTableOperation)) {
-
-				return false;
-			}
-
-			for (Matcher<CreateTableOperation> nestedMatcher : nestedMatchers) {
-				if (!nestedMatcher.matches(item)) {
-					nestedMatcher.describeMismatch(item, mismatchDescription);
-					return false;
-				}
-			}
-
-			return true;
-		}
-
-		@Override
-		public void describeTo(Description description) {
-			description.appendText("\n");
-			Arrays.stream(nestedMatchers).forEach(matcher -> {
-				matcher.describeTo(description);
-				description.appendText("\n");
-			});
 		}
 	}
 
