@@ -158,9 +158,9 @@ class PythonBootTests(PyFlinkTestCase):
         self.assertTrue(exit_code == 0, "the boot.py exited with non-zero code.")
         self.check_downloaded_files(os.path.join(self.tmp_dir, "staged"), manifest)
 
+    @unittest.skipIf(on_windows(), "'subprocess.check_output' in Windows always return empty "
+                                   "string, skip this test.")
     def test_param_validation(self):
-        unittest.skipIf(on_windows(), "'subprocess.check_output' in Windows always return empty "
-                                      "string, skip this test.")
         args = [self.runner_path]
         exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
         self.assertIn("No id provided.", exit_message)

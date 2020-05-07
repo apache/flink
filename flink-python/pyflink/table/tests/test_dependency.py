@@ -179,8 +179,8 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3,1", "4,2", "5,3"])
 
+    @unittest.skipIf(on_windows(), "Symbolic link is not supported on Windows, skipping.")
     def test_set_environment(self):
-        unittest.skipIf(on_windows(), "Symbolic link is not supported on Windows, skipping.")
         python_exec = sys.executable
         tmp_dir = self.tempdir
         python_exec_link_path = os.path.join(tmp_dir, "py_exec")

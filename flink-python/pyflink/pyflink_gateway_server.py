@@ -122,7 +122,7 @@ def download_apache_avro():
     lines = avro_version_output.replace("\r", "").split("\n")
     avro_version = None
     for line in lines:
-        if not line.startswith("[") and not line.startswith("Download") and line.strip() != "":
+        if line.strip() != "" and re.match(r'^[0-9]+\.[0-9]+(\.[0-9]+)?$', line.strip()):
             avro_version = line
             break
     if avro_version is None:
