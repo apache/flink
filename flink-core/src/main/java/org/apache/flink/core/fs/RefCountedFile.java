@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.fs.s3.common.utils;
+package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -43,7 +43,7 @@ public class RefCountedFile implements RefCounted {
 
 	protected boolean closed;
 
-	protected RefCountedFile(final File file) {
+	public RefCountedFile(final File file) {
 		this.file = checkNotNull(file);
 		this.references = new AtomicInteger(1);
 		this.closed = false;
