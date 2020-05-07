@@ -28,6 +28,8 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.TestingUserCodeClassLoader;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -64,7 +66,7 @@ public class DummyEnvironment implements Environment {
 	private TaskStateManager taskStateManager;
 	private final GlobalAggregateManager aggregateManager;
 	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
-	private ClassLoader userClassLoader;
+	private LibraryCacheManager.UserCodeClassLoader userClassLoader;
 
 	public DummyEnvironment() {
 		this("Test Job", 1, 0, 1);
@@ -72,7 +74,7 @@ public class DummyEnvironment implements Environment {
 
 	public DummyEnvironment(ClassLoader userClassLoader) {
 		this("Test Job", 1, 0, 1);
-		this.userClassLoader = userClassLoader;
+		this.userClassLoader = TestingUserCodeClassLoader.newBuilder().setClassLoader(userClassLoader).build();
 	}
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
@@ -154,9 +156,9 @@ public class DummyEnvironment implements Environment {
 	}
 
 	@Override
-	public ClassLoader getUserClassLoader() {
+	public LibraryCacheManager.UserCodeClassLoader getUserClassLoader() {
 		if (userClassLoader == null) {
-			return getClass().getClassLoader();
+			return TestingUserCodeClassLoader.newBuilder().build();
 		} else {
 			return userClassLoader;
 		}

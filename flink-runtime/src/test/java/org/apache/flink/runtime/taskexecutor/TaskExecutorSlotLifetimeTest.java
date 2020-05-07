@@ -207,7 +207,7 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			userCodeClassLoaders.put(getEnvironment().getUserClassLoader());
+			userCodeClassLoaders.put(getEnvironment().getUserClassLoader().asClassLoader());
 		}
 
 		private static void clearQueue() {

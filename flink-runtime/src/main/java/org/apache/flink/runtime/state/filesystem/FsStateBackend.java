@@ -516,7 +516,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		return new HeapKeyedStateBackendBuilder<>(
 			kvStateRegistry,
 			keySerializer,
-			env.getUserClassLoader(),
+			env.getUserClassLoader().asClassLoader(),
 			numberOfKeyGroups,
 			keyGroupRange,
 			env.getExecutionConfig(),
@@ -537,7 +537,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		CloseableRegistry cancelStreamRegistry) throws BackendBuildingException {
 
 		return new DefaultOperatorStateBackendBuilder(
-			env.getUserClassLoader(),
+			env.getUserClassLoader().asClassLoader(),
 			env.getExecutionConfig(),
 			isUsingAsynchronousSnapshots(),
 			stateHandles,

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -90,6 +91,8 @@ public class SavepointEnvironment implements Environment {
 
 	private final AccumulatorRegistry accumulatorRegistry;
 
+	private final LibraryCacheManager.UserCodeClassLoader userCodeClassLoader;
+
 	private SavepointEnvironment(RuntimeContext ctx, Configuration configuration, int maxParallelism, int indexOfSubtask, PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
 		this.jobID = new JobID();
 		this.vertexID = new JobVertexID();
@@ -106,6 +109,8 @@ public class SavepointEnvironment implements Environment {
 		this.ioManager = new IOManagerAsync();
 		this.memoryManager = MemoryManager.forDefaultPageSize(64 * 1024 * 1024);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
+
+		this.userCodeClassLoader = UserCodeClassLoaderRuntimeContextAdapter.from(ctx);
 	}
 
 	@Override
@@ -174,8 +179,8 @@ public class SavepointEnvironment implements Environment {
 	}
 
 	@Override
-	public ClassLoader getUserClassLoader() {
-		return ctx.getUserCodeClassLoader();
+	public LibraryCacheManager.UserCodeClassLoader getUserClassLoader() {
+		return userCodeClassLoader;
 	}
 
 	@Override
@@ -305,6 +310,29 @@ public class SavepointEnvironment implements Environment {
 				maxParallelism,
 				indexOfSubtask,
 				prioritizedOperatorSubtaskState);
+		}
+	}
+
+	private static final class UserCodeClassLoaderRuntimeContextAdapter implements LibraryCacheManager.UserCodeClassLoader {
+
+		private final RuntimeContext runtimeContext;
+
+		private UserCodeClassLoaderRuntimeContextAdapter(RuntimeContext runtimeContext) {
+			this.runtimeContext = runtimeContext;
+		}
+
+		@Override
+		public ClassLoader asClassLoader() {
+			return runtimeContext.getUserCodeClassLoader();
+		}
+
+		@Override
+		public void registerReleaseHook(Runnable releaseHook) {
+			throw new UnsupportedOperationException("Not yet supported");
+		}
+
+		private static UserCodeClassLoaderRuntimeContextAdapter from(RuntimeContext runtimeContext) {
+			return new UserCodeClassLoaderRuntimeContextAdapter(runtimeContext);
 		}
 	}
 

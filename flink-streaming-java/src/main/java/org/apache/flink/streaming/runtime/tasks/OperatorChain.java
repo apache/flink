@@ -117,7 +117,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriterDelegate) {
 
 		this.operatorEventDispatcher = new OperatorEventDispatcherImpl(
-				containingTask.getEnvironment().getUserClassLoader(),
+				containingTask.getEnvironment().getUserClassLoader().asClassLoader(),
 				containingTask.getEnvironment().getOperatorCoordinatorEventGateway());
 
 		final ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
@@ -501,10 +501,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		if (edge.getOutputTag() != null) {
 			// side output
 			outSerializer = upStreamConfig.getTypeSerializerSideOut(
-					edge.getOutputTag(), taskEnvironment.getUserClassLoader());
+					edge.getOutputTag(), taskEnvironment.getUserClassLoader().asClassLoader());
 		} else {
 			// main output
-			outSerializer = upStreamConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader());
+			outSerializer = upStreamConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader().asClassLoader());
 		}
 
 		return new RecordWriterOutput<>(recordWriter, outSerializer, sideOutputTag, this);

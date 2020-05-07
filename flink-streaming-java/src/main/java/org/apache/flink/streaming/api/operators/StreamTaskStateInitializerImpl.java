@@ -233,7 +233,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 			timeServiceManager.restoreStateForKeyGroup(
 				streamProvider.getStream(),
-				keyGroupIdx, environment.getUserClassLoader());
+				keyGroupIdx, environment.getUserClassLoader().asClassLoader());
 		}
 
 		return timeServiceManager;

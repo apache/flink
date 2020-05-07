@@ -195,8 +195,8 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public ClassLoader getUserClassLoader() {
-		return userCodeClassLoader.asClassLoader();
+	public LibraryCacheManager.UserCodeClassLoader getUserClassLoader() {
+		return userCodeClassLoader;
 	}
 
 	@Override
