@@ -557,7 +557,7 @@ public class TableSchema {
 		 *
 		 * <p>The call order of this method determines the order of fields in the schema.
 		 */
-		public Builder field(TableColumn column) {
+		public Builder add(TableColumn column) {
 			columns.add(column);
 			return this;
 		}

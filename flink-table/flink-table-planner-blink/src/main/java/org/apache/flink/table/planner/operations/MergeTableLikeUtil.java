@@ -417,7 +417,7 @@ class MergeTableLikeUtil {
 		public TableSchema build() {
 			TableSchema.Builder resultBuilder = TableSchema.builder();
 			for (TableColumn column : columns.values()) {
-				resultBuilder.field(column);
+				resultBuilder.add(column);
 			}
 			for (WatermarkSpec watermarkSpec : watermarkSpecs.values()) {
 				resultBuilder.watermark(watermarkSpec);
