@@ -269,7 +269,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			heartbeatServices = createHeartbeatServices(configuration);
 			metricRegistry = createMetricRegistry(configuration, pluginManager);
 
-			final RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(configuration, commonRpcService.getAddress());
+			final RpcService metricQueryServiceRpcService = MetricUtils.startRemoteMetricsRpcService(configuration, commonRpcService.getAddress());
 			metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
 			final String hostname = RpcUtils.getHostname(commonRpcService);

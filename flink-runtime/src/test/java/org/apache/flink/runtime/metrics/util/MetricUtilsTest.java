@@ -45,7 +45,7 @@ public class MetricUtilsTest extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtilsTest.class);
 
 	/**
-	 * Tests that the {@link MetricUtils#startMetricsRpcService(Configuration, String)} respects
+	 * Tests that the {@link MetricUtils#startRemoteMetricsRpcService(Configuration, String)} respects
 	 * the given {@link MetricOptions#QUERY_SERVICE_THREAD_PRIORITY}.
 	 */
 	@Test
@@ -54,7 +54,7 @@ public class MetricUtilsTest extends TestLogger {
 		final int expectedThreadPriority = 3;
 		configuration.setInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY, expectedThreadPriority);
 
-		final RpcService rpcService = MetricUtils.startMetricsRpcService(configuration, "localhost");
+		final RpcService rpcService = MetricUtils.startRemoteMetricsRpcService(configuration, "localhost");
 		assertThat(rpcService, instanceOf(AkkaRpcService.class));
 
 		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();

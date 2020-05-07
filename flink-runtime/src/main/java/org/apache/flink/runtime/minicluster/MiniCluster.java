@@ -259,6 +259,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				LOG.info("Starting RPC Service(s)");
 
 				final RpcServiceFactory dispatcherResourceManagreComponentRpcServiceFactory;
+				final RpcService metricQueryServiceRpcService;
 
 				if (useSingleRpcService) {
 					// we always need the 'commonRpcService' for auxiliary calls
@@ -266,6 +267,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					final CommonRpcServiceFactory commonRpcServiceFactory = new CommonRpcServiceFactory(commonRpcService);
 					taskManagerRpcServiceFactory = commonRpcServiceFactory;
 					dispatcherResourceManagreComponentRpcServiceFactory = commonRpcServiceFactory;
+					metricQueryServiceRpcService = MetricUtils.startLocalMetricsRpcService(configuration);
 				} else {
 
 					// start a new service per component, possibly with custom bind addresses
@@ -292,11 +294,11 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					// we always need the 'commonRpcService' for auxiliary calls
 					// bind to the JobManager address with port 0
 					commonRpcService = createRemoteRpcService(configuration, jobManagerBindAddress, 0);
+					metricQueryServiceRpcService = MetricUtils.startRemoteMetricsRpcService(
+						configuration,
+						commonRpcService.getAddress());
 				}
 
-				RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(
-					configuration,
-					commonRpcService.getAddress());
 				metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
 				processMetricGroup = MetricUtils.instantiateProcessMetricGroup(
