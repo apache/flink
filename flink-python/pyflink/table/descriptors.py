@@ -18,9 +18,9 @@
 from abc import ABCMeta
 
 from py4j.java_gateway import get_method
-from pyflink.table.types import _to_java_type
 
 from pyflink.java_gateway import get_gateway
+from pyflink.table.types import _to_java_type
 
 __all__ = [
     'Rowtime',
@@ -564,6 +564,19 @@ class Json(FormatDescriptor):
         if not isinstance(fail_on_missing_field, bool):
             raise TypeError("Only bool value is supported!")
         self._j_json = self._j_json.failOnMissingField(fail_on_missing_field)
+        return self
+
+    def ignore_parse_errors(self, ignore_parse_errors):
+        """
+        Sets flag whether to fail when parsing json fails.
+
+        :param ignore_parse_errors: If set to true, the operation will ignore parse errors.
+                                    If set to false, the operation fails when parsing json fails.
+        :return: This object.
+        """
+        if not isinstance(ignore_parse_errors, bool):
+            raise TypeError("Only bool value is supported!")
+        self._j_json = self._j_json.ignoreParseErrors(ignore_parse_errors)
         return self
 
     def json_schema(self, json_schema):

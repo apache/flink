@@ -706,6 +706,16 @@ class JsonDescriptorTests(PyFlinkTestCase):
         properties = json.to_properties()
         self.assertEqual(expected, properties)
 
+    def test_ignore_parse_errors(self):
+        json = Json().ignore_parse_errors(True)
+
+        expected = {'format.ignore-parse-errors': 'true',
+                    'format.property-version': '1',
+                    'format.type': 'json'}
+
+        properties = json.to_properties()
+        self.assertEqual(expected, properties)
+
     def test_json_schema(self):
         json = Json().json_schema(
             "{"
