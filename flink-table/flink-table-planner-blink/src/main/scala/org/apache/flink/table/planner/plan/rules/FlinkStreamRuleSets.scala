@@ -109,6 +109,8 @@ object FlinkStreamRuleSets {
       List(
         //removes constant keys from an Agg
         AggregateProjectPullUpConstantsRule.INSTANCE,
+        //fix: FLINK-17553
+        ProjectMergeRule.INSTANCE,
         StreamLogicalWindowAggregateRule.INSTANCE,
         // slices a project into sections which contain window agg functions
         // and sections which do not.
