@@ -878,6 +878,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
 					.tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
 					.data(Collections.singletonList(Row.of(explanation)))
+					.setPrintStyle(TableResultImpl.PrintStyle.RAW_CONTENT)
 					.build();
 
 		} else {

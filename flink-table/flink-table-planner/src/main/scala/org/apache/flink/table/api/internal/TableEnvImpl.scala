@@ -24,6 +24,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.core.execution.JobClient
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.TableResultImpl.PrintStyle
 import org.apache.flink.table.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.exceptions.{TableNotExistException => _, _}
@@ -767,6 +768,7 @@ abstract class TableEnvImpl(
           resultKind(ResultKind.SUCCESS_WITH_CONTENT)
           .tableSchema(TableSchema.builder.field("result", DataTypes.STRING).build)
           .data(JCollections.singletonList(Row.of(explanation)))
+          .setPrintStyle(PrintStyle.RAW_CONTENT)
           .build
 
       case _ => throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
