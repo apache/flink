@@ -23,6 +23,9 @@
   # Example. "org.apache.calcite.sql.*", "java.util.List".
   # Please keep the import classes in alphabetical order if new class is added.
   imports: [
+    "org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement"
+    "org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint"
+    "org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec"
     "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
     "org.apache.flink.sql.parser.ddl.SqlAlterFunction"
     "org.apache.flink.sql.parser.ddl.SqlAlterTable"
@@ -79,6 +82,7 @@
     "CATALOGS"
     "COMMENT"
     "DATABASES"
+    "ENFORCED"
     "EXTENDED"
     "FUNCTIONS"
     "IF"
@@ -413,9 +417,11 @@
   ]
 
   # List of non-reserved keywords to add;
-  # items in this list become non-reserved
+  # items in this list become non-reserved.
+  # Please keep the keyword in alphabetical order if new keyword is added.
   nonReservedKeywordsToAdd: [
     # not in core, added in Flink
+    "ENFORCED"
     "IF"
     "OVERWRITE"
     "OVERWRITING"

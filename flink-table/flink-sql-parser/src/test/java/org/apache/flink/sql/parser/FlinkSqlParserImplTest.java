@@ -257,25 +257,22 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
-	public void testCreateTableWithPrimaryKeyAndUniqueKey() {
-		final String sql = "CREATE TABLE tbl1 (\n" +
-				"  a bigint comment 'test column comment AAA.',\n" +
+	public void testTableConstraints() {
+		final String sql0 = "CREATE TABLE tbl1 (\n" +
+				"  a bigint,\n" +
 				"  h varchar, \n" +
-				"  g as 2 * (a + 1), \n" +
-				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n" +
+				"  g as 2 * (a + 1),\n" +
+				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n" +
 				"  b varchar,\n" +
-				"  proc as PROCTIME(), \n" +
-				"  PRIMARY KEY (a, b), \n" +
+				"  proc as PROCTIME(),\n" +
+				"  PRIMARY KEY (a, b),\n" +
 				"  UNIQUE (h, g)\n" +
-				")\n" +
-				"comment 'test table comment ABC.'\n" +
-				"PARTITIONED BY (a, h)\n" +
-				"  with (\n" +
-				"    'connector' = 'kafka', \n" +
-				"    'kafka.topic' = 'log.test'\n" +
+				") with (\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
 				")\n";
-		final String expected = "CREATE TABLE `TBL1` (\n" +
-				"  `A`  BIGINT  COMMENT 'test column comment AAA.',\n" +
+		final String expected0 = "CREATE TABLE `TBL1` (\n" +
+				"  `A`  BIGINT,\n" +
 				"  `H`  VARCHAR,\n" +
 				"  `G` AS (2 * (`A` + 1)),\n" +
 				"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
@@ -283,14 +280,110 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  `PROC` AS `PROCTIME`(),\n" +
 				"  PRIMARY KEY (`A`, `B`),\n" +
 				"  UNIQUE (`H`, `G`)\n" +
-				")\n" +
-				"COMMENT 'test table comment ABC.'\n" +
-				"PARTITIONED BY (`A`, `H`)\n" +
-				"WITH (\n" +
+				") WITH (\n" +
 				"  'connector' = 'kafka',\n" +
 				"  'kafka.topic' = 'log.test'\n" +
 				")";
-		sql(sql).ok(expected);
+		sql(sql0).ok(expected0);
+		// Test with enforcement specification.
+		final String sql1 = "CREATE TABLE tbl1 (\n" +
+				"  a bigint primary key enforced comment 'test column comment AAA.',\n" +
+				"  h varchar constraint ct1 unique not enforced,\n" +
+				"  g as 2 * (a + 1), \n" +
+				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n" +
+				"  b varchar constraint ct2 unique,\n" +
+				"  proc as PROCTIME(),\n" +
+				"  unique (g, ts) not enforced" +
+				") with (\n" +
+				"    'connector' = 'kafka',\n" +
+				"    'kafka.topic' = 'log.test'\n" +
+				")\n";
+		final String expected1 = "CREATE TABLE `TBL1` (\n" +
+				"  `A`  BIGINT PRIMARY KEY ENFORCED  COMMENT 'test column comment AAA.',\n" +
+				"  `H`  VARCHAR CONSTRAINT `CT1` UNIQUE NOT ENFORCED,\n" +
+				"  `G` AS (2 * (`A` + 1)),\n" +
+				"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
+				"  `B`  VARCHAR CONSTRAINT `CT2` UNIQUE,\n" +
+				"  `PROC` AS `PROCTIME`(),\n" +
+				"  UNIQUE (`G`, `TS`) NOT ENFORCED\n" +
+				") WITH (\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
+				")";
+		sql(sql1).ok(expected1);
+		// Test duplicate constraint name.
+		final String sql2 = "CREATE TABLE tbl1 (\n" +
+				"  a bigint comment 'test column comment AAA.',\n" +
+				"  h varchar constraint ct1 unique,\n" +
+				"  g as 2 * (a + 1), \n" +
+				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n" +
+				"  b varchar constraint ct2 unique,\n" +
+				"  proc as PROCTIME(),\n" +
+				"  constraint ct1 unique (b, h)" +
+				") with (\n" +
+				"    'connector' = 'kafka',\n" +
+				"    'kafka.topic' = 'log.test'\n" +
+				")\n";
+		sql(sql2).node(new ValidationMatcher()
+				.fails("Duplicate definition for constraint [CT1]"));
+		// Test duplicate PK definitions.
+		final String sql3 = "CREATE TABLE tbl1 (\n" +
+				"  a bigint comment 'test column comment AAA.',\n" +
+				"  h varchar constraint ct1 primary key,\n" +
+				"  g as 2 * (a + 1), \n" +
+				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n" +
+				"  b varchar,\n" +
+				"  proc as PROCTIME(),\n" +
+				"  constraint ct2 primary key (b, h)" +
+				") with (\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
+				")\n";
+		sql(sql3).node(new ValidationMatcher()
+				.fails("Duplicate primary key definition"));
+		// Test unique constraint on non-exist column.
+		final String sql4 = "CREATE TABLE tbl1 (\n" +
+				"  a bigint comment 'test column comment AAA.',\n" +
+				"  h varchar constraint ct1 primary key,\n" +
+				"  g as 2 * (a + 1), \n" +
+				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n" +
+				"  b varchar,\n" +
+				"  proc as PROCTIME(),\n" +
+				"  constraint ct2 unique (c, d)" +
+				") with (\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
+				")\n";
+		sql(sql4).node(new ValidationMatcher()
+				.fails("Unique key column [C] not defined"));
+		// Test PK constraint on non-exist column.
+		final String sql5 = "CREATE TABLE tbl1 (\n" +
+				"  a bigint comment 'test column comment AAA.',\n" +
+				"  h varchar,\n" +
+				"  g as 2 * (a + 1), \n" +
+				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n" +
+				"  b varchar,\n" +
+				"  proc as PROCTIME(),\n" +
+				"  constraint ct2 primary key (c, d)" +
+				") with (\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
+				")\n";
+		sql(sql5).node(new ValidationMatcher()
+				.fails("Primary key column [C] not defined"));
+		// Test constraint on computed column.
+		final String sql6 = "CREATE TABLE tbl1 (\n" +
+				"  a bigint comment 'test column comment AAA.',\n" +
+				"  h varchar,\n" +
+				"  g as 2 * (a + 1) ^primary^ key, \n" +
+				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n" +
+				"  b varchar,\n" +
+				"  proc as PROCTIME()\n" +
+				") with (\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
+				")\n";
+		sql(sql6).fails("(?s).*Encountered \"primary\" at.*");
 	}
 
 	@Test
