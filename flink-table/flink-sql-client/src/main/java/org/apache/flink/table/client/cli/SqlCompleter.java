@@ -61,7 +61,7 @@ public class SqlCompleter implements Completer {
 		final String statementNormalized = statement.toUpperCase().trim();
 		for (String commandHint : COMMAND_HINTS) {
 			if (commandHint.startsWith(statementNormalized) && line.cursor() < commandHint.length()) {
-				candidates.add(createCandidate(commandHint));
+				candidates.add(createCandidate(getCompletionHint(statementNormalized, commandHint)));
 			}
 		}
 
@@ -72,6 +72,24 @@ public class SqlCompleter implements Completer {
 		} catch (SqlExecutionException e) {
 			LOG.debug("Could not complete statement at " + line.cursor() + ":" + statement, e);
 		}
+	}
+
+	private String getCompletionHint(String statementNormalized, String commandHint) {
+		if (statementNormalized.length() == 0) {
+			return commandHint;
+		}
+		int cursorPos = statementNormalized.length() - 1;
+		int returnStartPos;
+		if (Character.isWhitespace(commandHint.charAt(cursorPos + 1))) {
+			returnStartPos = Math.min(commandHint.length() - 1, cursorPos + 2);
+		} else {
+			returnStartPos = cursorPos;
+			while (returnStartPos > 0 && !Character.isWhitespace(commandHint.charAt(returnStartPos - 1))) {
+				returnStartPos--;
+			}
+		}
+
+		return commandHint.substring(returnStartPos);
 	}
 
 	private Candidate createCandidate(String hint) {
