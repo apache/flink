@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
@@ -46,6 +48,7 @@ import org.junit.After;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -74,27 +77,33 @@ public class StreamTaskNetworkInputTest {
 
 	@Test
 	public void testIsAvailableWithBufferedDataInDeserializer() throws Exception {
-		BufferBuilder bufferBuilder = BufferBuilderTestUtils.createEmptyBufferBuilder(PAGE_SIZE);
-		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
-
-		serializeRecord(42L, bufferBuilder);
-		serializeRecord(44L, bufferBuilder);
-
-		List<BufferOrEvent> buffers = Collections.singletonList(new BufferOrEvent(bufferConsumer.build(), 0, false));
+		List<BufferOrEvent> buffers = Collections.singletonList(createDataBuffer());
 
 		VerifyRecordsDataOutput output = new VerifyRecordsDataOutput<>();
-		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(
-			new CheckpointedInputGate(
-				new MockInputGate(1, buffers, false),
-				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
-			LongSerializer.INSTANCE,
-			ioManager,
-			new StatusWatermarkValve(1, output),
-			0);
+		StreamTaskNetworkInput input = createStreamTaskNetworkInput(buffers, output);
 
 		assertHasNextElement(input, output);
 		assertHasNextElement(input, output);
 		assertEquals(2, output.getNumberOfEmittedRecords());
+	}
+
+	/**
+	 * InputGate on CheckpointBarrier can enqueue a mailbox action to execute and StreamTaskNetworkInput must
+	 * allow this action to execute before processing a following record.
+	 */
+	@Test
+	public void testNoDataProcessedAfterCheckpointBarrier() throws Exception {
+		CheckpointBarrier barrier = new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation());
+
+		List<BufferOrEvent> buffers = new ArrayList<>(2);
+		buffers.add(new BufferOrEvent(barrier, 0));
+		buffers.add(createDataBuffer());
+
+		VerifyRecordsDataOutput output = new VerifyRecordsDataOutput<>();
+		StreamTaskNetworkInput input = createStreamTaskNetworkInput(buffers, output);
+
+		assertHasNextElement(input, output);
+		assertEquals(0, output.getNumberOfEmittedRecords());
 	}
 
 	@Test
@@ -128,6 +137,26 @@ public class StreamTaskNetworkInputTest {
 			assertNull(deserializers[i]);
 			assertTrue(copiedDeserializers[i].isCleared());
 		}
+	}
+
+	private BufferOrEvent createDataBuffer() throws IOException {
+		BufferBuilder bufferBuilder = BufferBuilderTestUtils.createEmptyBufferBuilder(PAGE_SIZE);
+		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
+		serializeRecord(42L, bufferBuilder);
+		serializeRecord(44L, bufferBuilder);
+
+		return new BufferOrEvent(bufferConsumer.build(), 0, false);
+	}
+
+	private StreamTaskNetworkInput createStreamTaskNetworkInput(List<BufferOrEvent> buffers, DataOutput output) {
+		return new StreamTaskNetworkInput<>(
+			new CheckpointedInputGate(
+				new MockInputGate(1, buffers, false),
+				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
+			LongSerializer.INSTANCE,
+			ioManager,
+			new StatusWatermarkValve(1, output),
+			0);
 	}
 
 	private void serializeRecord(long value, BufferBuilder bufferBuilder) throws IOException {
