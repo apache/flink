@@ -322,6 +322,7 @@ public abstract class YarnTestBase extends TestLogger {
 				true);
 		yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.toURI()));
 		yarnClusterDescriptor.addShipFiles(Collections.singletonList(flinkLibFolder));
+		yarnClusterDescriptor.addShipFiles(Collections.singletonList(flinkShadedHadoopDir));
 		return yarnClusterDescriptor;
 	}
 
