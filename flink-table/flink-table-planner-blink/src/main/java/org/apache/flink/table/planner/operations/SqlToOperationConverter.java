@@ -21,6 +21,8 @@ package org.apache.flink.table.planner.operations;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableProperties;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
 import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
@@ -73,6 +75,8 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
+import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
@@ -91,6 +95,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.rel.RelRoot;
@@ -277,8 +282,58 @@ public class SqlToOperationConverter {
 				throw new ValidationException(String.format("Table %s doesn't exist or is a temporary table.",
 					tableIdentifier.toString()));
 			}
+		} else if (sqlAlterTable instanceof SqlAlterTableAddConstraint) {
+			Optional<CatalogManager.TableLookupResult> optionalCatalogTable =
+					catalogManager.getTable(tableIdentifier);
+			if (optionalCatalogTable.isPresent() && !optionalCatalogTable.get().isTemporary()) {
+				SqlTableConstraint constraint = ((SqlAlterTableAddConstraint) sqlAlterTable)
+						.getConstraint();
+				validateTableConstraint(constraint);
+				TableSchema oriSchema = optionalCatalogTable.get().getTable().getSchema();
+				// Sanity check for constraint.
+				TableSchema.Builder builder = TableSchemaUtils.builderWithGivenSchema(oriSchema);
+				if (constraint.getConstraintName().isPresent()) {
+					builder.primaryKey(
+							constraint.getConstraintName().get(),
+							constraint.getColumnNames());
+				} else {
+					builder.primaryKey(constraint.getColumnNames());
+				}
+				builder.build();
+				return new AlterTableAddConstraintOperation(
+						tableIdentifier,
+						constraint.getConstraintName().orElse(null),
+						constraint.getColumnNames());
+			} else {
+				throw new ValidationException(String.format("Table %s doesn't exist or is a temporary table.",
+						tableIdentifier.toString()));
+			}
+		} else if (sqlAlterTable instanceof SqlAlterTableDropConstraint) {
+			Optional<CatalogManager.TableLookupResult> optionalCatalogTable =
+					catalogManager.getTable(tableIdentifier);
+			if (optionalCatalogTable.isPresent() && !optionalCatalogTable.get().isTemporary()) {
+				SqlAlterTableDropConstraint dropConstraint = ((SqlAlterTableDropConstraint) sqlAlterTable);
+				String constraintName = dropConstraint.getConstraintName().getSimple();
+				CatalogTable oriCatalogTable = (CatalogTable) optionalCatalogTable.get().getTable();
+				TableSchema oriSchema = oriCatalogTable.getSchema();
+				if (!oriSchema.getPrimaryKey()
+						.filter(pk -> pk.getName().equals(constraintName))
+						.isPresent()) {
+					throw new ValidationException(
+							String.format("CONSTRAINT [%s] does not exist", constraintName));
+				}
+				return new AlterTableDropConstraintOperation(
+						tableIdentifier,
+						constraintName);
+			} else {
+				throw new ValidationException(String.format("Table %s doesn't exist or is a temporary table.",
+						tableIdentifier.toString()));
+			}
+		} else {
+			throw new ValidationException(
+					String.format("[%s] needs to implement",
+							sqlAlterTable.toSqlString(CalciteSqlDialect.DEFAULT)));
 		}
-		return null;
 	}
 
 	/** Convert CREATE FUNCTION statement. */

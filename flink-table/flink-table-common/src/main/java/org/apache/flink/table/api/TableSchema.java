@@ -303,11 +303,13 @@ public class TableSchema {
 				sb.append(" |-- ").append("WATERMARK FOR ")
 					.append(watermark.getRowtimeAttribute()).append(" AS ")
 					.append(watermark.getWatermarkExpr());
+				sb.append('\n');
 			}
 		}
 
 		if (primaryKey != null) {
 			sb.append(" |-- ").append(primaryKey.asSummaryString());
+			sb.append('\n');
 		}
 		return sb.toString();
 	}

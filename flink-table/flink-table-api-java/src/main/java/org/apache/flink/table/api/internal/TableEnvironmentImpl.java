@@ -40,6 +40,8 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -85,6 +87,8 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
+import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
 import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
@@ -104,6 +108,7 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
@@ -734,6 +739,49 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					catalog.alterTable(
 							alterTablePropertiesOp.getTableIdentifier().toObjectPath(),
 							alterTablePropertiesOp.getCatalogTable(),
+							false);
+				} else if (alterTableOperation instanceof AlterTableAddConstraintOperation){
+					AlterTableAddConstraintOperation addConstraintOP =
+							(AlterTableAddConstraintOperation) operation;
+					CatalogTable oriTable = (CatalogTable) catalogManager
+							.getTable(addConstraintOP.getTableIdentifier())
+							.get()
+							.getTable();
+					TableSchema.Builder builder = TableSchemaUtils
+							.builderWithGivenSchema(oriTable.getSchema());
+					if (addConstraintOP.getConstraintName().isPresent()) {
+						builder.primaryKey(
+								addConstraintOP.getConstraintName().get(),
+								addConstraintOP.getColumnNames());
+					} else {
+						builder.primaryKey(addConstraintOP.getColumnNames());
+					}
+					CatalogTable newTable = new CatalogTableImpl(
+							builder.build(),
+							oriTable.getPartitionKeys(),
+							oriTable.getOptions(),
+							oriTable.getComment());
+					catalog.alterTable(
+							addConstraintOP.getTableIdentifier().toObjectPath(),
+							newTable,
+							false);
+				} else if (alterTableOperation instanceof AlterTableDropConstraintOperation){
+					AlterTableDropConstraintOperation dropConstraintOperation =
+							(AlterTableDropConstraintOperation) operation;
+					CatalogTable oriTable = (CatalogTable) catalogManager
+							.getTable(dropConstraintOperation.getTableIdentifier())
+							.get()
+							.getTable();
+					CatalogTable newTable = new CatalogTableImpl(
+							TableSchemaUtils.dropConstraint(
+									oriTable.getSchema(),
+									dropConstraintOperation.getConstraintName()),
+							oriTable.getPartitionKeys(),
+							oriTable.getOptions(),
+							oriTable.getComment());
+					catalog.alterTable(
+							dropConstraintOperation.getTableIdentifier().toObjectPath(),
+							newTable,
 							false);
 				}
 				return TableResultImpl.TABLE_RESULT_OK;

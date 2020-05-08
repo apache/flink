@@ -22,9 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.WatermarkSpec;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.Preconditions;
+
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Utilities to {@link TableSchema}.
@@ -70,5 +75,62 @@ public class TableSchemaUtils {
 				"The given schema contains generated columns, schema: " + schema.toString());
 		}
 		return schema;
+	}
+
+	/**
+	 * Creates a builder with given table schema.
+	 *
+	 * @param oriSchema Original schema
+	 * @return the builder with all the information from the given schema
+	 */
+	public static TableSchema.Builder builderWithGivenSchema(TableSchema oriSchema) {
+		TableSchema.Builder builder = builderWithGivenColumns(oriSchema.getTableColumns());
+		// Copy watermark specification.
+		for (WatermarkSpec wms : oriSchema.getWatermarkSpecs()) {
+			builder.watermark(
+					wms.getRowtimeAttribute(),
+					wms.getWatermarkExpr(),
+					wms.getWatermarkExprOutputType());
+		}
+		// Copy primary key constraint.
+		oriSchema.getPrimaryKey()
+				.map(pk -> builder.primaryKey(pk.getName(),
+						pk.getColumns().toArray(new String[0])));
+		return builder;
+	}
+
+	/**
+	 * Creates a new schema but drop the constraint with given name.
+	 */
+	public static TableSchema dropConstraint(TableSchema oriSchema, String constraintName) {
+		// Validate the constraint name is valid.
+		Optional<UniqueConstraint> uniqueConstraintOpt = oriSchema.getPrimaryKey();
+		if (!uniqueConstraintOpt.isPresent()
+				|| !uniqueConstraintOpt.get().getName().equals(constraintName)) {
+			throw new ValidationException(
+					String.format("Constraint %s to drop does not exist", constraintName));
+		}
+		TableSchema.Builder builder = builderWithGivenColumns(oriSchema.getTableColumns());
+		// Copy watermark specification.
+		for (WatermarkSpec wms : oriSchema.getWatermarkSpecs()) {
+			builder.watermark(
+					wms.getRowtimeAttribute(),
+					wms.getWatermarkExpr(),
+					wms.getWatermarkExprOutputType());
+		}
+		return builder.build();
+	}
+
+	/** Returns the builder with copied columns info from the given table schema. */
+	private static TableSchema.Builder builderWithGivenColumns(List<TableColumn> oriColumns) {
+		TableSchema.Builder builder = TableSchema.builder();
+		for (TableColumn column : oriColumns) {
+			if (column.isGenerated()) {
+				builder.field(column.getName(), column.getType(), column.getExpr().get());
+			} else {
+				builder.field(column.getName(), column.getType());
+			}
+		}
+		return builder;
 	}
 }

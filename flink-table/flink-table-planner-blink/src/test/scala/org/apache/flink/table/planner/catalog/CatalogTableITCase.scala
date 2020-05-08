@@ -899,7 +899,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     val ddl1 =
       """
         |create table t1(
-        |  a bigint,
+        |  a bigint not null,
         |  b bigint,
         |  c varchar
         |) with (
@@ -919,6 +919,20 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       .getTable(new ObjectPath(tableEnv.getCurrentDatabase, "t2"))
       .getProperties
     assertEquals(expectedProperties, properties)
+    val currentCatalog = tableEnv.getCurrentCatalog
+    val currentDB = tableEnv.getCurrentDatabase
+    tableEnv.sqlUpdate("alter table t2 add constraint ct1 primary key(a) not enforced")
+    val tableSchema1 = tableEnv.getCatalog(currentCatalog).get()
+      .getTable(ObjectPath.fromString(s"${currentDB}.t2"))
+      .getSchema
+    assert(tableSchema1.getPrimaryKey.isPresent)
+    assertEquals("CONSTRAINT ct1 PRIMARY KEY (a)",
+      tableSchema1.getPrimaryKey.get().asSummaryString())
+    tableEnv.sqlUpdate("alter table t2 drop constraint ct1")
+    val tableSchema2 = tableEnv.getCatalog(currentCatalog).get()
+      .getTable(ObjectPath.fromString(s"${currentDB}.t2"))
+      .getSchema
+    assertEquals(false, tableSchema2.getPrimaryKey.isPresent)
   }
 
   @Test

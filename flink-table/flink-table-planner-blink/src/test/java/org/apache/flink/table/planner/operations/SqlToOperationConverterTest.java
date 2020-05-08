@@ -47,6 +47,8 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
+import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
@@ -693,6 +695,136 @@ public class SqlToOperationConverterTest {
 		properties.put("k1", "v1");
 		properties.put("K2", "V2");
 		assertEquals(properties, alterTablePropertiesOperation.getCatalogTable().getProperties());
+	}
+
+	@Test
+	public void testAlterTableAddPkConstraint() throws Exception {
+		Catalog catalog = new GenericInMemoryCatalog("default", "default");
+		catalogManager.registerCatalog("cat1", catalog);
+		catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+		CatalogTable catalogTable = new CatalogTableImpl(
+				TableSchema.builder()
+						.field("a", DataTypes.STRING().notNull())
+						.field("b", DataTypes.BIGINT().notNull())
+						.field("c", DataTypes.BIGINT())
+						.build(),
+				new HashMap<>(),
+				"tb1");
+		catalogManager.setCurrentCatalog("cat1");
+		catalogManager.setCurrentDatabase("db1");
+		catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+		// Test alter add table constraint.
+		Operation operation = parse("alter table tb1 add constraint ct1 primary key(a, b) not enforced",
+				SqlDialect.DEFAULT);
+		assert operation instanceof AlterTableAddConstraintOperation;
+		AlterTableAddConstraintOperation addConstraintOperation =
+				(AlterTableAddConstraintOperation) operation;
+		assertThat(addConstraintOperation.asSummaryString(),
+				is("ALTER TABLE ADD CONSTRAINT: (identifier: [`cat1`.`db1`.`tb1`], "
+						+ "constraintName: [ct1], columns: [a, b])"));
+		// Test alter table add pk on nullable column
+		exceptionRule.expect(ValidationException.class);
+		exceptionRule.expectMessage("Could not create a PRIMARY KEY 'ct1'. Column 'c' is nullable.");
+		parse("alter table tb1 add constraint ct1 primary key(c) not enforced",
+				SqlDialect.DEFAULT);
+	}
+
+	@Test
+	public void testAlterTableAddPkConstraintEnforced() throws Exception {
+		Catalog catalog = new GenericInMemoryCatalog("default", "default");
+		catalogManager.registerCatalog("cat1", catalog);
+		catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+		CatalogTable catalogTable = new CatalogTableImpl(
+				TableSchema.builder()
+						.field("a", DataTypes.STRING().notNull())
+						.field("b", DataTypes.BIGINT().notNull())
+						.field("c", DataTypes.BIGINT())
+						.build(),
+				new HashMap<>(),
+				"tb1");
+		catalogManager.setCurrentCatalog("cat1");
+		catalogManager.setCurrentDatabase("db1");
+		catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+		// Test alter table add enforced
+		exceptionRule.expect(ValidationException.class);
+		exceptionRule.expectMessage("Flink doesn't support ENFORCED mode for PRIMARY KEY constaint. "
+				+ "ENFORCED/NOT ENFORCED  controls if the constraint checks are performed on the "
+				+ "incoming/outgoing data. Flink does not own the data therefore the "
+				+ "only supported mode is the NOT ENFORCED mode");
+		parse("alter table tb1 add constraint ct1 primary key(a, b)",
+				SqlDialect.DEFAULT);
+	}
+
+	@Test
+	public void testAlterTableAddUniqueConstraint() throws Exception {
+		Catalog catalog = new GenericInMemoryCatalog("default", "default");
+		catalogManager.registerCatalog("cat1", catalog);
+		catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+		CatalogTable catalogTable = new CatalogTableImpl(
+				TableSchema.builder()
+						.field("a", DataTypes.STRING().notNull())
+						.field("b", DataTypes.BIGINT().notNull())
+						.build(),
+				new HashMap<>(),
+				"tb1");
+		catalogManager.setCurrentCatalog("cat1");
+		catalogManager.setCurrentDatabase("db1");
+		catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+		// Test alter add table constraint.
+		exceptionRule.expect(UnsupportedOperationException.class);
+		exceptionRule.expectMessage("UNIQUE constraint is not supported yet");
+		parse("alter table tb1 add constraint ct1 unique(a, b) not enforced",
+				SqlDialect.DEFAULT);
+	}
+
+	@Test
+	public void testAlterTableAddUniqueConstraintEnforced() throws Exception {
+		Catalog catalog = new GenericInMemoryCatalog("default", "default");
+		catalogManager.registerCatalog("cat1", catalog);
+		catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+		CatalogTable catalogTable = new CatalogTableImpl(
+				TableSchema.builder()
+						.field("a", DataTypes.STRING().notNull())
+						.field("b", DataTypes.BIGINT().notNull())
+						.field("c", DataTypes.BIGINT())
+						.build(),
+				new HashMap<>(),
+				"tb1");
+		catalogManager.setCurrentCatalog("cat1");
+		catalogManager.setCurrentDatabase("db1");
+		catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+		// Test alter table add enforced
+		exceptionRule.expect(UnsupportedOperationException.class);
+		exceptionRule.expectMessage("UNIQUE constraint is not supported yet");
+		parse("alter table tb1 add constraint ct1 unique(a, b)",
+				SqlDialect.DEFAULT);
+	}
+
+	@Test
+	public void testAlterTableDropConstraint() throws Exception {
+		Catalog catalog = new GenericInMemoryCatalog("default", "default");
+		catalogManager.registerCatalog("cat1", catalog);
+		catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+		CatalogTable catalogTable = new CatalogTableImpl(
+				TableSchema.builder()
+						.field("a", DataTypes.STRING().notNull())
+						.field("b", DataTypes.BIGINT().notNull())
+						.field("c", DataTypes.BIGINT())
+						.primaryKey("ct1", new String[] { "a", "b" })
+						.build(),
+				new HashMap<>(),
+				"tb1");
+		catalogManager.setCurrentCatalog("cat1");
+		catalogManager.setCurrentDatabase("db1");
+		catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+		// Test alter table add enforced
+		Operation operation = parse("alter table tb1 drop constraint ct1", SqlDialect.DEFAULT);
+		assert operation instanceof AlterTableDropConstraintOperation;
+		AlterTableDropConstraintOperation dropConstraint = (AlterTableDropConstraintOperation) operation;
+		assertThat(dropConstraint.asSummaryString(), is("ALTER TABLE `cat1`.`db1`.`tb1` DROP CONSTRAINT ct1"));
+		exceptionRule.expect(ValidationException.class);
+		exceptionRule.expectMessage("CONSTRAINT [ct2] does not exist");
+		parse("alter table tb1 drop constraint ct2", SqlDialect.DEFAULT);
 	}
 
 	//~ Tool Methods ----------------------------------------------------------
