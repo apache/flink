@@ -49,6 +49,8 @@ import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
 
+import org.apache.commons.lang3.StringUtils
+
 import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
 import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
@@ -812,7 +814,29 @@ abstract class TableEnvImpl(
       case descOperation: DescribeTableOperation =>
         val result = catalogManager.getTable(descOperation.getSqlIdentifier)
         if (result.isPresent) {
-          buildShowResult(Array(result.get().getTable.getSchema.toString))
+          val schema = result.get.getTable.getSchema
+          val fieldToWatermark =
+            schema
+              .getWatermarkSpecs
+              .map(w => (w.getRowtimeAttribute, w.getWatermarkExpr)).toMap
+          val fieldToPrimaryKey = new JHashMap[String, String]()
+          if (schema.getPrimaryKey.isPresent) {
+            val columns = schema.getPrimaryKey.get.getColumns.asScala
+            columns.foreach(c => fieldToPrimaryKey.put(c, s"PRI(${columns.mkString(",")})"))
+          }
+          val data = Array.ofDim[String](schema.getFieldCount, 6)
+          schema.getTableColumns.asScala.zipWithIndex.foreach {
+            case (c, i) => {
+              val logicalType = c.getType.getLogicalType
+              data(i)(0) = c.getName
+              data(i)(1) = StringUtils.removeEnd(logicalType.toString, " NOT NULL")
+              data(i)(2) = if (logicalType.isNullable) "true" else "false"
+              data(i)(3) = fieldToPrimaryKey.getOrDefault(c.getName, "(NULL)")
+              data(i)(4) = c.getExpr.orElse("(NULL)")
+              data(i)(5) = fieldToWatermark.getOrDefault(c.getName, "(NULL)")
+            }
+          }
+          buildShowResult(Array("name", "type", "null", "key", "compute column", "watermark"), data)
         } else {
           throw new ValidationException(String.format(
             "Table or view with identifier '%s' doesn't exist",
@@ -827,10 +851,22 @@ abstract class TableEnvImpl(
   }
 
   private def buildShowResult(objects: Array[String]): TableResult = {
+    val rows = Array.ofDim[String](objects.length, 1)
+    objects.zipWithIndex.foreach {
+      case (obj, i) => rows(i)(0) = obj
+    }
+    buildShowResult(Array("result"), rows)
+  }
+
+  private def buildShowResult(headers: Array[String], rows: Array[Array[String]]): TableResult = {
     TableResultImpl.builder()
       .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-      .tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
-      .data(objects.map(Row.of(_)).toList)
+      .tableSchema(
+        TableSchema.builder().fields(
+          headers,
+          headers.map(_ => DataTypes.STRING)
+        ).build())
+      .data(rows.map(Row.of(_:_*)).toList)
       .build()
   }
 

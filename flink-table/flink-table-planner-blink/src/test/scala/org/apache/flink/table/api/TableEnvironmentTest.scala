@@ -985,6 +985,9 @@ class TableEnvironmentTest {
         |  a int,
         |  b varchar,
         |  c int
+        |  c row<f0 int not null, f1 int> not null,
+        |  ts AS to_timestamp(b),
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -1001,20 +1004,22 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
     checkData(
       util.Arrays.asList(
-        Row.of("a", "INT NOT NULL", "(NULL)"),
-        Row.of("b", "STRING", "(NULL)"),
-        Row.of("c", "INT", "(NULL)"),
-        Row.of("ts", "TIMESTAMP(3)", "TO_TIMESTAMP(`b`)"),
-        Row.of("WATERMARK", "(NULL)", "`ts` - INTERVAL '1' SECOND")).iterator(),
+        Row.of("a", "INT", "false", "(NULL)", "(NULL)", "(NULL)"),
+        Row.of("b", "STRING", "true", "(NULL)", "(NULL)", "(NULL)"),
+        Row.of("c", "ROW<`f0` INT NOT NULL, `f1` INT>", "false", "(NULL)", "(NULL)", "(NULL)"),
+        Row.of("ts", "TIMESTAMP(3)", "true", "(NULL)", "TO_TIMESTAMP(`b`)",
+          "`ts` - INTERVAL '1' SECOND")
+      ).iterator(),
       tableResult1.collect())
 
     val tableResult2 = tableEnv.executeSql("describe T2")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     checkData(
       util.Arrays.asList(
-        Row.of("d", "INT NOT NULL", "(NULL)"),
-        Row.of("e", "STRING", "(NULL)"),
-        Row.of("f", "INT", "(NULL)")).iterator(),
+        Row.of("d", "INT", "false", "(NULL)", "(NULL)", "(NULL)"),
+        Row.of("e", "STRING", "true", "(NULL)", "(NULL)", "(NULL)"),
+        Row.of("f", "ROW<`f0` INT NOT NULL, `f1` INT>", "false", "(NULL)", "(NULL)", "(NULL)")
+      ).iterator(),
       tableResult2.collect())
 
     // temporary view T2(x, y) masks permanent view T2(d, e, f)
@@ -1028,8 +1033,8 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
     checkData(
       util.Arrays.asList(
-        Row.of("x", "INT NOT NULL", "(NULL)"),
-        Row.of("y", "STRING", "(NULL)")).iterator(),
+        Row.of("x", "INT", "false", "(NULL)", "(NULL)", "(NULL)"),
+        Row.of("y", "STRING", "true", "(NULL)", "(NULL)", "(NULL)")).iterator(),
       tableResult3.collect())
   }
 

@@ -38,6 +38,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -115,17 +116,20 @@ import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
@@ -975,23 +979,32 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					catalogManager.getTable(describeTableOperation.getSqlIdentifier());
 			if (result.isPresent()) {
 				TableSchema schema = result.get().getTable().getSchema();
-				String[][] rows = Stream.concat(
-					schema.getTableColumns()
-						.stream()
-							.map((c) -> new String[]{
-								c.getName(),
-								c.getType().getLogicalType().toString(),
-								c.getExpr().orElse("(NULL)")}),
+				Map<String, String> fieldToWatermark =
 					schema.getWatermarkSpecs()
 						.stream()
-							.map((w) -> new String[]{
-								"WATERMARK",
-								"(NULL)",
-								w.getWatermarkExpr()
-							})
-				).toArray(String[][]::new);
+							.collect(Collectors.toMap(WatermarkSpec::getRowtimeAttribute, WatermarkSpec::getWatermarkExpr));
 
-				return buildShowResult(new String[]{"name", "type", "expr"}, rows);
+				Map<String, String> fieldToPrimaryKey = new HashMap<>();
+				schema.getPrimaryKey().ifPresent((p) -> {
+					List<String> columns = p.getColumns();
+					columns.forEach((c) -> fieldToPrimaryKey.put(c, String.format("PRI(%s)", String.join(",", columns))));
+				});
+
+				String[][] rows =
+					schema.getTableColumns()
+						.stream()
+							.map((c) -> {
+								LogicalType logicalType = c.getType().getLogicalType();
+								return new String[]{
+								c.getName(),
+								StringUtils.removeEnd(logicalType.toString(), " NOT NULL"),
+								logicalType.isNullable() ? "true" : "false",
+								fieldToPrimaryKey.getOrDefault(c.getName(), "(NULL)"),
+								c.getExpr().orElse("(NULL)"),
+								fieldToWatermark.getOrDefault(c.getName(), "(NULL)")};
+							}).toArray(String[][]::new);
+
+				return buildShowResult(new String[]{"name", "type", "null", "key", "compute column", "watermark"}, rows);
 			} else {
 				throw new ValidationException(String.format(
 						"Tables or views with the identifier '%s' doesn't exist",
