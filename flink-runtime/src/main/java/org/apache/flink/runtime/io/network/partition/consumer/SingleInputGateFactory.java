@@ -133,7 +133,8 @@ public class SingleInputGateFactory {
 			igdd.getShuffleDescriptors().length,
 			partitionProducerStateProvider,
 			bufferPoolFactory,
-			bufferDecompressor);
+			bufferDecompressor,
+			networkBufferPool);
 
 		createInputChannels(owningTaskName, igdd, inputGate, metrics);
 		return inputGate;
@@ -187,8 +188,7 @@ public class SingleInputGateFactory {
 					connectionManager,
 					partitionRequestInitialBackoff,
 					partitionRequestMaxBackoff,
-					metrics,
-					networkBufferPool);
+					metrics);
 			},
 			nettyShuffleDescriptor ->
 				createKnownInputChannel(
@@ -230,8 +230,7 @@ public class SingleInputGateFactory {
 				connectionManager,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
-				metrics,
-				networkBufferPool);
+				metrics);
 		}
 	}
 
