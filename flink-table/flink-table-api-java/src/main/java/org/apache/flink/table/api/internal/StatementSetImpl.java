@@ -40,8 +40,8 @@ import java.util.stream.Collectors;
  */
 @Internal
 class StatementSetImpl implements StatementSet {
-	private List<ModifyOperation> operations = new ArrayList<>();
 	private final TableEnvironmentInternal tableEnvironment;
+	private List<ModifyOperation> operations = new ArrayList<>();
 
 	protected StatementSetImpl(TableEnvironmentInternal tableEnvironment) {
 		this.tableEnvironment = tableEnvironment;
@@ -52,14 +52,14 @@ class StatementSetImpl implements StatementSet {
 		List<Operation> operations = tableEnvironment.getParser().parse(statement);
 
 		if (operations.size() != 1) {
-			throw new TableException("only single insert statement is supported");
+			throw new TableException("Only single statement is supported.");
 		}
 
 		Operation operation = operations.get(0);
 		if (operation instanceof ModifyOperation) {
 			this.operations.add((ModifyOperation) operation);
 		} else {
-			throw new TableException("only insert statement is supported");
+			throw new TableException("Only insert statement is supported now.");
 		}
 		return this;
 	}
