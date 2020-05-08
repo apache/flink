@@ -211,11 +211,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
 					buffer));
 
-			channelStateWriter.addInputData(
-				checkpointId,
-				channel.getChannelInfo(),
-				ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
-				checkpointedInputGate.requestInflightBuffers(checkpointId, channelIndex).toArray(new Buffer[0]));
+			checkpointedInputGate.spillInflightBuffers(checkpointId, channelIndex, channelStateWriter);
 		}
 		return checkpointedInputGate.getAllBarriersReceivedFuture(checkpointId);
 	}
