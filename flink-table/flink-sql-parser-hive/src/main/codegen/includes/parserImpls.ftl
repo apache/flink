@@ -1262,3 +1262,109 @@ SqlAlterTable SqlAlterHiveTableSerDe(SqlParserPos startPos, SqlIdentifier tableI
   )
   { return new SqlAlterHiveTableSerDe(startPos.plus(getPos()), tableIdentifier, partitionSpec, propertyList, serdeLib); }
 }
+
+/**
+ * Hive syntax:
+ *
+ * CREATE VIEW [IF NOT EXISTS] [db_name.]view_name [(column_name [COMMENT column_comment], ...) ]
+ *    [COMMENT view_comment]
+ *    [TBLPROPERTIES (property_name = property_value, ...)]
+ *    AS SELECT ...;
+ */
+SqlCreate SqlCreateView(Span s, boolean replace) : {
+    SqlIdentifier viewName;
+    SqlCharStringLiteral comment = null;
+    SqlNode query;
+    SqlNodeList fieldList = SqlNodeList.EMPTY;
+    boolean ifNotExists = false;
+    SqlNodeList properties = null;
+}
+{
+    <VIEW> { properties = new SqlNodeList(getPos()); }
+    [
+        LOOKAHEAD(3)
+        <IF> <NOT> <EXISTS> { ifNotExists = true; }
+    ]
+    viewName = CompoundIdentifier()
+    [
+        fieldList = ParenthesizedSimpleIdentifierList()
+    ]
+    [ <COMMENT> <QUOTED_STRING> {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+    ]
+    [
+      <TBLPROPERTIES>
+      properties = TableProperties()
+    ]
+    <AS>
+    query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    {
+        return new SqlCreateHiveView(s.pos(), viewName, fieldList, query, ifNotExists, comment, properties);
+    }
+}
+
+/**
+ * Hive syntax:
+ *
+ * DROP VIEW [IF EXISTS] [db_name.]view_name;
+ */
+SqlDrop SqlDropView(Span s, boolean replace) :
+{
+    SqlIdentifier viewName = null;
+    boolean ifExists = false;
+}
+{
+    <VIEW>
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
+    viewName = CompoundIdentifier()
+    {
+        return new SqlDropView(s.pos(), viewName, ifExists, false);
+    }
+}
+
+/**
+ * Hive syntax:
+ *
+ * ALTER VIEW [db_name.]view_name RENAME TO [db_name.]new_view_name;
+ *
+ * ALTER VIEW [db_name.]view_name SET TBLPROPERTIES table_properties;
+ *
+ * ALTER VIEW [db_name.]view_name AS select_statement;
+ */
+SqlAlterView SqlAlterView() :
+{
+  SqlParserPos startPos;
+  SqlIdentifier viewName;
+  SqlIdentifier newViewName;
+  SqlNodeList propertyList;
+  SqlNode newQuery;
+}
+{
+  <ALTER> <VIEW> { startPos = getPos(); }
+  viewName = CompoundIdentifier()
+  (
+      <RENAME> <TO>
+      newViewName = CompoundIdentifier()
+      {
+        return new SqlAlterViewRename(startPos.plus(getPos()), viewName, newViewName);
+      }
+  |
+      <SET> <TBLPROPERTIES>
+      propertyList = TableProperties()
+      {
+        return new SqlAlterHiveViewProperties(startPos.plus(getPos()), viewName, propertyList);
+      }
+  |
+      <AS>
+      newQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+      {
+        return new SqlAlterViewAs(startPos.plus(getPos()), viewName, newQuery);
+      }
+  )
+}

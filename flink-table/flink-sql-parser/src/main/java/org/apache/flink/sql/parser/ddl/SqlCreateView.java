@@ -51,6 +51,9 @@ public class SqlCreateView extends SqlCreate {
 	@Nullable
 	private final SqlCharStringLiteral comment;
 
+	@Nullable
+	private final SqlNodeList properties;
+
 	public SqlCreateView(
 			SqlParserPos pos,
 			SqlIdentifier viewName,
@@ -59,13 +62,15 @@ public class SqlCreateView extends SqlCreate {
 			boolean replace,
 			boolean isTemporary,
 			boolean ifNotExists,
-			SqlCharStringLiteral comment) {
+			SqlCharStringLiteral comment,
+			SqlNodeList properties) {
 		super(OPERATOR, pos, replace, ifNotExists);
 		this.viewName = requireNonNull(viewName, "viewName should not be null");
 		this.fieldList = requireNonNull(fieldList, "fieldList should not be null");
 		this.query = requireNonNull(query, "query should not be null");
 		this.isTemporary = requireNonNull(isTemporary, "isTemporary should not be null");
 		this.comment = comment;
+		this.properties = properties;
 	}
 
 	@Override
@@ -94,6 +99,10 @@ public class SqlCreateView extends SqlCreate {
 		return Optional.ofNullable(comment);
 	}
 
+	public Optional<SqlNodeList> getProperties() {
+		return Optional.ofNullable(properties);
+	}
+
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("CREATE");
@@ -119,7 +128,7 @@ public class SqlCreateView extends SqlCreate {
 		query.unparse(writer, leftPrec, rightPrec);
 	}
 
-	private void printIndent(SqlWriter writer) {
+	protected void printIndent(SqlWriter writer) {
 		writer.sep(",", false);
 		writer.newlineAndIndent();
 		writer.print("  ");

@@ -99,6 +99,10 @@ import org.apache.flink.table.operations.ddl.AlterTableOperation;
 import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.AlterTableSchemaOperation;
+import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
+import org.apache.flink.table.operations.ddl.AlterViewOperation;
+import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
@@ -867,6 +871,35 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 						dropViewOperation.isIfExists());
 			}
 			return TableResultImpl.TABLE_RESULT_OK;
+		} else if (operation instanceof AlterViewOperation) {
+			AlterViewOperation alterViewOperation = (AlterViewOperation) operation;
+			Catalog catalog = getCatalogOrThrowException(alterViewOperation.getViewIdentifier().getCatalogName());
+			String exMsg = getDDLOpExecuteErrorMsg(alterViewOperation.asSummaryString());
+			try {
+				if (alterViewOperation instanceof AlterViewRenameOperation) {
+					AlterViewRenameOperation alterTableRenameOp = (AlterViewRenameOperation) operation;
+					catalog.renameTable(
+							alterTableRenameOp.getViewIdentifier().toObjectPath(),
+							alterTableRenameOp.getNewViewIdentifier().getObjectName(),
+							false);
+				} else if (alterViewOperation instanceof AlterViewPropertiesOperation) {
+					AlterViewPropertiesOperation alterTablePropertiesOp = (AlterViewPropertiesOperation) operation;
+					catalog.alterTable(
+							alterTablePropertiesOp.getViewIdentifier().toObjectPath(),
+							alterTablePropertiesOp.getCatalogView(),
+							false);
+				} else if (alterViewOperation instanceof AlterViewAsOperation) {
+					AlterViewAsOperation alterViewAsOperation = (AlterViewAsOperation) alterViewOperation;
+					catalog.alterTable(alterViewAsOperation.getViewIdentifier().toObjectPath(),
+							alterViewAsOperation.getNewView(),
+							false);
+				}
+				return TableResultImpl.TABLE_RESULT_OK;
+			} catch (TableAlreadyExistException | TableNotExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof CreateDatabaseOperation) {
 			CreateDatabaseOperation createDatabaseOperation = (CreateDatabaseOperation) operation;
 			Catalog catalog = getCatalogOrThrowException(createDatabaseOperation.getCatalogName());

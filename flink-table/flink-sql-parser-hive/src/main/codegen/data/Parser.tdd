@@ -34,11 +34,13 @@
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableLocation"
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableProps"
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableSerDe"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveViewProperties"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableCreationContext"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs"
+    "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveView"
     "org.apache.flink.sql.parser.hive.ddl.SqlDescribeHiveTable"
     "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintEnable"
     "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintRely"
@@ -53,6 +55,9 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterTable"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableProperties"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableRename"
+    "org.apache.flink.sql.parser.ddl.SqlAlterView"
+    "org.apache.flink.sql.parser.ddl.SqlAlterViewAs"
+    "org.apache.flink.sql.parser.ddl.SqlAlterViewRename"
     "org.apache.flink.sql.parser.ddl.SqlCreateCatalog"
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction"
     "org.apache.flink.sql.parser.ddl.SqlCreateTable"
@@ -510,6 +515,7 @@
     "SqlRichDescribeTable()"
     "SqlShowFunctions()"
     "SqlAlterTable()"
+    "SqlAlterView()"
   ]
 
   # List of methods for parsing custom literals.
@@ -546,6 +552,7 @@
     "SqlCreateDatabase"
     "SqlCreateTemporary"
     "SqlCreateCatalog"
+    "SqlCreateView"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.
@@ -554,6 +561,7 @@
     "SqlDropTable"
     "SqlDropDatabase"
     "SqlDropFunction"
+    "SqlDropView"
   ]
 
   # Binary operators tokens

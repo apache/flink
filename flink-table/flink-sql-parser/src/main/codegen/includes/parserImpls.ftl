@@ -931,7 +931,7 @@ SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
     <AS>
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, isTemporary, ifNotExists, comment);
+        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, isTemporary, ifNotExists, comment, null);
     }
 }
 
