@@ -1730,11 +1730,11 @@ print(explanation)
 {% highlight text %}
 
 == Abstract Syntax Tree ==
-LogicalSink(name=[MySink1], fields=[count, word])
+LogicalLegacySink(name=[MySink1], fields=[count, word])
 +- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
 
-LogicalSink(name=[MySink2], fields=[count, word])
+LogicalLegacySink(name=[MySink2], fields=[count, word])
 +- LogicalUnion(all=[true])
    :- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
@@ -1744,10 +1744,10 @@ LogicalSink(name=[MySink2], fields=[count, word])
 Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')], reuse_id=[1])
 +- TableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
-Sink(name=[MySink1], fields=[count, word])
+LegacySink(name=[MySink1], fields=[count, word])
 +- Reused(reference_id=[1])
 
-Sink(name=[MySink2], fields=[count, word])
+LegacySink(name=[MySink2], fields=[count, word])
 +- Union(all=[true], union=[count, word])
    :- Reused(reference_id=[1])
    +- TableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])

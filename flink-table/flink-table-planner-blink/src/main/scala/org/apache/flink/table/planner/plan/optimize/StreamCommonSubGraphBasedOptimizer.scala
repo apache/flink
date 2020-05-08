@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.calcite.{FlinkContext, SqlExprToRexConvert
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, ModifyKindSet, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
+import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecIntermediateTableScan, StreamPhysicalRel}
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
@@ -109,7 +109,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
     val blockLogicalPlan = block.getPlan
     blockLogicalPlan match {
-      case s: Sink =>
+      case s: LegacySink =>
         require(isSinkBlock)
         val optimizedTree = optimizeTree(
           s,
@@ -210,7 +210,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
     val blockLogicalPlan = block.getPlan
     blockLogicalPlan match {
-      case n: Sink =>
+      case n: LegacySink =>
         require(isSinkBlock)
         val optimizedPlan = optimizeTree(
           n, updateBeforeRequired, miniBatchInterval, isSinkBlock = true)

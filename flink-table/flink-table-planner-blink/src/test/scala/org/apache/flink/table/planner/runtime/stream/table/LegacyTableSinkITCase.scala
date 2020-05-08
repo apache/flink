@@ -39,7 +39,7 @@ import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 
-class TableSinkITCase extends AbstractTestBase {
+class LegacyTableSinkITCase extends AbstractTestBase {
 
   @Test
   def testStreamTableSink(): Unit = {

@@ -32,7 +32,7 @@ import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 
-class TableSinkITCase extends BatchTestBase {
+class LegacyTableSinkITCase extends BatchTestBase {
 
   @Test
   def testDecimalOutputFormatTableSink(): Unit = {

@@ -112,7 +112,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         rel: StreamPhysicalRel,
         requiredTrait: ModifyKindSetTrait,
         requester: String): StreamPhysicalRel = rel match {
-      case sink: StreamExecSink[_] =>
+      case sink: StreamExecLegacySink[_] =>
         val (sinkRequiredTrait, name) = sink.sink match {
           case _: UpsertStreamTableSink[_] =>
             (ModifyKindSetTrait.ALL_CHANGES, "UpsertStreamTableSink")
@@ -370,7 +370,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     def visit(
         rel: StreamPhysicalRel,
         requiredTrait: UpdateKindTrait): Option[StreamPhysicalRel] = rel match {
-      case sink: StreamExecSink[_] =>
+      case sink: StreamExecLegacySink[_] =>
         val childModifyKindSet = getModifyKindSet(sink.getInput)
         val onlyAfter = onlyAfterOrNone(childModifyKindSet)
         val beforeAndAfter = beforeAfterOrNone(childModifyKindSet)
