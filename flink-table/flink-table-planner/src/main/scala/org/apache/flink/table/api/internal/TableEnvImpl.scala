@@ -1091,14 +1091,14 @@ abstract class TableEnvImpl(
     val exprs = values.asScala
       .map(ApiExpressionUtils.objectToExpression)
       .toArray
-    fromValues(exprs)
+    fromValues(exprs: _*)
   }
 
   override def fromValues(rowType: DataType, values: JIterable[_]): Table = {
     val exprs = values.asScala
       .map(ApiExpressionUtils.objectToExpression)
       .toArray
-    fromValues(rowType, exprs)
+    fromValues(rowType, exprs: _*)
   }
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */

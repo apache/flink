@@ -470,6 +470,19 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		compareResultAsText(results, expected);
 	}
 
+	@Test
+	public void testFromValues() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+
+		Table table = tableEnv.fromValues(1L, 2L, 3L)
+			.select($("*"));
+
+		List<Row> results = tableEnv.toDataSet(table, Row.class).collect();
+		String expected = "1\n2\n3\n";
+		compareResultAsText(results, expected);
+	}
+
 	@Test(expected = ValidationException.class)
 	public void testGenericRow() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
