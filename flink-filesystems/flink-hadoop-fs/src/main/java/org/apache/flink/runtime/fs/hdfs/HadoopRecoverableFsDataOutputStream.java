@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.viewfs.ViewFileSystem;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.util.VersionInfo;
 
@@ -157,7 +158,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
 		ensureTruncateInitialized();
 
-		waitUntilLeaseIsRevoked(fileSystem, path);
+		revokeLeaseByFileSystem(fileSystem, path);
 
 		// truncate back and append
 		boolean truncated;
@@ -170,7 +171,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		if (!truncated) {
 			// Truncate did not complete immediately, we must wait for
 			// the operation to complete and release the lease.
-			waitUntilLeaseIsRevoked(fileSystem, path);
+			revokeLeaseByFileSystem(fileSystem, path);
 		}
 	}
 
@@ -314,19 +315,42 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 	}
 
 	/**
-	 * Called when resuming execution after a failure and waits until the lease
-	 * of the file we are resuming is free.
+	 * revoke the lease of the file we are resuming with different FileSystem.
 	 *
-	 * <p>The lease of the file we are resuming writing/committing to may still
-	 * belong to the process that failed previously and whose state we are
-	 * recovering.
+	 * <p>
+	 * resolve the real path of FileSystem if it is ViewFileSystem .
+	 * 
 	 *
 	 * @param path The path to the file we want to resume writing to.
 	 */
-	private static boolean waitUntilLeaseIsRevoked(final FileSystem fs, final Path path) throws IOException {
+	private static boolean revokeLeaseByFileSystem(final FileSystem fs, final Path path) throws IOException {
+		if (fs instanceof ViewFileSystem) {
+			final ViewFileSystem vfs = (ViewFileSystem) fs;
+			final Path resolvePath = vfs.resolvePath(path);
+			final FileSystem resolveFs = resolvePath.getFileSystem(fs.getConf());
+
+			Preconditions.checkState(resolveFs instanceof DistributedFileSystem);
+			final DistributedFileSystem dfs = (DistributedFileSystem) resolveFs;
+			return waitUntilLeaseIsRevoked(dfs, resolvePath);
+		}
 		Preconditions.checkState(fs instanceof DistributedFileSystem);
 
 		final DistributedFileSystem dfs = (DistributedFileSystem) fs;
+		return waitUntilLeaseIsRevoked(dfs, path);
+	}
+
+	/**
+	 * Called when resuming execution after a failure and waits until the lease of
+	 * the file we are resuming is free.
+	 *
+	 * <p>
+	 * The lease of the file we are resuming writing/committing to may still belong
+	 * to the process that failed previously and whose state we are recovering.
+	 *
+	 * @param path The path to the file we want to resume writing to.
+	 */
+	private static boolean waitUntilLeaseIsRevoked(final DistributedFileSystem dfs, final Path path)
+			throws IOException {
 		dfs.recoverLease(path);
 
 		final Deadline deadline = Deadline.now().plus(Duration.ofMillis(LEASE_TIMEOUT));
