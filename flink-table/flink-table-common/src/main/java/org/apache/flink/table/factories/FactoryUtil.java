@@ -477,24 +477,40 @@ public final class FactoryUtil {
 		 * keys.
 		 */
 		public void validate() {
+			validateExcept();
+		}
+
+		/**
+		 * Validates the options of the {@link DynamicTableFactory}. It checks for unconsumed option
+		 * keys while ignoring the options with given prefixes.
+		 *
+		 * <p>The option keys that have given prefix {@code prefixToSkip}
+		 * would just be skipped for validation.
+		 *
+		 * @param prefixesToSkip Set of option key prefixes to skip validation
+		 */
+		public void validateExcept(String... prefixesToSkip) {
 			validateFactoryOptions(tableFactory, allOptions);
 			final Set<String> remainingOptionKeys = new HashSet<>(allOptions.keySet());
 			remainingOptionKeys.removeAll(consumedOptionKeys);
+			for (String prefix : prefixesToSkip) {
+				remainingOptionKeys.removeIf(key -> key.startsWith(prefix));
+			}
 			if (remainingOptionKeys.size() > 0) {
 				throw new ValidationException(
-					String.format(
-						"Unsupported options found for connector '%s'.\n\n" +
-						"Unsupported options:\n\n" +
-						"%s\n\n" +
-						"Supported options:\n\n" +
-						"%s",
-						tableFactory.factoryIdentifier(),
-						remainingOptionKeys.stream()
-							.sorted()
-							.collect(Collectors.joining("\n")),
-						consumedOptionKeys.stream()
-							.sorted()
-							.collect(Collectors.joining("\n"))));
+						String.format(
+								"Unsupported options found for connector '%s'.\n\n" +
+										"Unsupported options:\n\n" +
+										"%s\n\n" +
+										"Supported options:\n\n" +
+										"%s",
+								tableFactory.factoryIdentifier(),
+								remainingOptionKeys.stream()
+										.sorted()
+										.collect(Collectors.joining("\n")),
+								consumedOptionKeys.stream()
+										.sorted()
+										.collect(Collectors.joining("\n"))));
 			}
 		}
 

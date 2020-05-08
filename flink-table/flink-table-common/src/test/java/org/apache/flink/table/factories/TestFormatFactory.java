@@ -99,7 +99,7 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 		public final String delimiter;
 		public final Boolean failOnMissing;
 
-		ScanFormatMock(String delimiter, Boolean failOnMissing) {
+		public ScanFormatMock(String delimiter, Boolean failOnMissing) {
 			this.delimiter = delimiter;
 			this.failOnMissing = failOnMissing;
 		}
@@ -145,7 +145,7 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 
 		public final String delimiter;
 
-		SinkFormatMock(String delimiter) {
+		public SinkFormatMock(String delimiter) {
 			this.delimiter = delimiter;
 		}
 

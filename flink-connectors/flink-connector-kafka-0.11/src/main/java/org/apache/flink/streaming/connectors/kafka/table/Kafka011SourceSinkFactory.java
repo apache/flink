@@ -16,86 +16,64 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka;
+package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.descriptors.KafkaValidator;
-import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.connector.format.ScanFormat;
+import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Test for {@link Kafka010TableSource} and {@link Kafka010TableSink} created
- * by {@link Kafka010TableSourceSinkFactory}.
+ * Factory for creating configured instances of {@link Kafka011ScanSource}.
  */
-public class Kafka010TableSourceSinkFactoryTest extends KafkaTableSourceSinkFactoryTestBase {
+public class Kafka011SourceSinkFactory extends KafkaSourceSinkFactoryBase {
+	public static final String IDENTIFIER = "kafka-0.11";
 
 	@Override
-	protected String getKafkaVersion() {
-		return KafkaValidator.CONNECTOR_VERSION_VALUE_010;
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	protected Class<FlinkKafkaConsumerBase<Row>> getExpectedFlinkKafkaConsumer() {
-		return (Class) FlinkKafkaConsumer010.class;
-	}
-
-	@Override
-	protected Class<?> getExpectedFlinkKafkaProducer() {
-		return FlinkKafkaProducer010.class;
-	}
-
-	@Override
-	protected KafkaTableSourceBase getExpectedKafkaTableSource(
-			TableSchema schema,
-			Optional<String> proctimeAttribute,
-			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
-			Map<String, String> fieldMapping,
+	protected KafkaScanSourceBase createKafkaTableSource(
+			DataType producedDataType,
 			String topic,
 			Properties properties,
-			DeserializationSchema<Row> deserializationSchema,
+			ScanFormat<DeserializationSchema<RowData>> scanFormat,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
 			long startupTimestampMillis) {
-
-		return new Kafka010TableSource(
-				schema,
-				proctimeAttribute,
-				rowtimeAttributeDescriptors,
-				Optional.of(fieldMapping),
+		return new Kafka011ScanSource(
+				producedDataType,
 				topic,
 				properties,
-				deserializationSchema,
+				scanFormat,
 				startupMode,
 				specificStartupOffsets,
-				startupTimestampMillis
-		);
+				startupTimestampMillis);
 	}
 
 	@Override
-	protected KafkaTableSinkBase getExpectedKafkaTableSink(
-			TableSchema schema,
+	protected KafkaSinkBase createKafkaTableSink(
+			DataType consumedDataType,
 			String topic,
 			Properties properties,
-			Optional<FlinkKafkaPartitioner<Row>> partitioner,
-			SerializationSchema<Row> serializationSchema) {
-
-		return new Kafka010TableSink(
-				schema,
+			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+			SinkFormat<SerializationSchema<RowData>> sinkFormat) {
+		return new Kafka011Sink(
+				consumedDataType,
 				topic,
 				properties,
 				partitioner,
-				serializationSchema
-		);
+				sinkFormat);
+	}
+
+	@Override
+	public String factoryIdentifier() {
+		return IDENTIFIER;
 	}
 }
