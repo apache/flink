@@ -291,6 +291,7 @@ public class StreamingFileSink<IN>
 					bucketFactory,
 					new RowWisePartWriter.Factory<>(encoder),
 					rollingPolicy,
+					null,
 					subtaskIndex,
 					outputFileConfig);
 		}
@@ -401,6 +402,7 @@ public class StreamingFileSink<IN>
 					bucketFactory,
 					new BulkPartWriter.Factory<>(writerFactory),
 					rollingPolicy,
+					null,
 					subtaskIndex,
 					outputFileConfig);
 		}

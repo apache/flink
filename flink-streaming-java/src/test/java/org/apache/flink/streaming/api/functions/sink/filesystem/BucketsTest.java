@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils.MockListState;
@@ -34,8 +35,13 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -317,6 +323,7 @@ public class BucketsTest {
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				DefaultRollingPolicy.builder().build(),
+				null,
 				2,
 				OutputFileConfig.builder().build()
 		);
@@ -367,6 +374,66 @@ public class BucketsTest {
 		}
 	}
 
+	@Test
+	public void testBucketLifeCycleListenerOnCreatingAndInactive() throws Exception {
+		File outDir = TEMP_FOLDER.newFolder();
+		Path path = new Path(outDir.toURI());
+		OnProcessingTimePolicy<String, String> rollOnProcessingTimeCountingPolicy =
+			new OnProcessingTimePolicy<>(2L);
+		RecordBucketLifeCycleListener bucketLifeCycleListener = new RecordBucketLifeCycleListener();
+		Buckets<String, String> buckets = createBuckets(
+			path,
+			rollOnProcessingTimeCountingPolicy,
+			bucketLifeCycleListener,
+			0,
+			OutputFileConfig.builder().build());
+		ListState<byte[]> bucketStateContainer = new MockListState<>();
+		ListState<Long> partCounterContainer = new MockListState<>();
+
+		buckets.onElement("test1", new TestUtils.MockSinkContext(null, 1L, 2L));
+		buckets.onElement("test2", new TestUtils.MockSinkContext(null, 1L, 3L));
+
+		// Will close the part file writer of the bucket "test1".
+		buckets.onProcessingTime(4);
+		buckets.snapshotState(0, bucketStateContainer, partCounterContainer);
+		buckets.commitUpToCheckpoint(0);
+
+		// Will close the part file writer of the bucket "test2".
+		buckets.onProcessingTime(6);
+		buckets.snapshotState(1, bucketStateContainer, partCounterContainer);
+		buckets.commitUpToCheckpoint(1);
+
+		List<Tuple2<RecordBucketLifeCycleListener.EventType, String>> expectedEvents = Arrays.asList(
+			new Tuple2<>(RecordBucketLifeCycleListener.EventType.CREATED, "test1"),
+			new Tuple2<>(RecordBucketLifeCycleListener.EventType.CREATED, "test2"),
+			new Tuple2<>(RecordBucketLifeCycleListener.EventType.INACTIVE, "test1"),
+			new Tuple2<>(RecordBucketLifeCycleListener.EventType.INACTIVE, "test2"));
+		Assert.assertEquals(expectedEvents, bucketLifeCycleListener.getEvents());
+	}
+
+	private static class RecordBucketLifeCycleListener implements BucketLifeCycleListener<String, String> {
+		public enum EventType {
+			CREATED,
+			INACTIVE
+		}
+
+		private List<Tuple2<EventType, String>> events = new ArrayList<>();
+
+		@Override
+		public void bucketCreated(Bucket<String, String> bucket) {
+			events.add(new Tuple2<>(EventType.CREATED, bucket.getBucketId()));
+		}
+
+		@Override
+		public void bucketInactive(Bucket<String, String> bucket) {
+			events.add(new Tuple2<>(EventType.INACTIVE, bucket.getBucketId()));
+		}
+
+		public List<Tuple2<EventType, String>> getEvents() {
+			return events;
+		}
+	}
+
 	// ------------------------------- Utility Methods --------------------------------
 
 	private static Buckets<String, String> createBuckets(
@@ -376,6 +443,7 @@ public class BucketsTest {
 		return createBuckets(
 				basePath,
 				rollingPolicy,
+				null,
 				subtaskIdx,
 				OutputFileConfig.builder().build());
 	}
@@ -383,6 +451,7 @@ public class BucketsTest {
 	private static Buckets<String, String> createBuckets(
 			final Path basePath,
 			final RollingPolicy<String, String> rollingPolicy,
+			@Nullable final BucketLifeCycleListener<String, String> bucketLifeCycleListener,
 			final int subtaskIdx,
 			final OutputFileConfig outputFileConfig) throws IOException {
 		return new Buckets<>(
@@ -391,6 +460,7 @@ public class BucketsTest {
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				rollingPolicy,
+				bucketLifeCycleListener,
 				subtaskIdx,
 				outputFileConfig
 		);
@@ -418,7 +488,12 @@ public class BucketsTest {
 			final ListState<byte[]> bucketState,
 			final ListState<Long> partCounterState,
 			final OutputFileConfig outputFileConfig) throws Exception {
-		final Buckets<String, String> restoredBuckets = createBuckets(basePath, rollingPolicy, subtaskIdx, outputFileConfig);
+		final Buckets<String, String> restoredBuckets = createBuckets(
+			basePath,
+			rollingPolicy,
+			null,
+			subtaskIdx,
+			outputFileConfig);
 		restoredBuckets.initializeState(bucketState, partCounterState);
 		return restoredBuckets;
 	}

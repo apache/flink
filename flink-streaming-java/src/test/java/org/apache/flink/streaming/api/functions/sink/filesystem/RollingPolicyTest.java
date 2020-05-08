@@ -203,6 +203,7 @@ public class RollingPolicyTest {
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				rollingPolicyToTest,
+				null,
 				0,
 				OutputFileConfig.builder().build()
 		);
