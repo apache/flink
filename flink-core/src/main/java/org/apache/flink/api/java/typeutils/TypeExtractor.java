@@ -1709,7 +1709,7 @@ public class TypeExtractor {
 
 			return typeHierarchy;
 		}
-		return typeHierarchy;
+		return typeHierarchy.size() == 0 ? Collections.emptyList() : typeHierarchy;
 	}
 
 	/**
@@ -2038,11 +2038,9 @@ public class TypeExtractor {
 		TypeInformation<?> componentInfo = null;
 		if (typeInformation instanceof BasicArrayTypeInfo) {
 			componentInfo = ((BasicArrayTypeInfo<?, ?>) typeInformation).getComponentInfo();
-		}
-		else if (typeInformation instanceof PrimitiveArrayTypeInfo) {
+		} else if (typeInformation instanceof PrimitiveArrayTypeInfo) {
 			componentInfo = BasicTypeInfo.getInfoFor(typeInformation.getTypeClass().getComponentType());
-		}
-		else if (typeInformation instanceof ObjectArrayTypeInfo) {
+		} else if (typeInformation instanceof ObjectArrayTypeInfo) {
 			componentInfo = ((ObjectArrayTypeInfo<?, ?>) typeInformation).getComponentInfo();
 		}
 		return bindTypeVariablesWithTypeInformationFromInput(((GenericArrayType) type).getGenericComponentType(), componentInfo);

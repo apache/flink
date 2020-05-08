@@ -1,8 +1,10 @@
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.types.Either;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -16,47 +18,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Test TypeExtractor contract.
+ */
 public class TypeExtractorContractTest {
-
-	@Test
-	public void testMaterializeTypeVariableToActualType() {
-
-		final List<ParameterizedType> parameterizedTypes =
-			TypeExtractor.buildParameterizedTypeHierarchy(MySimpleUDF.class, BaseInterface.class, true);
-
-		final ParameterizedType normalInterfaceType = parameterizedTypes.get(parameterizedTypes.size() - 1);
-		final TypeVariable firstTypeVariableOfNormalInterface = (TypeVariable) normalInterfaceType.getActualTypeArguments()[0];
-		final TypeVariable secondTypeVariableOfNormalInterface = (TypeVariable) normalInterfaceType.getActualTypeArguments()[1];
-
-		final Type materializedFirstTypeVariable = TypeExtractor.materializeTypeVariable(parameterizedTypes, firstTypeVariableOfNormalInterface);
-		final ParameterizedType materializedSecondTypeVariable = (ParameterizedType) TypeExtractor.materializeTypeVariable(parameterizedTypes, secondTypeVariableOfNormalInterface);
-
-		Assert.assertEquals(Integer.class, materializedFirstTypeVariable);
-		Assert.assertEquals(String.class, materializedSecondTypeVariable.getActualTypeArguments()[0]);
-		Assert.assertEquals(Integer.class, materializedSecondTypeVariable.getActualTypeArguments()[1]);
-		Assert.assertEquals(Tuple2.class, materializedSecondTypeVariable.getRawType());
-	}
-
-	@Test
-	public void testMaterializeTypeVariableToBottomTypeVariable() {
-		final DefaultSimpleUDF myUdf = new DefaultSimpleUDF<String>();
-
-		final List<ParameterizedType> parameterizedTypes =
-			TypeExtractor.buildParameterizedTypeHierarchy(myUdf.getClass(), BaseInterface.class, true);
-
-		final ParameterizedType normalInterfaceType = parameterizedTypes.get(parameterizedTypes.size() - 1);
-
-		final TypeVariable firstTypeVariableOfNormalInterface = (TypeVariable) normalInterfaceType.getActualTypeArguments()[0];
-
-		final ParameterizedType abstractSimpleUDFType = parameterizedTypes.get(0);
-
-		final TypeVariable firstTypeVariableOfAbstractSimpleUDF = (TypeVariable) abstractSimpleUDFType.getActualTypeArguments()[0];
-		final Type materializedFirstTypeVariable =
-			TypeExtractor.materializeTypeVariable(parameterizedTypes, firstTypeVariableOfNormalInterface);
-
-		Assert.assertEquals(firstTypeVariableOfAbstractSimpleUDF, materializedFirstTypeVariable);
-
-	}
 
 	// --------------------------------------------------------------------------------------------
 	// Test build parameterized type hierarchy.
@@ -110,6 +75,23 @@ public class TypeExtractorContractTest {
 	// --------------------------------------------------------------------------------------------
 
 	@Test
+	public void testGetTypeParameter() {
+		final Type firstType = TypeExtractor.getParameterType(BaseInterface.class, MySimpleUDF.class, 0);
+		final ParameterizedType secondType = (ParameterizedType) TypeExtractor.getParameterType(BaseInterface.class, MySimpleUDF.class, 1);
+
+		Assert.assertEquals(Integer.class, firstType);
+		Assert.assertEquals(Tuple2.class, secondType.getRawType());
+		Assert.assertEquals(String.class, secondType.getActualTypeArguments()[0]);
+		Assert.assertEquals(Integer.class, secondType.getActualTypeArguments()[1]);
+	}
+
+	@Test(expected = InvalidTypesException.class)
+	public void getGetTypeParameterFail() {
+		DefaultSimpleUDF defaultSimpleUDF = new DefaultSimpleUDF<>();
+		TypeExtractor.getParameterType(DefaultSimpleUDF.class, defaultSimpleUDF.getClass(), 0);
+	}
+
+	@Test
 	public void testResolveSimpleType() {
 		final List<ParameterizedType> typeHierarchy =
 			TypeExtractor.buildParameterizedTypeHierarchy(MySimpleUDF.class, BaseInterface.class, true);
@@ -118,10 +100,9 @@ public class TypeExtractorContractTest {
 		final ParameterizedType resolvedNormalInterfaceType =
 			(ParameterizedType) TypeExtractor.resolveTypeFromTypeHierarchy(normalInterfaceType, typeHierarchy, true);
 
-		Assert.assertEquals(Integer.class, resolvedNormalInterfaceType.getActualTypeArguments()[0]);
-
 		final ParameterizedType secondResolvedType = (ParameterizedType) resolvedNormalInterfaceType.getActualTypeArguments()[1];
 
+		Assert.assertEquals(Integer.class, resolvedNormalInterfaceType.getActualTypeArguments()[0]);
 		Assert.assertEquals(String.class, secondResolvedType.getActualTypeArguments()[0]);
 		Assert.assertEquals(Integer.class, secondResolvedType.getActualTypeArguments()[1]);
 	}
@@ -172,7 +153,45 @@ public class TypeExtractorContractTest {
 		final GenericArrayType genericArrayType = (GenericArrayType) resolvedNormalInterfaceType.getActualTypeArguments()[1];
 		Assert.assertEquals(Integer.class, resolvedNormalInterfaceType.getActualTypeArguments()[0]);
 		Assert.assertTrue(genericArrayType.getGenericComponentType() instanceof TypeVariable);
+	}
 
+	@Test
+	public void testMaterializeTypeVariableToActualType() {
+
+		final List<ParameterizedType> parameterizedTypes =
+			TypeExtractor.buildParameterizedTypeHierarchy(MySimpleUDF.class, BaseInterface.class, true);
+
+		final ParameterizedType normalInterfaceType = parameterizedTypes.get(parameterizedTypes.size() - 1);
+		final TypeVariable firstTypeVariableOfNormalInterface = (TypeVariable) normalInterfaceType.getActualTypeArguments()[0];
+		final TypeVariable secondTypeVariableOfNormalInterface = (TypeVariable) normalInterfaceType.getActualTypeArguments()[1];
+
+		final Type materializedFirstTypeVariable = TypeExtractor.materializeTypeVariable(parameterizedTypes, firstTypeVariableOfNormalInterface);
+		final ParameterizedType materializedSecondTypeVariable = (ParameterizedType) TypeExtractor.materializeTypeVariable(parameterizedTypes, secondTypeVariableOfNormalInterface);
+
+		Assert.assertEquals(Integer.class, materializedFirstTypeVariable);
+		Assert.assertEquals(String.class, materializedSecondTypeVariable.getActualTypeArguments()[0]);
+		Assert.assertEquals(Integer.class, materializedSecondTypeVariable.getActualTypeArguments()[1]);
+		Assert.assertEquals(Tuple2.class, materializedSecondTypeVariable.getRawType());
+	}
+
+	@Test
+	public void testMaterializeTypeVariableToBottomTypeVariable() {
+		final DefaultSimpleUDF myUdf = new DefaultSimpleUDF<String>();
+
+		final List<ParameterizedType> parameterizedTypes =
+			TypeExtractor.buildParameterizedTypeHierarchy(myUdf.getClass(), BaseInterface.class, true);
+
+		final ParameterizedType normalInterfaceType = parameterizedTypes.get(parameterizedTypes.size() - 1);
+
+		final TypeVariable firstTypeVariableOfNormalInterface = (TypeVariable) normalInterfaceType.getActualTypeArguments()[0];
+
+		final ParameterizedType abstractSimpleUDFType = parameterizedTypes.get(0);
+
+		final TypeVariable firstTypeVariableOfAbstractSimpleUDF = (TypeVariable) abstractSimpleUDFType.getActualTypeArguments()[0];
+		final Type materializedFirstTypeVariable =
+			TypeExtractor.materializeTypeVariable(parameterizedTypes, firstTypeVariableOfNormalInterface);
+
+		Assert.assertEquals(firstTypeVariableOfAbstractSimpleUDF, materializedFirstTypeVariable);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -180,7 +199,7 @@ public class TypeExtractorContractTest {
 	// --------------------------------------------------------------------------------------------
 
 	@Test
-	public void testBindTypeVariablesFromSimpleType() {
+	public void testBindTypeVariablesFromSimpleTypeInformation() {
 		final DefaultSimpleUDF myUdf = new DefaultSimpleUDF<String>();
 
 		final TypeVariable<?> inputTypeVariable =  myUdf.getClass().getTypeParameters()[0];
@@ -202,7 +221,7 @@ public class TypeExtractorContractTest {
 	}
 
 	@Test
-	public void testBindTypeVariableFromCompositeType() {
+	public void testBindTypeVariableFromCompositeTypeInformation() {
 
 		final CompositeUDF myCompositeUDF = new DefaultCompositeUDF<Long, Integer, Boolean>();
 
@@ -233,7 +252,7 @@ public class TypeExtractorContractTest {
 	}
 
 	@Test
-	public void testBindTypeVariableFromGenericArrayType() {
+	public void testBindTypeVariableFromGenericArrayTypeInformation() {
 		final GenericArrayUDF myGenericArrayUDF = new DefaultGenericArrayUDF<Double, Boolean>();
 
 		final TypeVariable<?> first = DefaultGenericArrayUDF.class.getTypeParameters()[0];
@@ -247,9 +266,25 @@ public class TypeExtractorContractTest {
 		expectedResult.put(second, secondTypeInformation);
 
 		final TypeInformation<Double> in1TypeInformation = TypeInformation.of(new TypeHint<Double>(){});
-		final TypeInformation<Boolean[]> in2TypeInformation = TypeInformation.of(new TypeHint<Boolean[]>(){});
 
-		final Map<TypeVariable<?>, TypeInformation<?>> result = TypeExtractor.bindTypeVariablesWithTypeInformationFromInputs(
+		//Test ObjectArray
+		TypeInformation<?> in2TypeInformation =
+			ObjectArrayTypeInfo.getInfoFor(Boolean[].class, TypeInformation.of(new TypeHint<Boolean>(){}));
+
+		Map<TypeVariable<?>, TypeInformation<?>> result = TypeExtractor.bindTypeVariablesWithTypeInformationFromInputs(
+			myGenericArrayUDF.getClass(),
+			BaseInterface.class,
+			in1TypeInformation,
+			0,
+			in2TypeInformation,
+			1);
+
+		Assert.assertEquals(expectedResult, result);
+
+		//Test BasicArrayTypeInfo
+		in2TypeInformation = TypeInformation.of(new TypeHint<Boolean[]>(){});
+
+		result = TypeExtractor.bindTypeVariablesWithTypeInformationFromInputs(
 			myGenericArrayUDF.getClass(),
 			BaseInterface.class,
 			in1TypeInformation,
@@ -261,7 +296,7 @@ public class TypeExtractorContractTest {
 	}
 
 	@Test
-	public void testBindTypeVariableFromPojoType() {
+	public void testBindTypeVariableFromPojoTypeInformation() {
 		final PojoUDF myPojoUDF = new DefaultPojoUDF<Double, String, Integer>();
 
 		final TypeVariable<?> first = DefaultPojoUDF.class.getTypeParameters()[0];
@@ -292,6 +327,39 @@ public class TypeExtractorContractTest {
 		Assert.assertEquals(expectedResult, result);
 	}
 
+	@Test
+	public void testBindTypeVariableFromTypeInfoFactory() {
+		final TypeInfoFactoryUDF typeInfoFactoryUDF = new DefaultTypeInfoFactoryUDF<String[], Boolean, Integer[]>();
+
+		final TypeInformation<String[]> in1TypeInformation = TypeInformation.of(new TypeHint<String[]>(){});
+		final TypeInformation<Either<Boolean, Integer[]>> in2TypeInformation =
+			TypeInformation.of(new TypeHint<Either<Boolean, Integer[]>>(){});
+
+		final TypeVariable<?> first = DefaultTypeInfoFactoryUDF.class.getTypeParameters()[0];
+		final TypeVariable<?> second = DefaultTypeInfoFactoryUDF.class.getTypeParameters()[1];
+		final TypeVariable<?> third = DefaultTypeInfoFactoryUDF.class.getTypeParameters()[2];
+
+		final TypeInformation<String[]> firstTypeInformation = TypeInformation.of(new TypeHint<String[]>(){});
+		final TypeInformation<Boolean> secondTypeInformation = TypeInformation.of(new TypeHint<Boolean>(){});
+		final TypeInformation<Integer[]> thirdTypeInformation = TypeInformation.of(new TypeHint<Integer[]>(){});
+
+		final Map<TypeVariable<?>, TypeInformation<?>> expectedResult = new HashMap<>();
+		expectedResult.put(first, firstTypeInformation);
+		expectedResult.put(second, secondTypeInformation);
+		expectedResult.put(third, thirdTypeInformation);
+
+		final Map<TypeVariable<?>, TypeInformation<?>> result =
+			TypeExtractor.bindTypeVariablesWithTypeInformationFromInputs(
+				typeInfoFactoryUDF.getClass(),
+				BaseInterface.class,
+				in1TypeInformation,
+				0,
+				in2TypeInformation,
+				1);
+
+		Assert.assertEquals(expectedResult, result);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Basic interfaces.
 	// --------------------------------------------------------------------------------------------
@@ -308,7 +376,7 @@ public class TypeExtractorContractTest {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Generic type does not have composite type.
+	// Generic parameter does not have composite type.
 	// --------------------------------------------------------------------------------------------
 
 	abstract class AbstractSimpleUDF<X, Y> implements RichInterface<X, Y> {
@@ -333,10 +401,11 @@ public class TypeExtractorContractTest {
 	}
 
 	private class MySimpleUDF extends DefaultSimpleUDF<Integer> {
+
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Generic type has composite type.
+	// Generic parameter has composite type.
 	// --------------------------------------------------------------------------------------------
 
 	interface CompositeUDF<X, Y, Z> extends RichInterface<X, Tuple2<Y, Z>> {
@@ -357,10 +426,11 @@ public class TypeExtractorContractTest {
 	}
 
 	private class MyCompositeUDF extends DefaultCompositeUDF<Integer, String, Boolean> {
+
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Generic type has generic array.
+	// Generic parameter has generic array type.
 	// --------------------------------------------------------------------------------------------
 
 	interface GenericArrayUDF<X, Y> extends RichInterface<X, Y[]> {
@@ -381,10 +451,11 @@ public class TypeExtractorContractTest {
 	}
 
 	private class MyGenericArrayUDF extends DefaultGenericArrayUDF<Integer, String> {
+
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Generic type has pojo type.
+	// Generic parameter has pojo type.
 	// --------------------------------------------------------------------------------------------
 
 	interface PojoUDF<X, Y, Z> extends RichInterface<X, Pojo<Y, Z>> {
@@ -440,4 +511,24 @@ public class TypeExtractorContractTest {
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Generic parameter has type info factory.
+	// --------------------------------------------------------------------------------------------
+
+	interface TypeInfoFactoryUDF<X, Y, Z> extends RichInterface<X, Either<Y, Z>>{
+
+	}
+
+	class DefaultTypeInfoFactoryUDF<X, Y, Z> implements TypeInfoFactoryUDF<X, Y, Z> {
+
+		@Override
+		public Either<Y, Z> foo(X x) {
+			return null;
+		}
+
+		@Override
+		public void open(X x, Either<Y, Z> yzEither) {
+
+		}
+	}
 }
