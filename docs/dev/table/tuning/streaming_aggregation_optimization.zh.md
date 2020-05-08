@@ -23,13 +23,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-SQL 是数据分析中使用最广泛的语言。Flink Table API 和 SQL 使用户能够以更少的时间和精力定义高效的流分析应用程序。而且，Flink Table API 和 SQL 是有效优化过的，它集成了许多查询优化和算子优化。但并不是所有的优化都是默认开启的，因此对于某些工作负载，可以通过打开某些选项来提高性能。
+SQL 是数据分析中使用最广泛的语言。Flink Table API 和 SQL 使用户能够以更少的时间和精力定义高效的流分析应用程序。此外，Flink Table API 和 SQL 是高效优化过的，它集成了许多查询优化和算子优化。但并不是所有的优化都是默认开启的，因此对于某些工作负载，可以通过打开某些选项来提高性能。
 
 在这一页，我们将介绍一些实用的优化选项以及流式聚合的内部原理，它们在某些情况下能带来很大的提升。
 
 <span class="label label-danger">注意</span> 目前，这一页提到的优化选项仅支持 Blink planner。
 
-<span class="label label-danger">注意</span> 目前，流聚合优化仅支持 [无界聚合]({{ site.baseurl }}/zh/dev/table/sql/queries.html#aggregations)。[窗口聚合]({{ site.baseurl }}/zh/dev/table/sql/queries.html#group-windows) 优化将在未来支持。
+<span class="label label-danger">注意</span> 目前，流聚合优化仅支持 [无界聚合]({{ site.baseurl }}/zh/dev/table/sql/queries.html#聚合)。[窗口聚合]({{ site.baseurl }}/zh/dev/table/sql/queries.html#分组窗口) 优化将在未来支持。
 
 * This will be replaced by the TOC
 {:toc}
@@ -104,7 +104,7 @@ FROM T
 GROUP BY color
 {% endhighlight %}
 
-数据流中的记录可能会倾斜，因此某些聚合算子的实例必须比其他实例处理更多的记录，这会导致 hotspot。本地聚合可以将一定数量具有相同 key 的输入数据累加到单个累加器中。全局聚合将仅接收 reduce 后的累加器，而不是大量的原始输入数据。这可以大大减少网络 shuffle 和状态访问的成本。每次本地聚合累积的输入数据量基于 mini-batch 间隔。这意味着 local-global 聚合依赖于启用了 mini-batch 优化。
+数据流中的记录可能会倾斜，因此某些聚合算子的实例必须比其他实例处理更多的记录，这会产生热点问题。本地聚合可以将一定数量具有相同 key 的输入数据累加到单个累加器中。全局聚合将仅接收 reduce 后的累加器，而不是大量的原始输入数据。这可以大大减少网络 shuffle 和状态访问的成本。每次本地聚合累积的输入数据量基于 mini-batch 间隔。这意味着 local-global 聚合依赖于启用了 mini-batch 优化。
 
 下图显示了 local-global 聚合如何提高性能。
 
@@ -199,7 +199,7 @@ GROUP BY day
 
 注意：上面是可以从这个优化中受益的最简单的示例。除此之外，Flink 还支持拆分更复杂的聚合查询，例如，多个具有不同 distinct key （例如 `COUNT(DISTINCT a), SUM(DISTINCT b)` ）的 distinct 聚合，可以与其他非 distinct 聚合（例如 `SUM`、`MAX`、`MIN`、`COUNT` ）一起使用。
 
-<span class="label label-danger">注意</span> 但是，当前，拆分优化不支持包含用户定义的 AggregateFunction 聚合。
+<span class="label label-danger">注意</span> 当前，拆分优化不支持包含用户定义的 AggregateFunction 聚合。
 
 下面的例子显示了如何启用拆分 distinct 聚合优化。
 
