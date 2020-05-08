@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * Test checkpoint for file system table factory with json format.
  */
-public class FsStreamJsonSinkITCase extends FsStreamingSinkITCaseBase {
+public class JsonFsStreamSinkITCase extends FsStreamingSinkITCaseBase {
 
 	@Override
 	public String[] additionalProperties() {

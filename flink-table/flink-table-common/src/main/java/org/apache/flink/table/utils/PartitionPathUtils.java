@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
@@ -211,13 +212,44 @@ public class PartitionPathUtils {
 	}
 
 	/**
+	 * Extract partition value from path and fill to record.
+	 * @param fieldNames record field names.
+	 * @param fieldTypes record field types.
+	 * @param selectFields the selected fields.
+	 * @param partitionKeys the partition field names.
+	 * @param path the file path that the partition located.
+	 * @param defaultPartValue default value of partition field.
+	 * @return the filled record.
+	 */
+	public static GenericRowData fillPartitionValueForRecord(
+			List<String> fieldNames,
+			List<DataType> fieldTypes,
+			int[] selectFields,
+			List<String> partitionKeys,
+			Path path,
+			String defaultPartValue) {
+		GenericRowData record = new GenericRowData(selectFields.length);
+		LinkedHashMap<String, String> partSpec = PartitionPathUtils.extractPartitionSpecFromPath(path);
+		for (int i = 0; i < selectFields.length; i++) {
+			int selectField = selectFields[i];
+			String name = fieldNames.get(selectField);
+			if (partitionKeys.contains(name)) {
+				String value = partSpec.get(name);
+				value = defaultPartValue.equals(value) ? null : value;
+				record.setField(i, PartitionPathUtils.convertStringToInternalValue(value, fieldTypes.get(selectField)));
+			}
+		}
+		return record;
+	}
+
+	/**
 	 * Restore partition value from string and type.
 	 *
 	 * @param valStr string partition value.
 	 * @param type type of partition field.
 	 * @return partition value.
 	 */
-	public static Object restorePartValueFromType(String valStr, DataType type) {
+	public static Object convertStringToInternalValue(String valStr, DataType type) {
 		if (valStr == null) {
 			return null;
 		}
@@ -238,7 +270,7 @@ public class PartitionPathUtils {
 			case BIGINT:
 				return Long.parseLong(valStr);
 			case FLOAT:
-				return Float.valueOf(valStr).floatValue();
+				return Float.parseFloat(valStr);
 			case DOUBLE:
 				return Double.parseDouble(valStr);
 			case DATE:

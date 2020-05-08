@@ -23,7 +23,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
@@ -38,11 +37,10 @@ import org.apache.flink.table.utils.PartitionPathUtils;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -107,7 +105,7 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 			failOnMissingField,
 			ignoreParseErrors);
 
-		return new JsonFileSystemFormat(
+		return new JsonInputFormat(
 			context.getPaths(),
 			fieldTypes,
 			fieldNames,
@@ -150,10 +148,10 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	/**
-	 * A {@link JsonFileSystemFormat} is responsible to read {@link RowData} records
+	 * A {@link JsonInputFormat} is responsible to read {@link RowData} records
 	 * from json format files.
 	 */
-	public static class JsonFileSystemFormat extends DelimitedInputFormat<RowData> {
+	public static class JsonInputFormat extends DelimitedInputFormat<RowData> {
 		/**
 		 * Code of \r, used to remove \r from a line when the line ends with \r\n.
 		 */
@@ -163,11 +161,6 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		 * Code of \n, used to identify if \n is used as delimiter.
 		 */
 		private static final byte NEW_LINE = (byte) '\n';
-
-		/**
-		 * The name of the charset to use for decoding.
-		 */
-		private String charsetName = "UTF-8";
 
 		private final List<DataType> fieldTypes;
 		private final List<String> fieldNames;
@@ -184,7 +177,7 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		// reuse object for per record
 		private transient GenericRowData rowData;
 
-		public JsonFileSystemFormat(
+		public JsonInputFormat(
 				Path[] filePaths,
 				List<DataType> fieldTypes,
 				List<String> fieldNames,
@@ -208,15 +201,6 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		}
 
 		@Override
-		public void configure(Configuration parameters) {
-			super.configure(parameters);
-
-			if (charsetName == null || !Charset.isSupported(charsetName)) {
-				throw new RuntimeException("Unsupported charset: " + charsetName);
-			}
-		}
-
-		@Override
 		public boolean supportsMultiPaths() {
 			return true;
 		}
@@ -225,23 +209,9 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		public void open(FileInputSplit split) throws IOException {
 			super.open(split);
 			this.end = false;
-			fillPartitionValueForRecord();
 			this.emitted = 0L;
-		}
-
-		private void fillPartitionValueForRecord() {
-			rowData = new GenericRowData(selectFields.length);
-			Path path = currentSplit.getPath();
-			LinkedHashMap<String, String> partSpec = PartitionPathUtils.extractPartitionSpecFromPath(path);
-			for (int i = 0; i < selectFields.length; i++) {
-				int selectField = selectFields[i];
-				String name = fieldNames.get(selectField);
-				if (partitionKeys.contains(name)) {
-					String value = partSpec.get(name);
-					value = defaultPartValue.equals(value) ? null : value;
-					rowData.setField(i, PartitionPathUtils.restorePartValueFromType(value, fieldTypes.get(selectField)));
-				}
-			}
+			this.rowData = PartitionPathUtils.fillPartitionValueForRecord(fieldNames, fieldTypes, selectFields,
+				partitionKeys, currentSplit.getPath(), defaultPartValue);
 		}
 
 		@Override
@@ -287,7 +257,7 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		@Override
 		public void encode(RowData element, OutputStream stream) throws IOException {
 			stream.write(serializationSchema.serialize(element));
-			stream.write(DEFAULT_LINE_DELIMITER.getBytes());
+			stream.write(DEFAULT_LINE_DELIMITER.getBytes(StandardCharsets.UTF_8));
 		}
 	}
 }
