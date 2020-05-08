@@ -33,6 +33,9 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.testjob.YarnTestCacheJob;
 import org.apache.flink.yarn.util.YarnTestUtils;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -40,13 +43,18 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test cases for the deployment of Yarn Flink clusters.
@@ -57,7 +65,7 @@ public class YARNITCase extends YarnTestBase {
 	private static final int sleepIntervalInMS = 100;
 
 	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder(new File("/tmp"));
 
 	@BeforeClass
 	public static void setup() {
@@ -84,6 +92,18 @@ public class YARNITCase extends YarnTestBase {
 		runTest(() -> deployPerJob(
 			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED),
 			YarnTestCacheJob.getDistributedCacheJobGraph(tmp.newFolder())));
+	}
+
+	@Test
+	public void testPerJobWithProvidedLibDirs() throws Exception {
+		final File tmpFlinkReleaseBinary = temporaryFolder.newFolder("flink-provided-lib");
+		FileUtils.copyDirectory(flinkLibFolder, tmpFlinkReleaseBinary);
+
+		final List<String> sharedLibDirs = Collections.singletonList(tmpFlinkReleaseBinary.getAbsoluteFile().toString());
+		final Configuration flinkConfig = createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED);
+		flinkConfig.set(YarnConfigOptions.PROVIDED_LIB_DIRS, sharedLibDirs);
+
+		runTest(() -> deployPerJob(flinkConfig, getTestingJobGraph()));
 	}
 
 	private void deployPerJob(Configuration configuration, JobGraph jobGraph) throws Exception {
@@ -115,8 +135,28 @@ public class YARNITCase extends YarnTestBase {
 				assertThat(jobResult, is(notNullValue()));
 				assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
 
+				checkStagingDirectory(configuration, applicationId);
+
 				waitApplicationFinishedElseKillIt(
 					applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor, sleepIntervalInMS);
+			}
+		}
+	}
+
+	private void checkStagingDirectory(Configuration flinkConfig, ApplicationId appId) throws IOException {
+		final List<String> providedLibDirs = flinkConfig.get(YarnConfigOptions.PROVIDED_LIB_DIRS);
+		final boolean isProvidedLibDirsConfigured  = providedLibDirs != null && !providedLibDirs.isEmpty();
+
+		try (final FileSystem fs = FileSystem.get(YARN_CONFIGURATION)) {
+			final Path stagingDirectory = new Path(fs.getHomeDirectory(), ".flink/" + appId.toString());
+			if (isProvidedLibDirsConfigured) {
+				assertFalse(
+					"The provided lib dirs is set, so the lib directory should not be uploaded to staging directory.",
+					fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())));
+			} else {
+				assertTrue(
+					"The lib directory should be uploaded to staging directory.",
+					fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())));
 			}
 		}
 	}

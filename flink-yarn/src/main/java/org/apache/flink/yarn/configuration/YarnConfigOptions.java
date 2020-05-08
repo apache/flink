@@ -260,6 +260,17 @@ public class YarnConfigOptions {
 									"resource directory. If set to false, Flink" +
 									" will try to directly locate the keytab from the path itself.");
 
+	public static final ConfigOption<List<String>> PROVIDED_LIB_DIRS =
+		key("yarn.provided.lib.dirs")
+			.stringType()
+			.asList()
+			.noDefaultValue()
+			.withDescription("A semicolon-separated list of provided lib directories. They should be pre-uploaded and " +
+				"world-readable. Flink will use them to exclude the local Flink jars(e.g. flink-dist, lib/, plugins/)" +
+				"uploading to accelerate the job submission process. Also YARN will cache them on the nodes so that " +
+				"they doesn't need to be downloaded every time for each application. An example could be " +
+				"hdfs://$namenode_address/path/of/flink/lib");
+
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated. */

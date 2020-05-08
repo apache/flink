@@ -40,10 +40,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.DataOutputStream;
-import java.io.File;
+					import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -52,6 +50,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.yarn.YarnTestUtils.generateFilesInDirectory;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -191,18 +190,16 @@ public class YarnFileStageTest extends TestLogger {
 		// copy the created directory recursively:
 		try {
 			final List<Path> remotePaths = new ArrayList<>();
-			final HashMap<String, LocalResource> localResources = new HashMap<>();
 
 			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
 			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.from(
-					targetFileSystem, targetDir, applicationId);
+					targetFileSystem, targetDir, Collections.emptyList(), applicationId);
 
-			final List<String> classpath = uploader.setupMultipleLocalResources(
+			final List<String> classpath = uploader.registerMultipleLocalResources(
 				Collections.singletonList(new File(srcPath.toUri().getPath())),
 				remotePaths,
-				localResources,
 				localResourceDirectory,
-				new StringBuilder(),
+				new ArrayList<>(),
 				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
 			final Path basePath = new Path(localResourceDirectory, srcDir.getName());
@@ -215,6 +212,7 @@ public class YarnFileStageTest extends TestLogger {
 					new Path(nestedPath, "4").toString(),
 					new Path(basePath, "test.jar").toString()));
 
+			final Map<String, LocalResource> localResources = uploader.getRegisteredLocalResources();
 			assertEquals(srcFiles.size(), localResources.size());
 
 			final Path workDir = ConverterUtils
@@ -256,22 +254,21 @@ public class YarnFileStageTest extends TestLogger {
 		generateFilesInDirectory(srcDir, srcFiles);
 		try {
 			final List<Path> remotePaths = new ArrayList<>();
-			final HashMap<String, LocalResource> localResources = new HashMap<>();
 
 			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
 			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.from(
-					targetFileSystem, targetDir, applicationId);
+					targetFileSystem, targetDir, Collections.emptyList(), applicationId);
 
-			final List<String> classpath = uploader.setupMultipleLocalResources(
+			final List<String> classpath = uploader.registerMultipleLocalResources(
 				Collections.singletonList(new File(srcDir, localFile)),
 				remotePaths,
-				localResources,
 				localResourceDirectory,
-				new StringBuilder(),
+				new ArrayList<>(),
 				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
 			assertThat(classpath, containsInAnyOrder(new Path(localResourceDirectory, localFile).toString()));
 
+			final Map<String, LocalResource> localResources = uploader.getRegisteredLocalResources();
 			final Path workDir = ConverterUtils.getPathFromYarnURL(
 				localResources.get(new Path(localResourceDirectory, localFile).toString()).getResource()).getParent();
 			verifyDirectoryRecursive(targetFileSystem, workDir, srcFiles);
@@ -279,21 +276,6 @@ public class YarnFileStageTest extends TestLogger {
 			targetFileSystem.delete(targetDir, true);
 		}
 	}
-
-	private static void generateFilesInDirectory(
-		File directory,
-		HashMap<String /* (relative) path */, /* contents */ String> srcFiles) throws IOException {
-
-		for (Map.Entry<String, String> src : srcFiles.entrySet()) {
-			File file = new File(directory, src.getKey());
-			//noinspection ResultOfMethodCallIgnored
-			file.getParentFile().mkdirs();
-			try (DataOutputStream out = new DataOutputStream(new FileOutputStream(file))) {
-				out.writeUTF(src.getValue());
-			}
-		}
-	}
-
 
 	/**
 	 * Verifies the content and name of file in the directory {@code worDir} are same with {@code expectedFiles}.
