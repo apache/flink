@@ -99,6 +99,10 @@ public class CliClientTest extends TestLogger {
 		verifySqlCompletion("  qu", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
 		verifySqlCompletion("set ", 3, Collections.emptyList(), Collections.singletonList("SET"));
 		verifySqlCompletion("show t ", 6, Collections.emptyList(), Collections.singletonList("SET"));
+		verifySqlCompletion("use cat", 7, Collections.singletonList("CATALOG"), Collections.singletonList("USE CATALOG"));
+		verifySqlCompletion("use ", 4, Collections.singletonList("CATALOG"), Collections.singletonList("USE CATALOG"));
+		verifySqlCompletion("use catalog", 11, Collections.emptyList(), Collections.singletonList("CATALOG"));
+
 	}
 
 	@Test
