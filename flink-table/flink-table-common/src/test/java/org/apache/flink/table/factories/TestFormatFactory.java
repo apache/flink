@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.ScanFormat;
 import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
@@ -150,7 +151,7 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 
 		@Override
 		public SerializationSchema<RowData> createSinkFormat(
-				ScanTableSource.Context context,
+				DynamicTableSink.Context context,
 				DataType consumeDataType) {
 			return null;
 		}

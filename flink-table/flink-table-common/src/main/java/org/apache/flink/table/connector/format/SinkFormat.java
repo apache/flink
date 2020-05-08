@@ -20,7 +20,6 @@ package org.apache.flink.table.connector.format;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.types.DataType;
 
 /**
@@ -34,5 +33,5 @@ public interface SinkFormat<I> extends Format {
 	/**
 	 * Creates runtime implementation that is configured to consume data of the given data type.
 	 */
-	I createSinkFormat(ScanTableSource.Context context, DataType consumedDataType);
+	I createSinkFormat(DynamicTableSink.Context context, DataType consumedDataType);
 }
