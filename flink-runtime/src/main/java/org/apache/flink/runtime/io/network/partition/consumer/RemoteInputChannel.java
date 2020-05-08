@@ -216,7 +216,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 		numBytesIn.inc(next.getSize());
 		numBuffersIn.inc();
-		return Optional.of(new BufferAndAvailability(next, moreAvailable, getSenderBacklog()));
+		return Optional.of(new BufferAndAvailability(next, moreAvailable, 0));
 	}
 
 	@Override
@@ -368,6 +368,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		return numRequiredBuffers;
 	}
 
+	@VisibleForTesting
 	public int getSenderBacklog() {
 		return numRequiredBuffers - initialCredit;
 	}
