@@ -72,6 +72,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The slot pool serves slot request issued by {@link ExecutionGraph}. It will attempt to acquire new slots
@@ -133,6 +134,8 @@ public class SlotPoolImpl implements SlotPool {
 
 	private ComponentMainThreadExecutor componentMainThreadExecutor;
 
+	private SlotRequestBulkManager slotRequestBulkManager;
+
 	// ------------------------------------------------------------------------
 
 	public SlotPoolImpl(
@@ -159,6 +162,8 @@ public class SlotPoolImpl implements SlotPool {
 		this.jobManagerAddress = null;
 
 		this.componentMainThreadExecutor = null;
+
+		this.slotRequestBulkManager = new SlotRequestBulkManager(clock);
 	}
 
 	// ------------------------------------------------------------------------
@@ -187,6 +192,11 @@ public class SlotPoolImpl implements SlotPool {
 	@VisibleForTesting
 	Map<SlotRequestId, PendingRequest> getWaitingForResourceManager() {
 		return waitingForResourceManager;
+	}
+
+	@VisibleForTesting
+	Set<Long> getSlotRequestBulkIds() {
+		return slotRequestBulkManager.getSlotRequestBulks().keySet();
 	}
 
 	// ------------------------------------------------------------------------
@@ -429,17 +439,12 @@ public class SlotPoolImpl implements SlotPool {
 			slotRequestTimeout = batchSlotTimeout;
 		}
 
-		return requestNewAllocatedSlotInternal(pendingRequest, slotRequestTimeout);
-	}
+		// schedule timeout check of a bulk on its first arrived request
+		if (!slotRequestBulkManager.hasBulk(request.getBulkId())) {
+			schedulePendingRequestBulkTimeoutCheck(request.getBulkId(), slotRequestTimeout);
+		}
 
-	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlotInternal(
-			final PendingRequest pendingRequest,
-			final Time slotRequestTimeout) {
-
-		final long currentTimestamp = clock.relativeTimeMillis();
-		pendingRequest.markUnfulfillable(currentTimestamp);
-
-		schedulePendingRequestTimeoutCheck(pendingRequest, slotRequestTimeout);
+		slotRequestBulkManager.addRequestToBulk(pendingRequest, request.getBulkId());
 
 		return requestNewAllocatedSlotInternal(pendingRequest)
 			.thenApply(Function.identity());
@@ -863,41 +868,52 @@ public class SlotPoolImpl implements SlotPool {
 		scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);
 	}
 
-	private void schedulePendingRequestTimeoutCheck(final PendingRequest pendingRequest, final Time slotRequestTimeout) {
+	private void schedulePendingRequestBulkTimeoutCheck(final long bulkId, final Time slotRequestTimeout) {
 		scheduleRunAsync(() -> {
-			if (!checkPendingRequestTimeout(pendingRequest, slotRequestTimeout)) {
-				schedulePendingRequestTimeoutCheck(pendingRequest, slotRequestTimeout);
+			if (!checkPendingRequestBulkTimeout(bulkId, slotRequestTimeout)) {
+				schedulePendingRequestBulkTimeoutCheck(bulkId, slotRequestTimeout);
 			}
 		}, slotRequestTimeout);
 	}
 
 	/**
-	 * Check slot request and timeout it if it has been unfilfillable for too long.
-	 * @param pendingRequest slot request to check
+	 * Check the slot request bulk and timeout its requests if it has been unfilfillable for too long.
+	 * @param bulkId id of the slot request bulk
 	 * @param slotRequestTimeout indicates how long a pending request can be unfilfillable
-	 * @return false if the request is still pending. true if the request is done or timed out
+	 * @return false if the request bulk is still pending. true if the request bulk is done or timed out
 	 */
 	@VisibleForTesting
-	protected boolean checkPendingRequestTimeout(final PendingRequest pendingRequest, final Time slotRequestTimeout) {
-		if (pendingRequest.getAllocatedSlotFuture().isDone()) {
+	protected boolean checkPendingRequestBulkTimeout(final long bulkId, final Time slotRequestTimeout) {
+		final Collection<PendingRequest> bulkRequests = slotRequestBulkManager.getSlotRequestBulk(bulkId);
+
+		if (bulkRequests.isEmpty()) {
 			return true;
 		}
 
-		final boolean fulfillable = isSlotRequestFulfillableWithReusableSlots(pendingRequest);
-
-		final long currentTimestamp = clock.relativeTimeMillis();
+		final boolean fulfillable = isSlotRequestBulkFulfillableWithReusableSlots(bulkRequests);
 		if (fulfillable) {
-			pendingRequest.markFulfillable();
+			slotRequestBulkManager.markBulkFulfillable(bulkId);
 		} else {
-			pendingRequest.markUnfulfillable(currentTimestamp);
+			final long currentTimestamp = clock.relativeTimeMillis();
 
-			if (pendingRequest.getUnfulfillableSince() + slotRequestTimeout.toMilliseconds() <= currentTimestamp) {
-				timeoutPendingSlotRequest(pendingRequest.getSlotRequestId());
+			slotRequestBulkManager.markBulkUnfulfillable(bulkId, currentTimestamp);
+
+			if (slotRequestBulkManager.getBulkUnfulfillableSince(bulkId) + slotRequestTimeout.toMilliseconds() <= currentTimestamp) {
+				for (PendingRequest pendingRequest : bulkRequests) {
+					checkState(!pendingRequest.getAllocatedSlotFuture().isDone());
+
+					timeoutPendingSlotRequest(pendingRequest.getSlotRequestId());
+				}
 				return true;
 			}
 		}
 
 		return false;
+	}
+
+	private boolean isSlotRequestBulkFulfillableWithReusableSlots(final Collection<PendingRequest> bulkRequests) {
+		final Set<SlotInfo> reusableSlots = getReusableSlots();
+		return bulkRequests.stream().allMatch(request -> pollMatchedSlotForRequest(request, reusableSlots));
 	}
 
 	private Set<SlotInfo> getReusableSlots() {
@@ -909,16 +925,11 @@ public class SlotPoolImpl implements SlotPool {
 			.collect(Collectors.toSet());
 	}
 
-	private boolean isSlotRequestFulfillableWithReusableSlots(final PendingRequest pendingRequest) {
-		final Set<SlotInfo> reusableSlots = getReusableSlots();
-
-		for (SlotInfo slotInfo : reusableSlots) {
-			if (slotInfo.getResourceProfile().isMatching(pendingRequest.getResourceProfile())) {
-				return true;
-			}
-		}
-
-		return false;
+	private static boolean pollMatchedSlotForRequest(final PendingRequest request, final Collection<SlotInfo> slots) {
+		final Optional<SlotInfo> matched = slots.stream()
+			.filter(slot -> slot.getResourceProfile().isMatching(request.getResourceProfile()))
+			.findFirst();
+		return matched.isPresent();
 	}
 
 	/**

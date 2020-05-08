@@ -29,6 +29,7 @@ import org.apache.flink.runtime.util.clock.SystemClock;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Testing extension of the {@link SlotPoolImpl} which adds additional methods
@@ -62,9 +63,19 @@ public class TestingSlotPoolImpl extends SlotPoolImpl {
 
 	void triggerCheckPendingRequestsTimeout(final Time timeout) {
 		runAsync(() -> {
-			final Set<PendingRequest> pendingRequests = new HashSet<>(getPendingRequests().values());
-			pendingRequests.forEach(request -> checkPendingRequestTimeout(request, timeout));
+			final Set<Long> requestBulkIds = new HashSet<>(getSlotRequestBulkIds());
+			requestBulkIds.forEach(bulkId -> checkPendingRequestBulkTimeout(bulkId, timeout));
 		});
+	}
+
+	void triggerAndWaitForPendingRequestsTimeoutCheck(final Time timeout, final Executor executor) {
+		CompletableFuture
+			.runAsync(
+				() -> {
+					final Set<Long> requestBulkIds = new HashSet<>(getSlotRequestBulkIds());
+					requestBulkIds.forEach(bulkId -> checkPendingRequestBulkTimeout(bulkId, timeout));
+				},
+				executor).join();
 	}
 
 	@Override
