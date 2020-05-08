@@ -35,7 +35,10 @@ import py4j.GatewayServer;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -277,16 +280,7 @@ final class PythonEnvUtils {
 					.gateway(new Gateway(new ConcurrentHashMap<String, Object>(), new CallbackClient(freePort)))
 					.javaPort(0)
 					.build();
-				CallbackClient callbackClient = (CallbackClient) server.getCallbackClient();
-				// The Java API of py4j does not provide approach to set "daemonize_connections" parameter.
-				// Use reflect to daemonize the connection thread.
-				Field executor = CallbackClient.class.getDeclaredField("executor");
-				executor.setAccessible(true);
-				((ScheduledExecutorService) executor.get(callbackClient)).shutdown();
-				executor.set(callbackClient, Executors.newScheduledThreadPool(1, Thread::new));
-				Method setupCleaner = CallbackClient.class.getDeclaredMethod("setupCleaner");
-				setupCleaner.setAccessible(true);
-				setupCleaner.invoke(callbackClient);
+				resetCallbackClientExecutorService(server);
 				gatewayServerFuture.complete(server);
 				server.start(true);
 			} catch (Throwable e) {
@@ -298,6 +292,43 @@ final class PythonEnvUtils {
 		thread.start();
 		thread.join();
 		return gatewayServerFuture.get();
+	}
+
+	/**
+	 * Reset a daemon thread to the callback client thread pool so that the callback server can be terminated when gate
+	 * way server is shutting down. We need to shut down the none-daemon thread firstly, then set a new thread created
+	 * in a daemon thread to the ExecutorService.
+	 *
+	 * @param gatewayServer the gateway which creates the callback server.
+	 * */
+	private static void resetCallbackClientExecutorService(GatewayServer gatewayServer) throws NoSuchFieldException,
+		IllegalAccessException, NoSuchMethodException, InvocationTargetException {
+		CallbackClient callbackClient = (CallbackClient) gatewayServer.getCallbackClient();
+		// The Java API of py4j does not provide approach to set "daemonize_connections" parameter.
+		// Use reflect to daemonize the connection thread.
+		Field executor = CallbackClient.class.getDeclaredField("executor");
+		executor.setAccessible(true);
+		((ScheduledExecutorService) executor.get(callbackClient)).shutdown();
+		executor.set(callbackClient, Executors.newScheduledThreadPool(1, Thread::new));
+		Method setupCleaner = CallbackClient.class.getDeclaredMethod("setupCleaner");
+		setupCleaner.setAccessible(true);
+		setupCleaner.invoke(callbackClient);
+	}
+
+	/**
+	 * Reset the callback client of gatewayServer with the given callbackListeningAddress and callbackListeningPort
+	 * after the callback server started.
+	 *
+	 * @param callbackServerListeningAddress the listening address of the callback server.
+	 * @param callbackServerListeningPort the listening port of the callback server.
+	 * */
+	public static void resetCallbackClient(String callbackServerListeningAddress, int callbackServerListeningPort) throws
+		UnknownHostException, InvocationTargetException, NoSuchMethodException, IllegalAccessException,
+		NoSuchFieldException {
+
+		gatewayServer = getGatewayServer();
+		gatewayServer.resetCallbackClient(InetAddress.getByName(callbackServerListeningAddress), callbackServerListeningPort);
+		resetCallbackClientExecutorService(gatewayServer);
 	}
 
 	/**
@@ -313,7 +344,7 @@ final class PythonEnvUtils {
 
 	static void setGatewayServer(GatewayServer gatewayServer) {
 		Preconditions.checkArgument(gatewayServer == null || PythonEnvUtils.gatewayServer == null);
-		PythonEnvUtils.gatewayServer = null;
+		PythonEnvUtils.gatewayServer = gatewayServer;
 	}
 
 	static Process launchPy4jPythonClient(
@@ -326,8 +357,6 @@ final class PythonEnvUtils {
 			config, entryPointScript, tmpDir);
 		// set env variable PYFLINK_GATEWAY_PORT for connecting of python gateway in python process.
 		pythonEnv.systemEnv.put("PYFLINK_GATEWAY_PORT", String.valueOf(gatewayServer.getListeningPort()));
-		// set env variable PYFLINK_CALLBACK_PORT for creating callback server in python process.
-		pythonEnv.systemEnv.put("PYFLINK_CALLBACK_PORT", String.valueOf(gatewayServer.getCallbackClient().getPort()));
 		// start the python process.
 		return PythonEnvUtils.startPythonProcess(pythonEnv, commands);
 	}
