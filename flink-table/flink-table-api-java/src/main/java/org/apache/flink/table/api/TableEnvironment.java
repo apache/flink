@@ -1132,4 +1132,11 @@ public interface TableEnvironment {
 	 * @throws Exception which occurs during job execution.
 	 */
 	JobExecutionResult execute(String jobName) throws Exception;
+
+	/**
+	 * Create a {@link StatementSet} instance which accepts DML statements or Tables,
+	 * the planner can optimize all added statements and Tables together
+	 * and then submit as one job.
+	 */
+	StatementSet createStatementSet();
 }

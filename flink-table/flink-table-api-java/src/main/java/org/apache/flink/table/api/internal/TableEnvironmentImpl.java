@@ -30,6 +30,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.SqlParserException;
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -655,12 +656,38 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	@Override
-	public TableResult executeInternal(List<ModifyOperation> operations) {
-		if (operations.size() != 1) {
-			throw new TableException("Only one ModifyOperation is supported now.");
-		}
+	public StatementSet createStatementSet() {
+		return new StatementSetImpl(this);
+	}
 
-		return executeOperation(operations.get(0));
+	@Override
+	public TableResult executeInternal(List<ModifyOperation> operations) {
+		List<Transformation<?>> transformations = translate(operations);
+		String jobName = extractJobName(operations);
+		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
+		try {
+			JobClient jobClient = execEnv.executeAsync(pipeline);
+			TableSchema.Builder builder = TableSchema.builder();
+			Object[] affectedRowCounts = new Long[operations.size()];
+			for (int i = 0; i < operations.size(); ++i) {
+				// if only one operation, field name is 'affected_rowcount', else is 'affected_rowcount_$i'
+				String fieldName = "affected_rowcount";
+				if (operations.size() > 1) {
+					fieldName = fieldName + "_" + i;
+				}
+				builder.field(fieldName, DataTypes.BIGINT());
+				affectedRowCounts[i] = -1L;
+			}
+
+			return TableResultImpl.builder()
+					.jobClient(jobClient)
+					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+					.tableSchema(builder.build())
+					.data(Collections.singletonList(Row.of(affectedRowCounts)))
+					.build();
+		} catch (Exception e) {
+			throw new TableException("Failed to execute sql", e);
+		}
 	}
 
 	@Override
@@ -698,20 +725,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
 	private TableResult executeOperation(Operation operation) {
 		if (operation instanceof ModifyOperation) {
-			List<Transformation<?>> transformations = translate(Collections.singletonList((ModifyOperation) operation));
-			String jobName = extractJobName(operation);
-			Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
-			try {
-				JobClient jobClient = execEnv.executeAsync(pipeline);
-				return TableResultImpl.builder()
-						.jobClient(jobClient)
-						.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-						.tableSchema(TableSchema.builder().field("affected_rowcount", DataTypes.BIGINT()).build())
-						.data(Collections.singletonList(Row.of(-1L)))
-						.build();
-			} catch (Exception e) {
-				throw new TableException("Failed to execute sql", e);
-			}
+			return executeInternal(Collections.singletonList((ModifyOperation) operation));
 		} else if (operation instanceof CreateTableOperation) {
 			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
 			if (createTableOperation.isTemporary()) {
@@ -894,14 +908,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 				.build();
 	}
 
-	private String extractJobName(Operation operation) {
-		String tableName;
-		if (operation instanceof CatalogSinkModifyOperation) {
-			tableName = ((CatalogSinkModifyOperation) operation).getTableIdentifier().toString();
-		} else {
-			throw new UnsupportedOperationException("Unsupported operation: " + operation);
+	private String extractJobName(List<ModifyOperation> operations) {
+		List<String> tableNames = new ArrayList<>();
+		for (ModifyOperation operation : operations) {
+			if (operation instanceof CatalogSinkModifyOperation) {
+				String tableName = ((CatalogSinkModifyOperation) operation).getTableIdentifier().toString();
+				tableNames.add(tableName);
+			} else {
+				throw new UnsupportedOperationException("Unsupported operation: " + operation);
+			}
 		}
-		return "insert_into_" + tableName;
+		return "insert_into_" + String.join(",", tableNames);
 	}
 
 	/** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */

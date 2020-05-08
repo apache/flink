@@ -28,6 +28,7 @@ from pyflink.common import JobExecutionResult
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
 from pyflink.table.serializers import ArrowSerializer
+from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
 from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor
 
@@ -523,6 +524,18 @@ class TableEnvironment(object):
                 or a string message ("OK") for other statements.
         """
         return self._j_tenv.executeSql(stmt)
+
+    def create_statement_set(self):
+        """
+        Create a StatementSet instance which accepts DML statements or Tables,
+        the planner can optimize all added statements and Tables together
+        and then submit as one job.
+
+        :return statement_set instance
+        :rtype: pyflink.table.StatementSet
+        """
+        _j_statement_set = self._j_tenv.createStatementSet()
+        return StatementSet(_j_statement_set)
 
     def sql_update(self, stmt):
         """
