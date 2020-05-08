@@ -130,7 +130,7 @@ public class RemoteInputChannelTest {
 	@Test
 	public void testConcurrentNotifyBufferAvailableAndRelease() throws Exception {
 		testConcurrentReleaseAndSomething(1024, (inputChannel, buffer, j) ->
-			inputChannel.notifyBufferAvailable(buffer)
+			inputChannel.getBufferManager().notifyBufferAvailable(buffer)
 		);
 	}
 
@@ -377,7 +377,7 @@ public class RemoteInputChannelTest {
 			// The channel requests (backlog + numExclusiveBuffers) floating buffers from local pool.
 			// It does not get enough floating buffers and register as buffer listener
 			verify(bufferPool, times(15)).requestBuffer();
-			verify(bufferPool, times(1)).addBufferListener(inputChannel);
+			verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 13 buffers available in the channel",
 				13, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 16 buffers required in the channel",
@@ -391,7 +391,7 @@ public class RemoteInputChannelTest {
 
 			// The channel is already in the status of waiting for buffers and will not request any more
 			verify(bufferPool, times(15)).requestBuffer();
-			verify(bufferPool, times(1)).addBufferListener(inputChannel);
+			verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 13 buffers available in the channel",
 				13, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 18 buffers required in the channel",
@@ -405,7 +405,7 @@ public class RemoteInputChannelTest {
 
 			// The exclusive buffer is returned to the channel directly
 			verify(bufferPool, times(15)).requestBuffer();
-			verify(bufferPool, times(1)).addBufferListener(inputChannel);
+			verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 14 buffers available in the channel",
 				14, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 18 buffers required in the channel",
@@ -419,7 +419,7 @@ public class RemoteInputChannelTest {
 
 			// Assign the floating buffer to the listener and the channel is still waiting for more floating buffers
 			verify(bufferPool, times(15)).requestBuffer();
-			verify(bufferPool, times(1)).addBufferListener(inputChannel);
+			verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 15 buffers available in the channel",
 				15, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 18 buffers required in the channel",
@@ -433,7 +433,7 @@ public class RemoteInputChannelTest {
 
 			// Only the number of required buffers is changed by (backlog + numExclusiveBuffers)
 			verify(bufferPool, times(15)).requestBuffer();
-			verify(bufferPool, times(1)).addBufferListener(inputChannel);
+			verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 15 buffers available in the channel",
 				15, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 15 buffers required in the channel",
@@ -447,7 +447,7 @@ public class RemoteInputChannelTest {
 
 			// Return the floating buffer to the buffer pool and the channel is not waiting for more floating buffers
 			verify(bufferPool, times(15)).requestBuffer();
-			verify(bufferPool, times(1)).addBufferListener(inputChannel);
+			verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 15 buffers available in the channel",
 				15, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 15 buffers required in the channel",
@@ -461,7 +461,7 @@ public class RemoteInputChannelTest {
 
 			// The floating buffer is requested from the buffer pool and the channel is registered as listener again.
 			verify(bufferPool, times(17)).requestBuffer();
-			verify(bufferPool, times(2)).addBufferListener(inputChannel);
+			verify(bufferPool, times(2)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 16 buffers available in the channel",
 				16, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 17 buffers required in the channel",
@@ -509,7 +509,7 @@ public class RemoteInputChannelTest {
 			// The channel requests (backlog + numExclusiveBuffers) floating buffers from local pool
 			// and gets enough floating buffers
 			verify(bufferPool, times(14)).requestBuffer();
-			verify(bufferPool, times(0)).addBufferListener(inputChannel);
+			verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 14 buffers available in the channel",
 				14, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 14 buffers required in the channel",
@@ -523,7 +523,7 @@ public class RemoteInputChannelTest {
 			// The floating buffer is returned to local buffer directly because the channel is not waiting
 			// for floating buffers
 			verify(bufferPool, times(14)).requestBuffer();
-			verify(bufferPool, times(0)).addBufferListener(inputChannel);
+			verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 14 buffers available in the channel",
 				14, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 14 buffers required in the channel",
@@ -537,7 +537,7 @@ public class RemoteInputChannelTest {
 			// Return one extra floating buffer to the local pool because the number of available buffers
 			// already equals to required buffers
 			verify(bufferPool, times(14)).requestBuffer();
-			verify(bufferPool, times(0)).addBufferListener(inputChannel);
+			verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 14 buffers available in the channel",
 				14, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 14 buffers required in the channel",
@@ -585,7 +585,7 @@ public class RemoteInputChannelTest {
 
 			// The channel gets enough floating buffers from local pool
 			verify(bufferPool, times(14)).requestBuffer();
-			verify(bufferPool, times(0)).addBufferListener(inputChannel);
+			verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 14 buffers available in the channel",
 				14, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 14 buffers required in the channel",
@@ -598,7 +598,7 @@ public class RemoteInputChannelTest {
 
 			// Only the number of required buffers is changed by (backlog + numExclusiveBuffers)
 			verify(bufferPool, times(14)).requestBuffer();
-			verify(bufferPool, times(0)).addBufferListener(inputChannel);
+			verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 14 buffers available in the channel",
 				14, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 12 buffers required in the channel",
@@ -612,7 +612,7 @@ public class RemoteInputChannelTest {
 			// Return one extra floating buffer to the local pool because the number of available buffers
 			// is more than required buffers
 			verify(bufferPool, times(14)).requestBuffer();
-			verify(bufferPool, times(0)).addBufferListener(inputChannel);
+			verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 14 buffers available in the channel",
 				14, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 12 buffers required in the channel",
@@ -626,7 +626,7 @@ public class RemoteInputChannelTest {
 			// The floating buffer is returned to local pool directly because the channel is not waiting for
 			// floating buffers
 			verify(bufferPool, times(14)).requestBuffer();
-			verify(bufferPool, times(0)).addBufferListener(inputChannel);
+			verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
 			assertEquals("There should be 14 buffers available in the channel",
 				14, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 12 buffers required in the channel",
@@ -678,7 +678,7 @@ public class RemoteInputChannelTest {
 			// and register as listeners as a result
 			for (RemoteInputChannel inputChannel : inputChannels) {
 				inputChannel.onSenderBacklog(8);
-				verify(bufferPool, times(1)).addBufferListener(inputChannel);
+				verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
 				assertEquals("There should be " + numExclusiveBuffers + " buffers available in the channel",
 					numExclusiveBuffers, inputChannel.getNumberOfAvailableBuffers());
 			}
@@ -689,8 +689,8 @@ public class RemoteInputChannelTest {
 			}
 
 			for (RemoteInputChannel inputChannel : inputChannels) {
-				verify(inputChannel, times(1)).notifyBufferAvailable(any(Buffer.class));
 				assertEquals("There should be 3 buffers available in the channel", 3, inputChannel.getNumberOfAvailableBuffers());
+				assertEquals("There should be 1 unannounced credits in the channel", 1, inputChannel.getUnannouncedCredit());
 			}
 		} catch (Throwable t) {
 			thrown = t;
@@ -701,8 +701,8 @@ public class RemoteInputChannelTest {
 
 	/**
 	 * Tests that failures are propagated correctly if
-	 * {@link RemoteInputChannel#notifyBufferAvailable(Buffer)} throws an exception. Also tests that
-	 * a second listener will be notified in this case.
+	 * {@link BufferManager#notifyBufferAvailable(Buffer)} throws an exception.
+	 * Also tests that a second listener will be notified in this case.
 	 */
 	@Test
 	public void testFailureInNotifyBufferAvailable() throws Exception {
@@ -974,7 +974,7 @@ public class RemoteInputChannelTest {
 								break;
 							} else {
 								//noinspection ObjectEquality
-								if (buffer.getRecycler() == inputChannel) {
+								if (buffer.getRecycler() == inputChannel.getBufferManager()) {
 									exclusiveBuffers.add(buffer);
 								} else {
 									floatingBuffers.add(buffer);

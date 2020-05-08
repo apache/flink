@@ -154,6 +154,9 @@ public abstract class InputChannel {
 	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) throws IOException {
 	}
 
+	protected void notifyBufferAvailable(int numAvailableBuffers) {
+	}
+
 	// ------------------------------------------------------------------------
 	// Consume
 	// ------------------------------------------------------------------------
