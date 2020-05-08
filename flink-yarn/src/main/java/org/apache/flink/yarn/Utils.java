@@ -21,12 +21,16 @@ package org.apache.flink.yarn;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.security.TokenCache;
@@ -48,11 +52,14 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -60,6 +67,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
+import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
 
 /**
  * Utility class that provides helper methods to work with Apache Hadoop YARN.
@@ -125,25 +133,44 @@ public final class Utils {
 	static LocalResource registerLocalResource(
 			Path remoteRsrcPath,
 			long resourceSize,
-			long resourceModificationTime) {
+			long resourceModificationTime,
+			LocalResourceVisibility resourceVisibility) {
 		LocalResource localResource = Records.newRecord(LocalResource.class);
 		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
 		localResource.setSize(resourceSize);
 		localResource.setTimestamp(resourceModificationTime);
 		localResource.setType(LocalResourceType.FILE);
-		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
+		localResource.setVisibility(resourceVisibility);
 		return localResource;
 	}
 
+	/**
+	 * Creates a YARN resource for the remote object at the given location.
+	 * @param fs remote filesystem
+	 * @param remoteRsrcPath resource path to be registered
+	 * @return YARN resource
+	 */
 	private static LocalResource registerLocalResource(FileSystem fs, Path remoteRsrcPath) throws IOException {
-		LocalResource localResource = Records.newRecord(LocalResource.class);
 		FileStatus jarStat = fs.getFileStatus(remoteRsrcPath);
-		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
-		localResource.setSize(jarStat.getLen());
-		localResource.setTimestamp(jarStat.getModificationTime());
-		localResource.setType(LocalResourceType.FILE);
-		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
-		return localResource;
+		return registerLocalResource(
+			remoteRsrcPath,
+			jarStat.getLen(),
+			jarStat.getModificationTime(),
+			LocalResourceVisibility.APPLICATION);
+	}
+
+	/**
+	 * Creates a YARN resource with the local resource descriptor.
+	 * @param localResourceDescriptor local resource descriptor
+	 * @return YARN resource
+	 */
+	private static LocalResource registerLocalResource(YarnLocalResourceDescriptor localResourceDescriptor) {
+		return registerLocalResource(
+			localResourceDescriptor.getPath(),
+			localResourceDescriptor.getSize(),
+			localResourceDescriptor.getModificationTime(),
+			localResourceDescriptor.getVisibility()
+		);
 	}
 
 	public static void setTokensFor(ContainerLaunchContext amContainer, List<Path> paths, Configuration conf) throws IOException {
@@ -319,8 +346,8 @@ public final class Utils {
 
 		// get and validate all relevant variables
 
-		String remoteFlinkJarPath = env.get(YarnConfigKeys.FLINK_JAR_PATH);
-		require(remoteFlinkJarPath != null, "Environment variable %s not set", YarnConfigKeys.FLINK_JAR_PATH);
+		String remoteFlinkJarPath = env.get(YarnConfigKeys.FLINK_DIST_JAR);
+		require(remoteFlinkJarPath != null, "Environment variable %s not set", YarnConfigKeys.FLINK_DIST_JAR);
 
 		String appId = env.get(YarnConfigKeys.ENV_APP_ID);
 		require(appId != null, "Environment variable %s not set", YarnConfigKeys.ENV_APP_ID);
@@ -380,18 +407,12 @@ public final class Utils {
 		}
 
 		// register Flink Jar with remote HDFS
-		final String flinkJarPath;
-		final LocalResource flinkJar;
-		{
-			Path remoteJarPath = new Path(remoteFlinkJarPath);
-			FileSystem fs = remoteJarPath.getFileSystem(yarnConfig);
-			flinkJarPath = remoteJarPath.getName();
-			flinkJar = registerLocalResource(fs, remoteJarPath);
-		}
+		final YarnLocalResourceDescriptor localResourceDescFlinkJar = YarnLocalResourceDescriptor.fromString(remoteFlinkJarPath);
+		final LocalResource flinkJarResource = registerLocalResource(localResourceDescFlinkJar);
 
 		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
 
-		taskManagerLocalResources.put(flinkJarPath, flinkJar);
+		taskManagerLocalResources.put(localResourceDescFlinkJar.getResourceKey(), flinkJarResource);
 
 		//To support Yarn Secure Integration Test Scenario
 		if (yarnConfResource != null) {
@@ -405,15 +426,8 @@ public final class Utils {
 		}
 
 		// prepare additional files to be shipped
-		for (String pathStr : shipListString.split(",")) {
-			if (!pathStr.isEmpty()) {
-				String[] keyAndPath = pathStr.split("=");
-				require(keyAndPath.length == 2, "Invalid entry in ship file list: %s", pathStr);
-				Path path = new Path(keyAndPath[1]);
-				LocalResource resource = registerLocalResource(path.getFileSystem(yarnConfig), path);
-				taskManagerLocalResources.put(keyAndPath[0], resource);
-			}
-		}
+		decodeYarnLocalResourceDescriptorListFromString(shipListString).forEach(
+			resourceDesc -> taskManagerLocalResources.put(resourceDesc.getResourceKey(), registerLocalResource(resourceDesc)));
 
 		// now that all resources are prepared, we can create the launch context
 
@@ -497,6 +511,16 @@ public final class Utils {
 		return ctx;
 	}
 
+	private static List<YarnLocalResourceDescriptor> decodeYarnLocalResourceDescriptorListFromString(String resources) throws Exception {
+		final List<YarnLocalResourceDescriptor> resourceDescriptors = new ArrayList<>();
+		for (String shipResourceDescStr : resources.split(LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR)) {
+			if (!shipResourceDescStr.isEmpty()) {
+				resourceDescriptors.add(YarnLocalResourceDescriptor.fromString(shipResourceDescStr));
+			}
+		}
+		return resourceDescriptors;
+	}
+
 	/**
 	 * Validates a condition, throwing a RuntimeException if the condition is violated.
 	 *
@@ -509,5 +533,48 @@ public final class Utils {
 		if (!condition) {
 			throw new RuntimeException(String.format(message, values));
 		}
+	}
+
+	/**
+	 * Get all files in the provided lib directories.
+	 * @param providedLibDirs provided lib directories
+	 * @param yarnConfiguration yarn configuration
+	 *
+	 * @return The all files map, key is file name, value is file status.
+	 */
+	static Map<String, FileStatus> getAllFilesInProvidedLibDirs(@Nullable List<String> providedLibDirs, Configuration yarnConfiguration) {
+		if (providedLibDirs == null || providedLibDirs.isEmpty()) {
+			return Collections.emptyMap();
+		}
+		final Map<String, FileStatus> allFiles = new HashMap<>();
+		try (final FileSystem fileSystem = FileSystem.get(yarnConfiguration)) {
+			providedLibDirs.forEach(
+				FunctionUtils.uncheckedConsumer(
+					dir -> {
+						final Path path = new Path(dir);
+						if (fileSystem.exists(path) && fileSystem.isDirectory(path)) {
+							final RemoteIterator<LocatedFileStatus> iterable = fileSystem.listFiles(path, true);
+							while (iterable.hasNext()) {
+								final LocatedFileStatus locatedFileStatus = iterable.next();
+								final String fileName = locatedFileStatus.getPath().getName();
+								if (allFiles.containsKey(fileName)) {
+									LOG.warn(
+										"A provided file {} with same name already exists. Ignoring {}",
+										allFiles.get(fileName).getPath(),
+										locatedFileStatus.getPath());
+								} else {
+									allFiles.put(fileName, locatedFileStatus);
+									LOG.debug("Found provided file {} under {}", fileName, path);
+								}
+							}
+						} else {
+							LOG.warn("Provided lib dir {} does not exist or is not directory. Ignoring.", path);
+						}
+					})
+			);
+		} catch (IOException ex) {
+			throw new FlinkRuntimeException("Could not get the hadoop file system.", ex);
+		}
+		return Collections.unmodifiableMap(allFiles);
 	}
 }

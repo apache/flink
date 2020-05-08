@@ -62,6 +62,7 @@ import org.apache.flink.yarn.entrypoint.YarnApplicationClusterEntryPoint;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -121,6 +122,7 @@ import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
 
 /**
  * The descriptor with deployment information for deploying a Flink cluster on Yarn.
@@ -154,6 +156,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 	private String zookeeperNamespace;
 
+	/**
+	 * All files in the provided dirs, key is file name and value is remote file status.
+	 */
+	private final Map<String, FileStatus> allFilesInProvidedLibDirs;
+
 	private YarnConfigOptions.UserJarInclusion userJarInclusion;
 
 	public YarnClusterDescriptor(
@@ -178,6 +185,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		this.customName = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_NAME);
 		this.applicationType = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_TYPE);
 		this.nodeLabel = flinkConfiguration.getString(YarnConfigOptions.NODE_LABEL);
+		this.allFilesInProvidedLibDirs = Utils.getAllFilesInProvidedLibDirs(
+			flinkConfiguration.get(YarnConfigOptions.PROVIDED_LIB_DIRS),
+			yarnConfiguration);
 
 		// we want to ignore the default value at this point.
 		this.zookeeperNamespace = flinkConfiguration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, null);
@@ -255,7 +265,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	 * Adds the given files to the list of files to ship.
 	 *
 	 * <p>Note that any file matching "<tt>flink-dist*.jar</tt>" will be excluded from the upload by
-	 * {@link YarnApplicationFileUploader#setupMultipleLocalResources(Collection, List, Map, String, StringBuilder, int)}
+	 * {@link YarnApplicationFileUploader#setupMultipleLocalResources(Collection, List, Map, String, List, int)}
 	 * since we upload the Flink uber jar ourselves and do not need to deploy it multiple times.
 	 *
 	 * @param shipFiles files to ship
@@ -678,7 +688,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
 		final YarnApplicationFileUploader fileUploader = YarnApplicationFileUploader.from(
-				fs, fs.getHomeDirectory(), appContext.getApplicationId()
+				fs, fs.getHomeDirectory(), appContext.getApplicationId(), allFilesInProvidedLibDirs
 		);
 
 		// The files need to be shipped and added to classpath.
@@ -765,16 +775,20 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// list of remote paths (after upload)
 		final List<Path> paths = new ArrayList<>(2 + systemShipFiles.size() + userJarFiles.size());
 		// ship list that enables reuse of resources for task manager containers
-		StringBuilder envShipFileList = new StringBuilder();
+		final List<YarnLocalResourceDescriptor> envShipResourceList = new ArrayList<>();
+
+		// Register all files in provided lib dirs as local resources with public visibility.
+		final List<String> systemClassPaths = fileUploader.setupProvidedLocalResources(localResources);
 
 		// upload and register ship files, these files will be added to classpath.
-		List<String> systemClassPaths = fileUploader.setupMultipleLocalResources(
-			systemShipFiles,
-			paths,
-			localResources,
-			Path.CUR_DIR,
-			envShipFileList,
-			fileReplication);
+		systemClassPaths.addAll(
+			fileUploader.setupMultipleLocalResources(
+				systemShipFiles,
+				paths,
+				localResources,
+				Path.CUR_DIR,
+				envShipResourceList,
+				fileReplication));
 
 		// upload and register ship-only files
 		fileUploader.setupMultipleLocalResources(
@@ -782,7 +796,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			paths,
 			localResources,
 			Path.CUR_DIR,
-			envShipFileList,
+			envShipResourceList,
 			fileReplication);
 
 		final List<String> userClassPaths = fileUploader.setupMultipleLocalResources(
@@ -791,7 +805,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			localResources,
 			userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED ?
 				ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR : Path.CUR_DIR,
-			envShipFileList,
+			envShipResourceList,
 			fileReplication);
 
 		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.ORDER) {
@@ -814,14 +828,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 
 		// Setup jar for ApplicationMaster
-		Path remotePathJar = fileUploader.setupSingleLocalResource(
+		final YarnLocalResourceDescriptor localResourceDescFlinkJar = fileUploader.setupSingleLocalResource(
 				flinkJarPath.getName(),
 				flinkJarPath,
 				localResources,
 				"",
 				fileReplication);
 
-		paths.add(remotePathJar);
+		paths.add(localResourceDescFlinkJar.getPath());
 		classPathBuilder.append(flinkJarPath.getName()).append(File.pathSeparator);
 
 		// write job graph to tmp file and add it to local resource
@@ -839,11 +853,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				configuration.setString(JOB_GRAPH_FILE_PATH, jobGraphFilename);
 
 				Path pathFromYarnURL = fileUploader.setupSingleLocalResource(
-						jobGraphFilename,
-						new Path(tmpJobGraphFile.toURI()),
-						localResources,
-						"",
-						fileReplication);
+					jobGraphFilename,
+					new Path(tmpJobGraphFile.toURI()),
+					localResources,
+					"",
+					fileReplication)
+					.getPath();
 				paths.add(pathFromYarnURL);
 				classPathBuilder.append(jobGraphFilename).append(File.pathSeparator);
 			} catch (Exception e) {
@@ -864,14 +879,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			BootstrapTools.writeConfiguration(configuration, tmpConfigurationFile);
 
 			String flinkConfigKey = "flink-conf.yaml";
-			Path remotePathConf = fileUploader.setupSingleLocalResource(
+			final YarnLocalResourceDescriptor localResourceDescConf = fileUploader.setupSingleLocalResource(
 				flinkConfigKey,
 				new Path(tmpConfigurationFile.getAbsolutePath()),
 				localResources,
 				"",
 				fileReplication);
-			envShipFileList.append(flinkConfigKey).append("=").append(remotePathConf).append(",");
-			paths.add(remotePathConf);
+			envShipResourceList.add(localResourceDescConf);
+			paths.add(localResourceDescConf.getPath());
 			classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
 		} finally {
 			if (tmpConfigurationFile != null && !tmpConfigurationFile.delete()) {
@@ -897,11 +912,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			LOG.info("Adding Yarn configuration {} to the AM container local resource bucket", f.getAbsolutePath());
 			Path yarnSitePath = new Path(f.getAbsolutePath());
 			remoteYarnSiteXmlPath = fileUploader.setupSingleLocalResource(
-					Utils.YARN_SITE_FILE_NAME,
-					yarnSitePath,
-					localResources,
-					"",
-					fileReplication);
+				Utils.YARN_SITE_FILE_NAME,
+				yarnSitePath,
+				localResources,
+				"",
+				fileReplication)
+				.getPath();
 
 			String krb5Config = System.getProperty("java.security.krb5.conf");
 			if (krb5Config != null && krb5Config.length() != 0) {
@@ -909,11 +925,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				LOG.info("Adding KRB5 configuration {} to the AM container local resource bucket", krb5.getAbsolutePath());
 				Path krb5ConfPath = new Path(krb5.getAbsolutePath());
 				remoteKrb5Path = fileUploader.setupSingleLocalResource(
-						Utils.KRB5_FILE_NAME,
-						krb5ConfPath,
-						localResources,
-						"",
-						fileReplication);
+					Utils.KRB5_FILE_NAME,
+					krb5ConfPath,
+					localResources,
+					"",
+					fileReplication)
+					.getPath();
 				hasKrb5 = true;
 			}
 		}
@@ -932,7 +949,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 					new Path(keytab),
 					localResources,
 					"",
-					fileReplication);
+					fileReplication)
+					.getPath();
 			} else {
 				// // Assume Keytab is pre-installed in the container.
 				localizedKeytabPath = flinkConfiguration.getString(YarnConfigOptions.LOCALIZED_KEYTAB_PATH);
@@ -966,10 +984,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		appMasterEnv.put(YarnConfigKeys.ENV_FLINK_CLASSPATH, classPathBuilder.toString());
 
 		// set Flink on YARN internal configuration values
-		appMasterEnv.put(YarnConfigKeys.FLINK_JAR_PATH, remotePathJar.toString());
+		appMasterEnv.put(YarnConfigKeys.FLINK_DIST_JAR, localResourceDescFlinkJar.toString());
 		appMasterEnv.put(YarnConfigKeys.ENV_APP_ID, appId.toString());
 		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_HOME_DIR, fileUploader.getHomeDir().toString());
-		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_SHIP_FILES, envShipFileList.toString());
+		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_SHIP_FILES, encodeYarnLocalResourceDescriptorListToString(envShipResourceList));
 		appMasterEnv.put(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE, getZookeeperNamespace());
 		appMasterEnv.put(YarnConfigKeys.FLINK_YARN_FILES, fileUploader.getApplicationDir().toUri().toString());
 
@@ -1074,6 +1092,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// since deployment was successful, remove the hook
 		ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
 		return report;
+	}
+
+	private static String encodeYarnLocalResourceDescriptorListToString(List<YarnLocalResourceDescriptor> resources) {
+		return String.join(
+			LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR,
+			resources.stream()
+				.map(YarnLocalResourceDescriptor::toString)
+				.collect(Collectors.toList()));
 	}
 
 	/**

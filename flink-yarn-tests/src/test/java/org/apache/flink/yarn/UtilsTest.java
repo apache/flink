@@ -24,13 +24,17 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.junit.Assert;
@@ -50,7 +54,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.CoreMatchers.hasItems;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -92,7 +100,12 @@ public class UtilsTest extends TestLogger {
 		env.put(YarnConfigKeys.ENV_CLIENT_SHIP_FILES, "");
 		env.put(YarnConfigKeys.ENV_FLINK_CLASSPATH, "");
 		env.put(YarnConfigKeys.ENV_HADOOP_USER_NAME, "foo");
-		env.put(YarnConfigKeys.FLINK_JAR_PATH, root.toURI().toString());
+		env.put(YarnConfigKeys.FLINK_DIST_JAR, new YarnLocalResourceDescriptor(
+			"flink.jar",
+			new Path(root.toURI()),
+			0,
+			System.currentTimeMillis(),
+			LocalResourceVisibility.APPLICATION).toString());
 		env = Collections.unmodifiableMap(env);
 
 		File credentialFile = temporaryFolder.newFile("container_tokens");
@@ -143,6 +156,19 @@ public class UtilsTest extends TestLogger {
 		}
 		assertTrue(hasHdfsDelegationToken);
 		assertFalse(hasAmRmToken);
+	}
+
+	@Test
+	public void testGetProvidedLibDirs() {
+		final File dir = YarnTestBase.findFile("..", new YarnTestBase.RootDirFilenameFilter());
+		Preconditions.checkNotNull(dir);
+		final File flinkHomeDir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
+		final Map<String, FileStatus> allFilesInProvidedLibDirs = Utils.getAllFilesInProvidedLibDirs(
+			Collections.singletonList(flinkHomeDir.toURI().toString()),
+			new YarnConfiguration());
+		final String[] libJars = new File(flinkHomeDir, "lib").list();
+		assertThat(libJars, is(notNullValue()));
+		assertThat(allFilesInProvidedLibDirs.keySet(), hasItems(libJars));
 	}
 }
 
