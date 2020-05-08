@@ -102,6 +102,24 @@ public class JDBCDataTypeTest {
 			createTestItem("postgresql", "VARBINARY"),
 			createTestItem("postgresql", "ARRAY<INTEGER>"),
 
+			createTestItem("sqlserver", "CHAR"),
+			createTestItem("sqlserver", "VARCHAR"),
+			createTestItem("sqlserver", "BOOLEAN"),
+			createTestItem("sqlserver", "TINYINT"),
+			createTestItem("sqlserver", "SMALLINT"),
+			createTestItem("sqlserver", "INTEGER"),
+			createTestItem("sqlserver", "BIGINT"),
+			createTestItem("sqlserver", "FLOAT"),
+			createTestItem("sqlserver", "DOUBLE"),
+			createTestItem("sqlserver", "DECIMAL(10, 4)"),
+			createTestItem("sqlserver", "DECIMAL(38, 18)"),
+			createTestItem("sqlserver", "DATE"),
+			createTestItem("sqlserver", "TIME"),
+			createTestItem("sqlserver", "TIMESTAMP(3)"),
+			createTestItem("sqlserver", "TIMESTAMP WITHOUT TIME ZONE"),
+			createTestItem("sqlserver", "VARBINARY"),
+			createTestItem("sqlserver", "ARRAY<INTEGER>"),
+
 			// Unsupported types throws errors.
 			createTestItem("derby", "BINARY", "The derby dialect doesn't support type: BINARY(1)."),
 			createTestItem("derby", "VARBINARY(10)", "The derby dialect doesn't support type: VARBINARY(10)."),
@@ -122,7 +140,14 @@ public class JDBCDataTypeTest {
 			createTestItem("postgresql", "TIMESTAMP(9) WITHOUT TIME ZONE",
 					"The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by postgresql dialect."),
 			createTestItem("postgresql", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
-					"The postgresql dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE.")
+					"The postgresql dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE."),
+
+			createTestItem("sqlserver", "BINARY", "The sqlserver dialect doesn't support type: BINARY(1)."),
+			createTestItem("sqlserver", "VARBINARY(10)", "The sqlserver dialect doesn't support type: VARBINARY(10)."),
+			createTestItem("sqlserver", "TIMESTAMP(9) WITHOUT TIME ZONE",
+					"The precision of field 'f0' is out of the TIMESTAMP precision range [1, 7] supported by sqlserver dialect."),
+			createTestItem("sqlserver", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
+				"The sqlserver dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE.")
 		);
 	}
 

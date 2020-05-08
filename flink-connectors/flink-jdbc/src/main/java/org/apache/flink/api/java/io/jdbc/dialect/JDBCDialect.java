@@ -26,6 +26,7 @@ import org.apache.flink.table.types.logical.RowType;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -106,6 +107,33 @@ public interface JDBCDialect extends Serializable {
 			.collect(Collectors.joining(", "));
 		return "INSERT INTO " + quoteIdentifier(tableName) +
 			"(" + columns + ")" + " VALUES (" + placeholders + ")";
+	}
+
+	/**
+	 * Get merge into statement (sourceSelect could be slightly different between vendor).
+	 */
+	default String getMergeIntoStatement(String tableName, String[] fieldNames, String[] uniqueKeyFields, String sourceSelect) {
+		final Set<String> uniqueKeyFieldsSet = Arrays.stream(uniqueKeyFields).collect(Collectors.toSet());
+		String onClause = Arrays.stream(uniqueKeyFields)
+			.map(f -> "t." + quoteIdentifier(f) + "=s." + quoteIdentifier(f))
+			.collect(Collectors.joining(", "));
+		String updateClause = Arrays.stream(fieldNames)
+			.filter(f -> !uniqueKeyFieldsSet.contains(f))
+			.map(f -> "t." + quoteIdentifier(f) + "=s." + quoteIdentifier(f))
+			.collect(Collectors.joining(", "));
+		String insertValueClause = Arrays.stream(fieldNames)
+			.map(f -> "s." + quoteIdentifier(f))
+			.collect(Collectors.joining(", "));
+		String columns = Arrays.stream(fieldNames)
+				.map(f -> quoteIdentifier(f))
+				.collect(Collectors.joining(", "));
+		// if we can't divide schema and table-name is risky to call quoteIdentifier(tableName)
+		// for example in SQL-server [tbo].[sometable] is ok but [tbo.sometable] is not
+		return "MERGE INTO " + tableName + " t " +
+			"USING (" + sourceSelect + ") s " +
+			"ON (" + onClause + ")" +
+			" WHEN MATCHED THEN UPDATE SET " + updateClause +
+			" WHEN NOT MATCHED THEN INSERT (" + columns + ") VALUES (" + insertValueClause + ")";
 	}
 
 	/**
