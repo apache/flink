@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.viewfs.ViewFileSystem;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.util.VersionInfo;
 
@@ -157,7 +158,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
 		ensureTruncateInitialized();
 
-		waitUntilLeaseIsRevoked(fileSystem, path);
+		revokeLeaseByFileSystem(fileSystem, path);
 
 		// truncate back and append
 		boolean truncated;
@@ -170,7 +171,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		if (!truncated) {
 			// Truncate did not complete immediately, we must wait for
 			// the operation to complete and release the lease.
-			waitUntilLeaseIsRevoked(fileSystem, path);
+			revokeLeaseByFileSystem(fileSystem, path);
 		}
 	}
 
@@ -311,6 +312,22 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		public CommitRecoverable getRecoverable() {
 			return recoverable;
 		}
+	}
+
+	/**
+	 * Resolve the real path of FileSystem if it is {@link ViewFileSystem} and
+	 * revoke the lease of the file we are resuming with different FileSystem.
+	 *
+	 * @param path The path to the file we want to resume writing to.
+	 */
+	private static boolean revokeLeaseByFileSystem(final FileSystem fs, final Path path) throws IOException {
+		if (fs instanceof ViewFileSystem) {
+			final ViewFileSystem vfs = (ViewFileSystem) fs;
+			final Path resolvePath = vfs.resolvePath(path);
+			final FileSystem resolveFs = resolvePath.getFileSystem(fs.getConf());
+			return waitUntilLeaseIsRevoked(resolveFs, resolvePath);
+		}
+		return waitUntilLeaseIsRevoked(fs, path);
 	}
 
 	/**
