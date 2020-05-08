@@ -36,6 +36,7 @@ import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
+import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
@@ -214,11 +215,9 @@ public class SqlToOperationConverter {
 	 * Convert the {@link SqlCreateTable} node.
 	 */
 	private Operation convertCreateTable(SqlCreateTable sqlCreateTable) {
-		// primary key and unique keys are not supported
-		if ((sqlCreateTable.getPrimaryKeyList().size() > 0)
-			|| (sqlCreateTable.getUniqueKeysList().size() > 0)) {
-			throw new SqlConversionException("Primary key and unique key are not supported yet.");
-		}
+		// Unique key and enforced mode are not supported yet.
+		sqlCreateTable.getFullConstraints()
+				.forEach(this::validateTableConstraint);
 
 		// set with properties
 		Map<String, String> properties = new HashMap<>();
@@ -271,8 +270,7 @@ public class SqlToOperationConverter {
 			Optional<CatalogManager.TableLookupResult> optionalCatalogTable = catalogManager.getTable(tableIdentifier);
 			if (optionalCatalogTable.isPresent() && !optionalCatalogTable.get().isTemporary()) {
 				CatalogTable originalCatalogTable = (CatalogTable) optionalCatalogTable.get().getTable();
-				Map<String, String> properties = new HashMap<>();
-				properties.putAll(originalCatalogTable.getProperties());
+				Map<String, String> properties = new HashMap<>(originalCatalogTable.getOptions());
 				((SqlAlterTableProperties) sqlAlterTable).getPropertyList().getList().forEach(p ->
 					properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
 				CatalogTable catalogTable = new CatalogTableImpl(
@@ -483,13 +481,13 @@ public class SqlToOperationConverter {
 		}
 		String catalogName = (fullDatabaseName.length == 1) ? catalogManager.getCurrentCatalog() : fullDatabaseName[0];
 		String databaseName = (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
-		Map<String, String> properties = new HashMap<>();
+		final Map<String, String> properties;
 		CatalogDatabase originCatalogDatabase;
 		Optional<Catalog> catalog = catalogManager.getCatalog(catalogName);
 		if (catalog.isPresent()) {
 			try {
 				originCatalogDatabase = catalog.get().getDatabase(databaseName);
-				properties.putAll(originCatalogDatabase.getProperties());
+				properties = new HashMap<>(originCatalogDatabase.getProperties());
 			} catch (DatabaseNotExistException e) {
 				throw new SqlConversionException(String.format("Database %s not exists", databaseName), e);
 			}
@@ -631,10 +629,14 @@ public class SqlToOperationConverter {
 			if (node instanceof SqlTableColumn) {
 				SqlTableColumn column = (SqlTableColumn) node;
 				RelDataType relType = column.getType()
-					.deriveType(validator, column.getType().getNullable());
+					.deriveType(validator);
+				RelDataType colType = validator.getTypeFactory()
+						.createTypeWithNullability(
+								relType,
+								sqlCreateTable.isColumnNullable(column));
 				String name = column.getName().getSimple();
 				// add field name and field type to physical field list
-				physicalFieldNamesToTypes.put(name, relType);
+				physicalFieldNamesToTypes.put(name, colType);
 			}
 		}
 		// Collect all fields types for watermark expression validation
@@ -679,7 +681,31 @@ public class SqlToOperationConverter {
 			builder.watermark(rowtimeAttribute, getQuotedSqlString(validated), exprDataType);
 		});
 
+		// Set up table and column constraints into the schema.
+		for (SqlTableConstraint constraint : sqlCreateTable.getFullConstraints()) {
+			final Optional<String> constraintName = constraint.getConstraintName();
+			if (constraint.isPrimaryKey()) {
+				if (constraintName.isPresent()) {
+					builder.primaryKey(constraintName.get(), constraint.getColumnNames());
+				} else {
+					builder.primaryKey(constraint.getColumnNames());
+				}
+			}
+		}
 		return builder.build();
+	}
+
+	private void validateTableConstraint(SqlTableConstraint constraint) {
+		if (constraint.isUnique()) {
+			throw new UnsupportedOperationException("UNIQUE constraint is not supported yet");
+		}
+		if (constraint.isEnforced()) {
+			throw new ValidationException("Flink doesn't support ENFORCED mode for "
+					+ "PRIMARY KEY constaint. ENFORCED/NOT ENFORCED  controls if the constraint "
+					+ "checks are performed on the incoming/outgoing data. "
+					+ "Flink does not own the data therefore the only supported mode "
+					+ "is the NOT ENFORCED mode");
+		}
 	}
 
 	private String getQuotedSqlString(SqlNode sqlNode) {

@@ -207,8 +207,7 @@ public class SqlToOperationConverter {
 	 */
 	private Operation convertCreateTable(SqlCreateTable sqlCreateTable) {
 		// primary key and unique keys are not supported
-		if ((sqlCreateTable.getPrimaryKeyList().size() > 0)
-			|| (sqlCreateTable.getUniqueKeysList().size() > 0)) {
+		if (sqlCreateTable.getFullConstraints().size() > 0) {
 			throw new SqlConversionException("Primary key and unique key are not supported yet.");
 		}
 
@@ -282,8 +281,11 @@ public class SqlToOperationConverter {
 				throw new ValidationException(String.format("Table %s doesn't exist or is a temporary table.",
 					tableIdentifier.toString()));
 			}
+		} else {
+			throw new ValidationException(
+					String.format("[%s] needs to implement",
+							sqlAlterTable.toSqlString(CalciteSqlDialect.DEFAULT)));
 		}
-		return null;
 	}
 
 	/** Convert CREATE FUNCTION statement. */
