@@ -163,7 +163,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       val input = snapshot.getInput.accept(this)
       snapshot.copy(snapshot.getTraitSet, input, snapshot.getPeriod)
 
-    case sink: LogicalSink =>
+    case sink: LogicalLegacySink =>
       var newInput = sink.getInput.accept(this)
       var needsConversion = false
 
@@ -181,7 +181,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       if (needsConversion) {
         newInput = LogicalProject.create(newInput, projects, newInput.getRowType.getFieldNames)
       }
-      new LogicalSink(
+      new LogicalLegacySink(
         sink.getCluster,
         sink.getTraitSet,
         newInput,
@@ -482,7 +482,7 @@ object RelTimeIndicatorConverter {
     val convertedRoot = rootRel.accept(converter)
 
     // the LogicalSink is converted in RelTimeIndicatorConverter before
-    if (rootRel.isInstanceOf[LogicalSink] || !needFinalTimeIndicatorConversion) {
+    if (rootRel.isInstanceOf[LogicalLegacySink] || !needFinalTimeIndicatorConversion) {
       return convertedRoot
     }
     var needsConversion = false

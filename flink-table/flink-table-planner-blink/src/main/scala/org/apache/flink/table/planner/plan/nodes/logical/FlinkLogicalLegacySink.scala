@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.catalog.CatalogTable
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalSink, Sink}
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalLegacySink, LegacySink}
 import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelTraitSet}
@@ -32,10 +32,10 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[Sink]] that is a relational expression
+  * Sub-class of [[LegacySink]] that is a relational expression
   * which writes out data of input node into a [[TableSink]].
   */
-class FlinkLogicalSink(
+class FlinkLogicalLegacySink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
@@ -43,27 +43,27 @@ class FlinkLogicalSink(
     sinkName: String,
     val catalogTable: CatalogTable,
     val staticPartitions: Map[String, String])
-  extends Sink(cluster, traitSet, input, sink, sinkName)
-  with FlinkLogicalRel {
+  extends LegacySink(cluster, traitSet, input, sink, sinkName)
+          with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new FlinkLogicalSink(
+    new FlinkLogicalLegacySink(
       cluster, traitSet, inputs.head, sink, sinkName, catalogTable, staticPartitions)
   }
 
 }
 
-private class FlinkLogicalSinkConverter
+private class FlinkLogicalLegacySinkConverter
   extends ConverterRule(
-    classOf[LogicalSink],
+    classOf[LogicalLegacySink],
     Convention.NONE,
     FlinkConventions.LOGICAL,
-    "FlinkLogicalSinkConverter") {
+    "FlinkLogicalLegacySinkConverter") {
 
   override def convert(rel: RelNode): RelNode = {
-    val sink = rel.asInstanceOf[LogicalSink]
+    val sink = rel.asInstanceOf[LogicalLegacySink]
     val newInput = RelOptRule.convert(sink.getInput, FlinkConventions.LOGICAL)
-    FlinkLogicalSink.create(
+    FlinkLogicalLegacySink.create(
       newInput,
       sink.sink,
       sink.sinkName,
@@ -72,18 +72,18 @@ private class FlinkLogicalSinkConverter
   }
 }
 
-object FlinkLogicalSink {
-  val CONVERTER: ConverterRule = new FlinkLogicalSinkConverter()
+object FlinkLogicalLegacySink {
+  val CONVERTER: ConverterRule = new FlinkLogicalLegacySinkConverter()
 
   def create(
       input: RelNode,
       sink: TableSink[_],
       sinkName: String,
       catalogTable: CatalogTable = null,
-      staticPartitions: Map[String, String] = Map()): FlinkLogicalSink = {
+      staticPartitions: Map[String, String] = Map()): FlinkLogicalLegacySink = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
-    new FlinkLogicalSink(
+    new FlinkLogicalLegacySink(
       cluster, traitSet, input, sink, sinkName, catalogTable, staticPartitions)
   }
 }

@@ -22,8 +22,8 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.filesystem.FileSystemTableFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecSink
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacySink
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecLegacySink
 import org.apache.flink.table.sinks.PartitionableTableSink
 
 import org.apache.calcite.plan.RelOptRule
@@ -32,14 +32,14 @@ import org.apache.calcite.rel.convert.ConverterRule
 
 import scala.collection.JavaConversions._
 
-class StreamExecSinkRule extends ConverterRule(
-    classOf[FlinkLogicalSink],
+class StreamExecLegacySinkRule extends ConverterRule(
+    classOf[FlinkLogicalLegacySink],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecSinkRule") {
+    "StreamExecLegacySinkRule") {
 
   def convert(rel: RelNode): RelNode = {
-    val sinkNode = rel.asInstanceOf[FlinkLogicalSink]
+    val sinkNode = rel.asInstanceOf[FlinkLogicalLegacySink]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     var requiredTraitSet = sinkNode.getInput.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     if (sinkNode.catalogTable != null && sinkNode.catalogTable.isPartitioned) {
@@ -75,7 +75,7 @@ class StreamExecSinkRule extends ConverterRule(
 
     val newInput = RelOptRule.convert(sinkNode.getInput, requiredTraitSet)
 
-    new StreamExecSink(
+    new StreamExecLegacySink(
       rel.getCluster,
       newTrait,
       newInput,
@@ -84,8 +84,8 @@ class StreamExecSinkRule extends ConverterRule(
   }
 }
 
-object StreamExecSinkRule {
+object StreamExecLegacySinkRule {
 
-  val INSTANCE: RelOptRule = new StreamExecSinkRule
+  val INSTANCE: RelOptRule = new StreamExecLegacySinkRule
 
 }

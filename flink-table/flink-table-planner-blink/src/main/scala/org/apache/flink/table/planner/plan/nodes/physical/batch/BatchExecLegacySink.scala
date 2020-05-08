@@ -26,7 +26,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.SinkCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
+import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
@@ -46,18 +46,18 @@ import scala.collection.JavaConversions._
 /**
   * Batch physical RelNode to to write data into an external sink defined by a [[TableSink]].
   */
-class BatchExecSink[T](
+class BatchExecLegacySink[T](
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     sink: TableSink[T],
     sinkName: String)
-  extends Sink(cluster, traitSet, inputRel, sink, sinkName)
-  with BatchPhysicalRel
-  with BatchExecNode[Any] {
+  extends LegacySink(cluster, traitSet, inputRel, sink, sinkName)
+          with BatchPhysicalRel
+          with BatchExecNode[Any] {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecSink(cluster, traitSet, inputs.get(0), sink, sinkName)
+    new BatchExecLegacySink(cluster, traitSet, inputs.get(0), sink, sinkName)
   }
 
   //~ ExecNode methods -----------------------------------------------------------

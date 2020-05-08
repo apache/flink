@@ -22,8 +22,8 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.filesystem.FileSystemTableFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSink
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacySink
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecLegacySink
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.sinks.PartitionableTableSink
 
@@ -33,14 +33,14 @@ import org.apache.calcite.rel.{RelCollations, RelNode}
 
 import scala.collection.JavaConversions._
 
-class BatchExecSinkRule extends ConverterRule(
-    classOf[FlinkLogicalSink],
+class BatchExecLegacySinkRule extends ConverterRule(
+    classOf[FlinkLogicalLegacySink],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecSinkRule") {
+    "BatchExecLegacySinkRule") {
 
   def convert(rel: RelNode): RelNode = {
-    val sinkNode = rel.asInstanceOf[FlinkLogicalSink]
+    val sinkNode = rel.asInstanceOf[FlinkLogicalLegacySink]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     var requiredTraitSet = sinkNode.getInput.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     if (sinkNode.catalogTable != null && sinkNode.catalogTable.isPartitioned) {
@@ -78,7 +78,7 @@ class BatchExecSinkRule extends ConverterRule(
 
     val newInput = RelOptRule.convert(sinkNode.getInput, requiredTraitSet)
 
-    new BatchExecSink(
+    new BatchExecLegacySink(
       rel.getCluster,
       newTrait,
       newInput,
@@ -87,8 +87,8 @@ class BatchExecSinkRule extends ConverterRule(
   }
 }
 
-object BatchExecSinkRule {
+object BatchExecLegacySinkRule {
 
-  val INSTANCE: RelOptRule = new BatchExecSinkRule
+  val INSTANCE: RelOptRule = new BatchExecLegacySinkRule
 
 }

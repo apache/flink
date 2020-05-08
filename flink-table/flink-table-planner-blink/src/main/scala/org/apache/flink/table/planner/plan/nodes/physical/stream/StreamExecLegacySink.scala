@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.SinkCodeGenerator.generateRowConverterOperator
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
+import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpdatingPlanChecker}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
@@ -45,20 +45,20 @@ import scala.collection.JavaConversions._
 /**
   * Stream physical RelNode to to write data into an external sink defined by a [[TableSink]].
   */
-class StreamExecSink[T](
+class StreamExecLegacySink[T](
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     sink: TableSink[T],
     sinkName: String)
-  extends Sink(cluster, traitSet, inputRel, sink, sinkName)
-  with StreamPhysicalRel
-  with StreamExecNode[Any] {
+  extends LegacySink(cluster, traitSet, inputRel, sink, sinkName)
+          with StreamPhysicalRel
+          with StreamExecNode[Any] {
 
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamExecSink(cluster, traitSet, inputs.get(0), sink, sinkName)
+    new StreamExecLegacySink(cluster, traitSet, inputs.get(0), sink, sinkName)
   }
 
   //~ ExecNode methods -----------------------------------------------------------

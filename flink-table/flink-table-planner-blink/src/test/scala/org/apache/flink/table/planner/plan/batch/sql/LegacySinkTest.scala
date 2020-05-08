@@ -26,7 +26,7 @@ import org.apache.flink.table.types.logical.{BigIntType, IntType}
 
 import org.junit.Test
 
-class SinkTest extends TableTestBase {
+class LegacySinkTest extends TableTestBase {
 
   val LONG = new BigIntType()
   val INT = new IntType()

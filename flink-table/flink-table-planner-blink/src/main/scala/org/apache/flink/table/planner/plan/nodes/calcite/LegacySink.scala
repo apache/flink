@@ -35,7 +35,7 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
   * @param sink     Table sink to write into
   * @param sinkName Name of tableSink, which is not required property, that is, it could be null
   */
-abstract class Sink(
+abstract class LegacySink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,

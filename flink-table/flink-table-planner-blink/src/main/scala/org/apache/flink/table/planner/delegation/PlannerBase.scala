@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkPlannerImpl, 
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
@@ -178,7 +178,7 @@ abstract class PlannerBase(
         val sinkSchema = s.getSink.getTableSchema
         // validate query schema and sink schema, and apply cast if possible
         val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, getTypeFactory)
-        LogicalSink.create(
+        LogicalLegacySink.create(
           query,
           s.getSink,
           "UnregisteredSink",
@@ -201,7 +201,7 @@ abstract class PlannerBase(
             TableSchemaUtils.getPhysicalSchema(table.getSchema),
             getTypeFactory,
             Some(catalogSink.getTableIdentifier.asSummaryString()))
-          LogicalSink.create(
+          LogicalLegacySink.create(
             query,
             sink,
             identifier.toString,
@@ -233,7 +233,7 @@ abstract class PlannerBase(
           typeInfo,
           needUpdateBefore,
           withChangeFlag)
-        LogicalSink.create(
+        LogicalLegacySink.create(
           query,
           tableSink,
           "DataStreamTableSink",

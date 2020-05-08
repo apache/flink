@@ -29,7 +29,7 @@ import org.apache.flink.types.Row
 
 import org.junit.Test
 
-class TableSinkValidationTest extends TableTestBase {
+class LegacyTableSinkValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testAppendSinkOnUpdatingTable(): Unit = {

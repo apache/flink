@@ -23,7 +23,7 @@ import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.plan.`trait`.MiniBatchInterval
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
+import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser.{SubplanReuseContext, SubplanReuseShuttle}
 import org.apache.flink.table.planner.plan.rules.logical.WindowPropertiesRules
 import org.apache.flink.table.planner.plan.utils.{DefaultRelShuttle, ExpandTableScanShuttle}
@@ -43,7 +43,7 @@ import scala.collection.mutable
 /**
   * A [[RelNodeBlock]] is a sub-tree in the [[RelNode]] DAG, and represents common sub-graph
   * in [[CommonSubGraphBasedOptimizer]]. All [[RelNode]]s in each block have
-  * only one [[Sink]] output.
+  * only one [[LegacySink]] output.
   *
   * The algorithm works as follows:
   * 1. If there is only one tree, the whole tree is in one block. (the next steps is needless.)
@@ -91,7 +91,7 @@ import scala.collection.mutable
   * }}}
   *
   * This [[RelNode]] DAG will be decomposed into three [[RelNodeBlock]]s, the break-point
-  * is the [[RelNode]](`Join(a1=b2)`) which data outputs to multiple [[Sink]]s.
+  * is the [[RelNode]](`Join(a1=b2)`) which data outputs to multiple [[LegacySink]]s.
   * <p>Notes: Although `Project(a,b,c)` has two parents (outputs),
   * they eventually merged at `Join(a1=b2)`. So `Project(a,b,c)` is not a break-point.
   * <p>the first [[RelNodeBlock]] includes TableScan, Project(a,b,c), Filter(a>0),
@@ -111,8 +111,8 @@ import scala.collection.mutable
   * will be wrapped as an IntermediateRelTable first, and then be converted to a new TableScan
   * which is the new output node of current block and is also the input of its parent blocks.
   *
-  * @param outputNode A RelNode of the output in the block, which could be a [[Sink]] or
-  * other RelNode which data outputs to multiple [[Sink]]s.
+  * @param outputNode A RelNode of the output in the block, which could be a [[LegacySink]] or
+  *                   other RelNode which data outputs to multiple [[LegacySink]]s.
   */
 class RelNodeBlock(val outputNode: RelNode) {
   // child (or input) blocks
