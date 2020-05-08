@@ -130,7 +130,8 @@ CREATE TABLE [catalog_name.][db_name.]table_name
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
-
+  [ LIKE source_table [( <like_options> )] ]
+   
 <column_definition>:
   column_name column_type [COMMENT column_comment]
 
@@ -139,6 +140,12 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 
 <watermark_definition>:
   WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
+  
+<like_options>:
+{
+   { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
+ | { INCLUDING | EXCLUDING | OVERWRITING } { GENERATED | OPTIONS | WATERMARKS } 
+}[, ...]
 
 {% endhighlight %}
 
@@ -207,6 +214,101 @@ The key and value of expression `key1=val1` should both be string literal. See d
 **Notes:** The table name can be of three formats: 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`. For `catalog_name.db_name.table_name`, the table would be registered into metastore with catalog named "catalog_name" and database named "db_name"; for `db_name.table_name`, the table would be registered into the current catalog of the execution table environment and database named "db_name"; for `table_name`, the table would be registered into the current catalog and database of the execution table environment.
 
 **Notes:** The table registered with `CREATE TABLE` statement can be used as both table source and table sink, we can not decide if it is used as a source or sink until it is referenced in the DMLs.
+
+**LIKE clause**
+
+The `LIKE` clause is a variant/combination of SQL features (Feature T171, “LIKE clause in table definition” and Feature T173, “Extended LIKE clause in table definition”). The clause can be used to create a table based on a definition of an existing table. Additionally, users
+can extend the original table or exclude certain parts of it. In contrast to the SQL standard the clause must be defined at the top-level of a CREATE statement. That is because the clause applies to multiple parts of the definition and not only to the schema part.
+
+You can use the clause to reuse (and potentially overwrite) certain connector properties or add watermarks to tables defined externally. For example, you can add a watermark to a table defined in Apache Hive. 
+
+Consider the example statement below:
+{% highlight sql %}
+CREATE TABLE Orders (
+    user BIGINT,
+    product STRING,
+    order_time TIMESTAMP(3)
+) WITH ( 
+    'connector' = 'kafka',
+    'startup-mode' = 'earliest-offset'
+);
+
+CREATE TABLE Orders_with_watermark (
+    -- Add watermark definition
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
+) WITH (
+    -- Overwrite the startup-mode
+    'startup-mode' = 'latest-offset'
+)
+LIKE Orders;
+{% endhighlight %}
+
+The resulting table `Orders_with_watermark` will be equivalent to a table created with a following statement:
+{% highlight sql %}
+CREATE TABLE Orders_with_watermark (
+    user BIGINT,
+    product STRING,
+    order_time TIMESTAMP(3),
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
+) WITH (
+    'connector' = 'kafka',
+    'startup-mode' = 'latest-offset'
+);
+{% endhighlight %}
+
+The merging logic of table features can be controlled with `like options`.
+
+You can control the merging behavior of:
+
+* CONSTRAINTS - constraints such as primary and unique keys
+* GENERATED - computed columns
+* OPTIONS - connector options that describe connector and format properties
+* PARTITIONS - partition of the tables
+* WATERMARKS - watermark declarations
+
+with three different merging strategies:
+
+* INCLUDING - Includes the feature of the source table, fails on duplicate entries, e.g. if an option with the same key exists in both tables.
+* EXCLUDING - Does not include the given feature of the source table.
+* OVERWRITING - Includes the feature of the source table, overwrites duplicate entries of the source table with properties of the new table, e.g. if an option with the same key exists in both tables, the one from the current statement will be used.
+
+Additionally, you can use the `INCLUDING/EXCLUDING ALL` option to specify what should be the strategy if there was no specific strategy defined, i.e. if you use `EXCLUDING ALL INCLUDING WATERMARKS` only the watermarks will be included from the source table.
+
+Example:
+{% highlight sql %}
+-- A source table stored in a filesystem
+CREATE TABLE Orders_in_file (
+    user BIGINT,
+    product STRING,
+    order_time_string STRING,
+    order_time AS to_timestamp(order_time)
+    
+)
+PARTITIONED BY user 
+WITH ( 
+    'connector' = 'filesystem'
+    'path' = '...'
+);
+
+-- A corresponding table we want to store in kafka
+CREATE TABLE Orders_in_kafka (
+    -- Add watermark definition
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
+) WITH (
+    'connector': 'kafka'
+    ...
+)
+LIKE Orders_in_file (
+    -- Exclude everything besides the computed columns which we need to generate the watermark for.
+    -- We do not want to have the partitions or filesystem options as those do not apply to kafka. 
+    EXCLUDING ALL
+    INCLUDING GENERATED
+);
+{% endhighlight %}
+
+If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used as a default.
+
+**NOTE** You cannot control the behavior of merging physical fields. Those will be merged as if you applied the `INCLUDING` strategy.
 
 {% top %}
 
