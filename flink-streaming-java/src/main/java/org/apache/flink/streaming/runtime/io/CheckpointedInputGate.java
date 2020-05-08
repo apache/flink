@@ -19,11 +19,11 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -34,8 +34,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -138,12 +136,13 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 		}
 	}
 
-	public List<Buffer> requestInflightBuffers(long checkpointId, int channelIndex) throws IOException {
+	public void spillInflightBuffers(
+			long checkpointId,
+			int channelIndex,
+			ChannelStateWriter channelStateWriter) throws IOException {
 		if (((CheckpointBarrierUnaligner) barrierHandler).hasInflightData(checkpointId, channelIndex)) {
-			return inputGate.getChannel(channelIndex).requestInflightBuffers(checkpointId);
+			inputGate.getChannel(channelIndex).spillInflightBuffers(checkpointId, channelStateWriter);
 		}
-
-		return Collections.emptyList();
 	}
 
 	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {

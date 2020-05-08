@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -111,7 +112,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	@Nonnull
 	private final MemorySegmentProvider memorySegmentProvider;
 
-	/** The latest already triggered checkpoint id which would be updated during {@link #requestInflightBuffers(long)}.*/
+	/**
+	 * The latest already triggered checkpoint id which would be updated during
+	 * {@link #spillInflightBuffers(long, ChannelStateWriter)}.
+	 */
 	@GuardedBy("receivedBuffers")
 	private long lastRequestedCheckpointId = -1;
 
@@ -216,7 +220,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	}
 
 	@Override
-	public List<Buffer> requestInflightBuffers(long checkpointId) throws IOException {
+	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) throws IOException {
 		synchronized (receivedBuffers) {
 			checkState(checkpointId > lastRequestedCheckpointId, "Need to request the next checkpointId");
 
@@ -233,7 +237,11 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 			lastRequestedCheckpointId = checkpointId;
 
-			return inflightBuffers;
+			channelStateWriter.addInputData(
+				checkpointId,
+				channelInfo,
+				ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
+				inflightBuffers.toArray(new Buffer[0]));
 		}
 	}
 

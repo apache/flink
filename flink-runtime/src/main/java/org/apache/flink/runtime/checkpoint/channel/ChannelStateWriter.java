@@ -146,7 +146,12 @@ public interface ChannelStateWriter extends Closeable, CheckpointListener {
 	 */
 	ChannelStateWriteResult getWriteResult(long checkpointId);
 
-	ChannelStateWriter NO_OP = new ChannelStateWriter() {
+	ChannelStateWriter NO_OP = new NoOpChannelStateWriter();
+
+	/**
+	 * No-op implementation of {@link ChannelStateWriter}.
+	 */
+	class NoOpChannelStateWriter implements ChannelStateWriter {
 		@Override
 		public void start(long checkpointId, CheckpointOptions checkpointOptions) {
 		}
@@ -185,5 +190,5 @@ public interface ChannelStateWriter extends Closeable, CheckpointListener {
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
 		}
-	};
+	}
 }

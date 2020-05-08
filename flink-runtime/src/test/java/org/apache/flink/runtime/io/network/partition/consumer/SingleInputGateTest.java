@@ -23,6 +23,8 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriterImpl;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -60,6 +62,7 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
@@ -67,6 +70,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -83,6 +87,7 @@ import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.create
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -672,13 +677,13 @@ public class SingleInputGateTest extends InputGateTestBase {
 
 		remoteInputChannel1.onBuffer(createBuffer(1), 0, 0);
 		remoteInputChannel2.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(0, 0, options)), 0, 0);
-		remoteInputChannel1.requestInflightBuffers(0);
-		remoteInputChannel2.requestInflightBuffers(0);
+		remoteInputChannel1.spillInflightBuffers(0, ChannelStateWriter.NO_OP);
+		remoteInputChannel2.spillInflightBuffers(0, ChannelStateWriter.NO_OP);
 		remoteInputChannel1.onBuffer(createBuffer(11), 1, 0);
 		remoteInputChannel2.onBuffer(createBuffer(12), 1, 0);
 		remoteInputChannel1.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(1, 0, options)), 2, 0);
-		remoteInputChannel1.requestInflightBuffers(1);
-		remoteInputChannel2.requestInflightBuffers(1);
+		remoteInputChannel1.spillInflightBuffers(1, ChannelStateWriter.NO_OP);
+		remoteInputChannel2.spillInflightBuffers(1, ChannelStateWriter.NO_OP);
 		remoteInputChannel1.onBuffer(createBuffer(21), 3, 0);
 		remoteInputChannel2.onBuffer(createBuffer(22), 2, 0);
 
@@ -765,6 +770,59 @@ public class SingleInputGateTest extends InputGateTestBase {
 				assertEquals(channelCounter++, channelInfo.getInputChannelIdx());
 			}
 		}
+	}
+
+	@Test
+	public void testConcurrentReceiveBuffersAndSpillInflightBuffers() throws Exception {
+		NettyShuffleEnvironment network = createNettyShuffleEnvironment();
+		SingleInputGate inputGate = createInputGate(network, 1, ResultPartitionType.PIPELINED);
+		RemoteInputChannel inputChannel = InputChannelBuilder.newBuilder()
+			.setChannelIndex(0)
+			.setupFromNettyShuffleEnvironment(network)
+			.setConnectionManager(new TestingConnectionManager())
+			.buildRemoteChannel(inputGate);
+
+		List<Buffer> inflightBuffers = new ArrayList<>();
+		inputGate.registerBufferReceivedListener(new BufferReceivedListener() {
+			@Override
+			public void notifyBufferReceived(Buffer buffer, InputChannelInfo channelInfo) {
+				inflightBuffers.add(buffer);
+			}
+
+			@Override
+			public void notifyBarrierReceived(CheckpointBarrier barrier, InputChannelInfo channelInfo) {
+			}
+		});
+
+		List<Buffer> buffers = new ArrayList<>();
+		for (int i = 0; i < 1024; ++i) {
+			buffers.add(BufferBuilderTestUtils.buildSomeBuffer(1024));
+		}
+		CheckpointBarrier barrier = new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation());
+		Thread bufferReceiver = new Thread(() -> {
+			try {
+				for (int i = 0; i < buffers.size(); ++i) {
+					inputChannel.onBuffer(buffers.get(i), i, 0);
+				}
+				// add checkpoint barrier
+				inputChannel.onBuffer(EventSerializer.toBuffer(barrier), buffers.size(), 0);
+				// one additional buffer which won't be added to inflight buffer queue
+				inputChannel.onBuffer(BufferBuilderTestUtils.buildSomeBuffer(1024), buffers.size() + 1, 0);
+			} catch (IOException e) {
+				ExceptionUtils.rethrow(e);
+			}
+		});
+		bufferReceiver.start();
+
+		inputChannel.spillInflightBuffers(0, new ChannelStateWriterImpl.NoOpChannelStateWriter() {
+			@Override
+			public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, Buffer... data) {
+				inflightBuffers.addAll(Arrays.asList(data));
+			}
+		});
+
+		bufferReceiver.join();
+		assertArrayEquals(buffers.toArray(), inflightBuffers.toArray());
 	}
 
 	// ---------------------------------------------------------------------------------------------
