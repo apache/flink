@@ -31,15 +31,15 @@ import java.util.Random;
 /**
  * Tests for (un)marshalling of {@link SubtaskAllExecutionAttemptsDetailsInfo}.
  */
-public class SubtaskAllExecutionAttemptsDetailsInfoTest extends RestResponseMarshallingTestBase {
+public class SubtaskAllExecutionAttemptsDetailsInfoTest extends RestResponseMarshallingTestBase<SubtaskAllExecutionAttemptsDetailsInfo> {
 
 	@Override
-	protected Class getTestResponseClass() {
+	protected Class<SubtaskAllExecutionAttemptsDetailsInfo> getTestResponseClass() {
 		return SubtaskAllExecutionAttemptsDetailsInfo.class;
 	}
 
 	@Override
-	protected ResponseBody getTestResponseInstance() throws Exception {
+	protected SubtaskAllExecutionAttemptsDetailsInfo getTestResponseInstance() throws Exception {
 		final Random random = new Random();
 		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
 			random.nextLong(),
