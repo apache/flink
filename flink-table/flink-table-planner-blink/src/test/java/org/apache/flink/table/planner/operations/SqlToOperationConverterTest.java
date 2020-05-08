@@ -24,6 +24,8 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -271,23 +273,82 @@ public class SqlToOperationConverterTest {
 				DataTypes.VARCHAR(Integer.MAX_VALUE)});
 	}
 
-	@Test(expected = SqlConversionException.class)
-	public void testCreateTableWithPkUniqueKeys() {
-		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+	@Test
+	public void testCreateTableWithPrimaryKey() {
 		final String sql = "CREATE TABLE tbl1 (\n" +
 			"  a bigint,\n" +
 			"  b varchar, \n" +
 			"  c int, \n" +
 			"  d varchar, \n" +
-			"  primary key(a), \n" +
-			"  unique(a, b) \n" +
-			")\n" +
-			"  PARTITIONED BY (a, d)\n" +
-			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
-			"    'kafka.topic' = 'log.test'\n" +
+			"  constraint ct1 primary key(a, b) not enforced\n" +
+			") with (\n" +
+			"  'connector' = 'kafka', \n" +
+			"  'kafka.topic' = 'log.test'\n" +
 			")\n";
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+		Operation operation = parse(sql, planner, parser);
+		assert operation instanceof CreateTableOperation;
+		CreateTableOperation op = (CreateTableOperation) operation;
+		CatalogTable catalogTable = op.getCatalogTable();
+		TableSchema tableSchema = catalogTable.getSchema();
+		assertThat(
+				tableSchema
+						.getPrimaryKey()
+						.map(UniqueConstraint::asSummaryString)
+						.orElse("fakeVal"),
+				is("CONSTRAINT ct1 PRIMARY KEY (a, b)"));
+		assertArrayEquals(
+				new String[] {"a", "b", "c", "d"},
+				tableSchema.getFieldNames());
+		assertArrayEquals(
+				new DataType[]{
+						DataTypes.BIGINT().notNull(),
+						DataTypes.STRING().notNull(),
+						DataTypes.INT(),
+						DataTypes.STRING()},
+				tableSchema.getFieldDataTypes());
+	}
+
+	@Test
+	public void testCreateTableWithPrimaryKeyEnforced() {
+		final String sql = "CREATE TABLE tbl1 (\n" +
+				"  a bigint,\n" +
+				"  b varchar, \n" +
+				"  c int, \n" +
+				"  d varchar, \n" +
+				// Default is enforced.
+				"  constraint ct1 primary key(a, b)\n" +
+				") with (\n" +
+				"  'connector' = 'kafka', \n" +
+				"  'kafka.topic' = 'log.test'\n" +
+				")\n";
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+		exceptionRule.expect(ValidationException.class);
+		exceptionRule.expectMessage("Flink doesn't support ENFORCED mode for PRIMARY KEY "
+				+ "constaint. ENFORCED/NOT ENFORCED  controls if the constraint "
+				+ "checks are performed on the incoming/outgoing data. "
+				+ "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode");
+		parse(sql, planner, parser);
+	}
+
+	@Test
+	public void testCreateTableWithUniqueKey() {
+		final String sql = "CREATE TABLE tbl1 (\n" +
+				"  a bigint,\n" +
+				"  b varchar, \n" +
+				"  c int, \n" +
+				"  d varchar, \n" +
+				"  constraint ct1 unique (a, b) not enforced\n" +
+				") with (\n" +
+				"  'connector' = 'kafka', \n" +
+				"  'kafka.topic' = 'log.test'\n" +
+				")\n";
+		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+		exceptionRule.expect(UnsupportedOperationException.class);
+		exceptionRule.expectMessage("UNIQUE constraint is not supported yet");
 		parse(sql, planner, parser);
 	}
 
