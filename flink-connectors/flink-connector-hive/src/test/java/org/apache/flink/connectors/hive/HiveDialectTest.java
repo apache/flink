@@ -381,6 +381,38 @@ public class HiveDialectTest {
 	}
 
 	@Test
+	public void testView() throws Exception {
+		tableEnv.executeSql("create table tbl (x int,y string)");
+
+		// create
+		tableEnv.executeSql("create view v(vx) comment 'v comment' tblproperties ('k1'='v1') as select x from tbl");
+		ObjectPath viewPath = new ObjectPath("default", "v");
+		Table hiveView = hiveCatalog.getHiveTable(viewPath);
+		assertEquals(TableType.VIRTUAL_VIEW.name(), hiveView.getTableType());
+		assertEquals("vx", hiveView.getSd().getCols().get(0).getName());
+		assertEquals("v1", hiveView.getParameters().get("k1"));
+
+		// change properties
+		tableEnv.executeSql("alter view v set tblproperties ('k1'='v11')");
+		hiveView = hiveCatalog.getHiveTable(viewPath);
+		assertEquals("v11", hiveView.getParameters().get("k1"));
+
+		// change query
+		tableEnv.executeSql("alter view v as select y from tbl");
+		hiveView = hiveCatalog.getHiveTable(viewPath);
+		assertEquals("y", hiveView.getSd().getCols().get(0).getName());
+
+		// rename
+		tableEnv.executeSql("alter view v rename to v1");
+		viewPath = new ObjectPath("default", "v1");
+		assertTrue(hiveCatalog.tableExists(viewPath));
+
+		// drop
+		tableEnv.executeSql("drop view v1");
+		assertFalse(hiveCatalog.tableExists(viewPath));
+	}
+
+	@Test
 	public void testFunction() throws Exception {
 		// create function
 		tableEnv.executeSql(String.format("create function my_abs as '%s'", GenericUDFAbs.class.getName()));

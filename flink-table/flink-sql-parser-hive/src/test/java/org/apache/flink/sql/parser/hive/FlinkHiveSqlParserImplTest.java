@@ -338,4 +338,49 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"  `C`  SMALLINT\n" +
 						") RESTRICT");
 	}
+
+	@Test
+	public void testCreateView() {
+		sql("create view db1.v1 as select x,y from tbl")
+				.ok("CREATE VIEW `DB1`.`V1`\n" +
+						"AS\n" +
+						"SELECT `X`, `Y`\n" +
+						"FROM `TBL`");
+		sql("create view if not exists v1 (c1,c2) as select * from tbl")
+				.ok("CREATE VIEW IF NOT EXISTS `V1` (`C1`, `C2`)\n" +
+						"AS\n" +
+						"SELECT *\n" +
+						"FROM `TBL`");
+		sql("create view v1 comment 'v1 comment' tblproperties('k1'='v1','k2'='v2') as select * from tbl")
+				.ok("CREATE VIEW `V1`\n" +
+						"COMMENT 'v1 comment'\n" +
+						"TBLPROPERTIES (\n" +
+						"  'k1' = 'v1',\n" +
+						"  'k2' = 'v2'\n" +
+						")\n" +
+						"AS\n" +
+						"SELECT *\n" +
+						"FROM `TBL`");
+		// TODO: support column comments
+	}
+
+	@Test
+	public void testDropView() {
+		sql("drop view v1").ok("DROP VIEW `V1`");
+		sql("drop view if exists v1").ok("DROP VIEW IF EXISTS `V1`");
+	}
+
+	@Test
+	public void testAlterView() {
+		sql("alter view v1 rename to v2").ok("ALTER VIEW `V1` RENAME TO `V2`");
+		sql("alter view v1 set tblproperties ('k1'='v1')")
+				.ok("ALTER VIEW `V1` SET TBLPROPERTIES (\n" +
+						"  'k1' = 'v1'\n" +
+						")");
+		sql("alter view v1 as select c1,c2 from tbl")
+				.ok("ALTER VIEW `V1`\n" +
+						"AS\n" +
+						"SELECT `C1`, `C2`\n" +
+						"FROM `TBL`");
+	}
 }

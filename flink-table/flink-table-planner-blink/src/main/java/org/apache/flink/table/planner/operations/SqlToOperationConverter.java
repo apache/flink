@@ -26,6 +26,10 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableProperties;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
+import org.apache.flink.sql.parser.ddl.SqlAlterView;
+import org.apache.flink.sql.parser.ddl.SqlAlterViewAs;
+import org.apache.flink.sql.parser.ddl.SqlAlterViewProperties;
+import org.apache.flink.sql.parser.ddl.SqlAlterViewRename;
 import org.apache.flink.sql.parser.ddl.SqlChangeColumn;
 import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
@@ -87,6 +91,9 @@ import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
+import org.apache.flink.table.operations.ddl.AlterViewAsOperation;
+import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
+import org.apache.flink.table.operations.ddl.AlterViewRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
@@ -120,7 +127,6 @@ import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -179,6 +185,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertDropTable((SqlDropTable) validated));
 		} else if (validated instanceof SqlAlterTable) {
 			return Optional.of(converter.convertAlterTable((SqlAlterTable) validated));
+		} else if (validated instanceof SqlAlterView) {
+			return Optional.of(converter.convertAlterView((SqlAlterView) validated));
 		} else if (validated instanceof SqlCreateFunction) {
 			return Optional.of(converter.convertCreateFunction((SqlCreateFunction) validated));
 		} else if (validated instanceof SqlAlterFunction) {
@@ -235,6 +243,59 @@ public class SqlToOperationConverter {
 		return new DropTableOperation(identifier, sqlDropTable.getIfExists(), sqlDropTable.isTemporary());
 	}
 
+	/**
+	 * convert ALTER VIEW statement.
+	 */
+	private Operation convertAlterView(SqlAlterView alterView) {
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(alterView.fullViewName());
+		ObjectIdentifier viewIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		Optional<CatalogManager.TableLookupResult> optionalCatalogTable = catalogManager.getTable(viewIdentifier);
+		if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
+			throw new ValidationException(String.format("View %s doesn't exist or is a temporary view.",
+					viewIdentifier.toString()));
+		}
+		CatalogBaseTable baseTable = optionalCatalogTable.get().getTable();
+		if (baseTable instanceof CatalogTable) {
+			throw new ValidationException("ALTER VIEW for a table is not allowed");
+		}
+		if (alterView instanceof SqlAlterViewRename) {
+			UnresolvedIdentifier newUnresolvedIdentifier =
+					UnresolvedIdentifier.of(((SqlAlterViewRename) alterView).fullNewViewName());
+			ObjectIdentifier newTableIdentifier = catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
+			return new AlterViewRenameOperation(viewIdentifier, newTableIdentifier);
+		} else if (alterView instanceof SqlAlterViewProperties) {
+			SqlAlterViewProperties alterViewProperties = (SqlAlterViewProperties) alterView;
+			CatalogView oldView = (CatalogView) baseTable;
+			Map<String, String> newProperties = new HashMap<>(oldView.getOptions());
+			newProperties.putAll(OperationConverterUtils.extractProperties(alterViewProperties.getPropertyList()));
+			CatalogView newView = new CatalogViewImpl(
+					oldView.getOriginalQuery(),
+					oldView.getExpandedQuery(),
+					oldView.getSchema(),
+					newProperties,
+					oldView.getComment());
+			return new AlterViewPropertiesOperation(viewIdentifier, newView);
+		} else if (alterView instanceof SqlAlterViewAs) {
+			SqlAlterViewAs alterViewAs = (SqlAlterViewAs) alterView;
+			final SqlNode newQuery = alterViewAs.getNewQuery();
+
+			SqlNode validateQuery = flinkPlanner.validate(newQuery);
+			PlannerQueryOperation operation = toQueryOperation(flinkPlanner, validateQuery);
+			TableSchema schema = operation.getTableSchema();
+
+			String originalQuery = getQuotedSqlString(newQuery);
+			String expandedQuery = getQuotedSqlString(validateQuery);
+			CatalogView oldView = (CatalogView) baseTable;
+			CatalogView newView = new CatalogViewImpl(originalQuery, expandedQuery, schema,
+					oldView.getOptions(), oldView.getComment());
+			return new AlterViewAsOperation(viewIdentifier, newView);
+		} else {
+			throw new ValidationException(
+					String.format("[%s] needs to implement",
+							alterView.toSqlString(CalciteSqlDialect.DEFAULT)));
+		}
+	}
+
 	/** convert ALTER TABLE statement. */
 	private Operation convertAlterTable(SqlAlterTable sqlAlterTable) {
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterTable.fullTableName());
@@ -245,6 +306,9 @@ public class SqlToOperationConverter {
 					tableIdentifier.toString()));
 		}
 		CatalogBaseTable baseTable = optionalCatalogTable.get().getTable();
+		if (baseTable instanceof CatalogView) {
+			throw new ValidationException("ALTER TABLE for a view is not allowed");
+		}
 		if (sqlAlterTable instanceof SqlAlterTableRename) {
 			UnresolvedIdentifier newUnresolvedIdentifier =
 				UnresolvedIdentifier.of(((SqlAlterTableRename) sqlAlterTable).fullNewTableName());
@@ -597,7 +661,7 @@ public class SqlToOperationConverter {
 		CatalogView catalogView = new CatalogViewImpl(originalQuery,
 				expandedQuery,
 				schema,
-				Collections.emptyMap(),
+				OperationConverterUtils.extractProperties(sqlCreateView.getProperties().orElse(null)),
 				comment);
 
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlCreateView.fullViewName());
