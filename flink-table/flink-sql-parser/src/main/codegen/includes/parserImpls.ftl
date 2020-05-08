@@ -378,6 +378,8 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier tableIdentifier;
     SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlIdentifier constraintName;
+    SqlTableConstraint constraint;
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
@@ -399,6 +401,21 @@ SqlAlterTable SqlAlterTable() :
                         startPos.plus(getPos()),
                         tableIdentifier,
                         propertyList);
+        }
+    |
+        <ADD> constraint = TableConstraint() {
+            return new SqlAlterTableAddConstraint(
+                        tableIdentifier,
+                        constraint,
+                        startPos.plus(getPos()));
+        }
+    |
+        <DROP> <CONSTRAINT>
+        constraintName = SimpleIdentifier() {
+            return new SqlAlterTableDropConstraint(
+                tableIdentifier,
+                constraintName,
+                startPos.plus(getPos()));
         }
     )
 }
