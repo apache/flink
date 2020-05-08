@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
@@ -48,7 +47,6 @@ public class InputChannelBuilder {
 	private int initialBackoff = 0;
 	private int maxBackoff = 0;
 	private InputChannelMetrics metrics = InputChannelTestUtils.newUnregisteredInputChannelMetrics();
-	private MemorySegmentProvider memorySegmentProvider = InputChannelTestUtils.StubMemorySegmentProvider.getInstance();
 
 	public static InputChannelBuilder newBuilder() {
 		return new InputChannelBuilder();
@@ -94,17 +92,11 @@ public class InputChannelBuilder {
 		return this;
 	}
 
-	public InputChannelBuilder setMemorySegmentProvider(MemorySegmentProvider memorySegmentProvider) {
-		this.memorySegmentProvider = memorySegmentProvider;
-		return this;
-	}
-
 	public InputChannelBuilder setupFromNettyShuffleEnvironment(NettyShuffleEnvironment network) {
 		this.partitionManager = network.getResultPartitionManager();
 		this.connectionManager = network.getConnectionManager();
 		this.initialBackoff = network.getConfiguration().partitionRequestInitialBackoff();
 		this.maxBackoff = network.getConfiguration().partitionRequestMaxBackoff();
-		this.memorySegmentProvider = network.getNetworkBufferPool();
 		return this;
 	}
 
@@ -118,8 +110,7 @@ public class InputChannelBuilder {
 			connectionManager,
 			initialBackoff,
 			maxBackoff,
-			metrics,
-			memorySegmentProvider);
+			metrics);
 	}
 
 	public LocalInputChannel buildLocalChannel(SingleInputGate inputGate) {
@@ -143,7 +134,6 @@ public class InputChannelBuilder {
 			connectionManager,
 			initialBackoff,
 			maxBackoff,
-			metrics,
-			memorySegmentProvider);
+			metrics);
 	}
 }

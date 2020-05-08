@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.io.benchmark;
 
-import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -86,8 +85,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				connectionManager,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
-				metrics,
-				networkBufferPool);
+				metrics);
 		}
 	}
 
@@ -150,8 +148,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				ConnectionManager connectionManager,
 				int initialBackOff,
 				int maxBackoff,
-				InputChannelMetrics metrics,
-				MemorySegmentProvider memorySegmentProvider) {
+				InputChannelMetrics metrics) {
 			super(
 				inputGate,
 				channelIndex,
@@ -160,8 +157,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				connectionManager,
 				initialBackOff,
 				maxBackoff,
-				metrics,
-				memorySegmentProvider);
+				metrics);
 		}
 
 		@Override

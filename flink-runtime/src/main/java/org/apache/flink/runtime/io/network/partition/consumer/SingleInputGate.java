@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -184,6 +185,8 @@ public class SingleInputGate extends IndexedInputGate {
 	@Nullable
 	private final BufferDecompressor bufferDecompressor;
 
+	private final MemorySegmentProvider memorySegmentProvider;
+
 	public SingleInputGate(
 		String owningTaskName,
 		int gateIndex,
@@ -193,7 +196,8 @@ public class SingleInputGate extends IndexedInputGate {
 		int numberOfInputChannels,
 		PartitionProducerStateProvider partitionProducerStateProvider,
 		SupplierWithException<BufferPool, IOException> bufferPoolFactory,
-		@Nullable BufferDecompressor bufferDecompressor) {
+		@Nullable BufferDecompressor bufferDecompressor,
+		MemorySegmentProvider memorySegmentProvider) {
 
 		this.owningTaskName = checkNotNull(owningTaskName);
 		Preconditions.checkArgument(0 <= gateIndex, "The gate index must be positive.");
@@ -217,6 +221,7 @@ public class SingleInputGate extends IndexedInputGate {
 		this.partitionProducerStateProvider = checkNotNull(partitionProducerStateProvider);
 
 		this.bufferDecompressor = bufferDecompressor;
+		this.memorySegmentProvider = checkNotNull(memorySegmentProvider);
 
 		this.closeFuture = new CompletableFuture<>();
 	}
@@ -300,6 +305,10 @@ public class SingleInputGate extends IndexedInputGate {
 
 	public BufferPool getBufferPool() {
 		return bufferPool;
+	}
+
+	MemorySegmentProvider getMemorySegmentProvider() {
+		return memorySegmentProvider;
 	}
 
 	public int getNumberOfQueuedBuffers() {

@@ -346,7 +346,8 @@ public class InputGateFairnessTest {
 				numberOfInputChannels,
 				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
 				STUB_BUFFER_POOL_FACTORY,
-				null);
+				null,
+				new UnpooledMemorySegmentProvider(32 * 1024));
 
 			try {
 				Field f = SingleInputGate.class.getDeclaredField("inputChannelsWithData");
@@ -392,7 +393,6 @@ public class InputGateFairnessTest {
 		return InputChannelBuilder.newBuilder()
 			.setChannelIndex(channelIndex)
 			.setConnectionManager(connectionManager)
-			.setMemorySegmentProvider(new UnpooledMemorySegmentProvider(32 * 1024))
 			.buildRemoteChannel(inputGate);
 	}
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -35,9 +34,11 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
+import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
@@ -62,6 +63,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
@@ -92,7 +94,7 @@ public class RemoteInputChannelTest {
 	@Test
 	public void testExceptionOnReordering() throws Exception {
 		// Setup
-		final SingleInputGate inputGate = mock(SingleInputGate.class);
+		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		final Buffer buffer = TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE);
 
@@ -113,10 +115,6 @@ public class RemoteInputChannelTest {
 			inputChannel.releaseAllResources();
 			assertTrue(buffer.isRecycled());
 		}
-
-		// Need to notify the input gate for the out-of-order buffer as well. Otherwise the
-		// receiving task will not notice the error.
-		verify(inputGate, times(2)).notifyChannelNonEmpty(eq(inputChannel));
 	}
 
 	@Test
@@ -155,7 +153,7 @@ public class RemoteInputChannelTest {
 
 		try {
 			// Test
-			final SingleInputGate inputGate = mock(SingleInputGate.class);
+			final SingleInputGate inputGate = createSingleInputGate(1);
 
 			for (int i = 0; i < numberOfRepetitions; i++) {
 				final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
@@ -207,7 +205,7 @@ public class RemoteInputChannelTest {
 	@Test(expected = IllegalStateException.class)
 	public void testRetriggerWithoutPartitionRequest() throws Exception {
 		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
-		SingleInputGate inputGate = mock(SingleInputGate.class);
+		SingleInputGate inputGate = createSingleInputGate(1);
 
 		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, 500, 3000);
 
@@ -221,7 +219,7 @@ public class RemoteInputChannelTest {
 
 		// Setup
 		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
-		SingleInputGate inputGate = mock(SingleInputGate.class);
+		SingleInputGate inputGate = createSingleInputGate(1);
 
 		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, 500, 3000);
 
@@ -250,7 +248,7 @@ public class RemoteInputChannelTest {
 	public void testPartitionRequestSingleBackoff() throws Exception {
 		// Setup
 		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
-		SingleInputGate inputGate = mock(SingleInputGate.class);
+		SingleInputGate inputGate = createSingleInputGate(1);
 
 		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, 500, 500);
 
@@ -276,7 +274,7 @@ public class RemoteInputChannelTest {
 	public void testPartitionRequestNoBackoff() throws Exception {
 		// Setup
 		PartitionRequestClient connClient = mock(PartitionRequestClient.class);
-		SingleInputGate inputGate = mock(SingleInputGate.class);
+		SingleInputGate inputGate = createSingleInputGate(1);
 
 		RemoteInputChannel ch = createRemoteInputChannel(inputGate, connClient, 0, 0);
 
@@ -296,22 +294,18 @@ public class RemoteInputChannelTest {
 
 	@Test
 	public void testOnFailedPartitionRequest() throws Exception {
-		final ConnectionManager connectionManager = mock(ConnectionManager.class);
-		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
-				.thenReturn(mock(PartitionRequestClient.class));
-
 		final ResultPartitionID partitionId = new ResultPartitionID();
-
-		final SingleInputGate inputGate = mock(SingleInputGate.class);
-
+		final TestPartitionProducerStateProvider provider = new TestPartitionProducerStateProvider(partitionId);
+		final SingleInputGate inputGate = new SingleInputGateBuilder()
+			.setPartitionProducerStateProvider(provider)
+			.build();
 		final RemoteInputChannel ch = InputChannelBuilder.newBuilder()
 			.setPartitionId(partitionId)
-			.setConnectionManager(connectionManager)
 			.buildRemoteChannel(inputGate);
 
 		ch.onFailedPartitionRequest();
 
-		verify(inputGate).triggerPartitionStateCheck(eq(partitionId));
+		assertTrue(provider.isInvoked());
 	}
 
 	@Test(expected = CancelTaskException.class)
@@ -321,7 +315,8 @@ public class RemoteInputChannelTest {
 		when(connManager.createPartitionRequestClient(any(ConnectionID.class)))
 				.thenReturn(mock(PartitionRequestClient.class));
 
-		final RemoteInputChannel ch = InputChannelTestUtils.createRemoteInputChannel(mock(SingleInputGate.class), 0, connManager);
+		final SingleInputGate gate = createSingleInputGate(1);
+		final RemoteInputChannel ch = InputChannelTestUtils.createRemoteInputChannel(gate, 0, connManager);
 
 		ch.onError(new ProducerFailedException(new RuntimeException("Expected test exception.")));
 
@@ -347,8 +342,8 @@ public class RemoteInputChannelTest {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(16, 32, 2);
 		final int numFloatingBuffers = 14;
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannels(inputChannel);
 		Throwable thrown = null;
 		try {
@@ -486,8 +481,8 @@ public class RemoteInputChannelTest {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(16, 32, 2);
 		final int numFloatingBuffers = 14;
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannels(inputChannel);
 		Throwable thrown = null;
 		try {
@@ -561,8 +556,8 @@ public class RemoteInputChannelTest {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(16, 32, 2);
 		final int numFloatingBuffers = 14;
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannels(inputChannel);
 		Throwable thrown = null;
 		try {
@@ -651,11 +646,11 @@ public class RemoteInputChannelTest {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(12, 32, numExclusiveBuffers);
 		final int numFloatingBuffers = 3;
 
-		final SingleInputGate inputGate = createSingleInputGate(3);
+		final SingleInputGate inputGate = createSingleInputGate(3, networkBufferPool);
 		final RemoteInputChannel[] inputChannels = new RemoteInputChannel[3];
-		inputChannels[0] = spy(createRemoteInputChannel(inputGate, networkBufferPool));
-		inputChannels[1] = spy(createRemoteInputChannel(inputGate, networkBufferPool));
-		inputChannels[2] = spy(createRemoteInputChannel(inputGate, networkBufferPool));
+		inputChannels[0] = spy(createRemoteInputChannel(inputGate));
+		inputChannels[1] = spy(createRemoteInputChannel(inputGate));
+		inputChannels[2] = spy(createRemoteInputChannel(inputGate));
 		inputGate.setInputChannels(inputChannels);
 		Throwable thrown = null;
 		try {
@@ -774,8 +769,8 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
@@ -836,8 +831,8 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(3);
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannels(inputChannel);
 		Throwable thrown = null;
 		try {
@@ -888,8 +883,8 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(3);
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannels(inputChannel);
 		Throwable thrown = null;
 		try {
@@ -943,8 +938,8 @@ public class RemoteInputChannelTest {
 
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
 
-		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, networkBufferPool);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannels(inputChannel);
 		Throwable thrown = null;
 		try {
@@ -1058,39 +1053,15 @@ public class RemoteInputChannelTest {
 
 	// ---------------------------------------------------------------------------------------------
 
-	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate)
-		throws IOException, InterruptedException {
-
-		return createRemoteInputChannel(inputGate, InputChannelTestUtils.StubMemorySegmentProvider.getInstance());
-	}
-
-	private RemoteInputChannel createRemoteInputChannel(
-		SingleInputGate inputGate,
-		MemorySegmentProvider memorySegmentProvider)
-		throws IOException, InterruptedException {
-
-		return createRemoteInputChannel(
-				inputGate, mock(PartitionRequestClient.class), 0, 0, memorySegmentProvider);
+	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) throws IOException, InterruptedException {
+		return createRemoteInputChannel(inputGate, mock(PartitionRequestClient.class), 0, 0);
 	}
 
 	private RemoteInputChannel createRemoteInputChannel(
 			SingleInputGate inputGate,
 			PartitionRequestClient partitionRequestClient,
 			int initialBackoff,
-			int maxBackoff)
-			throws IOException, InterruptedException {
-
-		return createRemoteInputChannel(inputGate, partitionRequestClient, initialBackoff, maxBackoff,
-			InputChannelTestUtils.StubMemorySegmentProvider.getInstance());
-	}
-
-	private RemoteInputChannel createRemoteInputChannel(
-			SingleInputGate inputGate,
-			PartitionRequestClient partitionRequestClient,
-			int initialBackoff,
-			int maxBackoff,
-			MemorySegmentProvider memorySegmentProvider)
-			throws IOException, InterruptedException {
+			int maxBackoff) throws IOException, InterruptedException {
 
 		final ConnectionManager connectionManager = mock(ConnectionManager.class);
 		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
@@ -1100,7 +1071,6 @@ public class RemoteInputChannelTest {
 			.setConnectionManager(connectionManager)
 			.setInitialBackoff(initialBackoff)
 			.setMaxBackoff(maxBackoff)
-			.setMemorySegmentProvider(memorySegmentProvider)
 			.buildRemoteChannel(inputGate);
 	}
 
@@ -1298,6 +1268,30 @@ public class RemoteInputChannelTest {
 		@Override
 		public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException {
 			throw new IOException("");
+		}
+	}
+
+	private static final class TestPartitionProducerStateProvider implements PartitionProducerStateProvider {
+
+		private boolean isInvoked;
+		private final ResultPartitionID partitionId;
+
+		TestPartitionProducerStateProvider(ResultPartitionID partitionId) {
+			this.partitionId = checkNotNull(partitionId);
+		}
+
+		@Override
+		public void requestPartitionProducerState(
+			IntermediateDataSetID intermediateDataSetId,
+			ResultPartitionID resultPartitionId,
+			Consumer<? super ResponseHandle> responseConsumer) {
+
+			assertEquals(partitionId, resultPartitionId);
+			isInvoked = true;
+		}
+
+		boolean isInvoked() {
+			return isInvoked;
 		}
 	}
 }
