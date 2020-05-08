@@ -815,17 +815,7 @@ public class TypeExtractor {
 		TypeInformation<IN1> in1Type,
 		TypeInformation<IN2> in2Type) {
 
-		final List<ParameterizedType> typeHierarchy = buildParameterizedTypeHierarchy(clazz, baseClass, true);
-
-		if (typeHierarchy.size() < 1) {
-			throw new InvalidTypesException("The types of the interface " + baseClass.getName() + " could not be inferred. " +
-				"Support for synthetic interfaces, lambdas, and generic or raw types is limited at this point");
-		}
-
-		final Type baseClassType =
-			resolveTypeFromTypeHierarchy(typeHierarchy.get(typeHierarchy.size() - 1), typeHierarchy, false);
-
-		final Type returnType = ((ParameterizedType) baseClassType).getActualTypeArguments()[returnParamPos];
+		final Type returnType = getParameterType(baseClass, clazz, returnParamPos);
 
 		final Map<TypeVariable<?>, TypeInformation<?>> typeVariableBindings =
 			bindTypeVariablesWithTypeInformationFromInputs(clazz, Function.class, in1Type, 0, in2Type, 1);
@@ -1080,65 +1070,6 @@ public class TypeExtractor {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Extract type parameters
-	// --------------------------------------------------------------------------------------------
-
-	@PublicEvolving
-	public static Type getParameterType(Class<?> baseClass, Class<?> clazz, int pos) {
-		return getParameterType(baseClass, null, clazz, pos);
-	}
-
-	private static Type getParameterType(Class<?> baseClass, ArrayList<Type> typeHierarchy, Class<?> clazz, int pos) {
-		if (typeHierarchy != null) {
-			typeHierarchy.add(clazz);
-		}
-		Type[] interfaceTypes = clazz.getGenericInterfaces();
-
-		// search in interfaces for base class
-		for (Type t : interfaceTypes) {
-			Type parameter = getParameterTypeFromGenericType(baseClass, typeHierarchy, t, pos);
-			if (parameter != null) {
-				return parameter;
-			}
-		}
-
-		// search in superclass for base class
-		Type t = clazz.getGenericSuperclass();
-		Type parameter = getParameterTypeFromGenericType(baseClass, typeHierarchy, t, pos);
-		if (parameter != null) {
-			return parameter;
-		}
-
-		throw new InvalidTypesException("The types of the interface " + baseClass.getName() + " could not be inferred. " +
-						"Support for synthetic interfaces, lambdas, and generic or raw types is limited at this point");
-	}
-
-	private static Type getParameterTypeFromGenericType(Class<?> baseClass, ArrayList<Type> typeHierarchy, Type t, int pos) {
-		// base class
-		if (t instanceof ParameterizedType && baseClass.equals(((ParameterizedType) t).getRawType())) {
-			if (typeHierarchy != null) {
-				typeHierarchy.add(t);
-			}
-			ParameterizedType baseClassChild = (ParameterizedType) t;
-			return baseClassChild.getActualTypeArguments()[pos];
-		}
-		// interface that extended base class as class or parameterized type
-		else if (t instanceof ParameterizedType && baseClass.isAssignableFrom((Class<?>) ((ParameterizedType) t).getRawType())) {
-			if (typeHierarchy != null) {
-				typeHierarchy.add(t);
-			}
-			return getParameterType(baseClass, typeHierarchy, (Class<?>) ((ParameterizedType) t).getRawType(), pos);
-		}
-		else if (t instanceof Class<?> && baseClass.isAssignableFrom((Class<?>) t)) {
-			if (typeHierarchy != null) {
-				typeHierarchy.add(t);
-			}
-			return getParameterType(baseClass, typeHierarchy, (Class<?>) t, pos);
-		}
-		return null;
-	}
-
-	// --------------------------------------------------------------------------------------------
 	//  Utility methods
 	// --------------------------------------------------------------------------------------------
 
@@ -1208,40 +1139,6 @@ public class TypeExtractor {
 			}
 		}
 		return fieldCount;
-	}
-
-	/**
-	 * Tries to find a concrete value (Class, ParameterizedType etc. ) for a TypeVariable by traversing the type hierarchy downwards.
-	 * If a value could not be found it will return the most bottom type variable in the hierarchy.
-	 */
-	@VisibleForTesting
-	static Type materializeTypeVariable(List<ParameterizedType> typeHierarchy, TypeVariable<?> typeVar) {
-		TypeVariable<?> inTypeTypeVar = typeVar;
-		// iterate thru hierarchy from top to bottom until type variable gets a class assigned
-		for (int i = typeHierarchy.size() - 1; i >= 0; i--) {
-			ParameterizedType curT = typeHierarchy.get(i);
-			Class<?> rawType = (Class<?>) curT.getRawType();
-
-			for (int paramIndex = 0; paramIndex < rawType.getTypeParameters().length; paramIndex++) {
-
-				TypeVariable<?> curVarOfCurT = rawType.getTypeParameters()[paramIndex];
-
-				// check if variable names match
-				if (sameTypeVars(curVarOfCurT, inTypeTypeVar)) {
-					Type curVarType = curT.getActualTypeArguments()[paramIndex];
-
-					// another type variable level
-					if (curVarType instanceof TypeVariable<?>) {
-						inTypeTypeVar = (TypeVariable<?>) curVarType;
-					} else {
-						return curVarType;
-					}
-				}
-			}
-		}
-		// can not be materialized, most likely due to type erasure
-		// return the type variable of the deepest level
-		return inTypeTypeVar;
 	}
 
 	/**
@@ -1612,6 +1509,10 @@ public class TypeExtractor {
 		return null;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Create type information for object.
+	// --------------------------------------------------------------------------------------------
+
 	public static <X> TypeInformation<X> getForObject(X value) {
 		return privateGetForObject(value);
 	}
@@ -1735,6 +1636,35 @@ public class TypeExtractor {
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Resolve type parameters
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Resolve the type of the {@code pos}-th generic parameter of the {@code baseClass} from a parameterized type hierarchy
+	 * that is built from {@code clazz} to {@code baseClass}. If the {@code pos}-th generic parameter is a generic class the
+	 * type of generic parameters of it would also be resolved. This is a recursive resolving process.
+	 *
+	 * @param baseClass a generic class/interface
+	 * @param clazz a sub class of the {@code baseClass}
+	 * @param pos the position of generic parameter in the {@code baseClass}
+	 * @return the type of the {@code pos}-th generic parameter
+	 */
+	@PublicEvolving
+	public static Type getParameterType(Class<?> baseClass, Class<?> clazz, int pos) {
+		final List<ParameterizedType> typeHierarchy = buildParameterizedTypeHierarchy(clazz, baseClass, true);
+
+		if (typeHierarchy.size() < 1) {
+			throw new InvalidTypesException("The types of the interface " + baseClass.getName() + " could not be inferred. " +
+				"Support for synthetic interfaces, lambdas, and generic or raw types is limited at this point");
+		}
+
+		final Type baseClassType =
+			resolveTypeFromTypeHierarchy(typeHierarchy.get(typeHierarchy.size() - 1), typeHierarchy, false);
+
+		return ((ParameterizedType) baseClassType).getActualTypeArguments()[pos];
+	}
+
 	/**
 	 * Build the parameterized type hierarchy from {@code subClass} to {@code baseClass}.
 	 * @param subClass the begin class of the type hierarchy
@@ -1803,7 +1733,7 @@ public class TypeExtractor {
 
 	/**
 	 * Resolve all {@link TypeVariable}s of the type from the type hierarchy.
-	 * @param type the type needed to be resovled
+	 * @param type the type needed to be resolved
 	 * @param typeHierarchy the set of types which the {@link TypeVariable} could be resovled from.
 	 * @param resolveGenericArray whether to resolve the {@code GenericArrayType} or not. This is for compatible.
 	 *                               (Some code path resolves the component type of a GenericArrayType. Some code path
@@ -1856,6 +1786,45 @@ public class TypeExtractor {
 			parameterizedType.getOwnerType(),
 			actualTypeArguments,
 			parameterizedType.getTypeName());
+	}
+
+	/**
+	 * Tries to find a concrete value (Class, ParameterizedType etc. ) for a TypeVariable by traversing the type
+	 * hierarchy downwards.
+	 *
+	 * @param typeHierarchy the type hierarchy
+	 * @param typeVar the type variable needed to be concreted
+	 * @return the concrete value or
+	 * 		   the most bottom type variable in the hierarchy
+	 */
+	@VisibleForTesting
+	static Type materializeTypeVariable(List<ParameterizedType> typeHierarchy, TypeVariable<?> typeVar) {
+		TypeVariable<?> inTypeTypeVar = typeVar;
+		// iterate thru hierarchy from top to bottom until type variable gets a class assigned
+		for (int i = typeHierarchy.size() - 1; i >= 0; i--) {
+			ParameterizedType curT = typeHierarchy.get(i);
+			Class<?> rawType = (Class<?>) curT.getRawType();
+
+			for (int paramIndex = 0; paramIndex < rawType.getTypeParameters().length; paramIndex++) {
+
+				TypeVariable<?> curVarOfCurT = rawType.getTypeParameters()[paramIndex];
+
+				// check if variable names match
+				if (sameTypeVars(curVarOfCurT, inTypeTypeVar)) {
+					Type curVarType = curT.getActualTypeArguments()[paramIndex];
+
+					// another type variable level
+					if (curVarType instanceof TypeVariable<?>) {
+						inTypeTypeVar = (TypeVariable<?>) curVarType;
+					} else {
+						return curVarType;
+					}
+				}
+			}
+		}
+		// can not be materialized, most likely due to type erasure
+		// return the type variable of the deepest level
+		return inTypeTypeVar;
 	}
 
 	/**
@@ -1929,6 +1898,10 @@ public class TypeExtractor {
 			return typeName;
 		}
 	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Bind type variable with type information.
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Bind the {@link TypeVariable} with {@link TypeInformation} from the inputs' {@link TypeInformation}.
