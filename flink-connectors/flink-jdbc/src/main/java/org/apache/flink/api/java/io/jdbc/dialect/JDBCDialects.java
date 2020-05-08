@@ -459,7 +459,7 @@ public final class JDBCDialects {
 		}
 
 		/**
-		 * Oracle upsert query. It use MERGE INTO to inset or replace into Oracle.
+		 * Oracle upsert query. It use MERGE INTO to replace into Oracle.
 		 */
 		@Override
 		public Optional<String> getUpsertStatement(String tableName, String[] fieldNames, String[] uniqueKeyFields) {
@@ -472,7 +472,7 @@ public final class JDBCDialects {
 
 		@Override
 		public String quoteIdentifier(String identifier) {
-			//return "\"" + identifier + "\""; //if we use this then Oracle becomes case-sensitive
+			//if we use double-quotes around identifier then Oracle becomes case-sensitive
 			return identifier;
 		}
 
