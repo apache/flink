@@ -94,9 +94,7 @@ public class CheckpointBarrierTrackerTest {
 		inputGate = createBarrierTracker(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -116,9 +114,7 @@ public class CheckpointBarrierTrackerTest {
 		inputGate = createBarrierTracker(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -147,9 +143,7 @@ public class CheckpointBarrierTrackerTest {
 		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -182,9 +176,7 @@ public class CheckpointBarrierTrackerTest {
 		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -256,9 +248,7 @@ public class CheckpointBarrierTrackerTest {
 		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CheckpointBarrier.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -281,7 +271,7 @@ public class CheckpointBarrierTrackerTest {
 		inputGate = createBarrierTracker(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer()) {
+			if (boe.isBuffer() || boe.getEvent().getClass() != CancelCheckpointMarker.class) {
 				assertEquals(boe, inputGate.pollNext().get());
 			}
 		}
@@ -329,7 +319,7 @@ public class CheckpointBarrierTrackerTest {
 		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer()) {
+			if (boe.isBuffer() || boe.getEvent().getClass() != CancelCheckpointMarker.class) {
 				assertEquals(boe, inputGate.pollNext().get());
 			}
 		}
@@ -355,7 +345,7 @@ public class CheckpointBarrierTrackerTest {
 		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || (boe.getEvent().getClass() != CheckpointBarrier.class && boe.getEvent().getClass() != CancelCheckpointMarker.class)) {
+			if (boe.isBuffer() || boe.getEvent().getClass() != CancelCheckpointMarker.class) {
 				assertEquals(boe, inputGate.pollNext().get());
 			}
 		}

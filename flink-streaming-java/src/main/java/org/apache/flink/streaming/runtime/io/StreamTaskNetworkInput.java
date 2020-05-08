@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
@@ -134,6 +135,11 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 
 			Optional<BufferOrEvent> bufferOrEvent = checkpointedInputGate.pollNext();
 			if (bufferOrEvent.isPresent()) {
+				// return to the mailbox after receiving a checkpoint barrier to avoid processing of
+				// data after the barrier before checkpoint is performed for unaligned checkpoint mode
+				if (bufferOrEvent.get().isEvent() && bufferOrEvent.get().getEvent() instanceof CheckpointBarrier) {
+					return InputStatus.MORE_AVAILABLE;
+				}
 				processBufferOrEvent(bufferOrEvent.get());
 			} else {
 				if (checkpointedInputGate.isFinished()) {
