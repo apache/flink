@@ -548,9 +548,9 @@ class BatchTableEnvironmentTest extends TableTestBase {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     checkData(
       java.util.Arrays.asList(
-        Row.of("a", "BIGINT", "true", "(NULL)", "(NULL)", "(NULL)"),
-        Row.of("b", "INT", "true", "(NULL)", "(NULL)", "(NULL)"),
-        Row.of("c", "STRING", "true", "(NULL)", "(NULL)", "(NULL)")
+        Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+        Row.of("b", "INT", Boolean.box(true), null, null, null),
+        Row.of("c", "STRING", Boolean.box(true), null, null, null)
       ).iterator(),
       tableResult2.collect())
   }

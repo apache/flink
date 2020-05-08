@@ -129,7 +129,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
 /**
@@ -978,33 +977,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			Optional<CatalogManager.TableLookupResult> result =
 					catalogManager.getTable(describeTableOperation.getSqlIdentifier());
 			if (result.isPresent()) {
-				TableSchema schema = result.get().getTable().getSchema();
-				Map<String, String> fieldToWatermark =
-					schema.getWatermarkSpecs()
-						.stream()
-							.collect(Collectors.toMap(WatermarkSpec::getRowtimeAttribute, WatermarkSpec::getWatermarkExpr));
-
-				Map<String, String> fieldToPrimaryKey = new HashMap<>();
-				schema.getPrimaryKey().ifPresent((p) -> {
-					List<String> columns = p.getColumns();
-					columns.forEach((c) -> fieldToPrimaryKey.put(c, String.format("PRI(%s)", String.join(",", columns))));
-				});
-
-				String[][] rows =
-					schema.getTableColumns()
-						.stream()
-							.map((c) -> {
-								LogicalType logicalType = c.getType().getLogicalType();
-								return new String[]{
-								c.getName(),
-								StringUtils.removeEnd(logicalType.toString(), " NOT NULL"),
-								logicalType.isNullable() ? "true" : "false",
-								fieldToPrimaryKey.getOrDefault(c.getName(), "(NULL)"),
-								c.getExpr().orElse("(NULL)"),
-								fieldToWatermark.getOrDefault(c.getName(), "(NULL)")};
-							}).toArray(String[][]::new);
-
-				return buildShowResult(new String[]{"name", "type", "null", "key", "compute column", "watermark"}, rows);
+				return buildDescribeResult(result.get().getTable().getSchema());
 			} else {
 				throw new ValidationException(String.format(
 						"Tables or views with the identifier '%s' doesn't exist",
@@ -1018,21 +991,51 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	private TableResult buildShowResult(String[] objects) {
-		return buildShowResult(
-				new String[]{"result"},
-				Arrays.stream(objects).map((c) -> new String[]{c}).toArray(String[][]::new));
+		return buildResult(
+			new String[]{"result"},
+			new DataType[]{DataTypes.STRING()},
+			Arrays.stream(objects).map((c) -> new String[]{c}).toArray(String[][]::new));
 	}
 
-	private TableResult buildShowResult(String[] headers, String[][] rows) {
+	private TableResult buildDescribeResult(TableSchema schema) {
+		Map<String, String> fieldToWatermark =
+				schema.getWatermarkSpecs()
+						.stream()
+						.collect(Collectors.toMap(WatermarkSpec::getRowtimeAttribute, WatermarkSpec::getWatermarkExpr));
+
+		Map<String, String> fieldToPrimaryKey = new HashMap<>();
+		schema.getPrimaryKey().ifPresent((p) -> {
+			List<String> columns = p.getColumns();
+			columns.forEach((c) -> fieldToPrimaryKey.put(c, String.format("PRI(%s)", String.join(",", columns))));
+		});
+
+		Object[][] rows =
+			schema.getTableColumns()
+				.stream()
+				.map((c) -> {
+					LogicalType logicalType = c.getType().getLogicalType();
+					return new Object[]{
+						c.getName(),
+						StringUtils.removeEnd(logicalType.toString(), " NOT NULL"),
+						logicalType.isNullable(),
+						fieldToPrimaryKey.getOrDefault(c.getName(), null),
+						c.getExpr().orElse(null),
+						fieldToWatermark.getOrDefault(c.getName(), null)};
+				}).toArray(Object[][]::new);
+
+		return buildResult(
+			new String[]{"name", "type", "null", "key", "compute column", "watermark"},
+			new DataType[]{DataTypes.STRING(), DataTypes.STRING(), DataTypes.BOOLEAN(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()},
+			rows);
+	}
+
+	private TableResult buildResult(String[] headers, DataType[] types, Object[][] rows) {
 		return TableResultImpl.builder()
 				.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
 				.tableSchema(
 					TableSchema.builder().fields(
 						headers,
-						IntStream
-							.range(0, headers.length)
-							.mapToObj(i -> DataTypes.STRING())
-							.toArray(DataType[]::new)).build())
+						types).build())
 				.data(Arrays.stream(rows).map(Row::of).collect(Collectors.toList()))
 				.build();
 	}

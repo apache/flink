@@ -1007,10 +1007,10 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
     checkData(
       util.Arrays.asList(
-        Row.of("a", "INT", "false", "(NULL)", "(NULL)", "(NULL)"),
-        Row.of("b", "STRING", "true", "(NULL)", "(NULL)", "(NULL)"),
-        Row.of("c", "ROW<`f0` INT NOT NULL, `f1` INT>", "false", "(NULL)", "(NULL)", "(NULL)"),
-        Row.of("ts", "TIMESTAMP(3)", "true", "(NULL)", "TO_TIMESTAMP(`b`)",
+        Row.of("a", "INT", Boolean.box(false), null, null, null),
+        Row.of("b", "STRING", Boolean.box(true), null, null, null),
+        Row.of("c", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), null, null, null),
+        Row.of("ts", "TIMESTAMP(3)", Boolean.box(true), null, "TO_TIMESTAMP(`b`)",
           "`ts` - INTERVAL '1' SECOND")
       ).iterator(),
       tableResult1.collect())
@@ -1019,9 +1019,9 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     checkData(
       util.Arrays.asList(
-        Row.of("d", "INT", "false", "(NULL)", "(NULL)", "(NULL)"),
-        Row.of("e", "STRING", "true", "(NULL)", "(NULL)", "(NULL)"),
-        Row.of("f", "ROW<`f0` INT NOT NULL, `f1` INT>", "false", "(NULL)", "(NULL)", "(NULL)")
+        Row.of("d", "INT", Boolean.box(false), null, null, null),
+        Row.of("e", "STRING", Boolean.box(true), null, null, null),
+        Row.of("f", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), null, null, null)
       ).iterator(),
       tableResult2.collect())
 
@@ -1036,8 +1036,8 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
     checkData(
       util.Arrays.asList(
-        Row.of("x", "INT", "false", "(NULL)", "(NULL)", "(NULL)"),
-        Row.of("y", "STRING", "true", "(NULL)", "(NULL)", "(NULL)")).iterator(),
+        Row.of("x", "INT", Boolean.box(false), null, null, null),
+        Row.of("y", "STRING", Boolean.box(true), null, null, null)).iterator(),
       tableResult3.collect())
   }
 

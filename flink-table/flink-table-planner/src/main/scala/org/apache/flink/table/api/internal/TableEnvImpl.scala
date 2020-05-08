@@ -814,29 +814,7 @@ abstract class TableEnvImpl(
       case descOperation: DescribeTableOperation =>
         val result = catalogManager.getTable(descOperation.getSqlIdentifier)
         if (result.isPresent) {
-          val schema = result.get.getTable.getSchema
-          val fieldToWatermark =
-            schema
-              .getWatermarkSpecs
-              .map(w => (w.getRowtimeAttribute, w.getWatermarkExpr)).toMap
-          val fieldToPrimaryKey = new JHashMap[String, String]()
-          if (schema.getPrimaryKey.isPresent) {
-            val columns = schema.getPrimaryKey.get.getColumns.asScala
-            columns.foreach(c => fieldToPrimaryKey.put(c, s"PRI(${columns.mkString(",")})"))
-          }
-          val data = Array.ofDim[String](schema.getFieldCount, 6)
-          schema.getTableColumns.asScala.zipWithIndex.foreach {
-            case (c, i) => {
-              val logicalType = c.getType.getLogicalType
-              data(i)(0) = c.getName
-              data(i)(1) = StringUtils.removeEnd(logicalType.toString, " NOT NULL")
-              data(i)(2) = if (logicalType.isNullable) "true" else "false"
-              data(i)(3) = fieldToPrimaryKey.getOrDefault(c.getName, "(NULL)")
-              data(i)(4) = c.getExpr.orElse("(NULL)")
-              data(i)(5) = fieldToWatermark.getOrDefault(c.getName, "(NULL)")
-            }
-          }
-          buildShowResult(Array("name", "type", "null", "key", "compute column", "watermark"), data)
+          buildDescribeResult(result.get.getTable.getSchema)
         } else {
           throw new ValidationException(String.format(
             "Table or view with identifier '%s' doesn't exist",
@@ -851,21 +829,50 @@ abstract class TableEnvImpl(
   }
 
   private def buildShowResult(objects: Array[String]): TableResult = {
-    val rows = Array.ofDim[String](objects.length, 1)
+    val rows = Array.ofDim[Object](objects.length, 1)
     objects.zipWithIndex.foreach {
       case (obj, i) => rows(i)(0) = obj
     }
-    buildShowResult(Array("result"), rows)
+    buildResult(Array("result"), Array(DataTypes.STRING), rows)
   }
 
-  private def buildShowResult(headers: Array[String], rows: Array[Array[String]]): TableResult = {
+  private def buildDescribeResult(schema: TableSchema): TableResult = {
+    val fieldToWatermark =
+      schema
+        .getWatermarkSpecs
+        .map(w => (w.getRowtimeAttribute, w.getWatermarkExpr)).toMap
+    val fieldToPrimaryKey = new JHashMap[String, String]()
+    if (schema.getPrimaryKey.isPresent) {
+      val columns = schema.getPrimaryKey.get.getColumns.asScala
+      columns.foreach(c => fieldToPrimaryKey.put(c, s"PRI(${columns.mkString(",")})"))
+    }
+    val data = Array.ofDim[Object](schema.getFieldCount, 6)
+    schema.getTableColumns.asScala.zipWithIndex.foreach {
+      case (c, i) => {
+        val logicalType = c.getType.getLogicalType
+        data(i)(0) = c.getName
+        data(i)(1) = StringUtils.removeEnd(logicalType.toString, " NOT NULL")
+        data(i)(2) = Boolean.box(logicalType.isNullable)
+        data(i)(3) = fieldToPrimaryKey.getOrDefault(c.getName, null)
+        data(i)(4) = c.getExpr.orElse(null)
+        data(i)(5) = fieldToWatermark.getOrDefault(c.getName, null)
+      }
+    }
+    buildResult(
+      Array("name", "type", "null", "key", "compute column", "watermark"),
+      Array(DataTypes.STRING, DataTypes.STRING, DataTypes.BOOLEAN, DataTypes.STRING,
+        DataTypes.STRING, DataTypes.STRING),
+      data)
+  }
+
+  private def buildResult(
+      headers: Array[String],
+      types: Array[DataType],
+      rows: Array[Array[Object]]): TableResult = {
     TableResultImpl.builder()
       .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
       .tableSchema(
-        TableSchema.builder().fields(
-          headers,
-          headers.map(_ => DataTypes.STRING)
-        ).build())
+        TableSchema.builder().fields(headers, types).build())
       .data(rows.map(Row.of(_:_*)).toList)
       .build()
   }
