@@ -47,7 +47,7 @@ The `JDBCCatalog` enables users to connect Flink to relational databases over JD
 
 #### Usage of JDBCCatalog
 
-Set a `JDBCatalog` with the following parameters:
+Set a `JDBCCatalog` with the following parameters:
 
 - name: required, name of the catalog
 - default database: required, default database to connect to
