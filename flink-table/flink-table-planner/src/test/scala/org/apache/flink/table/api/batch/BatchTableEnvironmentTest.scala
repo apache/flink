@@ -270,17 +270,6 @@ class BatchTableEnvironmentTest extends TableTestBase {
   }
 
   @Test
-  def testExecuteSqlWithUnsupportedStmt(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(containsString("Unsupported SQL query!"))
-    // TODO supports select later
-    util.tableEnv.executeSql("select * from MyTable")
-  }
-
-  @Test
   def testExecuteSqlWithCreateDropView(): Unit = {
     val util = batchTestUtil()
 

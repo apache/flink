@@ -717,7 +717,22 @@ class Table(object):
         :type overwrite: bool
         :return: The table result.
         """
+        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
         self._j_table.executeInsert(table_path, overwrite)
+
+    def execute(self):
+        """
+        Collects the contents of the current table local client.
+
+        Example:
+        ::
+
+            >>> tab.execute()
+
+        :return: The content of the table.
+        """
+        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
+        self._j_table.execute()
 
     def explain(self, *extra_details):
         """

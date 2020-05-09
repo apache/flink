@@ -86,6 +86,7 @@ import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
+import org.apache.flink.table.operations.UnregisteredSinkModifyOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
@@ -111,6 +112,7 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
@@ -693,6 +695,31 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	@Override
+	public TableResult executeInternal(QueryOperation operation) {
+		TableSchema tableSchema = operation.getTableSchema();
+		SelectTableSink tableSink = planner.createSelectTableSink(tableSchema);
+		UnregisteredSinkModifyOperation<Row> sinkOperation = new UnregisteredSinkModifyOperation<>(
+				tableSink,
+				operation
+		);
+		List<Transformation<?>> transformations = translate(Collections.singletonList(sinkOperation));
+		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, "collect");
+		try {
+			JobClient jobClient = execEnv.executeAsync(pipeline);
+			tableSink.setJobClient(jobClient);
+			return TableResultImpl.builder()
+					.jobClient(jobClient)
+					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+					.tableSchema(tableSchema)
+					.data(tableSink.getResultIterator())
+					.setPrintStyle(TableResultImpl.PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH))
+					.build();
+		} catch (Exception e) {
+			throw new TableException("Failed to execute sql", e);
+		}
+	}
+
+	@Override
 	public void sqlUpdate(String stmt) {
 		List<Operation> operations = parser.parse(stmt);
 
@@ -937,9 +964,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
 					.tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
 					.data(Collections.singletonList(Row.of(explanation)))
-					.setPrintStyle(TableResultImpl.PrintStyle.RAW_CONTENT)
+					.setPrintStyle(TableResultImpl.PrintStyle.rawContent())
 					.build();
-
+		} else if (operation instanceof QueryOperation) {
+			return executeInternal((QueryOperation) operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
 		}

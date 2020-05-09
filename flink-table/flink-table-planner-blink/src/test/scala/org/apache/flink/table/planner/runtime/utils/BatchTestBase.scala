@@ -40,6 +40,8 @@ import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.types.Row
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
@@ -294,7 +296,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def parseQuery(sqlQuery: String): Table = tEnv.sqlQuery(sqlQuery)
 
-  def executeQuery(table: Table): Seq[Row] = TableUtils.collectToList(table).asScala
+  def executeQuery(table: Table): Seq[Row] = Lists.newArrayList(table.execute().collect()).asScala
 
   def executeQuery(sqlQuery: String): Seq[Row] = {
     val table = parseQuery(sqlQuery)

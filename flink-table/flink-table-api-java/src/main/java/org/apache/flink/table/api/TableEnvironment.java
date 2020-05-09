@@ -848,7 +848,7 @@ public interface TableEnvironment {
 	 *
 	 * @param statement The statement for which the AST and execution plan will be returned.
 	 * @param extraDetails The extra explain details which the explain result should include,
-	 *   e.g. estimated cost, change log trait for streaming
+	 *   e.g. estimated cost, changelog mode for streaming
 	 * @return AST and the execution plan.
 	 */
 	String explainSql(String statement, ExplainDetail... extraDetails);

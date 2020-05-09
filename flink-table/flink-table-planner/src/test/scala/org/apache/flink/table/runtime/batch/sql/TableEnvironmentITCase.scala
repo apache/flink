@@ -25,7 +25,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{ResultKind, TableEnvironment, TableEnvironmentITCase, TableResult}
+import org.apache.flink.table.api.{DataTypes, ResultKind, TableEnvironment, TableEnvironmentITCase, TableResult, TableSchema}
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.sinks.CsvTableSink
@@ -34,6 +34,8 @@ import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TestingOverwrita
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit._
@@ -515,6 +517,35 @@ class TableEnvironmentITCase(
     assertEquals(
       expected2.sorted,
       FileUtils.readFileUtf8(new File(sink2Path)).split("\n").toList.sorted)
+  }
+
+  @Test
+  def testExecuteSelect(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val tableResult = tEnv.executeSql("select a, c from MyTable where b = 2")
+    assertTrue(tableResult.getJobClient.isPresent)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      TableSchema.builder()
+        .field("a", DataTypes.INT())
+        .field("c", DataTypes.STRING())
+        .build(),
+      tableResult.getTableSchema)
+    val expected = util.Arrays.asList(
+      Row.of(Integer.valueOf(2), "Hello"),
+      Row.of(Integer.valueOf(3), "Hello world"))
+    val actual = Lists.newArrayList(tableResult.collect())
+    actual.sort(new util.Comparator[Row]() {
+      override def compare(o1: Row, o2: Row): Int = {
+        o1.getField(0).asInstanceOf[Int].compareTo(o2.getField(0).asInstanceOf[Int])
+      }
+    })
+    assertEquals(expected, actual)
   }
 
   private def registerCsvTableSink(

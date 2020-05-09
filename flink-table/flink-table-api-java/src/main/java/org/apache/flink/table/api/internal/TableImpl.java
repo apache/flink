@@ -566,6 +566,11 @@ public class TableImpl implements Table {
 	}
 
 	@Override
+	public TableResult execute() {
+		return tableEnvironment.executeInternal(getQueryOperation());
+	}
+
+	@Override
 	public String explain(ExplainDetail... extraDetails) {
 		return tableEnvironment.explainInternal(Collections.singletonList(getQueryOperation()), extraDetails);
 	}

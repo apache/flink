@@ -26,7 +26,6 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -37,6 +36,8 @@ import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -113,7 +114,7 @@ public class HiveCatalogITCase {
 
 		Table t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.test2");
 
-		List<Row> result = TableUtils.collectToList(t);
+		List<Row> result = Lists.newArrayList(t.execute().collect());
 
 		// assert query result
 		assertEquals(
@@ -128,7 +129,7 @@ public class HiveCatalogITCase {
 
 		t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.newtable");
 
-		result = TableUtils.collectToList(t);
+		result = Lists.newArrayList(t.execute().collect());
 
 		// assert query result
 		assertEquals(
@@ -195,7 +196,7 @@ public class HiveCatalogITCase {
 		Table t = tableEnv.sqlQuery(
 			String.format("select * from myhive.`default`.%s", sourceTableName));
 
-		List<Row> result = TableUtils.collectToList(t);
+		List<Row> result = Lists.newArrayList(t.execute().collect());
 		result.sort(Comparator.comparing(String::valueOf));
 
 		// assert query result

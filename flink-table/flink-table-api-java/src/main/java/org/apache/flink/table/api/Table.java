@@ -1467,11 +1467,24 @@ public interface Table {
 	TableResult executeInsert(String tablePath, boolean overwrite);
 
 	/**
+	 * Collects the contents of the current table local client.
+	 *
+	 *  <pre>
+	 * {@code
+	 *   Table table = tableEnv.fromQuery("select * from MyTable");
+	 *   TableResult tableResult = table.execute();
+	 *   tableResult...
+	 * }
+	 * </pre>
+	 */
+	TableResult execute();
+
+	/**
 	 * Returns the AST of this table and the execution plan to compute
 	 * the result of this table.
 	 *
 	 * @param extraDetails The extra explain details which the explain result should include,
-	 *   e.g. estimated cost, change log trait for streaming
+	 *   e.g. estimated cost, changelog mode for streaming
 	 * @return AST and the execution plan.
 	 */
 	String explain(ExplainDetail... extraDetails);

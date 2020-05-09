@@ -28,12 +28,15 @@ import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTa
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.TestingAppendSink
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId}
-import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
+import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks, TestTableSourceWithTime}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, TestLogger}
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+
+import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
-import org.junit.rules.TemporaryFolder
+import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assert, Before, Rule, Test}
@@ -46,6 +49,12 @@ import _root_.scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger {
+
+  // used for accurate exception information checking.
+  val expectedException: ExpectedException = ExpectedException.none()
+
+  @Rule
+  def thrown: ExpectedException = expectedException
 
   private val _tempFolder = new TemporaryFolder()
 
@@ -524,6 +533,74 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
     assertFirstValues(sink1Path)
     assertLastValues(sink2Path)
+  }
+
+  @Test
+  def testExecuteSelect(): Unit = {
+    val query =
+      """
+        |select id, concat(concat(`first`, ' '), `last`) as `full name`
+        |from MyTable where mod(id, 2) = 0
+      """.stripMargin
+    val tableResult = tEnv.executeSql(query)
+    assertTrue(tableResult.getJobClient.isPresent)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      TableSchema.builder()
+        .field("id", DataTypes.INT())
+        .field("full name", DataTypes.STRING())
+        .build(),
+      tableResult.getTableSchema)
+    val expected = util.Arrays.asList(
+      Row.of(Integer.valueOf(2), "Bob Taylor"),
+      Row.of(Integer.valueOf(4), "Peter Smith"),
+      Row.of(Integer.valueOf(6), "Sally Miller"),
+      Row.of(Integer.valueOf(8), "Kelly Williams"))
+    val actual = Lists.newArrayList(tableResult.collect())
+    actual.sort(new util.Comparator[Row]() {
+      override def compare(o1: Row, o2: Row): Int = {
+        o1.getField(0).asInstanceOf[Int].compareTo(o2.getField(0).asInstanceOf[Int])
+      }
+    })
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testExecuteSelectWithUpdateChanges(): Unit = {
+    if (!isStreaming) {
+      return
+    }
+    // TODO Once FLINK-16998 is finished, all kinds of changes will be supported.
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(containsString(
+      "AppendStreamTableSink doesn't support consuming update changes"))
+    tEnv.executeSql("select count(*) from MyTable")
+  }
+
+  @Test
+  def testExecuteSelectWithTimeAttribute(): Unit = {
+    val data = Seq("Mary")
+    val schema = new TableSchema(Array("name", "pt"), Array(Types.STRING, Types.LOCAL_DATE_TIME))
+    val sourceType = Types.STRING
+    val tableSource = new TestTableSourceWithTime(true, schema, sourceType, data, null, "pt")
+    // TODO refactor this after FLINK-16160 is finished
+    tEnv.registerTableSource("T", tableSource)
+
+    val tableResult = tEnv.executeSql("select * from T")
+    assertTrue(tableResult.getJobClient.isPresent)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      TableSchema.builder()
+        .field("name", DataTypes.STRING())
+        .field("pt", DataTypes.TIMESTAMP(3))
+        .build(),
+      tableResult.getTableSchema)
+    val it = tableResult.collect()
+    assertTrue(it.hasNext)
+    val row = it.next()
+    assertEquals(2, row.getArity)
+    assertEquals("Mary", row.getField(0))
+    assertFalse(it.hasNext)
   }
 
   @Test

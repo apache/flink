@@ -32,12 +32,15 @@ import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId}
-import org.apache.flink.table.utils.TestingOverwritableTableSink
+import org.apache.flink.table.utils.{TestTableSourceWithTime, TestingOverwritableTableSink}
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+
+import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
-import org.junit.rules.TemporaryFolder
+import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Rule, Test}
@@ -51,6 +54,12 @@ import _root_.scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class TableEnvironmentITCase(tableEnvName: String) {
+
+  // used for accurate exception information checking.
+  val expectedException: ExpectedException = ExpectedException.none()
+
+  @Rule
+  def thrown: ExpectedException = expectedException
 
   private val _tempFolder = new TemporaryFolder()
 
@@ -464,6 +473,70 @@ class TableEnvironmentITCase(tableEnvName: String) {
 
     assertFirstValues(sink1Path)
     assertLastValues(sink2Path)
+  }
+
+  @Test
+  def testExecuteSelect(): Unit = {
+    val query =
+      """
+        |select id, concat(concat(`first`, ' '), `last`) as `full name`
+        |from MyTable where mod(id, 2) = 0
+      """.stripMargin
+    val tableResult = tEnv.executeSql(query)
+    assertTrue(tableResult.getJobClient.isPresent)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      TableSchema.builder()
+        .field("id", DataTypes.INT())
+        .field("full name", DataTypes.STRING())
+        .build(),
+      tableResult.getTableSchema)
+    val expected = util.Arrays.asList(
+      Row.of(Integer.valueOf(2), "Bob Taylor"),
+      Row.of(Integer.valueOf(4), "Peter Smith"),
+      Row.of(Integer.valueOf(6), "Sally Miller"),
+      Row.of(Integer.valueOf(8), "Kelly Williams"))
+    val actual = Lists.newArrayList(tableResult.collect())
+    actual.sort(new util.Comparator[Row]() {
+      override def compare(o1: Row, o2: Row): Int = {
+        o1.getField(0).asInstanceOf[Int].compareTo(o2.getField(0).asInstanceOf[Int])
+      }
+    })
+    assertEquals(expected, actual)
+  }
+
+  @Test
+  def testExecuteSelectWithUpdateChanges(): Unit = {
+    // TODO Once FLINK-16998 is finished, all kinds of changes will be supported.
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(containsString(
+      "AppendStreamTableSink requires that Table has only insert changes."))
+    tEnv.executeSql("select count(*) from MyTable")
+  }
+
+  @Test
+  def testExecuteSelectWithTimeAttribute(): Unit = {
+    val data = Seq("Mary")
+    val schema = new TableSchema(Array("name", "pt"), Array(Types.STRING, Types.SQL_TIMESTAMP()))
+    val sourceType = Types.STRING
+    val tableSource = new TestTableSourceWithTime(schema, sourceType, data, null, "pt")
+    tEnv.registerTableSource("T", tableSource)
+
+    val tableResult = tEnv.executeSql("select * from T")
+    assertTrue(tableResult.getJobClient.isPresent)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      TableSchema.builder()
+        .field("name", DataTypes.STRING())
+        .field("pt", Types.SQL_TIMESTAMP())
+        .build(),
+      tableResult.getTableSchema)
+    val it = tableResult.collect()
+    assertTrue(it.hasNext)
+    val row = it.next()
+    assertEquals(2, row.getArity)
+    assertEquals("Mary", row.getField(0))
+    assertFalse(it.hasNext)
   }
 
   private def registerCsvTableSink(
