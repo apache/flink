@@ -31,7 +31,7 @@ under the License.
 -------------------------------
 在大多数情况下，自定义函数在使用之前都需要注册。在 Scala Table API 中可以不用注册。
 
-通过调用 `registerFunction()` 把函数注册到 `TableEnvironment` 里面。当一个函数注册之后，它就在 `TableEnvironment` 的函数 catalog 里面了，这样 Table API 或者 SQL 就可以识别并使用它。
+通过调用 `registerFunction()` 把函数注册到 `TableEnvironment` 的函数 catalog 里面。当一个函数注册之后，它就在 `TableEnvironment` 的函数 catalog 里面了，这样 Table API 或者 SQL 就可以识别并使用它。
 
 关于如何注册和使用每种类型的自定义函数（标量函数，表值函数，和聚合函数），更多示例可以看下面的部分。
 
@@ -44,7 +44,7 @@ under the License.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法. 标量函数的行为取决于你写的求值方法。求值方法并须是 `public` 的，而且名字必须是 `eval`。求值方法的参数类型以及返回值类型就决定了标量函数的参数类型和返回值类型。求值方法也可以实现多个重载的 `eval` 方法。求值方法也支持可变参数，例如 `eval(String... strs)`。
+想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法。 标量函数的行为取决于你写的求值方法。求值方法并须是 `public` 的，而且名字必须是 `eval`。求值方法的参数类型以及返回值类型就决定了标量函数的参数类型和返回值类型。求值方法也可以实现为多个重载的 `eval` 方法。求值方法也支持可变参数，例如 `eval(String... strs)`。
 
 下面的示例展示了如何实现一个求哈希值的函数。先把它注册到 `TableEnvironment` 里，然后在查询的时候就可以直接使用了。需要注意的是，你可以通过构造方法来配置你的标量函数：
 
@@ -132,9 +132,9 @@ object TimestampModifier extends ScalarFunction {
 </div>
 
 <div data-lang="python" markdown="1">
-In order to define a Python scalar function, one can extend the base class `ScalarFunction` in `pyflink.table.udf` and implement an evaluation method. The behavior of a Python scalar function is determined by the evaluation method which is named `eval`.
+要定义一个 Python 标量函数，你需要继承 `pyflink.table.udf` 下的 `ScalarFunction`，并且实现一个求值函数。Python 标量函数的行为取决于你实现的求值函数，它的名字必须是 `eval`。
 
-The following example shows how to define your own Python hash code function, register it in the TableEnvironment, and call it in a query. Note that you can configure your scalar function via a constructor before it is registered:
+下面的示例展示了如何自定义一个 Python 的求哈希值的函数，并且把它注册到 `TableEnvironment` 里，然后在查询中使用它。你可以在注册函数之前通过构造函数来配置你的标量函数。
 
 {% highlight python %}
 class HashCode(ScalarFunction):
@@ -146,18 +146,18 @@ class HashCode(ScalarFunction):
 
 table_env = BatchTableEnvironment.create(env)
 
-# register the Python function
+# 注册 Python 函数
 table_env.register_function("hash_code", udf(HashCode(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
-# use the function in Python Table API
+# 在 Python Table API 中使用函数
 my_table.select("string, bigint, string.hash_code(), hash_code(string)")
 
-# use the function in SQL API
+# 在 SQL API 中使用函数
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 {% endhighlight %}
 
-There are many ways to define a Python scalar function besides extending the base class `ScalarFunction`.
-Please refer to the [Python Scalar Function]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html#scalar-functions) documentation for more details.
+除了继承 `ScalarFunction`，还有很多方法可以定义 Python 标量函数。
+更多细节，可以参考 [Python 标量函数]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html#scalar-functions) 文档。
 </div>
 </div>
 
@@ -171,11 +171,11 @@ Please refer to the [Python Scalar Function]({{ site.baseurl }}/zh/dev/table/pyt
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. Evaluation methods can also support variable arguments, such as `eval(String... strs)`. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
+要定义一个表值函数，你需要扩展 `org.apache.flink.table.functions` 下的 `TableFunction`，并且实现（一个或者多个）求值方法。表值函数的行为取决于你实现的求值方法。求值方法必须被声明为 `public`，并且名字必须是 `eval`。你也可以写多个 `eval` 方法来重载表值函数。求值方法的参数类型决定了表值函数的参数类型。表值函数也可以支持变长参数，比如 `eval(String... strs)`。表值函数的返回值类型取决于 `TableFunction` 的泛型参数。求值方法通过 `collect(T)` 方法来输出结果。
 
 在 Table API 中，表值函数是通过 `.joinLateral` 或者 `.leftOuterJoinLateral` 来使用的。`joinLateral` 算子会把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行 （cross）join。`leftOuterJoinLateral` 算子也是把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行（cross）join，如果表值函数返回的是0行，就会保留外表的这一行。在 SQL 里面使用 CROSS JOIN 或者 LEFT JOIN 加上 ON TRUE 作为 Join 的条件来跟表值函数 `LATERAL TABLE（<TableFunction>)` 进行Join（见下面的例子）。
 
-下面的例子展示了如何定义一个表值函数，如何在 TableEnvironment 中注册表值函数，以及如何在查询中使用表值函数。你可以在通过构造函数来配置你的表值函数：
+下面的例子展示了如何定义一个表值函数，如何在 TableEnvironment 中注册表值函数，以及如何在查询中使用表值函数。你可以通过构造函数来配置你的表值函数：
 
 {% highlight java %}
 // 泛型参数的类型 "Tuple2<String, Integer>" 决定了返回类型是（String，Integer）。
@@ -207,20 +207,20 @@ myTable.leftOuterJoinLateral("split(a) as (word, length)")
     .select("a, word, length");
 
 // 在 SQL 中用 LATERAL 和 TABLE 关键字来使用表值函数
-// CROSS JOIN a table function (equivalent to "join" in Table API).
+// CROSS JOIN a table function (等价于 Table API 中的 "join").
 tableEnv.sqlQuery("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)");
-// LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API).
+// LEFT JOIN a table function (等价于 in Table API 中的 "leftOuterJoin").
 tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 
-In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. Evaluation methods can also support variable arguments, such as `eval(String... strs)`. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
+要定义一个表值函数，你需要扩展 `org.apache.flink.table.functions` 下的 `TableFunction`，并且实现（一个或者多个）求值方法。表值函数的行为取决于你的求值方法。求值方法必须声明为 `public`，并且名字必须是 `eval`。可以实现多个 `eval`方法来重载表值函数。求值方法的参数类型决定了表值函数的参数类型。求值方法也可以支持变长参数，例如 `eval(String... strs)`。返回值的类型取决于 `TableFunction` 的泛型参数。求值方法通过 `collect(T)` 方法来输出数据。
 
-In the Table API, a table function is used with `.joinLateral` or `.leftOuterJoinLateral`. The `joinLateral` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoinLateral` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
+在 Table API 中，表值函数是通过 `.joinLateral` 或者 `.leftOuterJoinLateral` 来使用的。`joinLateral` 算子会把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行 （cross）join。`leftOuterJoinLateral` 算子也是把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行（cross）join，如果表值函数返回的是0行，就会保留外表的这一行。在 SQL 里面使用 CROSS JOIN 或者 LEFT JOIN 加上 ON TRUE 作为 Join 的条件来跟表值函数 `LATERAL TABLE（<TableFunction>)` 进行Join（见下面的例子）。
 
-The following example shows how to define table-valued function, register it in the TableEnvironment, and call it in a query. Note that you can configure your table function via a constructor before it is registered: 
+下面的例子展示了如何定义一个表值函数，如何在 TableEnvironment 中注册表值函数，以及如何在查询中使用表值函数。你可以通过构造函数来配置你的表值函数：
 
 {% highlight scala %}
 // 泛型参数的类型 "(String, Int)" 决定了返回类型是 (String, Integer)。
@@ -253,11 +253,11 @@ tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(s
 </div>
 
 <div data-lang="python" markdown="1">
-In order to define a Python table function, one can extend the base class `TableFunction` in `pyflink.table.udtf` and Implement an evaluation method. The behavior of a Python table function is determined by the evaluation method which is named eval.
+要实现一个 Python 表值函数，你需要扩展 `pyflink.table.udtf` 下的 `TableFunction`，并且实现一个求值方法。Python 表值函数的行为取决于你实现的求值方法，它的名字必须是 `eval`。
 
-In the Python Table API, a Python table function is used with `.join_lateral` or `.left_outer_join_lateral`. The `join_lateral` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `left_outer_join_lateral` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
+在 Python Table API 中，表值函数是通过 `.join_lateral` 或者 `.left_outer_join_lateral` 来使用的。`join_lateral` 算子会把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行 （cross）join。`left_outer_join_lateral` 算子也是把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行（cross）join，如果表值函数返回的是0行，就会保留外表的这一行。在 SQL 里面使用 CROSS JOIN 或者 LEFT JOIN 加上 ON TRUE 作为 Join 的条件来跟表值函数 `LATERAL TABLE（<TableFunction>)` 进行Join（见下面的例子）。
 
-The following example shows how to define a Python table function, registered it in the TableEnvironment, and call it in a query. Note that you can configure your table function via a constructor before it is registered:
+下面的例子展示了如何定义一个 Python 表值函数，如何在 TableEnvironment 中注册表值函数，以及如何在查询中使用表值函数。你可以通过构造函数来配置你的表值函数：
 
 {% highlight python %}
 class Split(TableFunction):
@@ -269,26 +269,27 @@ env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# register the Python Table Function
+# 注册 Python 表值函数
 table_env.register_function("split", udtf(Split(), DataTypes.STRING(), [DataTypes.STRING(), DataTypes.INT()]))
 
-# use the Python Table Function in Python Table API
+# 在 Python Table API 中使用 Python 表值函数
 my_table.join_lateral("split(a) as (word, length)")
 my_table.left_outer_join_lateral("split(a) as (word, length)")
 
-# use the Python Table function in SQL API
+# 在 SQL API 中使用 Python 表值函数
+table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
+table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 
 {% endhighlight %}
 
-There are many ways to define a Python table function besides extending the base class `TableFunction`.
-Please refer to the [Python Table Function]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html#table-functions) documentation for more details.
+除了继承 `TableFunction`，还有很多其它方法可以定义 Python 表值函数。
+更多信息，参考 [Python 表值函数]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html#table-functions)文档。
 
 </div>
 </div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-Please note that POJO types do not have a deterministic field order. Therefore, you cannot rename the fields of POJO returned by a table function using `AS`.
 需要注意的是 POJO 类型没有确定的字段顺序。所以，你不可以用 `AS` 来重命名返回的 POJO 的字段。
 
 `TableFunction` 的返回类型默认是用 Flink 自动类型推导来决定的。对于基础类型和简单的 POJO 类型推导是没有问题的，但是对于更复杂的、自定义的、以及组合的类型可能会推导错误。如果有这种情况，可以通过重写（override） `TableFunction#getResultType()` 并且返回 `TypeInformation` 来指定返回类型。
@@ -315,11 +316,11 @@ public class CustomTypeSplit extends TableFunction<Row> {
 </div>
 
 <div data-lang="scala" markdown="1">
-Please note that POJO types do not have a deterministic field order. Therefore, you cannot rename the fields of POJO returned by a table function using `AS`.
+需要注意的是 POJO 类型没有确定的字段顺序。所以，你不可以用 `AS` 来重命名返回的 POJO 的字段。
 
-By default the result type of a `TableFunction` is determined by Flink’s automatic type extraction facilities. This works well for basic types and simple POJOs but might be wrong for more complex, custom, or composite types. In such a case, the type of the result can be manually specified by overriding `TableFunction#getResultType()` which returns its `TypeInformation`.
+`TableFunction` 的返回类型默认是用 Flink 自动类型推导来决定的。对于基础类型和简单的 POJO 类型推导是没有问题的，但是对于更复杂的、自定义的、以及组合的类型可能会推导错误。如果有这种情况，可以通过重写（override） `TableFunction#getResultType()` 并且返回 `TypeInformation` 来指定返回类型。
 
-The following example shows an example of a `TableFunction` that returns a `Row` type which requires explicit type information. We define that the returned table type should be `RowTypeInfo(String, Integer)` by overriding `TableFunction#getResultType()`.
+下面的例子展示了 `TableFunction` 返回了一个 `Row` 类型，需要显示指定返回类型。我们通过重写 `TableFunction#getResultType` 来返回 `RowTypeInfo` 作为返回类型。
 
 {% highlight scala %}
 class CustomTypeSplit extends TableFunction[Row] {
