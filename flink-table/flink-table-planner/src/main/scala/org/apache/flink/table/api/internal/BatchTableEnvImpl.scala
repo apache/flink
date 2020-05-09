@@ -19,11 +19,13 @@
 package org.apache.flink.table.api.internal
 
 import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.api.common.cache.DistributedCache
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Pipeline
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.operators.DataSink
+import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.utils.PlanGenerator
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
@@ -376,11 +378,14 @@ abstract class BatchTableEnvImpl(
   }
 
   private def createPipeline(sinks: JList[DataSink[_]], jobName: String): Pipeline = {
+    val cacheFileField = classOf[ExecutionEnvironment].getDeclaredField("cacheFile")
+    cacheFileField.setAccessible(true)
     val generator = new PlanGenerator(
       sinks,
       execEnv.getConfig,
       execEnv.getParallelism,
-      JCollections.emptyList(),
+      cacheFileField.get(execEnv).asInstanceOf[
+        JList[Tuple2[String, DistributedCache.DistributedCacheEntry]]],
       jobName)
     generator.generate()
   }
