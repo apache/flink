@@ -45,7 +45,6 @@ import java.util.stream.Collectors;
 public class SqlCreateHiveTable extends SqlCreateTable {
 
 	public static final String TABLE_LOCATION_URI = "hive.location-uri";
-	public static final String TABLE_IS_TEMPORARY = "hive.is-temporary";
 	public static final String TABLE_IS_EXTERNAL = "hive.is-external";
 	public static final String PK_CONSTRAINT_TRAIT = "hive.pk.constraint.trait";
 	public static final String NOT_NULL_CONSTRAINT_TRAITS = "hive.not.null.constraint.traits";
@@ -72,10 +71,6 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 		// mark it as a hive table
 		HiveDDLUtils.ensureNonGeneric(propertyList);
 		propertyList.add(HiveDDLUtils.toTableOption(CatalogConfig.IS_GENERIC, "false", pos));
-		// set temporary
-		if (isTemporary) {
-			propertyList.add(HiveDDLUtils.toTableOption(TABLE_IS_TEMPORARY, "true", pos));
-		}
 		// set external
 		this.isExternal = isExternal;
 		if (isExternal) {
