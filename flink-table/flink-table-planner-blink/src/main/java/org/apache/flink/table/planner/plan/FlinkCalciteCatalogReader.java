@@ -193,7 +193,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			RelDataType rowType,
 			CatalogTable catalogTable,
 			CatalogSchemaTable schemaTable) {
-		if (isLegacyConnectorOptions(catalogTable, schemaTable)) {
+		if (isLegacySourceOptions(catalogTable, schemaTable)) {
 			return new LegacyCatalogSourceTable<>(
 				relOptSchema,
 				names,
@@ -211,9 +211,9 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 	}
 
 	/**
-	 * Checks whether the {@link CatalogTable} uses legacy connector options.
+	 * Checks whether the {@link CatalogTable} uses legacy connector source options.
 	 */
-	private static boolean isLegacyConnectorOptions(
+	private static boolean isLegacySourceOptions(
 			CatalogTable catalogTable,
 			CatalogSchemaTable schemaTable) {
 		// normalize option keys

@@ -24,7 +24,7 @@ import org.apache.flink.table.catalog.{CatalogViewImpl, ObjectPath}
 import org.apache.flink.table.planner.JHashMap
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.{IS_BOUNDED, Param}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
-import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil, TestingStatementSet, TestingTableEnvironment}
+import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil, TestingStatementSet}
 
 import org.hamcrest.Matchers._
 import org.junit.Assert.{assertEquals, assertThat}

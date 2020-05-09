@@ -335,6 +335,7 @@ object FlinkBatchRuleSets {
     FlinkLogicalRank.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
+    FlinkLogicalSink.CONVERTER,
     FlinkLogicalLegacySink.CONVERTER
   )
 
@@ -423,6 +424,7 @@ object FlinkBatchRuleSets {
     BatchExecCorrelateRule.INSTANCE,
     BatchExecPythonCorrelateRule.INSTANCE,
     // sink
+    BatchExecSinkRule.INSTANCE,
     BatchExecLegacySinkRule.INSTANCE
   )
 

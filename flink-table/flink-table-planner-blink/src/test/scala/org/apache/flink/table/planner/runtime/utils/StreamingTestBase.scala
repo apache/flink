@@ -62,7 +62,7 @@ class StreamingTestBase extends AbstractTestBase {
   @After
   def after(): Unit = {
     StreamTestSink.clear()
-    TestValuesTableFactory.clearAllRegisteredData()
+    TestValuesTableFactory.clearAllData()
   }
 
   /**

@@ -48,6 +48,22 @@ public class ExecutionConfigOptions {
 				"watermarks from this source while it is idle.");
 
 	// ------------------------------------------------------------------------
+	//  Sink Options
+	// ------------------------------------------------------------------------
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+	public static final ConfigOption<NotNullEnforcer> TABLE_EXEC_SINK_NOT_NULL_ENFORCER =
+		key("table.exec.sink.not-null-enforcer")
+			.enumType(NotNullEnforcer.class)
+			.defaultValue(NotNullEnforcer.ERROR)
+			.withDescription("The NOT NULL column constraint on a table enforces that " +
+				"null values can't be inserted into the table. Flink supports " +
+				"'error' (default) and 'drop' enforcement behavior. By default, " +
+				"Flink will check values and throw runtime exception when null values writing " +
+				"into NOT NULL columns. Users can change the behavior to 'drop' to " +
+				"silently drop such records without throwing exception.");
+
+	// ------------------------------------------------------------------------
 	//  Sort Options
 	// ------------------------------------------------------------------------
 	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
@@ -250,4 +266,21 @@ public class ExecutionConfigOptions {
 						"Pipelined shuffle means data will be sent to consumer tasks once produced.")
 					.build());
 
+	// ------------------------------------------------------------------------------------------
+	// Enum option types
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * The enforcer to guarantee NOT NULL column constraint when writing data into sink.
+	 */
+	public enum NotNullEnforcer {
+		/**
+		 * Throws runtime exception when writing null values into NOT NULL column.
+		 */
+		ERROR,
+		/**
+		 * Drop records when writing null values into NOT NULL column.
+		 */
+		DROP
+	}
 }

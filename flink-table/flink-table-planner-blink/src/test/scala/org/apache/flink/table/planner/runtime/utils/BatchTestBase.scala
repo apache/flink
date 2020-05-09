@@ -81,7 +81,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   @After
   def after(): Unit = {
-    TestValuesTableFactory.clearAllRegisteredData()
+    TestValuesTableFactory.clearAllData()
   }
 
   /**

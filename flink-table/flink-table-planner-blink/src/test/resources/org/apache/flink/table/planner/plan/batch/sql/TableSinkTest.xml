@@ -1,0 +1,82 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testSingleSink">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a])
++- LogicalProject(cnt=[$1])
+   +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
+      +- LogicalProject(a=[$0])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[a])
++- Calc(select=[cnt])
+   +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
+      +- Exchange(distribution=[hash[a]])
+         +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+            +- Calc(select=[a])
+               +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSinks">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[total_sum])
++- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
+   +- LogicalProject(sum_a=[$1])
+      +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
+         +- LogicalProject(c=[$2], a=[$0])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+LogicalSink(table=[default_catalog.default_database.sink2], fields=[total_min])
++- LogicalAggregate(group=[{}], total_min=[MIN($0)])
+   +- LogicalProject(sum_a=[$1])
+      +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
+         +- LogicalProject(c=[$2], a=[$0])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[sum_a], reuse_id=[1])
++- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_a])
+   +- Exchange(distribution=[hash[c]])
+      +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0])
+         +- Calc(select=[c, a])
+            +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+
+Sink(table=[default_catalog.default_database.sink1], fields=[total_sum])
++- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS total_sum])
+   +- Exchange(distribution=[single])
+      +- LocalHashAggregate(select=[Partial_SUM(sum_a) AS sum$0])
+         +- Reused(reference_id=[1])
+
+Sink(table=[default_catalog.default_database.sink2], fields=[total_min])
++- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS total_min])
+   +- Exchange(distribution=[single])
+      +- LocalHashAggregate(select=[Partial_MIN(sum_a) AS min$0])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+</Root>
