@@ -979,17 +979,14 @@ class TableEnvironmentTest {
 
   @Test
   def testDescribeTableOrView(): Unit = {
-    // TODO: FLINK-17030: PRIMARY KEY and UNIQUE KEY is not supported now
-    //  we should add PRIMARY KEY part after FLINK-17030 (line 811)
     val sourceDDL =
       """
         |CREATE TABLE T1(
-        |  a int,
+        |  a int not null,
         |  b varchar,
-        |  c int
         |  c row<f0 int not null, f1 int> not null,
         |  ts AS to_timestamp(b),
-        |  -- PRIMARY KEY(a, b),
+        |  PRIMARY KEY(a, c) NOT ENFORCED,
         |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
         |) with (
         |  'connector' = 'COLLECTION'
@@ -1007,9 +1004,9 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
     checkData(
       util.Arrays.asList(
-        Row.of("a", "INT", Boolean.box(false), null, null, null),
+        Row.of("a", "INT", Boolean.box(false), "PRI(a,c)", null, null),
         Row.of("b", "STRING", Boolean.box(true), null, null, null),
-        Row.of("c", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), null, null, null),
+        Row.of("c", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), "PRI(a,c)", null, null),
         Row.of("ts", "TIMESTAMP(3)", Boolean.box(true), null, "TO_TIMESTAMP(`b`)",
           "`ts` - INTERVAL '1' SECOND")
       ).iterator(),
