@@ -18,11 +18,15 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.connectors.hive.read.HiveTableLookupFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableUtils;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.types.Row;
 
@@ -31,6 +35,7 @@ import com.klarna.hiverunner.annotations.HiveSQL;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -53,7 +58,17 @@ public class HiveLookupJoinTest {
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 		tableEnv.useCatalog(hiveCatalog.getName());
 
-		hiveShell.execute("create table build (x int,y string,z int)");
+		hiveShell.execute(String.format("create table build (x int,y string,z int) tblproperties ('%s'='5')",
+				HiveOptions.LOOKUP_JOIN_CACHE_TTL.key()));
+
+		// verify we properly configured the cache TTL
+		ObjectIdentifier tableIdentifier = ObjectIdentifier.of(hiveCatalog.getName(), "default", "build");
+		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
+		HiveTableSource hiveTableSource = (HiveTableSource) ((HiveTableFactory) hiveCatalog.getTableFactory().get()).createTableSource(
+				new TableSourceFactoryContextImpl(tableIdentifier, catalogTable, tableEnv.getConfig().getConfiguration()));
+		HiveTableLookupFunction lookupFunction = (HiveTableLookupFunction) hiveTableSource.getLookupFunction(new String[]{"x"});
+		assertEquals(Duration.ofMinutes(5), lookupFunction.getCacheTTL());
+
 		try {
 			HiveTestUtils.createTextTableInserter(hiveShell, "default", "build")
 					.addRow(new Object[]{1, "a", 10})

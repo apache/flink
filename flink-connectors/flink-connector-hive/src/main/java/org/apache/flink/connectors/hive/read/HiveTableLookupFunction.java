@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive.read;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.data.GenericRowData;
@@ -52,9 +53,9 @@ public class HiveTableLookupFunction extends TableFunction<RowData> {
 	private transient Map<RowData, List<RowData>> cache;
 	// timestamp when cache expires
 	private transient long cacheExpire;
-	private final Duration cacheTTL = Duration.ofHours(1);
+	private final Duration cacheTTL;
 
-	public HiveTableLookupFunction(HiveTableInputFormat inputFormat, String[] lookupKeys) {
+	public HiveTableLookupFunction(HiveTableInputFormat inputFormat, String[] lookupKeys, Duration cacheTTL) {
 		lookupCols = new int[lookupKeys.length];
 		String[] allFields = inputFormat.getFieldNames();
 		Map<String, Integer> nameToIndex = IntStream.range(0, allFields.length).boxed().collect(
@@ -68,6 +69,7 @@ public class HiveTableLookupFunction extends TableFunction<RowData> {
 			lookupCols[i] = index;
 		}
 		this.inputFormat = inputFormat;
+		this.cacheTTL = cacheTTL;
 	}
 
 	@Override
@@ -97,6 +99,11 @@ public class HiveTableLookupFunction extends TableFunction<RowData> {
 				collect(matchedRow);
 			}
 		}
+	}
+
+	@VisibleForTesting
+	public Duration getCacheTTL() {
+		return cacheTTL;
 	}
 
 	private void reloadCache() {

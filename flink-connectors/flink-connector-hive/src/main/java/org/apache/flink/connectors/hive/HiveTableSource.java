@@ -114,6 +114,7 @@ public class HiveTableSource implements
 	private int[] projectedFields;
 	private boolean isLimitPushDown = false;
 	private long limit = -1L;
+	private String hiveTableCacheTTL = null;
 
 	public HiveTableSource(
 			JobConf jobConf, ReadableConfig flinkConf, ObjectPath tablePath, CatalogTable catalogTable) {
@@ -371,6 +372,7 @@ public class HiveTableSource implements
 			List<String> partitionColNames = catalogTable.getPartitionKeys();
 			Table hiveTable = client.getTable(dbName, tableName);
 			Properties tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable);
+			hiveTableCacheTTL = tableProps.getProperty(HiveOptions.LOOKUP_JOIN_CACHE_TTL.key());
 			if (partitionColNames != null && partitionColNames.size() > 0) {
 				final String defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
 						HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
@@ -490,7 +492,12 @@ public class HiveTableSource implements
 	@Override
 	public TableFunction<RowData> getLookupFunction(String[] lookupKeys) {
 		// always use MR reader for the lookup function
-		return new HiveTableLookupFunction(getInputFormat(initAllPartitions(), true), lookupKeys);
+		List<HiveTablePartition> allPartitions = initAllPartitions();
+		Duration cacheTTL = Duration.ofMinutes(
+				hiveTableCacheTTL != null ?
+						Long.parseLong(hiveTableCacheTTL) :
+						HiveOptions.LOOKUP_JOIN_CACHE_TTL.defaultValue());
+		return new HiveTableLookupFunction(getInputFormat(allPartitions, true), lookupKeys, cacheTTL);
 	}
 
 	@Override

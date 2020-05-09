@@ -45,4 +45,10 @@ public class HiveOptions {
 			key("table.exec.hive.infer-source-parallelism.max")
 					.defaultValue(1000)
 					.withDescription("Sets max infer parallelism for source operator.");
+
+	public static final ConfigOption<Integer> LOOKUP_JOIN_CACHE_TTL =
+			key("lookup.join.cache.ttl")
+					.intType()
+					.defaultValue(60)
+					.withDescription("The cache TTL (in minutes) for a Hive table in lookup join.");
 }
