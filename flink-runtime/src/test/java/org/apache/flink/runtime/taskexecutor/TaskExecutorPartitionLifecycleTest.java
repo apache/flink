@@ -76,6 +76,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -451,7 +452,10 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			final Configuration configuration = new Configuration();
 		return new TestingTaskExecutor(
 			rpc,
-			TaskManagerConfiguration.fromConfiguration(configuration, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration)),
+			TaskManagerConfiguration.fromConfiguration(
+				configuration,
+				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration),
+				InetAddress.getLoopbackAddress().getHostAddress()),
 			haServices,
 			taskManagerServices,
 			new HeartbeatServices(10_000L, 30_000L),

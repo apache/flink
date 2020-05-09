@@ -57,6 +57,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -179,7 +180,10 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
 	private TaskExecutor createTaskExecutor(Configuration configuration, TestingRpcService rpcService, TestingHighAvailabilityServices haServices, LocalUnresolvedTaskManagerLocation unresolvedTaskManagerLocation) throws IOException {
 		return new TaskExecutor(
 			rpcService,
-			TaskManagerConfiguration.fromConfiguration(configuration, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration)),
+			TaskManagerConfiguration.fromConfiguration(
+				configuration,
+				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration),
+				InetAddress.getLoopbackAddress().getHostAddress()),
 			haServices,
 			new TaskManagerServicesBuilder()
 				.setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))

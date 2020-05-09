@@ -214,7 +214,10 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		return new TestingTaskExecutor(
 			testingRpcService,
-			TaskManagerConfiguration.fromConfiguration(copiedConf, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf)),
+			TaskManagerConfiguration.fromConfiguration(
+				copiedConf,
+				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf),
+				InetAddress.getLoopbackAddress().getHostAddress()),
 			haServices,
 			taskManagerServices,
 			heartbeatServices,

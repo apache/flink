@@ -42,6 +42,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -138,6 +139,15 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	 */
 	public String getOperatorUniqueID() {
 		return operatorUniqueID;
+	}
+
+	/**
+	 * Returns the task manager runtime info of the task manager running this stream task.
+	 *
+	 * @return The task manager runtime info.
+	 */
+	public TaskManagerRuntimeInfo getTaskManagerRuntimeInfo() {
+		return taskEnvironment.getTaskManagerInfo();
 	}
 
 	// ------------------------------------------------------------------------
