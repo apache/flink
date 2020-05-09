@@ -32,10 +32,10 @@ import java.net.InetAddress
 import java.util
 
 /**
-  * A [[SelectTableSink]] for streaming job.
+  * A [[SelectTableSink]] for streaming select job.
   *
   * <p><strong>NOTES:</strong> This is a temporary solution,
-  * once FLINK-14807 is finished, this class can be removed.
+  * once FLINK-14807 is finished, the implementation should be changed.
   * Currently, only insert changes (AppendStreamTableSink) is supported.
   * Once FLINK-16998 is finished, all kinds of changes will be supported.
   */

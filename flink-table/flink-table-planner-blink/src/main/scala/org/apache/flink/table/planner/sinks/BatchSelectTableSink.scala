@@ -34,10 +34,10 @@ import org.apache.flink.util.{AbstractID, Preconditions}
 import java.util
 
 /**
-  * A [[SelectTableSink]] for batch job.
+  * A [[SelectTableSink]] for batch select job.
   *
   * <p><strong>NOTES:</strong> This is a temporary solution,
-  * once FLINK-14807 is finished, this class can be removed.
+  * once FLINK-14807 is finished, the implementation should be changed.
   */
 class BatchSelectTableSink(tableSchema: TableSchema)
   extends StreamTableSink[Row]
