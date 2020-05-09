@@ -1,8 +1,8 @@
 ---
-title: Intro to the DataStream API
+title: DataStream API 简介
 nav-id: datastream-api
 nav-pos: 2
-nav-title: Intro to the DataStream API
+nav-title: DataStream API 简介
 nav-parent_id: training
 ---
 <!--
@@ -24,7 +24,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-该练习的重点是充分全面地了解 DataStream API，以便于入门编写流式应用。
+该练习的重点是充分全面地了解 DataStream API，以便于编写流式应用入门。
 
 * This will be replaced by the TOC
 {:toc}
@@ -33,7 +33,7 @@ under the License.
 
 Flink 的 Java 和 Scala DataStream API 可以将任何可序列化的对象转化为流。Flink  自带的序列化器有
 
-- 基本类型，即String、Long、Integer、Boolean、Array
+- 基本类型，即 String、Long、Integer、Boolean、Array
 - 复合类型：Tuples、POJOs 和 Scala case classes
 
 而且 Flink 可以交给 Kryo 序列化其他类型。也可以将其他序列化器和 Flink 一起使用。特别是有良好支持的 Avro。
@@ -81,7 +81,7 @@ Flink 的序列化器[支持的 POJO 类型数据结构升级]({% link dev/strea
 
 ### Scala tuples 和 case classes
 
-正如你期望的一样。
+如果你了解 Scala，那一定知道 tuple 和 case class。
 
 {% top %}
 
@@ -99,34 +99,34 @@ public class Example {
     public static void main(String[] args) throws Exception {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment();
-    
+
         DataStream<Person> flintstones = env.fromElements(
                 new Person("Fred", 35),
                 new Person("Wilma", 35),
                 new Person("Pebbles", 2));
-    
+
         DataStream<Person> adults = flintstones.filter(new FilterFunction<Person>() {
             @Override
             public boolean filter(Person person) throws Exception {
                 return person.age >= 18;
             }
         });
-    
+
         adults.print();
-    
+
         env.execute();
     }
-    
+
     public static class Person {
         public String name;
         public Integer age;
         public Person() {};
-    
+
         public Person(String name, Integer age) {
             this.name = name;
             this.age = age;
         };
-    
+
         public String toString() {
             return this.name.toString() + ": age " + this.age.toString();
         };
@@ -136,9 +136,9 @@ public class Example {
 
 ### Stream 执行环境
 
-每个 Flink 应用都需要有执行环境，在该示例中为 `env` 。流式应用需要用到 `StreamExecutionEnvironment`。
+每个 Flink 应用都需要有执行环境，在该示例中为 `env`。流式应用需要用到 `StreamExecutionEnvironment`。
 
-DataStream API 将你的应用构建为一个由 `StreamExecutionEnvironment` 生成的 job graph。当调用 `env.execute()` 时此 graph 就被打包并发送到 Flink Master 上，后者对作业并行处理并将其切片分发给 Task Manager 来执行。每个作业并行切片将在 *task slot* 中执行。
+DataStream API 将你的应用构建为一个 job graph，并附加到 `StreamExecutionEnvironment` 。当调用 `env.execute()` 时此 graph 就被打包并发送到 Flink Master 上，后者对作业并行处理并将其子任务分发给 Task Manager 来执行。每个作业的并行子任务将在 *task slot* 中执行。
 
 注意，如果没有调用 execute()，应用就不会运行。
 
@@ -172,7 +172,7 @@ DataStream<String> lines = env.socketTextStream("localhost", 9999)
 DataStream<String> lines = env.readTextFile("file:///path");
 {% endhighlight %}
 
-在真实的应用中，最常用的数据源是那些支持低延迟，高吞吐并行读取以及倒带和重放（高性能和容错能力为先决条件）的数据源，例如 Apache Kafka，Kinesis 和各种文件系统。REST API 和数据库也经常用于流富集（stream enrichment）。
+在真实的应用中，最常用的数据源是那些支持低延迟，高吞吐并行读取以及重复（高性能和容错能力为先决条件）的数据源，例如 Apache Kafka，Kinesis 和各种文件系统。REST API 和数据库也经常用于增强流处理的能力（stream enrichment）。
 
 ### 基本的 stream sink
 
@@ -183,7 +183,7 @@ DataStream<String> lines = env.readTextFile("file:///path");
     1> Fred: age 35
     2> Wilma: age 35
 
-1> 和 2> 指出输出来自哪个 sub-task（即thread）
+1> 和 2> 指出输出来自哪个 sub-task（即 thread）
 
 In production, commonly used sinks include the StreamingFileSink, various databases,
 and several pub-sub systems.
