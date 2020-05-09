@@ -257,6 +257,18 @@ public class TaskManagerOptions {
 					text("\"ip\" - uses host's ip address as binding address"))
 				.build());
 
+	/**
+	 * The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the RpcAddress:RpcPort and a 6-character
+	 * random string. Notice that this option is not valid in Yarn / Mesos and Native Kubernetes mode.
+	 */
+	@Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+	public static final ConfigOption<String> TASK_MANAGER_RESOURCE_ID =
+		key("taskmanager.resource-id")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "
+				+ "\"RpcAddress:RpcPort\" and a 6-character random string. Notice that this option is not valid in Yarn / Mesos and Native Kubernetes mode.");
+
 	// ------------------------------------------------------------------------
 	//  Resource Options
 	// ------------------------------------------------------------------------

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -92,9 +93,6 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 
 	/** YARN container map. Package private for unit test purposes. */
 	private final ConcurrentMap<ResourceID, YarnWorkerNode> workerNodeMap;
-	/** Environment variable name of the final container id used by the YarnResourceManager.
-	 * Container ID generation may vary across Hadoop versions. */
-	static final String ENV_FLINK_CONTAINER_ID = "_FLINK_CONTAINER_ID";
 
 	/** Environment variable name of the hostname given by the YARN.
 	 * In task executor we use the hostnames given by YARN consistently throughout akka */
@@ -667,6 +665,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 			taskExecutorProcessSpec);
 
 		final Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
+		taskManagerConfig.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, containerId);
 
 		final String taskManagerDynamicProperties =
 			BootstrapTools.getDynamicPropertiesAsString(flinkClientConfig, taskManagerConfig);
@@ -683,9 +682,6 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 			YarnTaskExecutorRunner.class,
 			log);
 
-		// set a special environment variable to uniquely identify this container
-		taskExecutorLaunchContext.getEnvironment()
-				.put(ENV_FLINK_CONTAINER_ID, containerId);
 		taskExecutorLaunchContext.getEnvironment()
 				.put(ENV_FLINK_NODE_ID, host);
 		return taskExecutorLaunchContext;

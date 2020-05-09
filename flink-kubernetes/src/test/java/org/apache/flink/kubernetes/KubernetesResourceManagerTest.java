@@ -73,7 +73,6 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerStateBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStatusBuilder;
-import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;
@@ -208,10 +207,6 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 
 				final String podName = CLUSTER_ID + "-taskmanager-1-1";
 				assertEquals(podName, pod.getMetadata().getName());
-
-				// Check environments
-				assertThat(tmContainer.getEnv(), Matchers.contains(
-					new EnvVarBuilder().withName(Constants.ENV_FLINK_POD_NAME).withValue(podName).build()));
 
 				// Check task manager main class args.
 				assertEquals(3, tmContainer.getArgs().size());
