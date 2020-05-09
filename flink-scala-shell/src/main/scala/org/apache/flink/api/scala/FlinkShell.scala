@@ -157,7 +157,7 @@ object FlinkShell {
 
     val flinkConfig = getGlobalConfig(config)
 
-    val (repl, clusterClient) = try {
+    val (repl, clusterClient) = {
       val (effectiveConfig, clusterClient) = fetchConnectionInfo(config, flinkConfig)
 
       val host = effectiveConfig.getString(JobManagerOptions.ADDRESS)
@@ -173,10 +173,6 @@ object FlinkShell {
       }
 
       (repl, clusterClient)
-    } catch {
-      case e: IllegalArgumentException =>
-        println(s"Error: ${e.getMessage}")
-        sys.exit()
     }
 
     val settings = new Settings()
@@ -245,6 +241,13 @@ object FlinkShell {
     val commandLine = CliFrontendParser.parse(commandLineOptions, args, true)
 
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
+    if (customCLI.getClass.getName != "org.apache.flink.yarn.cli.FlinkYarnSessionCli") {
+      throw new Exception("Fail to load FlinkYarnSessionCli, " +
+        "please make sure hadoop jar is under your classpath, " +
+        "refer this link for how to integrate with hadoop: " +
+        "https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/hadoop.html")
+    }
+
     val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine)
 
     val serviceLoader = new DefaultClusterClientServiceLoader
