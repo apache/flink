@@ -695,7 +695,26 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
 	@Override
 	public TableResult executeInternal(QueryOperation operation) {
-		return executeQueryOperation(operation);
+		TableSchema tableSchema = operation.getTableSchema();
+		SelectTableSink tableSink = planner.createSelectTableSink(tableSchema);
+		UnregisteredSinkModifyOperation<Row> sinkOperation = new UnregisteredSinkModifyOperation<>(
+				tableSink,
+				operation
+		);
+		List<Transformation<?>> transformations = translate(Collections.singletonList(sinkOperation));
+		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, "collect");
+		try {
+			JobClient jobClient = execEnv.executeAsync(pipeline);
+			tableSink.setJobClient(jobClient);
+			return TableResultImpl.builder()
+					.jobClient(jobClient)
+					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+					.tableSchema(tableSchema)
+					.data(tableSink.getResultIterator())
+					.build();
+		} catch (Exception e) {
+			throw new TableException("Failed to execute sql", e);
+		}
 	}
 
 	@Override
@@ -946,32 +965,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.setPrintStyle(TableResultImpl.PrintStyle.RAW_CONTENT)
 					.build();
 		} else if (operation instanceof QueryOperation) {
-			return executeQueryOperation((QueryOperation) operation);
+			return executeInternal((QueryOperation) operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
-		}
-	}
-
-	private TableResult executeQueryOperation(QueryOperation operation) {
-		TableSchema tableSchema = operation.getTableSchema();
-		SelectTableSink tableSink = planner.createSelectTableSink(tableSchema);
-		UnregisteredSinkModifyOperation<Row> sinkOperation = new UnregisteredSinkModifyOperation<>(
-				tableSink,
-				operation
-		);
-		List<Transformation<?>> transformations = translate(Collections.singletonList(sinkOperation));
-		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, "collect");
-		try {
-			JobClient jobClient = execEnv.executeAsync(pipeline);
-			tableSink.setJobClient(jobClient);
-			return TableResultImpl.builder()
-					.jobClient(jobClient)
-					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-					.tableSchema(tableSchema)
-					.data(tableSink.getResultIterator())
-					.build();
-		} catch (Exception e) {
-			throw new TableException("Failed to execute sql", e);
 		}
 	}
 

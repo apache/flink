@@ -614,7 +614,22 @@ abstract class TableEnvImpl(
   }
 
   override def executeInternal(operation: QueryOperation): TableResult = {
-    executeQueryOperation(operation)
+    val tableSchema = operation.getTableSchema
+    val tableSink = new BatchSelectTableSink(tableSchema)
+    val dataSink = writeToSinkAndTranslate(operation, tableSink)
+    try {
+      val jobClient = execute(JCollections.singletonList(dataSink), "collect")
+      tableSink.setJobClient(jobClient)
+      TableResultImpl.builder
+        .jobClient(jobClient)
+        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+        .tableSchema(tableSchema)
+        .data(tableSink.getResultIterator)
+        .build
+    } catch {
+      case e: Exception =>
+        throw new TableException("Failed to execute sql", e)
+    }
   }
 
   override def sqlUpdate(stmt: String): Unit = {
@@ -793,28 +808,10 @@ abstract class TableEnvImpl(
           .setPrintStyle(PrintStyle.RAW_CONTENT)
           .build
       case queryOperation: QueryOperation =>
-        executeQueryOperation(queryOperation)
+        executeInternal(queryOperation)
 
-      case _ => throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
-    }
-  }
-
-  private def executeQueryOperation(operation: QueryOperation): TableResult = {
-    val tableSchema = operation.getTableSchema
-    val tableSink = new BatchSelectTableSink(tableSchema)
-    val dataSink = writeToSinkAndTranslate(operation, tableSink)
-    try {
-      val jobClient = execute(JCollections.singletonList(dataSink), "collect")
-      tableSink.setJobClient(jobClient)
-      TableResultImpl.builder
-        .jobClient(jobClient)
-        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-        .tableSchema(tableSchema)
-        .data(tableSink.getResultIterator)
-        .build
-    } catch {
-      case e: Exception =>
-        throw new TableException("Failed to execute sql", e)
+      case _ =>
+        throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
     }
   }
 
