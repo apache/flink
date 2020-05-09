@@ -22,6 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.SelectTableSink
 import org.apache.flink.table.calcite._
 import org.apache.flink.table.catalog.{CatalogManager, CatalogManagerCalciteSchema, CatalogTable, ConnectorCatalogTable, _}
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
@@ -118,6 +119,10 @@ class StreamPlanner(
       val dataStream = translateToCRow(planner, optimizedPlan)
       dataStream.getTransformation.asInstanceOf[Transformation[_]]
     }.filter(Objects.nonNull).asJava
+  }
+
+  override def createSelectTableSink(tableSchema: TableSchema): SelectTableSink = {
+    new StreamSelectTableSink(tableSchema)
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {

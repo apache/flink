@@ -33,7 +33,6 @@ import org.apache.flink.types.Row
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
-import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
@@ -380,15 +379,6 @@ class TableEnvironmentTest {
     checkData(
       tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
       tableResult.collect())
-  }
-
-  @Test
-  def testExecuteSqlWithUnsupportedStmt(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(containsString("Unsupported SQL query!"))
-    TestTableSourceSinks.createPersonCsvTemporaryTable(tableEnv, "MyTable")
-    // TODO supports select later
-    tableEnv.executeSql("select * from MyTable")
   }
 
   @Test

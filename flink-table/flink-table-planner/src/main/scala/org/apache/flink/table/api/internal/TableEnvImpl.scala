@@ -38,7 +38,7 @@ import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
-import org.apache.flink.table.sinks.{BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
+import org.apache.flink.table.sinks.{BatchSelectTableSink, BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.util.JavaScalaConversionUtil
@@ -641,7 +641,7 @@ abstract class TableEnvImpl(
   private def executeOperation(operation: Operation): TableResult = {
     operation match {
       case catalogSinkModifyOperation: CatalogSinkModifyOperation =>
-        executeInternal(JCollections.singletonList(catalogSinkModifyOperation))
+        executeInternal(JCollections.singletonList[ModifyOperation](catalogSinkModifyOperation))
       case createTableOperation: CreateTableOperation =>
         if (createTableOperation.isTemporary) {
           catalogManager.createTemporaryTable(
@@ -788,8 +788,29 @@ abstract class TableEnvImpl(
           .data(JCollections.singletonList(Row.of(explanation)))
           .setPrintStyle(PrintStyle.RAW_CONTENT)
           .build
+      case queryOperation: QueryOperation =>
+        executeQueryOperation(queryOperation)
 
       case _ => throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG)
+    }
+  }
+
+  private def executeQueryOperation(operation: QueryOperation): TableResult = {
+    val tableSchema = operation.getTableSchema
+    val tableSink = new BatchSelectTableSink(tableSchema)
+    val dataSink = writeToSinkAndTranslate(operation, tableSink)
+    try {
+      val jobClient = execute(JCollections.singletonList(dataSink), "collect")
+      tableSink.setJobClient(jobClient)
+      TableResultImpl.builder
+        .jobClient(jobClient)
+        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+        .tableSchema(tableSchema)
+        .data(tableSink.getResultIterator)
+        .build
+    } catch {
+      case e: Exception =>
+        throw new TableException("Failed to execute sql", e)
     }
   }
 
