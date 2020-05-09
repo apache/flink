@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.dataview;
 
+import javax.annotation.Nullable;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -32,7 +33,7 @@ public class NullAwareMapIterator<K, V> implements Iterator<Map.Entry<K, V>> {
 	private final boolean nullExisted;
 	private boolean nullVisited = false;
 
-	public NullAwareMapIterator(Iterator<Map.Entry<K, V>> mapIterator, NullMapEntry<K, V> nullMapEntry) {
+	public NullAwareMapIterator(@Nullable Iterator<Map.Entry<K, V>> mapIterator, NullMapEntry<K, V> nullMapEntry) {
 		this.mapIterator = mapIterator;
 		this.nullMapEntry = nullMapEntry;
 		this.nullExisted = nullMapEntry.getValue() != null;
@@ -40,12 +41,12 @@ public class NullAwareMapIterator<K, V> implements Iterator<Map.Entry<K, V>> {
 
 	@Override
 	public boolean hasNext() {
-		return mapIterator.hasNext() || (nullExisted && !nullVisited);
+		return (mapIterator != null && mapIterator.hasNext()) || (nullExisted && !nullVisited);
 	}
 
 	@Override
 	public Map.Entry<K, V> next() {
-		if (mapIterator.hasNext()) {
+		if (mapIterator != null && mapIterator.hasNext()) {
 			return mapIterator.next();
 		} else if (nullExisted && !nullVisited) {
 			this.nullVisited = true;
@@ -59,7 +60,7 @@ public class NullAwareMapIterator<K, V> implements Iterator<Map.Entry<K, V>> {
 	public void remove() {
 		if (nullExisted && nullVisited) {
 			nullMapEntry.remove();
-		} else {
+		} else if (mapIterator != null) {
 			mapIterator.remove();
 		}
 	}
