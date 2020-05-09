@@ -16,8 +16,6 @@
 # limitations under the License.
 ################################################################################
 
-from abc import ABCMeta
-
 from pyflink.util.utils import to_j_explain_detail_arr
 
 __all__ = ['StatementSet']
@@ -33,8 +31,6 @@ class StatementSet(object):
     The added statements and Tables will be cleared
     when calling the `execute` method.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, _j_statement_set):
         self._j_statement_set = _j_statement_set
