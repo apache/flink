@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD;
@@ -73,15 +74,27 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		boolean failOnMissingField = properties.getOptionalBoolean(FORMAT_FAIL_ON_MISSING_FIELD).orElse(false);
 		boolean ignoreParseErrors = properties.getOptionalBoolean(FORMAT_IGNORE_PARSE_ERRORS).orElse(false);
 
-		RowType nonPartRowType = context.getNonPartRowType();
-		JsonRowDataDeserializationSchema  deserializationSchema = new JsonRowDataDeserializationSchema(
-			nonPartRowType,
+		RowType formatRowType = context.getFormatRowType();
+		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
+			formatRowType,
 			new GenericTypeInfo(GenericRowData.class),
 			failOnMissingField,
 			ignoreParseErrors);
 
-		int[] jsonSelectFieldToProjectFieldMapping = context.getNonPartFieldProjectMapping();
-		int[] jsonSelectFieldToJsonFieldMapping = context.getSelectFieldToNonPartFieldMapping();
+		String[] fieldNames = context.getSchema().getFieldNames();
+		List<String> projectFields = Arrays.stream(context.getProjectFields())
+			.mapToObj(idx -> fieldNames[idx])
+			.collect(Collectors.toList());
+		List<String> jsonFields = Arrays.stream(fieldNames)
+			.filter(field -> !context.getPartitionKeys().contains(field))
+			.collect(Collectors.toList());
+
+		int[] jsonSelectFieldToProjectFieldMapping = context.getFormatProjectFields().stream()
+			.mapToInt(projectFields::indexOf)
+			.toArray();
+		int[] jsonSelectFieldToJsonFieldMapping = context.getFormatProjectFields().stream()
+			.mapToInt(jsonFields::indexOf)
+			.toArray();
 
 		return new JsonInputFormat(
 			context.getPaths(),
@@ -98,7 +111,7 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 
 	@Override
 	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
-		return Optional.of(new JsonRowDataEncoder(new JsonRowDataSerializationSchema(context.getNonPartRowType())));
+		return Optional.of(new JsonRowDataEncoder(new JsonRowDataSerializationSchema(context.getFormatRowType())));
 	}
 
 	@Override
@@ -150,16 +163,16 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		private transient GenericRowData rowData;
 
 		public JsonInputFormat(
-				Path[] filePaths,
-				DataType[] fieldTypes,
-				String[] fieldNames,
-				int[] selectFields,
-				List<String> partitionKeys,
-				String defaultPartValue,
-				long limit,
-				int[] jsonSelectFieldToProjectFieldMapping,
-				int[] jsonSelectFieldToJsonFieldMapping,
-				JsonRowDataDeserializationSchema deserializationSchema) {
+			Path[] filePaths,
+			DataType[] fieldTypes,
+			String[] fieldNames,
+			int[] selectFields,
+			List<String> partitionKeys,
+			String defaultPartValue,
+			long limit,
+			int[] jsonSelectFieldToProjectFieldMapping,
+			int[] jsonSelectFieldToJsonFieldMapping,
+			JsonRowDataDeserializationSchema deserializationSchema) {
 			super.setFilePaths(filePaths);
 			this.fieldTypes = fieldTypes;
 			this.fieldNames = fieldNames;
@@ -193,29 +206,44 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 
 		@Override
 		public RowData readRecord(RowData reuse, byte[] bytes, int offset, int numBytes) throws IOException {
-			GenericRowData returnRecord = null;
-			do {
-				// remove \r from a line when the line ends with \r\n
-				if (this.getDelimiter() != null && this.getDelimiter().length == 1
-					&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
-					&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN){
-					numBytes -= 1;
-				}
-				byte[] trimBytes = Arrays.copyOfRange(bytes, offset, offset + numBytes);
-				GenericRowData jsonRow = (GenericRowData) deserializationSchema.deserialize(trimBytes);
+			// remove \r from a line when the line ends with \r\n
+			if (this.getDelimiter() != null && this.getDelimiter().length == 1
+				&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
+				&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN) {
+				numBytes -= 1;
+			}
+			byte[] trimBytes = Arrays.copyOfRange(bytes, offset, offset + numBytes);
+			GenericRowData jsonRow = (GenericRowData) deserializationSchema.deserialize(trimBytes);
 
-				if (jsonRow != null) {
-					// if the record is null, simply just skip
-					returnRecord = rowData;
-					for (int i = 0; i < jsonSelectFieldToJsonFieldMapping.length; i++) {
-						returnRecord.setField(jsonSelectFieldToProjectFieldMapping[i],
-							jsonRow.getField(jsonSelectFieldToJsonFieldMapping[i]));
-					}
-				}
-			} while (returnRecord == null && !reachedEnd());
+			if (jsonRow == null) {
+				return null;
+			}
+
+			GenericRowData returnRecord = rowData;
+			for (int i = 0; i < jsonSelectFieldToJsonFieldMapping.length; i++) {
+				returnRecord.setField(jsonSelectFieldToProjectFieldMapping[i],
+					jsonRow.getField(jsonSelectFieldToJsonFieldMapping[i]));
+			}
 
 			emitted++;
 			return returnRecord;
+		}
+
+		@Override
+		public RowData nextRecord(RowData record) throws IOException {
+			while (true) {
+				if (readLine()) {
+					RowData row = readRecord(record, this.currBuffer, this.currOffset, this.currLen);
+					if (row == null) {
+						continue;
+					} else {
+						return row;
+					}
+				} else {
+					this.end = true;
+					return null;
+				}
+			}
 		}
 	}
 

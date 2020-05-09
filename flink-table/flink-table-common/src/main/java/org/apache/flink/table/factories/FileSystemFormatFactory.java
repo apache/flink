@@ -109,7 +109,7 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		/**
 		 * Get field names without partition keys.
 		 */
-		default String[] getFieldNamesWithoutPartKeys() {
+		default String[] getFormatFieldNames() {
 			return Arrays.stream(getSchema().getFieldNames())
 				.filter(name -> !getPartitionKeys().contains(name))
 				.toArray(String[]::new);
@@ -118,7 +118,7 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		/**
 		 * Get field types without partition keys.
 		 */
-		default DataType[] getFieldTypesWithoutPartKeys() {
+		default DataType[] getFormatFieldTypes() {
 			return Arrays.stream(getSchema().getFieldNames())
 				.filter(name -> !getPartitionKeys().contains(name))
 				.map(name -> getSchema().getFieldDataType(name).get())
@@ -128,42 +128,24 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		/**
 		 * RowType of table that excludes partition key fields.
 		 */
-		default RowType getNonPartRowType() {
+		default RowType getFormatRowType() {
 			return RowType.of(
-				Arrays.stream(getFieldTypesWithoutPartKeys())
+				Arrays.stream(getFormatFieldTypes())
 					.map(DataType::getLogicalType)
 					.toArray(LogicalType[]::new),
-				getFieldNamesWithoutPartKeys());
+				getFormatFieldNames());
 		}
 
 		/**
 		 * Mapping from non-partition project fields index to all project fields index.
 		 */
-		default int[] getNonPartFieldProjectMapping() {
+		default List<String> getFormatProjectFields() {
 			final List<String> selectFieldNames = Arrays.stream(getProjectFields())
 				.mapToObj(i -> getSchema().getFieldNames()[i])
 				.collect(Collectors.toList());
-			final List<String> nonPartSelectFieldNames = selectFieldNames.stream()
+			return selectFieldNames.stream()
 				.filter(name -> !getPartitionKeys().contains(name))
 				.collect(Collectors.toList());
-			return nonPartSelectFieldNames.stream()
-				.mapToInt(selectFieldNames::indexOf)
-				.toArray();
-		}
-
-		/**
-		 * Get non-partition project field names.
-		 */
-		default int[] getSelectFieldToNonPartFieldMapping() {
-			final List<String> selectFieldNames = Arrays.stream(getProjectFields())
-				.mapToObj(i -> getSchema().getFieldNames()[i])
-				.collect(Collectors.toList());
-			final List<String> nonPartSelectFieldNames = selectFieldNames.stream()
-				.filter(name -> !getPartitionKeys().contains(name))
-				.collect(Collectors.toList());
-			return nonPartSelectFieldNames.stream()
-				.mapToInt(Arrays.asList(getFieldNamesWithoutPartKeys())::indexOf)
-				.toArray();
 		}
 	}
 
@@ -190,7 +172,7 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		/**
 		 * Get field names without partition keys.
 		 */
-		default String[] getFieldNamesWithoutPartKeys() {
+		default String[] getFormatFieldTypes() {
 			return Arrays.stream(getSchema().getFieldNames())
 					.filter(name -> !getPartitionKeys().contains(name))
 					.toArray(String[]::new);
@@ -199,7 +181,7 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		/**
 		 * Get field types without partition keys.
 		 */
-		default DataType[] getFieldTypesWithoutPartKeys() {
+		default DataType[] getFormatFieldNames() {
 			return Arrays.stream(getSchema().getFieldNames())
 					.filter(name -> !getPartitionKeys().contains(name))
 					.map(name -> getSchema().getFieldDataType(name).get())
@@ -210,12 +192,12 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		 * Get RowType of the table without partition keys.
 		 * @return
 		 */
-		default RowType getNonPartRowType() {
+		default RowType getFormatRowType() {
 			return RowType.of(
-				Arrays.stream(getFieldTypesWithoutPartKeys())
+				Arrays.stream(getFormatFieldNames())
 					.map(DataType::getLogicalType)
 					.toArray(LogicalType[]::new),
-				getFieldNamesWithoutPartKeys());
+				getFormatFieldTypes());
 		}
 	}
 }

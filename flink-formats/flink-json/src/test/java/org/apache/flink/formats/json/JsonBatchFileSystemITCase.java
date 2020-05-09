@@ -19,40 +19,46 @@
 package org.apache.flink.formats.json;
 
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.FileUtils;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.Test;
 
+import java.io.File;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
+
+import scala.collection.JavaConverters;
 
 /**
  * ITCase to test json format for {@link JsonFileSystemFormatFactory}.
  */
-@RunWith(Parameterized.class)
 public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
-
-	private final boolean configure;
-
-	@Parameterized.Parameters(name = "{0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(false, true);
-	}
-
-	public JsonBatchFileSystemITCase(boolean configure) {
-		this.configure = configure;
-	}
 
 	@Override
 	public String[] formatProperties() {
 		List<String> ret = new ArrayList<>();
 		ret.add("'format'='json'");
-		if (configure) {
-			ret.add("'format.fail-on-missing-field'='true'");
-			ret.add("'format.ignore-parse-errors'='false'");
-		}
+		ret.add("'format.ignore-parse-errors'='true'");
 		return ret.toArray(new String[0]);
+	}
+
+	@Test
+	public void testParseError() throws Exception {
+		String path = new URI(resultPath()).getPath();
+		new File(path).mkdirs();
+		File file = new File(path, "my_file");
+		file.createNewFile();
+		FileUtils.writeFileUtf8(file,
+			"{\"x\":\"x5\",\"y\":5,\"a\":1,\"b\":1}\n" +
+				"{I am a wrong json.}\n" +
+				"{\"x\":\"x5\",\"y\":5,\"a\":1,\"b\":1}");
+
+		check("select * from nonPartitionedTable",
+			JavaConverters.asScalaIteratorConverter(Arrays.asList(
+				Row.of("x5,5,1,1"),
+				Row.of("x5,5,1,1")).iterator()).asScala().toSeq());
 	}
 }

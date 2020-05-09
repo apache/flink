@@ -33,7 +33,6 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.TemporalQueries;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -42,8 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 
 /**
  * Utils for file system.
@@ -274,8 +271,7 @@ public class PartitionPathUtils {
 			case DOUBLE:
 				return Double.parseDouble(valStr);
 			case DATE:
-				LocalDate date = ISO_LOCAL_DATE.parse(valStr).query(TemporalQueries.localDate());
-				return (int) date.toEpochDay();
+				return (int) LocalDate.parse(valStr).toEpochDay();
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return TimestampData.fromLocalDateTime(LocalDateTime.parse(valStr));
 			default:

@@ -89,7 +89,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 			return Optional.empty();
 		}
 
-		DataType[] types = context.getFieldTypesWithoutPartKeys();
+		DataType[] types = context.getFormatFieldNames();
 		return Optional.of((rowData, stream) -> {
 			writeCsvToStream(types, rowData, stream);
 		});
@@ -127,7 +127,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 			return Optional.empty();
 		}
 
-		DataType[] types = context.getFieldTypesWithoutPartKeys();
+		DataType[] types = context.getFormatFieldNames();
 		return Optional.of(out -> new CsvBulkWriter(types, out));
 	}
 
