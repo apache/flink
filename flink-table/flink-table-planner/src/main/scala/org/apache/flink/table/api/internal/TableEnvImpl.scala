@@ -613,6 +613,10 @@ abstract class TableEnvImpl(
     }
   }
 
+  override def executeInternal(operation: QueryOperation): TableResult = {
+    executeQueryOperation(operation)
+  }
+
   override def sqlUpdate(stmt: String): Unit = {
     val operations = parser.parse(stmt)
 

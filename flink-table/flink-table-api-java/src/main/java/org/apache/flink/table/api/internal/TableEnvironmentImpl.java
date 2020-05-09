@@ -694,6 +694,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	@Override
+	public TableResult executeInternal(QueryOperation operation) {
+		return executeQueryOperation(operation);
+	}
+
+	@Override
 	public void sqlUpdate(String stmt) {
 		List<Operation> operations = parser.parse(stmt);
 

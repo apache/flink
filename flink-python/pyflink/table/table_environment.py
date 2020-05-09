@@ -523,6 +523,7 @@ class TableEnvironment(object):
                 the affected row count for `DML` (-1 means unknown),
                 or a string message ("OK") for other statements.
         """
+        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
         return self._j_tenv.executeSql(stmt)
 
     def create_statement_set(self):

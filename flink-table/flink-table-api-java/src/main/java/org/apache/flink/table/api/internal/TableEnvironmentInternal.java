@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 
 import java.util.List;
 
@@ -58,6 +59,14 @@ interface TableEnvironmentInternal extends TableEnvironment {
 	 * @return the affected row counts (-1 means unknown).
 	 */
 	TableResult executeInternal(List<ModifyOperation> operations);
+
+	/**
+	 * Execute the given query operation and return the execution result.
+	 *
+	 * @param operation The QueryOperation to be executed.
+	 * @return the content of the QueryOperation.
+	 */
+	TableResult executeInternal(QueryOperation operation);
 
 	/**
 	 * Returns the AST of this table and the execution plan to compute

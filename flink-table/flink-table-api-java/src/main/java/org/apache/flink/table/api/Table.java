@@ -1475,6 +1475,19 @@ public interface Table {
 	TableResult executeInsert(String tablePath, boolean overwrite);
 
 	/**
+	 * Collects the contents of the current table local client.
+	 *
+	 *  <pre>
+	 * {@code
+	 *   Table table = tableEnv.fromQuery("select * from MyTable");
+	 *   TableResult tableResult = table.execute();
+	 *   tableResult...
+	 * }
+	 * </pre>
+	 */
+	TableResult execute();
+
+	/**
 	 * Returns the AST of this table and the execution plan to compute
 	 * the result of this table.
 	 *
