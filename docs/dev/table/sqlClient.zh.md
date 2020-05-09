@@ -23,72 +23,71 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+Flink 的 Table & SQL API 可以处理 SQL 语言编写的查询语句，但是这些查询需要嵌入用 Java 或 Scala 编写的表程序中。此外，这些程序在提交到集群前需要用构建工具打包。这或多或少限制了 Java/Scala 程序员对 Flink 的使用。
 
-Flink’s Table & SQL API makes it possible to work with queries written in the SQL language, but these queries need to be embedded within a table program that is written in either Java or Scala. Moreover, these programs need to be packaged with a build tool before being submitted to a cluster. This more or less limits the usage of Flink to Java/Scala programmers.
-
-The *SQL Client* aims to provide an easy way of writing, debugging, and submitting table programs to a Flink cluster without a single line of Java or Scala code. The *SQL Client CLI* allows for retrieving and visualizing real-time results from the running distributed application on the command line.
+*SQL 客户端* 的目的是提供一种简单的方式来编写、调试和提交表程序到 Flink 集群上，而无需写一行 Java 或 Scala 代码。*SQL 客户端命令行界面（CLI）* 能够在命令行中检索和可视化分布式应用中实时产生的结果。
 
 <a href="{{ site.baseurl }}/fig/sql_client_demo.gif"><img class="offset" src="{{ site.baseurl }}/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
 
-<span class="label label-danger">Attention</span> The SQL Client is in an early development phase. Even though the application is not production-ready yet, it can be a quite useful tool for prototyping and playing around with Flink SQL. In the future, the community plans to extend its functionality by providing a REST-based [SQL Client Gateway](sqlClient.html#limitations--future).
+<span class="label label-danger">注意</span> SQL 客户端正处于早期开发阶段。虽然还没准备好用于生产，但是它对于原型设计和玩转 Flink SQL 还是很实用的工具。将来，社区计划通过提供基于 REST 的 [SQL 客户端网关（Gateway）](sqlClient.html#limitations--future)的来扩展它的功能。
 
 * This will be replaced by the TOC
 {:toc}
 
-Getting Started
+入门
 ---------------
 
-This section describes how to setup and run your first Flink SQL program from the command-line.
+本节介绍如何在命令行里启动（setup）和运行你的第一个 Flink SQL 程序。
 
-The SQL Client is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({{ site.baseurl }}/ops/deployment/cluster_setup.html) part. If you simply want to try out the SQL Client, you can also start a local cluster with one worker using the following command:
+SQL 客户端捆绑在常规 Flink 发行版中，因此可以直接运行。它仅需要一个正在运行的 Flink 集群就可以在其中执行表程序。有关设置 Flink 群集的更多信息，请参见[集群和部署]({{ site.baseurl }}/zh/ops/deployment/cluster_setup.html)部分。如果仅想试用 SQL 客户端，也可以使用以下命令启动本地集群：
 
 {% highlight bash %}
 ./bin/start-cluster.sh
 {% endhighlight %}
 
-### Starting the SQL Client CLI
+### 启动 SQL 客户端命令行界面
 
-The SQL Client scripts are also located in the binary directory of Flink. [In the future](sqlClient.html#limitations--future), a user will have two possibilities of starting the SQL Client CLI either by starting an embedded standalone process or by connecting to a remote SQL Client Gateway. At the moment only the `embedded` mode is supported. You can start the CLI by calling:
+SQL Client 脚本也位于 Flink 的 bin 目录中。[将来](sqlClient.html#limitations--future)，用户可以通过启动嵌入式 standalone 进程或通过连接到远程 SQL 客户端网关来启动 SQL 客户端命令行界面。目前仅支持 `embedded` 模式。可以通过以下方式启动 CLI：
 
 {% highlight bash %}
 ./bin/sql-client.sh embedded
 {% endhighlight %}
 
-By default, the SQL Client will read its configuration from the environment file located in `./conf/sql-client-defaults.yaml`. See the [configuration part](sqlClient.html#environment-files) for more information about the structure of environment files.
+默认情况下，SQL 客户端将从 `./conf/sql-client-defaults.yaml` 中读取配置。有关环境配置文件结构的更多信息，请参见[配置部分](sqlClient.html#environment-files)。
 
-### Running SQL Queries
+### 执行 SQL 查询
 
-Once the CLI has been started, you can use the `HELP` command to list all available SQL statements. For validating your setup and cluster connection, you can enter your first SQL query and press the `Enter` key to execute it:
+命令行界面启动后，你可以使用 `HELP` 命令列出所有可用的 SQL 语句。输入第一条 SQL 查询语句并按 `Enter` 键执行，可以验证你的设置及集群连接是否正确：
 
 {% highlight sql %}
 SELECT 'Hello World';
 {% endhighlight %}
 
-This query requires no table source and produces a single row result. The CLI will retrieve results from the cluster and visualize them. You can close the result view by pressing the `Q` key.
+该查询不需要 table source，并且只产生一行结果。CLI 将从集群中检索结果并将其可视化。按 `Q` 键退出结果视图。
 
-The CLI supports **two modes** for maintaining and visualizing results.
+CLI 为维护和可视化结果提供**两种模式**。
 
-The **table mode** materializes results in memory and visualizes them in a regular, paginated table representation. It can be enabled by executing the following command in the CLI:
+**表格模式**（table mode）在内存中实体化结果，并将结果用规则的分页表格可视化展示出来。执行如下命令启用：
 
 {% highlight text %}
 SET execution.result-mode=table;
 {% endhighlight %}
 
-The **changelog mode** does not materialize results and visualizes the result stream that is produced by a [continuous query](streaming/dynamic_tables.html#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
+**变更日志模式**（changelog mode）不会实体化和可视化结果，而是由插入（`+`）和撤销（`-`）组成的持续查询产生结果流。
 
 {% highlight text %}
 SET execution.result-mode=changelog;
 {% endhighlight %}
 
-You can use the following query to see both result modes in action:
+你可以用如下查询来查看两种结果模式的运行情况：
 
 {% highlight sql %}
 SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name;
 {% endhighlight %}
 
-This query performs a bounded word count example.
+此查询执行一个有限字数示例：
 
-In *changelog mode*, the visualized changelog should be similar to:
+*变更日志模式* 下，看到的结果应该类似于：
 
 {% highlight text %}
 + Bob, 1
@@ -98,7 +97,7 @@ In *changelog mode*, the visualized changelog should be similar to:
 + Bob, 2
 {% endhighlight %}
 
-In *table mode*, the visualized result table is continuously updated until the table program ends with:
+*表格模式* 下，可视化结果表将不断更新，直到表程序以如下内容结束：
 
 {% highlight text %}
 Bob, 2
@@ -106,18 +105,20 @@ Alice, 1
 Greg, 1
 {% endhighlight %}
 
-Both result modes can be useful during the prototyping of SQL queries. In both modes, results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive, the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through bigger results that are only limited by the available main memory and the configured [maximum number of rows](sqlClient.html#configuration) (`max-table-result-rows`).
+这两种结果模式在 SQL 查询的原型设计过程中都非常有用。这两种模式结果都存储在 SQL 客户端 的 Java 堆内存中。为了保持 CLI 界面及时响应，变更日志模式仅显示最近的 1000 个更改。表格模式支持浏览更大的结果，这些结果仅受可用主内存和配置的[最大行数](sqlClient.html#configuration)（`max-table-result-rows`）的限制。
 
-<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` result mode.
+<span class="label label-danger">注意</span> 在批处理环境下执行的查询只能用表格模式进行检索。
 
-After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. For this, a target system that stores the results needs to be specified using the [INSERT INTO statement](sqlClient.html#detached-sql-queries). The [configuration section](sqlClient.html#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
+定义查询语句后，可以将其作为长时间运行的独立 Flink 作业提交给集群。为此，其目标系统需要使用 [INSERT INTO 语句](sqlClient.html#detached-sql-queries)指定存储结果。[配置部分](sqlClient.html#configuration)解释如何声明读取数据的 table source，写入数据的 sink 以及配置其他表程序属性的方法。
 
 {% top %}
 
-Configuration
+<a name="configuration"></a>
+
+配置
 -------------
 
-The SQL Client can be started with the following optional CLI commands. They are discussed in detail in the subsequent paragraphs.
+SQL 客户端启动时可以添加 CLI 选项，具体如下。
 
 {% highlight text %}
 ./bin/sql-client.sh embedded --help
@@ -155,14 +156,16 @@ Mode "embedded" submits Flink jobs from the local machine.
 
 {% top %}
 
-### Environment Files
+<a name="environment-files"></a>
 
-A SQL query needs a configuration environment in which it is executed. The so-called *environment files* define available catalogs, table sources and sinks, user-defined functions, and other properties required for execution and deployment.
+### 环境配置文件
 
-Every environment file is a regular [YAML file](http://yaml.org/). An example of such a file is presented below.
+SQL 查询执行前需要配置相关环境变量。*环境配置文件* 定义了 catalog、table sources、table sinks、用户自定义函数和其他执行或部署所需属性。
+
+每个环境配置文件是常规的 [YAML 文件](http://yaml.org/)，例子如下。
 
 {% highlight yaml %}
-# Define tables here such as sources, sinks, views, or temporal tables.
+# 定义表，如 source、sink、视图或临时表。
 
 tables:
   - name: MyTableSource
@@ -189,7 +192,7 @@ tables:
     type: view
     query: "SELECT MyField2 FROM MyTableSource"
 
-# Define user-defined functions here.
+# 定义用户自定义函数
 
 functions:
   - name: myUDF
@@ -199,7 +202,7 @@ functions:
       - 7.6
       - false
 
-# Define available catalogs
+# 定义 catalogs
 
 catalogs:
    - name: catalog_1
@@ -212,98 +215,96 @@ catalogs:
      default-database: mydb2
      hive-conf-dir: ...
 
-# Properties that change the fundamental execution behavior of a table program.
+# 改变表程序基本的执行行为属性。
 
 execution:
-  planner: blink                    # optional: either 'blink' (default) or 'old'
-  type: streaming                   # required: execution mode either 'batch' or 'streaming'
-  result-mode: table                # required: either 'table' or 'changelog'
-  max-table-result-rows: 1000000    # optional: maximum number of maintained rows in
-                                    #   'table' mode (1000000 by default, smaller 1 means unlimited)
-  time-characteristic: event-time   # optional: 'processing-time' or 'event-time' (default)
-  parallelism: 1                    # optional: Flink's parallelism (1 by default)
-  periodic-watermarks-interval: 200 # optional: interval for periodic watermarks (200 ms by default)
-  max-parallelism: 16               # optional: Flink's maximum parallelism (128 by default)
-  min-idle-state-retention: 0       # optional: table program's minimum idle state time
-  max-idle-state-retention: 0       # optional: table program's maximum idle state time
-  current-catalog: catalog_1        # optional: name of the current catalog of the session ('default_catalog' by default)
-  current-database: mydb1           # optional: name of the current database of the current catalog
-                                    #   (default database of the current catalog by default)
-  restart-strategy:                 # optional: restart strategy
-    type: fallback                  #   "fallback" to global restart strategy by default
+  planner: blink                    # 可选： 'blink' （默认）或 'old'
+  type: streaming                   # 必选：执行模式为 'batch' 或 'streaming'
+  result-mode: table                # 必选：'table' 或 'changelog'
+  max-table-result-rows: 1000000    # 可选：'table' 模式下可维护的最大行数（默认为 1000000，小于 1 则表示无限制）
+  time-characteristic: event-time   # 可选： 'processing-time' 或 'event-time' （默认）
+  parallelism: 1                    # 可选：Flink 的并行数量（默认为 1）
+  periodic-watermarks-interval: 200 # 可选：周期性 watermarks 的间隔时间（默认 200 ms）
+  max-parallelism: 16               # 可选：Flink 的最大并行数量（默认 128）
+  min-idle-state-retention: 0       # 可选：表程序的最小空闲状态时间
+  max-idle-state-retention: 0       # 可选：表程序的最大空闲状态时间
+  current-catalog: catalog_1        # 可选：当前会话 catalog 的名称（默认为 'default_catalog'）
+  current-database: mydb1           # 可选：当前 catalog 的当前数据库名称
+                                    #   （默认为当前 catalog 的默认数据库）
+  restart-strategy:                 # 可选：重启策略（restart-strategy）
+    type: fallback                  #   默认情况下“回退”到全局重启策略
 
-# Configuration options for adjusting and tuning table programs.
+# 用于调整和调优表程序的配置选项。
 
-# A full list of options and their default values can be found
-# on the dedicated "Configuration" page.
+# 在专用的”配置”页面上可以找到完整的选项列表及其默认值。
 configuration:
   table.optimizer.join-reorder-enabled: true
   table.exec.spill-compression.enabled: true
   table.exec.spill-compression.block-size: 128kb
 
-# Properties that describe the cluster to which table programs are submitted to.
+# 描述表程序提交集群的属性。
 
 deployment:
   response-timeout: 5000
 {% endhighlight %}
 
-This configuration:
+上述配置：
 
-- defines an environment with a table source `MyTableSource` that reads from a CSV file,
-- defines a view `MyCustomView` that declares a virtual table using a SQL query,
-- defines a user-defined function `myUDF` that can be instantiated using the class name and two constructor parameters,
-- connects to two Hive catalogs and uses `catalog_1` as the current catalog with `mydb1` as the current database of the catalog,
-- uses the blink planner in streaming mode for running statements with event-time characteristic and a parallelism of 1,
-- runs exploratory queries in the `table` result mode,
-- and makes some planner adjustments around join reordering and spilling via configuration options.
+- 定义一个从 CSV 文件中读取的 table source `MyTableSource` 所需的环境，
+- 定义了一个视图 `MyCustomView` ，该视图是用 SQL 查询声明的虚拟表，
+- 定义了一个用户自定义函数 `myUDF`，该函数可以使用类名和两个构造函数参数进行实例化，
+- 连接到两个 Hive catalogs 并用 `catalog_1` 来作为当前目录，用 `mydb1` 来作为该目录的当前数据库，
+- streaming 模式下用 blink planner 来运行时间特征为 event-time 和并行度为 1 的语句，
+- 在 `table` 结果模式下运行试探性的（exploratory）的查询，
+- 并通过配置选项对联结（join）重排序和溢出进行一些计划调整。
 
-Depending on the use case, a configuration can be split into multiple files. Therefore, environment files can be created for general purposes (*defaults environment file* using `--defaults`) as well as on a per-session basis (*session environment file* using `--environment`). Every CLI session is initialized with the default properties followed by the session properties. For example, the defaults environment file could specify all table sources that should be available for querying in every session whereas the session environment file only declares a specific state retention time and parallelism. Both default and session environment files can be passed when starting the CLI application. If no default environment file has been specified, the SQL Client searches for `./conf/sql-client-defaults.yaml` in Flink's configuration directory.
+根据使用情况，配置可以被拆分为多个文件。因此，一般情况下（用 `--defaults` 指定*默认环境配置文件*）以及基于每个会话（用 `--environment` 指定*会话环境配置文件*）来创建环境配置文件。每个 CLI 会话均会被属于 session 属性的默认属性初始化。例如，默认环境配置文件可以指定在每个会话中都可用于查询的所有 table source，而会话环境配置文件仅声明特定的状态保留时间和并行性。启动 CLI 应用程序时，默认环境配置文件和会话环境配置文件都可以被指定。如果未指定默认环境配置文件，则 SQL 客户端将在 Flink 的配置目录中搜索 `./conf/sql-client-defaults.yaml`。
 
-<span class="label label-danger">Attention</span> Properties that have been set within a CLI session (e.g. using the `SET` command) have highest precedence:
+<span class="label label-danger">注意</span> 在 CLI 会话中设置的属性（如 `SET` 命令）优先级最高：
 
 {% highlight text %}
 CLI commands > session environment file > defaults environment file
 {% endhighlight %}
 
-#### Restart Strategies
+#### 重启策略（Restart Strategies）
 
-Restart strategies control how Flink jobs are restarted in case of a failure. Similar to [global restart strategies]({{ site.baseurl }}/dev/restart_strategies.html) for a Flink cluster, a more fine-grained restart configuration can be declared in an environment file.
+重启策略控制 Flink 作业失败时的重启方式。与 Flink 集群的[全局重启策略]({{ site.baseurl }}/zh/dev/restart_strategies.html)相似，更细精度的重启配置可以在环境配置文件中声明。
 
-The following strategies are supported:
+Flink 支持以下策略：
 
 {% highlight yaml %}
 execution:
-  # falls back to the global strategy defined in flink-conf.yaml
+  # 退回到 flink-conf.yaml 中定义的全局策略
   restart-strategy:
     type: fallback
 
-  # job fails directly and no restart is attempted
+  # 作业直接失败并且不尝试重启
   restart-strategy:
     type: none
 
-  # attempts a given number of times to restart the job
+  # 最多重启作业的给定次数
   restart-strategy:
     type: fixed-delay
-    attempts: 3      # retries before job is declared as failed (default: Integer.MAX_VALUE)
-    delay: 10000     # delay in ms between retries (default: 10 s)
+    attempts: 3      # 作业被宣告失败前的重试次数（默认：Integer.MAX_VALUE）
+    delay: 10000     # 重试之间的间隔时间，以毫秒为单位（默认：10 秒）
 
-  # attempts as long as the maximum number of failures per time interval is not exceeded
+  # 只要不超过每个时间间隔的最大故障数就继续尝试
   restart-strategy:
     type: failure-rate
-    max-failures-per-interval: 1   # retries in interval until failing (default: 1)
-    failure-rate-interval: 60000   # measuring interval in ms for failure rate
-    delay: 10000                   # delay in ms between retries (default: 10 s)
+    max-failures-per-interval: 1   # 每个间隔重试的最大次数（默认：1）
+    failure-rate-interval: 60000   # 监测失败率的间隔时间，以毫秒为单位
+    delay: 10000                   # 重试之间的间隔时间，以毫秒为单位（默认：10 秒）
 {% endhighlight %}
 
 {% top %}
 
-### Dependencies
+### 依赖
 
-The SQL Client does not require to setup a Java project using Maven or SBT. Instead, you can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON), Flink provides **ready-to-use JAR bundles**. These JAR files can be downloaded for each release from the Maven central repository.
+SQL 客户端不要求用 Maven 或者 SBT 设置 Java 项目。相反，你可以以常规的 JAR 包给集群提交依赖项。你也可以分别（用 `--jar`）指定每一个 JAR 包或者（用 `--library`）定义整个 library 依赖库。为连接扩展系统（如 Apache Kafka）和相应的数据格式（如 JSON），Flink提供了**开箱即用型 JAR 捆绑包（ready-to-use JAR bundles）**。这些 JAR 包各个发行版都可以从 Maven 中央库中下载到。
 
-The full list of offered SQL JARs and documentation about how to use them can be found on the [connection to external systems page](connect.html).
+提供的 SQL JARs 和使用文档的完整清单可以在[连接扩展系统页面](connect.html)中找到。
 
-The following example shows an environment file that defines a table source reading JSON data from Apache Kafka.
+如下例子展示了从 Apache Kafka 中读取 JSON 文件并作为 table source 的环境配置文件。
 
 {% highlight yaml %}
 tables:
@@ -344,31 +345,30 @@ tables:
         proctime: true
 {% endhighlight %}
 
-The resulting schema of the `TaxiRide` table contains most of the fields of the JSON schema. Furthermore, it adds a rowtime attribute `rowTime` and processing-time attribute `procTime`.
+`TaxiRide` 表的结果格式与绝大多数的 JSON 格式相似。此外，它还添加了 rowtime 属性 `rowTime` 和 processing-time 属性 `procTime`。
 
-Both `connector` and `format` allow to define a property version (which is currently version `1`) for future backwards compatibility.
+`connector` 和 `format` 都允许定义属性版本（当前版本为 `1` ）以便将来向后兼容。
 
 {% top %}
 
-### User-defined Functions
-The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes or Python files.
+### 自定义函数（User-defined Functions）
+SQL 客户端允许用户创建用户自定义的函数来进行 SQL 查询。当前，这些自定义函数仅限于 Java/Scala 编写的类以及 Python 文件。
 
-In order to provide a Java/Scala user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
+为提供 Java/Scala 的自定义函数，你首先需要实现和编译函数类，该函数继承自 `ScalarFunction`、 `AggregateFunction` 或 `TableFunction`（见[自定义函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html)）。一个或多个函数可以打包到 SQL 客户端的 JAR 依赖中。
 
-In order to provide a Python user-defined function, you need to write a Python function and decorate it with the `pyflink.table.udf.udf` or `pyflink.table.udf.udtf` decorator (see [Python UDFs]({{ site.baseurl }}/dev/table/python/python_udfs.html)). One or more functions can then be placed into a Python file. The Python file and related dependencies need to be specified via the configuration (see [Python Configuration]({{ site.baseurl }}/dev/table/python/python_config.html)) in environment file or the command line options (see [Command Line Usage]({{ site.baseurl }}/ops/cli.html#usage)).
+为提供 Python 的自定义函数，你需要编写 Python 函数并且用装饰器 `pyflink.table.udf.udf` 或 `pyflink.table.udf.udtf` 来装饰（见 [Python UDFs]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html))）。Python 文件中可以放置一个或多个函数。其Python 文件和相关依赖需要通过在环境配置文件中或命令行选项（见 [命令行用法]({{ site.baseurl }}/zh/ops/cli.html#usage)）配置中特别指定（见 [Python 配置]({{ site.baseurl }}/zh/dev/table/python/python_config.html)）。
 
-All functions must be declared in an environment file before being called. For each item in the list of `functions`, one must specify
+所有函数在被调用之前，必须在环境配置文件中提前声明。`functions` 列表中每个函数类都必须指定
 
-- a `name` under which the function is registered,
-- the source of the function using `from` (restricted to be `class` (Java/Scala UDF) or `python` (Python UDF) for now),
+- 用来注册函数的 `name`，
+- 函数的来源 `from`（目前仅限于 `class`（Java/Scala UDF）或 `python`（Python UDF）），
 
-The Java/Scala UDF must specify:
+Java/Scala UDF 必须指定：
+- 声明了全限定名的函数类 `class` 以及用于实例化的 `constructor` 参数的可选列表。
 
-- the `class` which indicates the fully qualified class name of the function and an optional list of `constructor` parameters for instantiation.
+Python UDF 必须指定：
 
-The Python UDF must specify:
-
-- the `fully-qualified-name` which indicates the fully qualified name, i.e the "[module name].[object name]" of the function.
+- 声明全程名称的 `fully-qualified-name`，即函数的 “[module name].[object name]” 
 
 {% highlight yaml %}
 functions:
@@ -386,16 +386,17 @@ functions:
     fully-qualified-name: ...    # required: fully qualified class name of the function      
 {% endhighlight %}
 
-For Java/Scala UDF, make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
+对于 Java/Scala UDF，要确保函数类指定的构造参数顺序和类型都要严格匹配。
 
-#### Constructor Parameters
+#### 构造函数参数
 
-Depending on the user-defined function, it might be necessary to parameterize the implementation before using it in SQL statements.
+根据用户自定义函数可知，在用到 SQL 语句中之前，有必要将构造参数匹配对应的类型。
 
-As shown in the example before, when declaring a user-defined function, a class can be configured using constructor parameters in one of the following three ways:
+如上述示例所示，当声明一个用户自定义函数时，可以使用构造参数来配置相应的类，有以下三种方式：
 
-**A literal value with implicit type:** The SQL Client will automatically derive the type according to the literal value itself. Currently, only values of `BOOLEAN`, `INT`, `DOUBLE` and `VARCHAR` are supported here.
-If the automatic derivation does not work as expected (e.g., you need a VARCHAR `false`), use explicit types instead.
+**隐式类型的文本值：**SQL 客户端将自动根据文本推导对应的类型。目前，只支持 `BOOLEAN`、`INT`、 `DOUBLE` 和 `VARCHAR` 。
+
+如果自动推导的类型与期望不符（例如，你需要 VARCHAR 类型的 `false`），可以改用显式类型。
 
 {% highlight yaml %}
 - true         # -> BOOLEAN (case sensitive)
@@ -404,31 +405,30 @@ If the automatic derivation does not work as expected (e.g., you need a VARCHAR 
 - foo          # -> VARCHAR
 {% endhighlight %}
 
-**A literal value with explicit type:** Explicitly declare the parameter with `type` and `value` properties for type-safety.
+**显式类型的文本值：**为保证类型安全，需明确声明 `type` 和 `value` 属性的参数。
 
 {% highlight yaml %}
 - type: DECIMAL
   value: 11111111111111111
 {% endhighlight %}
 
-The table below illustrates the supported Java parameter types and the corresponding SQL type strings.
+下表列出支持的 Java 参数类型和与之相对应的 SQL 类型。
 
-| Java type               |  SQL type         |
-| :---------------------- | :---------------- |
-| `java.math.BigDecimal`  | `DECIMAL`         |
-| `java.lang.Boolean`     | `BOOLEAN`         |
-| `java.lang.Byte`        | `TINYINT`         |
-| `java.lang.Double`      | `DOUBLE`          |
-| `java.lang.Float`       | `REAL`, `FLOAT`   |
-| `java.lang.Integer`     | `INTEGER`, `INT`  |
-| `java.lang.Long`        | `BIGINT`          |
-| `java.lang.Short`       | `SMALLINT`        |
-| `java.lang.String`      | `VARCHAR`         |
+| Java 类型              | SQL 类型         |
+| :--------------------- | :--------------- |
+| `java.math.BigDecimal` | `DECIMAL`        |
+| `java.lang.Boolean`    | `BOOLEAN`        |
+| `java.lang.Byte`       | `TINYINT`        |
+| `java.lang.Double`     | `DOUBLE`         |
+| `java.lang.Float`      | `REAL`, `FLOAT`  |
+| `java.lang.Integer`    | `INTEGER`, `INT` |
+| `java.lang.Long`       | `BIGINT`         |
+| `java.lang.Short`      | `SMALLINT`       |
+| `java.lang.String`     | `VARCHAR`        |
 
-More types (e.g., `TIMESTAMP` or `ARRAY`), primitive types, and `null` are not supported yet.
+其他类型 （例如 `TIMESTAMP` 和 `ARRAY`）、原始类型和 `null` 目前还不支持。
 
-**A (nested) class instance:** Besides literal values, you can also create (nested) class instances for constructor parameters by specifying the `class` and `constructor` properties.
-This process can be recursively performed until all the constructor parameters are represented with literal values.
+**（嵌套）类实例：**除了文本值外，还可以通过指定构造参数的 `class` 和 `constructor` 属性来创建（嵌套）类实例。这个过程可以递归执行，直到最后的构造参数是用文本值来描述的。
 
 {% highlight yaml %}
 - class: foo.bar.paramClass
@@ -447,9 +447,9 @@ This process can be recursively performed until all the constructor parameters a
 Catalogs
 --------
 
-Catalogs can be defined as a set of YAML properties and are automatically registered to the environment upon starting SQL Client.
+Catalogs 可以由 YAML 属性集合定义，并且在 SQL 客户端启动之前自动注册到运行环境中。
 
-Users can specify which catalog they want to use as the current catalog in SQL CLI, and which database of the catalog they want to use as the current database.
+用户可以指定在 SQL CLI 中哪些 catalog 要被作为当前的 catalog，以及哪个数据库的 catalog 可以用于当前数据库。
 
 {% highlight yaml %}
 catalogs:
@@ -469,18 +469,20 @@ execution:
    current-database: mydb1
 {% endhighlight %}
 
-For more information about catalogs, see [Catalogs]({{ site.baseurl }}/dev/table/catalogs.html).
+更多关于 catalog 的内容，参考 [Catalogs]({{ site.baseurl }}/zh/dev/table/catalogs.html)。
 
-Detached SQL Queries
+<a name="detached-sql-queries"></a>
+
+分离的 SQL 查询
 --------------------
 
-In order to define end-to-end SQL pipelines, SQL's `INSERT INTO` statement can be used for submitting long-running, detached queries to a Flink cluster. These queries produce their results into an external system instead of the SQL Client. This allows for dealing with higher parallelism and larger amounts of data. The CLI itself does not have any control over a detached query after submission.
+为定义端到端的 SQL 管道，SQL 的 `INSERT INTO` 语句可以向 Flink 集群提交长时间运行的分离查询。查询产生的结果输出到除 SQL 客户端外的扩展系统中。这样可以应对更高的并发和更多的数据。CLI 自身在提交后不对分离查询做任何控制。
 
 {% highlight sql %}
 INSERT INTO MyTableSink SELECT * FROM MyTableSource
 {% endhighlight %}
 
-The table sink `MyTableSink` has to be declared in the environment file. See the [connection page](connect.html) for more information about supported external systems and their configuration. An example for an Apache Kafka table sink is shown below.
+sink `MyTableSink` 必须在环境配置文件中声明。查看更多关于 Flink 支持的外部系统及其配置信息，参见 [connection page](connect.html)。如下展示 Apache Kafka 的 sink 示例。
 
 {% highlight yaml %}
 tables:
@@ -510,7 +512,7 @@ tables:
         data-type: TIMESTAMP(3)
 {% endhighlight %}
 
-The SQL Client makes sure that a statement is successfully submitted to the cluster. Once the query is submitted, the CLI will show information about the Flink job.
+SQL 客户端要确保语句成功提交到集群上。一旦提交查询，CLI 将展示关于 Flink 作业的相关信息。
 
 {% highlight text %}
 [INFO] Table update statement has been successfully submitted to the cluster:
@@ -519,18 +521,18 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 Web interface: http://localhost:8081
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({{ site.baseurl }}/dev/restart_strategies.html) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
+<span class="label label-danger">注意</span> 提交后，SQL 客户端不追踪正在运行的 Flink 作业状态。提交后可以关闭 CLI 进程，并且不会影响分离的查询。Flink 的[重启策略]({{ site.baseurl }}/zh/dev/restart_strategies.html)负责容错。取消查询可以用 Flink 的 web 接口、命令行或 REST API 。
 
 {% top %}
 
-SQL Views
+SQL 视图
 ---------
 
-Views allow to define virtual tables from SQL queries. The view definition is parsed and validated immediately. However, the actual execution happens when the view is accessed during the submission of a general `INSERT INTO` or `SELECT` statement.
+视图是一张虚拟表，允许通过 SQL 查询来定义。视图的定义会被立即解析与验证。然而，提交常规 `INSERT INTO` 或 `SELECT` 语句后不会立即执行，在访问视图时才会真正执行。
 
-Views can either be defined in [environment files](sqlClient.html#environment-files) or within the CLI session.
+视图可以用[环境配置文件](sqlClient.html#environment-files)或者 CLI 会话来定义。
 
-The following example shows how to define multiple views in a file. The views are registered in the order in which they are defined in the environment file. Reference chains such as _view A depends on view B depends on view C_ are supported.
+下例展示如何在一个文件里定义多张视图。视图注册的顺序和定义它们的环境配置文件一致。支持诸如 _视图 A 依赖视图 B ，视图 B 依赖视图 C_ 的引用链。
 
 {% highlight yaml %}
 tables:
@@ -547,35 +549,36 @@ tables:
       WHERE MyField2 > 200
 {% endhighlight %}
 
-Similar to table sources and sinks, views defined in a session environment file have highest precedence.
+相较于 table soruce 和 sink，会话环境配置文件中定义的视图具有最高优先级。
 
-Views can also be created within a CLI session using the `CREATE VIEW` statement:
+视图还可以在 CLI 会话中用 `CREATE VIEW` 语句来创建：
 
 {% highlight text %}
 CREATE VIEW MyNewView AS SELECT MyField2 FROM MyTableSource;
 {% endhighlight %}
 
-Views created within a CLI session can also be removed again using the `DROP VIEW` statement:
+视图能在 CLI 会话中创建，也能用 `DROP VIEW` 语句删除：
 
 {% highlight text %}
 DROP VIEW MyNewView;
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> The definition of views in the CLI is limited to the mentioned syntax above. Defining a schema for views or escaping whitespaces in table names will be supported in future versions.
+<span class="label label-danger">注意</span> CLI 中视图的定义仅限于上述语法。将来版本会支持定义视图结构以及在表名中加入转义的空格。
 
 {% top %}
 
-Temporal Tables
+临时表（Temporal Table）
 ---------------
 
-A [temporal table](./streaming/temporal_tables.html) allows for a (parameterized) view on a changing history table that returns the content of a table at a specific point in time. This is especially useful for joining a table with the content of another table at a particular timestamp. More information can be found in the [temporal table joins](./streaming/joins.html#join-with-a-temporal-table) page.
+[临时表](./streaming/temporal_tables.html)是在变化的历史记录表上的（参数化）视图，该视图在某个特定时间点返回表的内容。这对于在特定的时间戳将一张表的内容联结另一张表是非常有用的。更多信息见[联结临时表](./streaming/joins.html#join-with-a-temporal-table)页面。
 
-The following example shows how to define a temporal table `SourceTemporalTable`:
+下例展示如何定义一张临时表 `SourceTemporalTable`：
 
 {% highlight yaml %}
 tables:
 
-  # Define the table source (or view) that contains updates to a temporal table
+  # 定义包含对临时表的更新的 table source （或视图）
+
   - name: HistorySource
     type: source-table
     update-mode: append
@@ -595,7 +598,7 @@ tables:
           watermarks:
             type: from-source
 
-  # Define a temporal table over the changing history table with time attribute and primary key
+  # 在具有时间属性和主键的变化历史记录表上定义临时表
   - name: SourceTemporalTable
     type: temporal-table
     history-table: HistorySource
@@ -603,13 +606,15 @@ tables:
     time-attribute: rowtimeField  # could also be a proctime field
 {% endhighlight %}
 
-As shown in the example, definitions of table sources, views, and temporal tables can be mixed with each other. They are registered in the order in which they are defined in the environment file. For example, a temporal table can reference a view which can depend on another view or table source.
+如例子中所示，table source，视图和临时表的定义可以相互混合。它们按照在环境配置文件中定义的顺序进行注册。例如，临时表可以引用一个视图，该视图依赖于另一个视图或 table source。
 
 {% top %}
 
-Limitations & Future
+<a name="limitations--future"></a>
+
+局限与未来
 --------------------
 
-The current SQL Client implementation is in a very early development stage and might change in the future as part of the bigger Flink Improvement Proposal 24 ([FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client)). Feel free to join the discussion and open issue about bugs and features that you find useful.
+当前的 SQL 客户端仍处于非常早期的开发阶段，作为更大的 Flink 改进提案 24（[FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client)）的一部分，将来可能会发生变化。如果你发现了 bug 可以随时创建 issue，或者如果（如邮件列表、Pull requests中）发现有用的特性，欢迎积极参与讨论。
 
 {% top %}
