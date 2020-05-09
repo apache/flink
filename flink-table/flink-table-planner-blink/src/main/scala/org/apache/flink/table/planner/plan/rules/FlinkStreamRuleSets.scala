@@ -310,6 +310,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalWindowTableAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
     FlinkLogicalMatch.CONVERTER,
+    FlinkLogicalSink.CONVERTER,
     FlinkLogicalLegacySink.CONVERTER
   )
 
@@ -406,6 +407,7 @@ object FlinkStreamRuleSets {
     StreamExecCorrelateRule.INSTANCE,
     StreamExecPythonCorrelateRule.INSTANCE,
     // sink
+    StreamExecSinkRule.INSTANCE,
     StreamExecLegacySinkRule.INSTANCE
   )
 

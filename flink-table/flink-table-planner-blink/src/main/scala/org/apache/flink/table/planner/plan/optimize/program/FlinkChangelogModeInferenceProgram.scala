@@ -19,9 +19,10 @@
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterOrNone, onlyAfterOrNone}
+import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{BEFORE_AND_AFTER, ONLY_UPDATE_AFTER, beforeAfterOrNone, onlyAfterOrNone}
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
+import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils.FULL_CHANGELOG_MODE
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
@@ -112,6 +113,15 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         rel: StreamPhysicalRel,
         requiredTrait: ModifyKindSetTrait,
         requester: String): StreamPhysicalRel = rel match {
+      case sink: StreamExecSink =>
+        val name = s"Table sink '${sink.tableIdentifier.asSummaryString()}'"
+        val sinkRequiredTrait = ModifyKindSetTrait.fromChangelogMode(
+          sink.tableSink.getChangelogMode(FULL_CHANGELOG_MODE))
+        val children = visitChildren(sink, sinkRequiredTrait, name)
+        val sinkTrait = sink.getTraitSet.plus(ModifyKindSetTrait.EMPTY)
+        // ignore required trait from context, because sink is the true root
+        sink.copy(sinkTrait, children).asInstanceOf[StreamPhysicalRel]
+
       case sink: StreamExecLegacySink[_] =>
         val (sinkRequiredTrait, name) = sink.sink match {
           case _: UpsertStreamTableSink[_] =>
@@ -370,6 +380,21 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
     def visit(
         rel: StreamPhysicalRel,
         requiredTrait: UpdateKindTrait): Option[StreamPhysicalRel] = rel match {
+      case sink: StreamExecSink =>
+        val childModifyKindSet = getModifyKindSet(sink.getInput)
+        val onlyAfter = onlyAfterOrNone(childModifyKindSet)
+        val beforeAndAfter = beforeAfterOrNone(childModifyKindSet)
+        val sinkTrait = UpdateKindTrait.fromChangelogMode(
+          sink.tableSink.getChangelogMode(FULL_CHANGELOG_MODE))
+        val sinkRequiredTraits = if (sinkTrait.equals(ONLY_UPDATE_AFTER)) {
+          Seq(onlyAfter, beforeAndAfter)
+        } else if (sinkTrait.equals(BEFORE_AND_AFTER)){
+          Seq(beforeAndAfter)
+        } else {
+          Seq(UpdateKindTrait.NONE)
+        }
+        visitSink(sink, sinkRequiredTraits)
+
       case sink: StreamExecLegacySink[_] =>
         val childModifyKindSet = getModifyKindSet(sink.getInput)
         val onlyAfter = onlyAfterOrNone(childModifyKindSet)
@@ -394,13 +419,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
               Seq(UpdateKindTrait.NONE)
             }
         }
-        val children = sinkRequiredTraits.flatMap(t => visitChildren(sink, t))
-        if (children.isEmpty) {
-          None
-        } else {
-          val sinkTrait = sink.getTraitSet.plus(UpdateKindTrait.NONE)
-          Some(sink.copy(sinkTrait, children.head).asInstanceOf[StreamPhysicalRel])
-        }
+        visitSink(sink, sinkRequiredTraits)
 
       case _: StreamExecGroupAggregate | _: StreamExecGroupTableAggregate |
            _: StreamExecLimit =>
@@ -649,7 +668,19 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           return newNode
         }
       }
-      return None
+      None
+    }
+
+    private def visitSink(
+        sink: StreamPhysicalRel,
+        sinkRequiredTraits: Seq[UpdateKindTrait]): Option[StreamPhysicalRel] = {
+      val children = sinkRequiredTraits.flatMap(t => visitChildren(sink, t))
+      if (children.isEmpty) {
+        None
+      } else {
+        val sinkTrait = sink.getTraitSet.plus(UpdateKindTrait.NONE)
+        Some(sink.copy(sinkTrait, children.head).asInstanceOf[StreamPhysicalRel])
+      }
     }
   }
 

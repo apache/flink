@@ -163,24 +163,19 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       val input = snapshot.getInput.accept(this)
       snapshot.copy(snapshot.getTraitSet, input, snapshot.getPeriod)
 
+    case sink: LogicalSink =>
+      val newInput = convertSinkInput(sink.getInput)
+      new LogicalSink(
+        sink.getCluster,
+        sink.getTraitSet,
+        newInput,
+        sink.tableIdentifier,
+        sink.catalogTable,
+        sink.tableSink,
+        sink.staticPartitions)
+
     case sink: LogicalLegacySink =>
-      var newInput = sink.getInput.accept(this)
-      var needsConversion = false
-
-      val projects = newInput.getRowType.getFieldList.map { field =>
-        if (isProctimeIndicatorType(field.getType)) {
-          needsConversion = true
-          rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME_MATERIALIZE,
-            new RexInputRef(field.getIndex, field.getType))
-        } else {
-          new RexInputRef(field.getIndex, field.getType)
-        }
-      }
-
-      // add final conversion if necessary
-      if (needsConversion) {
-        newInput = LogicalProject.create(newInput, projects, newInput.getRowType.getFieldNames)
-      }
+      val newInput = convertSinkInput(sink.getInput)
       new LogicalLegacySink(
         sink.getCluster,
         sink.getTraitSet,
@@ -371,6 +366,28 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
   private def hasRowtimeAttribute(rowType: RelDataType): Boolean = {
     rowType.getFieldList.exists(field => isRowtimeIndicatorType(field.getType))
+  }
+
+  private def convertSinkInput(sinkInput: RelNode): RelNode = {
+    var newInput = sinkInput.accept(this)
+    var needsConversion = false
+
+    val projects = newInput.getRowType.getFieldList.map { field =>
+      if (isProctimeIndicatorType(field.getType)) {
+        needsConversion = true
+        rexBuilder.makeCall(FlinkSqlOperatorTable.PROCTIME_MATERIALIZE,
+          new RexInputRef(field.getIndex, field.getType))
+      } else {
+        new RexInputRef(field.getIndex, field.getType)
+      }
+    }
+
+    // add final conversion if necessary
+    if (needsConversion) {
+      LogicalProject.create(newInput, projects, newInput.getRowType.getFieldNames)
+    } else {
+      newInput
+    }
   }
 
   private def convertAggregate(aggregate: Aggregate): LogicalAggregate = {
