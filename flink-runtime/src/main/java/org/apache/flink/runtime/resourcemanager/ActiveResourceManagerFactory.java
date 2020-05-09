@@ -69,7 +69,10 @@ public abstract class ActiveResourceManagerFactory<T extends ResourceIDRetrievab
 	}
 
 	private Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
+		final Configuration copiedConfig = new Configuration(originalConfiguration);
+		// In active mode, it's depend on the ResourceManager to set the ResourceID of TaskManagers.
+		copiedConfig.removeConfig(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID);
 		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-			originalConfiguration, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
+			copiedConfig, TaskManagerOptions.TOTAL_PROCESS_MEMORY);
 	}
 }

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
@@ -308,8 +309,11 @@ public class KubernetesResourceManager extends ActiveResourceManager<KubernetesW
 		final ContaineredTaskManagerParameters taskManagerParameters =
 			ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
 
+		final Configuration taskManagerConfig = new Configuration(flinkConfig);
+		taskManagerConfig.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, podName);
+
 		final String dynamicProperties =
-			BootstrapTools.getDynamicPropertiesAsString(flinkClientConfig, flinkConfig);
+			BootstrapTools.getDynamicPropertiesAsString(flinkClientConfig, taskManagerConfig);
 
 		return new KubernetesTaskManagerParameters(
 			flinkConfig,
