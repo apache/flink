@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -92,7 +93,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 	private static final int STARTUP_FAILURE_RETURN_CODE = 1;
 
-	public static final int RUNTIME_FAILURE_RETURN_CODE = 2;
+	@VisibleForTesting
+	static final int RUNTIME_FAILURE_RETURN_CODE = 2;
 
 	private final Object lock = new Object();
 
@@ -414,9 +416,10 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 	 * @param configuration The configuration for the TaskManager.
 	 * @param haServices to use for the task manager hostname retrieval
 	 */
-	public static RpcService createRpcService(
-			final Configuration configuration,
-			final HighAvailabilityServices haServices) throws Exception {
+	@VisibleForTesting
+	static RpcService createRpcService(
+		final Configuration configuration,
+		final HighAvailabilityServices haServices) throws Exception {
 
 		checkNotNull(configuration);
 		checkNotNull(haServices);
