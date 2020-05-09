@@ -50,7 +50,7 @@ import org.apache.calcite.tools.FrameworkConfig
 
 import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
-import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
+import _root_.java.util.{Optional, ArrayList => JArrayList, Collections => JCollections, HashMap => JHashMap, HashSet => JHashSet, List => JList, Map => JMap}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -590,18 +590,15 @@ abstract class TableEnvImpl(
         throw new TableException("Unsupported operation: " + o)
     }
 
-    val jobName = extractJobName(operations)
+    val sinkIdentifierNames = extractSinkIdentifierNames(operations)
+    val jobName = "insert_into_" + String.join(",", sinkIdentifierNames)
     try {
       val jobClient = execute(dataSinks, jobName)
       val builder = TableSchema.builder()
       val affectedRowCounts = new Array[JLong](operations.size())
       operations.indices.foreach { idx =>
-        // if only one operation, field name is 'affected_rowcount', else is 'affected_rowcount_$i'
-        var fieldName = "affected_rowcount"
-        if (operations.size() > 1) {
-          fieldName = fieldName + "_" + idx
-        }
-        builder.field(fieldName, DataTypes.BIGINT())
+        // use sink identifier name as field name
+        builder.field(sinkIdentifierNames(idx), DataTypes.BIGINT())
         affectedRowCounts(idx) = -1L
       }
       TableResultImpl.builder()
@@ -828,14 +825,47 @@ abstract class TableEnvImpl(
       }))
   }
 
-  private def extractJobName(operations: JList[ModifyOperation]): String = {
-    val tableNames = operations.map {
+  /**
+    * extract sink identifier names from [[ModifyOperation]]s.
+    *
+    * <p>This method will keep the shortest form of an identifier,
+    * which should be unique between all identifiers. e.g.
+    * cat.db.tbl1, cat.db.tbl2, cat.db1.tbl3, cat.db2.tbl3, cat1.db.tbl4, cat2.db.tbl4
+    * the result is
+    * tbl1, tbl2, db1.tbl3, db2.tbl3, cat1.db.tbl4, cat2.db.tbl4
+    */
+  private def extractSinkIdentifierNames(operations: JList[ModifyOperation]): JList[String] = {
+    val identifiers = new JArrayList[ObjectIdentifier](operations.size)
+    val tableName2DatabaseNames = new JHashMap[String, JArrayList[String]]
+    operations.map {
       case catalogSinkModifyOperation: CatalogSinkModifyOperation =>
-        catalogSinkModifyOperation.getTableIdentifier.toString
+        val identifier = catalogSinkModifyOperation.getTableIdentifier
+        identifiers.add(identifier)
+        val tableName = identifier.getObjectName
+        if (!tableName2DatabaseNames.containsKey(tableName)) {
+          tableName2DatabaseNames.put(tableName, new JArrayList[String]())
+        }
+        tableName2DatabaseNames.get(tableName).add(identifier.getDatabaseName)
       case o =>
         throw new UnsupportedOperationException("Unsupported operation: " + o)
     }
-    "insert_into_" + String.join(",", tableNames)
+
+    val tableNames = new JArrayList[String](identifiers.size)
+    identifiers.foreach { i =>
+      val databaseNames = tableName2DatabaseNames.get(i.getObjectName)
+      if (databaseNames.size == 1) {
+        // current table name is unique
+        tableNames.add(i.getObjectName)
+      } else if (databaseNames.size == new JHashSet[String](databaseNames).size) {
+        // current table name is not unique
+        // while database names associated with current table name are unique
+        tableNames.add(String.join(".", i.getDatabaseName, i.getObjectName))
+      } else {
+        // use full name
+        tableNames.add(String.join(".", i.getCatalogName, i.getDatabaseName, i.getObjectName))
+      }
+    }
+    tableNames
   }
 
   /**

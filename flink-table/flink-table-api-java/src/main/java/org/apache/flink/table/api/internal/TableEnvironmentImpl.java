@@ -112,6 +112,8 @@ import org.apache.flink.types.Row;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -663,19 +665,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	@Override
 	public TableResult executeInternal(List<ModifyOperation> operations) {
 		List<Transformation<?>> transformations = translate(operations);
-		String jobName = extractJobName(operations);
+		List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
+		String jobName = "insert_into_" + String.join(",", sinkIdentifierNames);
 		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
 		try {
 			JobClient jobClient = execEnv.executeAsync(pipeline);
 			TableSchema.Builder builder = TableSchema.builder();
 			Object[] affectedRowCounts = new Long[operations.size()];
 			for (int i = 0; i < operations.size(); ++i) {
-				// if only one operation, field name is 'affected_rowcount', else is 'affected_rowcount_$i'
-				String fieldName = "affected_rowcount";
-				if (operations.size() > 1) {
-					fieldName = fieldName + "_" + i;
-				}
-				builder.field(fieldName, DataTypes.BIGINT());
+				// use sink identifier name as field name
+				builder.field(sinkIdentifierNames.get(i), DataTypes.BIGINT());
 				affectedRowCounts[i] = -1L;
 			}
 
@@ -908,17 +907,48 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 				.build();
 	}
 
-	private String extractJobName(List<ModifyOperation> operations) {
-		List<String> tableNames = new ArrayList<>();
+	/**
+	 * extract sink identifier names from {@link ModifyOperation}s.
+	 *
+	 * <p>This method will keep the shortest form of an identifier,
+	 * which should be unique between all identifiers. e.g.
+	 * cat.db.tbl1, cat.db.tbl2, cat.db1.tbl3, cat.db2.tbl3, cat1.db.tbl4, cat2.db.tbl4
+	 * the result is
+	 * tbl1, tbl2, db1.tbl3, db2.tbl3, cat1.db.tbl4, cat2.db.tbl4
+	 */
+	private List<String> extractSinkIdentifierNames(List<ModifyOperation> operations) {
+		List<ObjectIdentifier> identifiers = new ArrayList<>(operations.size());
+		Map<String, List<String>> tableName2DatabaseNames = new HashMap<>();
 		for (ModifyOperation operation : operations) {
 			if (operation instanceof CatalogSinkModifyOperation) {
-				String tableName = ((CatalogSinkModifyOperation) operation).getTableIdentifier().toString();
-				tableNames.add(tableName);
+				ObjectIdentifier identifier = ((CatalogSinkModifyOperation) operation).getTableIdentifier();
+				identifiers.add(identifier);
+				String tableName = identifier.getObjectName();
+				if (!tableName2DatabaseNames.containsKey(tableName)) {
+					tableName2DatabaseNames.put(tableName, new ArrayList<>());
+				}
+				tableName2DatabaseNames.get(tableName).add(identifier.getDatabaseName());
 			} else {
 				throw new UnsupportedOperationException("Unsupported operation: " + operation);
 			}
 		}
-		return "insert_into_" + String.join(",", tableNames);
+
+		List<String> tableNames = new ArrayList<>(identifiers.size());
+		for (ObjectIdentifier i : identifiers) {
+			List<String> databaseNames = tableName2DatabaseNames.get(i.getObjectName());
+			if (databaseNames.size() == 1) {
+				// current table name is unique
+				tableNames.add(i.getObjectName());
+			} else if (databaseNames.size() == new HashSet<>(databaseNames).size()) {
+				// current table name is not unique while database names associated with current table name are unique
+				tableNames.add(String.join(".", i.getDatabaseName(), i.getObjectName()));
+			} else {
+				// use full name
+				tableNames.add(String.join(".", i.getCatalogName(), i.getDatabaseName(),i.getObjectName()));
+			}
+		}
+
+		return tableNames;
 	}
 
 	/** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */

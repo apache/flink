@@ -28,6 +28,7 @@ import org.apache.flink.table.api.TableEnvironmentITCase.{getPersonCsvTableSourc
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.java.StreamTableEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment, _}
+import org.apache.flink.table.catalog.GenericInMemoryCatalog
 import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
@@ -254,7 +255,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     val sinkPath = registerCsvTableSink(tEnv, Array("first"), Array(STRING), "MySink1")
     checkEmptyFile(sinkPath)
     val tableResult = tEnv.executeSql("insert into MySink1 select first from MyTable")
-    checkInsertTableResult(tableResult, -1L)
+    checkInsertTableResult(tableResult, "MySink1")
     // wait job finished
     tableResult.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -272,7 +273,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
 
     checkEmptyFile(sinkPath)
     val tableResult1 = tEnv.executeSql("insert overwrite MySink select first from MyTable")
-    checkInsertTableResult(tableResult1, -1L)
+    checkInsertTableResult(tableResult1, "MySink")
     // wait job finished
     tableResult1.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -280,7 +281,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertFirstValues(sinkPath)
 
     val tableResult2 = tEnv.executeSql("insert overwrite MySink select first from MyTable")
-    checkInsertTableResult(tableResult2, -1L)
+    checkInsertTableResult(tableResult2, "MySink")
     // wait job finished
     tableResult2.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -296,7 +297,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     checkEmptyFile(sink2Path)
 
     val tableResult = tEnv.executeSql("insert into MySink1 select first from MyTable")
-    checkInsertTableResult(tableResult, -1L)
+    checkInsertTableResult(tableResult, "MySink1")
     // wait job finished
     tableResult.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -332,7 +333,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     resultSet.addSink(new StreamITCase.StringSink[Row])
 
     val tableResult = streamTableEnv.executeSql("insert into MySink1 select first from MyTable")
-    checkInsertTableResult(tableResult, -1L)
+    checkInsertTableResult(tableResult, "MySink1")
     // wait job finished
     tableResult.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -356,7 +357,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     checkEmptyFile(sinkPath)
     val table = tEnv.sqlQuery("select first from MyTable")
     val tableResult = table.executeInsert("MySink")
-    checkInsertTableResult(tableResult, -1L)
+    checkInsertTableResult(tableResult, "MySink")
     // wait job finished
     tableResult.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -374,7 +375,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
 
     checkEmptyFile(sinkPath)
     val tableResult1 = tEnv.sqlQuery("select first from MyTable").executeInsert("MySink", true)
-    checkInsertTableResult(tableResult1, -1L)
+    checkInsertTableResult(tableResult1, "MySink")
     // wait job finished
     tableResult1.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -382,7 +383,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertFirstValues(sinkPath)
 
     val tableResult2 = tEnv.sqlQuery("select first from MyTable").executeInsert("MySink", true)
-    checkInsertTableResult(tableResult2, -1L)
+    checkInsertTableResult(tableResult2, "MySink")
     // wait job finished
     tableResult2.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -404,7 +405,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertEquals(replaceStageId(expected), replaceStageId(actual))
 
     val tableResult = stmtSet.execute()
-    checkInsertTableResult(tableResult, -1L, -1L)
+    checkInsertTableResult(tableResult, "MySink1", "MySink2")
     // wait job finished
     tableResult.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -433,7 +434,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
       .addInsertSql("insert overwrite MySink2 select last from MyTable")
 
     val tableResult1 = stmtSet.execute()
-    checkInsertTableResult(tableResult1, -1L, -1L)
+    checkInsertTableResult(tableResult1, "MySink1", "MySink2")
     // wait job finished
     tableResult1.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -447,7 +448,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
       .addInsertSql("insert overwrite MySink2 select last from MyTable")
 
     val tableResult2 = stmtSet.execute()
-    checkInsertTableResult(tableResult2, -1L, -1L)
+    checkInsertTableResult(tableResult2, "MySink1", "MySink2")
     // wait job finished
     tableResult2.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -455,6 +456,45 @@ class TableEnvironmentITCase(tableEnvName: String) {
 
     assertFirstValues(sink1Path)
     assertLastValues(sink2Path)
+  }
+
+  @Test
+  def testStatementSetWithMultipleSinkNames(): Unit = {
+    tEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1", "db"))
+    tEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2", "db"))
+    tEnv.registerCatalog("cat3", new GenericInMemoryCatalog("cat3", "db"))
+    tEnv.executeSql("CREATE DATABASE cat1.db1")
+    tEnv.executeSql("CREATE DATABASE cat1.db2")
+    createTable("cat1.db.tbl1")
+    createTable("cat1.db.tbl2")
+    createTable("cat1.db1.tbl3")
+    createTable("cat1.db2.tbl3")
+    createTable("cat2.db.tbl4")
+    createTable("cat3.db.tbl4")
+
+    val stmtSet = tEnv.createStatementSet()
+    stmtSet.addInsertSql("insert into cat1.db.tbl1 select first from MyTable where id = 1")
+    stmtSet.addInsertSql("insert into cat1.db1.tbl3 select first from MyTable where id = 3")
+    stmtSet.addInsertSql("insert into cat1.db.tbl2 select first from MyTable where id = 2")
+    stmtSet.addInsertSql("insert into cat2.db.tbl4 select first from MyTable where id = 5")
+    stmtSet.addInsertSql("insert into cat1.db2.tbl3 select first from MyTable where id = 4")
+    stmtSet.addInsertSql("insert into cat3.db.tbl4 select first from MyTable where id = 6")
+    val tableResult = stmtSet.execute()
+    checkInsertTableResult(
+      tableResult, "tbl1", "db1.tbl3", "tbl2", "cat2.db.tbl4", "db2.tbl3", "cat3.db.tbl4")
+  }
+
+  private def createTable(fullName: String): Unit = {
+    tEnv.executeSql(
+      s"""
+         |create table $fullName (
+         |  first string
+         |) with (
+         |  'connector' = 'COLLECTION',
+         |  'is-bounded' = 'true'
+         |)
+       """.stripMargin
+    )
   }
 
   private def registerCsvTableSink(
@@ -500,11 +540,15 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertFalse(new File(path).exists())
   }
 
-  private def checkInsertTableResult(tableResult: TableResult, affectedRowCounts: JLong*): Unit = {
+  private def checkInsertTableResult(tableResult: TableResult, fieldNames: String*): Unit = {
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      util.Arrays.asList(fieldNames: _*),
+      util.Arrays.asList(tableResult.getTableSchema.getFieldNames: _*))
     val it = tableResult.collect()
     assertTrue(it.hasNext)
+    val affectedRowCounts = fieldNames.map(_ => JLong.valueOf(-1L))
     assertEquals(Row.of(affectedRowCounts: _*), it.next())
     assertFalse(it.hasNext)
   }
