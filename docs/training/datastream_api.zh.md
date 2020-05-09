@@ -36,7 +36,7 @@ Flink 的 Java 和 Scala DataStream API 可以将任何可序列化的对象转�
 - 基本类型，即 String、Long、Integer、Boolean、Array
 - 复合类型：Tuples、POJOs 和 Scala case classes
 
-而且 Flink 可以交给 Kryo 序列化其他类型。也可以将其他序列化器和 Flink 一起使用。特别是有良好支持的 Avro。
+而且 Flink 会交给 Kryo 序列化其他类型。也可以将其他序列化器和 Flink 一起使用。特别是有良好支持的 Avro。
 
 ### Java tuples 和 POJOs
 
