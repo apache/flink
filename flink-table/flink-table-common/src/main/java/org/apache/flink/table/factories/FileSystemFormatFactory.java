@@ -128,7 +128,7 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		/**
 		 * RowType of table that excludes partition key fields.
 		 */
-		default RowType getRowTypeWithoutPartKeys() {
+		default RowType getNonPartRowType() {
 			return RowType.of(
 				Arrays.stream(getFieldTypesWithoutPartKeys())
 					.map(DataType::getLogicalType)

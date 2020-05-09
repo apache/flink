@@ -73,7 +73,7 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		boolean failOnMissingField = properties.getOptionalBoolean(FORMAT_FAIL_ON_MISSING_FIELD).orElse(false);
 		boolean ignoreParseErrors = properties.getOptionalBoolean(FORMAT_IGNORE_PARSE_ERRORS).orElse(false);
 
-		RowType nonPartRowType = context.getRowTypeWithoutPartKeys();
+		RowType nonPartRowType = context.getNonPartRowType();
 		JsonRowDataDeserializationSchema  deserializationSchema = new JsonRowDataDeserializationSchema(
 			nonPartRowType,
 			new GenericTypeInfo(GenericRowData.class),
@@ -193,24 +193,27 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 
 		@Override
 		public RowData readRecord(RowData reuse, byte[] bytes, int offset, int numBytes) throws IOException {
-			GenericRowData returnRecord = rowData;
-			// remove \r from a line when the line ends with \r\n
-			if (this.getDelimiter() != null && this.getDelimiter().length == 1
-				&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
-				&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN){
-				numBytes -= 1;
-			}
-			byte[] trimBytes = Arrays.copyOfRange(bytes, offset, offset + numBytes);
-			GenericRowData jsonRow = (GenericRowData) deserializationSchema.deserialize(trimBytes);
+			GenericRowData returnRecord = null;
+			do {
+				// remove \r from a line when the line ends with \r\n
+				if (this.getDelimiter() != null && this.getDelimiter().length == 1
+					&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
+					&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN){
+					numBytes -= 1;
+				}
+				byte[] trimBytes = Arrays.copyOfRange(bytes, offset, offset + numBytes);
+				GenericRowData jsonRow = (GenericRowData) deserializationSchema.deserialize(trimBytes);
 
-			if (jsonRow == null) {
-				// if the record is null, simply just skip
-				return null;
-			}
-			for (int i = 0; i < jsonSelectFieldToJsonFieldMapping.length; i++) {
-				returnRecord.setField(jsonSelectFieldToProjectFieldMapping[i],
-					jsonRow.getField(jsonSelectFieldToJsonFieldMapping[i]));
-			}
+				if (jsonRow != null) {
+					// if the record is null, simply just skip
+					returnRecord = rowData;
+					for (int i = 0; i < jsonSelectFieldToJsonFieldMapping.length; i++) {
+						returnRecord.setField(jsonSelectFieldToProjectFieldMapping[i],
+							jsonRow.getField(jsonSelectFieldToJsonFieldMapping[i]));
+					}
+				}
+			} while (returnRecord == null && !reachedEnd());
+
 			emitted++;
 			return returnRecord;
 		}
