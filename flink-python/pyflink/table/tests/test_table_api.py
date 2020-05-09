@@ -28,7 +28,7 @@ class StreamTableTest(PyFlinkStreamTableTestCase):
     def test_execute(self):
         t_env = self.t_env
         source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
-        result = source.execute()
+        source.execute()
         # TODO check result
 
 
@@ -38,7 +38,7 @@ class BatchTableTest(PyFlinkBatchTableTestCase):
     def test_execute(self):
         t_env = self.t_env
         source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
-        result = source.execute()
+        source.execute()
         # TODO check result
 
 
@@ -48,5 +48,5 @@ class BlinkBatchTableTest(PyFlinkBlinkBatchTableTestCase):
     def test_execute(self):
         t_env = self.t_env
         source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
-        result = source.execute()
+        source.execute()
         # TODO check result
