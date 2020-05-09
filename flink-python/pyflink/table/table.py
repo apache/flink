@@ -728,6 +728,7 @@ class Table(object):
         ::
 
             >>> tab.execute()
+
         :return: The content of the table.
         """
         # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
