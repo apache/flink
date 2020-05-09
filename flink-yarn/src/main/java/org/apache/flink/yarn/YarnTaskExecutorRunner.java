@@ -27,7 +27,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
@@ -35,7 +34,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
@@ -79,7 +77,7 @@ public class YarnTaskExecutorRunner {
 
 	/**
 	 * The instance entry point for the YARN task executor. Obtains user group information and calls
-	 * the main work method {@link TaskManagerRunner#runTaskManager(Configuration, ResourceID)} as a
+	 * the main work method {@link TaskManagerRunner#runTaskManager(Configuration, PluginManager)} as a
 	 * privileged action.
 	 *
 	 * @param args The command line arguments.
@@ -99,12 +97,8 @@ public class YarnTaskExecutorRunner {
 
 			setupConfigurationAndInstallSecurityContext(configuration, currDir, ENV);
 
-			final String containerId = ENV.get(YarnResourceManager.ENV_FLINK_CONTAINER_ID);
-			Preconditions.checkArgument(containerId != null,
-				"ContainerId variable %s not set", YarnResourceManager.ENV_FLINK_CONTAINER_ID);
-
 			SecurityUtils.getInstalledContext().runSecured((Callable<Void>) () -> {
-				TaskManagerRunner.runTaskManager(configuration, new ResourceID(containerId), pluginManager);
+				TaskManagerRunner.runTaskManager(configuration, pluginManager);
 				return null;
 			});
 		}

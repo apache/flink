@@ -159,7 +159,6 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 	@Test
 	public void testMainContainerEnv() {
 		final Map<String, String> expectedEnvVars = new HashMap<>(customizedEnvs);
-		expectedEnvVars.put(Constants.ENV_FLINK_POD_NAME, POD_NAME);
 
 		final Map<String, String> resultEnvVars = this.resultMainContainer.getEnv()
 			.stream()

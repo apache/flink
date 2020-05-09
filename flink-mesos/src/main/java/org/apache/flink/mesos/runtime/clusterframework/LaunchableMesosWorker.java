@@ -273,8 +273,8 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			env.addVariables(variable(entry.getKey(), entry.getValue()));
 		}
 
-		// propagate the Mesos task ID to the TM
-		env.addVariables(variable(MesosConfigKeys.ENV_FLINK_CONTAINER_ID, taskInfo.getTaskId().getValue()));
+		// set the ResourceID of TM to the Mesos task
+		dynamicProperties.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, taskInfo.getTaskId().getValue());
 
 		// finalize the memory parameters
 		jvmArgs.append(" ").append(ProcessMemoryUtils.generateJvmParametersStr(tmParams.getTaskExecutorProcessSpec()));
