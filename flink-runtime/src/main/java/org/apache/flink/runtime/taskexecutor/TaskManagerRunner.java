@@ -268,9 +268,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			FutureUtils.orTimeout(terminationFuture, FATAL_ERROR_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 
 			terminationFuture.whenComplete(
-				(Void ignored, Throwable throwable) -> {
-					terminateJVM();
-				});
+				(Void ignored, Throwable throwable) -> terminateJVM());
 		}
 	}
 
