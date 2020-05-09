@@ -369,11 +369,11 @@ public class TestUtils {
 	/**
 	 * A mock {@link ListState} used for testing the snapshot/restore cycle of the sink.
 	 */
-	static class MockListState<T> implements ListState<T> {
+	public static class MockListState<T> implements ListState<T> {
 
 		private final List<T> backingList;
 
-		MockListState() {
+		public MockListState() {
 			this.backingList = new ArrayList<>();
 		}
 
