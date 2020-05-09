@@ -222,8 +222,8 @@ public class PartitionPathUtils {
 	 * @return the filled record.
 	 */
 	public static GenericRowData fillPartitionValueForRecord(
-			List<String> fieldNames,
-			List<DataType> fieldTypes,
+			String[] fieldNames,
+			DataType[] fieldTypes,
 			int[] selectFields,
 			List<String> partitionKeys,
 			Path path,
@@ -232,11 +232,11 @@ public class PartitionPathUtils {
 		LinkedHashMap<String, String> partSpec = PartitionPathUtils.extractPartitionSpecFromPath(path);
 		for (int i = 0; i < selectFields.length; i++) {
 			int selectField = selectFields[i];
-			String name = fieldNames.get(selectField);
+			String name = fieldNames[selectField];
 			if (partitionKeys.contains(name)) {
 				String value = partSpec.get(name);
 				value = defaultPartValue.equals(value) ? null : value;
-				record.setField(i, PartitionPathUtils.convertStringToInternalValue(value, fieldTypes.get(selectField)));
+				record.setField(i, PartitionPathUtils.convertStringToInternalValue(value, fieldTypes[selectField]));
 			}
 		}
 		return record;

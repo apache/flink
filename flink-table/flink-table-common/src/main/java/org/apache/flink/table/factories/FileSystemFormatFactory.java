@@ -27,11 +27,14 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * File system format factory for creating configured instances of reader and writer.
@@ -102,6 +105,66 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		 * The follow up operator will filter the records again.
 		 */
 		List<Expression> getPushedDownFilters();
+
+		/**
+		 * Get field names without partition keys.
+		 */
+		default String[] getFieldNamesWithoutPartKeys() {
+			return Arrays.stream(getSchema().getFieldNames())
+				.filter(name -> !getPartitionKeys().contains(name))
+				.toArray(String[]::new);
+		}
+
+		/**
+		 * Get field types without partition keys.
+		 */
+		default DataType[] getFieldTypesWithoutPartKeys() {
+			return Arrays.stream(getSchema().getFieldNames())
+				.filter(name -> !getPartitionKeys().contains(name))
+				.map(name -> getSchema().getFieldDataType(name).get())
+				.toArray(DataType[]::new);
+		}
+
+		/**
+		 * RowType of table that excludes partition key fields.
+		 */
+		default RowType getRowTypeWithoutPartKeys() {
+			return RowType.of(
+				Arrays.stream(getFieldTypesWithoutPartKeys())
+					.map(DataType::getLogicalType)
+					.toArray(LogicalType[]::new),
+				getFieldNamesWithoutPartKeys());
+		}
+
+		/**
+		 * Mapping from non-partition project fields index to all project fields index.
+		 */
+		default int[] getNonPartFieldProjectMapping() {
+			final List<String> selectFieldNames = Arrays.stream(getProjectFields())
+				.mapToObj(i -> getSchema().getFieldNames()[i])
+				.collect(Collectors.toList());
+			final List<String> nonPartSelectFieldNames = selectFieldNames.stream()
+				.filter(name -> !getPartitionKeys().contains(name))
+				.collect(Collectors.toList());
+			return nonPartSelectFieldNames.stream()
+				.mapToInt(selectFieldNames::indexOf)
+				.toArray();
+		}
+
+		/**
+		 * Get non-partition project field names.
+		 */
+		default int[] getSelectFieldToNonPartFieldMapping() {
+			final List<String> selectFieldNames = Arrays.stream(getProjectFields())
+				.mapToObj(i -> getSchema().getFieldNames()[i])
+				.collect(Collectors.toList());
+			final List<String> nonPartSelectFieldNames = selectFieldNames.stream()
+				.filter(name -> !getPartitionKeys().contains(name))
+				.collect(Collectors.toList());
+			return nonPartSelectFieldNames.stream()
+				.mapToInt(Arrays.asList(getFieldNamesWithoutPartKeys())::indexOf)
+				.toArray();
+		}
 	}
 
 	/**
@@ -141,6 +204,18 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 					.filter(name -> !getPartitionKeys().contains(name))
 					.map(name -> getSchema().getFieldDataType(name).get())
 					.toArray(DataType[]::new);
+		}
+
+		/**
+		 * Get RowType of the table without partition keys.
+		 * @return
+		 */
+		default RowType getNonPartRowType() {
+			return RowType.of(
+				Arrays.stream(getFieldTypesWithoutPartKeys())
+					.map(DataType::getLogicalType)
+					.toArray(LogicalType[]::new),
+				getFieldNamesWithoutPartKeys());
 		}
 	}
 }

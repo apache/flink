@@ -25,13 +25,11 @@ import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
@@ -44,7 +42,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD;
@@ -54,6 +51,7 @@ import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_IGNORE_PAR
  * Factory to build reader/writer to read/write json format file.
  */
 public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
+
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
@@ -75,58 +73,32 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		boolean failOnMissingField = properties.getOptionalBoolean(FORMAT_FAIL_ON_MISSING_FIELD).orElse(false);
 		boolean ignoreParseErrors = properties.getOptionalBoolean(FORMAT_IGNORE_PARSE_ERRORS).orElse(false);
 
-		// deal partition fields
-		TableSchema tableSchema = context.getSchema();
-		List<DataType> fieldTypes = Arrays.asList(tableSchema.getFieldDataTypes());
-		List<String> fieldNames = Arrays.asList(tableSchema.getFieldNames());
-		String[] nonPartFieldNames = fieldNames.stream()
-			.filter(name -> !context.getPartitionKeys().contains(name)).toArray(String[]::new);
-		DataType[] nonPartFieldTypes = Arrays.asList(nonPartFieldNames).stream()
-			.map(name -> fieldTypes.get(fieldNames.indexOf(name))).toArray(DataType[]::new);
-		RowType nonPartRowType = RowType.of(
-			Arrays.asList(nonPartFieldTypes).stream()
-				.map(DataType::getLogicalType)
-				.toArray(LogicalType[]::new),
-			nonPartFieldNames);
-
-		// deal project fields
-		int[] selectFields = context.getProjectFields();
-		List<String> partitionKeys = context.getPartitionKeys();
-		List<String> selectFieldNames = Arrays.stream(selectFields)
-			.mapToObj(fieldNames::get)
-			.collect(Collectors.toList());
-		List<String> jsonSelectFieldNames = selectFieldNames.stream()
-			.filter(name -> !partitionKeys.contains(name)).collect(Collectors.toList());
-		int[] jsonFieldMapping =  jsonSelectFieldNames.stream().mapToInt(selectFieldNames::indexOf).toArray();
-
+		RowType nonPartRowType = context.getRowTypeWithoutPartKeys();
 		JsonRowDataDeserializationSchema  deserializationSchema = new JsonRowDataDeserializationSchema(
 			nonPartRowType,
 			new GenericTypeInfo(GenericRowData.class),
 			failOnMissingField,
 			ignoreParseErrors);
 
+		int[] jsonSelectFieldToProjectFieldMapping = context.getNonPartFieldProjectMapping();
+		int[] jsonSelectFieldToJsonFieldMapping = context.getSelectFieldToNonPartFieldMapping();
+
 		return new JsonInputFormat(
 			context.getPaths(),
-			fieldTypes,
-			fieldNames,
-			selectFields,
-			partitionKeys,
+			context.getSchema().getFieldDataTypes(),
+			context.getSchema().getFieldNames(),
+			context.getProjectFields(),
+			context.getPartitionKeys(),
 			context.getDefaultPartName(),
 			context.getPushedDownLimit(),
-			jsonSelectFieldNames,
-			jsonFieldMapping,
+			jsonSelectFieldToProjectFieldMapping,
+			jsonSelectFieldToJsonFieldMapping,
 			deserializationSchema);
 	}
 
 	@Override
 	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
-		TableSchema nonPartKeySchema = new TableSchema.Builder()
-			.fields(context.getFieldNamesWithoutPartKeys(), context.getFieldTypesWithoutPartKeys())
-			.build();
-		LogicalType[] logicalTypes = Arrays.asList(nonPartKeySchema.getFieldDataTypes())
-			.stream().map(DataType::getLogicalType).toArray(LogicalType[]::new);
-		RowType nonPartRowType = RowType.of(logicalTypes, nonPartKeySchema.getFieldNames());
-		return Optional.of(new JsonRowDataEncoder(new JsonRowDataSerializationSchema(nonPartRowType)));
+		return Optional.of(new JsonRowDataEncoder(new JsonRowDataSerializationSchema(context.getNonPartRowType())));
 	}
 
 	@Override
@@ -162,14 +134,14 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		 */
 		private static final byte NEW_LINE = (byte) '\n';
 
-		private final List<DataType> fieldTypes;
-		private final List<String> fieldNames;
+		private final DataType[] fieldTypes;
+		private final String[] fieldNames;
 		private final int[] selectFields;
 		private final List<String> partitionKeys;
 		private final String defaultPartValue;
 		private final long limit;
-		private final List<String> jsonSelectFieldNames;
-		private final int[] jsonFieldMapping;
+		private final int[] jsonSelectFieldToProjectFieldMapping;
+		private final int[] jsonSelectFieldToJsonFieldMapping;
 		private final JsonRowDataDeserializationSchema deserializationSchema;
 
 		private transient boolean end;
@@ -179,14 +151,14 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 
 		public JsonInputFormat(
 				Path[] filePaths,
-				List<DataType> fieldTypes,
-				List<String> fieldNames,
+				DataType[] fieldTypes,
+				String[] fieldNames,
 				int[] selectFields,
 				List<String> partitionKeys,
 				String defaultPartValue,
 				long limit,
-				List<String> jsonSelectFieldNames,
-				int[] jsonFieldMapping,
+				int[] jsonSelectFieldToProjectFieldMapping,
+				int[] jsonSelectFieldToJsonFieldMapping,
 				JsonRowDataDeserializationSchema deserializationSchema) {
 			super.setFilePaths(filePaths);
 			this.fieldTypes = fieldTypes;
@@ -195,8 +167,8 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 			this.partitionKeys = partitionKeys;
 			this.defaultPartValue = defaultPartValue;
 			this.limit = limit;
-			this.jsonSelectFieldNames = jsonSelectFieldNames;
-			this.jsonFieldMapping = jsonFieldMapping;
+			this.jsonSelectFieldToProjectFieldMapping = jsonSelectFieldToProjectFieldMapping;
+			this.jsonSelectFieldToJsonFieldMapping = jsonSelectFieldToJsonFieldMapping;
 			this.deserializationSchema = deserializationSchema;
 		}
 
@@ -222,7 +194,7 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 		@Override
 		public RowData readRecord(RowData reuse, byte[] bytes, int offset, int numBytes) throws IOException {
 			GenericRowData returnRecord = rowData;
-
+			// remove \r from a line when the line ends with \r\n
 			if (this.getDelimiter() != null && this.getDelimiter().length == 1
 				&& this.getDelimiter()[0] == NEW_LINE && offset + numBytes >= 1
 				&& bytes[offset + numBytes - 1] == CARRIAGE_RETURN){
@@ -230,10 +202,14 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 			}
 			byte[] trimBytes = Arrays.copyOfRange(bytes, offset, offset + numBytes);
 			GenericRowData jsonRow = (GenericRowData) deserializationSchema.deserialize(trimBytes);
-			if (jsonRow != null) {
-				for (int i = 0; i < jsonSelectFieldNames.size(); i++) {
-					returnRecord.setField(jsonFieldMapping[i], jsonRow.getField(i));
-				}
+
+			if (jsonRow == null) {
+				// if the record is null, simply just skip
+				return null;
+			}
+			for (int i = 0; i < jsonSelectFieldToJsonFieldMapping.length; i++) {
+				returnRecord.setField(jsonSelectFieldToProjectFieldMapping[i],
+					jsonRow.getField(jsonSelectFieldToJsonFieldMapping[i]));
 			}
 			emitted++;
 			return returnRecord;
