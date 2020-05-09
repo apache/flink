@@ -368,7 +368,7 @@ public class HiveCatalog extends AbstractCatalog {
 			throw new DatabaseNotExistException(getName(), tablePath.getDatabaseName());
 		}
 
-		Table hiveTable = instantiateHiveTable(tablePath, table);
+		Table hiveTable = instantiateHiveTable(tablePath, table, hiveConf);
 
 		UniqueConstraint pkConstraint = null;
 		List<String> notNullCols = new ArrayList<>();
@@ -461,7 +461,7 @@ public class HiveCatalog extends AbstractCatalog {
 					existingTable.getClass().getName(), newCatalogTable.getClass().getName()));
 		}
 
-		Table newTable = instantiateHiveTable(tablePath, newCatalogTable);
+		Table newTable = instantiateHiveTable(tablePath, newCatalogTable, hiveConf);
 
 		// client.alter_table() requires a valid location
 		// thus, if new table doesn't have that, it reuses location of the old table
@@ -616,7 +616,7 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	@VisibleForTesting
-	protected static Table instantiateHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
+	protected static Table instantiateHiveTable(ObjectPath tablePath, CatalogBaseTable table, HiveConf hiveConf) {
 		if (!(table instanceof CatalogTableImpl) && !(table instanceof CatalogViewImpl)) {
 			throw new CatalogException(
 					"HiveCatalog only supports CatalogTableImpl and CatalogViewImpl");
@@ -636,7 +636,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		// Hive table's StorageDescriptor
 		StorageDescriptor sd = hiveTable.getSd();
-		HiveTableUtil.setDefaultStorageFormat(sd);
+		HiveTableUtil.setDefaultStorageFormat(sd, hiveConf);
 
 		if (isGeneric) {
 			DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
@@ -650,7 +650,7 @@ public class HiveCatalog extends AbstractCatalog {
 			properties = maskFlinkProperties(properties);
 			hiveTable.setParameters(properties);
 		} else {
-			HiveTableUtil.initiateTableFromProperties(hiveTable, properties);
+			HiveTableUtil.initiateTableFromProperties(hiveTable, properties, hiveConf);
 			List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
 			// Table columns and partition keys
 			if (table instanceof CatalogTableImpl) {

@@ -21,6 +21,7 @@ package org.apache.flink.sql.parser.hive.ddl;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
+import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.hive.impl.ParseException;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 
@@ -46,13 +47,11 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 	public static final String TABLE_LOCATION_URI = "hive.location-uri";
 	public static final String TABLE_IS_TEMPORARY = "hive.is-temporary";
 	public static final String TABLE_IS_EXTERNAL = "hive.is-external";
-	public static final String PK_CONSTRAINT_NAME = "hive.pk.constraint.name";
 	public static final String PK_CONSTRAINT_TRAIT = "hive.pk.constraint.trait";
 	public static final String NOT_NULL_CONSTRAINT_TRAITS = "hive.not.null.constraint.traits";
 
 	private final HiveTableCreationContext creationContext;
 	private final SqlNodeList originPropList;
-	private final boolean isTemporary;
 	private final boolean isExternal;
 	private final HiveTableRowFormat rowFormat;
 	private final HiveTableStoredAs storedAs;
@@ -63,9 +62,9 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 			SqlNodeList partColList, @Nullable SqlCharStringLiteral comment, boolean isTemporary, boolean isExternal,
 			HiveTableRowFormat rowFormat, HiveTableStoredAs storedAs, SqlCharStringLiteral location) throws ParseException {
 
-		super(pos, tableName, columnList, creationContext.primaryKeyList, creationContext.uniqueKeysList,
+		super(pos, tableName, columnList, creationContext.constraints,
 				HiveDDLUtils.checkReservedTableProperties(propertyList), extractPartColIdentifiers(partColList), null,
-				comment, null);
+				comment, null, isTemporary);
 
 		HiveDDLUtils.convertDataTypes(columnList);
 		HiveDDLUtils.convertDataTypes(partColList);
@@ -74,7 +73,6 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 		HiveDDLUtils.ensureNonGeneric(propertyList);
 		propertyList.add(HiveDDLUtils.toTableOption(CatalogConfig.IS_GENERIC, "false", pos));
 		// set temporary
-		this.isTemporary = isTemporary;
 		if (isTemporary) {
 			propertyList.add(HiveDDLUtils.toTableOption(TABLE_IS_TEMPORARY, "true", pos));
 		}
@@ -91,15 +89,14 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 		}
 		// set PRIMARY KEY
 		this.creationContext = creationContext;
-		if (creationContext.primaryKeyList.size() > 0) {
-			// PK list is taken care of by super class, we need to set constraint name and trait here
-			SqlIdentifier pkName = creationContext.pkName;
-			if (pkName != null) {
+		for (SqlTableConstraint tableConstraint : creationContext.constraints) {
+			if (!tableConstraint.isPrimaryKey()) {
+				throw new ParseException("Only PrimaryKey table constraint is supported at the moment");
+			} else {
+				// PK list is taken care of by super class, we need to set trait here
 				propertyList.add(HiveDDLUtils.toTableOption(
-						PK_CONSTRAINT_NAME, pkName.getSimple(), pkName.getParserPosition()));
+						PK_CONSTRAINT_TRAIT, creationContext.pkTrait.toString(), propertyList.getParserPosition()));
 			}
-			propertyList.add(HiveDDLUtils.toTableOption(
-					PK_CONSTRAINT_TRAIT, creationContext.pkTrait.toString(), propertyList.getParserPosition()));
 		}
 		// set NOT NULL
 		if (creationContext.notNullTraits != null) {
@@ -133,7 +130,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("CREATE");
-		if (isTemporary) {
+		if (isTemporary()) {
 			writer.keyword("TEMPORARY");
 		}
 		if (isExternal) {
@@ -151,15 +148,15 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 		unparseColumns(creationContext,
 				new SqlNodeList(allCols.getList().subList(0, allCols.size() - numPartCol), allCols.getParserPosition()),
 				writer, leftPrec, rightPrec);
-		if (creationContext.primaryKeyList.size() > 0) {
+		for (SqlTableConstraint tableConstraint : creationContext.constraints) {
 			printIndent(writer);
-			if (creationContext.pkName != null) {
+			tableConstraint.getConstraintNameIdentifier().ifPresent(name -> {
 				writer.keyword("CONSTRAINT");
-				creationContext.pkName.unparse(writer, leftPrec, rightPrec);
-			}
+				name.unparse(writer, leftPrec, rightPrec);
+			});
 			writer.keyword("PRIMARY KEY");
 			SqlWriter.Frame pkFrame = writer.startList("(", ")");
-			creationContext.primaryKeyList.unparse(writer, leftPrec, rightPrec);
+			tableConstraint.getColumns().unparse(writer, leftPrec, rightPrec);
 			writer.endList(pkFrame);
 			HiveDDLUtils.unparseConstraintTrait(creationContext.pkTrait, writer);
 		}
@@ -311,9 +308,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 	 * Creation context for a Hive table.
 	 */
 	public static class HiveTableCreationContext extends TableCreationContext {
-		public SqlIdentifier pkName = null;
 		public Byte pkTrait = null;
-		public SqlIdentifier ukName = null;
 		public List<Byte> notNullTraits = null;
 	}
 

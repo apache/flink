@@ -376,7 +376,7 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
     tableName = CompoundIdentifier()
 
     {
-         return new SqlDropTable(s.pos(), tableName, ifExists);
+         return new SqlDropTable(s.pos(), tableName, ifExists, false);
     }
 }
 
@@ -394,7 +394,7 @@ void TableColumn2(List<SqlNode> list) :
         comment = createStringLiteral(token.image, getPos());
     }]
     {
-        SqlTableColumn tableColumn = new SqlTableColumn(name, type, comment, getPos());
+        SqlTableColumn tableColumn = new SqlTableColumn(name, type, null, comment, getPos());
         list.add(tableColumn);
     }
 }
@@ -414,7 +414,7 @@ void PartColumnDef(List<SqlNode> list) :
     }]
     {
         type = type.withNullable(true);
-        SqlTableColumn tableColumn = new SqlTableColumn(name, type, comment, getPos());
+        SqlTableColumn tableColumn = new SqlTableColumn(name, type, null, comment, getPos());
         list.add(tableColumn);
     }
 }
@@ -426,21 +426,54 @@ void TableColumn(HiveTableCreationContext context) :
     (LOOKAHEAD(2)
         TableColumnWithConstraint(context)
     |
-        ConstraintSpec(context)
+        TableConstraint(context)
     )
 }
 
-void ConstraintSpec(HiveTableCreationContext context) :
+/** Parses a table constraint for CREATE TABLE. */
+void TableConstraint(HiveTableCreationContext context) :
 {
   SqlIdentifier constraintName = null;
+  final SqlLiteral spec;
+  final SqlNodeList columns;
 }
 {
-  [ <CONSTRAINT> constraintName = SimpleIdentifier() ]
-  (
-    PrimaryKey(context, constraintName)
-    |
-    UniqueKey(context, constraintName)
-  )
+  [ constraintName = ConstraintName() ]
+  spec = TableConstraintSpec()
+  columns = ParenthesizedSimpleIdentifierList()
+  context.pkTrait = ConstraintTrait()
+  {
+      SqlTableConstraint tableConstraint = new SqlTableConstraint(
+                                            constraintName,
+                                            spec,
+                                            columns,
+                                            SqlConstraintEnforcement.NOT_ENFORCED.symbol(getPos()),
+                                            true,
+                                            getPos());
+      context.constraints.add(tableConstraint);
+  }
+}
+
+SqlLiteral TableConstraintSpec() :
+{
+    SqlLiteral spec;
+}
+{
+    <PRIMARY> <KEY>
+    {
+        spec = SqlUniqueSpec.PRIMARY_KEY.symbol(getPos());
+        return spec;
+    }
+}
+
+SqlIdentifier ConstraintName() :
+{
+    SqlIdentifier constraintName;
+}
+{
+    <CONSTRAINT> constraintName = SimpleIdentifier() {
+        return constraintName;
+    }
 }
 
 void TableColumnWithConstraint(HiveTableCreationContext context) :
@@ -453,20 +486,20 @@ void TableColumnWithConstraint(HiveTableCreationContext context) :
 {
     name = SimpleIdentifier()
     type = ExtendedDataType()
+    {
+        // we have NOT NULL column constraint here
+        if (!type.getNullable()) {
+            if(context.notNullTraits == null) {
+                context.notNullTraits = new ArrayList();
+            }
+            context.notNullTraits.add(ConstraintTrait());
+        }
+        SqlTableColumn tableColumn = new SqlTableColumn(name, type, null, comment, getPos());
+        context.columnList.add(tableColumn);
+    }
     [ <COMMENT> <QUOTED_STRING> {
         comment = createStringLiteral(token.image, getPos());
     }]
-    {
-      // we have NOT NULL column constraint here
-      if (!type.getNullable()) {
-          if(context.notNullTraits == null) {
-              context.notNullTraits = new ArrayList();
-          }
-          context.notNullTraits.add(ConstraintTrait());
-      }
-      SqlTableColumn tableColumn = new SqlTableColumn(name, type, comment, getPos());
-      context.columnList.add(tableColumn);
-    }
 }
 
 byte ConstraintTrait() :
@@ -491,44 +524,6 @@ byte ConstraintTrait() :
     <NORELY> { constraintTrait = HiveDDLUtils.noRelyConstraint(constraintTrait); }
   ]
   { return constraintTrait; }
-}
-
-void PrimaryKey(HiveTableCreationContext context, SqlIdentifier constraintName) :
-{
-    List<SqlNode> pkList = new ArrayList<SqlNode>();
-    SqlParserPos pos;
-    SqlIdentifier columnName;
-}
-{
-    <PRIMARY> { pos = getPos(); } <KEY>
-    <LPAREN>
-        columnName = SimpleIdentifier() { pkList.add(columnName); }
-        (<COMMA> columnName = SimpleIdentifier() { pkList.add(columnName); })*
-    <RPAREN>
-    {
-        context.primaryKeyList = new SqlNodeList(pkList, pos.plus(getPos()));
-        context.pkName = constraintName;
-        context.pkTrait = ConstraintTrait();
-    }
-}
-
-void UniqueKey(HiveTableCreationContext context, SqlIdentifier constraintName) :
-{
-    List<SqlNode> ukList = new ArrayList<SqlNode>();
-    SqlParserPos pos;
-    SqlIdentifier columnName;
-}
-{
-    <UNIQUE> { pos = getPos(); }
-    <LPAREN>
-        columnName = SimpleIdentifier() { ukList.add(columnName); }
-        (<COMMA> columnName = SimpleIdentifier() { ukList.add(columnName); })*
-    <RPAREN>
-    {
-        SqlNodeList uk = new SqlNodeList(ukList, pos.plus(getPos()));
-        context.uniqueKeysList.add(uk);
-        context.ukName = constraintName;
-    }
 }
 
 /**
