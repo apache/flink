@@ -112,8 +112,6 @@ import org.apache.flink.types.Row;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -762,7 +760,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 							alterTableRenameOp.getTableIdentifier().toObjectPath(),
 							alterTableRenameOp.getNewTableIdentifier().getObjectName(),
 							false);
-				} else if (alterTableOperation instanceof AlterTablePropertiesOperation){
+				} else if (alterTableOperation instanceof AlterTablePropertiesOperation) {
 					AlterTablePropertiesOperation alterTablePropertiesOp = (AlterTablePropertiesOperation) operation;
 					catalog.alterTable(
 							alterTablePropertiesOp.getTableIdentifier().toObjectPath(),
@@ -909,45 +907,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
 	/**
 	 * extract sink identifier names from {@link ModifyOperation}s.
-	 *
-	 * <p>This method will keep the shortest form of an identifier,
-	 * which should be unique between all identifiers. e.g.
-	 * cat.db.tbl1, cat.db.tbl2, cat.db1.tbl3, cat.db2.tbl3, cat1.db.tbl4, cat2.db.tbl4
-	 * the result is
-	 * tbl1, tbl2, db1.tbl3, db2.tbl3, cat1.db.tbl4, cat2.db.tbl4
 	 */
 	private List<String> extractSinkIdentifierNames(List<ModifyOperation> operations) {
-		List<ObjectIdentifier> identifiers = new ArrayList<>(operations.size());
-		Map<String, List<String>> tableName2DatabaseNames = new HashMap<>();
+		List<String> tableNames = new ArrayList<>(operations.size());
 		for (ModifyOperation operation : operations) {
 			if (operation instanceof CatalogSinkModifyOperation) {
 				ObjectIdentifier identifier = ((CatalogSinkModifyOperation) operation).getTableIdentifier();
-				identifiers.add(identifier);
-				String tableName = identifier.getObjectName();
-				if (!tableName2DatabaseNames.containsKey(tableName)) {
-					tableName2DatabaseNames.put(tableName, new ArrayList<>());
-				}
-				tableName2DatabaseNames.get(tableName).add(identifier.getDatabaseName());
+				tableNames.add(identifier.asSummaryString());
 			} else {
 				throw new UnsupportedOperationException("Unsupported operation: " + operation);
 			}
 		}
-
-		List<String> tableNames = new ArrayList<>(identifiers.size());
-		for (ObjectIdentifier i : identifiers) {
-			List<String> databaseNames = tableName2DatabaseNames.get(i.getObjectName());
-			if (databaseNames.size() == 1) {
-				// current table name is unique
-				tableNames.add(i.getObjectName());
-			} else if (databaseNames.size() == new HashSet<>(databaseNames).size()) {
-				// current table name is not unique while database names associated with current table name are unique
-				tableNames.add(String.join(".", i.getDatabaseName(), i.getObjectName()));
-			} else {
-				// use full name
-				tableNames.add(String.join(".", i.getCatalogName(), i.getDatabaseName(),i.getObjectName()));
-			}
-		}
-
 		return tableNames;
 	}
 

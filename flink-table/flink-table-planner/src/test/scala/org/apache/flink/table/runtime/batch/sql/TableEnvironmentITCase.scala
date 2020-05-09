@@ -26,7 +26,6 @@ import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{ResultKind, TableEnvironment, TableEnvironmentITCase, TableResult}
-import org.apache.flink.table.catalog.GenericInMemoryCatalog
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.sinks.CsvTableSink
@@ -290,7 +289,7 @@ class TableEnvironmentITCase(
     tEnv.registerTableSink("targetTable", sink1.configure(fieldNames, fieldTypes))
 
     val tableResult = tEnv.executeSql("INSERT INTO targetTable SELECT a, b, c FROM sourceTable")
-    checkInsertTableResult(tableResult, "targetTable")
+    checkInsertTableResult(tableResult, "default_catalog.default_database.targetTable")
     // wait job finished
     tableResult.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -314,7 +313,7 @@ class TableEnvironmentITCase(
     tEnv.registerTableSink("MySink", configuredSink)
 
     val tableResult1 = tEnv.executeSql("INSERT overwrite MySink SELECT c FROM sourceTable")
-    checkInsertTableResult(tableResult1, "MySink")
+    checkInsertTableResult(tableResult1, "default_catalog.default_database.MySink")
     // wait job finished
     tableResult1.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -324,7 +323,7 @@ class TableEnvironmentITCase(
     assertEquals(expected1.sorted, actual1.sorted)
 
     val tableResult2 = tEnv.executeSql("INSERT overwrite MySink SELECT c FROM sourceTable")
-    checkInsertTableResult(tableResult2, "MySink")
+    checkInsertTableResult(tableResult2, "default_catalog.default_database.MySink")
     // wait job finished
     tableResult2.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -354,7 +353,7 @@ class TableEnvironmentITCase(
     tEnv.sqlUpdate("INSERT INTO MySink1 SELECT * FROM sourceTable where a > 2")
 
     val tableResult = tEnv.executeSql("INSERT INTO targetTable SELECT a, b, c FROM sourceTable")
-    checkInsertTableResult(tableResult, "targetTable")
+    checkInsertTableResult(tableResult, "default_catalog.default_database.targetTable")
     // wait job finished
     tableResult.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -391,7 +390,7 @@ class TableEnvironmentITCase(
       .writeAsCsv(resultFile, writeMode=FileSystem.WriteMode.OVERWRITE)
 
     val tableResult = tEnv.executeSql("INSERT INTO targetTable SELECT a, b, c FROM sourceTable")
-    checkInsertTableResult(tableResult, "targetTable")
+    checkInsertTableResult(tableResult, "default_catalog.default_database.targetTable")
     // wait job finished
     tableResult.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -425,7 +424,7 @@ class TableEnvironmentITCase(
 
     val table = tEnv.sqlQuery("SELECT a, b, c FROM sourceTable")
     val tableResult = table.executeInsert("targetTable")
-    checkInsertTableResult(tableResult, "targetTable")
+    checkInsertTableResult(tableResult, "default_catalog.default_database.targetTable")
     // wait job finished
     tableResult.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -449,7 +448,7 @@ class TableEnvironmentITCase(
     tEnv.registerTableSink("MySink", configuredSink)
 
     val tableResult1 = tEnv.sqlQuery("SELECT c FROM sourceTable").executeInsert("MySink", true)
-    checkInsertTableResult(tableResult1, "MySink")
+    checkInsertTableResult(tableResult1, "default_catalog.default_database.MySink")
     // wait job finished
     tableResult1.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -459,7 +458,7 @@ class TableEnvironmentITCase(
     assertEquals(expected1.sorted, actual1.sorted)
 
     val tableResult2 = tEnv.sqlQuery("SELECT c FROM sourceTable").executeInsert("MySink", true)
-    checkInsertTableResult(tableResult2,  "MySink")
+    checkInsertTableResult(tableResult2,  "default_catalog.default_database.MySink")
     // wait job finished
     tableResult2.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
@@ -503,7 +502,10 @@ class TableEnvironmentITCase(
     tableResult.getJobClient.get()
       .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
       .get()
-    checkInsertTableResult(tableResult, "MySink1", "MySink2")
+    checkInsertTableResult(
+      tableResult,
+      "default_catalog.default_database.MySink1",
+      "default_catalog.default_database.MySink2")
     val expected1 = List("3,2,Hello world")
     assertEquals(
       expected1.sorted,
@@ -513,51 +515,6 @@ class TableEnvironmentITCase(
     assertEquals(
       expected2.sorted,
       FileUtils.readFileUtf8(new File(sink2Path)).split("\n").toList.sorted)
-  }
-
-  @Test
-  def testStatementSetWithMultipleSinkNames(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
-
-    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    tEnv.registerTable("MyTable", t)
-
-    tEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1", "db"))
-    tEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2", "db"))
-    tEnv.registerCatalog("cat3", new GenericInMemoryCatalog("cat3", "db"))
-    tEnv.executeSql("CREATE DATABASE cat1.db1")
-    tEnv.executeSql("CREATE DATABASE cat1.db2")
-    createTable(tEnv, "cat1.db.tbl1")
-    createTable(tEnv, "cat1.db.tbl2")
-    createTable(tEnv, "cat1.db1.tbl3")
-    createTable(tEnv, "cat1.db2.tbl3")
-    createTable(tEnv, "cat2.db.tbl4")
-    createTable(tEnv, "cat3.db.tbl4")
-
-    val stmtSet = tEnv.createStatementSet()
-    stmtSet.addInsertSql("insert into cat1.db.tbl1 select a from MyTable where b = 1")
-    stmtSet.addInsertSql("insert into cat1.db1.tbl3 select a from MyTable where b = 3")
-    stmtSet.addInsertSql("insert into cat1.db.tbl2 select a from MyTable where b = 2")
-    stmtSet.addInsertSql("insert into cat2.db.tbl4 select a from MyTable where b = 5")
-    stmtSet.addInsertSql("insert into cat1.db2.tbl3 select a from MyTable where b = 4")
-    stmtSet.addInsertSql("insert into cat3.db.tbl4 select a from MyTable where b = 6")
-    val tableResult = stmtSet.execute()
-    checkInsertTableResult(
-      tableResult, "tbl1", "db1.tbl3", "tbl2", "cat2.db.tbl4", "db2.tbl3", "cat3.db.tbl4")
-  }
-
-  private def createTable(tEnv: BatchTableEnvironment, fullName: String): Unit = {
-    tEnv.executeSql(
-      s"""
-         |create table $fullName (
-         |  a int
-         |) with (
-         |  'connector' = 'COLLECTION',
-         |  'is-bounded' = 'true'
-         |)
-       """.stripMargin
-    )
   }
 
   private def registerCsvTableSink(
