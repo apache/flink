@@ -49,7 +49,7 @@ public class PythonProgramOptions extends ProgramOptions {
 		pythonConfiguration = PythonDependencyUtils.parsePythonDependencyConfiguration(line);
 		// If the job is Python Shell job, the entry point class name is PythonGateWayServer.
 		// Otherwise, the entry point class of python job is PythonDriver
-		if (entryPointClass == null) {
+		if (isPythonEntryPoint && entryPointClass == null) {
 			entryPointClass = "org.apache.flink.client.python.PythonDriver";
 		}
 	}
