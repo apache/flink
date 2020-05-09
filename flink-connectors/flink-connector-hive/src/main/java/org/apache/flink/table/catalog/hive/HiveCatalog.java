@@ -394,8 +394,13 @@ public class HiveCatalog extends AbstractCatalog {
 				Arrays.fill(pkTraits, HiveTableUtil.relyConstraint((byte) 0));
 				Byte[] nnTraits = new Byte[notNullCols.size()];
 				Arrays.fill(nnTraits, HiveTableUtil.relyConstraint((byte) 0));
-				client.createTableWithConstraints(hiveTable, hiveConf,
-						pkConstraint, Arrays.asList(pkTraits), notNullCols, Arrays.asList(nnTraits));
+				client.createTableWithConstraints(
+						hiveTable,
+						hiveConf,
+						pkConstraint,
+						Arrays.asList(pkTraits),
+						notNullCols,
+						Arrays.asList(nnTraits));
 			} else {
 				client.createTable(hiveTable);
 			}

@@ -243,13 +243,22 @@ public class HiveShimV310 extends HiveShimV235 {
 	}
 
 	@Override
-	public void createTableWithConstraints(IMetaStoreClient client, Table table, Configuration conf,
-			UniqueConstraint pk, List<Byte> pkTraits, List<String> notNullCols, List<Byte> nnTraits) {
+	public void createTableWithConstraints(
+			IMetaStoreClient client,
+			Table table,
+			Configuration conf,
+			UniqueConstraint pk,
+			List<Byte> pkTraits,
+			List<String> notNullCols,
+			List<Byte> nnTraits) {
 		try {
 			List<Object> hivePKs = createHivePKs(table, pk, pkTraits);
 			List<Object> hiveNNs = createHiveNNs(table, conf, notNullCols, nnTraits);
 			// createTableWithConstraints takes PK, FK, UNIQUE, NN, DEFAULT, CHECK lists
-			HiveReflectionUtils.invokeMethod(client.getClass(), client, "createTableWithConstraints",
+			HiveReflectionUtils.invokeMethod(
+					client.getClass(),
+					client,
+					"createTableWithConstraints",
 					new Class[]{Table.class, List.class, List.class, List.class, List.class, List.class, List.class},
 					new Object[]{table, hivePKs, Collections.emptyList(), Collections.emptyList(), hiveNNs,
 							Collections.emptyList(), Collections.emptyList()});
@@ -258,7 +267,11 @@ public class HiveShimV310 extends HiveShimV235 {
 		}
 	}
 
-	List<Object> createHiveNNs(Table table, Configuration conf, List<String> nnCols, List<Byte> traits)
+	List<Object> createHiveNNs(
+			Table table,
+			Configuration conf,
+			List<String> nnCols,
+			List<Byte> traits)
 			throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException,
 			IllegalAccessException, InstantiationException {
 		List<Object> res = new ArrayList<>();
@@ -266,8 +279,15 @@ public class HiveShimV310 extends HiveShimV235 {
 			Preconditions.checkArgument(nnCols.size() == traits.size(), "Number of NN columns and traits mismatch");
 			Class nnClz = Class.forName("org.apache.hadoop.hive.metastore.api.SQLNotNullConstraint");
 			// NN constructor takes catName, dbName, tableName, colName, nnName, enable, validate, rely
-			Constructor constructor = nnClz.getConstructor(String.class, String.class, String.class, String.class,
-					String.class, boolean.class, boolean.class, boolean.class);
+			Constructor constructor = nnClz.getConstructor(
+					String.class,
+					String.class,
+					String.class,
+					String.class,
+					String.class,
+					boolean.class,
+					boolean.class,
+					boolean.class);
 			String catName = getHMSDefaultCatalog(conf);
 			for (int i = 0; i < nnCols.size(); i++) {
 				String col = nnCols.get(i);
@@ -277,7 +297,14 @@ public class HiveShimV310 extends HiveShimV235 {
 				boolean rely = HiveTableUtil.requireRelyConstraint(trait);
 				// just set nnName to null and HMS will automatically generate one for us
 				Object hiveNN = constructor.newInstance(
-						catName, table.getDbName(), table.getTableName(), col, null, enable, validate, rely);
+						catName,
+						table.getDbName(),
+						table.getTableName(),
+						col,
+						null,
+						enable,
+						validate,
+						rely);
 				res.add(hiveNN);
 			}
 		}

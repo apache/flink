@@ -115,15 +115,24 @@ public class HiveShimV210 extends HiveShimV201 {
 	}
 
 	@Override
-	public void createTableWithConstraints(IMetaStoreClient client, Table table, Configuration conf,
-			UniqueConstraint pk, List<Byte> pkTraits, List<String> notNullCols, List<Byte> nnTraits) {
+	public void createTableWithConstraints(
+			IMetaStoreClient client,
+			Table table,
+			Configuration conf,
+			UniqueConstraint pk,
+			List<Byte> pkTraits,
+			List<String> notNullCols,
+			List<Byte> nnTraits) {
 		if (!notNullCols.isEmpty()) {
 			throw new UnsupportedOperationException("NOT NULL constraints not supported until 3.0.0");
 		}
 		try {
 			List<Object> hivePKs = createHivePKs(table, pk, pkTraits);
 			// createTableWithConstraints takes PK and FK lists
-			HiveReflectionUtils.invokeMethod(client.getClass(), client, "createTableWithConstraints",
+			HiveReflectionUtils.invokeMethod(
+					client.getClass(),
+					client,
+					"createTableWithConstraints",
 					new Class[]{Table.class, List.class, List.class},
 					new Object[]{table, hivePKs, Collections.emptyList()});
 		} catch (Exception e) {
@@ -139,7 +148,14 @@ public class HiveShimV210 extends HiveShimV201 {
 			Class pkClz = Class.forName("org.apache.hadoop.hive.metastore.api.SQLPrimaryKey");
 			// PK constructor takes dbName, tableName, colName, keySeq, pkName, enable, validate, rely
 			Constructor constructor = pkClz.getConstructor(
-					String.class, String.class, String.class, int.class, String.class, boolean.class, boolean.class, boolean.class);
+					String.class,
+					String.class,
+					String.class,
+					int.class,
+					String.class,
+					boolean.class,
+					boolean.class,
+					boolean.class);
 			int seq = 1;
 			Preconditions.checkArgument(pk.getColumns().size() == traits.size(),
 					"Number of PK columns and traits mismatch");
@@ -150,7 +166,14 @@ public class HiveShimV210 extends HiveShimV201 {
 				boolean validate = HiveTableUtil.requireValidateConstraint(trait);
 				boolean rely = HiveTableUtil.requireRelyConstraint(trait);
 				Object hivePK = constructor.newInstance(
-						table.getDbName(), table.getTableName(), col, seq++, pk.getName(), enable, validate, rely);
+						table.getDbName(),
+						table.getTableName(),
+						col,
+						seq++,
+						pk.getName(),
+						enable,
+						validate,
+						rely);
 				res.add(hivePK);
 			}
 		}
