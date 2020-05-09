@@ -86,4 +86,5 @@ class StatementSet(object):
         The added statements and Tables will be cleared when executing this method.
         :return: execution result.
         """
+        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
         return self._j_statement_set.execute()
