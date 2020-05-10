@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
+import org.apache.flink.table.planner.utils.JoinReorderStrategy
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 
@@ -138,21 +139,33 @@ object FlinkBatchProgram {
         .build())
 
     // join reorder
-    if (config.getBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED)) {
-      chainedProgram.addLast(
-        JOIN_REORDER,
-        FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
-          .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
-            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
-            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkBatchRuleSets.JOIN_REORDER_PREPARE_RULES)
-            .build(), "merge join into MultiJoin")
-          .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+    val joinReorderEnabled =
+      config.getBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED)
+    val joinReorderStrategy = JoinReorderStrategy.valueOf(
+      config.getString(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_STRATEGY))
+
+    if (joinReorderEnabled) {
+      val builder = FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]
+        .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+          .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+          .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+          .add(FlinkBatchRuleSets.JOIN_REORDER_PREPARE_RULES)
+          .build(), "merge join into MultiJoin")
+      joinReorderStrategy match {
+        case JoinReorderStrategy.COST_BASED =>
+          builder.addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(FlinkBatchRuleSets.JOIN_REORDER_RULES)
-            .build(), "do join reorder")
-          .build())
+            .build(), "do cost-based join reorder")
+        case JoinReorderStrategy.ELIMINATE_CROSS_JOIN =>
+          builder.addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkBatchRuleSets.ELIMINATE_CROSS_JOIN_RULES)
+            .build(), "do eliminate cross join")
+      }
+      chainedProgram.addLast(JOIN_REORDER, builder.build())
     }
 
     // join rewrite

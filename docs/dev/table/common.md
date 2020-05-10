@@ -1428,6 +1428,8 @@ This includes a series of rule and cost-based optimizations such as:
     * Converts NOT IN and NOT EXISTS into left anti-join
 * Optional join reordering
     * Enabled via `table.optimizer.join-reorder-enabled`
+    * To use the cost-based join reordering, set `table.optimizer.join-reorder-strategy` to `COST_BASED` (default strategy)
+    * To use the rule-based join reordering which eliminates cross joins as much as possible, set `table.optimizer.join-reorder-strategy` to `ELIMINATE_CROSS_JOIN`
 
 **Note:** IN/EXISTS/NOT IN/NOT EXISTS are currently only supported in conjunctive conditions in subquery rewriting.
 

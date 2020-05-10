@@ -33,7 +33,17 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td><h5>table.optimizer.join-reorder-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Enables join reorder in optimizer. Default is disabled.</td>
+            <td>Enables join reorder in optimizer. Default is disabled.
+If this option is enabled, the join reorder strategy is determined by table.optimizer.join-reorder-strategy</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.join-reorder-strategy</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">"COST_BASED"</td>
+            <td>String</td>
+            <td>Sets join reorder strategy in optimizer. This option is ignored if table.optimizer.join-reorder-enabled is false.
+Currently only COST_BASED and ELIMINATE_CROSS_JOIN can be set.
+COST_BASED: Optimizer will perform join reorders according to cost-based model. Statistics are needed for this strategy.
+ELIMINATE_CROSS_JOIN: Optimizer will try to eliminate cross joins as much as possible without the help of statistics.</td>
         </tr>
         <tr>
             <td><h5>table.optimizer.join.broadcast-threshold</h5><br> <span class="label label-primary">Batch</span></td>

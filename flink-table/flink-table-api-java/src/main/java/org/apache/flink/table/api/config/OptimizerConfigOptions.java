@@ -93,8 +93,22 @@ public class OptimizerConfigOptions {
 				"Default value is true.");
 
 	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+	public static final ConfigOption<String> TABLE_OPTIMIZER_JOIN_REORDER_STRATEGY =
+		key("table.optimizer.join-reorder-strategy")
+			.defaultValue("COST_BASED")
+			.withDescription("Sets join reorder strategy in optimizer. " +
+				"This option is ignored if table.optimizer.join-reorder-enabled is false.\n" +
+				"Currently only COST_BASED and ELIMINATE_CROSS_JOIN can be set.\n" +
+				"COST_BASED: Optimizer will perform join reorders according to cost-based model. " +
+				"Statistics are needed for this strategy.\n" +
+				"ELIMINATE_CROSS_JOIN: Optimizer will try to eliminate cross joins as much as possible " +
+				"without the help of statistics.");
+
+	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
 	public static final ConfigOption<Boolean> TABLE_OPTIMIZER_JOIN_REORDER_ENABLED =
 		key("table.optimizer.join-reorder-enabled")
 			.defaultValue(false)
-			.withDescription("Enables join reorder in optimizer. Default is disabled.");
+			.withDescription("Enables join reorder in optimizer. Default is disabled.\n" +
+				"If this option is enabled, the join reorder strategy is determined by " +
+				"table.optimizer.join-reorder-strategy");
 }

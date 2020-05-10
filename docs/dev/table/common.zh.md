@@ -1409,6 +1409,8 @@ Apache Flink 使用并扩展了 Apache Calcite 来执行复杂的查询优化。
     * 将 NOT IN 和 NOT EXISTS 转换为 left anti-join
 * 可选 join 重新排序
     * 通过 `table.optimizer.join-reorder-enabled` 启用
+    * 将 `table.optimizer.join-reorder-mode` 设为 `COST_BASED` 以使用 cost-based 的 join 重新排序策略（默认策略）
+    * 将 `table.optimizer.join-reorder-mode` 设为 `ELIMINATE_CROSS_JOIN` 以使用 rule-based 的 join 重新排序策略，该策略将会尽可能减少 cross join
 
 **注意：** 当前仅在子查询重写的结合条件下支持 IN / EXISTS / NOT IN / NOT EXISTS。
 

@@ -213,6 +213,10 @@ object FlinkStreamRuleSets {
     JoinToMultiJoinRule.INSTANCE
   )
 
+  val ELIMINATE_CROSS_JOIN_RULES: RuleSet = RuleSets.ofList(
+    EliminateCrossJoinRule.INSTANCE
+  )
+
   val JOIN_REORDER_RULES: RuleSet = RuleSets.ofList(
     // equi-join predicates transfer
     RewriteMultiJoinConditionRule.INSTANCE,
