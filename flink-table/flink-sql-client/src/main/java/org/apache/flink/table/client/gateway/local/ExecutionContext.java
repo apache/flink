@@ -693,7 +693,7 @@ public class ExecutionContext<ClusterID> {
 
 	private void registerTemporalTable(TemporalTableEntry temporalTableEntry) {
 		try {
-			final Table table = tableEnv.scan(temporalTableEntry.getHistoryTable());
+			final Table table = tableEnv.from(temporalTableEntry.getHistoryTable());
 			List<String> primaryKeyFields = temporalTableEntry.getPrimaryKeyFields();
 			if (primaryKeyFields.size() > 1) {
 				throw new ValidationException("Temporal tables over a composite primary key are not supported yet.");

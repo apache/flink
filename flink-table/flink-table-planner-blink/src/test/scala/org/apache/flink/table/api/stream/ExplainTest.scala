@@ -113,8 +113,8 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     util.addDataStream[(Int, String, Timestamp)]("T1", 'id1, 'text, 'rowtime.rowtime)
     util.addDataStream[(Int, String, Int, String, Long, Timestamp)](
       "T2", 'id2, 'cnt, 'name, 'goods, 'rowtime.rowtime)
-    util.addTableWithWatermark("T3", util.tableEnv.scan("T1"), "rowtime", 0)
-    util.addTableWithWatermark("T4", util.tableEnv.scan("T2"), "rowtime", 0)
+    util.addTableWithWatermark("T3", util.tableEnv.from("T1"), "rowtime", 0)
+    util.addTableWithWatermark("T4", util.tableEnv.from("T2"), "rowtime", 0)
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setString(

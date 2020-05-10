@@ -56,14 +56,14 @@ class TableEnvironmentTest {
   def testScanNonExistTable(): Unit = {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Table `MyTable` was not found")
-    tableEnv.scan("MyTable")
+    tableEnv.from("MyTable")
   }
 
   @Test
   def testRegisterDataStream(): Unit = {
     val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.registerTable("MyTable", table)
-    val scanTable = tableEnv.scan("MyTable")
+    val scanTable = tableEnv.from("MyTable")
     val relNode = TableTestUtil.toRelNode(scanTable)
     val actual = RelOptUtil.toString(relNode)
     val expected = "LogicalTableScan(table=[[default_catalog, default_database, MyTable]])\n"

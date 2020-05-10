@@ -278,7 +278,7 @@ object BatchTableEnvUtil {
     boundedStream.setParallelism(1)
     val name = if (tableName == null) UUID.randomUUID().toString else tableName
     registerBoundedStreamInternal(tEnv, name, boundedStream, Option(fieldNames), None, statistic)
-    tEnv.scan(name)
+    tEnv.from("`" + name + "`")
   }
 
   /**

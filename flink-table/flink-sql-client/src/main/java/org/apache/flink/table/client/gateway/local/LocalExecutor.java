@@ -435,7 +435,7 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 		try {
-			return context.wrapClassLoader(() -> tableEnv.scan(name).getSchema());
+			return context.wrapClassLoader(() -> tableEnv.from(name).getSchema());
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			throw new SqlExecutionException("No table with this name could be found.", t);

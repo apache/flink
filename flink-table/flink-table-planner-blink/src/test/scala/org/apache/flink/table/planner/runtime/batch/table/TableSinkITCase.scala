@@ -48,7 +48,7 @@ class TableSinkITCase extends BatchTestBase {
       tEnv, schema, "testSink")
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
-    tEnv.scan("Table3")
+    tEnv.from("Table3")
         .where('a > 20)
         .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
         .insertInto("testSink")
@@ -76,7 +76,7 @@ class TableSinkITCase extends BatchTestBase {
 
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
-    tEnv.scan("Table3")
+    tEnv.from("Table3")
         .where('a > 20)
         .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
         .insertInto("testSink")

@@ -176,7 +176,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val dataStream = env.fromElements[T]().javaStream
     val tableEnv = getTableEnv
     TableTestUtil.createTemporaryView(tableEnv, name, dataStream, Some(fields.toArray))
-    tableEnv.scan(name)
+    tableEnv.from(name)
   }
 
   /**
@@ -250,7 +250,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       name: String,
       tableSource: TableSource[_]): Table = {
     getTableEnv.registerTableSource(name, tableSource)
-    getTableEnv.scan(name)
+    getTableEnv.from(name)
   }
 
   /**
@@ -576,7 +576,7 @@ abstract class TableTestUtil(
       statistic)
     val table = testingTableEnv.createTable(operation)
     testingTableEnv.registerTable(name, table)
-    testingTableEnv.scan(name)
+    testingTableEnv.from(name)
   }
 
   /**
