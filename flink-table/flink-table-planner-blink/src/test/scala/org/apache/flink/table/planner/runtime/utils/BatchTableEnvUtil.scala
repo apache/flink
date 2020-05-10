@@ -55,9 +55,8 @@ object BatchTableEnvUtil {
     sink.init(typeSerializer.asInstanceOf[TypeSerializer[T]], id)
     val sinkName = UUID.randomUUID().toString
     tEnv.registerTableSink(sinkName, sink)
-    tEnv.insertInto(s"`$sinkName`", table)
 
-    val res = tEnv.execute("test")
+    val res = TableEnvUtil.syncExecuteInsert(table, s"`$sinkName`")
     val accResult: JArrayList[Array[Byte]] = res.getAccumulatorResult(id)
     SerializedListAccumulator.deserializeList(accResult, typeSerializer)
   }

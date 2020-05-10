@@ -149,7 +149,7 @@ public class JDBCDataTypeTest {
 				.build();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
 
-		tEnv.sqlUpdate(sqlDDL);
+		tEnv.executeSql(sqlDDL);
 
 		if (testItem.expectError != null) {
 			try {

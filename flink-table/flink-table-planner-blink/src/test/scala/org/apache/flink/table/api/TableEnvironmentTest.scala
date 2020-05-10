@@ -542,10 +542,10 @@ class TableEnvironmentTest {
 
     assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
 
-    tableEnv.sqlUpdate("DROP VIEW default_catalog.default_database.T2")
+    tableEnv.executeSql("DROP VIEW default_catalog.default_database.T2")
     assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
 
-    tableEnv.sqlUpdate("DROP VIEW default_catalog.default_database.T3")
+    tableEnv.executeSql("DROP VIEW default_catalog.default_database.T3")
     assert(tableEnv.listTables().sameElements(Array[String]("T1")))
   }
 

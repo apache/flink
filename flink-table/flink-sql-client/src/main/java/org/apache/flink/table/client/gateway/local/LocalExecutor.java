@@ -355,7 +355,7 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tEnv = context.getTableEnvironment();
 		try {
-			context.wrapClassLoader(() -> tEnv.sqlUpdate(ddl));
+			context.wrapClassLoader(() -> tEnv.executeSql(ddl));
 		} catch (Exception e) {
 			throw new SqlExecutionException("Could not create a table from statement: " + ddl, e);
 		}
@@ -366,7 +366,7 @@ public class LocalExecutor implements Executor {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tEnv = context.getTableEnvironment();
 		try {
-			context.wrapClassLoader(() -> tEnv.sqlUpdate(ddl));
+			context.wrapClassLoader(() -> tEnv.executeSql(ddl));
 		} catch (Exception e) {
 			throw new SqlExecutionException("Could not drop table from statement: " + ddl, e);
 		}
@@ -695,7 +695,7 @@ public class LocalExecutor implements Executor {
 	private <C> void applyUpdate(ExecutionContext<C> context, String updateStatement) {
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 		try {
-			context.wrapClassLoader(() -> tableEnv.sqlUpdate(updateStatement));
+			context.wrapClassLoader(() -> tableEnv.executeSql(updateStatement));
 		} catch (Throwable t) {
 			// catch everything such that the statement does not crash the executor
 			throw new SqlExecutionException("Invalid SQL update statement.", t);

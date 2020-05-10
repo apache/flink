@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -303,7 +304,15 @@ class BatchTestBase extends BatchAbstractTestBase {
     executeQuery(table)
   }
 
-  private def prepareResult(seq: Seq[Row], isSorted: Boolean) = {
+  def syncExecuteInsert(insert: String): JobExecutionResult = {
+    TableEnvUtil.syncExecuteInsert(tEnv, insert)
+  }
+
+  def syncExecuteInsert(table: Table, targetPath: String): JobExecutionResult = {
+    TableEnvUtil.syncExecuteInsert(table, targetPath)
+  }
+
+  private def prepareResult(seq: Seq[Row], isSorted: Boolean): Seq[String] = {
     if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
   }
 

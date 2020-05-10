@@ -152,7 +152,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     * Creates a table with the given DDL SQL string.
     */
   def addTable(ddl: String): Unit = {
-    getTableEnv.sqlUpdate(ddl)
+    getTableEnv.executeSql(ddl)
   }
 
   /**

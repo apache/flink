@@ -86,35 +86,35 @@ public class PythonFunctionFactoryTest {
 
 	public static void testPythonFunctionFactory() {
 		// flink catalog
-		flinkTableEnv.sqlUpdate("create function func1 as 'test1.func1' language python");
+		flinkTableEnv.executeSql("create function func1 as 'test1.func1' language python");
 		verifyPlan(flinkSourceTable.select(call("func1", $("str"))), flinkTableEnv);
 
 		// flink catalog
-		flinkTableEnv.sqlUpdate("alter function func1 as 'test1.func1' language python");
+		flinkTableEnv.executeSql("alter function func1 as 'test1.func1' language python");
 		verifyPlan(flinkSourceTable.select(call("func1", $("str"))), flinkTableEnv);
 
 		// flink temporary catalog
-		flinkTableEnv.sqlUpdate("create temporary function func1 as 'test1.func1' language python");
+		flinkTableEnv.executeSql("create temporary function func1 as 'test1.func1' language python");
 		verifyPlan(flinkSourceTable.select(call("func1", $("str"))), flinkTableEnv);
 
 		// flink temporary system
-		flinkTableEnv.sqlUpdate("create temporary system function func1 as 'test1.func1' language python");
+		flinkTableEnv.executeSql("create temporary system function func1 as 'test1.func1' language python");
 		verifyPlan(flinkSourceTable.select(call("func1", $("str"))), flinkTableEnv);
 
 		// blink catalog
-		blinkTableEnv.sqlUpdate("create function func1 as 'test1.func1' language python");
+		blinkTableEnv.executeSql("create function func1 as 'test1.func1' language python");
 		verifyPlan(blinkSourceTable.select(call("func1", $("str"))), blinkTableEnv);
 
 		// blink catalog
-		blinkTableEnv.sqlUpdate("alter function func1 as 'test1.func1' language python");
+		blinkTableEnv.executeSql("alter function func1 as 'test1.func1' language python");
 		verifyPlan(blinkSourceTable.select(call("func1", $("str"))), blinkTableEnv);
 
 		// blink temporary catalog
-		blinkTableEnv.sqlUpdate("create temporary function func1 as 'test1.func1' language python");
+		blinkTableEnv.executeSql("create temporary function func1 as 'test1.func1' language python");
 		verifyPlan(blinkSourceTable.select(call("func1", $("str"))), blinkTableEnv);
 
 		// blink temporary system
-		blinkTableEnv.sqlUpdate("create temporary system function func1 as 'test1.func1' language python");
+		blinkTableEnv.executeSql("create temporary system function func1 as 'test1.func1' language python");
 		verifyPlan(blinkSourceTable.select(call("func1", $("str"))), blinkTableEnv);
 	}
 

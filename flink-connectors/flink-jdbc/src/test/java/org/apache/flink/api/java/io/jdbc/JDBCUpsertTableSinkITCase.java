@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExt
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
@@ -132,7 +133,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
-		tEnv.sqlUpdate(
+		tEnv.executeSql(
 				"CREATE TABLE upsertSink (" +
 						"  real_data float" +
 						") WITH (" +
@@ -141,8 +142,9 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 						"  'connector.table'='REAL_TABLE'" +
 						")");
 
-		tEnv.sqlUpdate("INSERT INTO upsertSink SELECT CAST(1.0 as FLOAT)");
-		tEnv.execute("job name");
+		TableResult tableResult = tEnv.executeSql("INSERT INTO upsertSink SELECT CAST(1.0 as FLOAT)");
+		// wait to finish
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 		check(new Row[] {Row.of(1.0f)}, DB_URL, "REAL_TABLE", new String[]{"real_data"});
 	}
 
@@ -162,7 +164,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 			}), $("id"), $("num"), $("text"), $("ts"));
 
 		tEnv.createTemporaryView("T", t);
-		tEnv.sqlUpdate(
+		tEnv.executeSql(
 			"CREATE TABLE upsertSink (" +
 				"  cnt BIGINT," +
 				"  lencnt BIGINT," +
@@ -174,7 +176,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 				"  'connector.table'='" + OUTPUT_TABLE1 + "'" +
 				")");
 
-		tEnv.sqlUpdate("INSERT INTO upsertSink \n" +
+		TableResult tableResult = tEnv.executeSql("INSERT INTO upsertSink \n" +
 			"SELECT cnt, COUNT(len) AS lencnt, cTag, MAX(ts) AS ts\n" +
 			"FROM (\n" +
 			"  SELECT len, COUNT(id) as cnt, cTag, MAX(ts) AS ts\n" +
@@ -182,7 +184,8 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 			"  GROUP BY len, cTag\n" +
 			")\n" +
 			"GROUP BY cnt, cTag");
-		tEnv.execute("job name");
+		// wait to finish
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 		check(new Row[] {
 				Row.of(1, 5, 1, Timestamp.valueOf("1970-01-01 00:00:00.006")),
 				Row.of(7, 1, 1, Timestamp.valueOf("1970-01-01 00:00:00.021")),
@@ -201,7 +204,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 
 		tEnv.registerTable("T", t);
 
-		tEnv.sqlUpdate(
+		tEnv.executeSql(
 			"CREATE TABLE upsertSink (" +
 				"  id INT," +
 				"  num BIGINT," +
@@ -212,8 +215,10 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 				"  'connector.table'='" + OUTPUT_TABLE2 + "'" +
 				")");
 
-		tEnv.sqlUpdate("INSERT INTO upsertSink SELECT id, num, ts FROM T WHERE id IN (2, 10, 20)");
-		tEnv.execute("job name");
+		TableResult tableResult = tEnv.executeSql(
+				"INSERT INTO upsertSink SELECT id, num, ts FROM T WHERE id IN (2, 10, 20)");
+		// wait to finish
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 		check(new Row[] {
 				Row.of(2, 2, Timestamp.valueOf("1970-01-01 00:00:00.002")),
 				Row.of(10, 4, Timestamp.valueOf("1970-01-01 00:00:00.01")),
@@ -227,7 +232,7 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 				.useBlinkPlanner().inBatchMode().build();
 		TableEnvironment tEnv = TableEnvironment.create(bsSettings);
 
-		tEnv.sqlUpdate(
+		tEnv.executeSql(
 			"CREATE TABLE USER_RESULT(" +
 				"NAME VARCHAR," +
 				"SCORE BIGINT" +
@@ -237,12 +242,13 @@ public class JDBCUpsertTableSinkITCase extends AbstractTestBase {
 				"'connector.table' = '" + OUTPUT_TABLE3 + "'" +
 				")");
 
-		tEnv.sqlUpdate("INSERT INTO USER_RESULT\n" +
+		TableResult tableResult  = tEnv.executeSql("INSERT INTO USER_RESULT\n" +
 				"SELECT user_name, score " +
 				"FROM (VALUES (1, 'Bob'), (22, 'Tom'), (42, 'Kim'), " +
 				"(42, 'Kim'), (1, 'Bob')) " +
 				"AS UserCountTable(score, user_name)");
-		tEnv.execute("test");
+		// wait to finish
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 
 		check(new Row[] {
 				Row.of("Bob", 1),

@@ -25,13 +25,15 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Tumble, Types}
 import org.apache.flink.table.planner.runtime.utils.TestData.{smallTupleData3, tupleData3, tupleData5}
-import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
+import org.apache.flink.table.planner.runtime.utils.{TableEnvUtil, TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestUtil}
 import org.apache.flink.table.sinks._
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
 import org.junit.Test
+
 import java.io.File
 import java.util.TimeZone
 
@@ -43,6 +45,7 @@ class TableSinkITCase extends AbstractTestBase {
   def testStreamTableSink(): Unit = {
 
     val tmpFile = File.createTempFile("flink-table-sink-test", ".tmp")
+    tmpFile.delete()
     tmpFile.deleteOnExit()
     val path = tmpFile.toURI.toString
 
@@ -63,12 +66,10 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._2)
       .map(x => x).setParallelism(4) // increase DOP to 4
 
-    input.toTable(tEnv, 'a, 'b.rowtime, 'c)
+    val table = input.toTable(tEnv, 'a, 'b.rowtime, 'c)
       .where('a < 5 || 'a > 17)
       .select(ifThenElse('a < 4, nullOf(Types.INT()), 'a), 'c, 'b)
-      .insertInto("csvSink")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(table, "csvSink")
 
     val expected = Seq(
       ",Hello world,1970-01-01 00:00:00.002",
@@ -91,8 +92,8 @@ class TableSinkITCase extends AbstractTestBase {
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(tupleData3)
-        .assignAscendingTimestamps(_._1.toLong)
-        .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+      .assignAscendingTimestamps(_._1.toLong)
+      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val sink = new TestingAppendTableSink(TimeZone.getDefault)
     tEnv.registerTableSink(
@@ -101,12 +102,10 @@ class TableSinkITCase extends AbstractTestBase {
         Array[String]("t", "icnt", "nsum"),
         Array[TypeInformation[_]](Types.SQL_TIMESTAMP, Types.LONG, Types.LONG)))
 
-    t.window(Tumble over 5.millis on 'rowtime as 'w)
+    val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
-      .insertInto("appendSink")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(table, "appendSink")
 
     val result = sink.getAppendResults.sorted
     val expected = List(
@@ -137,9 +136,8 @@ class TableSinkITCase extends AbstractTestBase {
         Array[String]("t", "item"),
         Array[TypeInformation[_]](Types.INT(), Types.ROW(Types.LONG, Types.STRING()))))
 
-    tEnv.sqlUpdate("INSERT INTO appendSink SELECT id, ROW(num, text) FROM src")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(
+      tEnv, "INSERT INTO appendSink SELECT id, ROW(num, text) FROM src")
 
     val result = sink.getAppendResults.sorted
     val expected = List(
@@ -166,11 +164,9 @@ class TableSinkITCase extends AbstractTestBase {
         Array[String]("c", "g"),
         Array[TypeInformation[_]](Types.STRING, Types.STRING)))
 
-    ds1.join(ds2).where('b === 'e)
+    val table = ds1.join(ds2).where('b === 'e)
       .select('c, 'g)
-      .insertInto("appendSink")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(table, "appendSink")
 
     val result = sink.getAppendResults.sorted
     val expected = List("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt").sorted
@@ -195,12 +191,10 @@ class TableSinkITCase extends AbstractTestBase {
         Array[String]("len", "icnt", "nsum"),
         Array[TypeInformation[_]](Types.INT, Types.LONG, Types.DECIMAL())))
 
-    t.select('id, 'num, 'text.charLength() as 'len)
+    val table = t.select('id, 'num, 'text.charLength() as 'len)
       .groupBy('len)
       .select('len, 'id.count as 'icnt, 'num.sum as 'nsum)
-      .insertInto("retractSink")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(table, "retractSink")
 
     val retracted = sink.getRetractResults.sorted
     val expected = List(
@@ -233,12 +227,10 @@ class TableSinkITCase extends AbstractTestBase {
         Array[String]("t", "icnt", "nsum"),
         Array[TypeInformation[_]](Types.SQL_TIMESTAMP, Types.LONG, Types.LONG)))
 
-    t.window(Tumble over 5.millis on 'rowtime as 'w)
+    val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
-      .insertInto("retractSink")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(table, "retractSink")
 
     assertFalse(
       "Received retraction messages for append only table",
@@ -274,15 +266,13 @@ class TableSinkITCase extends AbstractTestBase {
     sink.expectedIsAppendOnly = Some(false)
     tEnv.registerTableSink("upsertSink", sink)
 
-    t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
+    val table = t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
       .groupBy('len, 'cTrue)
       // test query field name is different with registered sink field name
       .select('len, 'id.count as 'count, 'cTrue)
       .groupBy('count, 'cTrue)
       .select('count, 'len.count as 'lencnt, 'cTrue)
-      .insertInto("upsertSink")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(table, "upsertSink")
 
     assertTrue(
       "Results must include delete messages",
@@ -315,13 +305,11 @@ class TableSinkITCase extends AbstractTestBase {
     sink.expectedIsAppendOnly = Some(true)
     tEnv.registerTableSink("upsertSink", sink)
 
-    t.window(Tumble over 5.millis on 'rowtime as 'w)
+    val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
       // test query field name is different with registered sink field name
       .select('num, 'w.end as 'window_end, 'id.count as 'icnt)
-      .insertInto("upsertSink")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(table, "upsertSink")
 
     assertFalse(
       "Received retraction messages for append only table",
@@ -363,12 +351,10 @@ class TableSinkITCase extends AbstractTestBase {
         Array[TypeInformation[_]]
           (Types.SQL_TIMESTAMP, Types.SQL_TIMESTAMP, Types.LONG, Types.LONG)))
 
-    t.window(Tumble over 5.millis on 'rowtime as 'w)
+    val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
       .select('w.start as 'wstart, 'w.end as 'wend, 'num, 'id.count as 'icnt)
-      .insertInto("upsertSink")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(table, "upsertSink")
 
     assertFalse(
       "Received retraction messages for append only table",
@@ -408,12 +394,10 @@ class TableSinkITCase extends AbstractTestBase {
         Array[String]("wend", "cnt"),
         Array[TypeInformation[_]](Types.SQL_TIMESTAMP, Types.LONG)))
 
-    t.window(Tumble over 5.millis on 'rowtime as 'w)
+    val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
       .select('w.end as 'wend, 'id.count as 'cnt)
-      .insertInto("upsertSink")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(table, "upsertSink")
 
     assertFalse(
       "Received retraction messages for append only table",
@@ -453,12 +437,10 @@ class TableSinkITCase extends AbstractTestBase {
         Array[String]("num", "cnt"),
         Array[TypeInformation[_]](Types.LONG, Types.LONG)))
 
-    t.window(Tumble over 5.millis on 'rowtime as 'w)
+    val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
       .select('num, 'id.count as 'cnt)
-      .insertInto("upsertSink")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(table, "upsertSink")
 
     assertFalse(
       "Received retraction messages for append only table",
@@ -508,15 +490,13 @@ class TableSinkITCase extends AbstractTestBase {
     //   5, 5
     //   6, 6
 
-    t.groupBy('num)
+    val table = t.groupBy('num)
       .select('num, 'id.count as 'cnt)
       .where('cnt <= 3)
-      .insertInto("upsertSink")
-
-    tEnv.execute("job name")
+    TableEnvUtil.syncExecuteInsert(table, "upsertSink")
 
     val expectedWithFilter = List("1,1", "2,2", "3,3")
-     assertEquals(expectedWithFilter.sorted, sink.getUpsertResults.sorted)
+    assertEquals(expectedWithFilter.sorted, sink.getUpsertResults.sorted)
   }
 
   @Test(expected = classOf[TableException])
@@ -573,13 +553,11 @@ class TableSinkITCase extends AbstractTestBase {
     MemoryTableSourceSinkUtil.createDataTypeAppendStreamTable(
       tEnv, schema, "testSink")
 
-    env.fromCollection(tupleData3)
-        .toTable(tEnv, 'a, 'b, 'c)
-        .where('a > 20)
-        .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-        .insertInto("testSink")
-
-    tEnv.execute("")
+    val table = env.fromCollection(tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .where('a > 20)
+      .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
+    TableEnvUtil.syncExecuteInsert(table, "testSink")
 
     val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
     val expected = Seq("12345,55,12345").mkString("\n")

@@ -40,7 +40,7 @@ public class CatalogITCase {
 		TableEnvironment tableEnv = getTableEnvironment();
 		String ddl = String.format("create catalog %s with('type'='%s')", name, CATALOG_TYPE_VALUE_GENERIC_IN_MEMORY);
 
-		tableEnv.sqlUpdate(ddl);
+		tableEnv.executeSql(ddl);
 
 		assertTrue(tableEnv.getCatalog(name).isPresent());
 		assertTrue(tableEnv.getCatalog(name).get() instanceof GenericInMemoryCatalog);

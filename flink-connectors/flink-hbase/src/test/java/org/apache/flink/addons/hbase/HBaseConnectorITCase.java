@@ -39,6 +39,7 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil;
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.planner.sinks.CollectRowTableSink;
 import org.apache.flink.table.planner.sinks.CollectTableSink;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -292,10 +293,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		tEnv.registerTableSink("hbase", tableSink);
 
 		String query = "INSERT INTO hbase SELECT ROW(f1c1), ROW(f2c1, f2c2), rowkey, ROW(f3c1, f3c2, f3c3) FROM src";
-		tEnv.sqlUpdate(query);
-
-		// wait to finish
-		tEnv.execute("HBase Job");
+		TableEnvUtil.syncExecuteInsert(tEnv, query);
 
 		// start a batch scan job to verify contents in HBase table
 		// start a batch scan job to verify contents in HBase table
@@ -360,19 +358,16 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			"    'connector.zookeeper.quorum' = '" + quorum + "',\n" +
 			"    'connector.zookeeper.znode.parent' = '/hbase' " +
 			")";
-		tEnv.sqlUpdate(ddl);
+		tEnv.executeSql(ddl);
 
 		String query = "INSERT INTO hbase " +
 			"SELECT rowkey, ROW(f1c1), ROW(f2c1, f2c2), ROW(f3c1, f3c2, f3c3), ROW(f4c1, f4c2, f4c3) " +
 			"FROM src";
-		tEnv.sqlUpdate(query);
-
-		// wait to finish
-		tEnv.execute("HBase Job");
+		TableEnvUtil.syncExecuteInsert(tEnv, query);
 
 		// start a batch scan job to verify contents in HBase table
 		TableEnvironment batchTableEnv = createBatchTableEnv();
-		batchTableEnv.sqlUpdate(ddl);
+		batchTableEnv.executeSql(ddl);
 
 		Table table = batchTableEnv.sqlQuery(
 			"SELECT " +

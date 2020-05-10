@@ -90,7 +90,7 @@ public class JDBCTableSourceITCase extends AbstractTestBase {
 			.build();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
 
-		tEnv.sqlUpdate(
+		tEnv.executeSql(
 			"CREATE TABLE " + INPUT_TABLE + "(" +
 				"id BIGINT," +
 				"timestamp6_col TIMESTAMP(6)," +
@@ -127,7 +127,7 @@ public class JDBCTableSourceITCase extends AbstractTestBase {
 				.build();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
 
-		tEnv.sqlUpdate(
+		tEnv.executeSql(
 			"CREATE TABLE " + INPUT_TABLE + "(" +
 				"id BIGINT," +
 				"timestamp6_col TIMESTAMP(6)," +

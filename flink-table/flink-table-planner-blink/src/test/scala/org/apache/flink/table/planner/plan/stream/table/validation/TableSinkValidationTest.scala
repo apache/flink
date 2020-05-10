@@ -23,9 +23,10 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, ValidationException}
-import org.apache.flink.table.planner.runtime.utils.{TestData, TestingAppendSink, TestingUpsertTableSink}
+import org.apache.flink.table.planner.runtime.utils.{TableEnvUtil, TestData, TestingAppendSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestBase, TableTestUtil}
 import org.apache.flink.types.Row
+
 import org.junit.Test
 
 class TableSinkValidationTest extends TableTestBase {
@@ -109,10 +110,8 @@ class TableSinkValidationTest extends TableTestBase {
 
     MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(
       tEnv, sinkSchema, "testSink")
-    tEnv.insertInto(resultTable, "testSink")
-
     // must fail because query result table schema is different with sink table schema
-    tEnv.execute("testJob")
+    TableEnvUtil.syncExecuteInsert(resultTable, "testSink")
   }
 
 }

@@ -66,8 +66,7 @@ public class BatchSQLTestProgram {
 			new CsvTableSink(outputPath)
 				.configure(new String[]{"f0", "f1"}, new TypeInformation[]{Types.INT, Types.SQL_TIMESTAMP}));
 
-		tEnv.sqlUpdate(sqlStatement);
-		tEnv.execute("TestSqlJob");
+		tEnv.executeSql(sqlStatement);
 	}
 
 	/**

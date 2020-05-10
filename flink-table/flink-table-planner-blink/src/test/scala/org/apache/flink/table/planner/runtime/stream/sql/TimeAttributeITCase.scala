@@ -69,7 +69,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |FROM src
         |GROUP BY TUMBLE(ts, INTERVAL '0.003' SECOND)
       """.stripMargin
-    tEnv.sqlUpdate(ddl)
+    tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
     env.execute("SQL JOB")
@@ -106,7 +106,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |FROM src
         |GROUP BY TUMBLE(ts, INTERVAL '0.003' SECOND)
       """.stripMargin
-    tEnv.sqlUpdate(ddl)
+    tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
     env.execute("SQL JOB")
@@ -143,7 +143,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |FROM src
         |GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)
       """.stripMargin
-    tEnv.sqlUpdate(ddl)
+    tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
     env.execute("SQL JOB")
@@ -177,7 +177,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |FROM src
         |GROUP BY TUMBLE(col.ts, INTERVAL '0.003' SECOND)
       """.stripMargin
-    tEnv.sqlUpdate(ddl)
+    tEnv.executeSql(ddl)
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       "Nested field 'col.ts' as rowtime attribute is not supported right now.")
