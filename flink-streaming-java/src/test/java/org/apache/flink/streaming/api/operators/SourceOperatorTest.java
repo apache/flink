@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -41,11 +42,11 @@ import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -134,17 +135,7 @@ public class SourceOperatorTest {
 		operator.snapshotState(new StateSnapshotContextSynchronousImpl(100L, 100L));
 
 		// Verify the splits in state.
-		List<MockSourceSplit> splitsInState = new ArrayList<>();
-		Iterable<byte[]> serializedSplits =
-				stateContext.getOperatorStateStore().getListState(SourceOperator.SPLITS_STATE_DESC).get();
-		for (byte[] serialized : serializedSplits) {
-			MockSourceSplitSerializer serializer = new MockSourceSplitSerializer();
-			SourceOperator.SplitStateAndVersion stateAndVersion =
-					SourceOperator.SplitStateAndVersion.fromBytes(serialized);
-			splitsInState.add(serializer.deserialize(
-					stateAndVersion.getSerializerVersion(),
-					stateAndVersion.getSplitState()));
-		}
+		List<MockSourceSplit> splitsInState = CollectionUtil.iterableToList(operator.getReaderState().get());
 		assertEquals(Arrays.asList(MOCK_SPLIT, newSplit), splitsInState);
 	}
 
@@ -152,9 +143,8 @@ public class SourceOperatorTest {
 
 	private StateInitializationContext getStateContext() throws Exception {
 		// Create a mock split.
-		byte[] serializedSplit = new MockSourceSplitSerializer().serialize(MOCK_SPLIT);
-		byte[] serializedSplitWithVersion =
-				new SourceOperator.SplitStateAndVersion(0, serializedSplit).toBytes();
+		byte[] serializedSplitWithVersion = SimpleVersionedSerialization
+				.writeVersionAndSerialize(new MockSourceSplitSerializer(), MOCK_SPLIT);
 
 		// Crate the state context.
 		OperatorStateStore operatorStateStore = createOperatorStateStore();
