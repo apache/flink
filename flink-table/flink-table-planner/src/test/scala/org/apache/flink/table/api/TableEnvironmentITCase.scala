@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId}
-import org.apache.flink.table.utils.TestingOverwritableTableSink
+import org.apache.flink.table.utils.{TestTableSourceWithTime, TestingOverwritableTableSink}
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
 
@@ -512,6 +512,31 @@ class TableEnvironmentITCase(tableEnvName: String) {
     thrown.expectMessage(containsString(
       "AppendStreamTableSink requires that Table has only insert changes."))
     tEnv.executeSql("select count(*) from MyTable")
+  }
+
+  @Test
+  def testExecuteSelectWithTimeAttribute(): Unit = {
+    val data = Seq("Mary")
+    val schema = new TableSchema(Array("name", "pt"), Array(Types.STRING, Types.SQL_TIMESTAMP()))
+    val sourceType = Types.STRING
+    val tableSource = new TestTableSourceWithTime(schema, sourceType, data, null, "pt")
+    tEnv.registerTableSource("T", tableSource)
+
+    val tableResult = tEnv.executeSql("select * from T")
+    assertTrue(tableResult.getJobClient.isPresent)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      TableSchema.builder()
+        .field("name", DataTypes.STRING())
+        .field("pt", Types.SQL_TIMESTAMP())
+        .build(),
+      tableResult.getTableSchema)
+    val it = tableResult.collect()
+    assertTrue(it.hasNext)
+    val row = it.next()
+    assertEquals(2, row.getArity)
+    assertEquals("Mary", row.getField(0))
+    assertFalse(it.hasNext)
   }
 
   private def registerCsvTableSink(

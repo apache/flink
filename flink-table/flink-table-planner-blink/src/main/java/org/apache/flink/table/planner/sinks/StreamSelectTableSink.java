@@ -28,6 +28,7 @@ import org.apache.flink.streaming.experimental.SocketStreamIterator;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.SelectTableSink;
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
@@ -49,9 +50,12 @@ public class StreamSelectTableSink implements AppendStreamTableSink<Row>, Select
 	private final TypeSerializer<Row> typeSerializer;
 	private final SocketStreamIterator<Row> iterator;
 
+	@SuppressWarnings("unchecked")
 	public StreamSelectTableSink(TableSchema tableSchema) {
-		this.tableSchema = tableSchema;
-		this.typeSerializer = tableSchema.toRowType().createSerializer(new ExecutionConfig());
+		this.tableSchema = SelectTableSinkSchemaConverter.convert(tableSchema);
+		this.typeSerializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
+				.fromDataTypeToTypeInfo(this.tableSchema.toRowDataType())
+				.createSerializer(new ExecutionConfig());
 		try {
 			// socket server should be started before running the job
 			iterator = new SocketStreamIterator<>(0, InetAddress.getLocalHost(), typeSerializer);

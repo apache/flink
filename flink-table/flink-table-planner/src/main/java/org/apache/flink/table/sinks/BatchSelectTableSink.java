@@ -50,9 +50,9 @@ public class BatchSelectTableSink implements BatchTableSink<Row>, SelectTableSin
 	private JobClient jobClient;
 
 	public BatchSelectTableSink(TableSchema tableSchema) {
-		this.tableSchema = tableSchema;
+		this.tableSchema = SelectTableSinkSchemaConverter.convert(tableSchema);
 		this.accumulatorName = new AbstractID().toString();
-		this.typeSerializer = tableSchema.toRowType().createSerializer(new ExecutionConfig());
+		this.typeSerializer = this.tableSchema.toRowType().createSerializer(new ExecutionConfig());
 	}
 
 	@Override

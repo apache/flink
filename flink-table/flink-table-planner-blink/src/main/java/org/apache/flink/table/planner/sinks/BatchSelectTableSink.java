@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.SelectTableSink;
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
@@ -53,10 +54,13 @@ public class BatchSelectTableSink implements StreamTableSink<Row>, SelectTableSi
 	private final TypeSerializer<Row> typeSerializer;
 	private JobClient jobClient;
 
+	@SuppressWarnings("unchecked")
 	public BatchSelectTableSink(TableSchema tableSchema) {
-		this.tableSchema = tableSchema;
+		this.tableSchema = SelectTableSinkSchemaConverter.convert(tableSchema);
 		this.accumulatorName = new AbstractID().toString();
-		this.typeSerializer = tableSchema.toRowType().createSerializer(new ExecutionConfig());
+		this.typeSerializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
+				.fromDataTypeToTypeInfo(this.tableSchema.toRowDataType())
+				.createSerializer(new ExecutionConfig());
 	}
 
 	@Override

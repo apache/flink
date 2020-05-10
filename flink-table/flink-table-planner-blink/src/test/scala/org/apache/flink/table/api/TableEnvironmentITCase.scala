@@ -28,7 +28,7 @@ import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTa
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.TestingAppendSink
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId}
-import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
+import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks, TestTableSourceWithTime}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, TestLogger}
 
@@ -575,6 +575,32 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     thrown.expectMessage(containsString(
       "AppendStreamTableSink doesn't support consuming update changes"))
     tEnv.executeSql("select count(*) from MyTable")
+  }
+
+  @Test
+  def testExecuteSelectWithTimeAttribute(): Unit = {
+    val data = Seq("Mary")
+    val schema = new TableSchema(Array("name", "pt"), Array(Types.STRING, Types.LOCAL_DATE_TIME))
+    val sourceType = Types.STRING
+    val tableSource = new TestTableSourceWithTime(true, schema, sourceType, data, null, "pt")
+    // TODO refactor this after FLINK-16160 is finished
+    tEnv.registerTableSource("T", tableSource)
+
+    val tableResult = tEnv.executeSql("select * from T")
+    assertTrue(tableResult.getJobClient.isPresent)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      TableSchema.builder()
+        .field("name", DataTypes.STRING())
+        .field("pt", DataTypes.TIMESTAMP(3))
+        .build(),
+      tableResult.getTableSchema)
+    val it = tableResult.collect()
+    assertTrue(it.hasNext)
+    val row = it.next()
+    assertEquals(2, row.getArity)
+    assertEquals("Mary", row.getField(0))
+    assertFalse(it.hasNext)
   }
 
   @Test
