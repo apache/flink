@@ -24,7 +24,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.util.Preconditions;
 
 import java.util.Optional;
 
@@ -61,20 +60,14 @@ public class StreamOperatorFactoryUtil {
 			((ProcessingTimeServiceAware) operatorFactory).setProcessingTimeService(processingTimeService);
 		}
 
-		if (operatorFactory instanceof CoordinatedOperatorFactory) {
-			Preconditions.checkNotNull(
-					operatorEventDispatcher,
-					"The OperatorEventDispatcher should not be null.");
-			((CoordinatedOperatorFactory<OUT>) operatorFactory).setOperatorEventDispatcher(operatorEventDispatcher);
-		}
-
 		// TODO: what to do with ProcessingTimeServiceAware?
 		OP op = operatorFactory.createStreamOperator(
 			new StreamOperatorParameters<>(
 				containingTask,
 				configuration,
 				output,
-				processingTimeService));
+				processingTimeService,
+				operatorEventDispatcher));
 		return new Tuple2<>(op, Optional.ofNullable(processingTimeService));
 	}
 }
