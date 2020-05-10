@@ -156,7 +156,7 @@ public abstract class AbstractStreamOperator<OUT>
 		this.config = config;
 		try {
 			OperatorMetricGroup operatorMetricGroup = environment.getMetricGroup().getOrAddOperator(config.getOperatorID(), config.getOperatorName());
-			this.output = new CountingOutput(output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
+			this.output = new CountingOutput<>(output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
 			if (config.isChainStart()) {
 				operatorMetricGroup.getIOMetricGroup().reuseInputMetricsForTask();
 			}
@@ -394,7 +394,6 @@ public abstract class AbstractStreamOperator<OUT>
 		return runtimeContext;
 	}
 
-	@SuppressWarnings("unchecked")
 	@VisibleForTesting
 	public <K> KeyedStateBackend<K> getKeyedStateBackend() {
 		return stateHandler.getKeyedStateBackend();
@@ -462,12 +461,10 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void setCurrentKey(Object key) {
 		stateHandler.setCurrentKey(key);
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
 	public Object getCurrentKey() {
 		return stateHandler.getCurrentKey();
 	}
@@ -551,6 +548,7 @@ public abstract class AbstractStreamOperator<OUT>
 		if (timeServiceManager == null) {
 			throw new RuntimeException("The timer service has not been initialized.");
 		}
+		@SuppressWarnings("unchecked")
 		InternalTimeServiceManager<K> keyedTimeServiceHandler = (InternalTimeServiceManager<K>) timeServiceManager;
 		return keyedTimeServiceHandler.getInternalTimerService(
 			name,
