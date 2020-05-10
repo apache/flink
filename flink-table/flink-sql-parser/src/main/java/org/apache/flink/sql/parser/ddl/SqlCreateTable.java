@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -41,7 +42,7 @@ import org.apache.calcite.util.ImmutableNullableList;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -74,8 +75,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	private final boolean isTemporary;
 
-	private final Set<String> tableConstraintPrimaryKeys;
-
 	public SqlCreateTable(
 			SqlParserPos pos,
 			SqlIdentifier tableName,
@@ -97,7 +96,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		this.comment = comment;
 		this.tableLike = tableLike;
 		this.isTemporary = isTemporary;
-		this.tableConstraintPrimaryKeys = getTableConstraintPrimaryKeys(tableConstraints);
 	}
 
 	@Override
@@ -159,6 +157,30 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	@Override
 	public void validate() throws SqlValidateException {
+
+		List<SqlTableConstraint> constraints = getFullConstraints().stream()
+			.filter(SqlTableConstraint::isPrimaryKey)
+			.collect(Collectors.toList());
+
+		if (constraints.size() > 1) {
+			throw new SqlValidateException(
+				constraints.get(1).getParserPosition(),
+				"Duplicate primary key definition");
+		} else if (constraints.size() == 1) {
+			Set<String> primaryKeyColumns = Arrays.stream(constraints.get(0).getColumnNames())
+				.collect(Collectors.toSet());
+
+			for (SqlNode column : columnList) {
+				if (column instanceof SqlTableColumn) {
+					SqlTableColumn tableColumn = (SqlTableColumn) column;
+					if (primaryKeyColumns.contains(tableColumn.getName().getSimple())) {
+						SqlDataTypeSpec notNullType = tableColumn.getType().withNullable(false);
+						tableColumn.setType(notNullType);
+					}
+				}
+			}
+		}
+
 		if (tableLike != null) {
 			tableLike.validate();
 		}
@@ -184,36 +206,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		});
 		ret.addAll(this.tableConstraints);
 		return ret;
-	}
-
-	/**
-	 * Decides if the given column is nullable.
-	 *
-	 * <p>Collect primary key fields to fix nullability: primary key implies
-	 * an implicit not null constraint.
-	 */
-	public boolean isColumnNullable(SqlTableColumn column) {
-		boolean isPrimaryKey = column.getConstraint()
-				.map(SqlTableConstraint::isPrimaryKey)
-				.orElse(false);
-		if (isPrimaryKey
-				|| tableConstraintPrimaryKeys.contains(
-						column.getName().getSimple().toUpperCase())) {
-			return false;
-		}
-		return column.getType().getNullable();
-	}
-
-	/** Returns the primary key constraint columns of table constraint. */
-	private Set<String> getTableConstraintPrimaryKeys(List<SqlTableConstraint> constraints) {
-		return constraints.stream().filter(SqlTableConstraint::isPrimaryKey)
-				.findFirst()
-				.map(c -> c.getColumns()
-						.getList()
-						.stream()
-						.map(col -> ((SqlIdentifier) col).getSimple().toUpperCase())
-						.collect(Collectors.toSet()))
-				.orElse(Collections.emptySet());
 	}
 
 	/**

@@ -219,11 +219,7 @@ public class SqlToOperationConverter {
 	 * Convert the {@link SqlCreateTable} node.
 	 */
 	private Operation convertCreateTable(SqlCreateTable sqlCreateTable) {
-		// primary key and unique keys are not supported
-		if ((sqlCreateTable.getPrimaryKeyList().size() > 0)
-			|| (sqlCreateTable.getUniqueKeysList().size() > 0)) {
-			throw new SqlConversionException("Primary key and unique key are not supported yet.");
-		}
+		sqlCreateTable.getTableConstraints().forEach(this::validateTableConstraint);
 		CatalogTable catalogTable = createCatalogTable(sqlCreateTable);
 
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlCreateTable.fullTableName());
@@ -261,12 +257,16 @@ public class SqlToOperationConverter {
 
 		Map<String, String> mergedOptions = mergeOptions(sqlCreateTable, sourceProperties, mergingStrategies);
 
+		Optional<SqlTableConstraint> primaryKey = sqlCreateTable.getFullConstraints()
+			.stream()
+			.filter(SqlTableConstraint::isPrimaryKey)
+			.findAny();
 		TableSchema mergedSchema = mergeTableLikeUtil.mergeTables(
 			mergingStrategies,
 			sourceTableSchema,
 			sqlCreateTable.getColumnList().getList(),
 			sqlCreateTable.getWatermark().map(Collections::singletonList).orElseGet(Collections::emptyList),
-			sqlCreateTable.getPrimaryKeyList().getList()
+			primaryKey.orElse(null)
 		);
 
 		List<String> partitionKeys = mergePartitions(
@@ -753,10 +753,10 @@ public class SqlToOperationConverter {
 		}
 		if (constraint.isEnforced()) {
 			throw new ValidationException("Flink doesn't support ENFORCED mode for "
-				+ "PRIMARY KEY constaint. ENFORCED/NOT ENFORCED  controls if the constraint "
-				+ "checks are performed on the incoming/outgoing data. "
-				+ "Flink does not own the data therefore the only supported mode "
-				+ "is the NOT ENFORCED mode");
+					+ "PRIMARY KEY constaint. ENFORCED/NOT ENFORCED  controls if the constraint "
+					+ "checks are performed on the incoming/outgoing data. "
+					+ "Flink does not own the data therefore the only supported mode "
+					+ "is the NOT ENFORCED mode");
 		}
 	}
 

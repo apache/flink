@@ -361,6 +361,40 @@ public class SqlToOperationConverterTest {
 	}
 
 	@Test
+	public void testPrimaryKeyOnGeneratedColumn() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage(
+			"Could not create a PRIMARY KEY with a generated column 'c', at line 5, column 34.\n" +
+				"PRIMARY KEY constraint is not allowed on computed columns.");
+		final String sql2 = "CREATE TABLE tbl1 (\n" +
+			"  a bigint not null,\n" +
+			"  b varchar not null,\n" +
+			"  c as 2 * (a + 1),\n" +
+			"  constraint ct1 primary key (b, c) not enforced" +
+			") with (\n" +
+			"    'connector' = 'kafka',\n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		parseAndConvert(sql2);
+	}
+
+	@Test
+	public void testPrimaryKeyNonExistentColumn() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Primary key column 'd' is not defined in the schema, at line 5, column 34");
+		final String sql2 = "CREATE TABLE tbl1 (\n" +
+			"  a bigint not null,\n" +
+			"  b varchar not null,\n" +
+			"  c as 2 * (a + 1),\n" +
+			"  constraint ct1 primary key (b, d) not enforced" +
+			") with (\n" +
+			"    'connector' = 'kafka',\n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		parseAndConvert(sql2);
+	}
+
+	@Test
 	public void testCreateTableWithMinusInOptionKey() {
 		final String sql = "create table source_table(\n" +
 			"  a int,\n" +

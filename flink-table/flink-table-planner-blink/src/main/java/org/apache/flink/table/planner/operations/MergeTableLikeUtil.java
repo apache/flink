@@ -272,13 +272,23 @@ class MergeTableLikeUtil {
 					String primaryKey = ((SqlIdentifier) primaryKeyNode).getSimple();
 					if (!columns.containsKey(primaryKey)) {
 						throw new ValidationException(
-							"Primary key column '%s' is not defined in the schema, at " +
-								primaryKeyNode.getParserPosition());
+							String.format("Primary key column '%s' is not defined in the schema, at %s",
+								primaryKey,
+								primaryKeyNode.getParserPosition()));
+					}
+					if (columns.get(primaryKey).isGenerated()) {
+						throw new ValidationException(
+							String.format(
+								"Could not create a PRIMARY KEY with a generated column '%s', at %s.\n" +
+									"PRIMARY KEY constraint is not allowed on computed columns.",
+								primaryKey,
+								primaryKeyNode.getParserPosition()));
 					}
 					primaryKeyColumns.add(primaryKey);
 				}
 				primaryKey = UniqueConstraint.primaryKey(
-					derivedPrimaryKey.getConstraintName().orElseGet(() -> "PK_" + primaryKeyColumns.hashCode()),
+					derivedPrimaryKey.getConstraintName()
+						.orElseGet(() -> "PK_" + primaryKeyColumns.hashCode()),
 					primaryKeyColumns);
 			}
 		}
