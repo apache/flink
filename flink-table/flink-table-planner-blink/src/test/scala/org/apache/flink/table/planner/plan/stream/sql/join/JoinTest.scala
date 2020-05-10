@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
@@ -42,7 +43,7 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, b1 FROM ($query1) JOIN ($query2) ON a1 = b1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -50,12 +51,13 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) JOIN ($query2) ON a2 = b2"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testLeftJoinNonEqui(): Unit = {
-    util.verifyPlanWithTrait("SELECT a1, b1 FROM A LEFT JOIN B ON a1 = b1 AND a2 > b2")
+    util.verifyPlan(
+      "SELECT a1, b1 FROM A LEFT JOIN B ON a1 = b1 AND a2 > b2", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -63,14 +65,14 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, b1 FROM ($query1) LEFT JOIN ($query2) ON a1 = b1 AND a2 > b2"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testLeftJoinWithRightNotPkNonEqui(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query = s"SELECT a1, b1 FROM ($query1) LEFT JOIN B ON a1 = b1 AND a2 > b2"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -78,12 +80,12 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) LEFT JOIN ($query2) ON a2 = b2 AND a1 > b1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testLeftJoin(): Unit = {
-    util.verifyPlanWithTrait("SELECT a1, b1 FROM A LEFT JOIN B ON a1 = b1")
+    util.verifyPlan("SELECT a1, b1 FROM A LEFT JOIN B ON a1 = b1", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -91,14 +93,14 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, b1 FROM ($query1) LEFT JOIN ($query2) ON a1 = b1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testLeftJoinWithRightNotPk(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query = s"SELECT a1, b1 FROM ($query1) LEFT JOIN B ON a1 = b1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -106,12 +108,13 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) LEFT JOIN ($query2) ON a2 = b2"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testRightJoinNonEqui(): Unit = {
-    util.verifyPlanWithTrait("SELECT a1, b1 FROM A RIGHT JOIN B ON a1 = b1 AND a2 > b2")
+    util.verifyPlan(
+      "SELECT a1, b1 FROM A RIGHT JOIN B ON a1 = b1 AND a2 > b2", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -119,14 +122,14 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, b1 FROM ($query1) RIGHT JOIN ($query2) ON a1 = b1 AND a2 > b2"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testRightJoinWithRightNotPkNonEqui(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query = s"SELECT a1, b1 FROM ($query1) RIGHT JOIN B ON a1 = b1 AND a2 > b2"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -134,12 +137,12 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) RIGHT JOIN ($query2) ON a2 = b2 AND a1 > b1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testRightJoin(): Unit = {
-    util.verifyPlanWithTrait("SELECT a1, b1 FROM A RIGHT JOIN B ON a1 = b1")
+    util.verifyPlan("SELECT a1, b1 FROM A RIGHT JOIN B ON a1 = b1", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -147,14 +150,14 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, b1 FROM ($query1) RIGHT JOIN ($query2) ON a1 = b1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testRightJoinWithRightNotPk(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1"
     val query = s"SELECT a1, b1 FROM ($query1) RIGHT JOIN B ON a1 = b1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -162,12 +165,13 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B group by b1"
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) RIGHT JOIN ($query2) ON a2 = b2"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testFullJoinNonEqui(): Unit = {
-    util.verifyPlanWithTrait("SELECT a1, b1 FROM A FULL JOIN B ON a1 = b1 AND a2 > b2")
+    util.verifyPlan(
+      "SELECT a1, b1 FROM A FULL JOIN B ON a1 = b1 AND a2 > b2", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -175,14 +179,14 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, b1 FROM ($query1) FULL JOIN ($query2) ON a1 = b1 AND a2 > b2"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testFullJoinWithFullNotPkNonEqui(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query = s"SELECT a1, b1 FROM ($query1) FULL JOIN B ON a1 = b1 AND a2 > b2"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -190,13 +194,13 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) FULL JOIN ($query2) ON a2 = b2 AND a1 > b1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testFullJoin(): Unit = {
     val query = "SELECT a1, b1 FROM A FULL JOIN B ON a1 = b1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -204,14 +208,14 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, b1 FROM ($query1) FULL JOIN ($query2) ON a1 = b1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testFullJoinWithFullNotPk(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query = s"SELECT a1, b1 FROM ($query1) FULL JOIN B ON a1 = b1"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -219,7 +223,7 @@ class JoinTest extends TableTestBase {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1"
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) FULL JOIN ($query2) ON a2 = b2"
-    util.verifyPlanWithTrait(query)
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -233,7 +237,7 @@ class JoinTest extends TableTestBase {
          |  SELECT * FROM src WHERE key = 0) src2
          |ON (src1.key = src2.key AND src2.key > 10)
        """.stripMargin
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

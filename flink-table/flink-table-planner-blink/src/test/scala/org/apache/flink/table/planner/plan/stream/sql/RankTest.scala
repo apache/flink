@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.{ExplainDetail, TableException, ValidationException}
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
@@ -279,7 +279,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -295,7 +295,7 @@ class RankTest extends TableTestBase {
         |WHERE 10 >= row_num
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -310,7 +310,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num = 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -326,7 +326,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 10 AND b IS NOT NULL
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -348,7 +348,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -370,7 +370,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -390,7 +390,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 3
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -417,7 +417,7 @@ class RankTest extends TableTestBase {
          |SELECT max(a) FROM ($sql)
        """.stripMargin
 
-    util.verifyPlanWithTrait(sql2)
+    util.verifyPlan(sql2, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -440,7 +440,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -550,7 +550,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -575,7 +575,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -610,7 +610,7 @@ class RankTest extends TableTestBase {
          |WHERE rank_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -636,7 +636,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= a
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   // TODO add tests about multi-sinks and udf

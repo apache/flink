@@ -38,12 +38,12 @@ class SinkTest extends TableTestBase {
   def testSingleSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val sink = util.createCollectTableSink(Array("a"), Array(LONG))
-    util.writeToSink(table, sink, "sink")
-    util.verifyPlan()
+    util.verifyPlanInsert(table, sink, "sink")
   }
 
   @Test
   def testMultiSinks(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS sum_a, c FROM MyTable GROUP BY c")
@@ -52,11 +52,13 @@ class SinkTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(sum_a) AS total_min FROM table1")
 
     val sink1 = util.createCollectTableSink(Array("total_sum"), Array(INT))
-    util.writeToSink(table2, sink1, "sink1")
+    util.tableEnv.registerTableSink("sink1", sink1)
+    stmtSet.addInsert("sink1", table2)
 
     val sink2 = util.createCollectTableSink(Array("total_min"), Array(INT))
-    util.writeToSink(table3, sink2, "sink2")
+    util.tableEnv.registerTableSink("sink2", sink2)
+    stmtSet.addInsert("sink2", table3)
 
-    util.verifyPlan()
+    util.verifyPlan(stmtSet)
   }
 }

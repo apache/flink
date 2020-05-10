@@ -273,6 +273,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     */
   @Test
   def testMultipleWindowAggregates(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
     util.addDataStream[(Int, Long, String)]("T1", 'id1, 'rowtime.rowtime, 'text)
     util.addDataStream[(Int, Long, Int, String, String)](
       "T2",
@@ -313,7 +314,8 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY HOP(ts, INTERVAL '12' SECOND, INTERVAL '4' SECOND), id1
       """.stripMargin)
     val appendSink1 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.writeToSink(table3, appendSink1, "appendSink1")
+    util.tableEnv.registerTableSink("appendSink1", appendSink1)
+    stmtSet.addInsert("appendSink1", table3)
 
     val table4 = util.tableEnv.sqlQuery(
       """
@@ -323,7 +325,8 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY TUMBLE(ts, INTERVAL '9' SECOND), id1
       """.stripMargin)
     val appendSink2 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.writeToSink(table4, appendSink2, "appendSink2")
+    util.tableEnv.registerTableSink("appendSink2", appendSink2)
+    stmtSet.addInsert("appendSink2", table4)
 
     val table5 = util.tableEnv.sqlQuery(
       """
@@ -333,9 +336,10 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY id1
       """.stripMargin)
     val appendSink3 = util.createRetractTableSink(Array("a", "b"), Array(INT, LONG))
-    util.writeToSink(table5, appendSink3, "appendSink3")
+    util.tableEnv.registerTableSink("appendSink3", appendSink3)
+    stmtSet.addInsert("appendSink3", table5)
 
-    util.verifyExplain()
+    util.verifyExplain(stmtSet)
   }
 
   @Test
