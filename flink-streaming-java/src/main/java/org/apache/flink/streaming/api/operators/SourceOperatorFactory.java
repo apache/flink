@@ -30,10 +30,15 @@ import org.apache.flink.runtime.source.coordinator.SourceCoordinatorProvider;
  */
 public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OUT>
 		implements CoordinatedOperatorFactory<OUT> {
+
+	private static final long serialVersionUID = 1L;
+
 	/** The {@link Source} to create the {@link SourceOperator}. */
 	private final Source<OUT, ?, ?> source;
+
 	/** The number of worker thread for the source coordinator. */
 	private final int numCoordinatorWorkerThread;
+
 	/** The {@link OperatorEventDispatcher} to register the SourceOperator. */
 	private OperatorEventDispatcher operatorEventDispatcher;
 

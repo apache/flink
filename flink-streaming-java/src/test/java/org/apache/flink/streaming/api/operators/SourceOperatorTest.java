@@ -58,10 +58,13 @@ import static org.junit.Assert.assertTrue;
 /**
  * Unit test for {@link SourceOperator}.
  */
+@SuppressWarnings("serial")
 public class SourceOperatorTest {
+
 	private static final int NUM_SPLITS = 5;
 	private static final int SUBTASK_INDEX = 1;
 	private static final MockSourceSplit MOCK_SPLIT = new MockSourceSplit(1234, 10);
+
 	private MockSource source;
 	private MockOperatorEventGateway mockGateway;
 	private SourceOperator<Integer, MockSourceSplit> operator;
@@ -176,8 +179,9 @@ public class SourceOperatorTest {
 	/**
 	 * A testing class that overrides the getRuntimeContext() Method.
 	 */
-	private static class TestingSourceOperator<OUT, SplitT extends SourceSplit> extends
-																				SourceOperator<OUT, SplitT> {
+	private static class TestingSourceOperator<OUT, SplitT extends SourceSplit>
+			extends SourceOperator<OUT, SplitT> {
+
 		private final int subtaskIndex;
 
 		TestingSourceOperator(Source<OUT, SplitT, ?> source, int subtaskIndex) {
