@@ -36,26 +36,7 @@ public class SimpleVersionedSerializationTest {
 
 	@Test
 	public void testSerializationRoundTrip() throws IOException {
-		final SimpleVersionedSerializer<String> utfEncoder = new SimpleVersionedSerializer<String>() {
-
-			private static final int VERSION = Integer.MAX_VALUE / 2; // version should occupy many bytes
-
-			@Override
-			public int getVersion() {
-				return VERSION;
-			}
-
-			@Override
-			public byte[] serialize(String str) throws IOException {
-				return str.getBytes(StandardCharsets.UTF_8);
-			}
-
-			@Override
-			public String deserialize(int version, byte[] serialized) throws IOException {
-				assertEquals(VERSION, version);
-				return new String(serialized, StandardCharsets.UTF_8);
-			}
-		};
+		final SimpleVersionedSerializer<String> utfEncoder = new TestStringSerializer();
 
 		final String testString = "dugfakgs";
 		final DataOutputSerializer out = new DataOutputSerializer(32);
@@ -108,5 +89,33 @@ public class SimpleVersionedSerializationTest {
 		final String deserializedFromBytes = SimpleVersionedSerialization.readVersionAndDeSerialize(emptySerializer, outBytes);
 		assertEquals(testString, deserialized);
 		assertEquals(testString, deserializedFromBytes);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testUnderflow() throws Exception {
+		SimpleVersionedSerialization.readVersionAndDeSerialize(new TestStringSerializer(), new byte[7]);
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static final class TestStringSerializer implements SimpleVersionedSerializer<String> {
+
+		private static final int VERSION = Integer.MAX_VALUE / 2; // version should occupy many bytes
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
+
+		@Override
+		public byte[] serialize(String str) throws IOException {
+			return str.getBytes(StandardCharsets.UTF_8);
+		}
+
+		@Override
+		public String deserialize(int version, byte[] serialized) throws IOException {
+			assertEquals(VERSION, version);
+			return new String(serialized, StandardCharsets.UTF_8);
+		}
 	}
 }
