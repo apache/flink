@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.operators.collect;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
-import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.streaming.api.operators.CoordinatedOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleUdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -36,8 +35,6 @@ public class CollectSinkOperatorFactory extends SimpleUdfStreamOperatorFactory<O
 
 	private final CollectSinkOperator<?> operator;
 
-	private OperatorEventDispatcher operatorEventDispatcher;
-
 	public CollectSinkOperatorFactory(CollectSinkOperator<?> operator) {
 		super(operator);
 		this.operator = operator;
@@ -45,11 +42,13 @@ public class CollectSinkOperatorFactory extends SimpleUdfStreamOperatorFactory<O
 
 	@Override
 	public <T extends StreamOperator<Object>> T  createStreamOperator(StreamOperatorParameters<Object> parameters) {
-		OperatorEventGateway operatorEventGateway = operatorEventDispatcher.registerEventHandler(
-			parameters.getStreamConfig().getOperatorID(),
-			operator);
-		operator.setOperatorEventGateway(operatorEventGateway);
+		final OperatorID operatorId = parameters.getStreamConfig().getOperatorID();
+		final OperatorEventDispatcher eventDispatcher = parameters.getOperatorEventDispatcher();
+
+		operator.setOperatorEventGateway(eventDispatcher.getOperatorEventGateway(operatorId));
 		operator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
+		eventDispatcher.registerEventHandler(operatorId, operator);
+
 		return (T) operator;
 	}
 
@@ -57,10 +56,5 @@ public class CollectSinkOperatorFactory extends SimpleUdfStreamOperatorFactory<O
 	public OperatorCoordinator.Provider getCoordinatorProvider(String operatorName, OperatorID operatorID) {
 		operator.getOperatorIdFuture().complete(operatorID);
 		return new CollectSinkOperatorCoordinator.Provider(operatorID);
-	}
-
-	@Override
-	public void setOperatorEventDispatcher(OperatorEventDispatcher operatorEventDispatcher) {
-		this.operatorEventDispatcher = operatorEventDispatcher;
 	}
 }

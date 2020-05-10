@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 
 /**
  * A factory class for the {@link StreamOperator}s implementing
@@ -43,15 +42,4 @@ public interface CoordinatedOperatorFactory<OUT> extends StreamOperatorFactory<O
 	 * @return the provider of the {@link OperatorCoordinator} for this operator.
 	 */
 	OperatorCoordinator.Provider getCoordinatorProvider(String operatorName, OperatorID operatorID);
-
-	/**
-	 * Sets the {@link OperatorEventDispatcher} for registering the
-	 * {@link org.apache.flink.runtime.operators.coordination.OperatorEventHandler OperaterEventHandler} and setup the
-	 * {@link org.apache.flink.runtime.operators.coordination.OperatorEventGateway OperatorEventGateway} for the
-	 * SourceOperator to send events to the operator coordinator. This method will be invoked before
-	 * {@link #createStreamOperator(StreamOperatorParameters)} is invoked.
-	 *
-	 * @param operatorEventDispatcher the {@link OperatorEventDispatcher} to register the
-	 */
-	void setOperatorEventDispatcher(OperatorEventDispatcher operatorEventDispatcher);
 }
