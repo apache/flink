@@ -632,15 +632,6 @@ public final class FileUtils {
 		return Paths.get(System.getProperty("user.dir"));
 	}
 
-	/**
-	 * Checks whether the given file has a class extension.
-	 *
-	 * @param file to check
-	 * @return true if the file has a class extension, otherwise false
-	 */
-	public static boolean isClassFile(java.nio.file.Path file) {
-		return CLASS_FILE_EXTENSION.equals(org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(file.toString()));
-	}
 
 	/**
 	 * Checks whether the given file has a jar extension.
