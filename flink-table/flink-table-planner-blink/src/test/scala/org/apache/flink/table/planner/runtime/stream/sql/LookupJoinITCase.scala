@@ -17,68 +17,114 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink}
 import org.apache.flink.types.Row
 import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.Test
-import java.lang.{Integer => JInt, Long => JLong}
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
+import org.junit.{After, Before, Test}
 
-class LookupJoinITCase extends StreamingTestBase {
+import java.lang.{Boolean => JBoolean}
+import java.util.{Collection => JCollection}
+
+import scala.collection.JavaConversions._
+
+@RunWith(classOf[Parameterized])
+class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   val data = List(
-    (1L, 12, "Julian"),
-    (2L, 15, "Hello"),
-    (3L, 15, "Fabian"),
-    (8L, 11, "Hello world"),
-    (9L, 12, "Hello world!"))
+    rowOf(1L, 12, "Julian"),
+    rowOf(2L, 15, "Hello"),
+    rowOf(3L, 15, "Fabian"),
+    rowOf(8L, 11, "Hello world"),
+    rowOf(9L, 12, "Hello world!"))
 
   val dataWithNull = List(
-    Row.of(null, new JInt(15), "Hello"),
-    Row.of(new JLong(3), new JInt(15), "Fabian"),
-    Row.of(null, new JInt(11), "Hello world"),
-    Row.of(new JLong(9), new JInt(12), "Hello world!"))
-
-  val dataRowType:TypeInformation[Row] = new RowTypeInfo(
-    BasicTypeInfo.LONG_TYPE_INFO,
-    BasicTypeInfo.INT_TYPE_INFO,
-    BasicTypeInfo.STRING_TYPE_INFO)
+    rowOf(null, 15, "Hello"),
+    rowOf(3L, 15, "Fabian"),
+    rowOf(null, 11, "Hello world"),
+    rowOf(9L, 12, "Hello world!"))
 
   val userData = List(
-    (11, 1L, "Julian"),
-    (22, 2L, "Jark"),
-    (33, 3L, "Fabian"),
-    (11, 4L, "Hello world"),
-    (11, 5L, "Hello world"))
+    rowOf(11, 1L, "Julian"),
+    rowOf(22, 2L, "Jark"),
+    rowOf(33, 3L, "Fabian"),
+    rowOf(11, 4L, "Hello world"),
+    rowOf(11, 5L, "Hello world"))
 
   val userDataWithNull = List(
-    (11, 1L, "Julian"),
-    (22, null, "Hello"),
-    (33, 3L, "Fabian"),
-    (44, null, "Hello world")
-  )
+    rowOf(11, 1L, "Julian"),
+    rowOf(22, null, "Hello"),
+    rowOf(33, 3L, "Fabian"),
+    rowOf(44, null, "Hello world"))
 
-  val userSchema = TableSchema.builder()
-    .field("age", Types.INT)
-    .field("id", Types.LONG)
-    .field("name", Types.STRING)
-    .build()
+  @Before
+  override def before(): Unit = {
+    super.before()
+    createScanTable("src", data)
+    createScanTable("nullable_src", dataWithNull)
+    createLookupTable("user_table", userData)
+    createLookupTable("nullable_user_table", userDataWithNull)
+  }
+  
+  @After
+  override def after(): Unit = {
+    if (legacyTableSource) {
+      assertEquals(0, InMemoryLookupableTableSource.RESOURCE_COUNTER.get())
+    } else {
+      assertEquals(0, TestValuesTableFactory.RESOURCE_COUNTER.get())
+    }
+  }
+
+  private def createLookupTable(tableName: String, data: List[Row]): Unit = {
+    if (legacyTableSource) {
+      val userSchema = TableSchema.builder()
+        .field("age", Types.INT)
+        .field("id", Types.LONG)
+        .field("name", Types.STRING)
+        .build()
+      InMemoryLookupableTableSource.createTemporaryTable(
+        tEnv, isAsync = false, data, userSchema, tableName)
+    } else {
+      val dataId = TestValuesTableFactory.registerData(data)
+      tEnv.executeSql(
+        s"""
+           |CREATE TABLE $tableName (
+           |  `age` INT,
+           |  `id` BIGINT,
+           |  `name` STRING
+           |) WITH (
+           |  'connector' = 'values',
+           |  'data-id' = '$dataId'
+           |)
+           |""".stripMargin)
+    }
+  }
+
+  private def createScanTable(tableName: String, data: List[Row]): Unit = {
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE $tableName (
+         |  `id` BIGINT,
+         |  `len` INT,
+         |  `content` STRING,
+         |  `proctime` AS PROCTIME()
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId'
+         |)
+         |""".stripMargin)
+  }
 
   @Test
   def testJoinTemporalTable(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
     val sink = new TestingAppendSink
@@ -94,16 +140,9 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableWithUdfFilter(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
     tEnv.registerFunction("add", new TestAddWithOpen)
 
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
       "WHERE add(T.id, D.id) > 3 AND add(T.id, 2) > 3 AND add (D.id, 2) > 3"
 
@@ -120,14 +159,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnConstantKey(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON D.id = 1"
 
     val sink = new TestingAppendSink
@@ -142,15 +174,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnNullableKey(): Unit = {
-    implicit val tpe: TypeInformation[Row] = dataRowType
-    val streamTable = env.fromCollection(dataWithNull)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, D.name FROM nullable_src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
     val sink = new TestingAppendSink
@@ -163,14 +187,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableWithPushDown(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, T.content, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
 
     val sink = new TestingAppendSink
@@ -185,14 +202,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableWithNonEqualFilter(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
 
     val sink = new TestingAppendSink
@@ -207,14 +217,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiFields(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
 
     val sink = new TestingAppendSink
@@ -229,14 +232,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFields(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
 
     val sink = new TestingAppendSink
@@ -251,17 +247,10 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFields2(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    // pk is (id: Int, name: String)
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
     // test left table's join key define order diffs from right's
-    val sql = "SELECT t1.id, t1.len, D.name FROM (select proctime, content, id, len FROM T) t1 " +
-      "JOIN userTable for system_time as of t1.proctime AS D " +
+    val sql = "SELECT t1.id, t1.len, D.name FROM " +
+      "(select proctime, content, id, len FROM src) t1 " +
+      "JOIN user_table for system_time as of t1.proctime AS D " +
       "ON t1.content = D.name AND t1.id = D.id"
 
     val sink = new TestingAppendSink
@@ -276,14 +265,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithConstantKey(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND 3 = D.id"
 
     val sink = new TestingAppendSink
@@ -296,14 +278,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithStringConstantKey(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON D.name = 'Fabian' AND T.id = D.id"
 
     val sink = new TestingAppendSink
@@ -316,14 +291,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiConstantKey(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON D.name = 'Fabian' AND 3 = D.id"
 
     val sink = new TestingAppendSink
@@ -342,14 +310,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testLeftJoinTemporalTable(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, D.name, D.age FROM T LEFT JOIN userTable " +
+    val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
     val sink = new TestingAppendSink
@@ -367,15 +328,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testLeftJoinTemporalTableOnNullableKey(): Unit = {
-    implicit val tpe: TypeInformation[Row] = dataRowType
-    val streamTable = env.fromCollection(dataWithNull)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, D.name FROM T LEFT OUTER JOIN userTable " +
+    val sql = "SELECT T.id, T.len, D.name FROM nullable_src AS T LEFT OUTER JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
     val sink = new TestingAppendSink
@@ -392,14 +345,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testLeftJoinTemporalTableOnMultKeyFields(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, D.name, D.age FROM T LEFT JOIN userTable " +
+    val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id and T.content = D.name"
 
     val sink = new TestingAppendSink
@@ -417,15 +363,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
-    implicit val tpe: TypeInformation[Row] = dataRowType
-    val streamTable = env.fromCollection(dataWithNull)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, D.name FROM nullable_src AS T JOIN nullable_user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
 
     val sink = new TestingAppendSink
@@ -439,15 +377,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testLeftJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
-    implicit val tpe: TypeInformation[Row] = dataRowType
-    val streamTable = env.fromCollection(dataWithNull)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT D.id, T.len, D.name FROM T LEFT JOIN userTable " +
+    val sql = "SELECT D.id, T.len, D.name FROM nullable_src AS T LEFT JOIN nullable_user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
 
     val sink = new TestingAppendSink
@@ -464,15 +394,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnNullConstantKey(): Unit = {
-    implicit val tpe: TypeInformation[Row] = dataRowType
-    val streamTable = env.fromCollection(dataWithNull)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, T.content FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, T.content FROM nullable_src AS T JOIN nullable_user_table " +
       "for system_time as of T.proctime AS D ON D.id = null"
 
     val sink = new TestingAppendSink
@@ -484,14 +406,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithNullConstantKey(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND null = D.id"
 
     val sink = new TestingAppendSink
@@ -503,14 +418,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithUDF(): Unit = {
-    val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
-    tEnv.registerTable("T", streamTable)
-
-    InMemoryLookupableTableSource.createTemporaryTable(
-      tEnv, isAsync = false, userData, userSchema, "userTable")
-
-    val sql = "SELECT T.id, T.content, D.age, D.id FROM T JOIN userTable " +
+    val sql = "SELECT T.id, T.content, D.age, D.id FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D " +
       "ON T.id = D.id + 4 AND T.content = concat(D.name, '!') AND D.age = 11"
 
@@ -521,5 +429,13 @@ class LookupJoinITCase extends StreamingTestBase {
     val expected = Seq(
       "9,Hello world!,11,5")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+}
+
+object LookupJoinITCase {
+  @Parameterized.Parameters(name = "LegacyTableSource={0}")
+  def parameters(): JCollection[Array[Object]] = {
+    Seq[Array[AnyRef]](Array(JBoolean.TRUE), Array(JBoolean.FALSE))
   }
 }

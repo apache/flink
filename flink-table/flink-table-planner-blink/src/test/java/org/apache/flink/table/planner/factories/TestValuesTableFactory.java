@@ -26,22 +26,29 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -53,9 +60,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.collection.Seq;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Test implementation of {@link DynamicTableSourceFactory} that creates
@@ -145,7 +157,9 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 	// Factory
 	// --------------------------------------------------------------------------------------------
 
-	public static final String IDENTIFIER = "values";
+	public static final AtomicInteger RESOURCE_COUNTER = new AtomicInteger();
+
+	private static final String IDENTIFIER = "values";
 
 	private static final ConfigOption<String> DATA_ID = ConfigOptions
 		.key("data-id")
@@ -172,6 +186,16 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 		.stringType()
 		.defaultValue("DEFAULT"); // class path which implements DynamicTableSource
 
+	private static final ConfigOption<String> LOOKUP_FUNCTION_CLASS  = ConfigOptions
+		.key("lookup-function-class")
+		.stringType()
+		.noDefaultValue();
+
+	private static final ConfigOption<Boolean> ASYNC_ENABLED = ConfigOptions
+		.key("async")
+		.booleanType()
+		.defaultValue(false);
+
 	@Override
 	public String factoryIdentifier() {
 		return IDENTIFIER;
@@ -186,10 +210,20 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 		boolean isBounded = helper.getOptions().get(BOUNDED);
 		String dataId = helper.getOptions().get(DATA_ID);
 		String sourceClass = helper.getOptions().get(TABLE_SOURCE_CLASS);
+		boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
+		String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
+
 		if (sourceClass.equals("DEFAULT")) {
 			Collection<Tuple2<RowKind, Row>> data = registeredData.getOrDefault(dataId, Collections.emptyList());
 			DataType rowDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
-			return new TestValuesTableSource(changelogMode, isBounded, runtimeSource, rowDataType, data);
+			return new TestValuesTableSource(
+				changelogMode,
+				isBounded,
+				runtimeSource,
+				rowDataType,
+				data,
+				isAsync,
+				lookupFunctionClass);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -214,7 +248,9 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 			CHANGELOG_MODE,
 			BOUNDED,
 			RUNTIME_SOURCE,
-			TABLE_SOURCE_CLASS));
+			TABLE_SOURCE_CLASS,
+			LOOKUP_FUNCTION_CLASS,
+			ASYNC_ENABLED));
 	}
 
 	private ChangelogMode parseChangelogMode(String string) {
@@ -247,23 +283,30 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 	/**
 	 * Values {@link DynamicTableSource} for testing.
 	 */
-	private static class TestValuesTableSource implements ScanTableSource {
+	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource {
 
 		private final ChangelogMode changelogMode;
 		private final boolean bounded;
 		private final String runtimeSource;
 		private final DataType physicalRowDataType;
 		private final Collection<Tuple2<RowKind, Row>> data;
+		private final boolean isAsync;
+		private final @Nullable String lookupFunctionClass;
 
 		private TestValuesTableSource(
-			ChangelogMode changelogMode,
-			boolean bounded, String runtimeSource,
-			DataType physicalRowDataType, Collection<Tuple2<RowKind, Row>> data) {
+				ChangelogMode changelogMode,
+				boolean bounded, String runtimeSource,
+				DataType physicalRowDataType,
+				Collection<Tuple2<RowKind, Row>> data,
+				boolean isAsync,
+				@Nullable String lookupFunctionClass) {
 			this.changelogMode = changelogMode;
 			this.bounded = bounded;
 			this.runtimeSource = runtimeSource;
 			this.physicalRowDataType = physicalRowDataType;
 			this.data = data;
+			this.isAsync = isAsync;
+			this.lookupFunctionClass = lookupFunctionClass;
 		}
 
 		@Override
@@ -273,7 +316,7 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public ScanRuntimeProvider getScanRuntimeProvider(Context runtimeProviderContext) {
+		public ScanRuntimeProvider getScanRuntimeProvider(ScanTableSource.Context runtimeProviderContext) {
 			TypeSerializer<RowData> serializer = (TypeSerializer<RowData>) runtimeProviderContext
 				.createTypeInformation(physicalRowDataType)
 				.createSerializer(new ExecutionConfig());
@@ -295,9 +338,51 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 			}
 		}
 
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		@Override
+		public LookupRuntimeProvider getLookupRuntimeProvider(LookupTableSource.Context context) {
+			if (lookupFunctionClass != null) {
+				// use the specified lookup function
+				try {
+					Class<?> clazz = Class.forName(lookupFunctionClass);
+					Object udtf = InstantiationUtil.instantiate(clazz);
+					if (udtf instanceof TableFunction) {
+						return TableFunctionProvider.of((TableFunction) udtf);
+					} else {
+						return AsyncTableFunctionProvider.of((AsyncTableFunction) udtf);
+					}
+				} catch (ClassNotFoundException e) {
+					throw new IllegalArgumentException("Could not instantiate class: " + lookupFunctionClass);
+				}
+			}
+
+			int[] lookupIndices = Arrays.stream(context.getKeys())
+				.mapToInt(k -> k[0])
+				.toArray();
+			Map<Row, List<Row>> mapping = new HashMap<>();
+			data.forEach(entry -> {
+				Row key = Row.of(Arrays.stream(lookupIndices)
+					.mapToObj(idx -> entry.f1.getField(idx))
+					.toArray());
+				List<Row> list = mapping.get(key);
+				if (list != null) {
+					list.add(entry.f1);
+				} else {
+					list = new ArrayList<>();
+					list.add(entry.f1);
+					mapping.put(key, list);
+				}
+			});
+			if (isAsync) {
+				return AsyncTableFunctionProvider.of(new AsyncTestValueLookupFunction(mapping));
+			} else {
+				return TableFunctionProvider.of(new TestValuesLookupFunction(mapping));
+			}
+		}
+
 		@Override
 		public DynamicTableSource copy() {
-			return new TestValuesTableSource(changelogMode, bounded, runtimeSource, physicalRowDataType, data);
+			return new TestValuesTableSource(changelogMode, bounded, runtimeSource, physicalRowDataType, data, isAsync, lookupFunctionClass);
 		}
 
 		@Override
@@ -317,6 +402,93 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 				}
 			}
 			return result;
+		}
+	}
+
+	/**
+	 * A lookup function which find matched rows with the given fields.
+	 */
+	public static class TestValuesLookupFunction extends TableFunction<Row> {
+
+		private static final long serialVersionUID = 1L;
+		private final Map<Row, List<Row>> data;
+		private transient boolean isOpenCalled = false;
+
+		private TestValuesLookupFunction(Map<Row, List<Row>> data) {
+			this.data = data;
+		}
+
+		@Override
+		public void open(FunctionContext context) throws Exception {
+			RESOURCE_COUNTER.incrementAndGet();
+			isOpenCalled = true;
+		}
+
+		public void eval(Object... inputs) {
+			checkArgument(isOpenCalled, "open() is not called.");
+			Row key = Row.of(inputs);
+			if (Arrays.asList(inputs).contains(null)) {
+				throw new IllegalArgumentException(String.format(
+					"Lookup key %s contains null value, which should not happen.", key));
+			}
+			List<Row> list = data.get(key);
+			if (list != null) {
+				list.forEach(this::collect);
+			}
+		}
+
+		@Override
+		public void close() throws Exception {
+			RESOURCE_COUNTER.decrementAndGet();
+		}
+	}
+
+	/**
+	 * An async lookup function which find matched rows with the given fields.
+	 */
+	public static class AsyncTestValueLookupFunction extends AsyncTableFunction<Row> {
+
+		private static final long serialVersionUID = 1L;
+		private final Map<Row, List<Row>> mapping;
+		private transient boolean isOpenCalled = false;
+		private transient ExecutorService executor;
+
+		private AsyncTestValueLookupFunction(Map<Row, List<Row>> mapping) {
+			this.mapping = mapping;
+		}
+
+		@Override
+		public void open(FunctionContext context) throws Exception {
+			RESOURCE_COUNTER.incrementAndGet();
+			isOpenCalled = true;
+			executor = Executors.newSingleThreadExecutor();
+		}
+
+		public void eval(CompletableFuture<Collection<Row>> resultFuture, Object... inputs) {
+			checkArgument(isOpenCalled, "open() is not called.");
+			final Row key = Row.of(inputs);
+			if (Arrays.asList(inputs).contains(null)) {
+				throw new IllegalArgumentException(String.format(
+					"Lookup key %s contains null value, which should not happen.", key));
+			}
+			CompletableFuture
+				.supplyAsync(() -> {
+					List<Row> list = mapping.get(key);
+					if (list == null) {
+						return Collections.<Row>emptyList();
+					} else {
+						return list;
+					}
+				}, executor)
+				.thenAccept(resultFuture::complete);
+		}
+
+		@Override
+		public void close() throws Exception {
+			RESOURCE_COUNTER.decrementAndGet();
+			if (executor != null && !executor.isShutdown()) {
+				executor.shutdown();
+			}
 		}
 	}
 

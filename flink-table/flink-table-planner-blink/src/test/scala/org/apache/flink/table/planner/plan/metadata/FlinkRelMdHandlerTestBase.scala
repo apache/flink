@@ -20,10 +20,12 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.expressions._
-import ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunctionHelper}
 import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.operations.TableSourceQueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
@@ -36,7 +38,7 @@ import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank, LogicalTableAggregate, LogicalWindowAggregate, LogicalWindowTableAggregate}
+import org.apache.flink.table.planner.plan.nodes.calcite._
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -47,31 +49,33 @@ import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.{CountAggFunction, Top3}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType, VariableRankRange}
 import org.apache.flink.table.types.AtomicDataType
-import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
+import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.utils.CatalogManagerMocks
+
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
-import org.apache.calcite.rel.core.{AggregateCall, Calc, JoinInfo, JoinRelType, Project, Window}
-import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject, LogicalSort, LogicalTableScan, LogicalValues}
+import org.apache.calcite.rel.core._
+import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery, RelMetadataQueryBase}
 import org.apache.calcite.rex._
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.SqlWindow
-import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, INTEGER, TIME, TIMESTAMP, VARCHAR}
+import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN, LESS_THAN, MINUS, MULTIPLY, OR, PLUS}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.util.{DateString, ImmutableBitSet, ImmutableIntList, TimeString, TimestampString}
+import org.apache.calcite.util._
+
 import org.junit.{Before, BeforeClass}
+
 import java.math.BigDecimal
 import java.util
-
-import org.apache.flink.table.utils.CatalogManagerMocks
 
 import scala.collection.JavaConversions._
 
@@ -1931,27 +1935,24 @@ class FlinkRelMdHandlerTestBase {
   // FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
   protected lazy val (batchLookupJoin, streamLookupJoin) = {
     val temporalTableSource = new TestTemporalTable
-    val temporalTableRowType = typeFactory.builder()
-        .add("id", SqlTypeName.INTEGER)
-        .add("name", SqlTypeName.VARCHAR)
-        .add("age", SqlTypeName.INTEGER)
-        .build()
+    val batchSourceOp = new TableSourceQueryOperation[RowData](temporalTableSource, true)
+    val batchScan = relBuilder.queryOperation(batchSourceOp).build().asInstanceOf[TableScan]
     val batchLookupJoin = new BatchExecLookupJoin(
       cluster,
       batchPhysicalTraits,
       studentBatchScan,
-      temporalTableSource,
-      temporalTableRowType,
+      batchScan.getTable,
       None,
       JoinInfo.of(ImmutableIntList.of(0), ImmutableIntList.of(0)),
       JoinRelType.INNER
     )
+    val streamSourceOp = new TableSourceQueryOperation[RowData](temporalTableSource, false)
+    val streamScan = relBuilder.queryOperation(streamSourceOp).build().asInstanceOf[TableScan]
     val streamLookupJoin = new StreamExecLookupJoin(
       cluster,
       streamPhysicalTraits,
       studentBatchScan,
-      temporalTableSource,
-      temporalTableRowType,
+      streamScan.getTable,
       None,
       JoinInfo.of(ImmutableIntList.of(0), ImmutableIntList.of(0)),
       JoinRelType.INNER

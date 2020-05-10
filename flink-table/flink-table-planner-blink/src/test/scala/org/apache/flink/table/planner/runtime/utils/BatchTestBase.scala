@@ -410,6 +410,18 @@ class BatchTestBase extends BatchAbstractTestBase {
     boundedStream.setParallelism(1)
     boundedStream
   }
+
+  /**
+   * Creates a new Row and assigns the given values to the Row's fields.
+   * We use [[rowOf()]] here to avoid conflicts with [[ImplicitExpressionConversions.row]].
+   */
+  protected def rowOf(args: Any*): Row = {
+    val row = new Row(args.length)
+    0 until args.length foreach {
+      i => row.setField(i, args(i))
+    }
+    row
+  }
 }
 
 object BatchTestBase {
