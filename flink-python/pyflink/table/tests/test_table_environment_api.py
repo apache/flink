@@ -224,6 +224,26 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         expected = ['1,Hi,Hello']
         self.assert_equals(actual, expected)
 
+    def test_statement_set(self):
+        t_env = self.t_env
+        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env.register_table_sink(
+            "sink1",
+            source_sink_utils.TestAppendSink(field_names, field_types))
+        t_env.register_table_sink(
+            "sink2",
+            source_sink_utils.TestAppendSink(field_names, field_types))
+
+        stmt_set = t_env.create_statement_set()
+
+        stmt_set.add_insert_sql("insert into sink1 select * from %s where a > 100" % source)\
+            .add_insert("sink2", source.filter("a < 100"), False)
+
+        actual = stmt_set.explain(ExplainDetail.CHANGELOG_MODE)
+        assert isinstance(actual, str)
+
     def test_explain_with_multi_sinks(self):
         t_env = self.t_env
         source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
@@ -429,6 +449,26 @@ class BatchTableEnvironmentTests(TableEnvironmentTest, PyFlinkBatchTableTestCase
 
         actual = t_env.explain(extended=True)
 
+        assert isinstance(actual, str)
+
+    def test_statement_set(self):
+        t_env = self.t_env
+        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env.register_table_sink(
+            "sink1",
+            CsvTableSink(field_names, field_types, "path1"))
+        t_env.register_table_sink(
+            "sink2",
+            CsvTableSink(field_names, field_types, "path2"))
+
+        stmt_set = t_env.create_statement_set()
+
+        stmt_set.add_insert_sql("insert into sink1 select * from %s where a > 100" % source)\
+            .add_insert("sink2", source.filter("a < 100"))
+
+        actual = stmt_set.explain()
         assert isinstance(actual, str)
 
     def test_create_table_environment(self):

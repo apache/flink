@@ -575,11 +575,42 @@ abstract class TableEnvImpl(
     executeOperation(operations.get(0))
   }
 
+  override def createStatementSet = new StatementSetImpl(this)
+
   override def executeInternal(operations: JList[ModifyOperation]): TableResult = {
-    if (operations.size() != 1) {
-      throw new TableException("Only one ModifyOperation is supported now.");
+    val dataSinks = operations.map {
+      case catalogSinkModifyOperation: CatalogSinkModifyOperation =>
+        writeToSinkAndTranslate(
+          catalogSinkModifyOperation.getChild,
+          InsertOptions(
+            catalogSinkModifyOperation.getDynamicOptions,
+            catalogSinkModifyOperation.isOverwrite),
+          catalogSinkModifyOperation.getTableIdentifier)
+      case o =>
+        throw new TableException("Unsupported operation: " + o)
     }
-    executeOperation(operations.get(0))
+
+    val sinkIdentifierNames = extractSinkIdentifierNames(operations)
+    val jobName = "insert_into_" + String.join(",", sinkIdentifierNames)
+    try {
+      val jobClient = execute(dataSinks, jobName)
+      val builder = TableSchema.builder()
+      val affectedRowCounts = new Array[JLong](operations.size())
+      operations.indices.foreach { idx =>
+        // use sink identifier name as field name
+        builder.field(sinkIdentifierNames(idx), DataTypes.BIGINT())
+        affectedRowCounts(idx) = -1L
+      }
+      TableResultImpl.builder()
+        .jobClient(jobClient)
+        .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+        .tableSchema(builder.build())
+        .data(JCollections.singletonList(Row.of(affectedRowCounts: _*)))
+        .build()
+    } catch {
+      case e: Exception =>
+        throw new TableException("Failed to execute sql", e);
+    }
   }
 
   override def sqlUpdate(stmt: String): Unit = {
@@ -610,20 +641,7 @@ abstract class TableEnvImpl(
   private def executeOperation(operation: Operation): TableResult = {
     operation match {
       case catalogSinkModifyOperation: CatalogSinkModifyOperation =>
-        val dataSink = writeToSinkAndTranslate(
-          catalogSinkModifyOperation.getChild,
-          InsertOptions(
-            catalogSinkModifyOperation.getDynamicOptions,
-            catalogSinkModifyOperation.isOverwrite),
-          catalogSinkModifyOperation.getTableIdentifier)
-        val jobName = extractJobName(catalogSinkModifyOperation)
-        val jobClient = execute(JCollections.singletonList(dataSink), jobName)
-        TableResultImpl.builder()
-          .jobClient(jobClient)
-          .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-          .tableSchema(TableSchema.builder().field("affected_rowcount", DataTypes.BIGINT()).build())
-          .data(JCollections.singletonList(Row.of(JLong.valueOf(-1L))))
-          .build()
+        executeInternal(JCollections.singletonList(catalogSinkModifyOperation))
       case createTableOperation: CreateTableOperation =>
         if (createTableOperation.isTemporary) {
           catalogManager.createTemporaryTable(
@@ -807,14 +825,16 @@ abstract class TableEnvImpl(
       }))
   }
 
-  private def extractJobName(operation: Operation): String = {
-    val tableName = operation match {
+  /**
+    * extract sink identifier names from [[ModifyOperation]]s.
+    */
+  private def extractSinkIdentifierNames(operations: JList[ModifyOperation]): JList[String] = {
+    operations.map {
       case catalogSinkModifyOperation: CatalogSinkModifyOperation =>
-        catalogSinkModifyOperation.getTableIdentifier.toString
-      case _ =>
-        throw new UnsupportedOperationException("Unsupported operation: " + operation)
+        catalogSinkModifyOperation.getTableIdentifier.asSummaryString()
+      case o =>
+        throw new UnsupportedOperationException("Unsupported operation: " + o)
     }
-    "insert_into_" + tableName
   }
 
   /**
