@@ -24,6 +24,7 @@ import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
+import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -40,6 +41,8 @@ import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidator;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -129,7 +132,7 @@ class MergeTableLikeUtil {
 			TableSchema sourceSchema,
 			List<SqlNode> derivedColumns,
 			List<SqlWatermark> derivedWatermarkSpecs,
-			List<SqlNode> derivedPrimaryKey) {
+			SqlTableConstraint derivedPrimaryKey) {
 
 		SchemaBuilder schemaBuilder = new SchemaBuilder(
 			mergingStrategies,
@@ -259,22 +262,24 @@ class MergeTableLikeUtil {
 			}
 		}
 
-		private void appendDerivedPrimaryKey(List<SqlNode> derivedPrimaryKey) {
-			if (!derivedPrimaryKey.isEmpty() && primaryKey != null) {
+		private void appendDerivedPrimaryKey(@Nullable SqlTableConstraint derivedPrimaryKey) {
+			if (derivedPrimaryKey != null && primaryKey != null) {
 				throw new ValidationException("The base table already has a primary key. You might " +
 					"want to specify EXCLUDING CONSTRAINTS.");
-			} else if (!derivedPrimaryKey.isEmpty()) {
+			} else if (derivedPrimaryKey != null) {
 				List<String> primaryKeyColumns = new ArrayList<>();
-				for (SqlNode primaryKeyNode : derivedPrimaryKey) {
+				for (SqlNode primaryKeyNode : derivedPrimaryKey.getColumns()) {
 					String primaryKey = ((SqlIdentifier) primaryKeyNode).getSimple();
 					if (!columns.containsKey(primaryKey)) {
 						throw new ValidationException(
-							"Primary key [" + primaryKey + "] not defined in columns, at " +
+							"Primary key column '%s' is not defined in the schema, at " +
 								primaryKeyNode.getParserPosition());
 					}
 					primaryKeyColumns.add(primaryKey);
 				}
-				primaryKey = UniqueConstraint.primaryKey("PK_" + primaryKeyColumns.hashCode(), primaryKeyColumns);
+				primaryKey = UniqueConstraint.primaryKey(
+					derivedPrimaryKey.getConstraintName().orElseGet(() -> "PK_" + primaryKeyColumns.hashCode()),
+					primaryKeyColumns);
 			}
 		}
 

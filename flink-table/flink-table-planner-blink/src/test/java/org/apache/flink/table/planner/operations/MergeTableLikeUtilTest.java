@@ -23,6 +23,9 @@ import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.SqlTableLikeOption;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
+import org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement;
+import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -39,6 +42,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeUtil;
@@ -52,6 +56,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
@@ -88,7 +93,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				derivedColumns,
 				Collections.emptyList(),
-				Collections.emptyList());
+				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
 				.field("one", DataTypes.INT())
@@ -117,7 +122,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				derivedColumns,
 				Collections.emptyList(),
-				Collections.emptyList());
+				null);
 	}
 
 	@Test
@@ -136,7 +141,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				derivedColumns,
 				Collections.emptyList(),
-				Collections.emptyList());
+				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
 				.field("one", DataTypes.INT())
@@ -166,7 +171,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				derivedColumns,
 				Collections.emptyList(),
-				Collections.emptyList());
+				null);
 	}
 
 	@Test
@@ -187,7 +192,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				derivedColumns,
 				Collections.emptyList(),
-				Collections.emptyList());
+				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
 				.field("one", DataTypes.INT())
@@ -215,7 +220,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				derivedColumns,
 				Collections.emptyList(),
-				Collections.emptyList());
+				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
 				.field("one", DataTypes.INT())
@@ -246,7 +251,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				derivedColumns,
 				Collections.emptyList(),
-				Collections.emptyList());
+				null);
 	}
 
 	@Test
@@ -270,7 +275,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				derivedColumns,
 				Collections.emptyList(),
-				Collections.emptyList());
+				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
 				.field("one", DataTypes.INT())
@@ -313,7 +318,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				Collections.emptyList(),
 				derivedWatermarkSpecs,
-				Collections.emptyList());
+				null);
 	}
 
 	@Test
@@ -342,7 +347,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				Collections.emptyList(),
 				derivedWatermarkSpecs,
-				Collections.emptyList());
+				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
 				.field("one", DataTypes.INT())
@@ -382,7 +387,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				Collections.emptyList(),
 				derivedWatermarkSpecs,
-				Collections.emptyList());
+				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
 				.field("one", DataTypes.INT())
@@ -410,7 +415,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				Collections.emptyList(),
 				Collections.emptyList(),
-				Collections.emptyList());
+				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
 				.field("one", DataTypes.INT().notNull())
@@ -435,7 +440,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				Collections.emptyList(),
 				Collections.emptyList(),
-				Arrays.asList(identifier("one"), identifier("two")));
+				primaryKey("one", "two"));
 
 		TableSchema expectedSchema = TableSchema.builder()
 				.field("one", DataTypes.INT().notNull())
@@ -464,7 +469,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				Collections.emptyList(),
 				Collections.emptyList(),
-				Arrays.asList(identifier("one"), identifier("two")));
+				primaryKey("one", "two"));
 	}
 
 	@Test
@@ -484,7 +489,7 @@ public class MergeTableLikeUtilTest {
 				sourceSchema,
 				Collections.emptyList(),
 				Collections.emptyList(),
-				Arrays.asList(identifier("one"), identifier("two")));
+				primaryKey("one", "two"));
 
 		TableSchema expectedSchema = TableSchema.builder()
 				.field("one", DataTypes.INT().notNull())
@@ -701,6 +706,7 @@ public class MergeTableLikeUtilTest {
 			SqlTypeUtil.convertTypeToSpec(typeFactory.createFieldTypeFromLogicalType(logicalType))
 				.withNullable(logicalType.isNullable()),
 			null,
+			null,
 			SqlParserPos.ZERO
 		);
 	}
@@ -740,6 +746,17 @@ public class MergeTableLikeUtilTest {
 	private SqlIdentifier identifier(String name) {
 		return new SqlIdentifier(
 			name,
+			SqlParserPos.ZERO
+		);
+	}
+
+	private SqlTableConstraint primaryKey(String... columns) {
+		return new SqlTableConstraint(
+			null,
+			SqlUniqueSpec.PRIMARY_KEY.symbol(SqlParserPos.ZERO),
+			new SqlNodeList(Arrays.stream(columns).map(this::identifier).collect(Collectors.toList()), SqlParserPos.ZERO),
+			SqlConstraintEnforcement.ENFORCED.symbol(SqlParserPos.ZERO),
+			true,
 			SqlParserPos.ZERO
 		);
 	}
