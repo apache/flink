@@ -98,31 +98,19 @@ public class StreamingFileSink<IN>
 
 	private final long bucketCheckInterval;
 
-	private final StreamingFileSink.BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder;
+	private final BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder;
 
 	// --------------------------- runtime fields -----------------------------
 
 	private transient StreamingFileSinkHelper<IN> helper;
 
 	/**
-	 * Creates a new {@code StreamingFileSink} that writes files in row-based format to the given base directory.
+	 * Creates a new {@code StreamingFileSink} that writes files to the given base directory
+	 * with the give buckets properties.
 	 */
 	protected StreamingFileSink(
-		final RowFormatBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
-		final long bucketCheckInterval) {
-
-		Preconditions.checkArgument(bucketCheckInterval > 0L);
-
-		this.bucketsBuilder = Preconditions.checkNotNull(bucketsBuilder);
-		this.bucketCheckInterval = bucketCheckInterval;
-	}
-
-	/**
-	 * Creates a new {@code StreamingFileSink} that writes files in bulk-encoded format to the given base directory.
-	 */
-	protected StreamingFileSink(
-		final BulkFormatBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
-		final long bucketCheckInterval) {
+		BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
+		long bucketCheckInterval) {
 
 		Preconditions.checkArgument(bucketCheckInterval > 0L);
 
@@ -164,7 +152,7 @@ public class StreamingFileSink<IN>
 	 * The base abstract class for the {@link RowFormatBuilder} and {@link BulkFormatBuilder}.
 	 */
 	@Internal
-	public abstract static class BucketsBuilder<IN, BucketID, T extends BucketsBuilder<IN, BucketID, T>> implements Serializable {
+	abstract static class BucketsBuilder<IN, BucketID, T extends BucketsBuilder<IN, BucketID, T>> implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 
@@ -455,12 +443,5 @@ public class StreamingFileSink<IN>
 		if (this.helper != null) {
 			this.helper.close();
 		}
-	}
-
-	// --------------------------- Testing Methods -----------------------------
-
-	@VisibleForTesting
-	Buckets<IN, ?> getBuckets() {
-		return buckets;
 	}
 }

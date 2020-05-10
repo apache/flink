@@ -27,7 +27,7 @@ import java.io.IOException;
  * An interface for factories that create the different {@link InProgressFileWriter writers}.
  */
 @Internal
-interface BucketWriter<IN, BucketID> {
+public interface BucketWriter<IN, BucketID> {
 
 	/**
 	 * Used to create a new {@link InProgressFileWriter}.
