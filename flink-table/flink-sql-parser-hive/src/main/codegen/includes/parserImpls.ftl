@@ -502,28 +502,30 @@ void TableColumnWithConstraint(HiveTableCreationContext context) :
     }]
 }
 
-byte ConstraintTrait() :
+SqlHiveConstraintTrait ConstraintTrait() :
 {
   // a constraint is by default ENABLE NOVALIDATE RELY
-  byte constraintTrait = HiveDDLUtils.defaultTrait();
+  SqlLiteral enable = SqlHiveConstraintEnable.ENABLE.symbol(getPos());
+  SqlLiteral validate = SqlHiveConstraintValidate.NOVALIDATE.symbol(getPos());
+  SqlLiteral rely = SqlHiveConstraintRely.RELY.symbol(getPos());
 }
 {
   [
-    <ENABLE>
+    <ENABLE>  { enable = SqlHiveConstraintEnable.ENABLE.symbol(getPos()); }
     |
-    <DISABLE> { constraintTrait = HiveDDLUtils.disableConstraint(constraintTrait); }
+    <DISABLE> { enable = SqlHiveConstraintEnable.DISABLE.symbol(getPos()); }
   ]
   [
-    <NOVALIDATE>
+    <NOVALIDATE>  { validate = SqlHiveConstraintValidate.NOVALIDATE.symbol(getPos()); }
     |
-    <VALIDATE> { constraintTrait = HiveDDLUtils.validateConstraint(constraintTrait); }
+    <VALIDATE> { validate = SqlHiveConstraintValidate.VALIDATE.symbol(getPos()); }
   ]
   [
-    <RELY>
+    <RELY>  { rely = SqlHiveConstraintRely.RELY.symbol(getPos()); }
     |
-    <NORELY> { constraintTrait = HiveDDLUtils.noRelyConstraint(constraintTrait); }
+    <NORELY> { rely = SqlHiveConstraintRely.NORELY.symbol(getPos()); }
   ]
-  { return constraintTrait; }
+  {  return new SqlHiveConstraintTrait(enable, validate, rely); }
 }
 
 /**

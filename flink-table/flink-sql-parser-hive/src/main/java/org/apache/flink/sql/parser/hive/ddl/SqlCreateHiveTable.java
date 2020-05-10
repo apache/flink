@@ -90,14 +90,18 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 			} else {
 				// PK list is taken care of by super class, we need to set trait here
 				propertyList.add(HiveDDLUtils.toTableOption(
-						PK_CONSTRAINT_TRAIT, creationContext.pkTrait.toString(), propertyList.getParserPosition()));
+						PK_CONSTRAINT_TRAIT,
+						String.valueOf(HiveDDLUtils.encodeConstraintTrait(creationContext.pkTrait)),
+						propertyList.getParserPosition()));
 			}
 		}
 		// set NOT NULL
 		if (creationContext.notNullTraits != null) {
 			// NOT NULL cols are taken care of by super class, we need to set constraint traits here
 			String notNullTraits = creationContext.notNullTraits.stream()
-					.map(Object::toString).collect(Collectors.joining(HiveDDLUtils.COL_DELIMITER));
+					.map(HiveDDLUtils::encodeConstraintTrait)
+					.map(Object::toString)
+					.collect(Collectors.joining(HiveDDLUtils.COL_DELIMITER));
 			propertyList.add(HiveDDLUtils.toTableOption(
 					NOT_NULL_CONSTRAINT_TRAITS, notNullTraits, propertyList.getParserPosition()));
 		}
@@ -153,7 +157,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 			SqlWriter.Frame pkFrame = writer.startList("(", ")");
 			tableConstraint.getColumns().unparse(writer, leftPrec, rightPrec);
 			writer.endList(pkFrame);
-			HiveDDLUtils.unparseConstraintTrait(creationContext.pkTrait, writer);
+			creationContext.pkTrait.unparse(writer, leftPrec, rightPrec);
 		}
 		writer.newlineAndIndent();
 		writer.endList(frame);
@@ -267,7 +271,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 
 	private void unparseColumns(HiveTableCreationContext context, SqlNodeList columns,
 			SqlWriter writer, int leftPrec, int rightPrec) {
-		List<Byte> notNullTraits = context.notNullTraits;
+		List<SqlHiveConstraintTrait> notNullTraits = context.notNullTraits;
 		int traitIndex = 0;
 		for (SqlNode node : columns) {
 			printIndent(writer);
@@ -277,7 +281,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 			column.getType().unparse(writer, leftPrec, rightPrec);
 			if (column.getType().getNullable() != null && !column.getType().getNullable()) {
 				writer.keyword("NOT NULL");
-				HiveDDLUtils.unparseConstraintTrait(notNullTraits.get(traitIndex++), writer);
+				notNullTraits.get(traitIndex++).unparse(writer, leftPrec, rightPrec);
 			}
 			column.getComment().ifPresent(c -> {
 				writer.keyword("COMMENT");
@@ -303,8 +307,8 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 	 * Creation context for a Hive table.
 	 */
 	public static class HiveTableCreationContext extends TableCreationContext {
-		public Byte pkTrait = null;
-		public List<Byte> notNullTraits = null;
+		public SqlHiveConstraintTrait pkTrait = null;
+		public List<SqlHiveConstraintTrait> notNullTraits = null;
 	}
 
 	/**

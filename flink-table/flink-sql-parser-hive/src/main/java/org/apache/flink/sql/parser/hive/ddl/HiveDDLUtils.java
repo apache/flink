@@ -32,7 +32,6 @@ import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlTypeNameSpec;
-import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -282,21 +281,17 @@ public class HiveDDLUtils {
 		return (trait & HIVE_CONSTRAINT_RELY) != 0;
 	}
 
-	public static void unparseConstraintTrait(byte trait, SqlWriter writer) {
-		if (requireEnableConstraint(trait)) {
-			writer.keyword("ENABLE");
-		} else {
-			writer.keyword("DISABLE");
+	public static byte encodeConstraintTrait(SqlHiveConstraintTrait trait) {
+		byte res = 0;
+		if (trait.isEnable()) {
+			res = enableConstraint(res);
 		}
-		if (requireValidateConstraint(trait)) {
-			writer.keyword("VALIDATE");
-		} else {
-			writer.keyword("NOVALIDATE");
+		if (trait.isValidate()) {
+			res = validateConstraint(res);
 		}
-		if (requireRelyConstraint(trait)) {
-			writer.keyword("RELY");
-		} else {
-			writer.keyword("NORELY");
+		if (trait.isRely()) {
+			res = relyConstraint(res);
 		}
+		return res;
 	}
 }
