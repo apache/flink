@@ -52,7 +52,7 @@ public abstract class AbstractPartFileWriter<IN, BucketID> implements InProgress
 		return lastUpdateTime;
 	}
 
-	void markWrite(long now) {
+	protected void markWrite(long now) {
 		this.lastUpdateTime = now;
 	}
 }
