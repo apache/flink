@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -45,6 +44,9 @@ import org.apache.flink.util.CollectionUtil;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base source operator only used for integrating the source reader which is proposed by FLIP-27. It implements
@@ -67,24 +69,38 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	static final ListStateDescriptor<byte[]> SPLITS_STATE_DESC =
 			new ListStateDescriptor<>("SourceReaderState", BytePrimitiveArraySerializer.INSTANCE);
 
-	private final Source<OUT, SplitT, ?> source;
+	/** The factory for the source reader. This is a workaround, because currently the SourceReader
+	 * must be lazily initialized, which is mainly because the metrics groups that the reader relies on is
+	 * lazily initialized. */
+	private final Function<SourceReaderContext, SourceReader<OUT, SplitT>> readerFactory;
 
+	/** The serializer for the splits, applied to the split types before storing them in the reader state. */
 	private final SimpleVersionedSerializer<SplitT> splitSerializer;
 
-	// Fields that will be setup at runtime.
-	private transient SourceReader<OUT, SplitT> sourceReader;
-	private transient ListState<SplitT> readerState;
-	private transient OperatorEventGateway operatorEventGateway;
+	/** The event gateway through which this operator talks to its coordinator. */
+	private final OperatorEventGateway operatorEventGateway;
 
-	public SourceOperator(Source<OUT, SplitT, ?> source) {
-		this.source = source;
-		this.splitSerializer = source.getSplitSerializer();
+	// ---- lazily initialized fields ----
+
+	/** The source reader that does most of the work. */
+	private SourceReader<OUT, SplitT> sourceReader;
+
+	/** The state that holds the currently assigned splits. */
+	private ListState<SplitT> readerState;
+
+	public SourceOperator(
+			Function<SourceReaderContext, SourceReader<OUT, SplitT>> readerFactory,
+			OperatorEventGateway operatorEventGateway,
+			SimpleVersionedSerializer<SplitT> splitSerializer) {
+
+		this.readerFactory = checkNotNull(readerFactory);
+		this.operatorEventGateway = checkNotNull(operatorEventGateway);
+		this.splitSerializer = checkNotNull(splitSerializer);
 	}
 
 	@Override
 	public void open() throws Exception {
-		// Create the source reader.
-		SourceReaderContext context = new SourceReaderContext() {
+		final SourceReaderContext context = new SourceReaderContext() {
 			@Override
 			public MetricGroup metricGroup() {
 				return getRuntimeContext().getMetricGroup();
@@ -95,7 +111,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 				operatorEventGateway.sendEventToCoordinator(new SourceEventWrapper(event));
 			}
 		};
-		sourceReader = source.createReader(context);
+
+		sourceReader = readerFactory.apply(context);
 
 		// restore the state if necessary.
 		final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());
@@ -140,10 +157,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 		super.initializeState(context);
 		final ListState<byte[]> rawState = context.getOperatorStateStore().getListState(SPLITS_STATE_DESC);
 		readerState = new SimpleVersionedListState<>(rawState, splitSerializer);
-	}
-
-	public void setOperatorEventGateway(OperatorEventGateway operatorEventGateway) {
-		this.operatorEventGateway = operatorEventGateway;
 	}
 
 	@SuppressWarnings("unchecked")

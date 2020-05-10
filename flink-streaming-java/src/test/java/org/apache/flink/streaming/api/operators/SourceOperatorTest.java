@@ -19,11 +19,8 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
-import org.apache.flink.api.connector.source.SourceSplit;
-import org.apache.flink.api.connector.source.mocks.MockSource;
+import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
@@ -31,6 +28,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
@@ -61,20 +59,18 @@ import static org.junit.Assert.assertTrue;
 @SuppressWarnings("serial")
 public class SourceOperatorTest {
 
-	private static final int NUM_SPLITS = 5;
 	private static final int SUBTASK_INDEX = 1;
 	private static final MockSourceSplit MOCK_SPLIT = new MockSourceSplit(1234, 10);
 
-	private MockSource source;
+	private MockSourceReader mockSourceReader;
 	private MockOperatorEventGateway mockGateway;
 	private SourceOperator<Integer, MockSourceSplit> operator;
 
 	@Before
 	public void setup() {
-		this.source = new MockSource(Boundedness.BOUNDED, NUM_SPLITS);
-		this.operator = new TestingSourceOperator<>(source, SUBTASK_INDEX);
+		this.mockSourceReader = new MockSourceReader();
 		this.mockGateway = new MockOperatorEventGateway();
-		this.operator.setOperatorEventGateway(mockGateway);
+		this.operator = new TestingSourceOperator<>(mockSourceReader, mockGateway, SUBTASK_INDEX);
 	}
 
 	@Test
@@ -91,9 +87,7 @@ public class SourceOperatorTest {
 		operator.initializeState(getStateContext());
 		// Open the operator.
 		operator.open();
-		// A source reader should have been created.
-		assertEquals(1, source.getCreatedReaders().size());
-		MockSourceReader mockSourceReader = source.getCreatedReaders().get(0);
+
 		// The source reader should have been assigned a split.
 		assertEquals(Collections.singletonList(MOCK_SPLIT), mockSourceReader.getAssignedSplits());
 		// The source reader should have started.
@@ -112,8 +106,7 @@ public class SourceOperatorTest {
 		operator.open();
 		MockSourceSplit newSplit = new MockSourceSplit((2));
 		operator.handleOperatorEvent(new AddSplitEvent<>(Collections.singletonList(newSplit)));
-		// The source reader should bave been assigned two splits.
-		MockSourceReader mockSourceReader = source.getCreatedReaders().get(0);
+		// The source reader should have been assigned two splits.
 		assertEquals(Arrays.asList(MOCK_SPLIT, newSplit), mockSourceReader.getAssignedSplits());
 	}
 
@@ -123,8 +116,7 @@ public class SourceOperatorTest {
 		operator.open();
 		SourceEvent event = new SourceEvent() {};
 		operator.handleOperatorEvent(new SourceEventWrapper(event));
-		// The source reader should bave been assigned two splits.
-		MockSourceReader mockSourceReader = source.getCreatedReaders().get(0);
+		// The source reader should have been assigned two splits.
 		assertEquals(Collections.singletonList(event), mockSourceReader.getReceivedSourceEvents());
 	}
 
@@ -179,13 +171,20 @@ public class SourceOperatorTest {
 	/**
 	 * A testing class that overrides the getRuntimeContext() Method.
 	 */
-	private static class TestingSourceOperator<OUT, SplitT extends SourceSplit>
-			extends SourceOperator<OUT, SplitT> {
+	private static class TestingSourceOperator<OUT> extends SourceOperator<OUT, MockSourceSplit> {
 
 		private final int subtaskIndex;
 
-		TestingSourceOperator(Source<OUT, SplitT, ?> source, int subtaskIndex) {
-			super(source);
+		TestingSourceOperator(
+				SourceReader<OUT, MockSourceSplit> reader,
+				OperatorEventGateway eventGateway,
+				int subtaskIndex) {
+
+			super(
+					(context) -> reader,
+					eventGateway,
+					new MockSourceSplitSerializer());
+
 			this.subtaskIndex = subtaskIndex;
 		}
 
