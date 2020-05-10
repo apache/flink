@@ -21,7 +21,6 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -33,6 +32,8 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.ArrayUtils;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -103,7 +104,7 @@ public class TableEnvHiveConnectorTest {
 		assertTrue(fs.exists(defaultPartPath));
 
 		TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select y, x from db1.part order by x");
-		List<Row> rows = TableUtils.collectToList(flinkTable);
+		List<Row> rows = Lists.newArrayList(flinkTable.execute().collect());
 		assertEquals(Arrays.toString(new String[]{"1,1", "null,2"}), rows.toString());
 
 		hiveShell.execute("drop database db1 cascade");
@@ -334,15 +335,15 @@ public class TableEnvHiveConnectorTest {
 					.addRow(new Object[]{3})
 					.commit("dt='2019-12-25',ts='2019-12-25 16:23:43.012'");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.part order by x"));
+			List<Row> results = Lists.newArrayList(tableEnv.sqlQuery("select * from db1.part order by x").execute().collect());
 			assertEquals("[1,2019-12-23,2019-12-23T00:00, 2,2019-12-23,2019-12-23T00:00, 3,2019-12-25,2019-12-25T16:23:43.012]", results.toString());
 
-			results = TableUtils.collectToList(tableEnv.sqlQuery("select x from db1.part where dt=cast('2019-12-25' as date)"));
+			results = Lists.newArrayList(tableEnv.sqlQuery("select x from db1.part where dt=cast('2019-12-25' as date)").execute().collect());
 			assertEquals("[3]", results.toString());
 
 			tableEnv.sqlUpdate("insert into db1.part select 4,cast('2019-12-31' as date),cast('2019-12-31 12:00:00.0' as timestamp)");
 			tableEnv.execute("insert");
-			results = TableUtils.collectToList(tableEnv.sqlQuery("select max(dt) from db1.part"));
+			results = Lists.newArrayList(tableEnv.sqlQuery("select max(dt) from db1.part").execute().collect());
 			assertEquals("[2019-12-31]", results.toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
@@ -372,19 +373,19 @@ public class TableEnvHiveConnectorTest {
 			hiveShell.insertInto("db1", "nested").addRow(Arrays.asList(map1, map2)).commit();
 
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			List<Row> results = TableUtils.collectToList(
-					tableEnv.sqlQuery("select x from db1.simple, lateral table(hiveudtf(a)) as T(x)"));
+			List<Row> results = Lists.newArrayList(
+					tableEnv.sqlQuery("select x from db1.simple, lateral table(hiveudtf(a)) as T(x)").execute().collect());
 			assertEquals("[1, 2, 3]", results.toString());
-			results = TableUtils.collectToList(
-					tableEnv.sqlQuery("select x from db1.nested, lateral table(hiveudtf(a)) as T(x)"));
+			results = Lists.newArrayList(
+					tableEnv.sqlQuery("select x from db1.nested, lateral table(hiveudtf(a)) as T(x)").execute().collect());
 			assertEquals("[{1=a, 2=b}, {3=c}]", results.toString());
 
 			hiveShell.execute("create table db1.ts (a array<timestamp>)");
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "ts").addRow(new Object[]{
 					new Object[]{Timestamp.valueOf("2015-04-28 15:23:00"), Timestamp.valueOf("2016-06-03 17:05:52")}})
 					.commit();
-			results = TableUtils.collectToList(
-					tableEnv.sqlQuery("select x from db1.ts, lateral table(hiveudtf(a)) as T(x)"));
+			results = Lists.newArrayList(
+					tableEnv.sqlQuery("select x from db1.ts, lateral table(hiveudtf(a)) as T(x)").execute().collect());
 			assertEquals("[2015-04-28T15:23, 2016-06-03T17:05:52]", results.toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
@@ -455,7 +456,7 @@ public class TableEnvHiveConnectorTest {
 					.commit();
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			// test read timestamp from hive
-			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.src"));
+			List<Row> results = Lists.newArrayList(tableEnv.sqlQuery("select * from db1.src").execute().collect());
 			assertEquals(2, results.size());
 			assertEquals(LocalDateTime.of(2019, 11, 11, 0, 0), results.get(0).getField(0));
 			assertEquals(LocalDateTime.of(2019, 12, 3, 15, 43, 32, 123456789), results.get(1).getField(0));
@@ -480,7 +481,7 @@ public class TableEnvHiveConnectorTest {
 					.commit();
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			// test read date from hive
-			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.src"));
+			List<Row> results = Lists.newArrayList(tableEnv.sqlQuery("select * from db1.src").execute().collect());
 			assertEquals(2, results.size());
 			assertEquals(LocalDate.of(2019, 12, 9), results.get(0).getField(0));
 			assertEquals(LocalDate.of(2019, 12, 12), results.get(1).getField(0));
@@ -517,11 +518,11 @@ public class TableEnvHiveConnectorTest {
 			hiveShell.execute("create view db1.v2 as select key,count(*) from db1.src group by key having count(*)>1 order by key");
 			hiveShell.execute("create view db1.v3 as select k.key,k.name,count(*) from db1.src s join db1.keys k on s.key=k.key group by k.key,k.name order by k.key");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			List<Row> results = TableUtils.collectToList(tableEnv.sqlQuery("select count(v) from db1.v1"));
+			List<Row> results = Lists.newArrayList(tableEnv.sqlQuery("select count(v) from db1.v1").execute().collect());
 			assertEquals("[2]", results.toString());
-			results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.v2"));
+			results = Lists.newArrayList(tableEnv.sqlQuery("select * from db1.v2").execute().collect());
 			assertEquals("[1,3, 3,2]", results.toString());
-			results = TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.v3"));
+			results = Lists.newArrayList(tableEnv.sqlQuery("select * from db1.v3").execute().collect());
 			assertEquals("[1,key1,3, 2,key2,1, 3,key3,2]", results.toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
@@ -577,7 +578,7 @@ public class TableEnvHiveConnectorTest {
 					.addRow(new Object[]{2, "ab"})
 					.commit();
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			assertEquals("[1,a, 2,ab]", TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.src order by x")).toString());
+			assertEquals("[1,a, 2,ab]", Lists.newArrayList(tableEnv.sqlQuery("select * from db1.src order by x").execute().collect()).toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}
@@ -594,7 +595,7 @@ public class TableEnvHiveConnectorTest {
 			hiveShell.execute("alter table db1.dest set fileformat sequencefile");
 			tableEnv.sqlUpdate("insert overwrite db1.dest partition (p='1') select 1");
 			tableEnv.execute(null);
-			assertEquals("[1,1]", TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.dest")).toString());
+			assertEquals("[1,1]", Lists.newArrayList(tableEnv.sqlQuery("select * from db1.dest").execute().collect()).toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}
@@ -611,8 +612,8 @@ public class TableEnvHiveConnectorTest {
 			hiveShell.execute(String.format("create table db1.t2 (y int,x int) stored as parquet location '%s'", location));
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			tableEnv.getConfig().getConfiguration().setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
-			assertEquals("[1, 2]", TableUtils.collectToList(tableEnv.sqlQuery("select x from db1.t1")).toString());
-			assertEquals("[1, 2]", TableUtils.collectToList(tableEnv.sqlQuery("select x from db1.t2")).toString());
+			assertEquals("[1, 2]", Lists.newArrayList(tableEnv.sqlQuery("select x from db1.t1").execute().collect()).toString());
+			assertEquals("[1, 2]", Lists.newArrayList(tableEnv.sqlQuery("select x from db1.t2").execute().collect()).toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}
@@ -632,10 +633,10 @@ public class TableEnvHiveConnectorTest {
 			tableEnv.getConfig().getConfiguration().setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
 
 			hiveShell.execute("alter table db1.src change x x int");
-			assertEquals("[1,100, 2,200]", TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.src")).toString());
+			assertEquals("[1,100, 2,200]", Lists.newArrayList(tableEnv.sqlQuery("select * from db1.src").execute().collect()).toString());
 
 			hiveShell.execute("alter table db1.src change y y string");
-			assertEquals("[1,100, 2,200]", TableUtils.collectToList(tableEnv.sqlQuery("select * from db1.src")).toString());
+			assertEquals("[1,100, 2,200]", Lists.newArrayList(tableEnv.sqlQuery("select * from db1.src").execute().collect()).toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}
@@ -655,7 +656,7 @@ public class TableEnvHiveConnectorTest {
 	}
 
 	private void verifyFlinkQueryResult(org.apache.flink.table.api.Table table, List<String> expected) throws Exception {
-		List<Row> rows = TableUtils.collectToList(table);
+		List<Row> rows = Lists.newArrayList(table.execute().collect());
 		List<String> results = rows.stream().map(row ->
 				IntStream.range(0, row.getArity())
 						.mapToObj(row::getField)

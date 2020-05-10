@@ -23,9 +23,11 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.util.FiniteTestSource
 import org.apache.flink.table.api.Expressions.$
-import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, TableUtils}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
 import org.apache.flink.types.Row
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
 
 import org.junit.Assert.assertEquals
 import org.junit.rules.Timeout
@@ -109,7 +111,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
     val tEnv = TableEnvironment.create(setting)
     tEnv.sqlUpdate(ddl)
 
-    val result = TableUtils.collectToList(tEnv.sqlQuery(sqlQuery))
+    val result = Lists.newArrayList(tEnv.sqlQuery(sqlQuery).execute().collect())
 
     assertEquals(
       expectedResult.map(TestSinkUtil.rowToString(_)).sorted,

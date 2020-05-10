@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
-import org.apache.flink.runtime.client.JobExecutionException
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
@@ -64,7 +64,7 @@ class ScalarQueryITCase extends BatchTestBase {
       Seq(row(3, 3.0)))
   }
 
-  @Test(expected = classOf[JobExecutionException])
+  @Test(expected = classOf[TableException])
   def testScalarSubQueryException(): Unit = {
     checkResult(
       "SELECT * FROM l WHERE a = (SELECT c FROM r)",
