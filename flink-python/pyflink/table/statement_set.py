@@ -28,8 +28,10 @@ class StatementSet(object):
     and then submit as one job.
 
     .. note::
-    The added statements and Tables will be cleared
-    when calling the `execute` method.
+
+        The added statements and Tables will be cleared
+        when calling the `execute` method.
+
     """
 
     def __init__(self, _j_statement_set):
@@ -56,8 +58,8 @@ class StatementSet(object):
         :type target_path: str
         :param table: The Table to add.
         :type table: pyflink.table.Table
-        :param overwrite The flag that indicates whether the insert
-                         should overwrite existing data or not.
+        :param overwrite: The flag that indicates whether the insert
+                          should overwrite existing data or not.
         :type overwrite: bool
         :return: current StatementSet instance.
         :rtype: pyflink.table.StatementSet
@@ -83,7 +85,8 @@ class StatementSet(object):
         execute all statements and Tables as a batch.
 
         .. note::
-        The added statements and Tables will be cleared when executing this method.
+            The added statements and Tables will be cleared when executing this method.
+
         :return: execution result.
         """
         # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
