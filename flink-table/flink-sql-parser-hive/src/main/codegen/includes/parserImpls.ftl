@@ -610,8 +610,7 @@ HiveTableRowFormat TableRowFormat(SqlParserPos pos) :
 * A sql type name extended basic data type, it has a counterpart basic
 * sql type name but always represents as a special alias compared with the standard name.
 *
-* <p>For example, STRING is synonym of VARCHAR(INT_MAX)
-* and BYTES is synonym of VARBINARY(INT_MAX).
+* <p>For example, STRING is synonym of VARCHAR(INT_MAX).
 */
 SqlTypeNameSpec ExtendedSqlBasicTypeName() :
 {
@@ -620,20 +619,11 @@ SqlTypeNameSpec ExtendedSqlBasicTypeName() :
     int precision = -1;
 }
 {
-    (
-        <STRING> {
-            typeName = SqlTypeName.VARCHAR;
-            typeAlias = token.image;
-            precision = Integer.MAX_VALUE;
-        }
-    |
-        <BYTES> {
-            typeName = SqlTypeName.VARBINARY;
-            typeAlias = token.image;
-            precision = Integer.MAX_VALUE;
-        }
-    )
+    <STRING>
     {
+        typeName = SqlTypeName.VARCHAR;
+        typeAlias = token.image;
+        precision = Integer.MAX_VALUE;
         return new SqlAlienSystemTypeNameSpec(typeAlias, typeName, precision, getPos());
     }
 }

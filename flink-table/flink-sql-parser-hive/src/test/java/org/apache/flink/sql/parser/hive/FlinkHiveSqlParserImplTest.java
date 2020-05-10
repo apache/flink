@@ -184,9 +184,9 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"  `Z`  STRING,\n" +
 						"  PRIMARY KEY (`X`, `Z`) DISABLE NOVALIDATE RELY\n" +
 						")");
-		sql("create table tbl (x bytes,y date,z string,constraint pk_cons primary key(x))")
+		sql("create table tbl (x binary,y date,z string,constraint pk_cons primary key(x))")
 				.ok("CREATE TABLE `TBL` (\n" +
-						"  `X`  BYTES,\n" +
+						"  `X`  VARBINARY(2147483647),\n" +
 						"  `Y`  DATE,\n" +
 						"  `Z`  STRING,\n" +
 						"  CONSTRAINT `PK_CONS` PRIMARY KEY (`X`) ENABLE NOVALIDATE RELY\n" +
