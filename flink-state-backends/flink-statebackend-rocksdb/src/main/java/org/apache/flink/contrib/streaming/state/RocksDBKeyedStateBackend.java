@@ -464,6 +464,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) throws Exception {
+		checkpointSnapshotStrategy.notifyCheckpointAborted(checkpointId);
+
+		savepointSnapshotStrategy.notifyCheckpointAborted(checkpointId);
+	}
+
 	/**
 	 * Registers a k/v state information, which includes its state id, type, RocksDB column family handle, and serializers.
 	 *

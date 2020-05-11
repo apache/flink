@@ -68,6 +68,7 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -172,6 +173,11 @@ public class SynchronousCheckpointITCase {
 				Thread.currentThread().interrupt();
 				throw new RuntimeException(e);
 			}
+		}
+
+		@Override
+		public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override

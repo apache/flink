@@ -225,6 +225,15 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 	}
 
 	@Override
+	public void abortCheckpoint(long abortedCheckpointId) {
+
+		LOG.debug("Received abort information for checkpoint {} in subtask ({} - {} - {}). Starting to prune history.",
+			abortedCheckpointId, jobID, jobVertexID, subtaskIndex);
+
+		pruneCheckpoints(snapshotCheckpointId -> snapshotCheckpointId == abortedCheckpointId, false);
+	}
+
+	@Override
 	public void pruneMatchingCheckpoints(@Nonnull LongPredicate matcher) {
 
 		pruneCheckpoints(

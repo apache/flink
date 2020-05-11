@@ -75,6 +75,10 @@ public class AccumulatingIntegerSink extends RichSinkFunction<Integer> implement
 		pendingForAccumulator.remove(checkpointId).forEach(accumulator::add);
 	}
 
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
 	@SuppressWarnings("unchecked")
 	public static List<Integer> getOutput(Map<String, Object> accumulators) {
 		return (List<Integer>) accumulators.get(ACCUMULATOR_NAME);

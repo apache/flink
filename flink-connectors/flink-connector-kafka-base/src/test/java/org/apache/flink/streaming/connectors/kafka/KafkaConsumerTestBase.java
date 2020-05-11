@@ -2250,6 +2250,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		}
 
 		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
+
+		@Override
 		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
 			return Collections.singletonList(this.numElementsTotal);
 		}

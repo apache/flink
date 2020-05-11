@@ -1035,6 +1035,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		}
 	}
 
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
 	// ------------------------------------------------------------------------
 	//  Kafka Consumer specific methods
 	// ------------------------------------------------------------------------

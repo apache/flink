@@ -123,6 +123,10 @@ public class CheckpointedStreamingProgram {
 		public void notifyCheckpointComplete(long checkpointId) throws Exception {
 			atLeastOneSnapshotComplete = true;
 		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
 	}
 	// --------------------------------------------------------------------------------------------
 

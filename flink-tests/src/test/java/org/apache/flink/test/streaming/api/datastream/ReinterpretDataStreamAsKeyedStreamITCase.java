@@ -257,6 +257,10 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 		}
 
 		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
+
+		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
 			positionState.clear();
 			positionState.add(position);

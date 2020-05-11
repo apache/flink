@@ -95,6 +95,10 @@ public class FailingIdentityMapper<T> extends RichMapFunction<T, T> implements
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
+	@Override
 	public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
 		return Collections.singletonList(numElementsTotal);
 	}

@@ -105,6 +105,25 @@ public class TestTaskLocalStateStore implements TaskLocalStateStore {
 	}
 
 	@Override
+	public void abortCheckpoint(long abortedCheckpointId) {
+		Preconditions.checkState(!disposed);
+		Iterator<Map.Entry<Long, TaskStateSnapshot>> iterator = taskStateSnapshotsByCheckpointID.entrySet().iterator();
+		while (iterator.hasNext()) {
+			Map.Entry<Long, TaskStateSnapshot> entry = iterator.next();
+			if (entry.getKey() == abortedCheckpointId) {
+				iterator.remove();
+				try {
+					entry.getValue().discardState();
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			} else if (entry.getKey() > abortedCheckpointId){
+				break;
+			}
+		}
+	}
+
+	@Override
 	public void pruneMatchingCheckpoints(LongPredicate matcher) {
 		taskStateSnapshotsByCheckpointID.keySet().removeIf(matcher::test);
 	}

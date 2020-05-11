@@ -146,5 +146,9 @@ public class HeavyDeploymentStressTestProgram {
 		public void notifyCheckpointComplete(long checkpointId) {
 			readyToFail = true;
 		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
 	}
 }

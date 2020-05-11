@@ -248,6 +248,10 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		}
 
 		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
+
+		@Override
 		public void run(SourceContext<Long> ctx) throws Exception {
 			int increment = getRuntimeContext().getNumberOfParallelSubtasks();
 			info("First emitted input {}", state.nextNumber);
@@ -443,6 +447,10 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		@Override
 		public void notifyCheckpointComplete(long checkpointId) {
 			state.completedCheckpoints++;
+		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
 		}
 
 		@Override

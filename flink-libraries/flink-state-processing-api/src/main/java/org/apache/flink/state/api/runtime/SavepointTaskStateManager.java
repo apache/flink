@@ -78,6 +78,11 @@ final class SavepointTaskStateManager implements TaskStateManager {
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+		throw new UnsupportedOperationException(MSG);
+	}
+
+	@Override
 	public void close() {
 	}
 }

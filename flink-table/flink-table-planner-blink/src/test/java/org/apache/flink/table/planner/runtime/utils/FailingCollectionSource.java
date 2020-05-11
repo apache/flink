@@ -245,6 +245,10 @@ public class FailingCollectionSource<T>
 		lastCheckpointedEmittedNum = checkpointedEmittedNums.get(checkpointId);
 	}
 
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
 	public static void reset() {
 		failedBefore = false;
 	}

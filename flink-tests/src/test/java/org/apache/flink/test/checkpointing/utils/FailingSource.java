@@ -135,6 +135,10 @@ public class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
+	@Override
 	public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
 		// We accept a checkpoint as basis if it should have a "decent amount" of state
 		if (emitCallCount > failureAfterNumElements / 2) {

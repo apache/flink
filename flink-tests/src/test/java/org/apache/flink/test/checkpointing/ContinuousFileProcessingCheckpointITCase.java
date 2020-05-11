@@ -247,6 +247,10 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
 			this.successfulCheckpoints++;
 		}
 
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
+
 		private int getFileIdx(String line) {
 			String[] tkns = line.split(":");
 			return Integer.parseInt(tkns[0]);

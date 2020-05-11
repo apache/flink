@@ -287,6 +287,10 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		}
 	}
 
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
 	public void setOperatorEventGateway(OperatorEventGateway eventGateway) {
 		this.eventGateway = eventGateway;
 	}

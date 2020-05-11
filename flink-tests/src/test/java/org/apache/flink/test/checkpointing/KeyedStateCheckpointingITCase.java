@@ -265,6 +265,10 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
 				this.notifyAll();
 			}
 		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
 	}
 
 	private static class OnceFailingPartitionedSum

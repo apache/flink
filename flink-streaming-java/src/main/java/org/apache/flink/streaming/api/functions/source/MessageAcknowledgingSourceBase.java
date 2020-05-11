@@ -241,4 +241,8 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 			}
 		}
 	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
 }

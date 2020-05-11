@@ -112,6 +112,10 @@ public class CancellingIntegerSource extends RichSourceFunction<Integer> impleme
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
+	@Override
 	public void cancel() {
 		isCanceled = true;
 	}

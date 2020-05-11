@@ -733,6 +733,10 @@ public class BucketingSink<T>
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
+	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		Preconditions.checkNotNull(restoredBucketStates, "The operator has not been properly initialized.");
 

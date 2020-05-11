@@ -364,6 +364,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 		public void notifyCheckpointComplete(long checkpointId) {
 			this.wasCheckpointed = true;
 		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
 	}
 
 	private static class ValidatingSink extends RichSinkFunction<PrefixCount>

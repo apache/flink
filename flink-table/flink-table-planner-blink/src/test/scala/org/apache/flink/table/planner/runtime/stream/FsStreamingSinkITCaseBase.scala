@@ -176,4 +176,7 @@ class FiniteTestSource(elements: Iterable[Row]) extends SourceFunction[Row] with
   override def notifyCheckpointComplete(checkpointId: Long): Unit = {
     numCheckpointsComplete += 1
   }
+
+  @throws[Exception]
+  override def notifyCheckpointAborted(checkpointId: Long): Unit = {}
 }

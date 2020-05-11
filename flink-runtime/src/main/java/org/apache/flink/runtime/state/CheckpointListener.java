@@ -38,4 +38,12 @@ public interface CheckpointListener {
 	 * @throws Exception
 	 */
 	void notifyCheckpointComplete(long checkpointId) throws Exception;
+
+	/**
+	 * This method is called as a notification once a distributed checkpoint has been aborted.
+	 *
+	 * @param checkpointId The ID of the checkpoint that has been aborted.
+	 * @throws Exception
+	 */
+	void notifyCheckpointAborted(long checkpointId) throws Exception;
 }

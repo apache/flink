@@ -47,6 +47,7 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
 	private ExecutorService executorService = Executors.newDirectExecutorService();
 	private BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot = (channelStateWriter, aLong) -> FutureUtils.completedVoidFuture();
 	private boolean unalignedCheckpointEnabled;
+	private int maxRecordAbortedCheckpoints = 10;
 
 	public MockSubtaskCheckpointCoordinatorBuilder setEnvironment(Environment environment) {
 		this.environment = environment;
@@ -55,6 +56,16 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
 
 	public MockSubtaskCheckpointCoordinatorBuilder setPrepareInputSnapshot(BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot) {
 		this.prepareInputSnapshot = prepareInputSnapshot;
+		return this;
+	}
+
+	public MockSubtaskCheckpointCoordinatorBuilder setExecutor(ExecutorService executor) {
+		this.executorService = executor;
+		return this;
+	}
+
+	public MockSubtaskCheckpointCoordinatorBuilder setMaxRecordAbortedCheckpoints(int maxRecordAbortedCheckpoints) {
+		this.maxRecordAbortedCheckpoints = maxRecordAbortedCheckpoints;
 		return this;
 	}
 
@@ -83,7 +94,8 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
 			environment,
 			asyncExceptionHandler,
 			unalignedCheckpointEnabled,
-			prepareInputSnapshot);
+			prepareInputSnapshot,
+			maxRecordAbortedCheckpoints);
 	}
 
 	private static class NonHandleAsyncException implements AsyncExceptionHandler {
