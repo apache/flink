@@ -18,22 +18,17 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
-import org.apache.flink.runtime.jobgraph.OperatorID;
-
-import java.util.concurrent.CompletableFuture;
-
 /**
- * Client interface which sends out a {@link CoordinationRequest} and
- * expects for a {@link CoordinationResponse} from a {@link OperatorCoordinator}.
+ * Coordinator interface which can handle {@link CoordinationRequest}s
+ * and response with {@link CoordinationResponse}s to the client.
  */
-public interface CoordinationRequester {
+public interface CoordinationRequestHandler {
 
 	/**
-	 * Send out a request to a specified coordinator and return the response.
+	 * Called when receiving a request from the client.
 	 *
-	 * @param operatorId specifies which coordinator to receive the request
-	 * @param request the request to send
-	 * @return the response from the coordinator
+	 * @param request the request received
+	 * @return the response from the coordinator for this request
 	 */
-	CompletableFuture<CoordinationResponse> sendCoordinationRequest(OperatorID operatorId, CoordinationRequest request);
+	CoordinationResponse handleCoordinationRequest(CoordinationRequest request);
 }

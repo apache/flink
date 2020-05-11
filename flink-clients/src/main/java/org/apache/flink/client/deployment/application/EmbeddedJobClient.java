@@ -31,7 +31,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
-import org.apache.flink.runtime.operators.coordination.CoordinationRequester;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.SerializedValue;
 
@@ -49,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * uses directly the {@link DispatcherGateway}.
  */
 @Internal
-public class EmbeddedJobClient implements JobClient, CoordinationRequester {
+public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway {
 
 	private final JobID jobId;
 

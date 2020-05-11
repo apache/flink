@@ -21,11 +21,11 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
 /**
- * A simple testing implementation of the {@link CoordinationResponser}.
+ * A simple testing implementation of the {@link CoordinationRequestHandler}.
  */
-public class TestingCoordinationResponser extends TestingOperatorCoordinator implements CoordinationResponser {
+public class TestingCoordinationRequestHandler extends TestingOperatorCoordinator implements CoordinationRequestHandler {
 
-	public TestingCoordinationResponser(Context context) {
+	public TestingCoordinationRequestHandler(Context context) {
 		super(context);
 	}
 
@@ -37,7 +37,7 @@ public class TestingCoordinationResponser extends TestingOperatorCoordinator imp
 
 	/**
 	 * A testing stub for an {@link OperatorCoordinator.Provider} that creates a
-	 * {@link TestingCoordinationResponser}.
+	 * {@link TestingCoordinationRequestHandler}.
 	 */
 	public static final class Provider implements OperatorCoordinator.Provider {
 
@@ -56,12 +56,12 @@ public class TestingCoordinationResponser extends TestingOperatorCoordinator imp
 
 		@Override
 		public OperatorCoordinator create(Context context) {
-			return new TestingCoordinationResponser(context);
+			return new TestingCoordinationRequestHandler(context);
 		}
 	}
 
 	/**
-	 * A {@link CoordinationRequest} that a {@link TestingCoordinationResponser} receives.
+	 * A {@link CoordinationRequest} that a {@link TestingCoordinationRequestHandler} receives.
 	 *
 	 * @param <T> payload type
 	 */
@@ -81,7 +81,7 @@ public class TestingCoordinationResponser extends TestingOperatorCoordinator imp
 	}
 
 	/**
-	 * A {@link CoordinationResponse} that a {@link TestingCoordinationResponser} gives.
+	 * A {@link CoordinationResponse} that a {@link TestingCoordinationRequestHandler} gives.
 	 *
 	 * @param <T> payload type
 	 */

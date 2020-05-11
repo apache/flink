@@ -145,10 +145,9 @@ public interface SchedulerNG {
 	 * Delivers a coordination request to the {@link OperatorCoordinator} with the given {@link OperatorID}
 	 * and returns the coordinator's response.
 	 *
-	 * @return A future containing the response. The response will fail with an {@link IllegalArgumentException}
-	 *         if the coordinator cannot handle client events.
-	 * @throws FlinkException Thrown, if the task is not running or no operator/coordinator exists
-	 *                        for the given ID.
+	 * @return A future containing the response.
+	 * @throws FlinkException Thrown, if the task is not running, or no operator/coordinator exists
+	 *                        for the given ID, or the coordinator cannot handle client events.
 	 */
 	CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(OperatorID operator, CoordinationRequest request) throws FlinkException;
 }

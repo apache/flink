@@ -77,8 +77,8 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandler;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
-import org.apache.flink.runtime.operators.coordination.CoordinationResponser;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
@@ -945,12 +945,11 @@ public abstract class SchedulerBase implements SchedulerNG {
 			OperatorID operator,
 			CoordinationRequest request) throws FlinkException {
 		OperatorCoordinator coordinator = coordinatorMap.get(operator);
-		if (coordinator instanceof CoordinationResponser) {
+		if (coordinator instanceof CoordinationRequestHandler) {
 			return CompletableFuture.completedFuture(
-				((CoordinationResponser) coordinator).handleCoordinationRequest(request));
+				((CoordinationRequestHandler) coordinator).handleCoordinationRequest(request));
 		} else if (coordinator != null) {
-			return FutureUtils.completedExceptionally(
-				new IllegalArgumentException("Coordinator of operator " + operator + " cannot handle client event"));
+			throw new FlinkException("Coordinator of operator " + operator + " cannot handle client event");
 		} else {
 			throw new FlinkException("Coordinator of operator " + operator + " does not exist");
 		}

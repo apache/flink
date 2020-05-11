@@ -443,7 +443,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 						.getSerializedCoordinationResponse()
 						.deserializeValue(getClass().getClassLoader());
 				} catch (IOException | ClassNotFoundException e) {
-					throw new RuntimeException("Failed to deserialize coordination response", e);
+					throw new CompletionException("Failed to deserialize coordination response", e);
 				}
 			});
 	}

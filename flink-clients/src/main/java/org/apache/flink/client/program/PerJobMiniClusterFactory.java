@@ -34,7 +34,7 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
-import org.apache.flink.runtime.operators.coordination.CoordinationRequester;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.SerializedValue;
@@ -134,7 +134,7 @@ public final class PerJobMiniClusterFactory {
 	/**
 	 * A {@link JobClient} for a {@link PerJobMiniClusterFactory}.
 	 */
-	private static final class PerJobMiniClusterJobClient implements JobClient, CoordinationRequester {
+	private static final class PerJobMiniClusterJobClient implements JobClient, CoordinationRequestGateway {
 
 		private final JobID jobID;
 		private final MiniCluster miniCluster;

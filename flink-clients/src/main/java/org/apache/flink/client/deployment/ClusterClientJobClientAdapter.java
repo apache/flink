@@ -28,7 +28,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
-import org.apache.flink.runtime.operators.coordination.CoordinationRequester;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 
 import org.apache.commons.io.IOUtils;
@@ -45,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * An implementation of the {@link JobClient} interface that uses a {@link ClusterClient} underneath..
  */
-public class ClusterClientJobClientAdapter<ClusterID> implements JobClient, CoordinationRequester {
+public class ClusterClientJobClientAdapter<ClusterID> implements JobClient, CoordinationRequestGateway {
 
 	private final ClusterClientProvider<ClusterID> clusterClientProvider;
 

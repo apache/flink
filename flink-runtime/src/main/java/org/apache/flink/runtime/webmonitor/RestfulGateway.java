@@ -198,8 +198,10 @@ public interface RestfulGateway extends RpcGateway {
 	 * @param operatorId identifying the coordinator to receive the request
 	 * @param serializedRequest serialized request to deliver
 	 * @param timeout RPC timeout
-	 * @return A future containing the response. The response will fail with an {@link IllegalArgumentException}
-	 *         if the coordinator cannot handle client events.
+	 * @return A future containing the response.
+	 *         The response will fail with a {@link org.apache.flink.util.FlinkException}
+	 *         if the task is not running, or no operator/coordinator exists for the given ID,
+	 *         or the coordinator cannot handle client events.
 	 */
 	default CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
 			JobID jobId,
