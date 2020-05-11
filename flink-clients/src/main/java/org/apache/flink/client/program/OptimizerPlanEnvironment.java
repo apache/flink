@@ -44,7 +44,7 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public JobClient executeAsync(String jobName) {
-		pipeline = createProgramPlan();
+		pipeline = createProgramPlan(jobName);
 
 		// do not go on with anything now!
 		throw new ProgramAbortException();
