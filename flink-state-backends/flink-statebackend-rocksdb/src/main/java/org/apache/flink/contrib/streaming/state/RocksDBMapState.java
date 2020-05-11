@@ -48,6 +48,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -166,11 +167,11 @@ class RocksDBMapState<K, N, UK, UV>
 	public Iterable<Map.Entry<UK, UV>> entries() {
 		final Iterator<Map.Entry<UK, UV>> iterator = iterator();
 
-		// Return null to make the behavior consistent with other states.
-		if (!iterator.hasNext()) {
-			return null;
-		} else {
+		if (iterator.hasNext()) {
 			return () -> iterator;
+		} else {
+			// Return empty iterator to make the behavior consistent with other states.
+			return Collections.<UK, UV>emptyMap().entrySet();
 		}
 	}
 
