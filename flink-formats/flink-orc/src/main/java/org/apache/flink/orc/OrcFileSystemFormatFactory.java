@@ -111,12 +111,12 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 		DescriptorProperties properties = new DescriptorProperties();
 		properties.putProperties(context.getFormatProperties());
 
-		LogicalType[] orcTypes = Arrays.stream(context.getFormatFieldNames())
+		LogicalType[] orcTypes = Arrays.stream(context.getFormatFieldTypes())
 				.map(DataType::getLogicalType)
 				.toArray(LogicalType[]::new);
 
 		TypeDescription typeDescription = OrcSplitReaderUtil.logicalTypeToOrcType(
-				RowType.of(orcTypes, context.getFormatFieldTypes()));
+				RowType.of(orcTypes, context.getFormatFieldNames()));
 
 		OrcBulkWriterFactory<RowData> factory = new OrcBulkWriterFactory<>(
 				new RowDataVectorizer(typeDescription.toString(), orcTypes),

@@ -30,8 +30,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import scala.collection.JavaConverters;
-
 /**
  * ITCase to test json format for {@link JsonFileSystemFormatFactory}.
  */
@@ -49,7 +47,7 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
 	public void testParseError() throws Exception {
 		String path = new URI(resultPath()).getPath();
 		new File(path).mkdirs();
-		File file = new File(path, "my_file");
+		File file = new File(path, "temp_file");
 		file.createNewFile();
 		FileUtils.writeFileUtf8(file,
 			"{\"x\":\"x5\",\"y\":5,\"a\":1,\"b\":1}\n" +
@@ -57,8 +55,8 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
 				"{\"x\":\"x5\",\"y\":5,\"a\":1,\"b\":1}");
 
 		check("select * from nonPartitionedTable",
-			JavaConverters.asScalaIteratorConverter(Arrays.asList(
+			Arrays.asList(
 				Row.of("x5,5,1,1"),
-				Row.of("x5,5,1,1")).iterator()).asScala().toSeq());
+				Row.of("x5,5,1,1")));
 	}
 }

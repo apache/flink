@@ -172,7 +172,7 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		/**
 		 * Get field names without partition keys.
 		 */
-		default String[] getFormatFieldTypes() {
+		default String[] getFormatFieldNames() {
 			return Arrays.stream(getSchema().getFieldNames())
 					.filter(name -> !getPartitionKeys().contains(name))
 					.toArray(String[]::new);
@@ -181,7 +181,7 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		/**
 		 * Get field types without partition keys.
 		 */
-		default DataType[] getFormatFieldNames() {
+		default DataType[] getFormatFieldTypes() {
 			return Arrays.stream(getSchema().getFieldNames())
 					.filter(name -> !getPartitionKeys().contains(name))
 					.map(name -> getSchema().getFieldDataType(name).get())
@@ -194,10 +194,10 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		 */
 		default RowType getFormatRowType() {
 			return RowType.of(
-				Arrays.stream(getFormatFieldNames())
+				Arrays.stream(getFormatFieldTypes())
 					.map(DataType::getLogicalType)
 					.toArray(LogicalType[]::new),
-				getFormatFieldTypes());
+				getFormatFieldNames());
 		}
 	}
 }

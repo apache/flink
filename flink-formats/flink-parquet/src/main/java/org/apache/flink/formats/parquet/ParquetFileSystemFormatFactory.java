@@ -135,10 +135,10 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 		properties.putProperties(context.getFormatProperties());
 
 		return Optional.of(ParquetRowDataBuilder.createWriterFactory(
-				RowType.of(Arrays.stream(context.getFormatFieldNames())
+				RowType.of(Arrays.stream(context.getFormatFieldTypes())
 								.map(DataType::getLogicalType)
 								.toArray(LogicalType[]::new),
-						context.getFormatFieldTypes()),
+						context.getFormatFieldNames()),
 				getParquetConfiguration(properties),
 				isUtcTimestamp(properties)
 		));
