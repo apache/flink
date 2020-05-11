@@ -34,7 +34,6 @@ import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropFunction;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
-import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
@@ -83,7 +82,6 @@ import org.apache.flink.table.operations.ddl.AlterTableRenameOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
-import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
@@ -118,7 +116,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Mix-in tool class for {@code SqlNode} that allows DDL commands to be
@@ -134,7 +131,7 @@ import java.util.stream.Collectors;
 public class SqlToOperationConverter {
 	private final FlinkPlannerImpl flinkPlanner;
 	private final CatalogManager catalogManager;
-	private final MergeTableLikeUtil mergeTableLikeUtil;
+	private final SqlCreateTableConverter createTableConverter;
 
 	//~ Constructors -----------------------------------------------------------
 
@@ -143,9 +140,11 @@ public class SqlToOperationConverter {
 			CatalogManager catalogManager) {
 		this.flinkPlanner = flinkPlanner;
 		this.catalogManager = catalogManager;
-		this.mergeTableLikeUtil = new MergeTableLikeUtil(
+		this.createTableConverter = new SqlCreateTableConverter(
 			flinkPlanner.getOrCreateSqlValidator(),
-			this::getQuotedSqlString);
+			catalogManager,
+			this::getQuotedSqlString,
+			this::validateTableConstraint);
 	}
 
 	/**
@@ -165,7 +164,7 @@ public class SqlToOperationConverter {
 		final SqlNode validated = flinkPlanner.validate(sqlNode);
 		SqlToOperationConverter converter = new SqlToOperationConverter(flinkPlanner, catalogManager);
 		if (validated instanceof SqlCreateTable) {
-			return Optional.of(converter.convertCreateTable((SqlCreateTable) validated));
+			return Optional.of(converter.createTableConverter.convertCreateTable((SqlCreateTable) validated));
 		} else if (validated instanceof SqlDropTable) {
 			return Optional.of(converter.convertDropTable((SqlDropTable) validated));
 		} else if (validated instanceof SqlAlterTable) {
@@ -215,137 +214,6 @@ public class SqlToOperationConverter {
 
 	//~ Tools ------------------------------------------------------------------
 
-	/**
-	 * Convert the {@link SqlCreateTable} node.
-	 */
-	private Operation convertCreateTable(SqlCreateTable sqlCreateTable) {
-		sqlCreateTable.getTableConstraints().forEach(this::validateTableConstraint);
-		CatalogTable catalogTable = createCatalogTable(sqlCreateTable);
-
-		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlCreateTable.fullTableName());
-		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-
-		return new CreateTableOperation(
-			identifier,
-			catalogTable,
-			sqlCreateTable.isIfNotExists(),
-			sqlCreateTable.isTemporary());
-	}
-
-	private CatalogTable createCatalogTable(SqlCreateTable sqlCreateTable) {
-
-		final TableSchema sourceTableSchema;
-		final List<String> sourcePartitionKeys;
-		final List<SqlTableLike.SqlTableLikeOption> likeOptions;
-		final Map<String, String> sourceProperties;
-		if (sqlCreateTable.getTableLike().isPresent()) {
-			SqlTableLike sqlTableLike = sqlCreateTable.getTableLike().get();
-			CatalogTable table = lookupLikeSourceTable(sqlTableLike);
-			sourceTableSchema = table.getSchema();
-			sourcePartitionKeys = table.getPartitionKeys();
-			likeOptions = sqlTableLike.getOptions();
-			sourceProperties = table.getProperties();
-		} else {
-			sourceTableSchema = TableSchema.builder().build();
-			sourcePartitionKeys = Collections.emptyList();
-			likeOptions = Collections.emptyList();
-			sourceProperties = Collections.emptyMap();
-		}
-
-		Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies =
-			mergeTableLikeUtil.computeMergingStrategies(likeOptions);
-
-		Map<String, String> mergedOptions = mergeOptions(sqlCreateTable, sourceProperties, mergingStrategies);
-
-		Optional<SqlTableConstraint> primaryKey = sqlCreateTable.getFullConstraints()
-			.stream()
-			.filter(SqlTableConstraint::isPrimaryKey)
-			.findAny();
-		TableSchema mergedSchema = mergeTableLikeUtil.mergeTables(
-			mergingStrategies,
-			sourceTableSchema,
-			sqlCreateTable.getColumnList().getList(),
-			sqlCreateTable.getWatermark().map(Collections::singletonList).orElseGet(Collections::emptyList),
-			primaryKey.orElse(null)
-		);
-
-		List<String> partitionKeys = mergePartitions(
-			sourcePartitionKeys,
-			sqlCreateTable.getPartitionKeyList(),
-			mergingStrategies
-		);
-		verifyPartitioningColumnsExist(mergedSchema, partitionKeys);
-
-		String tableComment = sqlCreateTable.getComment()
-			.map(comment -> comment.getNlsString().getValue())
-			.orElse(null);
-
-		return new CatalogTableImpl(mergedSchema,
-			partitionKeys,
-			mergedOptions,
-			tableComment);
-	}
-
-	private CatalogTable lookupLikeSourceTable(SqlTableLike sqlTableLike) {
-		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlTableLike.getSourceTable()
-			.toString());
-		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-		CatalogManager.TableLookupResult lookupResult = catalogManager.getTable(identifier)
-			.orElseThrow(() -> new ValidationException(String.format(
-				"Source table '%s' of the LIKE clause not found in the catalog, at %s",
-				identifier,
-				sqlTableLike.getSourceTable().getParserPosition())));
-		if (!(lookupResult.getTable() instanceof CatalogTable)) {
-			throw new ValidationException(String.format(
-				"Source table '%s' of the LIKE clause can not be a VIEW, at %s",
-				identifier,
-				sqlTableLike.getSourceTable().getParserPosition()));
-		}
-		return (CatalogTable) lookupResult.getTable();
-	}
-
-	private void verifyPartitioningColumnsExist(TableSchema mergedSchema, List<String> partitionKeys) {
-		for (String partitionKey : partitionKeys) {
-			if (!mergedSchema.getTableColumn(partitionKey).isPresent()) {
-				throw new ValidationException(
-					String.format(
-						"Partition column '%s' not defined in the table schema. Available columns: [%s]",
-						partitionKey,
-						Arrays.stream(mergedSchema.getFieldNames()).collect(Collectors.joining("', '", "'", "'"))
-					));
-			}
-		}
-	}
-
-	private List<String> mergePartitions(
-			List<String> sourcePartitionKeys,
-			SqlNodeList derivedPartitionKeys,
-			Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies) {
-		// set partition key
-		return mergeTableLikeUtil.mergePartitions(
-			mergingStrategies.get(SqlTableLike.FeatureOption.PARTITIONS),
-			sourcePartitionKeys,
-			derivedPartitionKeys
-				.getList()
-				.stream()
-				.map(p -> ((SqlIdentifier) p).getSimple())
-				.collect(Collectors.toList()));
-	}
-
-	private Map<String, String> mergeOptions(
-			SqlCreateTable sqlCreateTable,
-			Map<String, String> sourceProperties,
-			Map<SqlTableLike.FeatureOption, SqlTableLike.MergingStrategy> mergingStrategies) {
-		// set with properties
-		Map<String, String> properties = new HashMap<>();
-		sqlCreateTable.getPropertyList().getList().forEach(p ->
-			properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
-		return mergeTableLikeUtil.mergeOptions(
-			mergingStrategies.get(SqlTableLike.FeatureOption.OPTIONS),
-			sourceProperties,
-			properties
-		);
-	}
 
 	/** Convert DROP TABLE statement. */
 	private Operation convertDropTable(SqlDropTable sqlDropTable) {
