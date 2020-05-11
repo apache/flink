@@ -230,11 +230,11 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
 	 * internal data structures.
 	 */
 	@FunctionalInterface
-	private interface DeserializationRuntimeConverter extends Serializable {
+	interface DeserializationRuntimeConverter extends Serializable {
 		Object convert(JsonNode jsonNode);
 	}
 
-	private DeserializationRuntimeConverter createRowConverter(RowType rowType, boolean isTopLevel) {
+	DeserializationRuntimeConverter createRowConverter(RowType rowType, boolean isTopLevel) {
 		final DeserializationRuntimeConverter[] fieldConverters = rowType.getFields().stream()
 			.map(RowType.RowField::getType)
 			.map(this::createNullableConverter)
