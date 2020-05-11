@@ -42,6 +42,7 @@ import org.apache.flink.table.sinks.{BatchSelectTableSink, BatchTableSink, Outpu
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.util.JavaScalaConversionUtil
+import org.apache.flink.table.utils.PrintUtils
 import org.apache.flink.types.Row
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
@@ -625,6 +626,7 @@ abstract class TableEnvImpl(
         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
         .tableSchema(tableSchema)
         .data(tableSink.getResultIterator)
+        .setPrintStyle(PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH))
         .build
     } catch {
       case e: Exception =>
@@ -805,7 +807,7 @@ abstract class TableEnvImpl(
           resultKind(ResultKind.SUCCESS_WITH_CONTENT)
           .tableSchema(TableSchema.builder.field("result", DataTypes.STRING).build)
           .data(JCollections.singletonList(Row.of(explanation)))
-          .setPrintStyle(PrintStyle.RAW_CONTENT)
+          .setPrintStyle(PrintStyle.rawContent())
           .build
       case queryOperation: QueryOperation =>
         executeInternal(queryOperation)

@@ -112,6 +112,7 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
@@ -711,6 +712,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
 					.tableSchema(tableSchema)
 					.data(tableSink.getResultIterator())
+					.setPrintStyle(TableResultImpl.PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH))
 					.build();
 		} catch (Exception e) {
 			throw new TableException("Failed to execute sql", e);
@@ -962,7 +964,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
 					.tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
 					.data(Collections.singletonList(Row.of(explanation)))
-					.setPrintStyle(TableResultImpl.PrintStyle.RAW_CONTENT)
+					.setPrintStyle(TableResultImpl.PrintStyle.rawContent())
 					.build();
 		} else if (operation instanceof QueryOperation) {
 			return executeInternal((QueryOperation) operation);
