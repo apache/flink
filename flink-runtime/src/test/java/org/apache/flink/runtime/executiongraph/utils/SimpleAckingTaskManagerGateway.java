@@ -129,6 +129,13 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			long timestamp) {}
 
 	@Override
+	public void notifyCheckpointAborted(
+			ExecutionAttemptID executionAttemptID,
+			JobID jobId,
+			long checkpointId,
+			long timestamp) {}
+
+	@Override
 	public void triggerCheckpoint(
 			ExecutionAttemptID executionAttemptID,
 			JobID jobId,
