@@ -105,8 +105,6 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		assertEquals(1, checkpoints.getNumberOfRetainedCheckpoints());
 
 		for (int i = 1; i < expected.length; i++) {
-			Collection<OperatorState> taskStates = expected[i - 1].getOperatorStates().values();
-
 			checkpoints.addCheckpoint(expected[i]);
 
 			// The ZooKeeper implementation discards asynchronously
