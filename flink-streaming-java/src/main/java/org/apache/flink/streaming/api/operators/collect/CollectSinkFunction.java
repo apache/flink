@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.operators.collect;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
@@ -264,7 +265,9 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 			// put results not consumed by the client into the accumulator
 			// so that we do not block the closing procedure while not throwing results away
 			SerializedListAccumulator<byte[]> accumulator = new SerializedListAccumulator<>();
-			accumulator.add(serializeAccumulatorResult(), BytePrimitiveArraySerializer.INSTANCE);
+			accumulator.add(
+				serializeAccumulatorResult(offset, version, lastCheckpointedOffset, bufferedResults, serializer),
+				BytePrimitiveArraySerializer.INSTANCE);
 			getRuntimeContext().addAccumulator(accumulatorName, accumulator);
 		} finally {
 			bufferedResultsLock.unlock();
@@ -286,11 +289,17 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		this.eventGateway = eventGateway;
 	}
 
-	private byte[] serializeAccumulatorResult() throws IOException {
+	@VisibleForTesting
+	public static <T> byte[] serializeAccumulatorResult(
+			long offset,
+			String version,
+			long lastCheckpointedOffset,
+			List<T> bufferedResults,
+			TypeSerializer<T> serializer) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
 		wrapper.writeLong(offset);
-		CollectCoordinationResponse<IN> finalResponse =
+		CollectCoordinationResponse<T> finalResponse =
 			new CollectCoordinationResponse<>(version, lastCheckpointedOffset, bufferedResults, serializer);
 		finalResponse.serialize(wrapper);
 		return baos.toByteArray();

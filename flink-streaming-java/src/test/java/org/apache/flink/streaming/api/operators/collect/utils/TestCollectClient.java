@@ -106,36 +106,31 @@ public class TestCollectClient<T> extends Thread {
 			throw new RuntimeException("Too many retries in TestCollectClient");
 		}
 
-		if (INIT_VERSION.equals(version)) {
-			// first response, update version accordingly
+		if (responseLastCheckpointedOffset > lastCheckpointedOffset) {
+			// a new checkpoint happens
+			int newCheckpointedNum = (int) (responseLastCheckpointedOffset - lastCheckpointedOffset);
+			for (int i = 0; i < newCheckpointedNum; i++) {
+				T result = uncheckpointedResults.removeFirst();
+				checkpointedResults.add(result);
+			}
+			lastCheckpointedOffset = responseLastCheckpointedOffset;
+		}
+
+		if (!version.equals(responseVersion)) {
+			// sink has restarted
+			int removeNum = (int) (offset - lastCheckpointedOffset);
+			for (int i = 0; i < removeNum; i++) {
+				uncheckpointedResults.removeLast();
+			}
 			version = responseVersion;
-		} else {
-			if (responseLastCheckpointedOffset > lastCheckpointedOffset) {
-				// a new checkpoint happens
-				int newCheckpointedNum = (int) (responseLastCheckpointedOffset - lastCheckpointedOffset);
-				for (int i = 0; i < newCheckpointedNum; i++) {
-					T result = uncheckpointedResults.removeFirst();
-					checkpointedResults.add(result);
-				}
-				lastCheckpointedOffset = responseLastCheckpointedOffset;
-			}
+			offset = lastCheckpointedOffset;
+		}
 
-			if (!version.equals(responseVersion)) {
-				// sink has restarted
-				int removeNum = (int) (offset - lastCheckpointedOffset);
-				for (int i = 0; i < removeNum; i++) {
-					uncheckpointedResults.removeLast();
-				}
-				version = responseVersion;
-				offset = lastCheckpointedOffset;
-			}
-
-			if (responseResults.size() > 0) {
-				int addStart = (int) (offset - responseOffset);
-				List<T> resultsToAdd = responseResults.subList(addStart, responseResults.size());
-				uncheckpointedResults.addAll(resultsToAdd);
-				offset += resultsToAdd.size();
-			}
+		if (responseResults.size() > 0) {
+			int addStart = (int) (offset - responseOffset);
+			List<T> resultsToAdd = responseResults.subList(addStart, responseResults.size());
+			uncheckpointedResults.addAll(resultsToAdd);
+			offset += resultsToAdd.size();
 		}
 	}
 }
