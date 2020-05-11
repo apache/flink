@@ -296,6 +296,18 @@ public class HiveShimV100 implements HiveShim {
 		return optional.orElseThrow(() -> new FlinkHiveException("Unsupported primitive java value of class " + value.getClass().getName()));
 	}
 
+	@Override
+	public void createTableWithConstraints(
+			IMetaStoreClient client,
+			Table table,
+			Configuration conf,
+			UniqueConstraint pk,
+			List<Byte> pkTraits,
+			List<String> notNullCols,
+			List<Byte> nnTraits) {
+		throw new UnsupportedOperationException("Table constraints not supported until 2.1.0");
+	}
+
 	Optional<Writable> javaToWritable(@Nonnull Object value) {
 		Writable writable = null;
 		// in case value is already a Writable

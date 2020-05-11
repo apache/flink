@@ -105,6 +105,7 @@ import java.io.File;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -374,8 +375,35 @@ public class HiveCatalog extends AbstractCatalog {
 
 		Table hiveTable = instantiateHiveTable(tablePath, table);
 
+		UniqueConstraint pkConstraint = null;
+		List<String> notNullCols = new ArrayList<>();
+		boolean isGeneric = isGenericForCreate(table.getOptions());
+		if (!isGeneric) {
+			pkConstraint = table.getSchema().getPrimaryKey().orElse(null);
+			for (int i = 0; i < table.getSchema().getFieldDataTypes().length; i++) {
+				if (!table.getSchema().getFieldDataTypes()[i].getLogicalType().isNullable()) {
+					notNullCols.add(table.getSchema().getFieldNames()[i]);
+				}
+			}
+		}
+
 		try {
-			client.createTable(hiveTable);
+			if (pkConstraint != null || !notNullCols.isEmpty()) {
+				// for now we just create constraints that are DISABLE, NOVALIDATE, RELY
+				Byte[] pkTraits = new Byte[pkConstraint == null ? 0 : pkConstraint.getColumns().size()];
+				Arrays.fill(pkTraits, HiveTableUtil.relyConstraint((byte) 0));
+				Byte[] nnTraits = new Byte[notNullCols.size()];
+				Arrays.fill(nnTraits, HiveTableUtil.relyConstraint((byte) 0));
+				client.createTableWithConstraints(
+						hiveTable,
+						hiveConf,
+						pkConstraint,
+						Arrays.asList(pkTraits),
+						notNullCols,
+						Arrays.asList(nnTraits));
+			} else {
+				client.createTable(hiveTable);
+			}
 		} catch (AlreadyExistsException e) {
 			if (!ignoreIfExists) {
 				throw new TableAlreadyExistException(getName(), tablePath, e);
