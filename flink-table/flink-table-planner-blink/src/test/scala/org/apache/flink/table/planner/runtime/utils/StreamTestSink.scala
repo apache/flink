@@ -41,6 +41,7 @@ import org.apache.flink.types.Row
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.util.TimeZone
 import _root_.java.util.concurrent.atomic.AtomicInteger
+import java.util
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
@@ -150,6 +151,8 @@ final class TestingAppendRowDataSink(
     RowDataTestUtil.rowToString(value, rowTypeInfo, tz)
 
   def getAppendResults: List[String] = getResults
+
+  def getJavaAppendResults: java.util.List[String] = new util.ArrayList[String](getResults.asJava)
 
 }
 

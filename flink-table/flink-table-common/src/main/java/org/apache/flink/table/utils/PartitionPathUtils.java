@@ -126,6 +126,16 @@ public class PartitionPathUtils {
 	}
 
 	/**
+	 * Make partition values from path.
+	 *
+	 * @param currPath partition file path.
+	 * @return Sequential partition specs.
+	 */
+	public static List<String> extractPartitionValues(Path currPath) {
+		return new ArrayList<>(extractPartitionSpecFromPath(currPath).values());
+	}
+
+	/**
 	 * Make partition spec from path.
 	 *
 	 * @param currPath partition file path.
