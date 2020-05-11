@@ -18,10 +18,18 @@
 
 package org.apache.flink.table.planner.codegen
 
+import java.math.{BigDecimal => JBigDecimal}
+import java.time.ZoneOffset
+
+import org.apache.calcite.avatica.util.ByteString
+import org.apache.calcite.util.TimestampString
+import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.table.dataformat._
+import org.apache.flink.table.data._
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
@@ -30,11 +38,6 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.calcite.avatica.util.ByteString
-import org.apache.calcite.util.TimestampString
-import org.apache.commons.lang3.StringEscapeUtils
-import java.math.{BigDecimal => JBigDecimal}
-
 import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 
 import scala.collection.mutable
@@ -121,7 +124,7 @@ object GenerateUtils {
 
   /**
     * Generates a string result call with a single result statement.
-    * This will convert the String result to BinaryString.
+    * This will convert the String result to BinaryStringData.
     */
   def generateStringResultCallIfArgsNotNull(
       ctx: CodeGeneratorContext,
@@ -135,7 +138,7 @@ object GenerateUtils {
 
   /**
     * Generates a string result call with auxiliary statements and result expression.
-    * This will convert the String result to BinaryString.
+    * This will convert the String result to BinaryStringData.
     */
   def generateStringResultCallWithStmtIfArgsNotNull(
       ctx: CodeGeneratorContext,
@@ -204,12 +207,12 @@ object GenerateUtils {
   // --------------------------- General Generate Utils ----------------------------------
 
   /**
-    * Generates a record declaration statement. The record can be any type of BaseRow or
+    * Generates a record declaration statement. The record can be any type of RowData or
     * other types.
     * @param t  the record type
     * @param clazz  the specified class of the type (only used when RowType)
     * @param recordTerm the record term to be declared
-    * @param recordWriterTerm the record writer term (only used when BinaryRow type)
+    * @param recordWriterTerm the record writer term (only used when BinaryRowData type)
     * @return the record declaration statement
     */
   def generateRecordStatement(
@@ -218,9 +221,9 @@ object GenerateUtils {
       recordTerm: String,
       recordWriterTerm: Option[String] = None): String = {
     t match {
-      case rt: RowType if clazz == classOf[BinaryRow] =>
+      case rt: RowType if clazz == classOf[BinaryRowData] =>
         val writerTerm = recordWriterTerm.getOrElse(
-          throw new CodeGenException("No writer is specified when writing BinaryRow record.")
+          throw new CodeGenException("No writer is specified when writing BinaryRowData record.")
         )
         val binaryRowWriter = className[BinaryRowWriter]
         val typeTerm = clazz.getCanonicalName
@@ -228,10 +231,11 @@ object GenerateUtils {
            |final $typeTerm $recordTerm = new $typeTerm(${rt.getFieldCount});
            |final $binaryRowWriter $writerTerm = new $binaryRowWriter($recordTerm);
            |""".stripMargin.trim
-      case rt: RowType if classOf[ObjectArrayRow].isAssignableFrom(clazz) =>
+      case rt: RowType if clazz == classOf[GenericRowData] ||
+          clazz == classOf[BoxedWrapperRowData] =>
         val typeTerm = clazz.getCanonicalName
         s"final $typeTerm $recordTerm = new $typeTerm(${rt.getFieldCount});"
-      case _: RowType if clazz == classOf[JoinedRow] =>
+      case _: RowType if clazz == classOf[JoinedRowData] =>
         val typeTerm = clazz.getCanonicalName
         s"final $typeTerm $recordTerm = new $typeTerm();"
       case _ =>
@@ -243,18 +247,17 @@ object GenerateUtils {
   def generateNullLiteral(
       resultType: LogicalType,
       nullCheck: Boolean): GeneratedExpression = {
-    val defaultValue = primitiveDefaultValue(resultType)
-    val resultTypeTerm = primitiveTypeTermForType(resultType)
-    if (nullCheck) {
-      GeneratedExpression(
-        s"(($resultTypeTerm) $defaultValue)",
-        ALWAYS_NULL,
-        NO_CODE,
-        resultType,
-        literalValue = Some(null))  // the literal is null
-    } else {
+    if (!nullCheck) {
       throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
     }
+    val defaultValue = primitiveDefaultValue(resultType)
+    val resultTypeTerm = primitiveTypeTermForType(resultType)
+    GeneratedExpression(
+      s"(($resultTypeTerm) $defaultValue)",
+      ALWAYS_NULL,
+      NO_CODE,
+      resultType,
+      literalValue = Some(null))
   }
 
   def generateNonNullLiteral(
@@ -337,21 +340,25 @@ object GenerateUtils {
         val precision = dt.getPrecision
         val scale = dt.getScale
         val fieldTerm = newName("decimal")
-        val decimalClass = className[Decimal]
+        val decimalClass = className[DecimalData]
         val fieldDecimal =
           s"""
              |$decimalClass $fieldTerm =
-             |    $decimalClass.castFrom("${literalValue.toString}", $precision, $scale);
+             |    $DECIMAL_UTIL.castFrom("${literalValue.toString}", $precision, $scale);
              |""".stripMargin
         ctx.addReusableMember(fieldDecimal)
-        val value = Decimal.fromBigDecimal(
+        val value = DecimalData.fromBigDecimal(
           literalValue.asInstanceOf[JBigDecimal], precision, scale)
-        generateNonNullLiteral(literalType, fieldTerm, value)
+        if (value == null) {
+          generateNullLiteral(literalType, ctx.nullCheck)
+        } else {
+          generateNonNullLiteral(literalType, fieldTerm, value)
+        }
 
       case VARCHAR | CHAR =>
         val escapedValue = StringEscapeUtils.ESCAPE_JAVA.translate(literalValue.toString)
         val field = ctx.addReusableStringConstants(escapedValue)
-        generateNonNullLiteral(literalType, field, BinaryString.fromString(escapedValue))
+        generateNonNullLiteral(literalType, field, StringData.fromString(escapedValue))
 
       case VARBINARY | BINARY =>
         val bytesVal = literalValue.asInstanceOf[ByteString].getBytes
@@ -368,11 +375,11 @@ object GenerateUtils {
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val fieldTerm = newName("timestamp")
         val ldt = toLocalDateTime(literalValue.asInstanceOf[TimestampString])
-        val ts = SqlTimestamp.fromLocalDateTime(ldt)
+        val ts = TimestampData.fromLocalDateTime(ldt)
         val fieldTimestamp =
           s"""
-             |$SQL_TIMESTAMP $fieldTerm =
-             |  $SQL_TIMESTAMP.fromEpochMillis(${ts.getMillisecond}L, ${ts.getNanoOfMillisecond});
+             |$TIMESTAMP_DATA $fieldTerm =
+             |  $TIMESTAMP_DATA.fromEpochMillis(${ts.getMillisecond}L, ${ts.getNanoOfMillisecond});
            """.stripMargin
         ctx.addReusableMember(fieldTimestamp)
         generateNonNullLiteral(literalType, fieldTerm, ts)
@@ -381,12 +388,13 @@ object GenerateUtils {
         val fieldTerm = newName("timestampWithLocalZone")
         val ins =
           toLocalDateTime(literalValue.asInstanceOf[TimestampString])
-          .atZone(ctx.tableConfig.getLocalTimeZone).toInstant
-        val ts = SqlTimestamp.fromInstant(ins)
+            .atOffset(ZoneOffset.UTC)
+            .toInstant
+        val ts = TimestampData.fromInstant(ins)
         val fieldTimestampWithLocalZone =
           s"""
-             |$SQL_TIMESTAMP $fieldTerm =
-             |  $SQL_TIMESTAMP.fromEpochMillis(${ts.getMillisecond}L, ${ts.getNanoOfMillisecond});
+             |$TIMESTAMP_DATA $fieldTerm =
+             |  $TIMESTAMP_DATA.fromEpochMillis(${ts.getMillisecond}L, ${ts.getNanoOfMillisecond});
            """.stripMargin
         ctx.addReusableMember(fieldTimestampWithLocalZone)
         generateNonNullLiteral(literalType, fieldTerm, literalValue)
@@ -455,7 +463,7 @@ object GenerateUtils {
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val resultCode =
       s"""
-         |$resultTerm = $SQL_TIMESTAMP.fromEpochMillis(
+         |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis(
          |  $contextTerm.timerService().currentProcessingTime());
          |""".stripMargin.trim
     // the proctime has been materialized, so it's TIMESTAMP now, not PROCTIME_INDICATOR
@@ -478,7 +486,7 @@ object GenerateUtils {
 
     val accessCode =
       s"""
-         |$resultTerm = $SQL_TIMESTAMP.fromEpochMillis($contextTerm.timestamp());
+         |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis($contextTerm.timestamp());
          |if ($resultTerm == null) {
          |  throw new RuntimeException("Rowtime timestamp is null. Please make sure that a " +
          |    "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
@@ -638,7 +646,7 @@ object GenerateUtils {
         val fieldType = ct.getTypeAt(index)
         val resultTypeTerm = primitiveTypeTermForType(fieldType)
         val defaultValue = primitiveDefaultValue(fieldType)
-        val readCode = baseRowFieldReadAccess(ctx, index.toString, inputTerm, fieldType)
+        val readCode = rowFieldReadAccess(ctx, index.toString, inputTerm, fieldType)
         val Seq(fieldTerm, nullTerm) = ctx.addReusableLocalVariables(
           (resultTypeTerm, "field"),
           ("boolean", "isNull"))
@@ -691,7 +699,7 @@ object GenerateUtils {
         SortUtil.getNullDefaultOrder(true), at, "a", "b")
       val funcCode: String =
         s"""
-          public int $compareFunc($BASE_ARRAY a, $BASE_ARRAY b) {
+          public int $compareFunc($ARRAY_DATA a, $ARRAY_DATA b) {
             $compareCode
             return 0;
           }
@@ -712,7 +720,7 @@ object GenerateUtils {
       val compareFunc = newName("compareRow")
       val funcCode: String =
         s"""
-          public int $compareFunc($BASE_ROW a, $BASE_ROW b) {
+          public int $compareFunc($ROW_DATA a, $ROW_DATA b) {
             $comparisons
             return 0;
           }
@@ -728,10 +736,7 @@ object GenerateUtils {
             .createComparator(true, new ExecutionConfig),
         "comparator")
       s"""
-         |$comp.compare(
-         |  $BINARY_GENERIC.getJavaObjectFromBinaryGeneric($leftTerm, $ser),
-         |  $BINARY_GENERIC.getJavaObjectFromBinaryGeneric($rightTerm, $ser)
-         |)
+         |$comp.compare($leftTerm.toObject($ser), $rightTerm.toObject($ser))
        """.stripMargin
     case other => s"$leftTerm.compareTo($rightTerm)"
   }
@@ -759,8 +764,8 @@ object GenerateUtils {
     val comp = newName("comp")
     val typeTerm = primitiveTypeTermForType(elementType)
     s"""
-        int $lengthA = a.numElements();
-        int $lengthB = b.numElements();
+        int $lengthA = a.size();
+        int $lengthB = b.size();
         int $minLength = ($lengthA > $lengthB) ? $lengthB : $lengthA;
         for (int $i = 0; $i < $minLength; $i++) {
           boolean $isNullA = a.isNullAt($i);
@@ -772,8 +777,8 @@ object GenerateUtils {
           } else if ($isNullB) {
             return ${-nullIsLastRet};
           } else {
-            $typeTerm $fieldA = ${baseRowFieldReadAccess(ctx, i, leftTerm, elementType)};
-            $typeTerm $fieldB = ${baseRowFieldReadAccess(ctx, i, rightTerm, elementType)};
+            $typeTerm $fieldA = ${rowFieldReadAccess(ctx, i, leftTerm, elementType)};
+            $typeTerm $fieldB = ${rowFieldReadAccess(ctx, i, rightTerm, elementType)};
             int $comp = ${generateCompare(ctx, elementType, nullsIsLast, fieldA, fieldB)};
             if ($comp != 0) {
               return $comp;
@@ -830,8 +835,8 @@ object GenerateUtils {
            |} else if ($isNullB) {
            |  return ${-nullIsLastRet};
            |} else {
-           |  $typeTerm $fieldA = ${baseRowFieldReadAccess(ctx, index, leftTerm, t)};
-           |  $typeTerm $fieldB = ${baseRowFieldReadAccess(ctx, index, rightTerm, t)};
+           |  $typeTerm $fieldA = ${rowFieldReadAccess(ctx, index, leftTerm, t)};
+           |  $typeTerm $fieldB = ${rowFieldReadAccess(ctx, index, rightTerm, t)};
            |  int $comp = ${generateCompare(ctx, t, nullsIsLast(i), fieldA, fieldB)};
            |  if ($comp != 0) {
            |    return $symbol$comp;

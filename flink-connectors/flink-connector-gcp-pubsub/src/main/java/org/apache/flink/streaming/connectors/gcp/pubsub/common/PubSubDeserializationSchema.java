@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub.common;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import com.google.pubsub.v1.PubsubMessage;
@@ -30,6 +31,18 @@ import java.io.Serializable;
  * @param <T> The type created by the deserialization schema.
  */
 public interface PubSubDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+
+	/**
+	 * Initialization method for the schema. It is called before the actual working methods
+	 * {@link #deserialize} and thus suitable for one time setup work.
+	 *
+	 * <p>The provided {@link DeserializationSchema.InitializationContext} can be used to access additional features such as e.g.
+	 * registering user metrics.
+	 *
+	 * @param context Contextual information that can be used during initialization.
+	 */
+	default void open(DeserializationSchema.InitializationContext context) throws Exception {
+	}
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If

@@ -31,22 +31,22 @@ import javax.annotation.Nullable;
 public class TwoInputSelectionHandler {
 
 	@Nullable
-	private final InputSelectable inputSelector;
+	private final InputSelectable inputSelectable;
 
 	private InputSelection inputSelection;
 
 	private int availableInputsMask;
 
 	public TwoInputSelectionHandler(@Nullable InputSelectable inputSelectable) {
-		this.inputSelector = inputSelectable;
+		this.inputSelectable = inputSelectable;
 		this.availableInputsMask = (int) new InputSelection.Builder().select(1).select(2).build().getInputMask();
 	}
 
 	void nextSelection() {
-		if (inputSelector == null) {
+		if (inputSelectable == null) {
 			inputSelection = InputSelection.ALL;
 		} else {
-			inputSelection = inputSelector.nextSelection();
+			inputSelection = inputSelectable.nextSelection();
 		}
 	}
 

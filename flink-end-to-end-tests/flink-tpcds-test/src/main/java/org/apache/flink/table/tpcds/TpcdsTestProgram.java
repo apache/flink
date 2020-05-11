@@ -20,7 +20,6 @@ package org.apache.flink.table.tpcds;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -47,7 +46,7 @@ import java.util.stream.Stream;
  */
 public class TpcdsTestProgram {
 
-	private static final List<String> TCPDS_TABLES = Arrays.asList(
+	private static final List<String> TPCDS_TABLES = Arrays.asList(
 			"catalog_sales", "catalog_returns", "inventory", "store_sales",
 			"store_returns", "web_sales", "web_returns", "call_center", "catalog_page",
 			"customer", "customer_address", "customer_demographics", "date_dim",
@@ -124,8 +123,6 @@ public class TpcdsTestProgram {
 
 		//config Optimizer parameters
 		tEnv.getConfig().getConfiguration()
-				.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.BATCH.toString());
-		tEnv.getConfig().getConfiguration()
 				.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4);
 		tEnv.getConfig().getConfiguration()
 				.setLong(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, 10 * 1024 * 1024);
@@ -133,7 +130,7 @@ public class TpcdsTestProgram {
 				.setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true);
 
 		//register TPC-DS tables
-		TCPDS_TABLES.forEach(table -> {
+		TPCDS_TABLES.forEach(table -> {
 			TpcdsSchema schema = TpcdsSchemaProvider.getTableSchema(table);
 			CsvTableSource.Builder builder = CsvTableSource.builder();
 			builder.path(sourceTablePath + FILE_SEPARATOR + table + DATA_SUFFIX);

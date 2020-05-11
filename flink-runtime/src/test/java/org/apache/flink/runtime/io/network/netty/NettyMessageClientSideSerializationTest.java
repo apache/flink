@@ -84,6 +84,7 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
 			new TestingPartitionRequestClient(),
 			networkBufferPool);
 		inputChannel.requestSubpartition(0);
+		inputGate.setInputChannels(inputChannel);
 		inputGate.assignExclusiveSegments();
 
 		CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();

@@ -120,9 +120,12 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 DataStream<Tuple2<String, String>> stream = ...;
 
 // 声明一个额外的字段作为时间属性字段
-Table table = tEnv.fromDataStream(stream, "user_name, data, user_action_time.proctime");
+Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").proctime()");
 
-WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
+WindowedTable windowedTable = table.window(
+        Tumble.over(interval(Duration.ofMinutes(10)))
+            .on($("user_action_time"))
+            .as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -130,9 +133,9 @@ WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("user_ac
 val stream: DataStream[(String, String)] = ...
 
 // 声明一个额外的字段作为时间属性字段
-val table = tEnv.fromDataStream(stream, 'UserActionTimestamp, 'user_name, 'data, 'user_action_time.proctime)
+val table = tEnv.fromDataStream(stream, $"UserActionTimestamp", $"user_name", $"data", $"user_action_time".proctime)
 
-val windowedTable = table.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
+val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 {% endhighlight %}
 </div>
 </div>
@@ -173,7 +176,10 @@ tEnv.registerTableSource("user_actions", new UserActionSource());
 
 WindowedTable windowedTable = tEnv
 	.from("user_actions")
-	.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
+	.window(Tumble
+	    .over(interval(Duration.ofMinutes(10)))
+	    .on($("user_action_time"))
+	    .as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -204,7 +210,7 @@ tEnv.registerTableSource("user_actions", new UserActionSource)
 
 val windowedTable = tEnv
 	.from("user_actions")
-	.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
+	.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 {% endhighlight %}
 </div>
 </div>
@@ -264,7 +270,7 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 DataStream<Tuple2<String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
 
 // 声明一个额外的逻辑字段作为事件时间属性
-Table table = tEnv.fromDataStream(stream, "user_name, data, user_action_time.rowtime");
+Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").rowtime()");
 
 
 // Option 2:
@@ -273,11 +279,14 @@ Table table = tEnv.fromDataStream(stream, "user_name, data, user_action_time.row
 DataStream<Tuple3<Long, String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
 
 // 第一个字段已经用作事件时间抽取了，不用再用一个新字段来表示事件时间了
-Table table = tEnv.fromDataStream(stream, "user_action_time.rowtime, user_name, data");
+Table table = tEnv.fromDataStream(stream, $("user_action_time").rowtime(), $("user_name"), $("data"));
 
 // Usage:
 
-WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
+WindowedTable windowedTable = table.window(Tumble
+       .over(interval(Duration.ofMinutes(10)))
+       .on($("user_action_time"))
+       .as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -289,7 +298,7 @@ WindowedTable windowedTable = table.window(Tumble.over("10.minutes").on("user_ac
 val stream: DataStream[(String, String)] = inputStream.assignTimestampsAndWatermarks(...)
 
 // 声明一个额外的逻辑字段作为事件时间属性
-val table = tEnv.fromDataStream(stream, 'user_name, 'data, 'user_action_time.rowtime)
+val table = tEnv.fromDataStream(stream, $"user_name", $"data", $"user_action_time".rowtime)
 
 
 // Option 2:
@@ -298,11 +307,11 @@ val table = tEnv.fromDataStream(stream, 'user_name, 'data, 'user_action_time.row
 val stream: DataStream[(Long, String, String)] = inputStream.assignTimestampsAndWatermarks(...)
 
 // 第一个字段已经用作事件时间抽取了，不用再用一个新字段来表示事件时间了
-val table = tEnv.fromDataStream(stream, 'user_action_time.rowtime, 'user_name, 'data)
+val table = tEnv.fromDataStream(stream, $"user_action_time".rowtime, $"user_name", $"data")
 
 // Usage:
 
-val windowedTable = table.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
+val windowedTable = table.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 {% endhighlight %}
 </div>
 </div>
@@ -356,7 +365,7 @@ tEnv.registerTableSource("user_actions", new UserActionSource());
 
 WindowedTable windowedTable = tEnv
 	.from("user_actions")
-	.window(Tumble.over("10.minutes").on("user_action_time").as("userActionWindow"));
+	.window(Tumble.over(interval(Duration.ofMinutes(10))).on($("user_action_time")).as("userActionWindow"));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -395,7 +404,7 @@ tEnv.registerTableSource("user_actions", new UserActionSource)
 
 val windowedTable = tEnv
 	.from("user_actions")
-	.window(Tumble over 10.minutes on 'user_action_time as 'userActionWindow)
+	.window(Tumble over 10.minutes on $"user_action_time" as "userActionWindow")
 {% endhighlight %}
 </div>
 </div>

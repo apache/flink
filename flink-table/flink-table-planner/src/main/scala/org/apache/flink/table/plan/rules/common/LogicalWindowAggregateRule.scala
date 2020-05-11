@@ -21,23 +21,33 @@ import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Project, RelFactories}
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.catalog.BasicOperatorTable
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.tools.RelBuilder
+
+import _root_.java.util.{ArrayList => JArrayList, Collections, List => JList}
 import _root_.scala.collection.JavaConversions._
 
 abstract class LogicalWindowAggregateRule(ruleName: String)
   extends RelOptRule(
     RelOptRule.operand(classOf[LogicalAggregate],
       RelOptRule.operand(classOf[LogicalProject], RelOptRule.none())),
+    RelBuilder.proto(
+      Contexts.of(
+        RelFactories.DEFAULT_STRUCT,
+        RelBuilder.Config.DEFAULT
+          .withBloat(-1))),
     ruleName) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -50,7 +60,7 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
       throw new TableException("Only a single window group function may be used in GROUP BY")
     }
 
-    !groupSets && !agg.indicator && windowExpressions.nonEmpty
+    !groupSets && windowExpressions.nonEmpty
   }
 
   /**
@@ -61,8 +71,15 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
     * that the types are equivalent.
     */
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val agg = call.rel[LogicalAggregate](0)
-    val project = agg.getInput.asInstanceOf[HepRelVertex].getCurrentRel.asInstanceOf[LogicalProject]
+    val agg0 = call.rel[LogicalAggregate](0)
+    val project0 = call.rel[LogicalProject](1)
+    val project = rewriteWindowCallWithFuncOperands(project0, call.builder())
+    val agg = if (project != project0) {
+      agg0.copy(agg0.getTraitSet, Collections.singletonList(project))
+        .asInstanceOf[LogicalAggregate]
+    } else {
+      agg0
+    }
 
     val (windowExpr, windowExprIdx) = getWindowExpressions(agg).head
     val window = translateWindowExpression(windowExpr, project.getInput.getRowType)
@@ -90,7 +107,6 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
     // we don't use the builder here because it uses RelMetadataQuery which affects the plan
     val newAgg = LogicalAggregate.create(
       newProject,
-      agg.indicator,
       newGroupSet,
       ImmutableList.of(newGroupSet),
       finalCalls)
@@ -123,6 +139,104 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
 
     val result = transformed.build()
     call.transformTo(result)
+  }
+
+  /** Trim out the HepRelVertex wrapper and get current relational expression. */
+  private def trimHep(node: RelNode): RelNode = {
+    node match {
+      case hepRelVertex: HepRelVertex =>
+        hepRelVertex.getCurrentRel
+      case _ => node
+    }
+  }
+
+  /**
+   * Rewrite plan with function call as window call operand: rewrite the window call to
+   * reference the input instead of invoking the function directly, in order to simplify the
+   * subsequent rewrite logic.
+   *
+   * For example, plan
+   * <pre>
+   * LogicalAggregate(group=[{0}], a=[COUNT()])
+   *   LogicalProject($f0=[$TUMBLE(TUMBLE_ROWTIME($0), 4:INTERVAL SECOND)], a=[$1])
+   *     LogicalProject($f0=[1970-01-01 00:00:00:TIMESTAMP(3)], a=[$0])
+   * </pre>
+   *
+   * would be rewritten to
+   * <pre>
+   * LogicalAggregate(group=[{0}], a=[COUNT()])
+   *   LogicalProject($f0=[TUMBLE($1, 4:INTERVAL SECOND)], a=[$0])
+   *     LogicalProject(a=[$1], zzzzz=[TUMBLE_ROWTIME($0)])
+   *       LogicalProject($f0=[1970-01-01 00:00:00:TIMESTAMP(3)], a=[$0])
+   * </pre>
+   */
+  private def rewriteWindowCallWithFuncOperands(
+      project: LogicalProject,
+      relBuilder: RelBuilder): LogicalProject = {
+    val projectInput = trimHep(project.getInput)
+    if (!projectInput.isInstanceOf[Project]) {
+      return project
+    }
+    val inputProjects = projectInput.asInstanceOf[Project].getChildExps
+    var hasWindowCallWithFuncOperands: Boolean = false
+    var lastIdx = projectInput.getRowType.getFieldCount - 1;
+    val pushDownCalls = new JArrayList[RexNode]()
+    0 until projectInput.getRowType.getFieldCount foreach {
+      idx => pushDownCalls.add(RexInputRef.of(idx, projectInput.getRowType))
+    }
+    val newProjectExprs = project.getChildExps.map {
+      case call: RexCall if isWindowCall(call) &&
+        isTimeAttributeCall(call.getOperands.head, inputProjects) =>
+        hasWindowCallWithFuncOperands = true
+        // Update the window call to reference a RexInputRef instead of a function call.
+        call.accept(
+          new RexShuttle {
+            override def visitCall(call: RexCall): RexNode = {
+              if (isTimeAttributeCall(call, inputProjects)) {
+                lastIdx += 1
+                pushDownCalls.add(call)
+                relBuilder.getRexBuilder.makeInputRef(
+                  call.getType,
+                  // We would project plus an additional function call
+                  // at the end of input projection.
+                  lastIdx)
+              } else {
+                super.visitCall(call)
+              }
+            }
+          })
+      case rex: RexNode => rex
+    }
+
+    if (hasWindowCallWithFuncOperands) {
+      relBuilder
+        .push(projectInput)
+        // project plus the function call.
+        .project(pushDownCalls)
+        .project(newProjectExprs, project.getRowType.getFieldNames)
+        .build()
+        .asInstanceOf[LogicalProject]
+    } else {
+      project
+    }
+  }
+
+  /** Decides if the [[RexNode]] is a call whose return type is
+   * a time indicator type. */
+  def isTimeAttributeCall(rexNode: RexNode, projects: JList[RexNode]): Boolean = rexNode match {
+    case call: RexCall if FlinkTypeFactory.isTimeIndicatorType(call.getType) =>
+      call.getOperands.forall { operand =>
+        operand.isInstanceOf[RexInputRef]
+      }
+    case _ => false
+  }
+
+  /** Decides whether the [[RexCall]] is a window call. */
+  def isWindowCall(call: RexCall): Boolean = call.getOperator match {
+    case BasicOperatorTable.SESSION |
+         BasicOperatorTable.HOP |
+         BasicOperatorTable.TUMBLE => true
+    case _ => false
   }
 
   /**
@@ -182,7 +296,7 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
 
   private[table] def getWindowExpressions(agg: LogicalAggregate): Seq[(RexCall, Int)] = {
 
-    val project = agg.getInput.asInstanceOf[HepRelVertex].getCurrentRel.asInstanceOf[LogicalProject]
+    val project = trimHep(agg.getInput).asInstanceOf[LogicalProject]
     val groupKeys = agg.getGroupSet
 
     // get grouping expressions

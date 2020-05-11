@@ -24,8 +24,8 @@ import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
  * This column vector is used to adapt hive's DoubleColumnVector to Flink's float and double ColumnVector.
  */
 public class OrcDoubleColumnVector extends AbstractOrcColumnVector implements
-		org.apache.flink.table.dataformat.vector.DoubleColumnVector,
-		org.apache.flink.table.dataformat.vector.FloatColumnVector {
+		org.apache.flink.table.data.vector.DoubleColumnVector,
+		org.apache.flink.table.data.vector.FloatColumnVector {
 
 	private DoubleColumnVector vector;
 

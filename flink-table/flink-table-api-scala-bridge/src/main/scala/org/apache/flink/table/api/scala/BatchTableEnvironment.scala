@@ -80,15 +80,43 @@ trait BatchTableEnvironment extends TableEnvironment {
   /**
     * Converts the given [[DataSet]] into a [[Table]] with specified field names.
     *
+    * There are two modes for mapping original fields to the fields of the [[Table]]:
+    *
+    * 1. Reference input fields by name:
+    * All fields in the schema definition are referenced by name
+    * (and possibly renamed using an alias (as). In this mode, fields can be reordered and
+    * projected out. This mode can be used for any input type, including POJOs.
+    *
     * Example:
     *
     * {{{
     *   val set: DataSet[(String, Long)] = ...
-    *   val tab: Table = tableEnv.fromDataSet(set, 'a, 'b)
+    *   val table: Table = tableEnv.fromDataSet(
+    *      set,
+    *      $"_2", // reorder and use the original field
+    *      $"_1" as "name" // reorder and give the original field a better name
+    *   )
+    * }}}
+    *
+    * 2. Reference input fields by position:
+    * In this mode, fields are simply renamed. This mode can only be
+    * used if the input type has a defined field order (tuple, case class, Row) and none of
+    * the `fields` references a field of the input type.
+    *
+    * Example:
+    *
+    * {{{
+    *   val set: DataSet[(String, Long)] = ...
+    *   val table: Table = tableEnv.fromDataSet(
+    *      set,
+    *      $"a", // renames the first field to 'a'
+    *      $"b" // renames the second field to 'b'
+    *   )
     * }}}
     *
     * @param dataSet The [[DataSet]] to be converted.
-    * @param fields The field names of the resulting [[Table]].
+    * @param fields The fields expressions to map original fields of the DataSet to the fields of
+    *               the [[Table]].
     * @tparam T The type of the [[DataSet]].
     * @return The converted [[Table]].
     */
@@ -137,11 +165,40 @@ trait BatchTableEnvironment extends TableEnvironment {
     * Creates a view from the given [[DataSet]] in a given path with specified field names.
     * Registered views can be referenced in SQL queries.
     *
+    * There are two modes for mapping original fields to the fields of the View:
+    *
+    * 1. Reference input fields by name:
+    * All fields in the schema definition are referenced by name
+    * (and possibly renamed using an alias (as). In this mode, fields can be reordered and
+    * projected out. This mode can be used for any input type, including POJOs.
+    *
     * Example:
     *
     * {{{
     *   val set: DataSet[(String, Long)] = ...
-    *   tableEnv.registerDataSet("myTable", set, 'a, 'b)
+    *   tableEnv.registerDataSet(
+    *      "myTable",
+    *      set,
+    *      $"_2", // reorder and use the original field
+    *      $"_1" as "name" // reorder and give the original field a better name
+    *   );
+    * }}}
+    *
+    * 2. Reference input fields by position:
+    * In this mode, fields are simply renamed. This mode can only be
+    * used if the input type has a defined field order (tuple, case class, Row) and none of
+    * the `fields` references a field of the input type.
+    *
+    * Example:
+    *
+    * {{{
+    *   val set: DataSet[(String, Long)] = ...
+    *   tableEnv.registerDataSet(
+    *      "myTable",
+    *      set,
+    *      $"a", // renames the first field to 'a'
+    *      $"b" // renames the second field to 'b'
+    *   )
     * }}}
     *
     * The view is registered in the namespace of the current catalog and database. To register the
@@ -153,7 +210,8 @@ trait BatchTableEnvironment extends TableEnvironment {
     *
     * @param name The name under which the [[DataSet]] is registered in the catalog.
     * @param dataSet The [[DataSet]] to register.
-    * @param fields The field names of the registered table.
+    * @param fields The fields expressions to map original fields of the DataSet to the fields of
+    *               the View.
     * @tparam T The type of the [[DataSet]] to register.
     * @deprecated use [[createTemporaryView]]
     */
@@ -164,11 +222,40 @@ trait BatchTableEnvironment extends TableEnvironment {
     * Creates a view from the given [[DataSet]] in a given path with specified field names.
     * Registered views can be referenced in SQL queries.
     *
+    * There are two modes for mapping original fields to the fields of the View:
+    *
+    * 1. Reference input fields by name:
+    * All fields in the schema definition are referenced by name
+    * (and possibly renamed using an alias (as). In this mode, fields can be reordered and
+    * projected out. This mode can be used for any input type, including POJOs.
+    *
     * Example:
     *
     * {{{
     *   val set: DataSet[(String, Long)] = ...
-    *   tableEnv.createTemporaryView("cat.db.myTable", set, 'a, 'b)
+    *   tableEnv.createTemporaryView(
+    *      "cat.db.myTable",
+    *      set,
+    *      $"_2", // reorder and use the original field
+    *      $"_1" as "name" // reorder and give the original field a better name
+    *   )
+    * }}}
+    *
+    * 2. Reference input fields by position:
+    * In this mode, fields are simply renamed. This mode can only be
+    * used if the input type has a defined field order (tuple, case class, Row) and none of
+    * the `fields` references a field of the input type.
+    *
+    * Example:
+    *
+    * {{{
+    *   val set: DataSet[(String, Long)] = ...
+    *   tableEnv.createTemporaryView(
+    *      "cat.db.myTable",
+    *      set,
+    *      $"a", // renames the first field to 'a'
+    *      $"b" // renames the second field to 'b'
+    *   )
     * }}}
     *
     * Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
@@ -179,7 +266,8 @@ trait BatchTableEnvironment extends TableEnvironment {
     *             See also the [[TableEnvironment]] class description for the format of the
     *             path.
     * @param dataSet The [[DataSet]] out of which to create the view.
-    * @param fields The field names of the created view.
+    * @param fields The fields expressions to map original fields of the DataSet to the fields of
+    *               the View.
     * @tparam T The type of the [[DataSet]].
     */
   def createTemporaryView[T](path: String, dataSet: DataSet[T], fields: Expression*): Unit
@@ -197,68 +285,6 @@ trait BatchTableEnvironment extends TableEnvironment {
     * @return The converted [[DataSet]].
     */
   def toDataSet[T: TypeInformation](table: Table): DataSet[T]
-
-  /**
-    * Converts the given [[Table]] into a [[DataSet]] of a specified type.
-    *
-    * The fields of the [[Table]] are mapped to [[DataSet]] fields as follows:
-    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
-    * types: Fields are mapped by position, field types must match.
-    * - POJO [[DataSet]] types: Fields are mapped by field name, field types must match.
-    *
-    * @param table The [[Table]] to convert.
-    * @param queryConfig The configuration of the query to generate.
-    * @tparam T The type of the resulting [[DataSet]].
-    * @return The converted [[DataSet]].
-    */
-  def toDataSet[T: TypeInformation](
-    table: Table,
-    queryConfig: BatchQueryConfig): DataSet[T]
-
-  /**
-    * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
-    * NOTE: Currently only SQL INSERT statements are supported.
-    *
-    * All tables referenced by the query must be registered in the TableEnvironment.
-    * A [[Table]] is automatically registered when its [[Table#toString()]] method is
-    * called, for example when it is embedded into a String.
-    * Hence, SQL queries can directly reference a [[Table]] as follows:
-    *
-    * {{{
-    *   // register the configured table sink into which the result is inserted.
-    *   tEnv.registerTableSink("sinkTable", configuredSink);
-    *   Table sourceTable = ...
-    *   String tableName = sourceTable.toString();
-    *   // sourceTable is not registered to the table environment
-    *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName", config);
-    * }}}
-    *
-    * @param stmt   The SQL statement to evaluate.
-    * @param config The [[BatchQueryConfig]] to use.
-    */
-  def sqlUpdate(stmt: String, config: BatchQueryConfig): Unit
-
-  /**
-    * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
-    *
-    * See the documentation of TableEnvironment#useDatabase or
-    * TableEnvironment.useCatalog(String) for the rules on the path resolution.
-    *
-    * @param table             The Table to write to the sink.
-    * @param queryConfig       The [[BatchQueryConfig]] to use.
-    * @param sinkPath          The first part of the path of the registered [[TableSink]] to
-    *                          which the [[Table]] is written. This is to ensure at least the
-    *                          name of the [[TableSink]] is provided.
-    * @param sinkPathContinued The remaining part of the path of the registered [[TableSink]] to
-    *                          which the [[Table]] is written.
-    * @deprecated use `TableEnvironment#insertInto(String, Table)`
-    */
-  @deprecated
-  def insertInto(
-    table: Table,
-    queryConfig: BatchQueryConfig,
-    sinkPath: String,
-    sinkPathContinued: String*): Unit
 
   /**
     * Triggers the program execution. The environment will execute all parts of

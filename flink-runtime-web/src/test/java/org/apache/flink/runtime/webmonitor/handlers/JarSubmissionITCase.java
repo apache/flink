@@ -88,7 +88,7 @@ public class JarSubmissionITCase extends TestLogger {
 
 		final JobPlanInfo planResponse = showPlan(planHandler, storedJarName, restfulGateway);
 		// we're only interested in the core functionality so checking for a small detail is sufficient
-		Assert.assertThat(planResponse.getJsonPlan(), containsString("TestProgram.java:29"));
+		Assert.assertThat(planResponse.getJsonPlan(), containsString("TestProgram.java:30"));
 
 		runJar(runHandler, storedJarName, restfulGateway);
 

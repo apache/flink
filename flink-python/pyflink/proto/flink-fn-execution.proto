@@ -49,6 +49,7 @@ message UserDefinedFunction {
 // A list of user-defined functions to be executed in a batch.
 message UserDefinedFunctions {
   repeated UserDefinedFunction udfs = 1;
+  bool metric_enabled = 2;
 }
 
 // A representation of the data schema.

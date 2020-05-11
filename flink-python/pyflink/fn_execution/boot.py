@@ -112,14 +112,24 @@ def pip_install_requirements():
         if requirements_cache_path is not None:
             pip_install_commands.extend(["--find-links", requirements_cache_path])
 
-        logging.info("Run command: %s\n" % " ".join(pip_install_commands))
-        exit_code = call(
-            pip_install_commands, stdout=sys.stdout, stderr=sys.stderr, env=env)
-        if exit_code > 0:
-            raise Exception(
-                "Run command: %s error! exit code: %d" %
-                (" ".join(pip_install_commands), exit_code))
-
+        max_retry_times = 3
+        cur_retry = 0
+        while cur_retry < max_retry_times:
+            cur_retry += 1
+            logging.info("Run command: %s with retry (%d/%d)\n" % (" ".join(pip_install_commands),
+                                                                   cur_retry, max_retry_times))
+            exit_code = call(
+                pip_install_commands, stdout=sys.stdout, stderr=sys.stderr, env=env)
+            if exit_code != 0:
+                if cur_retry < max_retry_times:
+                    logging.error("Run command: %s error! exit code: %d. Retry to run again!" %
+                                  (" ".join(pip_install_commands), exit_code))
+                else:
+                    raise Exception(
+                        "Run command: %s error! exit code: %d. Max retry times exhausted!" %
+                        (" ".join(pip_install_commands), exit_code))
+            else:
+                break
         os.environ["PYTHONPATH"] = env["PYTHONPATH"]
         os.environ["PATH"] = env["PATH"]
 

@@ -50,8 +50,8 @@ class TableSourceTest extends TableTestBase {
     tableEnv.registerTableSource("table1", tableSource1)
     tableEnv.registerTableSource("table2", tableSource2)
 
-    val table1 = tableEnv.scan("table1").where("amount > 2")
-    val table2 = tableEnv.scan("table2").where("amount > 2")
+    val table1 = tableEnv.scan("table1").where($"amount" > 2)
+    val table2 = tableEnv.scan("table2").where($"amount" > 2)
     val result = table1.unionAll(table2)
 
     val expected = binaryNode(
@@ -163,7 +163,7 @@ class TableSourceTest extends TableTestBase {
     val result = tableEnv
         .scan(tableName)
         .select('price, 'id, 'amount)
-        .where("price * 2 < 32")
+        .where($"price" * 2 < 32)
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -189,7 +189,7 @@ class TableSourceTest extends TableTestBase {
 
     val result = tableEnv
       .scan(tableName)
-      .where("amount > 2 && price * 2 < 32")
+      .where($"amount" > 2 && $"price" * 2 < 32)
       .select('price, 'name.lowerCase(), 'amount)
 
     val expected = unaryNode(
@@ -216,7 +216,7 @@ class TableSourceTest extends TableTestBase {
     val result = tableEnv
         .scan(tableName)
         .select('price, 'id, 'amount)
-        .where("amount > 2 && amount < 32")
+        .where($"amount" > 2 && $"amount" < 32)
 
     val expected = batchFilterableSourceTableNode(
       tableName,
@@ -237,8 +237,8 @@ class TableSourceTest extends TableTestBase {
     val result = tableEnv
         .scan(tableName)
         .select('price, 'id, 'amount)
-        .where("amount > 2 && id < 1.2 && " +
-          "(amount < 32 || amount.cast(LONG) > 10)") // cast can not be converted
+        .where($"amount" > 2 && $"id" < 1.2 &&
+          ($"amount" < 32 || $"amount".cast(Types.LONG) > 10)) // cast can not be converted
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -266,7 +266,7 @@ class TableSourceTest extends TableTestBase {
     val result = tableEnv
         .scan(tableName)
         .select('price, 'id, 'amount)
-        .where("amount > 2 && func0(amount) < 32")
+        .where($"amount" > 2 && call("func0", $"amount") < 32)
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -350,7 +350,7 @@ class TableSourceTest extends TableTestBase {
     val result = tableEnv
       .scan(tableName)
       .select('price, 'id, 'amount)
-      .where("amount > 2 && price * 2 < 32")
+      .where($"amount" > 2 && $"price" * 2 < 32)
 
     val expected = unaryNode(
       "DataStreamCalc",

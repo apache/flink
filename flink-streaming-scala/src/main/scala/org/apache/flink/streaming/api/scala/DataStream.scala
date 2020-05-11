@@ -388,13 +388,16 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations.
+   *
    */
+  @deprecated("use [[DataStream.keyBy(KeySelector)]] instead")
   def keyBy(fields: Int*): KeyedStream[T, JavaTuple] = asScalaStream(stream.keyBy(fields: _*))
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
    * be used with grouped operators like grouped reduce or grouped aggregations.
    */
+  @deprecated("use [[DataStream.keyBy(KeySelector)]] instead")
   def keyBy(firstField: String, otherFields: String*): KeyedStream[T, JavaTuple] =
     asScalaStream(stream.keyBy(firstField +: otherFields.toArray: _*))
 
@@ -433,6 +436,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * Note: This method works only on single field keys.
    */
+  @deprecated("Use [[DataStream.partitionCustom(Partitioner, Function1)]] instead")
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataStream[T] =
     asScalaStream(stream.partitionCustom(partitioner, field))
 
@@ -443,6 +447,7 @@ class DataStream[T](stream: JavaStream[T]) {
    *
    * Note: This method works only on single field keys.
    */
+  @deprecated("Use [[DataStream.partitionCustom(Partitioner, Function1)]] instead")
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: String)
         : DataStream[T] =
     asScalaStream(stream.partitionCustom(partitioner, field))

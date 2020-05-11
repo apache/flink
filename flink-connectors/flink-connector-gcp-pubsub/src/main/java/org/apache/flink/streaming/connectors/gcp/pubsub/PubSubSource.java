@@ -96,6 +96,7 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 		//convert per-subtask-limit to global rate limit, as FlinkConnectorRateLimiter::setRate expects a global rate limit.
 		rateLimiter.setRate(messagePerSecondRateLimit * getRuntimeContext().getNumberOfParallelSubtasks());
 		rateLimiter.open(getRuntimeContext());
+		deserializationSchema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 
 		createAndSetPubSubSubscriber();
 		this.isRunning = true;

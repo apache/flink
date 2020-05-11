@@ -24,8 +24,10 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.scalar.AbstractPythonScalarFunctionRunnerTest;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -86,7 +88,7 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 
 		final PythonEnvironmentManager environmentManager =
 			new ProcessPythonEnvironmentManager(
-				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
+				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
 				new String[]{System.getProperty("java.io.tmpdir")},
 				new HashMap<>());
 
@@ -96,7 +98,9 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 			pythonFunctionInfo,
 			environmentManager,
 			inputType,
-			outputType);
+			outputType,
+			Collections.emptyMap(),
+			PythonTestUtils.createMockFlinkMetricContainer());
 	}
 
 	private AbstractPythonTableFunctionRunner<Row> createUDTFRunner(
@@ -109,7 +113,7 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 
 		final PythonEnvironmentManager environmentManager =
 			new ProcessPythonEnvironmentManager(
-				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), null),
+				new PythonDependencyInfo(new HashMap<>(), null, null, new HashMap<>(), "python"),
 				new String[]{System.getProperty("java.io.tmpdir")},
 				new HashMap<>());
 
@@ -120,7 +124,8 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 			environmentManager,
 			rowType,
 			rowType,
-			jobBundleFactory);
+			jobBundleFactory,
+			PythonTestUtils.createMockFlinkMetricContainer());
 	}
 
 	private static class PythonTableFunctionRunnerTestHarness extends PythonTableFunctionRunner {
@@ -134,8 +139,9 @@ public class PythonTableFunctionRunnerTest extends AbstractPythonTableFunctionRu
 			PythonEnvironmentManager environmentManager,
 			RowType inputType,
 			RowType outputType,
-			JobBundleFactory jobBundleFactory) {
-			super(taskName, resultReceiver, tableFunction, environmentManager, inputType, outputType);
+			JobBundleFactory jobBundleFactory,
+			FlinkMetricContainer flinkMetricContainer) {
+			super(taskName, resultReceiver, tableFunction, environmentManager, inputType, outputType, Collections.emptyMap(), flinkMetricContainer);
 			this.jobBundleFactory = jobBundleFactory;
 		}
 

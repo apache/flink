@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.utils;
 
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.runners.python.scalar.AbstractGeneralPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
@@ -29,6 +30,7 @@ import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.table.runtime.utils.PythonTestUtils.createMockJobBundleFactory;
 
@@ -48,8 +50,10 @@ public abstract class PassThroughPythonScalarFunctionRunner<IN> extends Abstract
 		PythonFunctionInfo[] scalarFunctions,
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
-		RowType outputType) {
-		this(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, createMockJobBundleFactory());
+		RowType outputType,
+		Map<String, String> jobOptions,
+		FlinkMetricContainer flinkMetricContainer) {
+		this(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions, createMockJobBundleFactory(), flinkMetricContainer);
 	}
 
 	public PassThroughPythonScalarFunctionRunner(
@@ -59,8 +63,10 @@ public abstract class PassThroughPythonScalarFunctionRunner<IN> extends Abstract
 		PythonEnvironmentManager environmentManager,
 		RowType inputType,
 		RowType outputType,
-		JobBundleFactory jobBundleFactory) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType);
+		Map<String, String> jobOptions,
+		JobBundleFactory jobBundleFactory,
+		FlinkMetricContainer flinkMetricContainer) {
+		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions, flinkMetricContainer);
 		this.jobBundleFactory = jobBundleFactory;
 		this.bufferedInputs = new ArrayList<>();
 	}

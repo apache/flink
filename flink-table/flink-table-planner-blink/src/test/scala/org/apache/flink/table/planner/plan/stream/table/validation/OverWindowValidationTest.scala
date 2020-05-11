@@ -23,7 +23,6 @@ import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Over, Table, Tumble, ValidationException}
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.plan.`trait`.UpdateAsRetractionTrait
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithRetract
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
@@ -67,7 +66,7 @@ class OverWindowValidationTest extends TableTestBase {
     val result = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows as 'w)
       .select('c, 'b.count over 'x)
-    optimize(TableTestUtil.toRelNode(result), updatesAsRetraction = true)
+    optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -75,7 +74,7 @@ class OverWindowValidationTest extends TableTestBase {
     val result = table
       .window(Over partitionBy 'c orderBy 'abc preceding 2.rows as 'w)
       .select('c, 'b.count over 'w)
-    optimize(TableTestUtil.toRelNode(result), updatesAsRetraction = true)
+    optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -83,7 +82,7 @@ class OverWindowValidationTest extends TableTestBase {
     val result = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2 following "xx" as 'w)
       .select('c, 'b.count over 'w)
-    optimize(TableTestUtil.toRelNode(result), updatesAsRetraction = true)
+    optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -91,7 +90,7 @@ class OverWindowValidationTest extends TableTestBase {
     val result = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_RANGE as 'w)
       .select('c, 'b.count over 'w)
-    optimize(TableTestUtil.toRelNode(result), updatesAsRetraction = true)
+    optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -99,7 +98,7 @@ class OverWindowValidationTest extends TableTestBase {
     val result = table
       .window(Over partitionBy 'a + 'b orderBy 'rowtime preceding 2.rows as 'w)
       .select('c, 'b.count over 'w)
-    optimize(TableTestUtil.toRelNode(result), updatesAsRetraction = true)
+    optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -110,7 +109,7 @@ class OverWindowValidationTest extends TableTestBase {
     val result = table2
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows as 'w)
       .select('c, 'b.count over 'w)
-    optimize(TableTestUtil.toRelNode(result), updatesAsRetraction = true)
+    optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -118,7 +117,7 @@ class OverWindowValidationTest extends TableTestBase {
     val result = table
       .window(Over orderBy 'rowtime preceding -1.rows as 'w)
       .select('c, 'b.count over 'w)
-    optimize(TableTestUtil.toRelNode(result), updatesAsRetraction = true)
+    optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -126,7 +125,7 @@ class OverWindowValidationTest extends TableTestBase {
     val result = table
       .window(Over orderBy 'rowtime preceding 1.rows following -2.rows as 'w)
       .select('c, 'b.count over 'w)
-    optimize(TableTestUtil.toRelNode(result), updatesAsRetraction = true)
+    optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -136,7 +135,7 @@ class OverWindowValidationTest extends TableTestBase {
     val result = table
       .window(Over orderBy 'rowtime preceding 1.minutes as 'w)
       .select('c, weightedAvg('b, 'a) over 'w)
-    optimize(TableTestUtil.toRelNode(result), updatesAsRetraction = true)
+    optimize(TableTestUtil.toRelNode(result))
   }
 
   @Test
@@ -150,15 +149,8 @@ class OverWindowValidationTest extends TableTestBase {
     .select('c, 'a.count over 'w, 'w.start + 1, 'w.end)
   }
 
-  private def optimize(rel: RelNode, updatesAsRetraction: Boolean = true): RelNode = {
-    val newRel = if (updatesAsRetraction) {
-      rel.copy(
-        rel.getTraitSet.plus(new UpdateAsRetractionTrait(true)),
-        rel.getInputs)
-    } else {
-      rel
-    }
+  private def optimize(rel: RelNode): RelNode = {
     val planner = streamUtil.tableEnv.asInstanceOf[TableEnvironmentImpl].getPlanner
-    planner.asInstanceOf[PlannerBase].optimize(Seq(newRel)).head
+    planner.asInstanceOf[PlannerBase].optimize(Seq(rel)).head
   }
 }

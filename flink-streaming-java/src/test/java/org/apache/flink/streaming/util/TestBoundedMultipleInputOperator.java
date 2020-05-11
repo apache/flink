@@ -18,10 +18,12 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractInput;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Arrays;
@@ -30,23 +32,24 @@ import java.util.List;
 /**
  * A test operator class implementing {@link BoundedMultiInput}.
  */
-public class TestBoundedMultipleInputOperator extends AbstractStreamOperator<String>
+public class TestBoundedMultipleInputOperator extends AbstractStreamOperatorV2<String>
 	implements MultipleInputStreamOperator<String>, BoundedMultiInput {
 
 	private static final long serialVersionUID = 1L;
 
 	private final String name;
 
-	public TestBoundedMultipleInputOperator(String name) {
+	public TestBoundedMultipleInputOperator(String name, StreamOperatorParameters<String> parameters) {
+		super(parameters, 3);
 		this.name = name;
 	}
 
 	@Override
 	public List<Input> getInputs() {
 		return Arrays.asList(
-			new TestInput(1),
-			new TestInput(2),
-			new TestInput(3)
+			new TestInput(this, 1),
+			new TestInput(this, 2),
+			new TestInput(this, 3)
 		);
 	}
 
@@ -61,16 +64,14 @@ public class TestBoundedMultipleInputOperator extends AbstractStreamOperator<Str
 		super.close();
 	}
 
-	class TestInput implements Input<String> {
-		private final int inputIndex;
-
-		public TestInput(int inputIndex) {
-			this.inputIndex = inputIndex;
+	class TestInput extends AbstractInput<String, String> {
+		public TestInput(AbstractStreamOperatorV2<String> owner, int inputId) {
+			super(owner, inputId);
 		}
 
 		@Override
 		public void processElement(StreamRecord<String> element) throws Exception {
-			output.collect(element.replace("[" + name + "-" + inputIndex + "]: " + element.getValue()));
+			output.collect(element.replace("[" + name + "-" + inputId + "]: " + element.getValue()));
 		}
 	}
 }

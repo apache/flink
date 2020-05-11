@@ -72,7 +72,7 @@ public class SavepointStatusHeaders
 	}
 
 	@Override
-	protected Class<SavepointInfo> getValueClass() {
+	public Class<SavepointInfo> getValueClass() {
 		return SavepointInfo.class;
 	}
 

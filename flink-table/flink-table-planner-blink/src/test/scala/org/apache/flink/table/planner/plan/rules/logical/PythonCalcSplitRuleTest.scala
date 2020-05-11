@@ -53,7 +53,7 @@ class PythonCalcSplitRuleTest extends TableTestBase {
         .build())
     util.replaceBatchProgram(programs)
 
-    util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.addTableSource[(Int, Int, Int, (Int, Int))]("MyTable", 'a, 'b, 'c, 'd)
     util.addFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
     util.addFunction("pyFunc2", new PythonScalarFunction("pyFunc2"))
     util.addFunction("pyFunc3", new PythonScalarFunction("pyFunc3"))
@@ -169,13 +169,31 @@ class PythonCalcSplitRuleTest extends TableTestBase {
 
   @Test
   def testPandasFunctionMixedWithGeneralPythonFunction(): Unit = {
-    val sqlQuery = "SELECT pandasFunc1(a, b), pyFunc1(a, c) + 1 FROM MyTable"
+    val sqlQuery = "SELECT pandasFunc1(a, b), pyFunc1(a, c) + 1, a + 1 FROM MyTable"
     util.verifyPlan(sqlQuery)
   }
 
   @Test
   def testPandasFunctionNotChainingWithGeneralPythonFunction(): Unit = {
     val sqlQuery = "SELECT pyFunc1(a, pandasFunc1(a, b)) + 1 FROM MyTable"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPythonFunctionWithCompositeInputs(): Unit = {
+    val sqlQuery = "SELECT a, pyFunc1(b, d._1) FROM MyTable"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testChainingPythonFunctionWithCompositeInputs(): Unit = {
+    val sqlQuery = "SELECT a, pyFunc1(b, pyFunc1(c, d._1)) FROM MyTable"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testPandasFunctionWithCompositeInputs(): Unit = {
+    val sqlQuery = "SELECT a, pandasFunc1(b, d._1) FROM MyTable"
     util.verifyPlan(sqlQuery)
   }
 }

@@ -96,11 +96,7 @@ public class StreamGraph implements Pipeline {
 
 	private TimeCharacteristic timeCharacteristic;
 
-	/**
-	 * If there are some stream edges that can not be chained and the shuffle mode of edge is not
-	 * specified, translate these edges into {@code BLOCKING} result partition type.
-	 */
-	private boolean blockingConnectionsBetweenChains;
+	private GlobalDataExchangeMode globalDataExchangeMode;
 
 	/** Flag to indicate whether to put all vertices into the same slot sharing group by default. */
 	private boolean allVerticesInSameSlotSharingGroupByDefault = true;
@@ -201,20 +197,12 @@ public class StreamGraph implements Pipeline {
 		this.timeCharacteristic = timeCharacteristic;
 	}
 
-	/**
-	 * If there are some stream edges that can not be chained and the shuffle mode of edge is not
-	 * specified, translate these edges into {@code BLOCKING} result partition type.
-	 */
-	public boolean isBlockingConnectionsBetweenChains() {
-		return blockingConnectionsBetweenChains;
+	public GlobalDataExchangeMode getGlobalDataExchangeMode() {
+		return globalDataExchangeMode;
 	}
 
-	/**
-	 * If there are some stream edges that can not be chained and the shuffle mode of edge is not
-	 * specified, translate these edges into {@code BLOCKING} result partition type.
-	 */
-	public void setBlockingConnectionsBetweenChains(boolean blockingConnectionsBetweenChains) {
-		this.blockingConnectionsBetweenChains = blockingConnectionsBetweenChains;
+	public void setGlobalDataExchangeMode(GlobalDataExchangeMode globalDataExchangeMode) {
+		this.globalDataExchangeMode = globalDataExchangeMode;
 	}
 
 	/**
@@ -592,14 +580,19 @@ public class StreamGraph implements Pipeline {
 
 	public void setOneInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
 		StreamNode node = getStreamNode(vertexID);
-		node.setStatePartitioner1(keySelector);
+		node.setStatePartitioners(keySelector);
 		node.setStateKeySerializer(keySerializer);
 	}
 
 	public void setTwoInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector1, KeySelector<?, ?> keySelector2, TypeSerializer<?> keySerializer) {
 		StreamNode node = getStreamNode(vertexID);
-		node.setStatePartitioner1(keySelector1);
-		node.setStatePartitioner2(keySelector2);
+		node.setStatePartitioners(keySelector1, keySelector2);
+		node.setStateKeySerializer(keySerializer);
+	}
+
+	public void setMultipleInputStateKey(Integer vertexID, List<KeySelector<?, ?>> keySelectors, TypeSerializer<?> keySerializer) {
+		StreamNode node = getStreamNode(vertexID);
+		node.setStatePartitioners(keySelectors.stream().toArray(KeySelector[]::new));
 		node.setStateKeySerializer(keySerializer);
 	}
 

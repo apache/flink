@@ -68,7 +68,7 @@ public class TableSchemaTest {
 			" |-- f1: ROW<`q1` STRING, `q2` TIMESTAMP(3)>\n" +
 			" |-- f2: STRING\n" +
 			" |-- f3: BIGINT AS f0 + 1\n" +
-			" |-- WATERMARK FOR f1.q2 AS now()";
+			" |-- WATERMARK FOR f1.q2 AS now()\n";
 		assertEquals(expected, schema.toString());
 
 		// test getFieldNames and getFieldDataType
@@ -213,7 +213,7 @@ public class TableSchemaTest {
 				" |-- f0: BIGINT NOT NULL\n" +
 				" |-- f1: STRING NOT NULL\n" +
 				" |-- f2: DOUBLE NOT NULL\n" +
-				" |-- CONSTRAINT pk PRIMARY KEY (f0, f2)"
+				" |-- CONSTRAINT pk PRIMARY KEY (f0, f2)\n"
 		));
 	}
 

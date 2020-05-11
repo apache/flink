@@ -22,20 +22,20 @@ import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.BinaryStringUtil.safeToString
-import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow, SqlTimestamp}
+import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUtil}
+import org.apache.flink.table.data.{DecimalData, GenericRowData, TimestampData}
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime
+
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.commons.lang3.StringEscapeUtils
+
 import java.io.File
-import java.time.LocalDateTime
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -53,7 +53,7 @@ class ExpressionReducer(
   extends RexExecutor {
 
   private val EMPTY_ROW_TYPE = RowType.of()
-  private val EMPTY_ROW = new GenericRow(0)
+  private val EMPTY_ROW = new GenericRowData(0)
 
   override def reduce(
       rexBuilder: RexBuilder,
@@ -91,12 +91,12 @@ class ExpressionReducer(
 
     val literalExprs = literals.map(exprGenerator.generateExpression)
     val result = exprGenerator.generateResultExpression(
-      literalExprs, resultType, classOf[GenericRow])
+      literalExprs, resultType, classOf[GenericRowData])
 
-    val generatedFunction = generateFunction[MapFunction[GenericRow, GenericRow]](
+    val generatedFunction = generateFunction[MapFunction[GenericRowData, GenericRowData]](
       ctx,
       "ExpressionReducer",
-      classOf[MapFunction[GenericRow, GenericRow]],
+      classOf[MapFunction[GenericRowData, GenericRowData]],
       s"""
          |${result.code}
          |return ${result.resultTerm};
@@ -106,8 +106,9 @@ class ExpressionReducer(
 
     val function = generatedFunction.newInstance(Thread.currentThread().getContextClassLoader)
     val richMapFunction = function match {
-      case r: RichMapFunction[GenericRow, GenericRow] => r
-      case _ => throw new TableException("RichMapFunction[GenericRow, GenericRow] required here")
+      case r: RichMapFunction[GenericRowData, GenericRowData] => r
+      case _ =>
+        throw new TableException("RichMapFunction[GenericRowData, GenericRowData] required here")
     }
 
     val parameters = config.getConfiguration
@@ -138,8 +139,8 @@ class ExpressionReducer(
                SqlTypeName.MULTISET =>
             reducedValues.add(unreduced)
           case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
-            val escapeVarchar = safeToString(
-              reduced.getField(reducedIdx).asInstanceOf[BinaryString])
+            val escapeVarchar = BinaryStringDataUtil.safeToString(
+              reduced.getField(reducedIdx).asInstanceOf[BinaryStringData])
             reducedValues.add(maySkipNullLiteralReduce(rexBuilder, escapeVarchar, unreduced))
             reducedIdx += 1
           case SqlTypeName.VARBINARY | SqlTypeName.BINARY =>
@@ -154,8 +155,7 @@ class ExpressionReducer(
           case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
             val reducedValue = reduced.getField(reducedIdx)
             val value = if (reducedValue != null) {
-              val ins = reducedValue.asInstanceOf[SqlTimestamp].toInstant
-              val dt = LocalDateTime.ofInstant(ins, config.getLocalTimeZone)
+              val dt = reducedValue.asInstanceOf[TimestampData].toLocalDateTime
               fromLocalDateTime(dt)
             } else {
               reducedValue
@@ -165,7 +165,7 @@ class ExpressionReducer(
           case SqlTypeName.DECIMAL =>
             val reducedValue = reduced.getField(reducedIdx)
             val value = if (reducedValue != null) {
-              reducedValue.asInstanceOf[Decimal].toBigDecimal
+              reducedValue.asInstanceOf[DecimalData].toBigDecimal
             } else {
               reducedValue
             }
@@ -174,7 +174,7 @@ class ExpressionReducer(
           case SqlTypeName.TIMESTAMP =>
             val reducedValue = reduced.getField(reducedIdx)
             val value = if (reducedValue != null) {
-              val dt = reducedValue.asInstanceOf[SqlTimestamp].toLocalDateTime
+              val dt = reducedValue.asInstanceOf[TimestampData].toLocalDateTime
               fromLocalDateTime(dt)
             } else {
               reducedValue

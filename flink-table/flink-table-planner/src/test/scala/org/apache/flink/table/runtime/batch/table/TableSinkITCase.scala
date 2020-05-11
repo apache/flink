@@ -65,7 +65,7 @@ class TableSinkITCase(
       .select('c, 'b)
       .insertInto("testSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     val expected = Seq(
       "Hi|1", "Hello|2", "Hello world|2", "Hello world, how are you?|3",
@@ -93,7 +93,7 @@ class TableSinkITCase(
       .select('c, 'b)
       .insertInto("testSink")
 
-    env.execute()
+    tEnv.execute("job name")
 
     val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
     val expected = Seq(

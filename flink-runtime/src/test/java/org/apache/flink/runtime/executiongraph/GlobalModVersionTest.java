@@ -161,7 +161,7 @@ public class GlobalModVersionTest extends TestLogger {
 
 		JobGraph jg = new JobGraph(jid, "testjob", jv);
 
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism);
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(parallelism);
 
 		// build a simple execution graph with on job vertex, parallelism 2
 		final ExecutionGraph graph = TestingExecutionGraphBuilder

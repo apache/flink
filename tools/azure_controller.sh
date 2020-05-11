@@ -17,15 +17,6 @@
 # limitations under the License.
 ################################################################################
 
-echo $M2_HOME
-echo $PATH
-echo $MAVEN_OPTS
-
-mvn -version
-echo "Commit: $(git rev-parse HEAD)"
-
-
-
 HERE="`dirname \"$0\"`"             # relative
 HERE="`( cd \"$HERE\" && pwd )`"    # absolutized and normalized
 if [ -z "$HERE" ] ; then
@@ -34,8 +25,16 @@ if [ -z "$HERE" ] ; then
     exit 1  # fail
 fi
 
-source "${HERE}/travis/stage.sh"
-source "${HERE}/travis/shade.sh"
+source "${HERE}/ci/stage.sh"
+source "${HERE}/ci/shade.sh"
+source "${HERE}/ci/maven-utils.sh"
+
+echo $M2_HOME
+echo $PATH
+echo $MAVEN_OPTS
+
+run_mvn -version
+echo "Commit: $(git rev-parse HEAD)"
 
 print_system_info() {
     echo "CPU information"
@@ -63,8 +62,7 @@ EXIT_CODE=0
 # mirror. We use a different mirror because the official maven central mirrors
 # often lead to connection timeouts (probably due to rate-limiting)
 
-# adding -Dmaven.wagon.http.pool=false (see https://developercommunity.visualstudio.com/content/problem/851041/microsoft-hosted-agents-run-into-maven-central-tim.html)
-MVN="mvn clean install --settings ./tools/azure-pipelines/google-mirror-settings.xml $MAVEN_OPTS -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.wagon.http.pool=false -Dmaven.javadoc.skip=true -B -U -DskipTests $PROFILE"
+MVN="run_mvn clean install $MAVEN_OPTS -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -U -DskipTests"
 
 # Run actual compile&test steps
 if [ $STAGE == "$STAGE_COMPILE" ]; then

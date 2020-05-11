@@ -74,6 +74,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
 	private final String compressionCodec;
 
+	private final int maxBuffersPerChannel;
+
 	public NettyShuffleEnvironmentConfiguration(
 			int numNetworkBuffers,
 			int networkBufferSize,
@@ -88,7 +90,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			BoundedBlockingSubpartitionType blockingSubpartitionType,
 			boolean forcePartitionReleaseOnConsumption,
 			boolean blockingShuffleCompressionEnabled,
-			String compressionCodec) {
+			String compressionCodec,
+			int maxBuffersPerChannel) {
 
 		this.numNetworkBuffers = numNetworkBuffers;
 		this.networkBufferSize = networkBufferSize;
@@ -104,6 +107,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		this.compressionCodec = Preconditions.checkNotNull(compressionCodec);
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
 	}
 
 	// ------------------------------------------------------------------------
@@ -164,6 +168,10 @@ public class NettyShuffleEnvironmentConfiguration {
 		return compressionCodec;
 	}
 
+	public int getMaxBuffersPerChannel() {
+		return maxBuffersPerChannel;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -182,11 +190,11 @@ public class NettyShuffleEnvironmentConfiguration {
 		boolean localTaskManagerCommunication,
 		InetAddress taskManagerAddress) {
 
-		final int dataport = getDataport(configuration);
+		final int dataBindPort = getDataBindPort(configuration);
 
 		final int pageSize = ConfigurationParserUtils.getPageSize(configuration);
 
-		final NettyConfig nettyConfig = createNettyConfig(configuration, localTaskManagerCommunication, taskManagerAddress, dataport);
+		final NettyConfig nettyConfig = createNettyConfig(configuration, localTaskManagerCommunication, taskManagerAddress, dataBindPort);
 
 		final int numberOfNetworkBuffers = calculateNumberOfNetworkBuffers(
 			configuration,
@@ -198,6 +206,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		int buffersPerChannel = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
 		int extraBuffersPerGate = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+
+		int maxBuffersPerChannel = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_MAX_BUFFERS_PER_CHANNEL);
 
 		boolean isNetworkDetailedMetrics = configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
 
@@ -229,7 +239,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			blockingSubpartitionType,
 			forcePartitionReleaseOnConsumption,
 			blockingShuffleCompressionEnabled,
-			compressionCodec);
+			compressionCodec,
+			maxBuffersPerChannel);
 	}
 
 	/**
@@ -238,12 +249,21 @@ public class NettyShuffleEnvironmentConfiguration {
 	 * @param configuration configuration object
 	 * @return the data port
 	 */
-	private static int getDataport(Configuration configuration) {
-		final int dataport = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
-		ConfigurationParserUtils.checkConfigParameter(dataport >= 0, dataport, NettyShuffleEnvironmentOptions.DATA_PORT.key(),
-			"Leave config parameter empty or use 0 to let the system choose a port automatically.");
-
-		return dataport;
+	private static int getDataBindPort(Configuration configuration) {
+		final int dataBindPort;
+		if (configuration.contains(NettyShuffleEnvironmentOptions.DATA_BIND_PORT)) {
+			dataBindPort = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_BIND_PORT);
+			ConfigurationParserUtils.checkConfigParameter(
+				dataBindPort >= 0, dataBindPort, NettyShuffleEnvironmentOptions.DATA_BIND_PORT.key(),
+				"Leave config parameter empty to fallback to '" +
+					NettyShuffleEnvironmentOptions.DATA_PORT.key() + "' automatically.");
+		} else {
+			dataBindPort = configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
+			ConfigurationParserUtils.checkConfigParameter(
+				dataBindPort >= 0, dataBindPort, NettyShuffleEnvironmentOptions.DATA_PORT.key(),
+				"Leave config parameter empty or use 0 to let the system choose a port automatically.");
+		}
+		return dataBindPort;
 	}
 
 	/**
@@ -342,6 +362,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		result = 31 * result + (forcePartitionReleaseOnConsumption ? 1 : 0);
 		result = 31 * result + (blockingShuffleCompressionEnabled ? 1 : 0);
 		result = 31 * result + Objects.hashCode(compressionCodec);
+		result = 31 * result + maxBuffersPerChannel;
 		return result;
 	}
 
@@ -367,6 +388,7 @@ public class NettyShuffleEnvironmentConfiguration {
 					Arrays.equals(this.tempDirs, that.tempDirs) &&
 					this.forcePartitionReleaseOnConsumption == that.forcePartitionReleaseOnConsumption &&
 					this.blockingShuffleCompressionEnabled == that.blockingShuffleCompressionEnabled &&
+					this.maxBuffersPerChannel == that.maxBuffersPerChannel &&
 					Objects.equals(this.compressionCodec, that.compressionCodec);
 		}
 	}
@@ -386,6 +408,7 @@ public class NettyShuffleEnvironmentConfiguration {
 				", forcePartitionReleaseOnConsumption=" + forcePartitionReleaseOnConsumption +
 				", blockingShuffleCompressionEnabled=" + blockingShuffleCompressionEnabled +
 				", compressionCodec=" + compressionCodec +
+				", maxBuffersPerChannel=" + maxBuffersPerChannel +
 				'}';
 	}
 }

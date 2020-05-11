@@ -22,8 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ArrayInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.LiteralArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.MapInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OutputArgumentTypeStrategy;
@@ -118,9 +120,20 @@ public final class InputTypeStrategies {
 	/**
 	 * Strategy for a disjunction of multiple {@link InputTypeStrategy}s into one like
 	 * {@code f(NUMERIC) || f(STRING)}.
+	 *
+	 * <p>This strategy aims to infer a list of types that are equal to the input types (to prevent
+	 * unnecessary casting) or (if this is not possible) the first more specific, casted types.
 	 */
 	public static InputTypeStrategy or(InputTypeStrategy... strategies) {
 		return new OrInputTypeStrategy(Arrays.asList(strategies));
+	}
+
+	/**
+	 * Strategy that does not perform any modification or validation of the input.
+	 * It checks the argument count though.
+	 */
+	public static InputTypeStrategy wildcardWithCount(ArgumentCount argumentCount) {
+		return new WildcardInputTypeStrategy(argumentCount);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -185,6 +198,25 @@ public final class InputTypeStrategies {
 	public static OrArgumentTypeStrategy or(ArgumentTypeStrategy... strategies) {
 		return new OrArgumentTypeStrategy(Arrays.asList(strategies));
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Specific type strategies
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Strategy specific for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#ARRAY}.
+	 *
+	 * <p>It expects at least one argument. All the arguments must have a common super type.
+	 */
+	public static final InputTypeStrategy SPECIFIC_FOR_ARRAY = new ArrayInputTypeStrategy();
+
+	/**
+	 * Strategy specific for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#MAP}.
+	 *
+	 * <p>It expects at least two arguments. There must be even number of arguments.
+	 * All the keys and values must have a common super type respectively.
+	 */
+	public static final InputTypeStrategy SPECIFIC_FOR_MAP = new MapInputTypeStrategy();
 
 	// --------------------------------------------------------------------------------------------
 

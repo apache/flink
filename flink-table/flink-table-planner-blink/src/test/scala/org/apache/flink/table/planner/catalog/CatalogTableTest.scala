@@ -29,7 +29,7 @@ import org.junit.Assert.assertEquals
 class CatalogTableTest {
 
   val tEnv: TableEnvironment = TableEnvironmentImpl.create(
-    EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build())
+    EnvironmentSettings.newInstance().inStreamingMode().build())
 
   @Test
   def testDDLSchema(): Unit = {

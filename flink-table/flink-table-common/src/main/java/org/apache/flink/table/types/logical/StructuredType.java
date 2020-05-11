@@ -20,6 +20,7 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -66,7 +67,7 @@ public final class StructuredType extends UserDefinedType {
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		Row.class.getName(),
-		"org.apache.flink.table.dataformat.BaseRow");
+		RowData.class.getName());
 
 	private static final Class<?> FALLBACK_CONVERSION = Row.class;
 

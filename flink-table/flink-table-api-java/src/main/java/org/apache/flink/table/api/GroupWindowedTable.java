@@ -40,11 +40,13 @@ public interface GroupWindowedTable {
 	 * <p>Example:
 	 *
 	 * <pre>
-	 * {code
+	 * {@code
 	 *   tab.window([groupWindow].as("w")).groupBy("w, key").select("key, value.avg")
 	 * }
 	 * </pre>
+	 * @deprecated use {@link #groupBy(Expression...)}
 	 */
+	@Deprecated
 	WindowGroupedTable groupBy(String fields);
 
 	/**
@@ -57,10 +59,18 @@ public interface GroupWindowedTable {
 	 * <p>Aggregations are performed per group and defined by a subsequent {@code select(...)}
 	 * clause similar to SQL SELECT-GROUP-BY query.
 	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.window([groupWindow].as("w")).groupBy($("w"), $("key")).select($("key"), $("value").avg());
+	 * }
+	 * </pre>
+	 *
 	 * <p>Scala Example:
 	 *
 	 * <pre>
-	 * {code
+	 * {@code
 	 *   tab.window([groupWindow] as 'w)).groupBy('w, 'key).select('key, 'value.avg)
 	 * }
 	 * </pre>

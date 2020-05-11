@@ -38,6 +38,9 @@ start_time=$(date +%s)
 
 # make sure we stop our cluster at the end
 function cluster_shutdown {
+  if [ $TRAPPED_EXIT_CODE != 0 ];then
+      debug_copy_and_show_logs
+  fi
   docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml down
   rm $FLINK_TARBALL_DIR/$FLINK_TARBALL
 }
@@ -120,7 +123,6 @@ function start_hadoop_cluster_and_prepare_flink() {
 security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab
 security.kerberos.login.principal: hadoop-user
 slot.request.timeout: 120000
-containerized.heap-cutoff-min: 100
 END
 )
     docker exec master bash -c "echo \"$FLINK_CONFIG\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
@@ -145,7 +147,7 @@ function debug_copy_and_show_logs {
         echo "$f:"
         cat $f
     done
-    
+
     echo "Docker logs:"
     docker logs master
 
@@ -153,9 +155,51 @@ function debug_copy_and_show_logs {
     docker exec master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
     docker exec master bash -c "yarn application -list -appStates ALL"
     application_id=`docker exec master bash -c "yarn application -list -appStates ALL" | grep "Flink" | grep "cluster" | awk '{print \$1}'`
-    
+
     echo "Application ID: $application_id"
     docker exec master bash -c "yarn logs -applicationId $application_id"
+    docker exec master bash -c "kdestroy"
+}
+
+# expects only one application to be running and waits until this one is in
+# final state SUCCEEDED
+function wait_for_single_yarn_application {
+
+    docker exec master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
+
+    # find our application ID
+    docker exec master bash -c "yarn application -list -appStates ALL"
+    application_id=$(docker exec master bash -c "yarn application -list -appStates ALL" | grep "Flink Application" | awk '{print $1}')
+
+    echo "Application ID: $application_id"
+
+    # wait for the application to finish succesfully
+    start_time=$(date +%s)
+    application_state="UNDEFINED"
+    while [[ $application_state != "FINISHED" ]]; do
+        current_time=$(date +%s)
+        time_diff=$((current_time - start_time))
+
+        if [[ $time_diff -ge $MAX_RETRY_SECONDS ]]; then
+            echo "Application $application_id is in state $application_state and we have waited too long, quitting..."
+            exit 1
+        else
+            echo "Application $application_id is in state $application_state. We have been waiting for $time_diff seconds, looping ..."
+            sleep 1
+        fi
+
+        application_state=$(docker exec master bash -c "yarn application -status $application_id" | grep "\sState" | sed 's/.*State : \(\w*\)/\1/')
+    done
+
+    final_application_state=$(docker exec master bash -c "yarn application -status $application_id" | grep "\sFinal-State" | sed 's/.*Final-State : \(\w*\)/\1/')
+
+    echo "Final Application State: $final_application_state"
+
+    if [[ $final_application_state != "SUCCEEDED" ]]; then
+        echo "Running the Flink Application failed. 😞"
+        exit 1
+    fi
+
     docker exec master bash -c "kdestroy"
 }
 

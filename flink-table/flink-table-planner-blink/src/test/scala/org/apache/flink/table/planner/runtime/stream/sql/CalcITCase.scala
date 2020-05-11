@@ -23,9 +23,9 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestSinkUtil, TestingAppendBaseRowSink, TestingAppendSink, TestingAppendTableSink}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.planner.runtime.utils._
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.types.Row
 
@@ -35,43 +35,43 @@ import org.junit._
 class CalcITCase extends StreamingTestBase {
 
   @Test
-  def testGenericRowAndBaseRow(): Unit = {
+  def testGenericRowAndRowData(): Unit = {
     val sqlQuery = "SELECT * FROM MyTableRow"
 
-    val rowData: GenericRow = new GenericRow(3)
-    rowData.setInt(0, 1)
-    rowData.setInt(1, 1)
-    rowData.setLong(2, 1L)
+    val rowData: GenericRowData = new GenericRowData(3)
+    rowData.setField(0, 1)
+    rowData.setField(1, 1)
+    rowData.setField(2, 1L)
 
     val data = List(rowData)
 
-    implicit val tpe: TypeInformation[GenericRow] =
-      new BaseRowTypeInfo(
+    implicit val tpe: TypeInformation[GenericRowData] =
+      new RowDataTypeInfo(
         new IntType(),
         new IntType(),
-        new BigIntType()).asInstanceOf[TypeInformation[GenericRow]]
+        new BigIntType()).asInstanceOf[TypeInformation[GenericRowData]]
 
     val ds = env.fromCollection(data)
 
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("MyTableRow", t)
 
-    val outputType = new BaseRowTypeInfo(
+    val outputType = new RowDataTypeInfo(
       new IntType(),
       new IntType(),
       new BigIntType())
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[BaseRow]
-    val sink = new TestingAppendBaseRowSink(outputType)
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
+    val sink = new TestingAppendRowDataSink(outputType)
     result.addSink(sink)
     env.execute()
 
-    val expected = List("0|1,1,1")
+    val expected = List("+I(1,1,1)")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
-  def testRowAndBaseRow(): Unit = {
+  def testRowAndRowData(): Unit = {
     val sqlQuery = "SELECT * FROM MyTableRow WHERE c < 3"
 
     val data = List(
@@ -89,17 +89,17 @@ class CalcITCase extends StreamingTestBase {
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("MyTableRow", t)
 
-    val outputType = new BaseRowTypeInfo(
+    val outputType = new RowDataTypeInfo(
       new VarCharType(VarCharType.MAX_LENGTH),
       new VarCharType(VarCharType.MAX_LENGTH),
       new IntType())
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[BaseRow]
-    val sink = new TestingAppendBaseRowSink(outputType)
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
+    val sink = new TestingAppendRowDataSink(outputType)
     result.addSink(sink)
     env.execute()
 
-    val expected = List("0|Hello,Worlds,1","0|Hello again,Worlds,2")
+    val expected = List("+I(Hello,Worlds,1)","+I(Hello again,Worlds,2)")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -107,18 +107,18 @@ class CalcITCase extends StreamingTestBase {
   def testGenericRowAndRow(): Unit = {
     val sqlQuery = "SELECT * FROM MyTableRow"
 
-    val rowData: GenericRow = new GenericRow(3)
-    rowData.setInt(0, 1)
-    rowData.setInt(1, 1)
-    rowData.setLong(2, 1L)
+    val rowData: GenericRowData = new GenericRowData(3)
+    rowData.setField(0, 1)
+    rowData.setField(1, 1)
+    rowData.setField(2, 1L)
 
     val data = List(rowData)
 
-    implicit val tpe: TypeInformation[GenericRow] =
-      new BaseRowTypeInfo(
+    implicit val tpe: TypeInformation[GenericRowData] =
+      new RowDataTypeInfo(
         new IntType(),
         new IntType(),
-        new BigIntType()).asInstanceOf[TypeInformation[GenericRow]]
+        new BigIntType()).asInstanceOf[TypeInformation[GenericRowData]]
 
     val ds = env.fromCollection(data)
 

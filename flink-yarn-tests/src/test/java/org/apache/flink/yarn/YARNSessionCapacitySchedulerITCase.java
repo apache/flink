@@ -24,7 +24,6 @@ import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
@@ -498,9 +497,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yt", flinkLibFolder.getAbsolutePath(),
 				"-yt", flinkShadedHadoopDir.getAbsolutePath(),
 				"-yjm", "768m",
-				// test if the cutoff is passed correctly (only useful when larger than the value
-				// of containerized.heap-cutoff-min (default: 600MB)
-				"-yD", ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key() + "=0.7",
 				"-yD", YarnConfigOptions.APPLICATION_TAGS.key() + "=test-tag",
 				"-ytm", "1024m",
 				"-ys", "2", // test requesting slots from YARN.
@@ -580,7 +576,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			});
 			Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
 			content = FileUtils.readFileToString(jobmanagerLog);
-			// TM was started with 1024 but we cut off 70% (NOT THE DEFAULT VALUE)
 			String expected = "Starting TaskManagers";
 			Assert.assertTrue("Expected string '" + expected + "' not found in JobManager log: '" + jobmanagerLog + "'",
 				content.contains(expected));

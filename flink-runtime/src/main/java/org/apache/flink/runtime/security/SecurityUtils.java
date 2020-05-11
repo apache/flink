@@ -88,9 +88,13 @@ public class SecurityUtils {
 			try {
 				SecurityContextFactory contextFactory = SecurityFactoryServiceLoader.findContextFactory(contextFactoryClass);
 				if (contextFactory.isCompatibleWith(config)) {
-					// install the first context that's compatible.
-					installedContext = contextFactory.createContext(config);
-					break;
+					try {
+						installedContext = contextFactory.createContext(config);
+						// install the first context that's compatible and ignore the remaining.
+						break;
+					} catch (SecurityContextInitializeException e) {
+						LOG.error("Cannot instantiate security context with: " + contextFactoryClass, e);
+					}
 				} else {
 					LOG.warn("Unable to install incompatible security context factory {}", contextFactoryClass);
 				}

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
 import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -32,6 +33,8 @@ import com.google.auth.Credentials;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.ReceivedMessage;
+import org.hamcrest.Matchers;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,6 +51,7 @@ import static org.hamcrest.core.Is.is;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.refEq;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -89,6 +93,7 @@ public class PubSubSourceTest {
 		when(pubSubSubscriberFactory.getSubscriber(eq(credentials))).thenReturn(pubsubSubscriber);
 		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
 		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
+		when(metricGroup.addGroup(any(String.class))).thenReturn(metricGroup);
 		when(acknowledgeOnCheckpointFactory.create(any())).thenReturn(acknowledgeOnCheckpoint);
 
 		pubSubSource = new PubSubSource<>(deserializationSchema,
@@ -197,6 +202,18 @@ public class PubSubSourceTest {
 		pubSubSource.snapshotState(1337L, 15000L);
 
 		verify(acknowledgeOnCheckpoint, times(1)).snapshotState(1337L, 15000L);
+	}
+
+	@Test
+	public void testOpen() throws Exception {
+		doAnswer((args) -> {
+			DeserializationSchema.InitializationContext context = args.getArgument(0);
+			Assert.assertThat(context.getMetricGroup(), Matchers.equalTo(metricGroup));
+			return null;
+		}).when(deserializationSchema).open(any(DeserializationSchema.InitializationContext.class));
+		pubSubSource.open(null);
+
+		verify(deserializationSchema, times(1)).open(any(DeserializationSchema.InitializationContext.class));
 	}
 
 	private ReceivedMessage receivedMessage(String ackId, PubsubMessage pubsubMessage) {

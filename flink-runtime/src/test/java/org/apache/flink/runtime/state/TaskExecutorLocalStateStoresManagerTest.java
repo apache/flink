@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -38,7 +39,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.InetAddress;
 
 public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
@@ -204,11 +204,11 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 	}
 
 	private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
-			Configuration config) throws IOException {
+			Configuration config) throws Exception {
 		return TaskManagerServicesConfiguration.fromConfiguration(
 			config,
 			ResourceID.generate(),
-			InetAddress.getLocalHost(),
+			InetAddress.getLocalHost().getHostName(),
 			true,
 			TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(config));
 	}
@@ -217,6 +217,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 			TaskManagerServicesConfiguration config) throws Exception {
 		return TaskManagerServices.fromConfiguration(
 			config,
+			VoidPermanentBlobService.INSTANCE,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			Executors.directExecutor());
 	}

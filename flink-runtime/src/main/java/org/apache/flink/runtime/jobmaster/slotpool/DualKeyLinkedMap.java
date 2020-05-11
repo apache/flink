@@ -71,11 +71,14 @@ public class DualKeyLinkedMap<A, B, V> {
 	}
 
 	public V put(A aKey, B bKey, V value) {
-		Tuple2<B, V> aValue = aMap.put(aKey, Tuple2.of(bKey, value));
+		final V removedValue = removeKeyA(aKey);
+		removeKeyB(bKey);
+
+		aMap.put(aKey, Tuple2.of(bKey, value));
 		bMap.put(bKey, aKey);
 
-		if (aValue != null) {
-			return aValue.f1;
+		if (removedValue != null) {
+			return removedValue;
 		} else {
 			return null;
 		}

@@ -19,15 +19,13 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.sources.TableSource
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex.RexProgram
 
@@ -42,8 +40,7 @@ class BatchExecLookupJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
-    tableSource: TableSource[_],
-    tableRowType: RelDataType,
+    temporalTable: RelOptTable,
     tableCalcProgram: Option[RexProgram],
     joinInfo: JoinInfo,
     joinType: JoinRelType)
@@ -51,21 +48,19 @@ class BatchExecLookupJoin(
     cluster,
     traitSet,
     input,
-    tableSource,
-    tableRowType,
+    temporalTable,
     tableCalcProgram,
     joinInfo,
     joinType)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecLookupJoin(
       cluster,
       traitSet,
       inputs.get(0),
-      tableSource,
-      tableRowType,
+      temporalTable,
       tableCalcProgram,
       joinInfo,
       joinType)
@@ -86,9 +81,9 @@ class BatchExecLookupJoin(
   }
 
   override protected def translateToPlanInternal(
-    planner: BatchPlanner): Transformation[BaseRow] = {
+    planner: BatchPlanner): Transformation[RowData] = {
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
     translateToPlanInternal(
       inputTransformation,
       planner.getExecEnv,

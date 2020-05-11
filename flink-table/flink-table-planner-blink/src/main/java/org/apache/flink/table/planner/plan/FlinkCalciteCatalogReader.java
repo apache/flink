@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -25,12 +26,16 @@ import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable;
 import org.apache.flink.table.planner.catalog.SqlCatalogViewTable;
 import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
-import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.schema.LegacyCatalogSourceTable;
+import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -172,7 +177,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			throw new ValidationException("Only bounded StreamTableSource can be used in batch mode.");
 		}
 
-		return new TableSourceTable<>(
+		return new LegacyTableSourceTable<>(
 			relOptSchema,
 			tableIdentifier,
 			rowType,
@@ -188,11 +193,49 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 			RelDataType rowType,
 			CatalogTable catalogTable,
 			CatalogSchemaTable schemaTable) {
-		return new CatalogSourceTable<>(
-			relOptSchema,
-			names,
-			rowType,
-			schemaTable,
-			catalogTable);
+		if (isLegacyConnectorOptions(catalogTable, schemaTable)) {
+			return new LegacyCatalogSourceTable<>(
+				relOptSchema,
+				names,
+				rowType,
+				schemaTable,
+				catalogTable);
+		} else {
+			return new CatalogSourceTable<>(
+				relOptSchema,
+				names,
+				rowType,
+				schemaTable,
+				catalogTable);
+		}
+	}
+
+	/**
+	 * Checks whether the {@link CatalogTable} uses legacy connector options.
+	 */
+	private static boolean isLegacyConnectorOptions(
+			CatalogTable catalogTable,
+			CatalogSchemaTable schemaTable) {
+		// normalize option keys
+		DescriptorProperties properties = new DescriptorProperties(true);
+		properties.putProperties(catalogTable.getOptions());
+		if (properties.containsKey(ConnectorDescriptorValidator.CONNECTOR_TYPE)) {
+			return true;
+		} else {
+			// try to create legacy table source using the options,
+			// some legacy factories uses the new 'connector' key
+			try {
+				TableFactoryUtil.findAndCreateTableSource(
+					schemaTable.getCatalog(),
+					schemaTable.getTableIdentifier(),
+					catalogTable,
+					new Configuration());
+				// success, then we will use the legacy factories
+				return true;
+			} catch (Throwable e) {
+				// fail, then we will use new factories
+				return false;
+			}
+		}
 	}
 }

@@ -41,36 +41,11 @@ class DataStreamTable[T](
     names: JList[String],
     rowType: RelDataType,
     val dataStream: DataStream[T],
-    val producesUpdates: Boolean,
-    val isAccRetract: Boolean,
     val fieldIndexes: Array[Int],
     val fieldNames: Array[String],
     statistic: FlinkStatistic = FlinkStatistic.UNKNOWN,
     fieldNullables: Option[Array[Boolean]] = None)
   extends FlinkPreparingTableBase(relOptSchema, rowType, names, statistic) {
-
-  // This is only used for bounded stream now, we supply default statistic.
-  def this(
-      relOptSchema: RelOptSchema,
-      names: JList[String],
-      rowType: RelDataType,
-      stream: DataStream[T],
-      fieldIndexes: Array[Int],
-      fieldNames: Array[String]) {
-    this(relOptSchema, names, rowType, stream, false, false, fieldIndexes, fieldNames)
-  }
-
-  def this(
-      relOptSchema: RelOptSchema,
-      names: JList[String],
-      rowType: RelDataType,
-      stream: DataStream[T],
-      fieldIndexes: Array[Int],
-      fieldNames: Array[String],
-      fieldNullables: Option[Array[Boolean]]) {
-    this(relOptSchema, names, rowType, stream, false, false, fieldIndexes, fieldNames,
-      fieldNullables = fieldNullables)
-  }
 
   if (fieldIndexes.length != fieldNames.length) {
     throw new TableException(

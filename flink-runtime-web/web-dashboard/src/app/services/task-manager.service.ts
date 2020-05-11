@@ -21,7 +21,7 @@ import { Injectable } from '@angular/core';
 import { EMPTY, of, ReplaySubject } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { BASE_URL } from 'config';
-import { TaskManagerListInterface, TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerListInterface, TaskManagerDetailInterface, TaskManagerLogInterface, TaskManagerThreadDumpInterface } from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -50,25 +50,50 @@ export class TaskManagerService {
   }
 
   /**
-   * Load TM logs
+   * Load TM log list
    * @param taskManagerId
    */
-  loadLogs(taskManagerId: string) {
-    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/log`, {
-      responseType: 'text',
-      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
-    });
+  loadLogList(taskManagerId: string) {
+    return this.httpClient
+      .get<TaskManagerLogInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}/logs`)
+      .pipe(map(data => data.logs));
   }
 
   /**
-   * Load TM stdout
+   * Load TM log
    * @param taskManagerId
+   * @param logName
+   * @param hasLogName
    */
-  loadStdout(taskManagerId: string) {
-    return this.httpClient.get(`${BASE_URL}/taskmanagers/${taskManagerId}/stdout`, {
-      responseType: 'text',
-      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
-    });
+  loadLog(taskManagerId: string, logName: string, hasLogName: boolean) {
+    let url = '';
+    if (hasLogName) {
+      url = `${BASE_URL}/taskmanagers/${taskManagerId}/logs/${logName}`;
+    } else {
+      url = `${BASE_URL}/taskmanagers/${taskManagerId}/log`;
+    }
+    return this.httpClient
+      .get(url, { responseType: 'text', headers: new HttpHeaders().append('Cache-Control', 'no-cache') })
+      .pipe(
+        map(data => {
+          return {
+            data,
+            url
+          };
+        })
+      );
+  }
+
+  /**
+   * Load TM thread dump
+   */
+  loadThreadDump(taskManagerId: string) {
+    return this.httpClient
+      .get<TaskManagerThreadDumpInterface>(`${BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`)
+      .pipe(
+        map(taskManagerThreadDump => {
+          return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
+        }));
   }
 
   constructor(private httpClient: HttpClient) {}

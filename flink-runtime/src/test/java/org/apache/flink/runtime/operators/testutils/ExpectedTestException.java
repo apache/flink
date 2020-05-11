@@ -26,7 +26,9 @@ package org.apache.flink.runtime.operators.testutils;
 @SuppressWarnings("serial")
 public class ExpectedTestException extends RuntimeException
 {
+	public static final String MESSAGE = "Expected Test Exception";
+
 	public ExpectedTestException() {
-		super("Expected Test Exception");
+		super(MESSAGE);
 	}
 }

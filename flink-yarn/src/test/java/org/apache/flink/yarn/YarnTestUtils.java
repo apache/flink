@@ -19,7 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
 import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -58,6 +58,6 @@ public class YarnTestUtils {
 	}
 
 	public static Configuration configureLogFile(Configuration flinkConfiguration, String flinkConfDir) {
-		return FlinkYarnSessionCli.setLogConfigFileInConfig(flinkConfiguration, flinkConfDir);
+		return YarnLogConfigUtil.setLogConfigFileInConfig(flinkConfiguration, flinkConfDir);
 	}
 }

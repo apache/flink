@@ -138,7 +138,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 * defining custom queue parameters)
 	 */
 	protected void setupQueue() throws IOException {
-		channel.queueDeclare(queueName, true, false, false, null);
+		Util.declareQueueDefaults(channel, queueName);
 	}
 
 	@Override
@@ -171,6 +171,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 			throw new RuntimeException("Cannot create RMQ connection with " + queueName + " at "
 					+ rmqConnectionConfig.getHost(), e);
 		}
+		this.schema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 		running = true;
 	}
 

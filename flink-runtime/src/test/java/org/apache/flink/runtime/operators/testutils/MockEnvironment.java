@@ -34,7 +34,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.RecordCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -88,7 +88,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final Configuration taskConfiguration;
 
-	private final List<InputGate> inputs;
+	private final List<IndexedInputGate> inputs;
 
 	private final List<ResultPartitionWriter> outputs;
 
@@ -123,23 +123,23 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	}
 
 	protected MockEnvironment(
-		JobID jobID,
-		JobVertexID jobVertexID,
-		String taskName,
-		long offHeapMemorySize,
-		MockInputSplitProvider inputSplitProvider,
-		int bufferSize,
-		Configuration taskConfiguration,
-		ExecutionConfig executionConfig,
-		IOManager ioManager,
-		TaskStateManager taskStateManager,
-		GlobalAggregateManager aggregateManager,
-		int maxParallelism,
-		int parallelism,
-		int subtaskIndex,
-		ClassLoader userCodeClassLoader,
-		TaskMetricGroup taskMetricGroup,
-		TaskManagerRuntimeInfo taskManagerRuntimeInfo) {
+			JobID jobID,
+			JobVertexID jobVertexID,
+			String taskName,
+			MockInputSplitProvider inputSplitProvider,
+			int bufferSize,
+			Configuration taskConfiguration,
+			ExecutionConfig executionConfig,
+			IOManager ioManager,
+			TaskStateManager taskStateManager,
+			GlobalAggregateManager aggregateManager,
+			int maxParallelism,
+			int parallelism,
+			int subtaskIndex,
+			ClassLoader userCodeClassLoader,
+			TaskMetricGroup taskMetricGroup,
+			TaskManagerRuntimeInfo taskManagerRuntimeInfo,
+			MemoryManager memManager) {
 
 		this.jobID = jobID;
 		this.jobVertexID = jobVertexID;
@@ -147,10 +147,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		this.taskInfo = new TaskInfo(taskName, maxParallelism, subtaskIndex, parallelism, 0);
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = taskConfiguration;
-		this.inputs = new LinkedList<InputGate>();
+		this.inputs = new LinkedList<>();
 		this.outputs = new LinkedList<ResultPartitionWriter>();
 
-		this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MemoryType.OFF_HEAP, offHeapMemorySize).build();
+		this.memManager = memManager;
 		this.ioManager = ioManager;
 		this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
 
@@ -172,7 +172,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
 		try {
-			final IteratorWrappingTestSingleInputGate<Record> reader = new IteratorWrappingTestSingleInputGate<Record>(bufferSize, Record.class, inputIterator);
+			final IteratorWrappingTestSingleInputGate<Record> reader = new IteratorWrappingTestSingleInputGate<Record>(bufferSize,
+				inputs.size(),
+				inputIterator,
+				Record.class);
 
 			inputs.add(reader.getInputGate());
 
@@ -272,15 +275,13 @@ public class MockEnvironment implements Environment, AutoCloseable {
 	}
 
 	@Override
-	public InputGate getInputGate(int index) {
+	public IndexedInputGate getInputGate(int index) {
 		return inputs.get(index);
 	}
 
 	@Override
-	public InputGate[] getAllInputGates() {
-		InputGate[] gates = new InputGate[inputs.size()];
-		inputs.toArray(gates);
-		return gates;
+	public IndexedInputGate[] getAllInputGates() {
+		return inputs.toArray(new IndexedInputGate[0]);
 	}
 
 	@Override
@@ -335,7 +336,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public void declineCheckpoint(long checkpointId, Throwable cause) {
-		throw new UnsupportedOperationException();
+		throw new UnsupportedOperationException(cause);
 	}
 
 	@Override

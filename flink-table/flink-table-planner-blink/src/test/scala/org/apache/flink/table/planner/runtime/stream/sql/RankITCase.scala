@@ -741,7 +741,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,3,book,b,3,2)",
       "(true,4,book,a,1,2)")
 
-    assertEquals(expected, sink.getRawResults)
+    assertEquals(expected.mkString("\n"), sink.getRawResults.mkString("\n"))
   }
 
   @Test
@@ -1026,10 +1026,10 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,book,4,1)",
       "(true,book,1,2)",
       "(true,book,1,3)",
-      "(true,book,2,2)",
       "(false,book,4,1)",
-      "(true,book,4,2)",
+      "(true,book,2,2)",
       "(false,book,3,1)",
+      "(true,book,4,2)",
       "(true,book,1,4)",
       "(true,book,4,3)",
       "(true,book,4,4)",
@@ -1040,7 +1040,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,fruit,4,2)",
       "(true,fruit,5,2)",
       "(true,fruit,5,3)")
-    assertEquals(expected, sink.getRawResults)
+    assertEquals(expected.mkString("\n"), sink.getRawResults.mkString("\n"))
 
     val updatedExpected = List(
       "book,4,5",

@@ -26,7 +26,7 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -37,6 +37,8 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
@@ -67,6 +69,11 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	 * The offsets of user-defined function inputs.
 	 */
 	protected final int[] userDefinedFunctionInputOffsets;
+
+	/**
+	 * The options used to configure the Python worker process.
+	 */
+	private final Map<String, String> jobOptions;
 
 	/**
 	 * The user-defined function input logical type.
@@ -108,6 +115,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
 		this.userDefinedFunctionInputOffsets = Preconditions.checkNotNull(userDefinedFunctionInputOffsets);
+		this.jobOptions = buildJobOptions(config);
 	}
 
 	@Override
@@ -140,7 +148,8 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		return new ProjectUdfInputPythonScalarFunctionRunner(
 			createPythonFunctionRunner(
 				userDefinedFunctionResultReceiver,
-				createPythonEnvironmentManager()));
+				createPythonEnvironmentManager(),
+				jobOptions));
 	}
 
 	/**
@@ -153,7 +162,16 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
 	public abstract PythonFunctionRunner<UDFIN> createPythonFunctionRunner(
 		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager);
+		PythonEnvironmentManager pythonEnvironmentManager,
+		Map<String, String> jobOptions);
+
+	private Map<String, String> buildJobOptions(Configuration config) {
+		Map<String, String> jobOptions = new HashMap<>();
+		if (config.containsKey("table.exec.timezone")) {
+			jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
+		}
+		return jobOptions;
+	}
 
 	private class ProjectUdfInputPythonScalarFunctionRunner implements PythonFunctionRunner<IN> {
 
@@ -223,23 +241,23 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	}
 
 	/**
-	 * The collector is used to convert a {@link BaseRow} to a {@link StreamRecord}.
+	 * The collector is used to convert a {@link RowData} to a {@link StreamRecord}.
 	 */
-	public static class StreamRecordBaseRowWrappingCollector implements Collector<BaseRow> {
+	public static class StreamRecordRowDataWrappingCollector implements Collector<RowData> {
 
-		private final Collector<StreamRecord<BaseRow>> out;
+		private final Collector<StreamRecord<RowData>> out;
 
 		/**
 		 * For Table API & SQL jobs, the timestamp field is not used.
 		 */
-		private final StreamRecord<BaseRow> reuseStreamRecord = new StreamRecord<>(null);
+		private final StreamRecord<RowData> reuseStreamRecord = new StreamRecord<>(null);
 
-		public StreamRecordBaseRowWrappingCollector(Collector<StreamRecord<BaseRow>> out) {
+		public StreamRecordRowDataWrappingCollector(Collector<StreamRecord<RowData>> out) {
 			this.out = out;
 		}
 
 		@Override
-		public void collect(BaseRow record) {
+		public void collect(RowData record) {
 			out.collect(reuseStreamRecord.replace(record));
 		}
 

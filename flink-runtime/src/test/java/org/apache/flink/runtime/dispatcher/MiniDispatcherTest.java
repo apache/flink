@@ -37,21 +37,21 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.UUID;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -70,6 +70,9 @@ public class MiniDispatcherTest extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+	@Rule
+	public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource = new TestingFatalErrorHandlerResource();
+
 	private static JobGraph jobGraph;
 
 	private static ArchivedExecutionGraph archivedExecutionGraph;
@@ -87,8 +90,6 @@ public class MiniDispatcherTest extends TestLogger {
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
 
 	private TestingHighAvailabilityServices highAvailabilityServices;
-
-	private TestingFatalErrorHandler testingFatalErrorHandler;
 
 	private TestingJobManagerRunnerFactory testingJobManagerRunnerFactory;
 
@@ -112,14 +113,8 @@ public class MiniDispatcherTest extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		highAvailabilityServices = new TestingHighAvailabilityServicesBuilder().build();
-		testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		testingJobManagerRunnerFactory = new TestingJobManagerRunnerFactory();
-	}
-
-	@After
-	public void teardown() throws Exception {
-		testingFatalErrorHandler.rethrowError();
 	}
 
 	@AfterClass
@@ -214,7 +209,6 @@ public class MiniDispatcherTest extends TestLogger {
 	private MiniDispatcher createMiniDispatcher(ClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		return new MiniDispatcher(
 			rpcService,
-			UUID.randomUUID().toString(),
 			DispatcherId.generate(),
 			new DispatcherServices(
 				configuration,
@@ -223,13 +217,13 @@ public class MiniDispatcherTest extends TestLogger {
 				blobServer,
 				heartbeatServices,
 				archivedExecutionGraphStore,
-				testingFatalErrorHandler,
+				testingFatalErrorHandlerResource.getFatalErrorHandler(),
 				VoidHistoryServerArchivist.INSTANCE,
 				null,
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				highAvailabilityServices.getJobGraphStore(),
 				testingJobManagerRunnerFactory),
-			jobGraph,
+			new DefaultDispatcherBootstrap(Collections.singletonList(jobGraph)),
 			executionMode);
 	}
 

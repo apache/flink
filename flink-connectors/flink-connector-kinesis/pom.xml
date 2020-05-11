@@ -35,7 +35,7 @@ under the License.
 	<properties>
 		<aws.sdk.version>1.11.603</aws.sdk.version>
 		<aws.kinesis-kcl.version>1.11.2</aws.kinesis-kcl.version>
-		<aws.kinesis-kpl.version>0.13.1</aws.kinesis-kpl.version>
+		<aws.kinesis-kpl.version>0.14.0</aws.kinesis-kpl.version>
 		<aws.dynamodbstreams-kinesis-adapter.version>1.5.0</aws.dynamodbstreams-kinesis-adapter.version>
 	</properties>
 
@@ -222,6 +222,14 @@ under the License.
 									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.http</shadedPattern>
 								</relocation>
 							</relocations>
+							<filters>
+								<filter>
+									<artifact>com.amazonaws:amazon-kinesis-producer</artifact>
+									<excludes>
+										<exclude>META-INF/THIRD_PARTY_NOTICES</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>

@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import java.util
-
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
 import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
@@ -30,9 +32,8 @@ import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexProgram}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.mapping.{Mapping, MappingType, Mappings}
-import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -47,7 +48,7 @@ abstract class BatchExecCalcBase(
     outputRowType: RelDataType)
   extends CommonCalc(cluster, traitSet, inputRel, calcProgram)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   override def deriveRowType(): RelDataType = outputRowType
 

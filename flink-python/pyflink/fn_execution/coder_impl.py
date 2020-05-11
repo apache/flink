@@ -27,7 +27,8 @@ import pyarrow as pa
 from apache_beam.coders.coder_impl import StreamCoderImpl, create_InputStream, create_OutputStream
 
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.table import Row
+from pyflink.table.types import Row
+from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
 
 class FlattenRowCoderImpl(StreamCoderImpl):
@@ -236,7 +237,7 @@ class TinyIntCoderImpl(StreamCoderImpl):
         return struct.unpack('b', in_stream.read(1))[0]
 
 
-class SmallIntImpl(StreamCoderImpl):
+class SmallIntCoderImpl(StreamCoderImpl):
 
     def encode_to_stream(self, value, out_stream, nested):
         out_stream.write(struct.pack('>h', value))
@@ -406,10 +407,24 @@ class TimestampCoderImpl(StreamCoderImpl):
         return datetime.datetime.utcfromtimestamp(second).replace(microsecond=microsecond)
 
 
+class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
+
+    def __init__(self, precision, timezone):
+        super(LocalZonedTimestampCoderImpl, self).__init__(precision)
+        self.timezone = timezone
+
+    def internal_to_timestamp(self, milliseconds, nanoseconds):
+        return self.timezone.localize(
+            super(LocalZonedTimestampCoderImpl, self).internal_to_timestamp(
+                milliseconds, nanoseconds))
+
+
 class ArrowCoderImpl(StreamCoderImpl):
 
-    def __init__(self, schema):
+    def __init__(self, schema, row_type, timezone):
         self._schema = schema
+        self._field_types = row_type.field_types()
+        self._timezone = timezone
         self._resettable_io = ResettableIO()
         self._batch_reader = ArrowCoderImpl._load_from_stream(self._resettable_io)
         self._batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
@@ -419,7 +434,8 @@ class ArrowCoderImpl(StreamCoderImpl):
     def encode_to_stream(self, iter_cols, out_stream, nested):
         data_out_stream = self.data_out_stream
         for cols in iter_cols:
-            self._batch_writer.write_batch(self._create_batch(cols))
+            self._batch_writer.write_batch(
+                pandas_to_arrow(self._schema, self._timezone, self._field_types, cols))
             out_stream.write_var_int64(data_out_stream.size())
             out_stream.write(data_out_stream.get())
             data_out_stream._clear()
@@ -434,23 +450,10 @@ class ArrowCoderImpl(StreamCoderImpl):
         for batch in reader:
             yield batch
 
-    def _create_batch(self, cols):
-        def create_array(s, t):
-            try:
-                return pa.Array.from_pandas(s, mask=s.isnull(), type=t)
-            except pa.ArrowException as e:
-                error_msg = "Exception thrown when converting pandas.Series (%s) to " \
-                            "pyarrow.Array (%s)."
-                raise RuntimeError(error_msg % (s.dtype, t), e)
-
-        arrays = [create_array(cols[i], self._schema.types[i]) for i in range(0, len(self._schema))]
-        return pa.RecordBatch.from_arrays(arrays, self._schema)
-
     def _decode_one_batch_from_stream(self, in_stream: create_InputStream) -> List:
         self._resettable_io.set_input_bytes(in_stream.read_all(True))
         # there is only one arrow batch in the underlying input stream
-        table = pa.Table.from_batches([next(self._batch_reader)])
-        return [c.to_pandas(date_as_object=True) for c in table.itercolumns()]
+        return arrow_to_pandas(self._timezone, self._field_types, [next(self._batch_reader)])
 
     def __repr__(self):
         return 'ArrowCoderImpl[%s]' % self._schema

@@ -40,7 +40,6 @@ tables:
       topic: $TOPIC_NAME
       startup-mode: earliest-offset
       properties:
-        zookeeper.connect: $KAFKA_ZOOKEEPER_ADDRESS
         bootstrap.servers: $KAFKA_BOOTSTRAP_SERVERS
     format:
       type: json
@@ -86,8 +85,6 @@ tables:
       topic: test-avro
       startup-mode: earliest-offset
       properties:
-        - key: zookeeper.connect
-          value: $KAFKA_ZOOKEEPER_ADDRESS
         - key: bootstrap.servers
           value: $KAFKA_BOOTSTRAP_SERVERS
     format:

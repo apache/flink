@@ -19,6 +19,8 @@
 package org.apache.flink.table.runtime.stream.sql;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -30,7 +32,9 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +52,9 @@ import static org.junit.Assert.fail;
 public class FunctionITCase extends AbstractTestBase {
 
 	private static final String TEST_FUNCTION = TestUDF.class.getName();
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testCreateCatalogFunctionInDefaultCatalog() {
@@ -444,8 +451,36 @@ public class FunctionITCase extends AbstractTestBase {
 		tableEnv.sqlUpdate("drop table t2");
 	}
 
+	@Test
+	public void testDataTypeBasedTypeInferenceNotSupported() throws Exception {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("The new type inference for functions is only supported in the Blink planner.");
+
+		StreamExecutionEnvironment streamExecEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+		StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(
+				streamExecEnvironment, settings);
+
+		tableEnvironment.createTemporarySystemFunction("func", SimpleScalarFunction.class);
+		Table table = tableEnvironment
+			.sqlQuery("SELECT func(1)");
+		tableEnvironment.toAppendStream(table, Row.class).print();
+
+		streamExecEnvironment.execute();
+	}
+
+	/**
+	 * Simple scalar function.
+	 */
+	public static class SimpleScalarFunction extends ScalarFunction {
+		public long eval(Integer i) {
+			return i;
+		}
+	}
+
 	private TableEnvironment getTableEnvironment() {
 		StreamExecutionEnvironment streamExecEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		return StreamTableEnvironment.create(streamExecEnvironment);
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+		return StreamTableEnvironment.create(streamExecEnvironment, settings);
 	}
 }

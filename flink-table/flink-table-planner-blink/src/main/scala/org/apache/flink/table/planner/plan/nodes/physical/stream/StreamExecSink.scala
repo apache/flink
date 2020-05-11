@@ -22,19 +22,19 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{Table, TableException}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.SinkCodeGenerator.generateRowConverterOperator
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.`trait`.{AccMode, AccModeTraitDef}
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpdatingPlanChecker}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, TypeCheckUtils}
+import org.apache.flink.table.runtime.typeutils.{RowDataTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.logical.TimestampType
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 
@@ -54,15 +54,6 @@ class StreamExecSink[T](
   extends Sink(cluster, traitSet, inputRel, sink, sinkName)
   with StreamPhysicalRel
   with StreamExecNode[Any] {
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean =
-    sink.isInstanceOf[RetractStreamTableSink[_]]
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
 
   override def requireWatermark: Boolean = false
 
@@ -92,22 +83,11 @@ class StreamExecSink[T](
 
           case upsertSink: UpsertStreamTableSink[T] =>
             // check for append only table
-            val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(this)
+            val isAppendOnlyTable = ChangelogPlanUtils.inputInsertOnly(this)
             upsertSink.setIsAppendOnly(isAppendOnlyTable)
 
-            // extract unique key fields
-            // Now we pick shortest one to sink
-            // TODO UpsertStreamTableSink setKeyFields interface should be Array[Array[String]]
-            val tableKeys = {
-              val sinkFieldNames = upsertSink.getTableSchema.getFieldNames
-              UpdatingPlanChecker.getUniqueKeyFields(getInput, planner, sinkFieldNames) match {
-                case Some(keys) => keys.sortBy(_.length).headOption
-                case None => None
-              }
-            }
-
             // check that we have keys if the table has changes (is not append-only)
-            tableKeys match {
+            UpdatingPlanChecker.getUniqueKeyForUpsertSink(this, planner, upsertSink) match {
               case Some(keys) => upsertSink.setKeyFields(keys)
               case None if isAppendOnlyTable => upsertSink.setKeyFields(null)
               case None if !isAppendOnlyTable => throw new TableException(
@@ -119,15 +99,9 @@ class StreamExecSink[T](
 
           case _: AppendStreamTableSink[T] =>
             // verify table is an insert-only (append-only) table
-            if (!UpdatingPlanChecker.isAppendOnly(this)) {
+            if (!ChangelogPlanUtils.inputInsertOnly(this)) {
               throw new TableException(
                 "AppendStreamTableSink requires that Table has only insert changes.")
-            }
-
-            val accMode = this.getTraitSet.getTrait(AccModeTraitDef.INSTANCE).getAccMode
-            if (accMode == AccMode.AccRetract) {
-              throw new TableException(
-                "AppendStreamTableSink can not be used to output retraction messages.")
             }
             translateToTransformation(withChangeFlag = false, planner)
 
@@ -171,16 +145,16 @@ class StreamExecSink[T](
     val config = planner.getTableConfig
     val inputNode = getInput
     // if no change flags are requested, verify table is an insert-only (append-only) table.
-    if (!withChangeFlag && !UpdatingPlanChecker.isAppendOnly(inputNode)) {
+    if (!withChangeFlag && !ChangelogPlanUtils.inputInsertOnly(this)) {
       throw new TableException(
         "Table is not an append-only table. " +
           "Use the toRetractStream() in order to handle add and retract messages.")
     }
 
-    // get BaseRow plan
+    // get RowData plan
     val parTransformation = inputNode match {
-      // Sink's input must be StreamExecNode[BaseRow] now.
-      case node: StreamExecNode[BaseRow] =>
+      // Sink's input must be StreamExecNode[RowData] now.
+      case node: StreamExecNode[RowData] =>
         node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
@@ -197,7 +171,7 @@ class StreamExecSink[T](
           s"Please select the rowtime field that should be used as event-time timestamp for the " +
           s"DataStream by casting all other fields to TIMESTAMP.")
     } else if (rowtimeFields.size == 1) {
-      val origRowType = parTransformation.getOutputType.asInstanceOf[BaseRowTypeInfo]
+      val origRowType = parTransformation.getOutputType.asInstanceOf[RowDataTypeInfo]
       val convFieldTypes = origRowType.getLogicalTypes.map { t =>
         if (TypeCheckUtils.isRowTime(t)) {
           new TimestampType(3)
@@ -205,7 +179,7 @@ class StreamExecSink[T](
           t
         }
       }
-      new BaseRowTypeInfo(convFieldTypes, origRowType.getFieldNames)
+      new RowDataTypeInfo(convFieldTypes, origRowType.getFieldNames)
     } else {
       parTransformation.getOutputType
     }
@@ -217,7 +191,7 @@ class StreamExecSink[T](
       val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
         CodeGeneratorContext(config),
         config,
-        convType.asInstanceOf[BaseRowTypeInfo].toRowType,
+        convType.asInstanceOf[RowDataTypeInfo].toRowType,
         sink,
         withChangeFlag,
         "SinkConversion"

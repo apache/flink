@@ -24,17 +24,23 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.function.BiConsumerWithException;
+import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
 
@@ -212,46 +218,50 @@ public abstract class MetadataV2V3SerializerBase {
 	// ------------------------------------------------------------------------
 
 	protected void serializeSubtaskState(OperatorSubtaskState subtaskState, DataOutputStream dos) throws IOException {
-		final OperatorStateHandle managedOperatorState = extractSingleton(subtaskState.getManagedOperatorState());
-		if (managedOperatorState != null) {
+		serializeSingleton(subtaskState.getManagedOperatorState(), dos, MetadataV2V3SerializerBase::serializeOperatorStateHandle);
+		serializeSingleton(subtaskState.getRawOperatorState(), dos, MetadataV2V3SerializerBase::serializeOperatorStateHandle);
+		serializeKeyedStateCol(subtaskState.getManagedKeyedState(), dos);
+		serializeKeyedStateCol(subtaskState.getRawKeyedState(), dos);
+	}
+
+	private void serializeKeyedStateCol(StateObjectCollection<KeyedStateHandle> managedKeyedState, DataOutputStream dos) throws IOException {
+		serializeKeyedStateHandle(extractSingleton(managedKeyedState), dos);
+	}
+
+	private <T extends StateObject> void serializeSingleton(
+			StateObjectCollection<T> stateObjectCollection,
+			DataOutputStream dos,
+			BiConsumerWithException<T, DataOutputStream, IOException> cons) throws IOException {
+		final T state = extractSingleton(stateObjectCollection);
+		if (state != null) {
 			dos.writeInt(1);
-			serializeOperatorStateHandle(managedOperatorState, dos);
+			cons.accept(state, dos);
 		} else {
 			dos.writeInt(0);
 		}
-
-		final OperatorStateHandle rawOperatorState = extractSingleton(subtaskState.getRawOperatorState());
-		if (rawOperatorState != null) {
-			dos.writeInt(1);
-			serializeOperatorStateHandle(rawOperatorState, dos);
-		} else {
-			dos.writeInt(0);
-		}
-
-		final KeyedStateHandle keyedStateBackend = extractSingleton(subtaskState.getManagedKeyedState());
-		serializeKeyedStateHandle(keyedStateBackend, dos);
-
-		final KeyedStateHandle keyedStateStream = extractSingleton(subtaskState.getRawKeyedState());
-		serializeKeyedStateHandle(keyedStateStream, dos);
 	}
 
 	protected OperatorSubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
-		final int hasManagedOperatorState = dis.readInt();
-		final OperatorStateHandle managedOperatorState = hasManagedOperatorState == 0 ?
-				null : deserializeOperatorStateHandle(dis);
+		final boolean hasManagedOperatorState = dis.readInt() != 0;
+		final OperatorStateHandle managedOperatorState = hasManagedOperatorState ? deserializeOperatorStateHandle(dis) : null;
 
-		final int hasRawOperatorState = dis.readInt();
-		final OperatorStateHandle rawOperatorState = hasRawOperatorState == 0 ?
-				null : deserializeOperatorStateHandle(dis);
+		final boolean hasRawOperatorState = dis.readInt() != 0;
+		final OperatorStateHandle rawOperatorState = hasRawOperatorState ? deserializeOperatorStateHandle(dis) : null;
 
 		final KeyedStateHandle managedKeyedState = deserializeKeyedStateHandle(dis);
 		final KeyedStateHandle rawKeyedState = deserializeKeyedStateHandle(dis);
 
+		StateObjectCollection<InputChannelStateHandle> inputChannelState = deserializeInputChannelStateHandle(dis);
+
+		StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState = deserializeResultSubpartitionStateHandle(dis);
+
 		return new OperatorSubtaskState(
-				managedOperatorState,
-				rawOperatorState,
-				managedKeyedState,
-				rawKeyedState);
+			managedOperatorState,
+			rawOperatorState,
+			managedKeyedState,
+			rawKeyedState,
+			inputChannelState,
+			resultSubpartitionState);
 	}
 
 	@VisibleForTesting
@@ -493,4 +503,28 @@ public abstract class MetadataV2V3SerializerBase {
 			throw new IllegalStateException("Expected singleton collection, but found size: " + collection.size());
 		}
 	}
+
+	protected StateObjectCollection<ResultSubpartitionStateHandle> deserializeResultSubpartitionStateHandle(DataInputStream dis) throws IOException {
+		return StateObjectCollection.empty();
+	}
+
+	protected StateObjectCollection<InputChannelStateHandle> deserializeInputChannelStateHandle(DataInputStream dis) throws IOException {
+		return StateObjectCollection.empty();
+	}
+
+	protected void serializeResultSubpartitionStateHandle(ResultSubpartitionStateHandle resultSubpartitionStateHandle, DataOutputStream dos) throws IOException {
+	}
+
+	protected void serializeInputChannelStateHandle(InputChannelStateHandle inputChannelStateHandle, DataOutputStream dos) throws IOException {
+	}
+
+	static <T extends StateObject> StateObjectCollection<T> deserializeCollection(DataInputStream dis, FunctionWithException<DataInputStream, T, IOException> s) throws IOException {
+		int size = dis.readInt();
+		List<T> result = new ArrayList<>();
+		for (int i = 0; i < size; i++) {
+			result.add(s.apply(dis));
+		}
+		return new StateObjectCollection<>(result);
+	}
+
 }

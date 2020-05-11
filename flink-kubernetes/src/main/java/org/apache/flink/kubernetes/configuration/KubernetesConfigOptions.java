@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -100,23 +101,40 @@ public class KubernetesConfigOptions {
 		.defaultValue("%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%")
 		.withDescription("Template for the kubernetes jobmanager and taskmanager container start invocation.");
 
-	public static final ConfigOption<String> SERVICE_CREATE_TIMEOUT =
-		key("kubernetes.service.create-timeout")
-		.stringType()
-		.defaultValue("1 min")
-		.withDescription("Timeout used for creating the service. The timeout value requires a time-unit " +
-			"specifier (ms/s/min/h/d).");
+	public static final ConfigOption<Map<String, String>> JOB_MANAGER_LABELS =
+		key("kubernetes.jobmanager.labels")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The labels to be set for JobManager pod. Specified as key:value pairs separated by commas. " +
+			"For example, version:alphav1,deploy:test.");
 
-  	// ---------------------------------------------------------------------------------
-	// The following config options could be overridden by KubernetesCliOptions.
-	// ---------------------------------------------------------------------------------
+	public static final ConfigOption<Map<String, String>> TASK_MANAGER_LABELS =
+		key("kubernetes.taskmanager.labels")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The labels to be set for TaskManager pods. Specified as key:value pairs separated by commas. " +
+			"For example, version:alphav1,deploy:test.");
+
+	public static final ConfigOption<Map<String, String>> JOB_MANAGER_NODE_SELECTOR =
+		key("kubernetes.jobmanager.node-selector")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The node selector to be set for JobManager pod. Specified as key:value pairs separated by " +
+			"commas. For example, environment:production,disk:ssd.");
+
+	public static final ConfigOption<Map<String, String>> TASK_MANAGER_NODE_SELECTOR =
+		key("kubernetes.taskmanager.node-selector")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The node selector to be set for TaskManager pods. Specified as key:value pairs separated by " +
+			"commas. For example, environment:production,disk:ssd.");
 
 	public static final ConfigOption<String> CLUSTER_ID =
 		key("kubernetes.cluster-id")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("The cluster id used for identifying the unique flink cluster. If it's not set, " +
-			"the client will generate a random UUID name.");
+		.withDescription("The cluster-id, which should be no more than 45 characters, is used for identifying " +
+			"a unique Flink cluster. If not set, the client will automatically generate it with a random ID.");
 
 	public static final ConfigOption<String> CONTAINER_IMAGE =
 		key("kubernetes.container.image")
@@ -146,6 +164,45 @@ public class KubernetesConfigOptions {
 		.stringType()
 		.defaultValue("/opt/flink/log")
 		.withDescription("The directory that logs of jobmanager and taskmanager be saved in the pod.");
+
+	public static final ConfigOption<String> HADOOP_CONF_CONFIG_MAP =
+		key("kubernetes.hadoop.conf.config-map.name")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Specify the name of an existing ConfigMap that contains custom Hadoop configuration " +
+			"to be mounted on the JobManager(s) and TaskManagers.");
+
+	public static final ConfigOption<Map<String, String>> JOB_MANAGER_ANNOTATIONS =
+		key("kubernetes.jobmanager.annotations")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The user-specified annotations that are set to the JobManager pod. The value could be " +
+			"in the form of a1:v1,a2:v2");
+
+	public static final ConfigOption<Map<String, String>> TASK_MANAGER_ANNOTATIONS =
+		key("kubernetes.taskmanager.annotations")
+		.mapType()
+		.noDefaultValue()
+		.withDescription("The user-specified annotations that are set to the TaskManager pod. The value could be " +
+			"in the form of a1:v1,a2:v2");
+
+	public static final ConfigOption<List<Map<String, String>>> JOB_MANAGER_TOLERATIONS =
+		key("kubernetes.jobmanager.tolerations")
+			.mapType()
+			.asList()
+			.noDefaultValue()
+			.withDescription("The user-specified tolerations to be set to the JobManager pod. The value should be " +
+				"in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;" +
+				"key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000");
+
+	public static final ConfigOption<List<Map<String, String>>> TASK_MANAGER_TOLERATIONS =
+		key("kubernetes.taskmanager.tolerations")
+			.mapType()
+			.asList()
+			.noDefaultValue()
+			.withDescription("The user-specified tolerations to be set to the TaskManager pod. The value should be " +
+				"in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;" +
+				"key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000");
 
 	/**
 	 * The flink rest service exposed type.

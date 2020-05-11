@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.utils
 
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{LocalEnvironment, DataSet => JDataSet}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
@@ -31,7 +29,7 @@ import org.apache.flink.table.api.internal.{TableEnvImpl, TableEnvironmentImpl, 
 import org.apache.flink.table.api.java.internal.{BatchTableEnvironmentImpl => JavaBatchTableEnvironmentImpl, StreamTableEnvironmentImpl => JavaStreamTableEnvironmentImpl}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.internal.{BatchTableEnvironmentImpl => ScalaBatchTableEnvironmentImpl, StreamTableEnvironmentImpl => ScalaStreamTableEnvironmentImpl}
-import org.apache.flink.table.api.{Table, TableConfig, TableSchema}
+import org.apache.flink.table.api.{ApiExpression, Table, TableConfig, TableSchema}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.expressions.Expression
@@ -39,12 +37,16 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{DataSetQueryOperation, JavaDataStreamQueryOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.planner.StreamPlanner
+
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.RelNode
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
 import org.mockito.Mockito.{mock, when}
 
 import _root_.scala.util.control.Breaks._
+import scala.io.Source
 
 /**
   * Test base for testing Table API / SQL plans.
@@ -213,6 +215,15 @@ object TableTestUtil {
 
     s"DataStreamScan(id=[$id], fields=[${fieldNames.mkString(", ")}])"
   }
+
+  def readFromResource(file: String): String = {
+    val source = s"${getClass.getResource("/").getFile}../../src/test/scala/resources/$file"
+    Source.fromFile(source).mkString
+  }
+
+  def replaceStageId(s: String): String = {
+    s.replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
+  }
 }
 
 case class BatchTableTestUtil(
@@ -248,13 +259,11 @@ case class BatchTableTestUtil(
     tableEnv.registerTable(name, t)
     t
   }
-
-  def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: String): Table = {
-
+  def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: ApiExpression*): Table = {
     val jDs = mock(classOf[JDataSet[T]])
     when(jDs.getType).thenReturn(typeInfo)
 
-    val t = javaTableEnv.fromDataSet(jDs, fields)
+    val t = javaTableEnv.fromDataSet(jDs, fields: _*)
     javaTableEnv.registerTable(name, t)
     t
   }
@@ -361,9 +370,9 @@ case class StreamTableTestUtil(
     table
   }
 
-  def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: String): Table = {
+  def addJavaTable[T](typeInfo: TypeInformation[T], name: String, fields: ApiExpression*): Table = {
     val stream = javaEnv.addSource(new EmptySource[T], typeInfo)
-    val table = javaTableEnv.fromDataStream(stream, fields)
+    val table = javaTableEnv.fromDataStream(stream, fields: _*)
     javaTableEnv.registerTable(name, table)
     table
   }

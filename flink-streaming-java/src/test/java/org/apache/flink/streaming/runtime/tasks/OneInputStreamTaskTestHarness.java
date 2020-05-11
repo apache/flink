@@ -28,9 +28,9 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+import org.apache.flink.util.function.FunctionWithException;
 
 import java.io.File;
-import java.util.function.Function;
 
 
 /**
@@ -62,7 +62,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 * of channels per input gate and local recovery disabled.
 	 */
 	public OneInputStreamTaskTestHarness(
-		Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+		FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
 		int numInputGates,
 		int numInputChannelsPerGate,
 		TypeInformation<IN> inputType,
@@ -71,7 +71,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	}
 
 	public OneInputStreamTaskTestHarness(
-		Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+		FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
 		int numInputGates,
 		int numInputChannelsPerGate,
 		TypeInformation<IN> inputType,
@@ -93,7 +93,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 * of channels per input gate and specified localRecoveryConfig.
 	 */
 	public OneInputStreamTaskTestHarness(
-			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+			FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
 			int numInputGates,
 			int numInputChannelsPerGate,
 			TypeInformation<IN> inputType,
@@ -113,7 +113,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 * Creates a test harness with one input gate that has one input channel.
 	 */
 	public OneInputStreamTaskTestHarness(
-		Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+		FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
 		TypeInformation<IN> inputType,
 		TypeInformation<OUT> outputType) {
 		this(taskFactory, 1, 1, inputType, outputType, TestLocalRecoveryConfig.disabled());
@@ -126,8 +126,10 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 		for (int i = 0; i < numInputGates; i++) {
 			inputGates[i] = new StreamTestSingleInputGate<IN>(
 				numInputChannelsPerGate,
-				bufferSize,
-				inputSerializer);
+				i,
+				inputSerializer,
+				bufferSize
+			);
 			this.mockEnv.addInputGate(inputGates[i].getInputGate());
 		}
 

@@ -20,8 +20,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
-import org.apache.flink.table.dataformat._
+import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
@@ -41,6 +40,8 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.util.TimestampString
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 import scala.collection.JavaConversions._
@@ -147,7 +148,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     */
   def generateConverterResultExpression(
       returnType: RowType,
-      returnTypeClazz: Class[_ <: BaseRow],
+      returnTypeClazz: Class[_ <: RowData],
       outRecordTerm: String = DEFAULT_OUT_RECORD_TERM,
       outRecordWriterTerm: String = DEFAULT_OUT_RECORD_WRITER_TERM,
       reusedOutRow: Boolean = true,
@@ -212,7 +213,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     * @param fieldExprs field expressions to be converted
     * @param returnType conversion target type. Type must have the same arity than fieldExprs.
     * @param outRow the result term
-    * @param outRowWriter the result writer term for BinaryRow.
+    * @param outRowWriter the result writer term for BinaryRowData.
     * @param reusedOutRow If objects or variables can be reused, they will be added to reusable
     *                     code sections internally.
     * @param outRowAlreadyExists Don't need addReusableRecord if out row already exists.
@@ -221,7 +222,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   def generateResultExpression(
       fieldExprs: Seq[GeneratedExpression],
       returnType: RowType,
-      returnTypeClazz: Class[_ <: BaseRow],
+      returnTypeClazz: Class[_ <: RowData],
       outRow: String = DEFAULT_OUT_RECORD_TERM,
       outRowWriter: Option[String] = Some(DEFAULT_OUT_RECORD_WRITER_TERM),
       reusedOutRow: Boolean = true,
@@ -241,7 +242,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     *                                      to position of output row.
     * @param returnType conversion target type. Type must have the same arity than fieldExprs.
     * @param outRow the result term
-    * @param outRowWriter the result writer term for BinaryRow.
+    * @param outRowWriter the result writer term for BinaryRowData.
     * @param reusedOutRow If objects or variables can be reused, they will be added to reusable
     *                     code sections internally.
     * @param outRowAlreadyExists Don't need addReusableRecord if out row already exists.
@@ -251,7 +252,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     fieldExprs: Seq[GeneratedExpression],
     fieldExprIdxToOutputRowPosMap: Map[Int, Int],
     returnType: RowType,
-    returnTypeClazz: Class[_ <: BaseRow],
+    returnTypeClazz: Class[_ <: RowData],
     outRow: String,
     outRowWriter: Option[String],
     reusedOutRow: Boolean,
@@ -291,7 +292,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     val setFieldsCodes = fieldExprs.zipWithIndex.map { case (fieldExpr, index) =>
       val pos = fieldExprIdxToOutputRowPosMap.getOrElse(index,
         throw new CodeGenException(s"Illegal field expr index: $index"))
-      baseRowSetField(ctx, returnTypeClazz, outRow, pos.toString, fieldExpr, outRowWriter)
+      rowSetField(ctx, returnTypeClazz, outRow, pos.toString, fieldExpr, outRowWriter)
     }
     val totalLen = setFieldsCodes.map(_.length).sum
     val maxCodeLength = ctx.tableConfig.getMaxGeneratedCodeLength
@@ -325,7 +326,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       NO_CODE
     }
 
-    val code = if (returnTypeClazz == classOf[BinaryRow] && outRowWriter.isDefined) {
+    val code = if (returnTypeClazz == classOf[BinaryRowData] && outRowWriter.isDefined) {
       val writer = outRowWriter.get
       val resetWriter = if (ctx.nullCheck) s"$writer.reset();" else s"$writer.resetCursor();"
       val completeWriter: String = s"$writer.complete();"

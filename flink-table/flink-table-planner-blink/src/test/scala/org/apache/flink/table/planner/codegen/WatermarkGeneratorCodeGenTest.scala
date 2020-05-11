@@ -18,15 +18,11 @@
 
 package org.apache.flink.table.planner.codegen
 
-import java.lang.{Integer => JInt, Long => JLong}
-import java.util.Collections
-import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
-import org.apache.calcite.plan.ConventionTraitDef
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
-import org.apache.flink.table.dataformat.{GenericRow, SqlTimestamp}
+import org.apache.flink.table.data.{GenericRowData, TimestampData}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
@@ -36,8 +32,14 @@ import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
 import org.apache.flink.table.utils.CatalogManagerMocks
 
+import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
+import org.apache.calcite.plan.ConventionTraitDef
+
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
+
+import java.lang.{Integer => JInt, Long => JLong}
+import java.util.Collections
 
 /**
   * Tests the generated [[WatermarkGenerator]] from [[WatermarkGeneratorCodeGenerator]].
@@ -59,12 +61,12 @@ class WatermarkGeneratorCodeGenTest {
     catalogManager.getCurrentDatabase)
 
   val data = List(
-    GenericRow.of(SqlTimestamp.fromEpochMillis(1000L), JInt.valueOf(5)),
-    GenericRow.of(null, JInt.valueOf(4)),
-    GenericRow.of(SqlTimestamp.fromEpochMillis(3000L), null),
-    GenericRow.of(SqlTimestamp.fromEpochMillis(5000L), JInt.valueOf(3)),
-    GenericRow.of(SqlTimestamp.fromEpochMillis(4000L), JInt.valueOf(10)),
-    GenericRow.of(SqlTimestamp.fromEpochMillis(6000L), JInt.valueOf(8))
+    GenericRowData.of(TimestampData.fromEpochMillis(1000L), JInt.valueOf(5)),
+    GenericRowData.of(null, JInt.valueOf(4)),
+    GenericRowData.of(TimestampData.fromEpochMillis(3000L), null),
+    GenericRowData.of(TimestampData.fromEpochMillis(5000L), JInt.valueOf(3)),
+    GenericRowData.of(TimestampData.fromEpochMillis(4000L), JInt.valueOf(10)),
+    GenericRowData.of(TimestampData.fromEpochMillis(6000L), JInt.valueOf(8))
   )
 
   @Test

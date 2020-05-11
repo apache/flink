@@ -38,6 +38,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * The Python {@link TableFunction} operator for the legacy planner.
@@ -78,8 +79,8 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 		super.open();
 		this.cRowWrapper = new StreamRecordCRowWrappingCollector(output);
 		CRowTypeInfo forwardedInputTypeInfo = new CRowTypeInfo(
-			new RowTypeInfo(TypeConversions.fromDataTypeToLegacyInfo(
-				TypeConversions.fromLogicalToDataType(inputType))));
+			(RowTypeInfo) TypeConversions.fromDataTypeToLegacyInfo(
+				TypeConversions.fromLogicalToDataType(inputType)));
 		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getExecutionConfig());
 		udtfOutputTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
 	}
@@ -131,13 +132,16 @@ public class PythonTableFunctionOperator extends AbstractPythonTableFunctionOper
 	@Override
 	public PythonFunctionRunner<Row> createPythonFunctionRunner(
 		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager) {
+		PythonEnvironmentManager pythonEnvironmentManager,
+		Map<String, String> jobOptions) {
 		return new PythonTableFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
 			tableFunction,
 			pythonEnvironmentManager,
 			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType);
+			userDefinedFunctionOutputType,
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 }

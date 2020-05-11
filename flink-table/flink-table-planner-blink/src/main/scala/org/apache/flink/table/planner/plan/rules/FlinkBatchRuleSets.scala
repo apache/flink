@@ -55,8 +55,7 @@ object FlinkBatchRuleSets {
     */
   val EXPAND_PLAN_RULES: RuleSet = RuleSets.ofList(
     LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER,
-    LogicalCorrelateToJoinFromTemporalTableRule.WITHOUT_FILTER,
-    TableScanRule.INSTANCE)
+    LogicalCorrelateToJoinFromTemporalTableRule.WITHOUT_FILTER)
 
   val POST_EXPAND_CLEAN_UP_RULES: RuleSet = RuleSets.ofList(
     EnumerableToLogicalTableScan.INSTANCE)
@@ -65,7 +64,6 @@ object FlinkBatchRuleSets {
     * Convert table references before query decorrelation.
     */
   val TABLE_REF_RULES: RuleSet = RuleSets.ofList(
-    TableScanRule.INSTANCE,
     EnumerableToLogicalTableScan.INSTANCE
   )
 
@@ -92,7 +90,7 @@ object FlinkBatchRuleSets {
 
   private val LIMIT_RULES: RuleSet = RuleSets.ofList(
     //push down localLimit
-    PushLimitIntoTableSourceScanRule.INSTANCE)
+    PushLimitIntoLegacyTableSourceScanRule.INSTANCE)
 
   /**
     * RuleSet to simplify predicate expressions in filters and joins
@@ -167,9 +165,9 @@ object FlinkBatchRuleSets {
     */
   val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
     // push a filter down into the table scan
-    PushFilterIntoTableSourceScanRule.INSTANCE,
+    PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
     // push partition into the table scan
-    PushPartitionIntoTableSourceScanRule.INSTANCE
+    PushPartitionIntoLegacyTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -247,8 +245,8 @@ object FlinkBatchRuleSets {
     */
   private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
     // scan optimization
-    PushProjectIntoTableSourceScanRule.INSTANCE,
-    PushFilterIntoTableSourceScanRule.INSTANCE,
+    PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
+    PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
 
     // reorder sort and projection
     SortProjectTransposeRule.INSTANCE,
@@ -329,6 +327,7 @@ object FlinkBatchRuleSets {
     FlinkLogicalUnion.CONVERTER,
     FlinkLogicalValues.CONVERTER,
     FlinkLogicalTableSourceScan.CONVERTER,
+    FlinkLogicalLegacyTableSourceScan.CONVERTER,
     FlinkLogicalTableFunctionScan.CONVERTER,
     FlinkLogicalDataStreamTableScan.CONVERTER,
     FlinkLogicalIntermediateTableScan.CONVERTER,
@@ -362,12 +361,17 @@ object FlinkBatchRuleSets {
     // Rule that splits python ScalarFunctions from
     // java/scala ScalarFunctions in correlate conditions
     SplitPythonConditionFromCorrelateRule.INSTANCE,
+    // Rule that transpose the conditions after the Python correlate node.
+    CalcPythonCorrelateTransposeRule.INSTANCE,
+    // Rule that splits java calls from python TableFunction
+    PythonCorrelateSplitRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
+    PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT
   )
@@ -380,6 +384,7 @@ object FlinkBatchRuleSets {
     // source
     BatchExecBoundedStreamScanRule.INSTANCE,
     BatchExecTableSourceScanRule.INSTANCE,
+    BatchExecLegacyTableSourceScanRule.INSTANCE,
     BatchExecIntermediateTableScanRule.INSTANCE,
     BatchExecValuesRule.INSTANCE,
     // calc

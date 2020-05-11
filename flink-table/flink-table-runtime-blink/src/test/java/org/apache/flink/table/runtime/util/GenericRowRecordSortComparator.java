@@ -18,18 +18,19 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.RowKind;
 
 import java.io.Serializable;
 import java.util.Comparator;
 
 /**
- * A utility class to compare two GenericRow based on sortKey value.
+ * A utility class to compare two GenericRowData based on sortKey value.
  * Note: Only support sortKey is Comparable value.
  */
-public class GenericRowRecordSortComparator implements Comparator<GenericRow>, Serializable {
+public class GenericRowRecordSortComparator implements Comparator<GenericRowData>, Serializable {
 
 	private static final long serialVersionUID = -4988371592272863772L;
 
@@ -42,14 +43,14 @@ public class GenericRowRecordSortComparator implements Comparator<GenericRow>, S
 	}
 
 	@Override
-	public int compare(GenericRow row1, GenericRow row2) {
-		byte header1 = row1.getHeader();
-		byte header2 = row2.getHeader();
-		if (header1 != header2) {
-			return header1 - header2;
+	public int compare(GenericRowData row1, GenericRowData row2) {
+		RowKind kind1 = row1.getRowKind();
+		RowKind kind2 = row2.getRowKind();
+		if (kind1 != kind2) {
+			return kind1.toByteValue() - kind2.toByteValue();
 		} else {
-			Object key1 = TypeGetterSetters.get(row1, sortKeyIdx, sortKeyType);
-			Object key2 = TypeGetterSetters.get(row2, sortKeyIdx, sortKeyType);
+			Object key1 = RowData.get(row1, sortKeyIdx, sortKeyType);
+			Object key2 = RowData.get(row2, sortKeyIdx, sortKeyType);
 			if (key1 instanceof Comparable) {
 				return ((Comparable) key1).compareTo(key2);
 			} else {

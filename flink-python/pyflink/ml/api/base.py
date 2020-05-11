@@ -23,7 +23,8 @@ from abc import ABCMeta, abstractmethod
 from pyflink.table.table_environment import TableEnvironment
 from pyflink.table.table import Table
 from pyflink.ml.api.param import WithParams, Params
-from py4j.java_gateway import get_field
+from pyflink.java_gateway import get_gateway
+from py4j.java_gateway import get_field, get_java_class as java_class
 
 
 class PipelineStage(WithParams):
@@ -265,11 +266,65 @@ class Pipeline(Estimator, Model, Transformer):
         return input
 
     def to_json(self) -> str:
-        import jsonpickle
-        return str(jsonpickle.encode(self, keys=True))
+        """
+        If all PipelineStages in this Pipeline are Java ones, this method will return a
+        Java json string, which can be loaded either from a Python Pipeline or a Java Pipeline,
+        otherwise, it returns a Python json string which can only be loaded from a Python Pipeline.
+        """
+        # if all PipelineStages are Java ones, we use Java toJson() to generate Json string
+        # so that the string can also be loaded from Java side.
+        if all([type(stage) in [JavaTransformer, JavaEstimator, JavaModel]
+                for stage in self.get_stages()]):
+            j_pipeline = get_gateway().jvm.org.apache.flink.ml.api.core.Pipeline()
+            for stage in self.get_stages():
+                stage._convert_params_to_java(stage._j_obj)
+                j_pipeline.appendStage(stage._j_obj)
+            return j_pipeline.toJson()
+        else:
+            import jsonpickle
+            return str(jsonpickle.encode(self, keys=True))
 
     def load_json(self, json: str) -> None:
-        import jsonpickle
-        pipeline = jsonpickle.decode(json, keys=True)
-        for stage in pipeline.get_stages():
-            self.append_stage(stage)
+        """
+        This method can either load from a Java Pipeline json or a Python Pipeline json.
+        """
+        # noinspection PyBroadException
+        try:
+            # try to load json with Python method
+            import jsonpickle
+            pipeline = jsonpickle.decode(json, keys=True)
+            for stage in pipeline.get_stages():
+                self.append_stage(stage)
+        except Exception as outer_e:
+            try:
+                # if can't load json with Python method, try to load with Java method
+                gw = get_gateway()
+                j_pipeline = gw.jvm.org.apache.flink.ml.api.core.Pipeline()
+                j_pipeline.loadJson(json)
+
+                for j_stage in j_pipeline.getStages():
+                    j_stage_class = j_stage.getClass()
+                    j_transformer_class = java_class(
+                        gw.jvm.org.apache.flink.ml.api.core.Transformer)
+                    j_estimator_class = java_class(gw.jvm.org.apache.flink.ml.api.core.Estimator)
+                    j_model_class = java_class(gw.jvm.org.apache.flink.ml.api.core.Model)
+                    if j_transformer_class.isAssignableFrom(j_stage_class):
+                        self.append_stage(JavaTransformer(j_stage))
+                    elif j_estimator_class.isAssignableFrom(j_stage_class):
+                        self.append_stage(JavaEstimator(j_stage))
+                    elif j_model_class.isAssignableFrom(j_stage_class):
+                        self.append_stage(JavaModel(j_stage))
+                    else:
+                        raise TypeError(
+                            "Unexpected Java PipelineStage %s. Class should be a %s, "
+                            "%s or a %s." %
+                            (j_stage_class.getCanonicalName(),
+                             j_transformer_class.getCanonicalName(),
+                             j_estimator_class.getCanonicalName(),
+                             j_model_class.getCanonicalName()))
+            except Exception as inner_e:
+                raise RuntimeError(
+                    "Cannot load the JSON as either a Java Pipeline or a Python Pipeline.\n"
+                    "Python Pipeline load failed due to: %s.\n"
+                    "Java Pipeline load failed due to: %s." %
+                    (outer_e, inner_e))

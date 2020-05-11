@@ -111,9 +111,8 @@ public class TestInputChannel extends InputChannel {
 
 		for (int i = 0; i < numberOfInputChannels; i++) {
 			mocks[i] = new TestInputChannel(inputGate, i);
-
-			inputGate.setInputChannel(mocks[i]);
 		}
+		inputGate.setInputChannels(mocks);
 
 		return mocks;
 	}
@@ -153,6 +152,10 @@ public class TestInputChannel extends InputChannel {
 
 	@Override
 	void releaseAllResources() throws IOException {
+	}
+
+	@Override
+	public void resumeConsumption() {
 	}
 
 	@Override

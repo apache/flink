@@ -19,7 +19,11 @@
 package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -66,6 +70,57 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 
 	private static final CommandLineParser<StandaloneJobClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneJobClusterConfigurationParserFactory());
 	private static final String JOB_CLASS_NAME = "foobar";
+
+	@Test
+	public void testEntrypointClusterConfigurationToConfigurationParsing() throws FlinkParseException {
+		final JobID jobID = JobID.generate();
+		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.forPath("/test/savepoint/path", true);
+		final String key = DeploymentOptions.TARGET.key();
+		final String value = "testDynamicExecutorConfig";
+		final int restPort = 1234;
+		final String arg1 = "arg1";
+		final String arg2 = "arg2";
+		final String[] args = {
+				"--configDir", confDirPath,
+				"--job-id", jobID.toHexString(),
+				"--fromSavepoint", savepointRestoreSettings.getRestorePath(),
+				"--allowNonRestoredState",
+				"--webui-port", String.valueOf(restPort),
+				"--job-classname", JOB_CLASS_NAME,
+				String.format("-D%s=%s", key, value),
+				arg1, arg2};
+
+		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+		assertThat(clusterConfiguration.getJobClassName(), is(equalTo(JOB_CLASS_NAME)));
+		assertThat(clusterConfiguration.getArgs(), arrayContaining(arg1, arg2));
+
+		final Configuration configuration = StandaloneJobClusterEntryPoint
+				.loadConfigurationFromClusterConfig(clusterConfiguration);
+
+		final String strJobId = configuration.get(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
+		assertThat(JobID.fromHexString(strJobId), is(equalTo(jobID)));
+		assertThat(SavepointRestoreSettings.fromConfiguration(configuration), is(equalTo(savepointRestoreSettings)));
+
+		assertThat(configuration.get(RestOptions.PORT), is(equalTo(restPort)));
+		assertThat(configuration.get(DeploymentOptions.TARGET), is(equalTo(value)));
+	}
+
+	@Test
+	public void testEntrypointClusterConfigWOSavepointSettingsToConfigurationParsing() throws FlinkParseException {
+		final JobID jobID = JobID.generate();
+		final String[] args = {
+				"-c", confDirPath,
+				"--job-id", jobID.toHexString()
+		};
+
+		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+		final Configuration configuration = StandaloneJobClusterEntryPoint
+				.loadConfigurationFromClusterConfig(clusterConfiguration);
+
+		final String strJobId = configuration.get(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
+		assertThat(JobID.fromHexString(strJobId), is(equalTo(jobID)));
+		assertThat(SavepointRestoreSettings.fromConfiguration(configuration), is(equalTo(SavepointRestoreSettings.none())));
+	}
 
 	@Test
 	public void testEntrypointClusterConfigurationParsing() throws FlinkParseException {

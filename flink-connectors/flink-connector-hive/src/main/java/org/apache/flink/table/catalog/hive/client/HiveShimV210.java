@@ -22,18 +22,23 @@ import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
+import org.apache.flink.util.Preconditions;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.thrift.TApplicationException;
 import org.apache.thrift.TException;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -109,4 +114,69 @@ public class HiveShimV210 extends HiveShimV201 {
 		}
 	}
 
+	@Override
+	public void createTableWithConstraints(
+			IMetaStoreClient client,
+			Table table,
+			Configuration conf,
+			UniqueConstraint pk,
+			List<Byte> pkTraits,
+			List<String> notNullCols,
+			List<Byte> nnTraits) {
+		if (!notNullCols.isEmpty()) {
+			throw new UnsupportedOperationException("NOT NULL constraints not supported until 3.0.0");
+		}
+		try {
+			List<Object> hivePKs = createHivePKs(table, pk, pkTraits);
+			// createTableWithConstraints takes PK and FK lists
+			HiveReflectionUtils.invokeMethod(
+					client.getClass(),
+					client,
+					"createTableWithConstraints",
+					new Class[]{Table.class, List.class, List.class},
+					new Object[]{table, hivePKs, Collections.emptyList()});
+		} catch (Exception e) {
+			throw new CatalogException("Failed to create Hive table with constraints", e);
+		}
+	}
+
+	List<Object> createHivePKs(Table table, UniqueConstraint pk, List<Byte> traits)
+			throws ClassNotFoundException, IllegalAccessException, InstantiationException,
+			NoSuchMethodException, InvocationTargetException {
+		List<Object> res = new ArrayList<>();
+		if (pk != null) {
+			Class pkClz = Class.forName("org.apache.hadoop.hive.metastore.api.SQLPrimaryKey");
+			// PK constructor takes dbName, tableName, colName, keySeq, pkName, enable, validate, rely
+			Constructor constructor = pkClz.getConstructor(
+					String.class,
+					String.class,
+					String.class,
+					int.class,
+					String.class,
+					boolean.class,
+					boolean.class,
+					boolean.class);
+			int seq = 1;
+			Preconditions.checkArgument(pk.getColumns().size() == traits.size(),
+					"Number of PK columns and traits mismatch");
+			for (int i = 0; i < pk.getColumns().size(); i++) {
+				String col = pk.getColumns().get(i);
+				byte trait = traits.get(i);
+				boolean enable = HiveTableUtil.requireEnableConstraint(trait);
+				boolean validate = HiveTableUtil.requireValidateConstraint(trait);
+				boolean rely = HiveTableUtil.requireRelyConstraint(trait);
+				Object hivePK = constructor.newInstance(
+						table.getDbName(),
+						table.getTableName(),
+						col,
+						seq++,
+						pk.getName(),
+						enable,
+						validate,
+						rely);
+				res.add(hivePK);
+			}
+		}
+		return res;
+	}
 }

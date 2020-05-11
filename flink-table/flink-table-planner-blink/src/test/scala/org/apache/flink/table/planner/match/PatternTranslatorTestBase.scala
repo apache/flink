@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -68,7 +68,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    TableTestUtil.registerDataStream(
+    TableTestUtil.createTemporaryView(
       tEnv, tableName, dataStreamMock.javaStream, Some(Array[Expression]('f0, 'proctime.proctime)))
 
     // prepare RelBuilder
@@ -79,7 +79,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
     (relBuilder, planner, env)
   }
 
-  def verifyPattern(matchRecognize: String, expected: Pattern[BaseRow, _ <: BaseRow]): Unit = {
+  def verifyPattern(matchRecognize: String, expected: Pattern[RowData, _ <: RowData]): Unit = {
     // create RelNode from SQL expression
     val parsed = parser.parse(
       s"""
@@ -106,8 +106,8 @@ abstract class PatternTranslatorTestBase extends TestLogger {
   }
 
   private def compare(
-      expected: Pattern[BaseRow, _ <: BaseRow],
-      actual: Pattern[BaseRow, _ <: BaseRow]): Unit = {
+      expected: Pattern[RowData, _ <: RowData],
+      actual: Pattern[RowData, _ <: RowData]): Unit = {
     var currentLeft = expected
     var currentRight = actual
     do {

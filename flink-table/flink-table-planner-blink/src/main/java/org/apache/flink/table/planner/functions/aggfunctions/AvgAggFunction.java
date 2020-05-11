@@ -72,7 +72,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	@Override
 	public Expression[] initialValuesExpressions() {
 		return new Expression[] {
-				/* sum = */ literal(0L, getSumType()),
+				/* sum = */ literal(0L, getSumType().notNull()),
 				/* count = */ literal(0L)};
 	}
 
@@ -244,7 +244,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 			return new Expression[] {
 				literal(
 					BigDecimal.ZERO,
-					getSumType()),
+					getSumType().notNull()),
 				literal(0L)
 			};
 		}

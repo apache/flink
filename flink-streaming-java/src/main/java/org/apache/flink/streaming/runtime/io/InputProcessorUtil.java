@@ -18,17 +18,17 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.util.ConfigurationParserUtils;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.IntStream;
 
 /**
  * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode
@@ -39,21 +39,24 @@ public class InputProcessorUtil {
 
 	public static CheckpointedInputGate createCheckpointedInputGate(
 			AbstractInvokable toNotifyOnCheckpoint,
-			CheckpointingMode checkpointMode,
+			StreamConfig config,
+			ChannelStateWriter channelStateWriter,
 			InputGate inputGate,
-			Configuration taskManagerConfig,
 			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName) {
-
-		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
-
-		BufferStorage bufferStorage = createBufferStorage(
-			checkpointMode, pageSize, taskManagerConfig, taskName);
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
-			checkpointMode, inputGate.getNumberOfInputChannels(), taskName, toNotifyOnCheckpoint);
+			config,
+			IntStream.of(inputGate.getNumberOfInputChannels()),
+			channelStateWriter,
+			taskName,
+			generateChannelIndexToInputGateMap(inputGate),
+			generateInputGateToChannelIndexOffsetMap(inputGate),
+			toNotifyOnCheckpoint);
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
 
-		return new CheckpointedInputGate(inputGate, bufferStorage, barrierHandler);
+		barrierHandler.getBufferReceivedListener().ifPresent(inputGate::registerBufferReceivedListener);
+
+		return new CheckpointedInputGate(inputGate, barrierHandler);
 	}
 
 	/**
@@ -62,94 +65,89 @@ public class InputProcessorUtil {
 	 */
 	public static CheckpointedInputGate[] createCheckpointedInputGatePair(
 			AbstractInvokable toNotifyOnCheckpoint,
-			CheckpointingMode checkpointMode,
-			Configuration taskManagerConfig,
+			StreamConfig config,
+			ChannelStateWriter channelStateWriter,
 			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName,
 			InputGate ...inputGates) {
-
-		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
-
-		BufferStorage[] mainBufferStorages = new BufferStorage[inputGates.length];
-		for (int i = 0; i < inputGates.length; i++) {
-			mainBufferStorages[i] = createBufferStorage(
-				checkpointMode, pageSize, taskManagerConfig, taskName);
-		}
-
-		BufferStorage[] linkedBufferStorages = new BufferStorage[inputGates.length];
-
-		for (int i = 0; i < inputGates.length; i++) {
-			linkedBufferStorages[i] = new LinkedBufferStorage(
-				mainBufferStorages[i],
-				mainBufferStorages[i].getMaxBufferedBytes(),
-				copyBufferStoragesExceptOf(i, mainBufferStorages));
-		}
+		Map<InputGate, Integer> inputGateToChannelIndexOffset = generateInputGateToChannelIndexOffsetMap(inputGates);
 
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
-			checkpointMode,
-			Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels).sum(),
+			config,
+			Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels),
+			channelStateWriter,
 			taskName,
+			generateChannelIndexToInputGateMap(inputGates),
+			inputGateToChannelIndexOffset,
 			toNotifyOnCheckpoint);
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
 
+		barrierHandler.getBufferReceivedListener().ifPresent(listener -> {
+			for (final InputGate inputGate : inputGates) {
+				inputGate.registerBufferReceivedListener(listener);
+			}
+		});
+
 		CheckpointedInputGate[] checkpointedInputGates = new CheckpointedInputGate[inputGates.length];
 
-		int channelIndexOffset = 0;
 		for (int i = 0; i < inputGates.length; i++) {
-			checkpointedInputGates[i] = new CheckpointedInputGate(inputGates[i], linkedBufferStorages[i], barrierHandler, channelIndexOffset);
-			channelIndexOffset += inputGates[i].getNumberOfInputChannels();
+			checkpointedInputGates[i] = new CheckpointedInputGate(
+				inputGates[i], barrierHandler, inputGateToChannelIndexOffset.get(inputGates[i]));
 		}
 
 		return checkpointedInputGates;
 	}
 
-	private static BufferStorage[] copyBufferStoragesExceptOf(
-			int skipStorage,
-			BufferStorage[] bufferStorages) {
-		BufferStorage[] copy = new BufferStorage[bufferStorages.length - 1];
-		System.arraycopy(bufferStorages, 0, copy, 0, skipStorage);
-		System.arraycopy(bufferStorages, skipStorage + 1, copy, skipStorage, bufferStorages.length - skipStorage - 1);
-		return copy;
-	}
-
 	private static CheckpointBarrierHandler createCheckpointBarrierHandler(
-			CheckpointingMode checkpointMode,
-			int numberOfInputChannels,
+			StreamConfig config,
+			IntStream numberOfInputChannelsPerGate,
+			ChannelStateWriter channelStateWriter,
 			String taskName,
+			InputGate[] channelIndexToInputGate,
+			Map<InputGate, Integer> inputGateToChannelIndexOffset,
 			AbstractInvokable toNotifyOnCheckpoint) {
-		switch (checkpointMode) {
+		switch (config.getCheckpointMode()) {
 			case EXACTLY_ONCE:
+				if (config.isUnalignedCheckpointsEnabled()) {
+					return new CheckpointBarrierUnaligner(
+						numberOfInputChannelsPerGate.toArray(),
+						channelStateWriter,
+						taskName,
+						toNotifyOnCheckpoint);
+				}
 				return new CheckpointBarrierAligner(
-					numberOfInputChannels,
 					taskName,
+					channelIndexToInputGate,
+					inputGateToChannelIndexOffset,
 					toNotifyOnCheckpoint);
 			case AT_LEAST_ONCE:
-				return new CheckpointBarrierTracker(numberOfInputChannels, toNotifyOnCheckpoint);
+				return new CheckpointBarrierTracker(numberOfInputChannelsPerGate.sum(), toNotifyOnCheckpoint);
 			default:
-				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + checkpointMode);
+				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + config.getCheckpointMode());
 		}
 	}
 
-	private static BufferStorage createBufferStorage(
-			CheckpointingMode checkpointMode,
-			int pageSize,
-			Configuration taskManagerConfig,
-			String taskName) {
-		switch (checkpointMode) {
-			case EXACTLY_ONCE: {
-				long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
-				if (!(maxAlign == -1 || maxAlign > 0)) {
-					throw new IllegalConfigurationException(
-						TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT.key()
-							+ " must be positive or -1 (infinite)");
-				}
-				return new CachedBufferStorage(pageSize, maxAlign, taskName);
+	static InputGate[] generateChannelIndexToInputGateMap(InputGate ...inputGates) {
+		int numberOfInputChannels = Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels).sum();
+		InputGate[] channelIndexToInputGate = new InputGate[numberOfInputChannels];
+		int channelIndexOffset = 0;
+		for (InputGate inputGate: inputGates) {
+			for (int i = 0; i < inputGate.getNumberOfInputChannels(); ++i) {
+				channelIndexToInputGate[channelIndexOffset + i] = inputGate;
 			}
-			case AT_LEAST_ONCE:
-				return new EmptyBufferStorage();
-			default:
-				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + checkpointMode);
+			channelIndexOffset += inputGate.getNumberOfInputChannels();
 		}
+		return channelIndexToInputGate;
+	}
+
+	static Map<InputGate, Integer> generateInputGateToChannelIndexOffsetMap(InputGate ...inputGates) {
+		Map<InputGate, Integer> inputGateToChannelIndexOffset = new HashMap<>();
+		int channelIndexOffset = 0;
+		for (InputGate inputGate: inputGates) {
+			inputGateToChannelIndexOffset.put(inputGate, channelIndexOffset);
+			channelIndexOffset += inputGate.getNumberOfInputChannels();
+		}
+		return inputGateToChannelIndexOffset;
 	}
 
 	private static void registerCheckpointMetrics(TaskIOMetricGroup taskIOMetricGroup, CheckpointBarrierHandler barrierHandler) {

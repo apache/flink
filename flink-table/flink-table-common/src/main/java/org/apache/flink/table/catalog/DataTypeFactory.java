@@ -23,11 +23,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.StructuredType;
-
-import java.util.Optional;
 
 /**
  * Factory for creating fully resolved data types that can be used for planning.
@@ -39,12 +39,20 @@ import java.util.Optional;
 public interface DataTypeFactory {
 
 	/**
+	 * Creates a type out of an {@link AbstractDataType}.
+	 *
+	 * <p>If the given type is already a {@link DataType}, the factory will return it unmodified. In
+	 * case of {@link UnresolvedDataType}, the factory will resolve it to a {@link DataType}.
+	 */
+	DataType createDataType(AbstractDataType<?> abstractDataType);
+
+	/**
 	 * Creates a type by a fully or partially defined name.
 	 *
 	 * <p>The factory will parse and resolve the name of a type to a {@link DataType}. This includes
 	 * both built-in types as well as user-defined types (see {@link DistinctType} and {@link StructuredType}).
 	 */
-	Optional<DataType> createDataType(String name);
+	DataType createDataType(String name);
 
 	/**
 	 * Creates a type by a fully or partially defined identifier.
@@ -52,7 +60,7 @@ public interface DataTypeFactory {
 	 * <p>The factory will parse and resolve the name of a type to a {@link DataType}. This includes
 	 * both built-in types as well as user-defined types (see {@link DistinctType} and {@link StructuredType}).
 	 */
-	Optional<DataType> createDataType(UnresolvedIdentifier identifier);
+	DataType createDataType(UnresolvedIdentifier identifier);
 
 	/**
 	 * Creates a type by analyzing the given class.
@@ -63,36 +71,7 @@ public interface DataTypeFactory {
 	 * <p>It will throw an {@link ValidationException} in cases where the reflective extraction needs
 	 * more information or simply fails.
 	 *
-	 * <p>The following examples show how to use and enrich the extraction process:
-	 *
-	 * <pre>
-	 * {@code
-	 *   // returns INT
-	 *   createDataType(Integer.class)
-	 *
-	 *   // returns TIMESTAMP(9)
-	 *   createDataType(java.time.LocalDateTime.class)
-	 *
-	 *   // returns an anonymous, unregistered structured type
-	 *   // that is deeply integrated into the API compared to opaque RAW types
-	 *   class User {
-	 *
-	 *     // extract fields automatically
-	 *     public String name;
-	 *     public int age;
-	 *
-	 *     // enrich the extraction with precision information
-	 *     public @DataTypeHint("DECIMAL(10,2)") BigDecimal accountBalance;
-	 *
-	 *     // enrich the extraction with forcing using RAW types
-	 *     public @DataTypeHint(forceRawPattern = "scala.") Address address;
-	 *
-	 *     // enrich the extraction by specifying defaults
-	 *     public @DataTypeHint(defaultSecondPrecision = 3) Log log;
-	 *   }
-	 *   createDataType(User.class)
-	 * }
-	 * </pre>
+	 * <p>See {@link DataTypes#of(Class)} for further examples.
 	 */
 	<T> DataType createDataType(Class<T> clazz);
 

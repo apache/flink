@@ -44,6 +44,7 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -156,18 +157,25 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that disabled checkpointing sets the checkpointing interval to Long.MAX_VALUE.
+	 * Tests that disabled checkpointing sets the checkpointing interval to Long.MAX_VALUE and the checkpoint mode to
+	 * {@link CheckpointingMode#AT_LEAST_ONCE}.
 	 */
 	@Test
 	public void testDisabledCheckpointing() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamGraph streamGraph = new StreamGraph(env.getConfig(), env.getCheckpointConfig(), SavepointRestoreSettings.none());
+		env.fromElements(0).print();
+		StreamGraph streamGraph = env.getStreamGraph();
 		assertFalse("Checkpointing enabled", streamGraph.getCheckpointConfig().isCheckpointingEnabled());
 
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
 		JobCheckpointingSettings snapshottingSettings = jobGraph.getCheckpointingSettings();
 		assertEquals(Long.MAX_VALUE, snapshottingSettings.getCheckpointCoordinatorConfiguration().getCheckpointInterval());
+		assertFalse(snapshottingSettings.getCheckpointCoordinatorConfiguration().isExactlyOnce());
+
+		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		StreamConfig streamConfig = new StreamConfig(verticesSorted.get(0).getConfiguration());
+		assertEquals(CheckpointingMode.AT_LEAST_ONCE, streamConfig.getCheckpointMode());
 	}
 
 	@Test
@@ -579,79 +587,6 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			.generate();
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 		assertEquals(ScheduleMode.LAZY_FROM_SOURCES, jobGraph.getScheduleMode());
-	}
-
-	/**
-	 * Verify that "blockingConnectionsBetweenChains" is off by default.
-	 */
-	@Test
-	public void testBlockingAfterChainingOffDisabled() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		// fromElements -> Filter -> Print
-		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
-
-		// partition transformation with an undefined shuffle mode between source and filter
-		DataStream<Integer> partitionAfterSourceDataStream = new DataStream<>(env, new PartitionTransformation<>(
-			sourceDataStream.getTransformation(), new RescalePartitioner<>(), ShuffleMode.UNDEFINED));
-		DataStream<Integer> filterDataStream = partitionAfterSourceDataStream.filter(value -> true).setParallelism(2);
-
-		DataStream<Integer> partitionAfterFilterDataStream = new DataStream<>(env, new PartitionTransformation<>(
-			filterDataStream.getTransformation(), new ForwardPartitioner<>(), ShuffleMode.UNDEFINED));
-
-		partitionAfterFilterDataStream.print().setParallelism(2);
-
-		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-
-		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
-		assertEquals(2, verticesSorted.size());
-
-		JobVertex sourceVertex = verticesSorted.get(0);
-		JobVertex filterAndPrintVertex = verticesSorted.get(1);
-
-		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, sourceVertex.getProducedDataSets().get(0).getResultType());
-		assertEquals(ResultPartitionType.PIPELINED_BOUNDED,
-				filterAndPrintVertex.getInputs().get(0).getSource().getResultType());
-	}
-
-	/**
-	 * Test enabling the property "blockingConnectionsBetweenChains".
-	 */
-	@Test
-	public void testBlockingConnectionsBetweenChainsEnabled() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		// fromElements -> Filter -> Map -> Print
-		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
-
-		// partition transformation with an undefined shuffle mode between source and filter
-		DataStream<Integer> partitionAfterSourceDataStream = new DataStream<>(env, new PartitionTransformation<>(
-			sourceDataStream.getTransformation(), new RescalePartitioner<>(), ShuffleMode.UNDEFINED));
-		DataStream<Integer> filterDataStream = partitionAfterSourceDataStream.filter(value -> true).setParallelism(2);
-
-		DataStream<Integer> partitionAfterFilterDataStream = new DataStream<>(env, new PartitionTransformation<>(
-			filterDataStream.getTransformation(), new ForwardPartitioner<>(), ShuffleMode.UNDEFINED));
-		partitionAfterFilterDataStream.map(value -> value).setParallelism(2);
-
-		DataStream<Integer> partitionAfterMapDataStream = new DataStream<>(env, new PartitionTransformation<>(
-			filterDataStream.getTransformation(), new RescalePartitioner<>(), ShuffleMode.PIPELINED));
-		partitionAfterMapDataStream.print().setParallelism(1);
-
-		StreamGraph streamGraph = env.getStreamGraph();
-		streamGraph.setBlockingConnectionsBetweenChains(true);
-		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
-
-		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
-		assertEquals(3, verticesSorted.size());
-
-		JobVertex sourceVertex = verticesSorted.get(0);
-		// still can be chained
-		JobVertex filterAndMapVertex = verticesSorted.get(1);
-		JobVertex printVertex = verticesSorted.get(2);
-
-		// the edge with undefined shuffle mode is translated into BLOCKING
-		assertEquals(ResultPartitionType.BLOCKING, sourceVertex.getProducedDataSets().get(0).getResultType());
-		// the edge with PIPELINED shuffle mode is translated into PIPELINED_BOUNDED
-		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, filterAndMapVertex.getProducedDataSets().get(0).getResultType());
-		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, printVertex.getInputs().get(0).getSource().getResultType());
 	}
 
 	@Test

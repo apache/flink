@@ -52,8 +52,8 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	/** The recycler for the backing {@link MemorySegment}. */
 	private final BufferRecycler recycler;
 
-	/** Whether this buffer represents a buffer or an event. */
-	private boolean isBuffer;
+	/** The {@link DataType} this buffer represents. */
+	private DataType dataType;
 
 	/** Allocator for further byte buffers (needed by netty). */
 	private ByteBufAllocator allocator;
@@ -77,7 +77,7 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	 * 		will be called to recycle this buffer once the reference count is <tt>0</tt>
 	 */
 	public NetworkBuffer(MemorySegment memorySegment, BufferRecycler recycler) {
-		this(memorySegment, recycler, true);
+		this(memorySegment, recycler, DataType.DATA_BUFFER);
 	}
 
 	/**
@@ -88,11 +88,11 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	 * 		backing memory segment (defines {@link #maxCapacity})
 	 * @param recycler
 	 * 		will be called to recycle this buffer once the reference count is <tt>0</tt>
-	 * @param isBuffer
-	 * 		whether this buffer represents a buffer (<tt>true</tt>) or an event (<tt>false</tt>)
+	 * @param dataType
+	 * 		the {@link DataType} this buffer represents
 	 */
-	public NetworkBuffer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer) {
-		this(memorySegment, recycler, isBuffer, 0);
+	public NetworkBuffer(MemorySegment memorySegment, BufferRecycler recycler, DataType dataType) {
+		this(memorySegment, recycler, dataType, 0);
 	}
 
 	/**
@@ -103,13 +103,13 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	 * 		backing memory segment (defines {@link #maxCapacity})
 	 * @param recycler
 	 * 		will be called to recycle this buffer once the reference count is <tt>0</tt>
-	 * @param isBuffer
-	 * 		whether this buffer represents a buffer (<tt>true</tt>) or an event (<tt>false</tt>)
+	 * @param dataType
+	 * 		the {@link DataType} this buffer represents
 	 * @param size
 	 * 		current size of data in the buffer, i.e. the writer index to set
 	 */
-	public NetworkBuffer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer, int size) {
-		this(memorySegment, recycler, isBuffer, false, size);
+	public NetworkBuffer(MemorySegment memorySegment, BufferRecycler recycler, DataType dataType, int size) {
+		this(memorySegment, recycler, dataType, false, size);
 	}
 
 	/**
@@ -120,18 +120,18 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	 * 		backing memory segment (defines {@link #maxCapacity})
 	 * @param recycler
 	 * 		will be called to recycle this buffer once the reference count is <tt>0</tt>
-	 * @param isBuffer
-	 * 		whether this buffer represents a buffer (<tt>true</tt>) or an event (<tt>false</tt>)
+	 * @param dataType
+	 * 		the {@link DataType} this buffer represents
 	 * @param size
 	 * 		current size of data in the buffer, i.e. the writer index to set
 	 * @param isCompressed
 	 * 		whether the buffer is compressed or not
 	 */
-	public NetworkBuffer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer, boolean isCompressed, int size) {
+	public NetworkBuffer(MemorySegment memorySegment, BufferRecycler recycler, DataType dataType, boolean isCompressed, int size) {
 		super(memorySegment.size());
 		this.memorySegment = checkNotNull(memorySegment);
 		this.recycler = checkNotNull(recycler);
-		this.isBuffer = isBuffer;
+		this.dataType = dataType;
 		this.isCompressed = isCompressed;
 		this.currentSize = memorySegment.size();
 		setSize(size);
@@ -139,14 +139,7 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 
 	@Override
 	public boolean isBuffer() {
-		return isBuffer;
-	}
-
-	@Override
-	public void tagAsEvent() {
-		ensureAccessible();
-
-		isBuffer = false;
+		return dataType.isBuffer();
 	}
 
 	@Override
@@ -638,5 +631,17 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	@Override
 	public void setCompressed(boolean isCompressed) {
 		this.isCompressed = isCompressed;
+	}
+
+	@Override
+	public DataType getDataType() {
+		return dataType;
+	}
+
+	@Override
+	public void setDataType(DataType dataType) {
+		ensureAccessible();
+
+		this.dataType = dataType;
 	}
 }

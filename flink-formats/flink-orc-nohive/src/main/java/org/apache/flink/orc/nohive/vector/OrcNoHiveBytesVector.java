@@ -24,7 +24,7 @@ import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
  * This column vector is used to adapt hive's BytesColumnVector to Flink's BytesColumnVector.
  */
 public class OrcNoHiveBytesVector extends AbstractOrcNoHiveVector implements
-		org.apache.flink.table.dataformat.vector.BytesColumnVector {
+		org.apache.flink.table.data.vector.BytesColumnVector {
 
 	private BytesColumnVector vector;
 

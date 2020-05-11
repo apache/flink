@@ -22,15 +22,15 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.context.ExecutionContextImpl;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.over.frame.OverWindowFrame;
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
@@ -38,18 +38,18 @@ import org.apache.flink.table.runtime.util.StreamRecordCollector;
 /**
  * the operator for OVER window need cache data by ResettableExternalBuffer for {@link OverWindowFrame}.
  */
-public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
-		implements OneInputStreamOperator<BaseRow, BaseRow>, BoundedOneInput {
+public class BufferDataOverWindowOperator extends TableStreamOperator<RowData>
+		implements OneInputStreamOperator<RowData, RowData>, BoundedOneInput {
 
 	private final OverWindowFrame[] overWindowFrames;
 	private GeneratedRecordComparator genComparator;
 	private final boolean isRowAllInFixedPart;
 
 	private RecordComparator partitionComparator;
-	private BaseRow lastInput;
-	private JoinedRow[] joinedRows;
-	private StreamRecordCollector<BaseRow> collector;
-	private AbstractRowSerializer<BaseRow> serializer;
+	private RowData lastInput;
+	private JoinedRowData[] joinedRows;
+	private StreamRecordCollector<RowData> collector;
+	private AbstractRowDataSerializer<RowData> serializer;
 	private ResettableExternalBuffer currentData;
 
 	/**
@@ -70,7 +70,7 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 		super.open();
 
 		ClassLoader cl = getUserCodeClassloader();
-		serializer = (AbstractRowSerializer) getOperatorConfig().getTypeSerializerIn1(cl);
+		serializer = (AbstractRowDataSerializer) getOperatorConfig().getTypeSerializerIn1(cl);
 		partitionComparator = genComparator.newInstance(cl);
 		genComparator = null;
 
@@ -85,16 +85,16 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 				serializer, isRowAllInFixedPart);
 
 		collector = new StreamRecordCollector<>(output);
-		joinedRows = new JoinedRow[overWindowFrames.length];
+		joinedRows = new JoinedRowData[overWindowFrames.length];
 		for (int i = 0; i < overWindowFrames.length; i++) {
 			overWindowFrames[i].open(new ExecutionContextImpl(this, getRuntimeContext()));
-			joinedRows[i] = new JoinedRow();
+			joinedRows[i] = new JoinedRowData();
 		}
 	}
 
 	@Override
-	public void processElement(StreamRecord<BaseRow> element) throws Exception {
-		BaseRow input = element.getValue();
+	public void processElement(StreamRecord<RowData> element) throws Exception {
+		RowData input = element.getValue();
 		if (lastInput != null && partitionComparator.compare(lastInput, input) != 0) {
 			processCurrentData();
 		}
@@ -117,12 +117,12 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 		int rowIndex = 0;
 		ResettableExternalBuffer.BufferIterator bufferIterator = currentData.newIterator();
 		while (bufferIterator.advanceNext()) {
-			BinaryRow currentRow = bufferIterator.getRow();
-			BaseRow output = currentRow;
-			// TODO Reform AggsHandleFunction.getValue instead of use JoinedRow. Multilayer JoinedRow is slow.
+			BinaryRowData currentRow = bufferIterator.getRow();
+			RowData output = currentRow;
+			// TODO Reform AggsHandleFunction.getValue instead of use JoinedRowData. Multilayer JoinedRowData is slow.
 			for (int i = 0; i < overWindowFrames.length; i++) {
 				OverWindowFrame frame = overWindowFrames[i];
-				BaseRow value = frame.process(rowIndex, currentRow);
+				RowData value = frame.process(rowIndex, currentRow);
 				output = joinedRows[i].replace(output, value);
 			}
 			collector.collect(output);

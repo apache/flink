@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.planner.calcite
 
-import org.apache.flink.table.types.logical.{ArrayType, BigIntType, BooleanType, DateType, DecimalType, DoubleType, FloatType, IntType, LocalZonedTimestampType, LogicalType, MapType, RowType, SmallIntType, TimeType, TimestampType, TinyIntType, VarBinaryType, VarCharType}
+import java.time.DayOfWeek
 
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
+import org.apache.flink.table.types.logical._
 import org.junit.{Assert, Test}
 
 class FlinkTypeFactoryTest {
@@ -35,11 +39,13 @@ class FlinkTypeFactoryTest {
           typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
-      Assert.assertEquals(
-        t.copy(false),
-        FlinkTypeFactory.toLogicalType(
-          typeFactory.createFieldTypeFromLogicalType(t.copy(false)))
-      )
+      if (!hasRoot(t, LogicalTypeRoot.NULL)) {
+        Assert.assertEquals(
+          t.copy(false),
+          FlinkTypeFactory.toLogicalType(
+            typeFactory.createFieldTypeFromLogicalType(t.copy(false)))
+        )
+      }
 
       // twice for cache.
       Assert.assertEquals(
@@ -48,13 +54,16 @@ class FlinkTypeFactoryTest {
           typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
-      Assert.assertEquals(
-        t.copy(false),
-        FlinkTypeFactory.toLogicalType(
-          typeFactory.createFieldTypeFromLogicalType(t.copy(false)))
-      )
+      if (!hasRoot(t, LogicalTypeRoot.NULL)) {
+        Assert.assertEquals(
+          t.copy(false),
+          FlinkTypeFactory.toLogicalType(
+            typeFactory.createFieldTypeFromLogicalType(t.copy(false)))
+        )
+      }
     }
 
+    test(new NullType())
     test(new BooleanType())
     test(new TinyIntType())
     test(new VarCharType(VarCharType.MAX_LENGTH))
@@ -72,6 +81,9 @@ class FlinkTypeFactoryTest {
     test(new ArrayType(new DoubleType()))
     test(new MapType(new DoubleType(), new VarCharType(VarCharType.MAX_LENGTH)))
     test(RowType.of(new DoubleType(), new VarCharType(VarCharType.MAX_LENGTH)))
+    test(new RawType[DayOfWeek](
+      classOf[DayOfWeek],
+      new KryoSerializer[DayOfWeek](classOf[DayOfWeek], new ExecutionConfig)))
   }
 
   @Test def testDecimalInferType(): Unit = {

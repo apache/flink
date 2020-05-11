@@ -121,7 +121,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	 */
 	protected void setupQueue() throws IOException {
 		if (queueName != null) {
-			channel.queueDeclare(queueName, false, false, false, null);
+			Util.declareQueueDefaults(channel, queueName);
 		}
 	}
 
@@ -140,6 +140,8 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	@Override
 	public void open(Configuration config) throws Exception {
 		ConnectionFactory factory = rmqConnectionConfig.getConnectionFactory();
+		schema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+
 		try {
 			connection = factory.newConnection();
 			channel = connection.createChannel();

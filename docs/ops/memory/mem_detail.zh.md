@@ -1,5 +1,5 @@
 ---
-title: "Detailed Memory Model"
+title: "内存模型详解"
 nav-parent_id: ops_mem
 nav-pos: 2
 ---
@@ -22,128 +22,123 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This section gives a detailed description of all components in Flink’s memory model of task executor.
-Check [memory configuration guide](mem_setup.html) for the basic memory setup.
+本文将详细介绍 Flink TaskExecutor 内存模型中的所有组成部分。
+关于基本的内存配置方法，请参考[配置指南](mem_setup.html)。
 
 * toc
 {:toc}
 
-## Overview
+## 概述
 
 <br />
 <center>
   <img src="{{ site.baseurl }}/fig/detailed-mem-model.svg" width="300px" alt="Simple memory model" usemap="#simple-mem-model">
 </center>
 <br />
+<span class="label label-info">提示</span> 任务堆外内存也包括了用户代码使用的本地内存（非直接内存）。
 
-The following table lists all memory components, depicted above, and references Flink configuration options
-which affect the size of the respective components:
+如上图所示，下表中列出了 Flink TaskExecutor 内存模型的所有组成部分，以影响其大小的相关配置参数。
 
-| &nbsp;&nbsp;**Component**&nbsp;&nbsp;                                             | &nbsp;&nbsp;**Configuration options**&nbsp;&nbsp;                                                                                                                                                                                                                                     | &nbsp;&nbsp;**Description**&nbsp;&nbsp;                                                                                                                                                                                                                                  |
-| :-------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Framework Heap Memory](#framework-memory)                                        | [`taskmanager.memory.framework.heap.size`](../config.html#taskmanager-memory-framework-heap-size)                                                                                                                                                                                       | JVM heap memory dedicated to Flink framework (advanced option)                                                                                                                                                                                                           |
-| [Task Heap Memory](mem_setup.html#task-operator-heap-memory)                      | [`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size)                                                                                                                                                                                                 | JVM heap memory dedicated to Flink application to run operators and user code                                                                                                                                                                                            |
-| [Managed memory](mem_setup.html#managed-memory)                                   | [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size) <br/> [`taskmanager.memory.managed.fraction`](../config.html#taskmanager-memory-managed-fraction)                                                                                                     | Native memory managed by Flink, reserved for sorting, hash tables, caching of intermediate results and RocksDB state backend                                                                                                                                             |
-| [Framework Off-heap Memory](#framework-memory)                                    | [`taskmanager.memory.framework.off-heap.size`](../config.html#taskmanager-memory-framework-off-heap-size)                                                                                                                                                                               | [Off-heap direct (or native) memory](mem_setup.html#configure-off-heap-memory-direct-or-native) dedicated to Flink framework (advanced option)                                                                                                                           |
-| [Task Off-heap Memory](mem_setup.html#configure-off-heap-memory-direct-or-native) | [`taskmanager.memory.task.off-heap.size`](../config.html#taskmanager-memory-task-off-heap-size)                                                                                                                                                                                         | [Off-heap direct (or native) memory](mem_setup.html#configure-off-heap-memory-direct-or-native) dedicated to Flink application to run operators                                                                                                                          |
-| Network Memory                                                                    | [`taskmanager.memory.network.min`](../config.html#taskmanager-memory-network-min) <br/> [`taskmanager.memory.network.max`](../config.html#taskmanager-memory-network-max) <br/> [`taskmanager.memory.network.fraction`](../config.html#taskmanager-memory-network-fraction)                 | Direct memory reserved for data record exchange between tasks (e.g. buffering for the transfer over the network), it is a [capped fractionated component](#capped-fractionated-components) of the [total Flink memory](mem_setup.html#configure-total-memory)            |
-| [JVM metaspace](#jvm-parameters)                                                  | [`taskmanager.memory.jvm-metaspace.size`](../config.html#taskmanager-memory-jvm-metaspace-size)                                                                                                                                                                                         | Metaspace size of the Flink JVM process                                                                                                                                                                                                                                  |
-| JVM Overhead                                                                      | [`taskmanager.memory.jvm-overhead.min`](../config.html#taskmanager-memory-jvm-overhead-min) <br/> [`taskmanager.memory.jvm-overhead.max`](../config.html#taskmanager-memory-jvm-overhead-max) <br/> [`taskmanager.memory.jvm-overhead.fraction`](../config.html#taskmanager-memory-jvm-overhead-fraction) | Native memory reserved for other JVM overhead: e.g. thread stacks, code cache, garbage collection space etc, it is a [capped fractionated component](#capped-fractionated-components) of the [total process memory](mem_setup.html#configure-total-memory) |
+| &nbsp;&nbsp;**组成部分**&nbsp;&nbsp;                                            | &nbsp;&nbsp;**配置参数**&nbsp;&nbsp;                                                                                                                                                                                                                                                                        | &nbsp;&nbsp;**描述**&nbsp;&nbsp;                                                                                                            |
+| :----------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| [框架堆内存（Framework Heap Memory）](#框架内存)                                  | [`taskmanager.memory.framework.heap.size`](../config.html#taskmanager-memory-framework-heap-size)                                                                                                                                                                                                          | 用于 Flink 框架的 JVM 堆内存（进阶配置）。                                                                                                     |
+| [任务堆内存（Task Heap Memory）](mem_setup.html#任务算子堆内存)                    | [`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size)                                                                                                                                                                                                                    | 用于 Flink 应用的算子及用户代码的 JVM 堆内存。                                                                                                  |
+| [托管内存（Managed memory）](mem_setup.html#托管内存)                             | [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size) <br/> [`taskmanager.memory.managed.fraction`](../config.html#taskmanager-memory-managed-fraction)                                                                                                                      | 由 Flink 管理的用于排序、哈希表、缓存中间结果及 RocksDB State Backend 的本地内存。                                                                |
+| [框架堆外内存（Framework Off-heap Memory）](#框架内存)                             | [`taskmanager.memory.framework.off-heap.size`](../config.html#taskmanager-memory-framework-off-heap-size)                                                                                                                                                                                                 | 用于 Flink 框架的[堆外内存（直接内存或本地内存）](mem_setup.html#配置堆外内存直接内存或本地内存)（进阶配置）。                                         |
+| [任务堆外内存（Task Off-heap Memory）](mem_setup.html#配置堆外内存直接内存或本地内存) | [`taskmanager.memory.task.off-heap.size`](../config.html#taskmanager-memory-task-off-heap-size)                                                                                                                                                                                                           | 用于 Flink 应用的算计及用户代码的[堆外内存（直接内存或本地内存）](mem_setup.html#配置堆外内存直接内存或本地内存)。                                      |
+| 网络内存（Network Memory）                                                       | [`taskmanager.memory.network.min`](../config.html#taskmanager-memory-network-min) <br/> [`taskmanager.memory.network.max`](../config.html#taskmanager-memory-network-max) <br/> [`taskmanager.memory.network.fraction`](../config.html#taskmanager-memory-network-fraction)                               | 用于任务之间数据传输的直接内存（例如网络传输缓冲）。该内存部分为基于 [Flink 总内存](mem_setup.html#配置总内存)的[受限的等比内存部分](#受限的等比内存部分)。   |
+| [JVM Metaspace](#jvm-参数)                                                      | [`taskmanager.memory.jvm-metaspace.size`](../config.html#taskmanager-memory-jvm-metaspace-size)                                                                                                                                                                                                           | Flink JVM 进程的 Metaspace。                                                                                                                 |
+| JVM 开销                                                                        | [`taskmanager.memory.jvm-overhead.min`](../config.html#taskmanager-memory-jvm-overhead-min) <br/> [`taskmanager.memory.jvm-overhead.max`](../config.html#taskmanager-memory-jvm-overhead-max) <br/> [`taskmanager.memory.jvm-overhead.fraction`](../config.html#taskmanager-memory-jvm-overhead-fraction) | 用于其他 JVM 开销的本地内存，例如栈空间、垃圾回收空间等。该内存部分为基于[进程总内存](mem_setup.html#配置总内存)的[受限的等比内存部分](#受限的等比内存部分)。 |
 {:.table-bordered}
 <br/>
 
-As you can see, the size of some memory components can be simply set by the respective option.
-Other components can be tuned using multiple options.
+我们可以看到，有些内存部分的大小可以直接通过一个配置参数进行设置，有些则需要根据多个参数进行调整。
 
-## Framework Memory
+## 框架内存
 
-The *framework heap memory* and *framework off-heap memory* options are not supposed to be changed without a good reason.
-Adjust them only if you are sure that Flink needs more memory for some internal data structures or operations.
-It can be related to a particular deployment environment or job structure, like high parallelism.
-In addition, Flink dependencies, such as Hadoop may consume more direct or native memory in certain setups.
+通常情况下，不建议对*框架堆内存*和*框架堆外内存*进行调整。
+除非你非常肯定 Flink 的内部数据结构及操作需要更多的内存。
+这可能与具体的部署环境及作业结构有关，例如非常高的并发度。
+此外，Flink 的部分依赖（例如 Hadoop）在某些特定的情况下也可能会需要更多的直接内存或本地内存。
 
-<span class="label label-info">Note</span> Neither heap nor off-heap versions of framework and task memory are currently isolated within Flink.
-The separation of framework and task memory can be used in future releases for further optimizations.
+<span class="label label-info">提示</span> 不管是堆内存还是堆外内存，Flink 中的框架内存和任务内存之间目前是没有隔离的。
+对框架和任务内存的区分，主要是为了在后续版本中做进一步优化。
 
-## Capped Fractionated Components
+## 受限的等比内存部分
 
-This section describes the configuration details of the following options which can be a fraction of a certain
-[total memory](mem_setup.html#configure-total-memory):
+本节介绍下列内存部分的配置方法，它们都可以通过指定在[总内存](mem_setup.html#配置总内存)中所占比例的方式进行配置。
+* *网络内存*：可以配置占用 *Flink 总内存*的固定比例
+* *JVM 开销*：可以配置占用*进程总内存*的固定比例
 
-* *Network memory* can be a fraction of the *total Flink memory*
-* *JVM overhead* can be a fraction of the *total process memory*
+请同时参考[概述部分](#概述)。
 
-See also [detailed memory model](#overview).
+这些内存部分的大小必须在相应的最大值、最小值范围内，否则 Flink 将无法启动。
+最大值、最小值具有默认值，也可以通过相应的配置参数进行设置。
+例如，如果仅配置下列参数：
+- Flink 总内存 = 1000Mb
+- 网络内存最小值 = 64Mb
+- 网络内存最大值 = 128Mb
+- 网络内存占比 = 0.1
 
-The size of those components always has to be between its maximum and minimum value, otherwise Flink startup will fail.
-The maximum and minimum values have defaults or can be explicitly set by corresponding configuration options.
-For example, if only the following memory options are set:
-- total Flink memory = 1000Mb,
-- network min = 64Mb,
-- network max = 128Mb,
-- network fraction = 0.1
+那么网络内存的实际大小将会是 1000Mb x 0.1 = 100Mb，在 64-128Mb 的范围内。
 
-then the network memory will be 1000Mb x 0.1 = 100Mb which is within the range 64-128Mb.
+如果将最大值、最小值设置成相同大小，那相当于明确指定了该内存部分的大小。
 
-Notice if you configure the same maximum and minimum value it effectively means that its size is fixed to that value.
+如果没有明确指定内存部分的大小，Flink 会根据总内存和占比计算出该内存部分的大小。
+计算得到的内存大小将受限于相应的最大值、最小。
+例如，如果仅配置下列参数：
+- Flink 总内存 = 1000Mb
+- 网络内存最小值 = 128Mb
+- 网络内存最大值 = 256Mb
+- 网络内存占比 = 0.1
 
-If the component memory is not explicitly configured, then Flink will use the fraction to calculate the memory size
-based on the total memory. The calculated value is capped by its corresponding min/max options.
-For example, if only the following memory options are set:
-- total Flink memory = 1000Mb,
-- network min = 128Mb,
-- network max = 256Mb,
-- network fraction = 0.1
+那么网络内存的实际大小将会是 128Mb，因为根据总内存和占比计算得到的内存大小 100Mb 小于最小值。
 
-then the network memory will be 128Mb because the size derived from fraction is 100Mb and it is less than the minimum.
+如果配置了总内存和其他内存部分的大小，那么 Flink 也有可能会忽略给定的占比。
+这种情况下，受限的等比内存部分的实际大小是总内存减去其他所有内存部分后剩余的部分。
+这样推导得出的内存大小必须符合最大值、最小值范围，否则 Flink 将无法启动。
+例如，如果仅配置下列参数：
+- Flink 总内存 = 1000Mb,
+- 任务堆内存 = 100Mb,
+- 网络内存最小值 = 64Mb
+- 网络内存最大值 = 256Mb
+- 网络内存占比 = 0.1
 
-It can also happen that the fraction is ignored if the sizes of the total memory and its other components are defined.
-In this case, the network memory is the rest of the total memory. The derived value still has to be within its min/max
-range otherwise the configuration fails. For example, suppose only the following memory options are set:
-- total Flink memory = 1000Mb,
-- task heap = 100Mb,
-- network min = 64Mb,
-- network max = 256Mb,
-- network fraction = 0.1
+Flink 总内存中所有其他内存部分均有默认大小（包括托管内存的默认占比）。
+因此，网络内存的实际大小不是根据占比算出的大小（1000Mb x 0.1 = 100Mb），而是 Flink 总内存中剩余的部分。
+这个剩余部分的大小必须在 64-256Mb 的范围内，否则将会启动失败。
 
-All other components of the total Flink memory have default values, including the default managed memory fraction.
-Then the network memory is not the fraction (1000Mb x 0.1 = 100Mb) but the rest of the total Flink memory
-which will either be within the range 64-256Mb or fail.
+## JVM 参数
 
-## JVM Parameters
+Flink 启动 TaskExecutor 进程时，会根据配置的和自动推导出的各内存部分大小，显式地设置以下 JVM 参数：
 
-Flink explicitly adds the following memory related JVM arguments while starting the task executor process,
-based on the configured or derived memory component sizes:
-
-| &nbsp;&nbsp;**JVM Arguments**&nbsp;&nbsp; | &nbsp;&nbsp;**Value**&nbsp;&nbsp;          |
-| :---------------------------------------- | :----------------------------------------- |
-| *-Xmx* and *-Xms*                         | Framework + Task Heap Memory               |
-| *-XX:MaxDirectMemorySize*                 | Framework + Task Off-Heap + Network Memory |
-| *-XX:MaxMetaspaceSize*                    | JVM Metaspace                              |
+| &nbsp;&nbsp;**JVM 参数**&nbsp;&nbsp; | &nbsp;&nbsp;**值**&nbsp;&nbsp;   |
+| :---------------------------------- | :------------------------------- |
+| *-Xmx* 和 *-Xms*                    | 框架堆内存 + 任务堆内存              |
+| *-XX:MaxDirectMemorySize*           | 框架堆外内存 + 任务堆外内存 + 网络内存 |
+| *-XX:MaxMetaspaceSize*              | JVM Metaspace                     |
 {:.table-bordered}
 <br/>
 
-See also [detailed memory model](#overview).
+请同时参考[概述部分](#概述)。
 
-## Local Execution
-If you start Flink locally on your machine as a single java program without creating a cluster (e.g. from your IDE)
-then all components are ignored except for the following:
+## 本地执行
+如果你是将 Flink 作为一个单独的 Java 程序运行在你的电脑本地而非创建一个集群（例如在 IDE 中），那么只有下列配置会生效，其他配置参数则不会起到任何效果：
 
-| &nbsp;&nbsp;**Memory component**&nbsp;&nbsp; | &nbsp;&nbsp;**Relevant options**&nbsp;&nbsp;                                                  | &nbsp;&nbsp;**Default value for the local execution**&nbsp;&nbsp;             |
-| :------------------------------------------- | :-------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------- |
-| Task heap                                    | [`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size)         | infinite                                                                      |
-| Task off-heap                                | [`taskmanager.memory.task.off-heap.size`](../config.html#taskmanager-memory-task-off-heap-size) | infinite                                                                      |
-| Managed memory                               | [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size)             | 128Mb                                                                         |
-| Network memory                               | [`taskmanager.memory.network.min`](../config.html#taskmanager-memory-network-min) <br /> [`taskmanager.memory.network.max`](../config.html#taskmanager-memory-network-max) | 64Mb |
+| &nbsp;&nbsp;**组成部分**&nbsp;&nbsp; | &nbsp;&nbsp;**配置参数**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**本地执行时的默认值**&nbsp;&nbsp; |
+| :---------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------ |
+| 任务堆内存                           | [`taskmanager.memory.task.heap.size`](../config.html#taskmanager-memory-task-heap-size)                                                                                    | 无穷大                                       |
+| 任务堆外内存                          | [`taskmanager.memory.task.off-heap.size`](../config.html#taskmanager-memory-task-off-heap-size)                                                                            | 无穷大                                      |
+| 托管内存                             | [`taskmanager.memory.managed.size`](../config.html#taskmanager-memory-managed-size)                                                                                        | 128Mb                                       |
+| 网络内存                             | [`taskmanager.memory.network.min`](../config.html#taskmanager-memory-network-min) <br /> [`taskmanager.memory.network.max`](../config.html#taskmanager-memory-network-max) | 64Mb                                        |
 {:.table-bordered}
 <br/>
 
-All of the components listed above can be but do not have to be explicitly configured for the local execution.
-If they are not configured they are set to their default values. [Task heap memory](mem_setup.html#task-operator-heap-memory) and
-*task off-heap memory* are considered to be infinite (*Long.MAX_VALUE* bytes) and [managed memory](mem_setup.html#managed-memory)
-has a default value of 128Mb only for the local execution mode.
+本地执行模式下，上面列出的所有内存部分均可以但不是必须进行配置。
+如果未配置，则会采用默认值。
+其中，[*任务堆内存*](mem_setup.html#任务算子堆内存)和*任务堆外内存*的默认值无穷大（*Long.MAX_VALUE*字节），以及[托管内存](mem_setup.html#托管内存)的默认值 128Mb 均只针对本地执行模式。
 
-<span class="label label-info">Note</span> The task heap size is not related in any way to the real heap size in this case.
-It can become relevant for future optimizations coming with next releases. The actual JVM heap size of the started
-local process is not controlled by Flink and depends on how you start the process.
-If you want to control the JVM heap size you have to explicitly pass the corresponding JVM arguments, e.g. *-Xmx*, *-Xms*.
+<span class="label label-info">提示</span> 这种情况下，任务堆内存的大小与实际的堆空间大小无关。
+该配置参数可能与后续版本中的进一步优化相关。
+本地执行模式下，JVM 堆空间的实际大小不受 Flink 掌控，而是取决于本地执行进程是如何启动的。
+如果希望控制 JVM 的堆空间大小，可以在启动进程时明确地指定相关的 JVM 参数，即 *-Xmx* 和 *-Xms*.

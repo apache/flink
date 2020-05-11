@@ -177,7 +177,7 @@ class CalcStringExpressionTest extends TableTestBase {
   def testFilterOnCustomType(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[CustomType]("Table3",'myInt, 'myLong, 'myString)
-      .as('i, 'l, 's)
+      .as("i", "l", "s")
 
     val t1 = t.filter( 's.like("%a%") )
     val t2 = t.filter("s.like('%a%')")

@@ -43,18 +43,22 @@ object StreamSQLExample {
   def main(args: Array[String]): Unit = {
 
     val params = ParameterTool.fromArgs(args)
-    val planner = if (params.has("planner")) params.get("planner") else "flink"
+    val planner = if (params.has("planner")) params.get("planner") else "blink"
 
     // set up execution environment
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = if (planner == "blink") {  // use blink planner in streaming mode
       val settings = EnvironmentSettings.newInstance()
-        .useBlinkPlanner()
-        .inStreamingMode()
-        .build()
+          .useBlinkPlanner()
+          .inStreamingMode()
+          .build()
       StreamTableEnvironment.create(env, settings)
     } else if (planner == "flink") {  // use flink planner in streaming mode
-      StreamTableEnvironment.create(env)
+      val settings = EnvironmentSettings.newInstance()
+          .useOldPlanner()
+          .inStreamingMode()
+          .build()
+      StreamTableEnvironment.create(env, settings)
     } else {
       System.err.println("The planner is incorrect. Please run 'StreamSQLExample --planner <planner>', " +
         "where planner (it is either flink or blink, and the default is flink) indicates whether the " +
@@ -75,7 +79,7 @@ object StreamSQLExample {
     // convert DataStream to Table
     val tableA = tEnv.fromDataStream(orderA, 'user, 'product, 'amount)
     // register DataStream as Table
-    tEnv.registerDataStream("OrderB", orderB, 'user, 'product, 'amount)
+    tEnv.createTemporaryView("OrderB", orderB, 'user, 'product, 'amount)
 
     // union the two tables
     val result = tEnv.sqlQuery(

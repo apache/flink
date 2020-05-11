@@ -42,7 +42,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testCrossJoin(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
     val pojoFunc0 = new PojoTableFunc()
 
@@ -64,7 +64,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testLeftOuterJoinWithoutPredicates(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = t
@@ -87,7 +87,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     */
   @Test (expected = classOf[ValidationException])
   def testLeftOuterJoinWithPredicates(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = t
@@ -106,7 +106,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunction(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = t
@@ -173,7 +173,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testTableFunctionConstructorWithParams(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val config = Map("key1" -> "value1", "key2" -> "value2")
     val func30 = new TableFunc3(null)
     val func31 = new TableFunc3("OneConf_")
@@ -273,7 +273,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     )
 
     val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
-    val in = env.fromElements(row, row)(rowType).toTable(tEnv).as('a, 'b, 'c)
+    val in = env.fromElements(row, row)(rowType).toTable(tEnv).as("a", "b", "c")
 
     val tableFunc = new TableFunc6()
     val result = in
@@ -292,7 +292,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testTableFunctionCollectorOpenClose(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
     val func26 = new FuncWithOpen
     tEnv.registerFunction("func26", func26)
@@ -317,7 +317,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testTableFunctionCollectorInit(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
 
     // this case will generate 'timestamp' member field and 'DateFormatter'
@@ -343,7 +343,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('f0, 'f1)
       // test the output field name of flatMap is the same as the field name of the input table
       .flatMap(func2(concat('f0, "#")))
-      .as ('f0, 'f1)
+      .as ("f0", "f1")
       .select('f0, 'f1)
 
     val sink = new TestingAppendSink
@@ -372,7 +372,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     )
 
     val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
-    val in = env.fromElements(row, row)(rowType).toTable(tEnv).as('a, 'b, 'c)
+    val in = env.fromElements(row, row)(rowType).toTable(tEnv).as("a", "b", "c")
     val result = in.select(rf('a) as 'd).joinLateral(tf('d) as 'e)
 
     val sink = new TestingAppendSink

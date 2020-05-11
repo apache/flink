@@ -118,8 +118,11 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testSqlApi(
       "CAST('1999-9-10 05:20:10.123456' AS TIMESTAMP)",
-      "1999-09-10 05:20:10.123456"
-    )
+      "1999-09-10 05:20:10.123456")
+
+    testSqlApi(
+      "CAST('1999-9-10' AS TIMESTAMP)",
+      "1999-09-10 00:00:00.000000")
   }
 
   @Test
@@ -1122,6 +1125,19 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testSqlApi("TO_TIMESTAMP('abc')", "null")
 
+    // TO_TIMESTAMP should complement YEAR/MONTH/DAY/HOUR/MINUTE/SECOND/NANO_OF_SECOND
+    testSqlApi(
+      "TO_TIMESTAMP('2000020210', 'yyyyMMddHH')",
+      "2000-02-02 10:00:00.000")
+
+    testSqlApi(
+      "TO_TIMESTAMP('20000202 59:59.1234567', 'yyyyMMdd mm:ss.SSSSSSS')",
+      "2000-02-02 00:59:59.1234567")
+
+    testSqlApi(
+      "TO_TIMESTAMP('1234567', 'SSSSSSS')",
+      "1970-01-01 00:00:00.1234567")
+
     // CAST between two TIMESTAMPs
     testSqlApi(
       "CAST(TIMESTAMP '1970-01-01 00:00:00.123456789' AS TIMESTAMP(6))",
@@ -1214,6 +1230,22 @@ class TemporalTypesTest extends ExpressionTestBase {
         "'yyyy-MM-dd HH:mm:ss.SSSSSSSSS')",
       "2018-03-14 01:02:03.123456789")
 
+  }
+
+  @Test
+  def testTimestampDiff(): Unit = {
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2019-09-01 00:00:00', TIMESTAMP '2020-03-01 00:00:00')",
+      "6")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2019-09-01 00:00:00', TIMESTAMP '2016-08-01 00:00:00')",
+      "-37")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2019-09-01', DATE '2020-03-01')",
+      "6")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2019-09-01', DATE '2016-08-01')",
+      "-37")
   }
 
   // ----------------------------------------------------------------------------------------------

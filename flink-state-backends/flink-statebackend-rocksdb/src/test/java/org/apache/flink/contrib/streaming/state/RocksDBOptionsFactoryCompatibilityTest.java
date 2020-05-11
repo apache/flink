@@ -19,6 +19,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 
 import org.junit.Test;
 import org.rocksdb.ColumnFamilyOptions;
@@ -70,7 +71,7 @@ public class RocksDBOptionsFactoryCompatibilityTest {
 		boolean wasConfigured;
 
 		@Override
-		public OptionsFactory configure(Configuration configuration) {
+		public OptionsFactory configure(ReadableConfig configuration) {
 			wasConfigured = true;
 			return this;
 		}

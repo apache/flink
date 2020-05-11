@@ -23,15 +23,26 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
-import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.Period;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -59,11 +70,11 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 
 	private final DataType dataType;
 
-	public ValueLiteralExpression(Object value) {
+	public ValueLiteralExpression(@Nonnull Object value) {
 		this(value, deriveDataTypeFromValue(value));
 	}
 
-	public ValueLiteralExpression(Object value, DataType dataType) {
+	public ValueLiteralExpression(@Nullable Object value, DataType dataType) {
 		validateValueDataType(value, Preconditions.checkNotNull(dataType, "Data type must not be null."));
 		this.value = value; // can be null
 		this.dataType = dataType;
@@ -76,86 +87,119 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 	/**
 	 * Returns the value (excluding null) as an instance of the given class.
 	 *
+	 * <p>It supports conversions to default conversion classes of {@link LogicalType LogicalTypes} and
+	 * additionally to {@link BigDecimal} for all types of {@link LogicalTypeFamily#NUMERIC}. This method
+	 * should not be called with other classes.
+	 *
 	 * <p>Note to implementers: Whenever we add a new class here, make sure to also update the planner
 	 * for supporting the class via {@link CallContext#getArgumentValue(int, Class)}.
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> Optional<T> getValueAs(Class<T> clazz) {
+		Preconditions.checkArgument(!clazz.isPrimitive());
+
 		if (value == null) {
 			return Optional.empty();
 		}
-
-		final Class<?> valueClass = value.getClass();
 
 		Object convertedValue = null;
 
 		if (clazz.isInstance(value)) {
 			convertedValue = clazz.cast(value);
+		} else {
+			Class<?> valueClass = value.getClass();
+			if (clazz == Period.class) {
+				convertedValue = convertToPeriod(value, valueClass);
+			} else if (clazz == Duration.class) {
+				convertedValue = convertToDuration(value, valueClass);
+			} else if (clazz == LocalDate.class) {
+				convertedValue = convertToLocalDate(value, valueClass);
+			} else if (clazz == LocalTime.class) {
+				convertedValue = convertToLocalTime(value, valueClass);
+			} else if (clazz == LocalDateTime.class) {
+				convertedValue = convertToLocalDateTime(value, valueClass);
+			} else if (clazz == OffsetDateTime.class) {
+				convertedValue = convertToOffsetDateTime(value, valueClass);
+			} else if (clazz == Instant.class) {
+				convertedValue = convertToInstant(value, valueClass);
+			} else if (clazz == BigDecimal.class) {
+				convertedValue = convertToBigDecimal(value);
+			}
 		}
-
-		else if (valueClass == Integer.class && clazz == Long.class) {
-			final Integer integer = (Integer) value;
-			convertedValue = integer.longValue();
-		}
-
-		else if (valueClass == Duration.class && clazz == Long.class) {
-			final Duration duration = (Duration) value;
-			convertedValue = duration.toMillis();
-		}
-
-		else if (valueClass == Long.class && clazz == Duration.class) {
-			final Long longVal = (Long) value;
-			convertedValue = Duration.ofMillis(longVal);
-		}
-
-		else if (valueClass == Period.class && clazz == Integer.class) {
-			final Period period = (Period) value;
-			convertedValue = (int) period.toTotalMonths();
-		}
-
-		else if (valueClass == Integer.class && clazz == Period.class) {
-			final Integer integer = (Integer) value;
-			convertedValue = Period.ofMonths(integer);
-		}
-
-		else if (valueClass == java.sql.Date.class && clazz == java.time.LocalDate.class) {
-			final java.sql.Date date = (java.sql.Date) value;
-			convertedValue = date.toLocalDate();
-		}
-
-		else if (valueClass == java.sql.Time.class && clazz == java.time.LocalTime.class) {
-			final java.sql.Time time = (java.sql.Time) value;
-			convertedValue = time.toLocalTime();
-		}
-
-		else if (valueClass == java.sql.Timestamp.class && clazz == java.time.LocalDateTime.class) {
-			final java.sql.Timestamp timestamp = (java.sql.Timestamp) value;
-			convertedValue = timestamp.toLocalDateTime();
-		}
-
-		else if (valueClass == java.time.LocalDate.class && clazz == java.sql.Date.class) {
-			final java.time.LocalDate date = (java.time.LocalDate) value;
-			convertedValue = java.sql.Date.valueOf(date);
-		}
-
-		else if (valueClass == java.time.LocalTime.class && clazz == java.sql.Time.class) {
-			final java.time.LocalTime time = (java.time.LocalTime) value;
-			convertedValue = java.sql.Time.valueOf(time);
-		}
-
-		else if (valueClass == java.time.LocalDateTime.class && clazz == java.sql.Timestamp.class) {
-			final java.time.LocalDateTime dateTime = (java.time.LocalDateTime) value;
-			convertedValue = java.sql.Timestamp.valueOf(dateTime);
-		}
-
-		else if (Number.class.isAssignableFrom(valueClass) && clazz == BigDecimal.class) {
-			convertedValue = new BigDecimal(String.valueOf(value));
-		}
-
-		// we can offer more conversions in the future, these conversions must not necessarily
-		// comply with the logical type conversions
 
 		return Optional.ofNullable((T) convertedValue);
+	}
+
+	private @Nullable LocalDate convertToLocalDate(Object value, Class<?> valueClass) {
+		if (valueClass == java.sql.Date.class) {
+			return ((Date) value).toLocalDate();
+		} else if (valueClass == Integer.class) {
+			return LocalDate.ofEpochDay((int) value);
+		}
+		return null;
+	}
+
+	private @Nullable LocalTime convertToLocalTime(Object value, Class<?> valueClass) {
+		if (valueClass == java.sql.Time.class) {
+			return ((Time) value).toLocalTime();
+		} else if (valueClass == Integer.class) {
+			return LocalTime.ofNanoOfDay((int) value * 1_000_000L);
+		} else if (valueClass == Long.class) {
+			return LocalTime.ofNanoOfDay((long) value);
+		}
+		return null;
+	}
+
+	private @Nullable LocalDateTime convertToLocalDateTime(Object value, Class<?> valueClass) {
+		if (valueClass == java.sql.Timestamp.class) {
+			return ((Timestamp) value).toLocalDateTime();
+		}
+
+		return null;
+	}
+
+	private @Nullable OffsetDateTime convertToOffsetDateTime(Object value, Class<?> valueClass) {
+		if (valueClass == ZonedDateTime.class) {
+			return ((ZonedDateTime) value).toOffsetDateTime();
+		}
+
+		return null;
+	}
+
+	private @Nullable Instant convertToInstant(Object value, Class<?> valueClass) {
+		if (valueClass == Integer.class) {
+			return Instant.ofEpochSecond((int) value);
+		} else if (valueClass == Long.class) {
+			return Instant.ofEpochMilli((long) value);
+		}
+
+		return null;
+	}
+
+	private @Nullable Duration convertToDuration(Object value, Class<?> valueClass) {
+		if (valueClass == Long.class) {
+			final Long longValue = (Long) value;
+			return Duration.ofMillis(longValue);
+		}
+
+		return null;
+	}
+
+	private @Nullable Period convertToPeriod(Object value, Class<?> valueClass) {
+		if (valueClass == Integer.class) {
+			final Integer integer = (Integer) value;
+			return Period.ofMonths(integer);
+		}
+
+		return null;
+	}
+
+	private @Nullable BigDecimal convertToBigDecimal(Object value) {
+		if (Number.class.isAssignableFrom(value.getClass())) {
+			return new BigDecimal(String.valueOf(value));
+		}
+
+		return null;
 	}
 
 	@Override
@@ -225,6 +269,11 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 			}
 			return;
 		}
+
+		if (logicalType.isNullable()) {
+			throw new ValidationException("Literals that have a non-null value must not have a nullable data type.");
+		}
+
 		final Class<?> candidate = value.getClass();
 		// ensure value and data type match
 		if (!dataType.getConversionClass().isAssignableFrom(candidate)) {
@@ -262,6 +311,6 @@ public final class ValueLiteralExpression implements ResolvedExpression {
 		} else if (value instanceof String) {
 			return "'" + ((String) value).replace("'", "''") + "'";
 		}
-		return EncodingUtils.objectToString(value);
+		return StringUtils.arrayAwareToString(value);
 	}
 }

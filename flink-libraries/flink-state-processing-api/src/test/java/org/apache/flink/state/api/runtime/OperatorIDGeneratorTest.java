@@ -65,6 +65,6 @@ public class OperatorIDGeneratorTest {
 			.findFirst()
 			.orElseThrow(() -> new IllegalStateException("Unable to find vertex"));
 
-		return vertex.getOperatorIDs().get(0);
+		return vertex.getOperatorIDs().get(0).getGeneratedOperatorID();
 	}
 }

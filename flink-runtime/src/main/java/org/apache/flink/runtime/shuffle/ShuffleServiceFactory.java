@@ -20,7 +20,7 @@ package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 
 /**
  * Interface for shuffle service factory implementations.
@@ -31,7 +31,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
  * @param <P> type of provided result partition writers
  * @param <G> type of provided input gates
  */
-public interface ShuffleServiceFactory<SD extends ShuffleDescriptor, P extends ResultPartitionWriter, G extends InputGate> {
+public interface ShuffleServiceFactory<SD extends ShuffleDescriptor, P extends ResultPartitionWriter, G extends IndexedInputGate> {
 
 	/**
 	 * Factory method to create a specific {@link ShuffleMaster} implementation.

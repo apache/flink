@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -64,8 +66,13 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 	}
 
 	@Override
-	public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-		return partitionWriter.getBufferBuilder();
+	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+		return partitionWriter.getBufferBuilder(targetChannel);
+	}
+
+	@Override
+	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+		return partitionWriter.tryGetBufferBuilder(targetChannel);
 	}
 
 	@Override
@@ -89,8 +96,21 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 	}
 
 	@Override
-	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
-		boolean success = partitionWriter.addBufferConsumer(bufferConsumer, subpartitionIndex);
+	public ResultSubpartition getSubpartition(int subpartitionIndex) {
+		return partitionWriter.getSubpartition(subpartitionIndex);
+	}
+
+	@Override
+	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+		partitionWriter.readRecoveredState(stateReader);
+	}
+
+	@Override
+	public boolean addBufferConsumer(
+			BufferConsumer bufferConsumer,
+			int subpartitionIndex,
+			boolean isPriorityEvent) throws IOException {
+		boolean success = partitionWriter.addBufferConsumer(bufferConsumer, subpartitionIndex, isPriorityEvent);
 		if (success) {
 			notifyPipelinedConsumers();
 		}

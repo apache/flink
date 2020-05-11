@@ -18,22 +18,24 @@
 
 package org.apache.flink.streaming.tests;
 
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
-
-import java.util.Collections;
-import java.util.List;
 
 /**
  * This is a periodic streaming job that runs for CLI testing purposes.
@@ -79,11 +81,13 @@ public class PeriodicStreamingJob {
 	/**
 	 * Data-generating source function.
 	 */
-	public static class PeriodicSourceGenerator implements SourceFunction<Tuple>, ResultTypeQueryable<Tuple>, ListCheckpointed<Long> {
+	public static class PeriodicSourceGenerator implements SourceFunction<Tuple>, ResultTypeQueryable<Tuple>, CheckpointedFunction {
 		private final int sleepMs;
 		private final int durationMs;
 		private final int offsetSeconds;
 		private long ms = 0;
+
+		private ListState<Long> state = null;
 
 		public PeriodicSourceGenerator(float rowsPerSecond, int durationSeconds, int offsetSeconds) {
 			this.durationMs = durationSeconds * 1000;
@@ -115,15 +119,19 @@ public class PeriodicStreamingJob {
 		}
 
 		@Override
-		public List<Long> snapshotState(long checkpointId, long timestamp) {
-			return Collections.singletonList(ms);
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			state = context.getOperatorStateStore().getListState(
+					new ListStateDescriptor<Long>("state", LongSerializer.INSTANCE));
+
+			for (Long l : state.get()) {
+				ms += l;
+			}
 		}
 
 		@Override
-		public void restoreState(List<Long> state) {
-			for (Long l : state) {
-				ms += l;
-			}
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			state.clear();
+			state.add(ms);
 		}
 	}
 }

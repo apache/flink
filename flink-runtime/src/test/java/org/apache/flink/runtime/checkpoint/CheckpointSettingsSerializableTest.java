@@ -94,6 +94,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 					true,
 					false,
+					false,
 					0),
 				new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
 				serHooks);

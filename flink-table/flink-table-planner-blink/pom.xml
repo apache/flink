@@ -39,30 +39,22 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<dependencyManagement>
-		<dependencies>
-			<!-- Common dependency of calcite-core and flink-* -->
-			<dependency>
-				<groupId>com.google.guava</groupId>
-				<artifactId>guava</artifactId>
-				<version>19.0</version>
-			</dependency>
-			<!-- Common dependency of calcite-core and flink-table-runtime-blink -->
-			<dependency>
-				<groupId>org.codehaus.janino</groupId>
-				<artifactId>commons-compiler</artifactId>
-				<version>${janino.version}</version>
-			</dependency>
-			<!-- Common dependency of calcite-core and flink-table-runtime-blink -->
-			<dependency>
-				<groupId>org.codehaus.janino</groupId>
-				<artifactId>janino</artifactId>
-				<version>${janino.version}</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
+		<!-- Mainly used for calcite-core, it would be relocated
+		     to org.apache.flink.calcite.shaded by the shade plugin -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.codehaus.janino</groupId>
+			<artifactId>commons-compiler</artifactId>
+		</dependency>
+		<!-- Used for code generation -->
+		<dependency>
+			<groupId>org.codehaus.janino</groupId>
+			<artifactId>janino</artifactId>
+		</dependency>
 
 		<!-- core dependencies -->
 
@@ -110,6 +102,18 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-parser-hive</artifactId>
+			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.calcite</groupId>
+					<artifactId>calcite-core</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -128,12 +132,6 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- Used for code generation -->
-		<dependency>
-			<groupId>org.codehaus.janino</groupId>
-			<artifactId>janino</artifactId>
-		</dependency>
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-cep_${scala.binary.version}</artifactId>
@@ -149,20 +147,28 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.21:
+				"mvn dependency:tree" as of Calcite 1.22.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.21.0:compile
-				[INFO] |  +- commons-codec:commons-codec:jar:1.10:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.21.0:compile
-				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.10.1:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.22.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.22.0:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.10.1:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.10.1:compile
-				[INFO] |  +- com.google.guava:guava:jar:19.0:compile
-				[INFO] |  \- com.jayway.jsonpath:json-path:jar:2.4.0:compile
+				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.10.1:runtime
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.10.1:runtime
+				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.4.0:runtime
+				[INFO] |  |  \- net.minidev:json-smart:jar:2.3:runtime
+				[INFO] |  |     \- net.minidev:accessors-smart:jar:1.2:runtime
+				[INFO] |  |        \- org.ow2.asm:asm:jar:5.0.4:runtime
+				[INFO] |  +- commons-codec:commons-codec:jar:1.10:runtime
+				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
+				[INFO] |  \- commons-io:commons-io:jar:2.4:compile
 
 				Dependencies that are not needed for how we use Calcite right now.
 				-->
+				<exclusion>
+					<groupId>org.apache.calcite.avatica</groupId>
+					<artifactId>avatica-server</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>org.apache.calcite.avatica</groupId>
 					<artifactId>avatica-metrics</artifactId>
@@ -200,6 +206,13 @@ under the License.
 					<artifactId>aggdesigner-algorithm</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!-- Tools to unify display format for different languages -->
+		<dependency>
+			<groupId>com.ibm.icu</groupId>
+			<artifactId>icu4j</artifactId>
+			<version>65.1</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -326,12 +339,17 @@ under the License.
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
 									<include>com.fasterxml.jackson.core:jackson-annotations</include>
 									<include>commons-codec:commons-codec</include>
+									<include>commons-io:commons-io</include>
 
 									<!-- flink-table-planner-blink dependencies -->
 									<include>org.apache.flink:flink-sql-parser</include>
+									<include>org.apache.flink:flink-sql-parser-hive</include>
 
 									<!-- flink-table-runtime-blink dependencies -->
 									<include>org.codehaus.janino:*</include>
+
+									<!-- Tools to unify display format for different languages -->
+									<include>com.ibm.icu:icu4j</include>
 								</includes>
 							</artifactSet>
 							<relocations>
@@ -357,6 +375,10 @@ under the License.
 								<relocation>
 									<pattern>org.apache.commons.codec</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.commons.io</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.io</shadedPattern>
 								</relocation>
 
 								<!-- flink-table-planner dependencies -->

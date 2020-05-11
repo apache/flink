@@ -35,7 +35,6 @@ import static org.apache.flink.table.catalog.CatalogStructureBuilder.database;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.root;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.table;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -102,7 +101,7 @@ public class CatalogManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void testReplaceTemporaryTable() throws Exception {
+	public void testIgnoreTemporaryTableExists() throws Exception {
 		ObjectIdentifier tempIdentifier = ObjectIdentifier.of(
 			BUILTIN_CATALOG_NAME,
 			BUILTIN_DEFAULT_DATABASE_NAME,
@@ -110,11 +109,12 @@ public class CatalogManagerTest extends TestLogger {
 		CatalogManager manager = root()
 			.builtin(
 				database(BUILTIN_DEFAULT_DATABASE_NAME))
-			.temporaryTable(tempIdentifier)
 			.build();
 
 		CatalogTest.TestTable table = new CatalogTest.TestTable();
 		manager.createTemporaryTable(table, tempIdentifier, true);
+		CatalogTest.TestTable anotherTable = new CatalogTest.TestTable();
+		manager.createTemporaryTable(anotherTable, tempIdentifier, true);
 		assertThat(manager.getTable(tempIdentifier).get().isTemporary(), equalTo(true));
 		assertThat(manager.getTable(tempIdentifier).get().getTable(), equalTo(table));
 	}
@@ -132,7 +132,7 @@ public class CatalogManagerTest extends TestLogger {
 			.build();
 
 		thrown.expect(ValidationException.class);
-		thrown.expectMessage(String.format("Temporary table %s already exists", tempIdentifier));
+		thrown.expectMessage(String.format("Temporary table '%s' already exists", tempIdentifier));
 		manager.createTemporaryTable(new CatalogTest.TestTable(), tempIdentifier, false);
 	}
 
@@ -152,16 +152,14 @@ public class CatalogManagerTest extends TestLogger {
 
 	}
 
-	@Test
+	@Test(expected = ValidationException.class)
 	public void testDropTemporaryNonExistingTable() throws Exception {
 		CatalogManager manager = root()
 			.builtin(
 				database(BUILTIN_DEFAULT_DATABASE_NAME, table("test")))
 			.build();
 
-		boolean dropped = manager.dropTemporaryTable(UnresolvedIdentifier.of("test"));
-
-		assertThat(dropped, is(false));
+		manager.dropTemporaryTable(manager.qualifyIdentifier(UnresolvedIdentifier.of("test")), false);
 	}
 
 	@Test
@@ -173,9 +171,7 @@ public class CatalogManagerTest extends TestLogger {
 			.temporaryTable(identifier)
 			.build();
 
-		boolean dropped = manager.dropTemporaryTable(UnresolvedIdentifier.of("test"));
-
-		assertThat(dropped, is(true));
+		manager.dropTemporaryTable(manager.qualifyIdentifier(UnresolvedIdentifier.of("test")), false);
 	}
 
 	@Test

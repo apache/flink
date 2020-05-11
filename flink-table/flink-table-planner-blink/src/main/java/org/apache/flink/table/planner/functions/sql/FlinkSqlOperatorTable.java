@@ -22,7 +22,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.internal.SqlAuxiliaryGroupAggFunction;
 import org.apache.flink.table.planner.plan.type.FlinkReturnTypes;
 import org.apache.flink.table.planner.plan.type.NumericExceptFirstOperandChecker;
-import org.apache.flink.table.planner.plan.type.RepeatFamilyOperandTypeChecker;
 
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunction;
@@ -38,6 +37,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -192,7 +192,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			ReturnTypes.explicit(SqlTypeName.VARCHAR),
 			SqlTypeTransforms.TO_NULLABLE),
 		null,
-		new RepeatFamilyOperandTypeChecker(SqlTypeFamily.CHARACTER),
+		OperandTypes.repeat(SqlOperandCountRanges.from(1), OperandTypes.STRING),
 		SqlFunctionCategory.STRING);
 
 	/**
@@ -205,7 +205,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			ReturnTypes.explicit(SqlTypeName.VARCHAR),
 			SqlTypeTransforms.TO_NULLABLE),
 		null,
-		new RepeatFamilyOperandTypeChecker(SqlTypeFamily.CHARACTER),
+		OperandTypes.repeat(SqlOperandCountRanges.from(1), OperandTypes.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction LOG = new SqlFunction(
@@ -776,7 +776,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	 * We need custom group auxiliary functions in order to support nested windows.
 	 */
 	public static final SqlGroupedWindowFunction TUMBLE = new SqlGroupedWindowFunction(
-			SqlKind.TUMBLE, null,
+			// The TUMBLE group function was hard code to $TUMBLE in CALCITE-3382.
+			"$TUMBLE", SqlKind.TUMBLE, null,
 			OperandTypes.or(OperandTypes.DATETIME_INTERVAL, OperandTypes.DATETIME_INTERVAL_TIME)) {
 		@Override
 		public List<SqlGroupedWindowFunction> getAuxiliaryFunctions() {

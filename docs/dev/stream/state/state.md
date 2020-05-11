@@ -24,11 +24,69 @@ under the License.
 
 In this section you will learn about the APIs that Flink provides for writing
 stateful programs. Please take a look at [Stateful Stream
-Processing]({{site.baseurl}}{% link concepts/stateful-stream-processing.md %})
+Processing]({% link concepts/stateful-stream-processing.md %})
 to learn about the concepts behind stateful stream processing.
 
 * ToC
 {:toc}
+
+## Keyed DataStream
+
+If you want to use keyed state, you first need to specify a key on a
+`DataStream` that should be used to partition the state (and also the records
+in the stream themselves). You can specify a key using `keyBy(KeySelector)` on
+a `DataStream`. This will yield a `KeyedDataStream`, which then allows
+operations that use keyed state.
+
+A key selector function takes a single record as input and returns the key for
+that record. The key can be of any type and **must** be derived from
+deterministic computations.
+
+The data model of Flink is not based on key-value pairs. Therefore, you do not
+need to physically pack the data set types into keys and values. Keys are
+"virtual": they are defined as functions over the actual data to guide the
+grouping operator.
+
+The following example shows a key selector function that simply returns the
+field of an object:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// some ordinary POJO
+public class WC {
+  public String word;
+  public int count;
+
+  public String getWord() { return word; }
+}
+DataStream<WC> words = // [...]
+KeyedStream<WC> keyed = words
+  .keyBy(WC::getWord);
+{% endhighlight %}
+
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// some ordinary case class
+case class WC(word: String, count: Int)
+val words: DataStream[WC] = // [...]
+val keyed = words.keyBy( _.word )
+{% endhighlight %}
+</div>
+</div>
+
+### Tuple Keys and Expression Keys
+{:.no_toc}
+
+Flink also has two alternative ways of defining keys: tuple keys and expression
+keys. With this you can specify keys using tuple field indices or expressions
+for selecting fields of objects. We don't recommend using these today but you
+can refer to the Javadoc of DataStream to learn about them. Using a KeySelector
+function is strictly superior: with Java lambdas they are easy to use and they
+have potentially less overhead at runtime.
+
+{% top %}
 
 ## Using Keyed State
 
@@ -87,7 +145,7 @@ want to retrieve, you create either a `ValueStateDescriptor`, a `ListStateDescri
 a `ReducingStateDescriptor`, a `FoldingStateDescriptor` or a `MapStateDescriptor`.
 
 State is accessed using the `RuntimeContext`, so it is only possible in *rich functions*.
-Please see [here]({{ site.baseurl }}/dev/api_concepts.html#rich-functions) for
+Please see [here]({% link dev/user_defined_functions.md %}#rich-functions) for
 information about that, but we will also see an example shortly. The `RuntimeContext` that
 is available in a `RichFunction` has these methods for accessing state:
 
@@ -499,7 +557,7 @@ val counts: DataStream[(String, Int)] = stream
 ## Operator State
 
 *Operator State* (or *non-keyed state*) is state that is is bound to one
-parallel operator instance. The [Kafka Connector]({{ site.baseurl }}{% link
+parallel operator instance. The [Kafka Connector]({% link
 dev/connectors/kafka.md %}) is a good motivating example for the use of
 Operator State in Flink. Each parallel instance of the Kafka consumer maintains
 a map of topic partitions and offsets as its Operator State.
@@ -533,8 +591,8 @@ in that:
 
 ## Using Operator State
 
-To use operator state, a stateful function can implement either the more general `CheckpointedFunction`
-interface, or the `ListCheckpointed<T extends Serializable>` interface.
+To use operator state, a stateful function can implement the `CheckpointedFunction`
+interface.
 
 
 #### CheckpointedFunction
@@ -567,7 +625,9 @@ the following redistribution schemes are defined:
     while `element2` will go to operator instance 1.
 
   - **Union redistribution:** Each operator returns a List of state elements. The whole state is logically a concatenation of
-    all lists. On restore/redistribution, each operator gets the complete list of state elements.
+    all lists. On restore/redistribution, each operator gets the complete list of state elements. Do not use this feature if
+    your list may have high cardinality. Checkpoint metadata will store an offset to each list entry, which could lead to RPC
+    framesize or out-of-memory errors.
 
 Below is an example of a stateful `SinkFunction` that uses `CheckpointedFunction`
 to buffer elements before sending them to the outside world. It demonstrates
@@ -727,22 +787,6 @@ of all objects included by the previous checkpoint, and is then filled with the 
 As a side note, the keyed state can also be initialized in the `initializeState()` method. This can be done
 using the provided `FunctionInitializationContext`.
 
-#### ListCheckpointed
-
-The `ListCheckpointed` interface is a more limited variant of `CheckpointedFunction`,
-which only supports list-style state with even-split redistribution scheme on restore.
-It also requires the implementation of two methods:
-
-{% highlight java %}
-List<T> snapshotState(long checkpointId, long timestamp) throws Exception;
-
-void restoreState(List<T> state) throws Exception;
-{% endhighlight %}
-
-On `snapshotState()` the operator should return a list of objects to checkpoint and
-`restoreState` has to handle such a list upon recovery. If the state is not re-partitionable, you can always
-return a `Collections.singletonList(MY_STATE)` in the `snapshotState()`.
-
 ### Stateful Source Functions
 
 Stateful sources require a bit more care as opposed to other operators.
@@ -754,13 +798,16 @@ on failure/recovery), the user is required to get a lock from the source's conte
 {% highlight java %}
 public static class CounterSource
         extends RichParallelSourceFunction<Long>
-        implements ListCheckpointed<Long> {
+        implements CheckpointedFunction {
 
     /**  current offset for exactly once semantics */
     private Long offset = 0L;
 
     /** flag for job cancellation */
     private volatile boolean isRunning = true;
+    
+    /** Our state object. */
+    private ListState<Long> state;
 
     @Override
     public void run(SourceContext<Long> ctx) {
@@ -781,14 +828,22 @@ public static class CounterSource
     }
 
     @Override
-    public List<Long> snapshotState(long checkpointId, long checkpointTimestamp) {
-        return Collections.singletonList(offset);
+    public void initializeState(FunctionInitializationContext context) throws Exception {
+        state = context.getOperatorStateStore().getListState(new ListStateDescriptor<>(
+                "state",
+                LongSerializer.INSTANCE));
+                
+        // restore any state that we might already have to our fields, initialize state
+        // is also called in case of restore.
+        for (Long l : state.get()) {
+            offset = l;
+        }
     }
 
     @Override
-    public void restoreState(List<Long> state) {
-        for (Long s : state)
-            offset = s;
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        state.clear();
+        state.add(offset);
     }
 }
 {% endhighlight %}
@@ -798,12 +853,13 @@ public static class CounterSource
 {% highlight scala %}
 class CounterSource
        extends RichParallelSourceFunction[Long]
-       with ListCheckpointed[Long] {
+       with CheckpointedFunction {
 
   @volatile
   private var isRunning = true
 
   private var offset = 0L
+  private var state: ListState[Long] = _
 
   override def run(ctx: SourceFunction.SourceContext[Long]): Unit = {
     val lock = ctx.getCheckpointLock
@@ -819,15 +875,20 @@ class CounterSource
   }
 
   override def cancel(): Unit = isRunning = false
+  
+  override def initializeState(context: FunctionInitializationContext): Unit = {
+    state = context.getOperatorStateStore.getListState(
+      new ListStateDescriptor[Long]("state", classOf[Long]))
 
-  override def restoreState(state: util.List[Long]): Unit =
-    for (s <- state) {
-      offset = s
+    for (l <- state.get().asScala) {
+      offset = l
     }
+  }
 
-  override def snapshotState(checkpointId: Long, timestamp: Long): util.List[Long] =
-    Collections.singletonList(offset)
-
+  override def snapshotState(context: FunctionSnapshotContext): Unit = {
+    state.clear()
+    state.add(offset)
+  }
 }
 {% endhighlight %}
 </div>

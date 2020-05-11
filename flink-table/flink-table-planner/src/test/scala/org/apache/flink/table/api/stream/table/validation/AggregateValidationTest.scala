@@ -108,7 +108,7 @@ class AggregateValidationTest extends TableTestBase {
     table
       .groupBy('a)
       // must fail. Only AggregateFunction can be used in aggregate
-      .aggregate("func(c) as d")
+      .aggregate(call("func", $"c") as "d")
       .select('a, 'd)
   }
 
@@ -139,7 +139,7 @@ class AggregateValidationTest extends TableTestBase {
     table
       .groupBy('a)
       // must fail. Invalid alias length
-      .aggregate("minMax(b) as (x, y)")
+      .aggregate(call("minMax", $"b") as ("x", "y"))
       .select("x, y")
   }
 }

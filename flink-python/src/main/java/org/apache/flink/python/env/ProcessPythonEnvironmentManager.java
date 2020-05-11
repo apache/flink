@@ -61,6 +61,8 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	private static final Logger LOG = LoggerFactory.getLogger(ProcessPythonEnvironmentManager.class);
 
 	@VisibleForTesting
+	static final String PYFLINK_GATEWAY_DISABLED = "PYFLINK_GATEWAY_DISABLED";
+	@VisibleForTesting
 	public static final String PYTHON_REQUIREMENTS_FILE = "_PYTHON_REQUIREMENTS_FILE";
 	@VisibleForTesting
 	public static final String PYTHON_REQUIREMENTS_CACHE = "_PYTHON_REQUIREMENTS_CACHE";
@@ -75,6 +77,9 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	static final String PYTHON_ARCHIVES_DIR = "python-archives";
 	@VisibleForTesting
 	static final String PYTHON_FILES_DIR = "python-files";
+
+	private static final long CHECK_INTERVAL = 20;
+	private static final long CHECK_TIMEOUT = 1000;
 
 	private transient String baseDirectory;
 
@@ -125,25 +130,48 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 	}
 
 	@Override
-	public void close() {
-		FileUtils.deleteDirectoryQuietly(new File(baseDirectory));
-		if (shutdownHook != null) {
-			ShutdownHookUtil.removeShutdownHook(
-				shutdownHook, ProcessPythonEnvironmentManager.class.getSimpleName(), LOG);
-			shutdownHook = null;
+	public void close() throws Exception {
+		try {
+			int retries = 0;
+			while (true) {
+				try {
+					FileUtils.deleteDirectory(new File(baseDirectory));
+					break;
+				} catch (Throwable t) {
+					retries++;
+					if (retries <= CHECK_TIMEOUT / CHECK_INTERVAL) {
+						LOG.warn(
+							String.format(
+								"Failed to delete the working directory %s of the Python UDF worker. Retrying...",
+								baseDirectory),
+							t);
+					} else {
+						LOG.warn(
+							String.format(
+								"Failed to delete the working directory %s of the Python UDF worker.", baseDirectory),
+							t);
+						break;
+					}
+				}
+			}
+		} finally {
+			if (shutdownHook != null) {
+				ShutdownHookUtil.removeShutdownHook(
+					shutdownHook, ProcessPythonEnvironmentManager.class.getSimpleName(), LOG);
+				shutdownHook = null;
+			}
 		}
 	}
 
 	@Override
 	public RunnerApi.Environment createEnvironment() throws IOException, InterruptedException {
 		Map<String, String> env = constructEnvironmentVariables();
-		ResourceUtil.extractUdfRunner(baseDirectory);
-		String pythonWorkerCommand = String.join(File.separator, baseDirectory, "pyflink-udf-runner.sh");
+		File runnerScript = ResourceUtil.extractUdfRunner(baseDirectory);
 
 		return Environments.createProcessEnvironment(
 			"",
 			"",
-			pythonWorkerCommand,
+			runnerScript.getPath(),
 			env);
 	}
 
@@ -190,11 +218,17 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 		// set BOOT_LOG_DIR.
 		env.put("BOOT_LOG_DIR", baseDirectory);
 
+		// disable the launching of gateway server to prevent from this dead loop:
+		// launch UDF worker -> import udf -> import job code
+		//        ^                                    | (If the job code is not enclosed in a
+		//        									   |  if name == 'main' statement)
+		//        |                                    V
+		// execute job in local mode <- launch gateway server and submit job to local executor
+		env.put(PYFLINK_GATEWAY_DISABLED, "true");
+
 		// set the path of python interpreter, it will be used to execute the udf worker.
-		if (dependencyInfo.getPythonExec().isPresent()) {
-			env.put("python", dependencyInfo.getPythonExec().get());
-			LOG.info("Python interpreter path: {}", dependencyInfo.getPythonExec());
-		}
+		env.put("python", dependencyInfo.getPythonExec());
+		LOG.info("Python interpreter path: {}", dependencyInfo.getPythonExec());
 		return env;
 	}
 

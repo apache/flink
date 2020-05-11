@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.mock.Whitebox;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -65,7 +66,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -166,11 +166,13 @@ public class CheckpointCoordinatorTestingUtils {
 			++idx;
 		}
 
-		ByteStreamStateHandle streamStateHandle = new ByteStreamStateHandle(
-			String.valueOf(UUID.randomUUID()),
-			serializationWithOffsets.f0);
+		return new OperatorStreamStateHandle(offsetsMap, generateByteStreamStateHandle(serializationWithOffsets.f0));
+	}
 
-		return new OperatorStreamStateHandle(offsetsMap, streamStateHandle);
+	private static ByteStreamStateHandle generateByteStreamStateHandle(byte[] bytes) {
+		return new ByteStreamStateHandle(
+			String.valueOf(UUID.randomUUID()),
+			bytes);
 	}
 
 	static Tuple2<byte[], List<long[]>> serializeTogetherAndTrackOffsets(
@@ -355,8 +357,11 @@ public class CheckpointCoordinatorTestingUtils {
 		when(executionJobVertex.getParallelism()).thenReturn(parallelism);
 		when(executionJobVertex.getMaxParallelism()).thenReturn(maxParallelism);
 		when(executionJobVertex.isMaxParallelismConfigured()).thenReturn(true);
-		when(executionJobVertex.getOperatorIDs()).thenReturn(jobVertexIDs);
-		when(executionJobVertex.getUserDefinedOperatorIDs()).thenReturn(Arrays.asList(new OperatorID[jobVertexIDs.size()]));
+		List<OperatorIDPair> operatorIDPairs = new ArrayList<>();
+		for (OperatorID operatorID : jobVertexIDs) {
+			operatorIDPairs.add(OperatorIDPair.generatedIDOnly(operatorID));
+		}
+		when(executionJobVertex.getOperatorIDs()).thenReturn(operatorIDPairs);
 
 		return executionJobVertex;
 	}
@@ -453,7 +458,11 @@ public class CheckpointCoordinatorTestingUtils {
 		when(vertex.getMaxParallelism()).thenReturn(maxParallelism);
 
 		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-		when(jobVertex.getOperatorIDs()).thenReturn(jobVertexIDs);
+		List<OperatorIDPair> operatorIDPairs = new ArrayList<>();
+		for (OperatorID operatorID : jobVertexIDs) {
+			operatorIDPairs.add(OperatorIDPair.generatedIDOnly(operatorID));
+		}
+		when(jobVertex.getOperatorIDs()).thenReturn(operatorIDPairs);
 
 		when(vertex.getJobVertex()).thenReturn(jobVertex);
 
@@ -470,7 +479,7 @@ public class CheckpointCoordinatorTestingUtils {
 
 		TaskStateSnapshot subtaskStates = spy(new TaskStateSnapshot());
 		OperatorSubtaskState subtaskState = spy(new OperatorSubtaskState(
-			partitionableState, null, partitionedKeyGroupState, null)
+			partitionableState, null, partitionedKeyGroupState, null, null, null)
 		);
 
 		subtaskStates.putSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID), subtaskState);
@@ -507,9 +516,7 @@ public class CheckpointCoordinatorTestingUtils {
 
 		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(keyGroupRange, serializedDataWithOffsets.f1.get(0));
 
-		ByteStreamStateHandle allSerializedStatesHandle = new ByteStreamStateHandle(
-			String.valueOf(UUID.randomUUID()),
-			serializedDataWithOffsets.f0);
+		ByteStreamStateHandle allSerializedStatesHandle = generateByteStreamStateHandle(serializedDataWithOffsets.f0);
 
 		return new KeyGroupsStateHandle(keyGroupRangeOffsets, allSerializedStatesHandle);
 	}
@@ -560,8 +567,7 @@ public class CheckpointCoordinatorTestingUtils {
 		when(vertex.getMaxParallelism()).thenReturn(vertices.length);
 		when(vertex.getJobVertexId()).thenReturn(id);
 		when(vertex.getTaskVertices()).thenReturn(vertices);
-		when(vertex.getOperatorIDs()).thenReturn(Collections.singletonList(OperatorID.fromJobVertexID(id)));
-		when(vertex.getUserDefinedOperatorIDs()).thenReturn(Collections.<OperatorID>singletonList(null));
+		when(vertex.getOperatorIDs()).thenReturn(Collections.singletonList(OperatorIDPair.generatedIDOnly(OperatorID.fromJobVertexID(id))));
 
 		for (ExecutionVertex v : vertices) {
 			when(v.getJobVertex()).thenReturn(vertex);
@@ -585,6 +591,8 @@ public class CheckpointCoordinatorTestingUtils {
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 
 		private boolean isExactlyOnce = true;
+
+		private boolean isUnalignedCheckpoint = false;
 
 		private boolean isPreferCheckpointForRecovery = false;
 
@@ -621,6 +629,10 @@ public class CheckpointCoordinatorTestingUtils {
 			return this;
 		}
 
+		public void setUnalignedCheckpoint(boolean unalignedCheckpoint) {
+			isUnalignedCheckpoint = unalignedCheckpoint;
+		}
+
 		public CheckpointCoordinatorConfigurationBuilder setPreferCheckpointForRecovery(boolean preferCheckpointForRecovery) {
 			isPreferCheckpointForRecovery = preferCheckpointForRecovery;
 			return this;
@@ -639,6 +651,7 @@ public class CheckpointCoordinatorTestingUtils {
 				maxConcurrentCheckpoints,
 				checkpointRetentionPolicy,
 				isExactlyOnce,
+				isUnalignedCheckpoint,
 				isPreferCheckpointForRecovery,
 				tolerableCpFailureNumber);
 		}

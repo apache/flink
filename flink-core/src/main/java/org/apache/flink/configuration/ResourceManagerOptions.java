@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
 /**
@@ -56,25 +57,15 @@ public class ResourceManagerOptions {
 			" default, the port of the JobManager, because the same ActorSystem is used." +
 			" Its not possible to use this configuration key to define port ranges.");
 
-	/**
-	 * Percentage of heap space to remove from Job Master containers (YARN / Mesos/ Kubernetes), to compensate
-	 * for other JVM memory usage.
-	 */
-	public static final ConfigOption<Float> CONTAINERIZED_HEAP_CUTOFF_RATIO = ConfigOptions
-		.key("containerized.heap-cutoff-ratio")
-		.defaultValue(0.25f)
-		.withDeprecatedKeys("yarn.heap-cutoff-ratio")
-		.withDescription("Percentage of heap space to remove from Job Master containers (YARN / Mesos / Kubernetes), " +
-			"to compensate for other JVM memory usage.");
-
-	/**
-	 * Minimum amount of heap memory to remove in Job Master containers, as a safety margin.
-	 */
-	public static final ConfigOption<Integer> CONTAINERIZED_HEAP_CUTOFF_MIN = ConfigOptions
-		.key("containerized.heap-cutoff-min")
-		.defaultValue(600)
-		.withDeprecatedKeys("yarn.heap-cutoff-min")
-		.withDescription("Minimum amount of heap memory to remove in Job Master containers, as a safety margin.");
+	@Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+	public static final ConfigOption<Integer> MAX_SLOT_NUM = ConfigOptions
+		.key("slotmanager.max-number-of-slots")
+		.intType()
+		.defaultValue(Integer.MAX_VALUE)
+		.withDescription("Defines the maximum number of slots that the Flink cluster allocates. This configuration option " +
+			"is meant for limiting the resource consumption for batch workloads. It is not recommended to configure this option " +
+			"for streaming workloads, which may fail if there are not enough slots. Note that this configuration option does not take " +
+			"effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
 
 	/**
 	 * The timeout for a slot request to be discarded, in milliseconds.

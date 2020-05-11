@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
 
@@ -50,7 +51,6 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
-import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -59,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Builder class for {@link StreamTaskMailboxTestHarness}.
  */
 public abstract class StreamTaskMailboxTestHarnessBuilder<OUT> {
-	protected final Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory;
+	protected final FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory;
 	protected final TypeSerializer<OUT> outputSerializer;
 	protected final ExecutionConfig executionConfig = new ExecutionConfig();
 
@@ -77,7 +77,7 @@ public abstract class StreamTaskMailboxTestHarnessBuilder<OUT> {
 	private boolean setupCalled = false;
 
 	public StreamTaskMailboxTestHarnessBuilder(
-			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
+			FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
 			TypeInformation<OUT> outputType) {
 		this.taskFactory = checkNotNull(taskFactory);
 		outputSerializer = outputType.createSerializer(executionConfig);
@@ -183,6 +183,11 @@ public abstract class StreamTaskMailboxTestHarnessBuilder<OUT> {
 
 	public StreamTaskMailboxTestHarnessBuilder<OUT> setTaskMetricGroup(TaskMetricGroup taskMetricGroup) {
 		this.taskMetricGroup = taskMetricGroup;
+		return this;
+	}
+
+	public StreamTaskMailboxTestHarnessBuilder<OUT> setKeyType(TypeInformation<?> keyType) {
+		streamConfig.setStateKeySerializer(keyType.createSerializer(executionConfig));
 		return this;
 	}
 }

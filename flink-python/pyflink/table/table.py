@@ -21,6 +21,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.table_schema import TableSchema
 
 from pyflink.util.utils import to_jarray
+from pyflink.util.utils import to_j_explain_detail_arr
 
 __all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
 
@@ -75,7 +76,7 @@ class Table(object):
         """
         return Table(self._j_table.select(fields))
 
-    def alias(self, fields):
+    def alias(self, field, *fields):
         """
         Renames the fields of the expression result. Use this to disambiguate fields before
         joining to operations.
@@ -83,14 +84,18 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.alias("a, b")
+            >>> tab.alias("a", "b")
 
-        :param fields: Field list expression string.
+        :param field: Field alias.
+        :type field: str
+        :param fields: Additional field aliases.
         :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(get_method(self._j_table, "as")(fields))
+        gateway = get_gateway()
+        extra_fields = to_jarray(gateway.jvm.String, fields)
+        return Table(get_method(self._j_table, "as")(field, extra_fields))
 
     def filter(self, predicate):
         """
@@ -692,6 +697,40 @@ class Table(object):
         Prints the schema of this table to the console in a tree format.
         """
         self._j_table.printSchema()
+
+    def execute_insert(self, table_path, overwrite=False):
+        """
+        Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
+        registered under the specified name, and then execute the insert operation.
+        For the path resolution algorithm see :func:`~TableEnvironment.use_database`.
+
+        Example:
+        ::
+
+            >>> tab.execute_insert("sink")
+
+        :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
+               the :class:`~pyflink.table.Table` is written.
+        :type table_path: str
+        :param overwrite: The flag that indicates whether the insert should overwrite
+               existing data or not.
+        :type overwrite: bool
+        :return: The table result.
+        """
+        self._j_table.executeInsert(table_path, overwrite)
+
+    def explain(self, *extra_details):
+        """
+        Returns the AST of this table and the execution plan.
+
+        :param extra_details: The extra explain details which the explain result should include,
+                              e.g. estimated cost, changelog mode for streaming
+        :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
+        :return: The statement for which the AST and execution plan will be returned.
+        :rtype: str
+        """
+        j_extra_details = to_j_explain_detail_arr(extra_details)
+        return self._j_table.explain(j_extra_details)
 
     def __str__(self):
         return self._j_table.toString()

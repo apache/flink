@@ -38,6 +38,7 @@ import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Arrow Python {@link ScalarFunction} operator for the old planner.
@@ -76,7 +77,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
 	@Override
 	public void open() throws Exception {
 		super.open();
-		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator("reader", 0, Long.MAX_VALUE);
+		allocator = ArrowUtils.getRootAllocator().newChildAllocator("reader", 0, Long.MAX_VALUE);
 		reader = new ArrowStreamReader(bais, allocator);
 	}
 
@@ -93,7 +94,8 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
 	@Override
 	public PythonFunctionRunner<Row> createPythonFunctionRunner(
 		FnDataReceiver<byte[]> resultReceiver,
-		PythonEnvironmentManager pythonEnvironmentManager) {
+		PythonEnvironmentManager pythonEnvironmentManager,
+		Map<String, String> jobOptions) {
 		return new ArrowPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
@@ -101,7 +103,9 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
 			pythonEnvironmentManager,
 			userDefinedFunctionInputType,
 			userDefinedFunctionOutputType,
-			getPythonConfig().getMaxArrowBatchSize());
+			getPythonConfig().getMaxArrowBatchSize(),
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 
 	@Override
@@ -113,7 +117,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractRowPythonScalarFu
 			reader.loadNextBatch();
 			VectorSchemaRoot root = reader.getVectorSchemaRoot();
 			if (arrowReader == null) {
-				arrowReader = ArrowUtils.createRowArrowReader(root);
+				arrowReader = ArrowUtils.createRowArrowReader(root, outputType);
 			}
 			for (int i = 0; i < root.getRowCount(); i++) {
 				CRow input = forwardedInputQueue.poll();

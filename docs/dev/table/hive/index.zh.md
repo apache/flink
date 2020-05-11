@@ -1,5 +1,5 @@
 ---
-title: "Hive Integration"
+title: "Hive 集成"
 nav-id: hive_tableapi
 nav-parent_id: tableapi
 nav-pos: 100
@@ -24,27 +24,27 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-[Apache Hive](https://hive.apache.org/) has established itself as a focal point of the data warehousing ecosystem.
-It serves as not only a SQL engine for big data analytics and ETL, but also a data management platform, where data is discovered, defined, and evolved.
+[Apache Hive](https://hive.apache.org/) 已经成为了数据仓库生态系统中的核心。
+它不仅仅是一个用于大数据分析和ETL场景的SQL引擎，同样它也是一个数据管理平台，可用于发现，定义，和演化数据。
 
-Flink offers a two-fold integration with Hive.
+Flink 与 Hive 的集成包含两个层面。
 
-The first is to leverage Hive's Metastore as a persistent catalog with Flink's `HiveCatalog` for storing Flink specific metadata across sessions.
-For example, users can store their Kafka or ElasticSearch tables in Hive Metastore by using `HiveCatalog`, and reuse them later on in SQL queries.
+一是利用了 Hive 的 MetaStore 作为持久化的 Catalog，用户可通过`HiveCatalog`将不同会话中的 Flink 元数据存储到 Hive Metastore 中。
+例如，用户可以使用`HiveCatalog`将其 Kafka 表或 Elasticsearch 表存储在 Hive Metastore 中，并后续在 SQL 查询中重新使用它们。
 
-The second is to offer Flink as an alternative engine for reading and writing Hive tables.
+二是利用 Flink 来读写 Hive 的表。
 
-The `HiveCatalog` is designed to be “out of the box” compatible with existing Hive installations.
-You do not need to modify your existing Hive Metastore or change the data placement or partitioning of your tables.
+`HiveCatalog`的设计提供了与 Hive 良好的兼容性，用户可以"开箱即用"的访问其已有的 Hive 数仓。
+您不需要修改现有的 Hive Metastore，也不需要更改表的数据位置或分区。
 
-* Note that we highly recommend users using the [blink planner]({{ site.baseurl }}/dev/table/#dependency-structure) with Hive integration.
+* 我们强烈建议用户使用 [Blink planner]({{ site.baseurl }}/zh/dev/table/#dependency-structure) 与 Hive 集成。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Supported Hive Versions
+## 支持的Hive版本
 
-Flink supports the following Hive versions.
+Flink 支持一下的 Hive 版本。
 
 - 1.0
     - 1.0.0
@@ -77,33 +77,33 @@ Flink supports the following Hive versions.
     - 3.1.1
     - 3.1.2
 
-Please note Hive itself have different features available for different versions, and these issues are not caused by Flink:
+请注意，某些功能是否可用取决于您使用的 Hive 版本，这些限制不是由 Flink 所引起的：
 
-- Hive built-in functions are supported in 1.2.0 and later.
-- Column constraints, i.e. PRIMARY KEY and NOT NULL, are supported in 3.1.0 and later.
-- Altering table statistics is supported in 1.2.0 and later.
-- `DATE` column statistics are supported in 1.2.0 and later.
-- Writing to ORC tables is not supported in 2.0.x.
+- Hive 内置函数在使用 Hive-1.2.0 及更高版本时支持。
+- 列约束，也就是 PRIMARY KEY 和 NOT NULL，在使用 Hive-3.1.0 及更高版本时支持。
+- 更改表的统计信息，在使用 Hive-1.2.0 及更高版本时支持。
+- `DATE`列统计信息，在使用 Hive-1.2.0 及更高版时支持。
+- 使用 Hive-2.0.x 版本时不支持写入 ORC 表。
 
-### Dependencies
+### 依赖项
 
-To integrate with Hive, you need to add some extra dependencies to the `/lib/` directory in Flink distribution
-to make the integration work in Table API program or SQL in SQL Client.
-Alternatively, you can put these dependencies in a dedicated folder, and add them to classpath with the `-C`
-or `-l` option for Table API program or SQL Client respectively.
+要与 Hive 集成，您需要在 Flink 下的`/lib/`目录中添加一些额外的依赖包，
+以便通过 Table API 或 SQL Client 与 Hive 进行交互。
+或者，您可以将这些依赖项放在专用文件夹中，并分别使用 Table API 程序或 SQL Client 的`-C`或`-l`选项将它们添加到 classpath 中。
 
-Apache Hive is built on Hadoop, so you need Hadoop dependency first, please refer to
-[Providing Hadoop classes]({{ site.baseurl }}/ops/deployment/hadoop.html#providing-hadoop-classes).
+Apache Hive 是基于 Hadoop 之上构建的, 首先您需要 Hadoop 的依赖，请参考
+[Providing Hadoop classes]({{ site.baseurl }}/zh/ops/deployment/hadoop.html#providing-hadoop-classes).
 
-There are two ways to add Hive dependencies. First is to use Flink's bundled Hive jars. You can choose a bundled Hive jar according to the version of the metastore you use. Second is to add each of the required jars separately. The second way can be useful if the Hive version you're using is not listed here.
+有两种添加 Hive 依赖项的方法。第一种是使用 Flink 提供的 Hive Jar包。您可以根据使用的 Metastore 的版本来选择对应的 Hive jar。第二个方式是分别添加每个所需的 jar 包。如果您使用的 Hive 版本尚未在此处列出，则第二种方法会更适合。
 
-#### Using bundled hive jar
+#### 使用 Flink 提供的 Hive jar
 
-The following tables list all available bundled hive jars. You can pick one to the `/lib/` directory in Flink distribution.
+下表列出了所有可用的 Hive jar。您可以选择一个并放在 Flink 发行版的`/lib/` 目录中。
+
 
 {% if site.is_stable %}
 
-| Metastore version | Maven dependency             | SQL Client JAR         |
+| Metastore 版本 | Maven 依赖             | SQL Client JAR         |
 | :---------------- | :--------------------------- | :----------------------|
 | 1.0.0 - 1.2.2     | `flink-connector-hive-1.2.2` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-hive-1.2.2{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hive-1.2.2{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | 2.0.0 - 2.2.0     | `flink-connector-hive-2.2.0` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-hive-2.2.0{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hive-2.2.0{{site.scala_version_suffix}}-{{site.version}}.jar) |
@@ -112,13 +112,13 @@ The following tables list all available bundled hive jars. You can pick one to t
 
 {% else %}
 
-These tables are only available for stable releases.
+下表仅适用与稳定版本。
 
 {% endif %}
 
-#### User defined dependencies
+#### 用户定义的依赖项
 
-Please find the required dependencies for different Hive major versions below.
+您可以在下方找到不同Hive主版本所需要的依赖项。
 
 
 <div class="codetabs" markdown="1">
@@ -259,15 +259,14 @@ Please find the required dependencies for different Hive major versions below.
 </div>
 </div>
 
-If you use the hive version of HDP or CDH, you need to refer to the dependency in the previous section and select a similar version.
+如果使用 Hive 的 HDP 或 CDH 版本，则需要参考上一节中的依赖项并选择一个类似的版本。
 
-And you need to specify selected and supported "hive-version" in yaml, HiveCatalog and HiveModule.
+并且您需要在定义 yaml 文件，或者创建 HiveCatalog 和 HiveModule 时，指定一个支持的 “hive-version”。
 
-#### Program maven
+### Maven 依赖
 
-If you are building your own program, you need the following dependencies in your mvn file.
-It's recommended not to include these dependencies in the resulting jar file.
-You're supposed to add dependencies as stated above at runtime.
+如果您在构建自己的应用程序，则需要在 mvn 文件中添加以下依赖项。
+您应该在运行时添加以上的这些依赖项，而不要在已生成的 jar 文件中去包含它们。
 
 {% highlight xml %}
 <!-- Flink Dependency -->
@@ -294,18 +293,15 @@ You're supposed to add dependencies as stated above at runtime.
 </dependency>
 {% endhighlight %}
 
-## Connecting To Hive
+## 连接到Hive
 
-Connect to an existing Hive installation using the [catalog interface]({{ site.baseurl }}/dev/table/catalogs.html) 
-and [HiveCatalog]({{ site.baseurl }}/dev/table/hive/hive_catalog.html) through the table environment or YAML configuration.
+通过 TableEnvironment 或者 YAML 配置，使用 [Catalog 接口]({{ site.baseurl }}/zh/dev/table/catalogs.html) 和 [HiveCatalog]({{ site.baseurl }}/zh/dev/table/hive/hive_catalog.html)连接到现有的 Hive 集群。
 
-If the `hive-conf/hive-site.xml` file is stored in remote storage system, users should download 
-the hive configuration file to their local environment first. 
+如果`hive-conf/hive-site.xml`文件存储在远端存储系统，则用户首先应该将hive配置文件下载至其本地环境中。
 
-Please note while HiveCatalog doesn't require a particular planner, reading/writing Hive tables only works with blink planner.
-Therefore it's highly recommended that you use blink planner when connecting to your Hive warehouse.
+请注意，虽然 HiveCatalog 不需要特定的 planner，但读写Hive表仅适用于 Blink planner。因此，强烈建议您在连接到 Hive 仓库时使用 Blink planner。
 
-Take Hive version 2.3.4 for example:
+以Hive 2.3.4版本为例：
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
@@ -364,8 +360,8 @@ catalogs:
 
 ## DDL
 
-DDL to create Hive tables, views, partitions, functions within Flink will be supported soon.
+即将支持在 Flink 中创建 Hive 表，视图，分区和函数的DDL。
 
 ## DML
 
-Flink supports DML writing to Hive tables. Please refer to details in [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/read_write_hive.html)
+Flink 支持 DML 写入 Hive 表，请参考[读写 Hive 表]({{ site.baseurl }}/zh/dev/table/hive/read_write_hive.html)

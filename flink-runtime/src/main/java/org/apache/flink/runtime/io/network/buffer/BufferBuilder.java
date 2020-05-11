@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 
 import javax.annotation.concurrent.NotThreadSafe;
@@ -117,8 +118,23 @@ public class BufferBuilder {
 		return positionMarker.getCached() == getMaxCapacity();
 	}
 
+	public int getWritableBytes() {
+		checkState(positionMarker.getCached() <= getMaxCapacity());
+		return getMaxCapacity() - positionMarker.getCached();
+	}
+
 	public int getMaxCapacity() {
 		return memorySegment.size();
+	}
+
+	@VisibleForTesting
+	public BufferRecycler getRecycler() {
+		return recycler;
+	}
+
+	@VisibleForTesting
+	public MemorySegment getMemorySegment() {
+		return memorySegment;
 	}
 
 	/**

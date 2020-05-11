@@ -26,14 +26,14 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, DataFormatConverters}
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.expressions.ExpressionBuilder
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
@@ -46,6 +46,7 @@ import org.apache.calcite.rel.logical.{LogicalCalc, LogicalTableScan}
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
+
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{After, Before, Rule}
@@ -61,8 +62,7 @@ abstract class ExpressionTestBase {
   // (originalExpr, optimizedExpr, expectedResult)
   private val testExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
   private val env = StreamExecutionEnvironment.createLocalEnvironment(4)
-  private val setting = EnvironmentSettings.newInstance()
-    .useBlinkPlanner().inStreamingMode().build()
+  private val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
   // use impl class instead of interface class to avoid
   // "Static methods in interface require -target:jvm-1.8"
   private val tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
@@ -87,7 +87,7 @@ abstract class ExpressionTestBase {
   @Before
   def prepare(): Unit = {
     val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
-    tEnv.registerDataStream(tableName, ds)
+    tEnv.createTemporaryView(tableName, ds)
     functions.foreach(f => tEnv.registerFunction(f._1, f._2))
 
     // prepare RelBuilder
@@ -111,7 +111,7 @@ abstract class ExpressionTestBase {
       new VarCharType(VarCharType.MAX_LENGTH)): _*)
 
     val exprs = stringTestExprs.map(exprGenerator.generateExpression)
-    val genExpr = exprGenerator.generateResultExpression(exprs, resultType, classOf[BinaryRow])
+    val genExpr = exprGenerator.generateResultExpression(exprs, resultType, classOf[BinaryRowData])
 
     val bodyCode =
       s"""
@@ -119,10 +119,10 @@ abstract class ExpressionTestBase {
          |return ${genExpr.resultTerm};
         """.stripMargin
 
-    val genFunc = FunctionCodeGenerator.generateFunction[MapFunction[BaseRow, BinaryRow]](
+    val genFunc = FunctionCodeGenerator.generateFunction[MapFunction[RowData, BinaryRowData]](
       ctx,
       "TestFunction",
-      classOf[MapFunction[BaseRow, BinaryRow]],
+      classOf[MapFunction[RowData, BinaryRowData]],
       bodyCode,
       resultType,
       inputType)
@@ -147,7 +147,7 @@ abstract class ExpressionTestBase {
 
     val converter = DataFormatConverters
       .getConverterForDataType(dataType)
-      .asInstanceOf[DataFormatConverters.DataFormatConverter[BaseRow, Row]]
+      .asInstanceOf[DataFormatConverters.DataFormatConverter[RowData, Row]]
     val testRow = converter.toInternal(testData)
     val result = mapper.map(testRow)
 
@@ -163,8 +163,8 @@ abstract class ExpressionTestBase {
         case ((originalExpr, optimizedExpr, expected), index) =>
 
           // adapt string result
-          val actual = if(!result.asInstanceOf[BinaryRow].isNullAt(index)) {
-            result.asInstanceOf[BinaryRow].getString(index).toString
+          val actual = if(!result.asInstanceOf[BinaryRowData].isNullAt(index)) {
+            result.asInstanceOf[BinaryRowData].getString(index).toString
           } else {
             null
           }

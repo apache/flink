@@ -137,7 +137,7 @@ class CalcValidationTest extends TableTestBase {
     util.addFunction("weightedAvg", new WeightedAvg)
     util.addTableSource[(Int)](
       "MyTable", 'int)
-      .map("weightedAvg(int, int)") // do not support AggregateFunction as input
+      .map(call("weightedAvg", $"int", $"int")) // do not support AggregateFunction as input
   }
 
   @Test(expected = classOf[ValidationException])
@@ -147,19 +147,6 @@ class CalcValidationTest extends TableTestBase {
     util.addFunction("func", new TableFunc0)
     util.addTableSource[(String)](
       "MyTable", 'string)
-      .map("func(string) as a") // do not support TableFunction as input
-  }
-
-  @Test
-  def testInvalidParameterTypes(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("log('long) fails on input type checking: " +
-      "[expecting Double on 0th input, get Long].\nOperand should be casted to proper type")
-
-    val util = streamTestUtil()
-
-    util.addFunction("func", new TableFunc0)
-    util.addTableSource[(Int, Long, String)]("MyTable", 'int, 'long, 'string)
-      .select('int, 'long.log as 'long, 'string)
+      .map(call("func", $"string") as "a") // do not support TableFunction as input
   }
 }

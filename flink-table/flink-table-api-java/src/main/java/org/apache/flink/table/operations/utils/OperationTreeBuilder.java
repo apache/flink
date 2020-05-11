@@ -25,6 +25,7 @@ import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
@@ -46,21 +47,17 @@ import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
-import org.apache.flink.table.operations.utils.factories.AggregateOperationFactory;
-import org.apache.flink.table.operations.utils.factories.AliasOperationUtils;
-import org.apache.flink.table.operations.utils.factories.CalculatedTableFactory;
-import org.apache.flink.table.operations.utils.factories.ColumnOperationUtils;
-import org.apache.flink.table.operations.utils.factories.JoinOperationFactory;
-import org.apache.flink.table.operations.utils.factories.ProjectionOperationFactory;
-import org.apache.flink.table.operations.utils.factories.SetOperationFactory;
-import org.apache.flink.table.operations.utils.factories.SortOperationFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -101,6 +98,7 @@ public final class OperationTreeBuilder {
 	private final SetOperationFactory setOperationFactory;
 	private final AggregateOperationFactory aggregateOperationFactory;
 	private final JoinOperationFactory joinOperationFactory;
+	private final ValuesOperationFactory valuesOperationFactory;
 
 	private OperationTreeBuilder(
 			TableConfig config,
@@ -112,7 +110,8 @@ public final class OperationTreeBuilder {
 			CalculatedTableFactory calculatedTableFactory,
 			SetOperationFactory setOperationFactory,
 			AggregateOperationFactory aggregateOperationFactory,
-			JoinOperationFactory joinOperationFactory) {
+			JoinOperationFactory joinOperationFactory,
+			ValuesOperationFactory valuesOperationFactory) {
 		this.config = config;
 		this.functionCatalog = functionLookup;
 		this.typeFactory = typeFactory;
@@ -123,6 +122,7 @@ public final class OperationTreeBuilder {
 		this.setOperationFactory = setOperationFactory;
 		this.aggregateOperationFactory = aggregateOperationFactory;
 		this.joinOperationFactory = joinOperationFactory;
+		this.valuesOperationFactory = valuesOperationFactory;
 		this.lookupResolver = new LookupCallResolver(functionLookup);
 	}
 
@@ -142,7 +142,8 @@ public final class OperationTreeBuilder {
 			new CalculatedTableFactory(),
 			new SetOperationFactory(isStreamingMode),
 			new AggregateOperationFactory(isStreamingMode),
-			new JoinOperationFactory()
+			new JoinOperationFactory(),
+			new ValuesOperationFactory()
 		);
 	}
 
@@ -471,9 +472,14 @@ public final class OperationTreeBuilder {
 			throw new ValidationException("Only a table function can be used in the flatMap operator.");
 		}
 
-		TypeInformation<?> resultType = ((TableFunctionDefinition) ((UnresolvedCallExpression) resolvedTableFunction)
-			.getFunctionDefinition())
-			.getResultType();
+		FunctionDefinition functionDefinition = ((UnresolvedCallExpression) resolvedTableFunction)
+			.getFunctionDefinition();
+		if (!(functionDefinition instanceof TableFunctionDefinition)) {
+			throw new ValidationException(
+				"The new type inference for functions is not supported in the flatMap yet.");
+		}
+
+		TypeInformation<?> resultType = ((TableFunctionDefinition) functionDefinition).getResultType();
 		List<String> originFieldNames = Arrays.asList(FieldInfoUtils.getFieldNames(resultType));
 
 		List<String> childFields = Arrays.asList(child.getTableSchema().getFieldNames());
@@ -540,6 +546,43 @@ public final class OperationTreeBuilder {
 
 		// Step5: add alias
 		return aliasBackwardFields(flattenedProjection, aggregateWithAlias.aliases, groupingExpressions.size());
+	}
+
+	public QueryOperation values(DataType rowType, Expression... expressions) {
+		final TableSchema valuesSchema;
+		if (LogicalTypeChecks.hasRoot(rowType.getLogicalType(), LogicalTypeRoot.ROW)) {
+			valuesSchema = DataTypeUtils.expandCompositeTypeToSchema(rowType);
+		} else {
+			valuesSchema = TableSchema.builder()
+				.field("f0", rowType)
+				.build();
+		}
+
+		return valuesInternal(valuesSchema, expressions);
+	}
+
+	public QueryOperation values(Expression... expressions) {
+		return valuesInternal(null, expressions);
+	}
+
+	private QueryOperation valuesInternal(@Nullable TableSchema valuesSchema, Expression... expressions) {
+		if (expressions.length == 0) {
+			return new ValuesQueryOperation(
+				Collections.emptyList(),
+				Optional.ofNullable(valuesSchema).orElseGet(() -> TableSchema.builder().build()));
+		}
+
+		ExpressionResolver resolver = ExpressionResolver.resolverFor(
+			config,
+			tableReferenceLookup,
+			functionCatalog,
+			typeFactory)
+			.build();
+
+		return valuesOperationFactory.create(
+			valuesSchema,
+			resolver.resolve(Arrays.asList(expressions)),
+			resolver.postResolverFactory());
 	}
 
 	private static class AggregateWithAlias {

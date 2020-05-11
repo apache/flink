@@ -184,6 +184,10 @@ public final class LogicalTypeGeneralization {
 
 		if (foundType != null) {
 			final LogicalType typeWithNullability = foundType.copy(hasNullableTypes);
+			// NULL is reserved for untyped literals only
+			if (hasRoot(typeWithNullability, NULL)) {
+				return Optional.empty();
+			}
 			return Optional.of(typeWithNullability);
 		}
 		return Optional.empty();
@@ -300,7 +304,7 @@ public final class LogicalTypeGeneralization {
 			}
 			// for APPROXIMATE_NUMERIC types
 			else if (hasFamily(type, APPROXIMATE_NUMERIC)) {
-				if (hasFamily(type, APPROXIMATE_NUMERIC)) {
+				if (hasFamily(resultType, APPROXIMATE_NUMERIC)) {
 					resultType = createCommonApproximateNumericType(resultType, type);
 				} else if (hasFamily(resultType, EXACT_NUMERIC)) {
 					// the result was exact so far

@@ -2363,7 +2363,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			Map<OperatorID, OperatorSubtaskState> opStates = new HashMap<>();
 
-			opStates.put(jobVertex1.getOperatorIDs().get(0), operatorSubtaskState);
+			opStates.put(jobVertex1.getOperatorIDs().get(0).getGeneratedOperatorID(), operatorSubtaskState);
 
 			TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot(opStates);
 

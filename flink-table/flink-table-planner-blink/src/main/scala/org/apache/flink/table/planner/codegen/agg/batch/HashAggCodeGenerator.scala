@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.{GenericRowData, JoinedRowData, RowData}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ProjectionCodeGenerator}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
@@ -33,7 +34,7 @@ import org.apache.calcite.tools.RelBuilder
 
 /**
   * Operator code generator for HashAggregation, Only deal with [[DeclarativeAggregateFunction]]
-  * and aggregateBuffers should be update(e.g.: setInt) in [[BinaryRow]].
+  * and aggregateBuffers should be update(e.g.: setInt) in [[BinaryRowData]].
   * (Hash Aggregate performs much better than Sort Aggregate).
   */
 class HashAggCodeGenerator(
@@ -60,7 +61,7 @@ class HashAggCodeGenerator(
     AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggregates)
   private lazy val aggBufferRowType = RowType.of(aggBufferTypes.flatten, aggBufferNames.flatten)
 
-  def genWithKeys(): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
+  def genWithKeys(): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val className = if (isFinal) "HashAggregateWithKeys" else "LocalHashAggregateWithKeys"
 
@@ -106,10 +107,10 @@ class HashAggCodeGenerator(
         outputType,
         groupKeyRowType,
         aggBufferRowType,
-        if (grouping.isEmpty) classOf[GenericRow] else classOf[JoinedRow])
+        if (grouping.isEmpty) classOf[GenericRowData] else classOf[JoinedRowData])
 
     val currentAggBufferTerm = ctx.addReusableLocalVariable(
-      classOf[BinaryRow].getName, "currentAggBuffer")
+      classOf[BinaryRowData].getName, "currentAggBuffer")
     val (initedAggBuffer, aggregate, outputExpr) = HashAggCodeGenHelper.genHashAggCodes(
       isMerge,
       isFinal,
@@ -220,7 +221,7 @@ class HashAggCodeGenerator(
     AggCodeGenHelper.generateOperator(
       ctx,
       className,
-      classOf[TableStreamOperator[BaseRow]].getCanonicalName,
+      classOf[TableStreamOperator[RowData]].getCanonicalName,
       processCode,
       endInputCode,
       inputType)

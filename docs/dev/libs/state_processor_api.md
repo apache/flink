@@ -417,7 +417,7 @@ public class SimpleBootstrapFunction extends StateBootstrapFunction<Integer> {
     }
 }
 
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnviornment();
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 DataSet<Integer> data = env.fromElements(1, 2, 3);
 
 BootstrapTransformation transformation = OperatorTransformation
@@ -446,7 +446,7 @@ class SimpleBootstrapFunction extends StateBootstrapFunction[Integer] {
     }
 }
 
-val env = ExecutionEnvironment.getExecutionEnviornment
+val env = ExecutionEnvironment.getExecutionEnvironment
 val data = env.fromElements(1, 2, 3)
 
 BootstrapTransformation transformation = OperatorTransformation

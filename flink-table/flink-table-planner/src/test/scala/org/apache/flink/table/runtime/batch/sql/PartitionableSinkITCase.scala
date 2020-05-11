@@ -27,11 +27,12 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_T
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.scala.BatchTableEnvironment
-import org.apache.flink.table.api.{DataTypes, SqlDialect, TableSchema}
+import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory.TestCollectionInputFormat
 import org.apache.flink.table.runtime.batch.sql.PartitionableSinkITCase._
 import org.apache.flink.table.sinks.{BatchTableSink, PartitionableTableSink, TableSink}
@@ -39,6 +40,7 @@ import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{Before, Rule, Test}
@@ -62,7 +64,6 @@ class PartitionableSinkITCase extends AbstractTestBase {
   def before(): Unit = {
     batchExec.setParallelism(1)
     tEnv = BatchTableEnvironment.create(batchExec)
-    tEnv.getConfig.setSqlDialect(SqlDialect.HIVE)
     registerTableSource("nonSortTable", testData.toList)
     registerTableSource("sortTable", testData1.toList)
     PartitionableSinkITCase.init()
@@ -155,7 +156,7 @@ class PartitionableSinkITCase extends AbstractTestBase {
       staticPartitions
     }
 
-    override def emitDataSet(dataSet: DataSet[Row]): Unit = {
+    override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {
       dataSet.map(new MapFunction[Row, String] {
         override def map(value: Row): String = value.toString
       }).output(new CollectionOutputFormat)

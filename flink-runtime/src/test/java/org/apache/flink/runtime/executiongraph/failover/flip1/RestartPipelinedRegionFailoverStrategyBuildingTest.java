@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingPipelinedRegion;
+import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
+import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -44,20 +47,18 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	 * </pre>
 	 */
 	@Test
-	public void testIndividualVertices() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testIndividualVertices() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v3 = topologyBuilder.newVertex();
-
-		TestFailoverTopology topology = topologyBuilder.build();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
 
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
-		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
-		FailoverRegion r3 = strategy.getFailoverRegion(v3.getId());
+		SchedulingPipelinedRegion r1 = strategy.getFailoverRegion(v1.getId());
+		SchedulingPipelinedRegion r2 = strategy.getFailoverRegion(v2.getId());
+		SchedulingPipelinedRegion r3 = strategy.getFailoverRegion(v3.getId());
 
 		assertDistinctRegions(r1, r2, r3);
 	}
@@ -74,31 +75,29 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	 * </pre>
 	 */
 	@Test
-	public void testEmbarrassinglyParallelCase() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testEmbarrassinglyParallelCase() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex va2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex va3 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb3 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb3 = topology.newExecutionVertex();
 
-		topologyBuilder
+		topology
 			.connect(va1, vb1, ResultPartitionType.PIPELINED)
 			.connect(va2, vb2, ResultPartitionType.PIPELINED)
 			.connect(va3, vb3, ResultPartitionType.PIPELINED);
 
-		TestFailoverTopology topology = topologyBuilder.build();
-
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
-		FailoverRegion ra3 = strategy.getFailoverRegion(va3.getId());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
-		FailoverRegion rb3 = strategy.getFailoverRegion(vb3.getId());
+		SchedulingPipelinedRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		SchedulingPipelinedRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		SchedulingPipelinedRegion ra3 = strategy.getFailoverRegion(va3.getId());
+		SchedulingPipelinedRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		SchedulingPipelinedRegion rb2 = strategy.getFailoverRegion(vb2.getId());
+		SchedulingPipelinedRegion rb3 = strategy.getFailoverRegion(vb3.getId());
 
 		assertSameRegion(ra1, rb1);
 		assertSameRegion(ra2, rb2);
@@ -118,17 +117,17 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	 * </pre>
 	 */
 	@Test
-	public void testOneComponentViaTwoExchanges() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testOneComponentViaTwoExchanges() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex va2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vc1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vc2 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc2 = topology.newExecutionVertex();
 
-		topologyBuilder
+		topology
 			.connect(va1, vb1, ResultPartitionType.PIPELINED)
 			.connect(va1, vb2, ResultPartitionType.PIPELINED)
 			.connect(va2, vb1, ResultPartitionType.PIPELINED)
@@ -138,16 +137,14 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 			.connect(vb2, vc1, ResultPartitionType.PIPELINED)
 			.connect(vb2, vc2, ResultPartitionType.PIPELINED);
 
-		TestFailoverTopology topology = topologyBuilder.build();
-
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
-		FailoverRegion rc1 = strategy.getFailoverRegion(vc1.getId());
-		FailoverRegion rc2 = strategy.getFailoverRegion(vc2.getId());
+		SchedulingPipelinedRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		SchedulingPipelinedRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		SchedulingPipelinedRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		SchedulingPipelinedRegion rb2 = strategy.getFailoverRegion(vb2.getId());
+		SchedulingPipelinedRegion rc1 = strategy.getFailoverRegion(vc1.getId());
+		SchedulingPipelinedRegion rc2 = strategy.getFailoverRegion(vc2.getId());
 
 		assertSameRegion(ra1, ra2, rb1, rb2, rc1, rc2);
 	}
@@ -167,18 +164,18 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	 * </pre>
 	 */
 	@Test
-	public void testOneComponentViaCascadeOfJoins() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testOneComponentViaCascadeOfJoins() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v3 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v4 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v5 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v6 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v7 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v7 = topology.newExecutionVertex();
 
-		topologyBuilder
+		topology
 			.connect(v1, v5, ResultPartitionType.PIPELINED)
 			.connect(v2, v5, ResultPartitionType.PIPELINED)
 			.connect(v3, v6, ResultPartitionType.PIPELINED)
@@ -186,17 +183,15 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 			.connect(v5, v7, ResultPartitionType.PIPELINED)
 			.connect(v6, v7, ResultPartitionType.PIPELINED);
 
-		TestFailoverTopology topology = topologyBuilder.build();
-
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
-		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
-		FailoverRegion r3 = strategy.getFailoverRegion(v3.getId());
-		FailoverRegion r4 = strategy.getFailoverRegion(v4.getId());
-		FailoverRegion r5 = strategy.getFailoverRegion(v5.getId());
-		FailoverRegion r6 = strategy.getFailoverRegion(v6.getId());
-		FailoverRegion r7 = strategy.getFailoverRegion(v7.getId());
+		SchedulingPipelinedRegion r1 = strategy.getFailoverRegion(v1.getId());
+		SchedulingPipelinedRegion r2 = strategy.getFailoverRegion(v2.getId());
+		SchedulingPipelinedRegion r3 = strategy.getFailoverRegion(v3.getId());
+		SchedulingPipelinedRegion r4 = strategy.getFailoverRegion(v4.getId());
+		SchedulingPipelinedRegion r5 = strategy.getFailoverRegion(v5.getId());
+		SchedulingPipelinedRegion r6 = strategy.getFailoverRegion(v6.getId());
+		SchedulingPipelinedRegion r7 = strategy.getFailoverRegion(v7.getId());
 
 		assertSameRegion(r1, r2, r3, r4, r5, r6, r7);
 	}
@@ -216,18 +211,18 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	 * </pre>
 	 */
 	@Test
-	public void testOneComponentInstanceFromOneSource() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testOneComponentInstanceFromOneSource() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v3 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v4 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v5 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v6 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v7 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v7 = topology.newExecutionVertex();
 
-		topologyBuilder
+		topology
 			.connect(v1, v2, ResultPartitionType.PIPELINED)
 			.connect(v1, v3, ResultPartitionType.PIPELINED)
 			.connect(v2, v4, ResultPartitionType.PIPELINED)
@@ -235,17 +230,15 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 			.connect(v3, v6, ResultPartitionType.PIPELINED)
 			.connect(v3, v7, ResultPartitionType.PIPELINED);
 
-		TestFailoverTopology topology = topologyBuilder.build();
-
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
-		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
-		FailoverRegion r3 = strategy.getFailoverRegion(v3.getId());
-		FailoverRegion r4 = strategy.getFailoverRegion(v4.getId());
-		FailoverRegion r5 = strategy.getFailoverRegion(v5.getId());
-		FailoverRegion r6 = strategy.getFailoverRegion(v6.getId());
-		FailoverRegion r7 = strategy.getFailoverRegion(v7.getId());
+		SchedulingPipelinedRegion r1 = strategy.getFailoverRegion(v1.getId());
+		SchedulingPipelinedRegion r2 = strategy.getFailoverRegion(v2.getId());
+		SchedulingPipelinedRegion r3 = strategy.getFailoverRegion(v3.getId());
+		SchedulingPipelinedRegion r4 = strategy.getFailoverRegion(v4.getId());
+		SchedulingPipelinedRegion r5 = strategy.getFailoverRegion(v5.getId());
+		SchedulingPipelinedRegion r6 = strategy.getFailoverRegion(v6.getId());
+		SchedulingPipelinedRegion r7 = strategy.getFailoverRegion(v7.getId());
 
 		assertSameRegion(r1, r2, r3, r4, r5, r6, r7);
 	}
@@ -263,17 +256,17 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	 * </pre>
 	 */
 	@Test
-	public void testTwoComponentsViaBlockingExchange() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testTwoComponentsViaBlockingExchange() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex va2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vc1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vc2 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc2 = topology.newExecutionVertex();
 
-		topologyBuilder
+		topology
 			.connect(va1, vb1, ResultPartitionType.PIPELINED)
 			.connect(va1, vb2, ResultPartitionType.PIPELINED)
 			.connect(va2, vb1, ResultPartitionType.PIPELINED)
@@ -281,16 +274,14 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 			.connect(vb1, vc1, ResultPartitionType.BLOCKING)
 			.connect(vb2, vc2, ResultPartitionType.BLOCKING);
 
-		TestFailoverTopology topology = topologyBuilder.build();
-
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
-		FailoverRegion rc1 = strategy.getFailoverRegion(vc1.getId());
-		FailoverRegion rc2 = strategy.getFailoverRegion(vc2.getId());
+		SchedulingPipelinedRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		SchedulingPipelinedRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		SchedulingPipelinedRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		SchedulingPipelinedRegion rb2 = strategy.getFailoverRegion(vb2.getId());
+		SchedulingPipelinedRegion rc1 = strategy.getFailoverRegion(vc1.getId());
+		SchedulingPipelinedRegion rc2 = strategy.getFailoverRegion(vc2.getId());
 
 		assertSameRegion(ra1, ra2, rb1, rb2);
 
@@ -310,17 +301,17 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	 * </pre>
 	 */
 	@Test
-	public void testTwoComponentsViaBlockingExchange2() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testTwoComponentsViaBlockingExchange2() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex va2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vc1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vc2 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vc2 = topology.newExecutionVertex();
 
-		topologyBuilder
+		topology
 			.connect(va1, vb1, ResultPartitionType.PIPELINED)
 			.connect(va1, vb2, ResultPartitionType.PIPELINED)
 			.connect(va2, vb1, ResultPartitionType.PIPELINED)
@@ -330,16 +321,14 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 			.connect(vb2, vc1, ResultPartitionType.BLOCKING)
 			.connect(vb2, vc2, ResultPartitionType.BLOCKING);
 
-		TestFailoverTopology topology = topologyBuilder.build();
-
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
-		FailoverRegion rc1 = strategy.getFailoverRegion(vc1.getId());
-		FailoverRegion rc2 = strategy.getFailoverRegion(vc2.getId());
+		SchedulingPipelinedRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		SchedulingPipelinedRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		SchedulingPipelinedRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		SchedulingPipelinedRegion rb2 = strategy.getFailoverRegion(vb2.getId());
+		SchedulingPipelinedRegion rc1 = strategy.getFailoverRegion(vc1.getId());
+		SchedulingPipelinedRegion rc2 = strategy.getFailoverRegion(vc2.getId());
 
 		assertSameRegion(ra1, ra2, rb1, rb2);
 
@@ -365,18 +354,18 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	 * <p>Component 1: 1, 2, 5; component 2: 3,4,6; component 3: 7
 	 */
 	@Test
-	public void testMultipleComponentsViaCascadeOfJoins() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testMultipleComponentsViaCascadeOfJoins() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v3 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v4 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v5 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v6 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v7 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v5 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v6 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v7 = topology.newExecutionVertex();
 
-		topologyBuilder
+		topology
 			.connect(v1, v5, ResultPartitionType.PIPELINED)
 			.connect(v2, v5, ResultPartitionType.PIPELINED)
 			.connect(v3, v6, ResultPartitionType.PIPELINED)
@@ -384,17 +373,15 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 			.connect(v5, v7, ResultPartitionType.BLOCKING)
 			.connect(v6, v7, ResultPartitionType.BLOCKING);
 
-		TestFailoverTopology topology = topologyBuilder.build();
-
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
-		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
-		FailoverRegion r3 = strategy.getFailoverRegion(v3.getId());
-		FailoverRegion r4 = strategy.getFailoverRegion(v4.getId());
-		FailoverRegion r5 = strategy.getFailoverRegion(v5.getId());
-		FailoverRegion r6 = strategy.getFailoverRegion(v6.getId());
-		FailoverRegion r7 = strategy.getFailoverRegion(v7.getId());
+		SchedulingPipelinedRegion r1 = strategy.getFailoverRegion(v1.getId());
+		SchedulingPipelinedRegion r2 = strategy.getFailoverRegion(v2.getId());
+		SchedulingPipelinedRegion r3 = strategy.getFailoverRegion(v3.getId());
+		SchedulingPipelinedRegion r4 = strategy.getFailoverRegion(v4.getId());
+		SchedulingPipelinedRegion r5 = strategy.getFailoverRegion(v5.getId());
+		SchedulingPipelinedRegion r6 = strategy.getFailoverRegion(v6.getId());
+		SchedulingPipelinedRegion r7 = strategy.getFailoverRegion(v7.getId());
 
 		assertSameRegion(r1, r2, r5);
 		assertSameRegion(r3, r4, r6);
@@ -416,28 +403,26 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	 * </pre>
 	 */
 	@Test
-	public void testDiamondWithMixedPipelinedAndBlockingExchanges() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testDiamondWithMixedPipelinedAndBlockingExchanges() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex v1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v3 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex v4 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex();
 
-		topologyBuilder
+		topology
 			.connect(v1, v2, ResultPartitionType.BLOCKING)
 			.connect(v1, v3, ResultPartitionType.PIPELINED)
 			.connect(v2, v4, ResultPartitionType.PIPELINED)
 			.connect(v3, v4, ResultPartitionType.PIPELINED);
 
-		TestFailoverTopology topology = topologyBuilder.build();
-
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		FailoverRegion r1 = strategy.getFailoverRegion(v1.getId());
-		FailoverRegion r2 = strategy.getFailoverRegion(v2.getId());
-		FailoverRegion r3 = strategy.getFailoverRegion(v3.getId());
-		FailoverRegion r4 = strategy.getFailoverRegion(v4.getId());
+		SchedulingPipelinedRegion r1 = strategy.getFailoverRegion(v1.getId());
+		SchedulingPipelinedRegion r2 = strategy.getFailoverRegion(v2.getId());
+		SchedulingPipelinedRegion r3 = strategy.getFailoverRegion(v3.getId());
+		SchedulingPipelinedRegion r4 = strategy.getFailoverRegion(v4.getId());
 
 		assertSameRegion(r1, r2, r3, r4);
 	}
@@ -457,29 +442,28 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	 * </pre>
 	 */
 	@Test
-	public void testBlockingAllToAllTopologyWithCoLocation() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testBlockingAllToAllTopologyWithCoLocation() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex va2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb2 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
 
-		topologyBuilder
+		topology
 			.connect(va1, vb1, ResultPartitionType.BLOCKING)
 			.connect(va1, vb2, ResultPartitionType.BLOCKING)
 			.connect(va2, vb1, ResultPartitionType.BLOCKING)
 			.connect(va2, vb2, ResultPartitionType.BLOCKING);
 
-		topologyBuilder.setContainsCoLocationConstraints(true);
-		TestFailoverTopology topology = topologyBuilder.build();
+		topology.setContainsCoLocationConstraints(true);
 
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
+		SchedulingPipelinedRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		SchedulingPipelinedRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		SchedulingPipelinedRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		SchedulingPipelinedRegion rb2 = strategy.getFailoverRegion(vb2.getId());
 
 		assertSameRegion(ra1, ra2, rb1, rb2);
 	}
@@ -495,27 +479,26 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	 * </pre>
 	 */
 	@Test
-	public void testPipelinedOneToOneTopologyWithCoLocation() throws Exception {
-		TestFailoverTopology.Builder topologyBuilder = new TestFailoverTopology.Builder();
+	public void testPipelinedOneToOneTopologyWithCoLocation() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
-		TestFailoverTopology.TestFailoverVertex va1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex va2 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb1 = topologyBuilder.newVertex();
-		TestFailoverTopology.TestFailoverVertex vb2 = topologyBuilder.newVertex();
+		TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex va2 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb1 = topology.newExecutionVertex();
+		TestingSchedulingExecutionVertex vb2 = topology.newExecutionVertex();
 
-		topologyBuilder
+		topology
 			.connect(va1, vb1, ResultPartitionType.PIPELINED)
 			.connect(va2, vb2, ResultPartitionType.PIPELINED);
 
-		topologyBuilder.setContainsCoLocationConstraints(true);
-		TestFailoverTopology topology = topologyBuilder.build();
+		topology.setContainsCoLocationConstraints(true);
 
 		RestartPipelinedRegionFailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
 
-		FailoverRegion ra1 = strategy.getFailoverRegion(va1.getId());
-		FailoverRegion ra2 = strategy.getFailoverRegion(va2.getId());
-		FailoverRegion rb1 = strategy.getFailoverRegion(vb1.getId());
-		FailoverRegion rb2 = strategy.getFailoverRegion(vb2.getId());
+		SchedulingPipelinedRegion ra1 = strategy.getFailoverRegion(va1.getId());
+		SchedulingPipelinedRegion ra2 = strategy.getFailoverRegion(va2.getId());
+		SchedulingPipelinedRegion rb1 = strategy.getFailoverRegion(vb1.getId());
+		SchedulingPipelinedRegion rb2 = strategy.getFailoverRegion(vb2.getId());
 
 		assertSameRegion(ra1, ra2, rb1, rb2);
 	}
@@ -524,7 +507,7 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 	//  utilities
 	// ------------------------------------------------------------------------
 
-	public static void assertSameRegion(FailoverRegion ...regions) {
+	public static void assertSameRegion(SchedulingPipelinedRegion ...regions) {
 		checkNotNull(regions);
 		for (int i = 0; i < regions.length; i++) {
 			for (int j = i + 1; i < regions.length; i++) {
@@ -533,7 +516,7 @@ public class RestartPipelinedRegionFailoverStrategyBuildingTest extends TestLogg
 		}
 	}
 
-	public static void assertDistinctRegions(FailoverRegion ...regions) {
+	public static void assertDistinctRegions(SchedulingPipelinedRegion ...regions) {
 		checkNotNull(regions);
 		for (int i = 0; i < regions.length; i++) {
 			for (int j = i + 1; j < regions.length; j++) {

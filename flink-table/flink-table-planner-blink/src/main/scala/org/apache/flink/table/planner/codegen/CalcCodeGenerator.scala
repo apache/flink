@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.{BaseRow, BoxedWrapperRow}
+import org.apache.flink.table.data.{BoxedWrapperRowData, RowData}
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.RelOptCluster
@@ -36,21 +36,21 @@ object CalcCodeGenerator {
   private[flink] def generateCalcOperator(
       ctx: CodeGeneratorContext,
       cluster: RelOptCluster,
-      inputTransform: Transformation[BaseRow],
+      inputTransform: Transformation[RowData],
       outputType: RowType,
       config: TableConfig,
       calcProgram: RexProgram,
       condition: Option[RexNode],
       retainHeader: Boolean = false,
-      opName: String): CodeGenOperatorFactory[BaseRow] = {
-    val inputType = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+      opName: String): CodeGenOperatorFactory[RowData] = {
+    val inputType = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType
     // filter out time attributes
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val processCode = generateProcessCode(
       ctx,
       inputType,
       outputType,
-      classOf[BoxedWrapperRow],
+      classOf[BoxedWrapperRowData],
       outputType.getFieldNames,
       config,
       calcProgram,
@@ -60,7 +60,7 @@ object CalcCodeGenerator {
       allowSplit = true)
 
     val genOperator =
-      OperatorCodeGenerator.generateOneInputStreamOperator[BaseRow, BaseRow](
+      OperatorCodeGenerator.generateOneInputStreamOperator[RowData, RowData](
         ctx,
         opName,
         processCode,
@@ -75,10 +75,10 @@ object CalcCodeGenerator {
       inputType: RowType,
       name: String,
       returnType: RowType,
-      outRowClass: Class[_ <: BaseRow],
+      outRowClass: Class[_ <: RowData],
       calcProjection: RexProgram,
       calcCondition: Option[RexNode],
-      config: TableConfig): GeneratedFunction[FlatMapFunction[BaseRow, BaseRow]] = {
+      config: TableConfig): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
     val ctx = CodeGeneratorContext(config)
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val collectorTerm = CodeGenUtils.DEFAULT_COLLECTOR_TERM
@@ -99,7 +99,7 @@ object CalcCodeGenerator {
     FunctionCodeGenerator.generateFunction(
       ctx,
       name,
-      classOf[FlatMapFunction[BaseRow, BaseRow]],
+      classOf[FlatMapFunction[RowData, RowData]],
       processCode,
       returnType,
       inputType,
@@ -111,7 +111,7 @@ object CalcCodeGenerator {
       ctx: CodeGeneratorContext,
       inputType: RowType,
       outRowType: RowType,
-      outRowClass: Class[_ <: BaseRow],
+      outRowClass: Class[_ <: RowData],
       resultFieldNames: Seq[String],
       config: TableConfig,
       calcProgram: RexProgram,
@@ -160,7 +160,7 @@ object CalcCodeGenerator {
       val projectionExpressionCode = projectionExpression.code
 
       val header = if (retainHeader) {
-        s"${projectionExpression.resultTerm}.setHeader($inputTerm.getHeader());"
+        s"${projectionExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
       } else {
         ""
       }

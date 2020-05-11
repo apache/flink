@@ -27,7 +27,7 @@ under the License.
 
 In this section you will learn about the APIs that Flink provides for writing
 stateful programs. Please take a look at [Stateful Stream
-Processing]({{site.baseurl}}{% link concepts/stateful-stream-processing.md %})
+Processing]({% link concepts/stateful-stream-processing.md %})
 to learn about the concepts behind stateful stream processing.
 
 {% top %}

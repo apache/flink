@@ -311,12 +311,14 @@ public class DataStream<T> {
 
 	/**
 	 * Partitions the operator state of a {@link DataStream} by the given key positions.
+	 * @deprecated Use {@link DataStream#keyBy(KeySelector)}.
 	 *
 	 * @param fields
 	 *            The position of the fields on which the {@link DataStream}
 	 *            will be grouped.
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
+	@Deprecated
 	public KeyedStream<T, Tuple> keyBy(int... fields) {
 		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
 			return keyBy(KeySelectorUtil.getSelectorForArray(fields, getType()));
@@ -330,12 +332,14 @@ public class DataStream<T> {
 	 * A field expression is either the name of a public field or a getter method with parentheses
 	 * of the {@link DataStream}'s underlying type. A dot can be used to drill
 	 * down into objects, as in {@code "field1.getInnerField2()" }.
+	 * @deprecated Use {@link DataStream#keyBy(KeySelector)}.
 	 *
 	 * @param fields
 	 *            One or more field expressions on which the state of the {@link DataStream} operators will be
 	 *            partitioned.
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 **/
+	@Deprecated
 	public KeyedStream<T, Tuple> keyBy(String... fields) {
 		return keyBy(new Keys.ExpressionKeys<>(fields, getType()));
 	}
@@ -350,11 +354,13 @@ public class DataStream<T> {
 	 * This method takes the key position to partition on, and a partitioner that accepts the key type.
 	 *
 	 * <p>Note: This method works only on single field keys.
+	 * @deprecated use {@link DataStream#partitionCustom(Partitioner, KeySelector)}.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
 	 * @param field The field index on which the DataStream is partitioned.
 	 * @return The partitioned DataStream.
 	 */
+	@Deprecated
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, int field) {
 		Keys.ExpressionKeys<T> outExpressionKeys = new Keys.ExpressionKeys<>(new int[]{field}, getType());
 		return partitionCustom(partitioner, outExpressionKeys);
@@ -365,11 +371,13 @@ public class DataStream<T> {
 	 * This method takes the key expression to partition on, and a partitioner that accepts the key type.
 	 *
 	 * <p>Note: This method works only on single field keys.
+	 * @deprecated use {@link DataStream#partitionCustom(Partitioner, KeySelector)}.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
 	 * @param field The expression for the field on which the DataStream is partitioned.
 	 * @return The partitioned DataStream.
 	 */
+	@Deprecated
 	public <K> DataStream<T> partitionCustom(Partitioner<K> partitioner, String field) {
 		Keys.ExpressionKeys<T> outExpressionKeys = new Keys.ExpressionKeys<>(new String[]{field}, getType());
 		return partitionCustom(partitioner, outExpressionKeys);

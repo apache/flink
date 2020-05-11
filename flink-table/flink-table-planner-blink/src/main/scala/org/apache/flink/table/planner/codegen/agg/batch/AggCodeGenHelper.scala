@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.codegen.agg.batch
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
 import org.apache.flink.table.expressions.{Expression, _}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
@@ -118,7 +118,7 @@ object AggCodeGenHelper {
       lastKeyTerm: String): String = {
     s"""
        |$currentKeyTerm.getSizeInBytes() != $lastKeyTerm.getSizeInBytes() ||
-       |  !(org.apache.flink.table.dataformat.util.BinaryRowUtil.byteArrayEquals(
+       |  !(org.apache.flink.table.data.binary.BinaryRowDataUtil.byteArrayEquals(
        |     $currentKeyTerm.getSegments()[0].getHeapMemory(),
        |     $lastKeyTerm.getSegments()[0].getHeapMemory(),
        |     $currentKeyTerm.getSizeInBytes()))
@@ -366,7 +366,8 @@ object AggCodeGenHelper {
               aggBufVar.resultType, new ExecutionConfig)
             val term = ctx.addReusableObject(
               serializer, "serializer", serializer.getClass.getCanonicalName)
-            s"$term.copy(${initExpr.resultTerm})"
+            val typeTerm = boxedTypeTermForType(aggBufVar.resultType)
+            s"($typeTerm) $term.copy(${initExpr.resultTerm})"
           case _ => initExpr.resultTerm
         }
         s"""
@@ -452,11 +453,11 @@ object AggCodeGenHelper {
         outputType)
       val valueRowType = RowType.of(getValueExprs.map(_.resultType): _*)
       resultCodegen.generateResultExpression(
-        getValueExprs, valueRowType, classOf[GenericRow], valueRow)
+        getValueExprs, valueRowType, classOf[GenericRowData], valueRow)
     } else {
       val valueRowType = RowType.of(aggBufferExprs.map(_.resultType): _*)
       resultCodegen.generateResultExpression(
-        aggBufferExprs, valueRowType, classOf[GenericRow], valueRow)
+        aggBufferExprs, valueRowType, classOf[GenericRowData], valueRow)
     }
   }
 
@@ -663,7 +664,7 @@ object AggCodeGenHelper {
       operatorBaseClass: String,
       processCode: String,
       endInputCode: String,
-      inputType: RowType): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
+      inputType: RowType): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
     ctx.addReusableMember("private boolean hasInput = false;")
     ctx.addReusableMember(s"$STREAM_RECORD element = new $STREAM_RECORD((Object)null);")
     OperatorCodeGenerator.generateOneInputStreamOperator(

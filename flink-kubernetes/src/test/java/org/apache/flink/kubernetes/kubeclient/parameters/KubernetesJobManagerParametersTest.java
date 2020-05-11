@@ -20,12 +20,13 @@ package org.apache.flink.kubernetes.kubeclient.parameters;
 
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
+import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.Test;
@@ -34,19 +35,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
  * General tests for the {@link KubernetesJobManagerParameters}.
  */
-public class KubernetesJobManagerParametersTest {
+public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 
-	private static final int JOB_MANAGER_MEMORY = 768;
 	private static final double JOB_MANAGER_CPU = 2.0;
-
-	private final Configuration flinkConfig = new Configuration();
 
 	private final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 		.setMasterMemoryMB(JOB_MANAGER_MEMORY)
@@ -69,6 +70,24 @@ public class KubernetesJobManagerParametersTest {
 		final Map<String, String> resultEnvironments = kubernetesJobManagerParameters.getEnvironments();
 
 		assertEquals(expectedEnvironments, resultEnvironments);
+	}
+
+	@Test
+	public void testGetEmptyAnnotations() {
+		assertTrue(kubernetesJobManagerParameters.getAnnotations().isEmpty());
+	}
+
+	@Test
+	public void testGetAnnotations() {
+		final Map<String, String> expectedAnnotations = new HashMap<>();
+		expectedAnnotations.put("a1", "v1");
+		expectedAnnotations.put("a2", "v2");
+
+		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, expectedAnnotations);
+
+		final Map<String, String> resultAnnotations = kubernetesJobManagerParameters.getAnnotations();
+
+		assertThat(resultAnnotations, is(equalTo(expectedAnnotations)));
 	}
 
 	@Test
@@ -149,5 +168,19 @@ public class KubernetesJobManagerParametersTest {
 			KubernetesConfigOptions.ServiceExposedType.NodePort);
 		assertEquals(KubernetesConfigOptions.ServiceExposedType.NodePort,
 			kubernetesJobManagerParameters.getRestServiceExposedType());
+	}
+
+	@Test
+	public void testPrioritizeBuiltInLabels() {
+		final Map<String, String> userLabels = new HashMap<>();
+		userLabels.put(Constants.LABEL_TYPE_KEY, "user-label-type");
+		userLabels.put(Constants.LABEL_APP_KEY, "user-label-app");
+		userLabels.put(Constants.LABEL_COMPONENT_KEY, "user-label-component-jm");
+
+		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_LABELS, userLabels);
+
+		final Map<String, String> expectedLabels = new HashMap<>(getCommonLabels());
+		expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
+		assertThat(kubernetesJobManagerParameters.getLabels(), is(equalTo(expectedLabels)));
 	}
 }

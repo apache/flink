@@ -19,14 +19,19 @@
 package org.apache.flink.dist;
 
 import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.runtime.util.BashJavaUtils;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.util.bash.BashJavaUtils;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for BashJavaUtils.
@@ -36,14 +41,82 @@ import static org.junit.Assert.assertEquals;
 public class BashJavaUtilsITCase extends JavaBashTestBase {
 
 	private static final String RUN_BASH_JAVA_UTILS_CMD_SCRIPT = "src/test/bin/runBashJavaUtilsCmd.sh";
+	private static final String RUN_EXTRACT_LOGGING_OUTPUTS_SCRIPT = "src/test/bin/runExtractLoggingOutputs.sh";
 
 	@Test
 	public void testGetTmResourceParamsConfigs() throws Exception {
-		String[] commands = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT, BashJavaUtils.Command.GET_TM_RESOURCE_PARAMS.toString()};
+		int expectedResultLines = 2;
+		String[] commands = {RUN_BASH_JAVA_UTILS_CMD_SCRIPT, BashJavaUtils.Command.GET_TM_RESOURCE_PARAMS.toString(), String.valueOf(expectedResultLines)};
 		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-		assertEquals(2, lines.size());
-		ConfigurationUtils.parseTmResourceJvmParams(lines.get(lines.size() - 2));
-		ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(lines.size() - 1));
+		assertThat(lines.size(), is(expectedResultLines));
+		ConfigurationUtils.parseJvmArgString(lines.get(0));
+		ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
+	}
+
+	@Test
+	public void testGetTmResourceParamsConfigsWithDynamicProperties() throws Exception {
+		int expectedResultLines = 2;
+		double cpuCores = 39.0;
+		String[] commands = {
+			RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+			BashJavaUtils.Command.GET_TM_RESOURCE_PARAMS.toString(),
+			String.valueOf(expectedResultLines),
+			"-D" + TaskManagerOptions.CPU_CORES.key() + "=" + cpuCores};
+		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+		assertThat(lines.size(), is(expectedResultLines));
+		Map<String, String> configs = ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
+		assertThat(Double.valueOf(configs.get(TaskManagerOptions.CPU_CORES.key())), is(cpuCores));
+	}
+
+	@Test
+	public void testGetJmResourceParams() throws Exception {
+		int expectedResultLines = 1;
+		String[] commands = {
+			RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+			BashJavaUtils.Command.GET_JM_RESOURCE_PARAMS.toString(),
+			String.valueOf(expectedResultLines)};
+		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+		assertThat(lines.size(), is(expectedResultLines));
+		ConfigurationUtils.parseJvmArgString(lines.get(0));
+	}
+
+	@Test
+	public void testGetJmResourceParamsWithDynamicProperties() throws Exception {
+		int expectedResultLines = 1;
+		long metaspace = 123456789L;
+		String[] commands = {
+			RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+			BashJavaUtils.Command.GET_JM_RESOURCE_PARAMS.toString(),
+			String.valueOf(expectedResultLines),
+			"-D" + JobManagerOptions.JVM_METASPACE.key() + "=" + metaspace + "b"};
+		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+		assertThat(lines.size(), is(expectedResultLines));
+		Map<String, String> params = ConfigurationUtils.parseJvmArgString(lines.get(0));
+		assertThat(Long.valueOf(params.get("-XX:MaxMetaspaceSize=")), is(metaspace));
+	}
+
+	@Test
+	public void testExtractLoggingOutputs() throws Exception {
+		StringBuilder input = new StringBuilder();
+		List<String> expectedOutput = new ArrayList<>();
+
+		for (int i = 0; i < 5; ++i) {
+			String line = "BashJavaUtils output line " + i + " `~!@#$%^&*()-_=+;:,.'\"\\\t/?";
+			if (i % 2 == 0) {
+				expectedOutput.add(line);
+			} else {
+				line = BashJavaUtils.EXECUTION_PREFIX + line;
+			}
+			input.append(line + "\n");
+		}
+
+		String[] commands = {RUN_EXTRACT_LOGGING_OUTPUTS_SCRIPT, input.toString()};
+		List<String> actualOutput = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+		assertThat(actualOutput, is(expectedOutput));
 	}
 }

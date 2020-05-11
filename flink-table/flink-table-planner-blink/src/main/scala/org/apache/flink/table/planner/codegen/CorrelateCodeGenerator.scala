@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
-import org.apache.flink.table.dataformat.{BaseRow, GenericRow, JoinedRow}
+import org.apache.flink.table.data.{GenericRowData, JoinedRowData, RowData}
+import org.apache.flink.table.functions.FunctionKind
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
@@ -33,9 +31,13 @@ import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.runtime.util.StreamRecordCollector
 import org.apache.flink.table.types.logical.RowType
+
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rex._
 
 import scala.collection.JavaConversions._
 
@@ -44,7 +46,7 @@ object CorrelateCodeGenerator {
   private[flink] def generateCorrelateTransformation(
       config: TableConfig,
       operatorCtx: CodeGeneratorContext,
-      inputTransformation: Transformation[BaseRow],
+      inputTransformation: Transformation[RowData],
       inputRelType: RelDataType,
       projectProgram: Option[RexProgram],
       scan: FlinkLogicalTableFunctionScan,
@@ -56,7 +58,7 @@ object CorrelateCodeGenerator {
       expression: (RexNode, List[String], Option[List[RexNode]]) => String,
       opName: String,
       transformationName: String)
-    : Transformation[BaseRow] = {
+    : Transformation[RowData] = {
 
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
@@ -65,9 +67,11 @@ object CorrelateCodeGenerator {
 
     // according to the SQL standard, every scalar function should also be a table function
     // but we don't allow that for now
-    if (!rexCall.getOperator.isInstanceOf[BridgingSqlFunction] &&
-        !rexCall.getOperator.isInstanceOf[TableSqlFunction]) {
-      throw new ValidationException("Currently, only table functions can emit rows.")
+    rexCall.getOperator match {
+      case func: BridgingSqlFunction if func.getDefinition.getKind == FunctionKind.TABLE => // ok
+      case _: TableSqlFunction => // ok
+      case _ =>
+        throw new ValidationException("Currently, only table functions can emit rows.")
     }
 
     val swallowInputOnly = if (projectProgram.isDefined) {
@@ -101,14 +105,14 @@ object CorrelateCodeGenerator {
       joinType,
       rexCall,
       opName,
-      classOf[ProcessFunction[BaseRow, BaseRow]],
+      classOf[ProcessFunction[RowData, RowData]],
       retainHeader)
 
     ExecNode.createOneInputTransformation(
       inputTransformation,
       transformationName,
       substituteStreamOperator,
-      BaseRowTypeInfo.of(returnType),
+      RowDataTypeInfo.of(returnType),
       parallelism)
   }
 
@@ -128,7 +132,7 @@ object CorrelateCodeGenerator {
       ruleDescription: String,
       functionClass: Class[T],
       retainHeader: Boolean = true)
-    : CodeGenOperatorFactory[BaseRow] = {
+    : CodeGenOperatorFactory[RowData] = {
 
     val functionResultType = FlinkTypeFactory.toLogicalRowType(rexCall.getType)
 
@@ -173,10 +177,10 @@ object CorrelateCodeGenerator {
       if (swallowInputOnly) {
         // and the returned row table function is empty, collect a null
         val nullRowTerm = CodeGenUtils.newName("nullRow")
-        ctx.addReusableOutputRecord(functionResultType, classOf[GenericRow], nullRowTerm)
+        ctx.addReusableOutputRecord(functionResultType, classOf[GenericRowData], nullRowTerm)
         ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
         val header = if (retainHeader) {
-          s"$nullRowTerm.setHeader(${exprGenerator.input1Term}.getHeader());"
+          s"$nullRowTerm.setRowKind(${exprGenerator.input1Term}.getRowKind());"
         } else {
           ""
         }
@@ -191,10 +195,10 @@ object CorrelateCodeGenerator {
       } else if (projectProgram.isDefined) {
         // output partial fields of left and right
         val outputTerm = CodeGenUtils.newName("projectOut")
-        ctx.addReusableOutputRecord(returnType, classOf[GenericRow], outputTerm)
+        ctx.addReusableOutputRecord(returnType, classOf[GenericRowData], outputTerm)
 
         val header = if (retainHeader) {
-          s"$outputTerm.setHeader(${CodeGenUtils.DEFAULT_INPUT1_TERM}.getHeader());"
+          s"$outputTerm.setRowKind(${CodeGenUtils.DEFAULT_INPUT1_TERM}.getRowKind());"
         } else {
           ""
         }
@@ -224,10 +228,10 @@ object CorrelateCodeGenerator {
         // fill all fields of row with null
         val joinedRowTerm = CodeGenUtils.newName("joinedRow")
         val nullRowTerm = CodeGenUtils.newName("nullRow")
-        ctx.addReusableOutputRecord(returnType, classOf[JoinedRow], joinedRowTerm)
+        ctx.addReusableOutputRecord(returnType, classOf[JoinedRowData], joinedRowTerm)
         ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
         val header = if (retainHeader) {
-          s"$joinedRowTerm.setHeader(${exprGenerator.input1Term}.getHeader());"
+          s"$joinedRowTerm.setRowKind(${exprGenerator.input1Term}.getRowKind());"
         } else {
           ""
         }
@@ -246,7 +250,7 @@ object CorrelateCodeGenerator {
       throw new TableException(s"Unsupported JoinRelType: $joinType for correlate join.")
     }
 
-    val genOperator = OperatorCodeGenerator.generateOneInputStreamOperator[BaseRow, BaseRow](
+    val genOperator = OperatorCodeGenerator.generateOneInputStreamOperator[RowData, RowData](
       ctx, ruleDescription, body, inputType)
     new CodeGenOperatorFactory(genOperator)
   }
@@ -276,7 +280,7 @@ object CorrelateCodeGenerator {
     val projection = program.getProjectList.map(program.expandLocalRef)
     val projectionExprs = projection.map(projectExprGenerator.generateExpression)
     projectExprGenerator.generateResultExpression(
-      projectionExprs, returnType, classOf[GenericRow], outputTerm)
+      projectionExprs, returnType, classOf[GenericRowData], outputTerm)
   }
 
   /**
@@ -306,7 +310,7 @@ object CorrelateCodeGenerator {
       if (swallowInputOnly) {
         // output right only
         val header = if (retainHeader) {
-          s"$udtfInputTerm.setHeader($inputTerm.getHeader());"
+          s"$udtfInputTerm.setRowKind($inputTerm.getRowKind());"
         } else {
           ""
         }
@@ -316,10 +320,10 @@ object CorrelateCodeGenerator {
         """.stripMargin
       } else {
         val outputTerm = CodeGenUtils.newName("projectOut")
-        collectorCtx.addReusableOutputRecord(resultType, classOf[GenericRow], outputTerm)
+        collectorCtx.addReusableOutputRecord(resultType, classOf[GenericRowData], outputTerm)
 
         val header = if (retainHeader) {
-          s"$outputTerm.setHeader($inputTerm.getHeader());"
+          s"$outputTerm.setRowKind($inputTerm.getRowKind());"
         } else {
           ""
         }
@@ -342,10 +346,10 @@ object CorrelateCodeGenerator {
     } else {
       // completely output left input + right
       val joinedRowTerm = CodeGenUtils.newName("joinedRow")
-      collectorCtx.addReusableOutputRecord(resultType, classOf[JoinedRow], joinedRowTerm)
+      collectorCtx.addReusableOutputRecord(resultType, classOf[JoinedRowData], joinedRowTerm)
 
       val header = if (retainHeader) {
-        s"$joinedRowTerm.setHeader($inputTerm.getHeader());"
+        s"$joinedRowTerm.setRowKind($inputTerm.getRowKind());"
       } else {
         ""
       }

@@ -20,14 +20,14 @@ package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.{EnvironmentSettings, Types}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor
-import org.apache.flink.table.runtime.util.StreamRecordUtils.{binaryrow, retractBinaryRow}
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
+import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import org.apache.flink.types.Row
+import org.apache.flink.types.RowKind._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
@@ -43,7 +43,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
   @Before
   override def before(): Unit = {
     super.before()
-    val setting = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
     val config = new TestTableConfig
     this.tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
   }
@@ -64,9 +64,9 @@ class GroupAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    val queryConfig = new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
-    val testHarness = createHarnessTester(t1.toRetractStream[Row](queryConfig), "GroupAggregate")
-    val assertor = new BaseRowHarnessAssertor(Array( Types.STRING, Types.LONG))
+    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
+    val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
+    val assertor = new RowDataHarnessAssertor(Array( Types.STRING, Types.LONG))
 
     testHarness.open()
 
@@ -75,57 +75,57 @@ class GroupAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     // register cleanup timer with 3001
     testHarness.setProcessingTime(1)
 
-    // accumulate
-    testHarness.processElement(new StreamRecord(binaryrow("aaa", 1L: JLong), 1))
-    expectedOutput.add(new StreamRecord(binaryrow("aaa", 1L: JLong), 1))
+    // insertion
+    testHarness.processElement(binaryRecord(INSERT,"aaa", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "aaa", 1L: JLong))
 
-    // accumulate
-    testHarness.processElement(new StreamRecord(binaryrow("bbb", 1L: JLong), 2))
-    expectedOutput.add(new StreamRecord(binaryrow("bbb", 1L: JLong), 2))
+    // insertion
+    testHarness.processElement(binaryRecord(INSERT, "bbb", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "bbb", 1L: JLong))
 
-    // retract for insertion
-    testHarness.processElement(new StreamRecord(binaryrow("aaa", 2L: JLong), 3))
-    expectedOutput.add(new StreamRecord(retractBinaryRow( "aaa", 1L: JLong), 3))
-    expectedOutput.add(new StreamRecord(binaryrow("aaa", 3L: JLong), 3))
+    // update for insertion
+    testHarness.processElement(binaryRecord(INSERT, "aaa", 2L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 1L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 3L: JLong))
 
     // retract for deletion
-    testHarness.processElement(new StreamRecord(retractBinaryRow("aaa", 2L: JLong), 3))
-    expectedOutput.add(new StreamRecord(retractBinaryRow("aaa", 3L: JLong), 3))
-    expectedOutput.add(new StreamRecord(binaryrow("aaa", 1L: JLong), 3))
+    testHarness.processElement(binaryRecord(DELETE, "aaa", 2L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 1L: JLong))
 
-    // accumulate
-    testHarness.processElement(new StreamRecord(binaryrow("ccc", 3L: JLong), 4))
-    expectedOutput.add(new StreamRecord(binaryrow("ccc", 3L: JLong), 4))
+    // insertion
+    testHarness.processElement(binaryRecord(INSERT, "ccc", 3L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "ccc", 3L: JLong))
 
     // trigger cleanup timer and register cleanup timer with 6002
     testHarness.setProcessingTime(3002)
 
     // retract after clean up
-    testHarness.processElement(new StreamRecord(retractBinaryRow("ccc", 3L: JLong), 4))
+    testHarness.processElement(binaryRecord(UPDATE_BEFORE, "ccc", 3L: JLong))
     // not output
 
     // accumulate
-    testHarness.processElement(new StreamRecord(binaryrow("aaa", 4L: JLong), 5))
-    expectedOutput.add(new StreamRecord(binaryrow("aaa", 4L: JLong), 5))
-    testHarness.processElement(new StreamRecord(binaryrow("bbb", 2L: JLong), 6))
-    expectedOutput.add(new StreamRecord(binaryrow("bbb", 2L: JLong), 6))
+    testHarness.processElement(binaryRecord(INSERT, "aaa", 4L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "aaa", 4L: JLong))
+    testHarness.processElement(binaryRecord(INSERT, "bbb", 2L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "bbb", 2L: JLong))
 
     // retract
-    testHarness.processElement(new StreamRecord(binaryrow("aaa", 5L: JLong), 7))
-    expectedOutput.add(new StreamRecord(retractBinaryRow("aaa", 4L: JLong), 7))
-    expectedOutput.add(new StreamRecord(binaryrow("aaa", 9L: JLong), 7))
+    testHarness.processElement(binaryRecord(INSERT, "aaa", 5L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 4L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 9L: JLong))
 
     // accumulate
-    testHarness.processElement(new StreamRecord(binaryrow("eee", 6L: JLong), 8))
-    expectedOutput.add(new StreamRecord(binaryrow("eee", 6L: JLong), 8))
+    testHarness.processElement(binaryRecord(INSERT, "eee", 6L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "eee", 6L: JLong))
 
     // retract
-    testHarness.processElement(new StreamRecord(binaryrow("aaa", 7L: JLong), 9))
-    expectedOutput.add(new StreamRecord(retractBinaryRow("aaa", 9L: JLong), 9))
-    expectedOutput.add(new StreamRecord(binaryrow("aaa", 16L: JLong), 9))
-    testHarness.processElement(new StreamRecord(binaryrow("bbb", 3L: JLong), 10))
-    expectedOutput.add(new StreamRecord(retractBinaryRow("bbb", 2L: JLong), 10))
-    expectedOutput.add(new StreamRecord(binaryrow("bbb", 5L: JLong), 10))
+    testHarness.processElement(binaryRecord(INSERT,"aaa", 7L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 9L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
+    testHarness.processElement(binaryRecord(INSERT, "bbb", 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "bbb", 2L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "bbb", 5L: JLong))
 
     val result = testHarness.getOutput
 

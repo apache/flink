@@ -43,8 +43,15 @@ public class S3TestCredentials {
 	 * Checks whether S3 test credentials are available in the environment variables
 	 * of this JVM.
 	 */
-	public static boolean credentialsAvailable() {
-		return S3_TEST_BUCKET != null && S3_TEST_ACCESS_KEY != null && S3_TEST_SECRET_KEY != null;
+	private static boolean credentialsAvailable() {
+		return isNotEmpty(S3_TEST_BUCKET) && isNotEmpty(S3_TEST_ACCESS_KEY) && isNotEmpty(S3_TEST_SECRET_KEY);
+	}
+
+	/**
+	 * Checks if a String is not null and not empty.
+	 */
+	private static boolean isNotEmpty(@Nullable String str) {
+		return str != null && !str.isEmpty();
 	}
 
 	/**

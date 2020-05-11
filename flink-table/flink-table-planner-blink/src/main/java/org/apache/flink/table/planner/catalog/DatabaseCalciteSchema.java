@@ -75,9 +75,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 				return new CatalogSchemaTable(identifier,
 					table,
 					statistic,
-					catalogManager.getCatalog(catalogName)
-						.flatMap(Catalog::getTableFactory)
-						.orElse(null),
+					catalogManager.getCatalog(catalogName).orElseThrow(IllegalStateException::new),
 					isStreamingMode,
 					result.isTemporary());
 			})

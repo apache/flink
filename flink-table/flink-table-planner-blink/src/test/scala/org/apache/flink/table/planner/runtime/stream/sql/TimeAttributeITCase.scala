@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.types.Row
@@ -32,29 +32,26 @@ import java.sql.Timestamp
 import java.time.LocalDateTime
 import java.util.TimeZone
 
-import scala.collection.JavaConverters._
-
 /**
   * Integration tests for time attributes defined in DDL.
   */
 class TimeAttributeITCase extends StreamingTestBase {
 
   val data = List(
-    row("1970-01-01 00:00:00.001", localDateTime(1L), 1, 1d),
-    row("1970-01-01 00:00:00.002", localDateTime(2L), 1, 2d),
-    row("1970-01-01 00:00:00.003", localDateTime(3L), 1, 2d),
-    row("1970-01-01 00:00:00.004", localDateTime(4L), 1, 5d),
-    row("1970-01-01 00:00:00.007", localDateTime(7L), 1, 3d),
-    row("1970-01-01 00:00:00.008", localDateTime(8L), 1, 3d),
-    row("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d))
+    rowOf("1970-01-01 00:00:00.001", localDateTime(1L), 1, 1d),
+    rowOf("1970-01-01 00:00:00.002", localDateTime(2L), 1, 2d),
+    rowOf("1970-01-01 00:00:00.003", localDateTime(3L), 1, 2d),
+    rowOf("1970-01-01 00:00:00.004", localDateTime(4L), 1, 5d),
+    rowOf("1970-01-01 00:00:00.007", localDateTime(7L), 1, 3d),
+    rowOf("1970-01-01 00:00:00.008", localDateTime(8L), 1, 3d),
+    rowOf("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d))
 
-  TestCollectionTableFactory.reset()
-  TestCollectionTableFactory.initData(data.asJava)
+  val dataId: String = TestValuesTableFactory.registerData(data)
 
   @Test
   def testWindowAggregateOnWatermark(): Unit = {
     val ddl =
-      """
+      s"""
         |CREATE TABLE src (
         |  log_ts STRING,
         |  ts TIMESTAMP(3),
@@ -62,8 +59,8 @@ class TimeAttributeITCase extends StreamingTestBase {
         |  b DOUBLE,
         |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
         |) WITH (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
+        |  'connector' = 'values',
+        |  'data-id' = '$dataId'
         |)
       """.stripMargin
     val query =
@@ -91,7 +88,7 @@ class TimeAttributeITCase extends StreamingTestBase {
     JavaFunc5.closeCalled = false
     tEnv.registerFunction("myFunc", new JavaFunc5)
     val ddl =
-      """
+      s"""
         |CREATE TABLE src (
         |  log_ts STRING,
         |  ts TIMESTAMP(3),
@@ -99,8 +96,8 @@ class TimeAttributeITCase extends StreamingTestBase {
         |  b DOUBLE,
         |  WATERMARK FOR ts AS myFunc(ts, a)
         |) WITH (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
+        |  'connector' = 'values',
+        |  'data-id' = '$dataId'
         |)
       """.stripMargin
     val query =
@@ -127,7 +124,7 @@ class TimeAttributeITCase extends StreamingTestBase {
   @Test
   def testWindowAggregateOnComputedRowtime(): Unit = {
     val ddl =
-      """
+      s"""
         |CREATE TABLE src (
         |  log_ts STRING,
         |  ts TIMESTAMP(3),
@@ -136,8 +133,8 @@ class TimeAttributeITCase extends StreamingTestBase {
         |  rowtime AS CAST(log_ts AS TIMESTAMP(3)),
         |  WATERMARK FOR rowtime AS rowtime - INTERVAL '0.001' SECOND
         |) WITH (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
+        |  'connector' = 'values',
+        |  'data-id' = '$dataId'
         |)
       """.stripMargin
     val query =
@@ -162,7 +159,7 @@ class TimeAttributeITCase extends StreamingTestBase {
   @Test
   def testWindowAggregateOnNestedRowtime(): Unit = {
     val ddl =
-      """
+      s"""
         |CREATE TABLE src (
         |  col ROW<
         |    ts TIMESTAMP(3),
@@ -170,8 +167,8 @@ class TimeAttributeITCase extends StreamingTestBase {
         |    b DOUBLE>,
         |  WATERMARK FOR col.ts AS col.ts - INTERVAL '0.001' SECOND
         |) WITH (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
+        |  'connector' = 'values',
+        |  'data-id' = '$dataId'
         |)
       """.stripMargin
     val query =
@@ -191,14 +188,6 @@ class TimeAttributeITCase extends StreamingTestBase {
 
   private def localDateTime(ts: Long): LocalDateTime = {
     new Timestamp(ts - TimeZone.getDefault.getOffset(ts)).toLocalDateTime
-  }
-
-  private def row(args: Any*): Row = {
-    val row = new Row(args.length)
-    0 until args.length foreach {
-      i => row.setField(i, args(i))
-    }
-    row
   }
 
 }

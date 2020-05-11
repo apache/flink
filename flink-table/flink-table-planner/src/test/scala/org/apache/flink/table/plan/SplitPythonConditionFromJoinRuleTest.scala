@@ -35,8 +35,8 @@ class SplitPythonConditionFromJoinRuleTest extends TableTestBase {
     util.tableEnv.registerFunction("pyFunc", new PythonScalarFunction("pyFunc"))
 
     val result = left
-      .join(right, "a === d && pyFunc(a, d) === b")
-      .select("a, b, d")
+      .join(right, $"a" === $"d" && call("pyFunc", $"a", $"d") === $"b")
+      .select($"a", $"b", $"d")
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -74,10 +74,10 @@ class SplitPythonConditionFromJoinRuleTest extends TableTestBase {
     util.tableEnv.registerFunction("pyFunc", new PythonScalarFunction("pyFunc"))
 
     val result = left
-      .join(right, "a === d && pyFunc(a, d) = a + b")
-      .select("a, b, d")
-      .filter("pyFunc(a, b) = b * d")
-      .select("a + 1, b, d")
+      .join(right, $"a" === $"d" && call("pyFunc", $"a", $"d") === ($"a" + $"b"))
+      .select($"a", $"b", $"d")
+      .filter(call("pyFunc", $"a", $"b") === ($"b" * $"d"))
+      .select($"a" + 1, $"b", $"d")
 
     val expected = unaryNode(
       "DataStreamCalc",

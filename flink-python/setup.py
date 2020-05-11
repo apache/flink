@@ -19,10 +19,12 @@ from __future__ import print_function
 
 import io
 import os
+import platform
 import sys
+from distutils.command.build_ext import build_ext
 from shutil import copytree, copy, rmtree
 
-from setuptools import setup
+from setuptools import setup, Extension
 
 if sys.version_info < (3, 5):
     print("Python versions prior to 3.5 are not supported for PyFlink.",
@@ -37,6 +39,38 @@ def remove_if_exists(file_path):
         else:
             assert os.path.isdir(file_path)
             rmtree(file_path)
+
+
+# Currently Cython optimizing doesn't support Windows.
+if platform.system() == 'Windows':
+    extensions = ([])
+else:
+    try:
+        from Cython.Build import cythonize
+        extensions = cythonize([
+            Extension(
+                name="pyflink.fn_execution.fast_coder_impl",
+                sources=["pyflink/fn_execution/fast_coder_impl.pyx"],
+                include_dirs=["pyflink/fn_execution/"]),
+            Extension(
+                name="pyflink.fn_execution.fast_operations",
+                sources=["pyflink/fn_execution/fast_operations.pyx"],
+                include_dirs=["pyflink/fn_execution/"])
+        ])
+    except ImportError:
+        if os.path.exists("pyflink/fn_execution/fast_coder_impl.c"):
+            extensions = ([
+                Extension(
+                    name="pyflink.fn_execution.fast_coder_impl",
+                    sources=["pyflink/fn_execution/fast_coder_impl.c"],
+                    include_dirs=["pyflink/fn_execution/"]),
+                Extension(
+                    name="pyflink.fn_execution.fast_operations",
+                    sources=["pyflink/fn_execution/fast_operations.c"],
+                    include_dirs=["pyflink/fn_execution/"])
+            ])
+        else:
+            extensions = ([])
 
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
@@ -65,8 +99,8 @@ LICENSES_TEMP_PATH = os.path.join(TEMP_PATH, "licenses")
 PLUGINS_TEMP_PATH = os.path.join(TEMP_PATH, "plugins")
 SCRIPTS_TEMP_PATH = os.path.join(TEMP_PATH, "bin")
 
-LICENSE_FILE_TEMP_PATH = os.path.join("pyflink", "LICENSE")
-NOTICE_FILE_TEMP_PATH = os.path.join("pyflink", "NOTICE")
+LICENSE_FILE_TEMP_PATH = os.path.join(this_directory, "LICENSE")
+NOTICE_FILE_TEMP_PATH = os.path.join(this_directory, "NOTICE")
 README_FILE_TEMP_PATH = os.path.join("pyflink", "README.txt")
 
 in_flink_source = os.path.isfile("../flink-java/src/main/java/org/apache/flink/api/java/"
@@ -175,6 +209,12 @@ run sdist.
                 'pyflink.dataset',
                 'pyflink.common',
                 'pyflink.fn_execution',
+                'pyflink.metrics',
+                'pyflink.ml',
+                'pyflink.ml.api',
+                'pyflink.ml.api.param',
+                'pyflink.ml.lib',
+                'pyflink.ml.lib.param',
                 'pyflink.lib',
                 'pyflink.opt',
                 'pyflink.conf',
@@ -193,7 +233,7 @@ run sdist.
         'pyflink.bin': TEMP_PATH + '/bin'}
 
     PACKAGE_DATA = {
-        'pyflink': ['LICENSE', 'README.txt'],
+        'pyflink': ['README.txt'],
         'pyflink.lib': ['*.jar'],
         'pyflink.opt': ['*.*', '*/*'],
         'pyflink.conf': ['*'],
@@ -206,9 +246,6 @@ run sdist.
         PACKAGES.append('pyflink.licenses')
         PACKAGE_DIR['pyflink.licenses'] = TEMP_PATH + '/licenses'
         PACKAGE_DATA['pyflink.licenses'] = ['*']
-
-    if exist_notice:
-        PACKAGE_DATA['pyflink'].append('NOTICE')
 
     setup(
         name='apache-flink',
@@ -225,17 +262,20 @@ run sdist.
         python_requires='>=3.5',
         install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.19.0',
                           'cloudpickle==1.2.2', 'avro-python3>=1.8.1,<=1.9.1', 'jsonpickle==1.2',
-                          'pandas>=0.23.4,<=0.25.3', 'pyarrow>=0.15.1,<=0.16.0'],
+                          'pandas>=0.23.4,<=0.25.3', 'pyarrow>=0.15.1,<0.16.0', 'pytz>=2018.3'],
+        cmdclass={'build_ext': build_ext},
         tests_require=['pytest==4.4.1'],
         description='Apache Flink Python API',
         long_description=long_description,
         long_description_content_type='text/markdown',
+        zip_safe=False,
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
-            'Programming Language :: Python :: 3.7']
+            'Programming Language :: Python :: 3.7'],
+        ext_modules=extensions
     )
 finally:
     if in_flink_source:

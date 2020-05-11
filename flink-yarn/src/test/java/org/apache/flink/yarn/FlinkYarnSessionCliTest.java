@@ -18,6 +18,11 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.cli.CliArgsException;
+import org.apache.flink.client.cli.CliFrontend;
+import org.apache.flink.client.cli.CliFrontendParser;
+import org.apache.flink.client.cli.CustomCommandLine;
+import org.apache.flink.client.cli.ExecutorCLI;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
@@ -35,6 +40,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -49,6 +55,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -104,7 +111,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		String[] params =
 			new String[] {"-ys", "3"};
 
-		FlinkYarnSessionCli yarnCLI = createFlinkYarnSessionCliWithTmTotalMemory(2048);
+		FlinkYarnSessionCli yarnCLI = createFlinkYarnSessionCliWithJmAndTmTotalMemory(2048);
 
 		final CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
 
@@ -159,6 +166,41 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		YarnClusterDescriptor descriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
 		assertEquals(nodeLabelCliInput, descriptor.getNodeLabel());
+	}
+
+	@Test
+	public void testExecutorCLIisPrioritised() throws Exception {
+		final File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
+
+		final Configuration configuration = new Configuration();
+		configuration.setString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
+
+		validateYarnCLIisActive(configuration);
+
+		final String[] argsUnderTest = new String[] {"-e", YarnJobClusterExecutor.NAME};
+
+		validateExecutorCLIisPrioritised(configuration, argsUnderTest);
+	}
+
+	private void validateExecutorCLIisPrioritised(Configuration configuration, String[] argsUnderTest) throws IOException, CliArgsException {
+		final List<CustomCommandLine> customCommandLines = CliFrontend.loadCustomCommandLines(
+				configuration,
+				tmp.newFile().getAbsolutePath());
+
+		final CliFrontend cli = new CliFrontend(configuration, customCommandLines);
+		final CommandLine commandLine = cli.getCommandLine(
+				CliFrontendParser.getRunCommandOptions(),
+				argsUnderTest,
+				true);
+
+		final CustomCommandLine customCommandLine = cli.getActiveCustomCommandLine(commandLine);
+		assertTrue(customCommandLine instanceof ExecutorCLI);
+	}
+
+	private void validateYarnCLIisActive(Configuration configuration) throws FlinkException, CliArgsException {
+		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli(configuration);
+		final CommandLine testCLIArgs = flinkYarnSessionCli.parseCommandLineOptions(new String[] {}, true);
+		assertTrue(flinkYarnSessionCli.isActive(testCLIArgs));
 	}
 
 	/**
@@ -272,7 +314,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		final int taskManagerMemory = 7331;
 		final int slotsPerTaskManager = 30;
 
-		configuration.setString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory + "m");
+		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(jobManagerMemory));
 		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
@@ -298,7 +340,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	public void testConfigurationClusterSpecification() throws Exception {
 		final Configuration configuration = new Configuration();
 		final int jobManagerMemory = 1337;
-		configuration.setString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory + "m");
+		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(jobManagerMemory));
 		final int taskManagerMemory = 7331;
 		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
 		final int slotsPerTaskManager = 42;
@@ -319,10 +361,10 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the specifying heap memory without unit for job manager and task manager.
+	 * Tests the specifying total process memory without unit for job manager and task manager.
 	 */
 	@Test
-	public void testHeapMemoryPropertyWithoutUnit() throws Exception {
+	public void testMemoryPropertyWithoutUnit() throws Exception {
 		final String[] args = new String[] { "-yjm", "1024", "-ytm", "2048" };
 		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli();
 
@@ -337,10 +379,10 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the specifying heap memory with unit (MB) for job manager and task manager.
+	 * Tests the specifying total process memory with unit (MB) for job manager and task manager.
 	 */
 	@Test
-	public void testHeapMemoryPropertyWithUnitMB() throws Exception {
+	public void testMemoryPropertyWithUnitMB() throws Exception {
 		final String[] args = new String[] { "-yjm", "1024m", "-ytm", "2048m" };
 		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli();
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
@@ -354,10 +396,10 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the specifying heap memory with arbitrary unit for job manager and task manager.
+	 * Tests the specifying total process memory with arbitrary unit for job manager and task manager.
 	 */
 	@Test
-	public void testHeapMemoryPropertyWithArbitraryUnit() throws Exception {
+	public void testMemoryPropertyWithArbitraryUnit() throws Exception {
 		final String[] args = new String[] { "-yjm", "1g", "-ytm", "2g" };
 		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli();
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
@@ -392,12 +434,12 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the specifying job manager heap memory with config default value for job manager and task manager.
+	 * Tests the specifying job manager total process memory with config default value for job manager and task manager.
 	 */
 	@Test
-	public void testJobManagerHeapMemoryPropertyWithConfigDefaultValue() throws Exception {
-		int tmMemory = 2048;
-		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCliWithTmTotalMemory(tmMemory);
+	public void testJobManagerMemoryPropertyWithConfigDefaultValue() throws Exception {
+		int procMemory = 2048;
+		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCliWithJmAndTmTotalMemory(procMemory);
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[0], false);
 
@@ -405,8 +447,8 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
-		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
-		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(tmMemory));
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(procMemory));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(procMemory));
 	}
 
 	@Test
@@ -448,8 +490,9 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		return createFlinkYarnSessionCli(new Configuration());
 	}
 
-	private FlinkYarnSessionCli createFlinkYarnSessionCliWithTmTotalMemory(int totalMemomory) throws FlinkException {
+	private FlinkYarnSessionCli createFlinkYarnSessionCliWithJmAndTmTotalMemory(int totalMemomory) throws FlinkException {
 		Configuration configuration = new Configuration();
+		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemomory));
 		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemomory));
 		return createFlinkYarnSessionCli(configuration);
 	}

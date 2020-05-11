@@ -35,6 +35,11 @@ class DeserializationSchemaWrapper<T> implements PubSubDeserializationSchema<T> 
 	}
 
 	@Override
+	public void open(DeserializationSchema.InitializationContext context) throws Exception {
+		this.deserializationSchema.open(context);
+	}
+
+	@Override
 	public boolean isEndOfStream(T t) {
 		return deserializationSchema.isEndOfStream(t);
 	}

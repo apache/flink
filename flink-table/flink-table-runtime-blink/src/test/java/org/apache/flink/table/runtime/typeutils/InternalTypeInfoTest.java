@@ -22,19 +22,19 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /**
- * Test for {@link BinaryStringTypeInfo}, {@link DecimalTypeInfo}.
+ * Test for {@link StringDataTypeInfo}, {@link DecimalDataTypeInfo}.
  */
 public class InternalTypeInfoTest extends TypeInformationTestBase<TypeInformation<?>> {
 
 	@Override
 	protected TypeInformation[] getTestData() {
 		return new TypeInformation[] {
-				BinaryStringTypeInfo.INSTANCE,
-				new DecimalTypeInfo(5, 2),
-				new SqlTimestampTypeInfo(0),
-				new SqlTimestampTypeInfo(3),
-				new SqlTimestampTypeInfo(6),
-				new SqlTimestampTypeInfo(9)
+			StringDataTypeInfo.INSTANCE,
+			new DecimalDataTypeInfo(5, 2),
+			new TimestampDataTypeInfo(0),
+			new TimestampDataTypeInfo(3),
+			new TimestampDataTypeInfo(6),
+			new TimestampDataTypeInfo(9)
 		};
 	}
 }

@@ -18,12 +18,17 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
@@ -245,6 +250,86 @@ public class FunctionCatalogTest {
 	}
 
 	@Test
+	public void testUninstantiatedTemporarySystemFunction() {
+		// register first time
+		functionCatalog.registerTemporarySystemFunction(
+			NAME,
+			TestFunction1.class.getName(),
+			FunctionLanguage.JAVA,
+			false);
+		assertThat(
+			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(FunctionIdentifier.of(NAME), new ScalarFunctionDefinition(NAME, FUNCTION_1)));
+
+		// register second time lenient
+		functionCatalog.registerTemporarySystemFunction(NAME,
+			TestFunction2.class.getName(),
+			FunctionLanguage.JAVA,
+			true);
+		assertThat(
+			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(FunctionIdentifier.of(NAME), new ScalarFunctionDefinition(NAME, FUNCTION_1)));
+
+		// register second time not lenient
+		try {
+			functionCatalog.registerTemporarySystemFunction(
+				NAME,
+				TestFunction2.class.getName(),
+				FunctionLanguage.JAVA,
+				false);
+			fail();
+		} catch (ValidationException e) {
+			assertThat(
+				e,
+				hasMessage(containsString("A function named '" + NAME + "' does already exist.")));
+		}
+
+		// register invalid
+		try {
+			functionCatalog.registerTemporarySystemFunction(
+				NAME,
+				InvalidTestFunction.class.getName(),
+				FunctionLanguage.JAVA,
+				false);
+			fail();
+		} catch (ValidationException e) {
+			assertThat(
+				e,
+				hasMessage(containsString(
+					"Could not register temporary system function '" + NAME +
+						"' due to implementation errors.")));
+		}
+
+		functionCatalog.dropTemporarySystemFunction(NAME, true);
+
+		// test register uninstantiated table function
+		functionCatalog.registerTemporarySystemFunction(
+			NAME,
+			TestTableFunction1.class.getName(),
+			FunctionLanguage.JAVA,
+			false);
+		assertThat(
+			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(
+				FunctionIdentifier.of(NAME),
+				new TableFunctionDefinition(NAME, new TestTableFunction1(), Types.STRING)));
+
+		functionCatalog.dropTemporarySystemFunction(NAME, true);
+
+		// test register uninstantiated aggregate function
+		functionCatalog.registerTemporarySystemFunction(
+			NAME,
+			TestAggregateFunction1.class.getName(),
+			FunctionLanguage.JAVA,
+			false);
+		assertThat(
+			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(
+				FunctionIdentifier.of(NAME),
+				new AggregateFunctionDefinition(NAME, new TestAggregateFunction1(), Types.STRING, Types.STRING)));
+	}
+
+	@Test
 	public void testCatalogFunction() {
 		// register first time
 		functionCatalog.registerCatalogFunction(
@@ -436,6 +521,97 @@ public class FunctionCatalogTest {
 		}
 	}
 
+	@Test
+	public void testUninstantiatedTemporaryCatalogFunction() {
+		// register permanent function
+		functionCatalog.registerCatalogFunction(
+			PARTIAL_UNRESOLVED_IDENTIFIER,
+			FUNCTION_2.getClass(),
+			false);
+		assertThat(
+			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(
+				FunctionIdentifier.of(IDENTIFIER),
+				new ScalarFunctionDefinition(NAME, FUNCTION_2)));
+
+		// register temporary first time
+		functionCatalog.registerTemporaryCatalogFunction(
+			PARTIAL_UNRESOLVED_IDENTIFIER,
+			new CatalogFunctionImpl(FUNCTION_1.getClass().getName()),
+			false);
+		// temporary function hides catalog function
+		assertThat(
+			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(
+				FunctionIdentifier.of(IDENTIFIER),
+				new ScalarFunctionDefinition(IDENTIFIER.getObjectName(), FUNCTION_1)));
+
+		// register temporary second time lenient
+		functionCatalog.registerTemporaryCatalogFunction(
+			PARTIAL_UNRESOLVED_IDENTIFIER,
+			new CatalogFunctionImpl(FUNCTION_1.getClass().getName()),
+			true);
+		assertThat(
+			functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(
+				FunctionIdentifier.of(IDENTIFIER),
+				new ScalarFunctionDefinition(IDENTIFIER.getObjectName(), FUNCTION_1)));
+
+		// register temporary second time not lenient
+		try {
+			functionCatalog.registerTemporaryCatalogFunction(
+				PARTIAL_UNRESOLVED_IDENTIFIER,
+				new CatalogFunctionImpl(FUNCTION_2.getClass().getName()),
+				false);
+			fail();
+		} catch (ValidationException e) {
+			assertThat(
+				e,
+				hasMessage(containsString("A function '" + IDENTIFIER.asSummaryString() + "' does already exist.")));
+		}
+
+		// register invalid
+		try {
+			functionCatalog.registerTemporaryCatalogFunction(
+				PARTIAL_UNRESOLVED_IDENTIFIER,
+				new CatalogFunctionImpl(FUNCTION_INVALID.getClass().getName()),
+				false);
+			fail();
+		} catch (ValidationException e) {
+			assertThat(
+				e,
+				hasMessage(containsString(
+					"Could not register temporary catalog function '" + IDENTIFIER.asSummaryString() +
+						"' due to implementation errors.")));
+		}
+
+		functionCatalog.dropTemporaryCatalogFunction(PARTIAL_UNRESOLVED_IDENTIFIER, true);
+
+		// test register uninstantiated table function
+		functionCatalog.registerTemporaryCatalogFunction(
+			PARTIAL_UNRESOLVED_IDENTIFIER,
+			new CatalogFunctionImpl(TestTableFunction1.class.getName()),
+			false);
+		assertThat(
+			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(
+				FunctionIdentifier.of(IDENTIFIER),
+				new TableFunctionDefinition(NAME, new TestTableFunction1(), Types.STRING)));
+
+		functionCatalog.dropTemporaryCatalogFunction(PARTIAL_UNRESOLVED_IDENTIFIER, true);
+
+		// test register uninstantiated aggregate function
+		functionCatalog.registerTemporaryCatalogFunction(
+			PARTIAL_UNRESOLVED_IDENTIFIER,
+			new CatalogFunctionImpl(TestAggregateFunction1.class.getName()),
+			false);
+		assertThat(
+			functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER),
+			returnsFunction(
+				FunctionIdentifier.of(IDENTIFIER),
+				new AggregateFunctionDefinition(NAME, new TestAggregateFunction1(), Types.STRING, Types.STRING)));
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Legacy function handling before FLIP-65
 	// --------------------------------------------------------------------------------------------
@@ -508,6 +684,11 @@ public class FunctionCatalogTest {
 		public String eval(){
 			return null;
 		}
+
+		@Override
+		public boolean equals(Object o) {
+			return o != null && o.getClass() == this.getClass();
+		}
 	}
 
 	/**
@@ -542,5 +723,40 @@ public class FunctionCatalogTest {
 	 */
 	public static class InvalidTestFunction extends ScalarFunction {
 		// missing implementation
+	}
+
+	/**
+	 * Testing table function.
+	 */
+	public static class TestTableFunction1 extends TableFunction<String> {
+		public void eval(String in) {}
+
+		@Override
+		public boolean equals(Object o) {
+			return o != null && o.getClass() == this.getClass();
+		}
+	}
+
+	/**
+	 * Testing aggregate function.
+	 */
+	public static class TestAggregateFunction1 extends AggregateFunction<String, String> {
+
+		@Override
+		public String getValue(String accumulator) {
+			return null;
+		}
+
+		@Override
+		public String createAccumulator() {
+			return null;
+		}
+
+		public void accumulate(String in) { }
+
+		@Override
+		public boolean equals(Object o) {
+			return o != null && o.getClass() == this.getClass();
+		}
 	}
 }

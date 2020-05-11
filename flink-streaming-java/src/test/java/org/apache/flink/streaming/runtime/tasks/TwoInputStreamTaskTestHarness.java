@@ -27,10 +27,10 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.util.function.FunctionWithException;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.function.Function;
 
 
 /**
@@ -67,7 +67,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	 * it should be assigned to the first (1), or second (2) input of the task.
 	 */
 	public TwoInputStreamTaskTestHarness(
-			Function<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
+			FunctionWithException<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>, Exception> taskFactory,
 			int numInputGates,
 			int numInputChannelsPerGate,
 			int[] inputGateAssignment,
@@ -92,7 +92,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	 * second task input.
 	 */
 	public TwoInputStreamTaskTestHarness(
-			Function<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
+			FunctionWithException<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>, Exception> taskFactory,
 			TypeInformation<IN1> inputType1,
 			TypeInformation<IN2> inputType2,
 			TypeInformation<OUT> outputType) {
@@ -118,9 +118,10 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 			switch (inputGateAssignment[i]) {
 				case 1: {
 					inputGates[i] = new StreamTestSingleInputGate<>(
-							numInputChannelsPerGate,
-							bufferSize,
-							inputSerializer1);
+						numInputChannelsPerGate,
+						i,
+						inputSerializer1,
+						bufferSize);
 
 					StreamEdge streamEdge = new StreamEdge(sourceVertexDummy,
 							targetVertexDummy,
@@ -134,9 +135,10 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 				}
 				case 2: {
 					inputGates[i] = new StreamTestSingleInputGate<>(
-							numInputChannelsPerGate,
-							bufferSize,
-							inputSerializer2);
+						numInputChannelsPerGate,
+						i,
+						inputSerializer2,
+						bufferSize);
 
 					StreamEdge streamEdge = new StreamEdge(sourceVertexDummy,
 							targetVertexDummy,

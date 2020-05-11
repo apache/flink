@@ -23,8 +23,8 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -34,15 +34,23 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.Se
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderAndConsumerTest;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.PipelinedSubpartition;
+import org.apache.flink.runtime.io.network.partition.PipelinedSubpartitionView;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionTest;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
@@ -56,39 +64,34 @@ import org.apache.flink.testutils.serialization.types.Util;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.XORShiftRandom;
 
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.runtime.io.AvailabilityProvider.AVAILABLE;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link RecordWriter}.
@@ -124,38 +127,13 @@ public class RecordWriterTest {
 		try {
 			executor = Executors.newSingleThreadExecutor();
 
-			final CountDownLatch sync = new CountDownLatch(2);
+			TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(1);
 
-			final TrackingBufferRecycler recycler = new TrackingBufferRecycler();
-
-			final MemorySegment memorySegment = MemorySegmentFactory.allocateUnpooledSegment(4);
-
-			// Return buffer for first request, but block for all following requests.
-			Answer<BufferBuilder> request = new Answer<BufferBuilder>() {
-				@Override
-				public BufferBuilder answer(InvocationOnMock invocation) throws Throwable {
-					sync.countDown();
-
-					if (sync.getCount() == 1) {
-						return new BufferBuilder(memorySegment, recycler);
-					}
-
-					final Object o = new Object();
-					synchronized (o) {
-						while (true) {
-							o.wait();
-						}
-					}
-				}
-			};
-
-			BufferProvider bufferProvider = mock(BufferProvider.class);
-			when(bufferProvider.requestBufferBuilderBlocking()).thenAnswer(request);
-
-			ResultPartitionWriter partitionWriter = new RecyclingPartitionWriter(bufferProvider);
+			KeepingPartitionWriter partitionWriter = new KeepingPartitionWriter(bufferProvider);
 
 			final RecordWriter<IntValue> recordWriter = createRecordWriter(partitionWriter);
 
+			CountDownLatch waitLock = new CountDownLatch(1);
 			Future<?> result = executor.submit(new Callable<Void>() {
 				@Override
 				public Void call() throws Exception {
@@ -164,7 +142,7 @@ public class RecordWriterTest {
 					try {
 						recordWriter.emit(val);
 						recordWriter.flushAll();
-
+						waitLock.countDown();
 						recordWriter.emit(val);
 					}
 					catch (InterruptedException e) {
@@ -175,7 +153,7 @@ public class RecordWriterTest {
 				}
 			});
 
-			sync.await();
+			waitLock.await();
 
 			// Interrupt the Thread.
 			//
@@ -186,13 +164,12 @@ public class RecordWriterTest {
 
 			recordWriter.clearBuffers();
 
-			// Verify that buffer have been requested twice
-			verify(bufferProvider, times(2)).requestBufferBuilderBlocking();
-
 			// Verify that the written out buffer has only been recycled once
-			// (by the partition writer).
-			assertEquals(1, recycler.getRecycledMemorySegments().size());
-			assertEquals(memorySegment, recycler.getRecycledMemorySegments().get(0));
+			// (by the partition writer), so no buffer recycled.
+			assertEquals(0, bufferProvider.getNumberOfAvailableBuffers());
+
+			partitionWriter.close();
+			assertEquals(1, bufferProvider.getNumberOfAvailableBuffers());
 		}
 		finally {
 			if (executor != null) {
@@ -436,7 +413,7 @@ public class RecordWriterTest {
 	public void testIsAvailableOrNot() throws Exception {
 		// setup
 		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
-		final BufferPool localPool = globalPool.createBufferPool(1, 1);
+		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
 		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
 			.setBufferPoolFactory(p -> localPool)
 			.build();
@@ -453,7 +430,7 @@ public class RecordWriterTest {
 			assertTrue(recordWriter.getAvailableFuture().isDone());
 
 			// request one buffer from the local pool to make it unavailable afterwards
-			final BufferBuilder bufferBuilder = resultPartition.getBufferBuilder();
+			final BufferBuilder bufferBuilder = resultPartition.getBufferBuilder(0);
 			assertNotNull(bufferBuilder);
 			assertFalse(recordWriter.getAvailableFuture().isDone());
 
@@ -462,10 +439,119 @@ public class RecordWriterTest {
 			buffer.recycleBuffer();
 			assertTrue(recordWriter.getAvailableFuture().isDone());
 			assertEquals(recordWriter.AVAILABLE, recordWriter.getAvailableFuture());
+
 		} finally {
 			localPool.lazyDestroy();
 			globalPool.destroy();
 		}
+	}
+
+	@Test
+	public void testEmitRecordWithPartitionStateRecovery() throws Exception {
+		final int totalBuffers = 10; // enough for both states and normal records
+		final int totalStates = 2;
+		final int[] states = {1, 2, 3, 4};
+		final int[] records = {5, 6, 7, 8};
+		final int bufferSize = states.length * Integer.BYTES;
+
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, bufferSize, 1);
+		final ChannelStateReader stateReader = new ResultPartitionTest.FiniteChannelStateReader(totalStates, states);
+		final ResultPartition partition = new ResultPartitionBuilder()
+			.setNetworkBufferPool(globalPool)
+			.build();
+		final RecordWriter<IntValue> recordWriter = new RecordWriterBuilder<IntValue>().build(partition);
+
+		try {
+			partition.setup();
+			partition.readRecoveredState(stateReader);
+
+			for (int record: records) {
+				// the record length 4 is also written into buffer for every emit
+				recordWriter.broadcastEmit(new IntValue(record));
+			}
+
+			// every buffer can contain 2 int records with 2 int length(4)
+			final int[][] expectedRecordsInBuffer = {{4, 5, 4, 6}, {4, 7, 4, 8}};
+
+			for (ResultSubpartition subpartition : partition.getAllPartitions()) {
+				// create the view to consume all the buffers with states and records
+				final ResultSubpartitionView view = new PipelinedSubpartitionView(
+					(PipelinedSubpartition) subpartition,
+					new NoOpBufferAvailablityListener());
+
+				int numConsumedBuffers = 0;
+				ResultSubpartition.BufferAndBacklog bufferAndBacklog;
+				while ((bufferAndBacklog = view.getNextBuffer()) != null) {
+					Buffer buffer = bufferAndBacklog.buffer();
+					int[] expected = numConsumedBuffers < totalStates ? states : expectedRecordsInBuffer[numConsumedBuffers - totalStates];
+					BufferBuilderAndConsumerTest.assertContent(
+						buffer,
+						partition.getBufferPool()
+							.getSubpartitionBufferRecyclers()[subpartition.getSubPartitionIndex()],
+						expected);
+
+					buffer.recycleBuffer();
+					numConsumedBuffers++;
+				}
+
+				assertEquals(totalStates + expectedRecordsInBuffer.length, numConsumedBuffers);
+			}
+		} finally {
+			// cleanup
+			globalPool.destroyAllBufferPools();
+			globalPool.destroy();
+		}
+	}
+
+	@Test
+	public void testIdleTime() throws IOException, InterruptedException {
+		// setup
+		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
+		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
+		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
+			.setBufferPoolFactory(p -> localPool)
+			.build();
+		resultPartition.setup();
+		final ResultPartitionWriter partitionWrapper = new ConsumableNotifyingResultPartitionWriterDecorator(
+			new NoOpTaskActions(),
+			new JobID(),
+			resultPartition,
+			new NoOpResultPartitionConsumableNotifier());
+		final RecordWriter recordWriter = createRecordWriter(partitionWrapper);
+		BufferBuilder builder = recordWriter.requestNewBufferBuilder(0);
+		final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(builder);
+		builder.finish();
+
+		// idle time is zero when there is buffer available.
+		assertEquals(0, recordWriter.getIdleTimeMsPerSecond().getCount());
+
+		CountDownLatch syncLock = new CountDownLatch(1);
+		AtomicReference<BufferBuilder> asyncRequestResult = new AtomicReference<>();
+		final Thread requestThread = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					// notify that the request thread start to run.
+					syncLock.countDown();
+					// wait for buffer.
+					asyncRequestResult.set(recordWriter.requestNewBufferBuilder(0));
+				} catch (Exception e) {
+				}
+			}
+		});
+		requestThread.start();
+
+		// wait until request thread start to run.
+		syncLock.await();
+
+		Thread.sleep(10);
+
+		//recycle the buffer
+		buffer.recycleBuffer();
+		requestThread.join();
+
+		assertThat(recordWriter.getIdleTimeMsPerSecond().getCount(), Matchers.greaterThan(0L));
+		assertNotNull(asyncRequestResult.get());
 	}
 
 	private void verifyBroadcastBufferOrEventIndependence(boolean broadcastEvent) throws Exception {
@@ -531,10 +617,9 @@ public class RecordWriterTest {
 	/**
 	 * Partition writer that collects the added buffers/events in multiple queue.
 	 */
-	static class CollectingPartitionWriter implements ResultPartitionWriter {
+	static class CollectingPartitionWriter extends MockResultPartitionWriter {
 		private final Queue<BufferConsumer>[] queues;
 		private final BufferProvider bufferProvider;
-		private final ResultPartitionID partitionId = new ResultPartitionID();
 
 		/**
 		 * Create the partition writer.
@@ -548,59 +633,23 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public void setup() {
-		}
-
-		@Override
-		public ResultPartitionID getPartitionId() {
-			return partitionId;
-		}
-
-		@Override
 		public int getNumberOfSubpartitions() {
 			return queues.length;
 		}
 
 		@Override
-		public int getNumTargetKeyGroups() {
-			return 1;
+		public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking(targetChannel);
 		}
 
 		@Override
-		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-			return bufferProvider.requestBufferBuilderBlocking();
+		public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+			return bufferProvider.requestBufferBuilder(targetChannel);
 		}
 
 		@Override
-		public boolean addBufferConsumer(BufferConsumer buffer, int targetChannel) throws IOException {
+		public boolean addBufferConsumer(BufferConsumer buffer, int targetChannel, boolean isPriorityEvent) {
 			return queues[targetChannel].add(buffer);
-		}
-
-		@Override
-		public void flushAll() {
-		}
-
-		@Override
-		public void flush(int subpartitionIndex) {
-		}
-
-		@Override
-		public void fail(@Nullable Throwable throwable) {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public void finish() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public CompletableFuture<?> getAvailableFuture() {
-			return AVAILABLE;
-		}
-
-		@Override
-		public void close() {
 		}
 	}
 
@@ -619,69 +668,58 @@ public class RecordWriterTest {
 	/**
 	 * Partition writer that recycles all received buffers and does no further processing.
 	 */
-	private static class RecyclingPartitionWriter implements ResultPartitionWriter {
+	private static class RecyclingPartitionWriter extends MockResultPartitionWriter {
 		private final BufferProvider bufferProvider;
-		private final ResultPartitionID partitionId = new ResultPartitionID();
 
 		private RecyclingPartitionWriter(BufferProvider bufferProvider) {
 			this.bufferProvider = bufferProvider;
 		}
 
 		@Override
-		public void setup() {
+		public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking(targetChannel);
 		}
 
 		@Override
-		public ResultPartitionID getPartitionId() {
-			return partitionId;
+		public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+			return bufferProvider.requestBufferBuilder(targetChannel);
+		}
+	}
+
+	private static class KeepingPartitionWriter extends MockResultPartitionWriter {
+		private final BufferProvider bufferProvider;
+		private Map<Integer, List<BufferConsumer>> produced = new HashMap<>();
+
+		private KeepingPartitionWriter(BufferProvider bufferProvider) {
+			this.bufferProvider = bufferProvider;
 		}
 
 		@Override
-		public int getNumberOfSubpartitions() {
-			return 1;
+		public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+			return bufferProvider.requestBufferBuilderBlocking(targetChannel);
 		}
 
 		@Override
-		public int getNumTargetKeyGroups() {
-			return 1;
+		public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
+			return bufferProvider.requestBufferBuilder(targetChannel);
 		}
 
 		@Override
-		public BufferBuilder getBufferBuilder() throws IOException, InterruptedException {
-			return bufferProvider.requestBufferBuilderBlocking();
-		}
-
-		@Override
-		public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
-			bufferConsumer.close();
+		public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel, boolean isPriorityEvent) {
+			// keep the buffer occupied.
+			produced.putIfAbsent(targetChannel, new ArrayList<>());
+			produced.get(targetChannel).add(bufferConsumer);
 			return true;
 		}
 
 		@Override
-		public void flushAll() {
-		}
-
-		@Override
-		public void flush(int subpartitionIndex) {
-		}
-
-		@Override
-		public void fail(@Nullable Throwable throwable) {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public void finish() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public CompletableFuture<?> getAvailableFuture() {
-			return AVAILABLE;
-		}
-
-		@Override
 		public void close() {
+			for (List<BufferConsumer> bufferConsumers : produced.values()) {
+				for (BufferConsumer bufferConsumer : bufferConsumers) {
+					bufferConsumer.close();
+				}
+			}
+			produced.clear();
 		}
 	}
 

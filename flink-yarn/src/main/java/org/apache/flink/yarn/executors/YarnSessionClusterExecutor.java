@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.executors.AbstractSessionClusterExecutor;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.yarn.YarnClusterClientFactory;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 
@@ -31,7 +32,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 @Internal
 public class YarnSessionClusterExecutor extends AbstractSessionClusterExecutor<ApplicationId, YarnClusterClientFactory> {
 
-	public static final String NAME = "yarn-session";
+	public static final String NAME = YarnDeploymentTarget.SESSION.getName();
 
 	public YarnSessionClusterExecutor() {
 		super(new YarnClusterClientFactory());

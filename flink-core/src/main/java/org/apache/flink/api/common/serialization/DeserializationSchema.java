@@ -18,7 +18,9 @@
 package org.apache.flink.api.common.serialization;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.metrics.MetricGroup;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -41,6 +43,18 @@ import java.io.Serializable;
  */
 @Public
 public interface DeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+	/**
+	 * Initialization method for the schema. It is called before the actual working methods
+	 * {@link #deserialize} and thus suitable for one time setup work.
+	 *
+	 * <p>The provided {@link InitializationContext} can be used to access additional features such as e.g.
+	 * registering user metrics.
+	 *
+	 * @param context Contextual information that can be used during initialization.
+	 */
+	@PublicEvolving
+	default void open(InitializationContext context) throws Exception {
+	}
 
 	/**
 	 * Deserializes the byte message.
@@ -59,4 +73,25 @@ public interface DeserializationSchema<T> extends Serializable, ResultTypeQuerya
 	 * @return True, if the element signals end of stream, false otherwise.
 	 */
 	boolean isEndOfStream(T nextElement);
+
+	/**
+	 * A contextual information provided for {@link #open(InitializationContext)} method. It can be used to:
+	 * <ul>
+	 *     <li>Register user metrics via {@link InitializationContext#getMetricGroup()}</li>
+	 * </ul>
+	 */
+	@PublicEvolving
+	interface InitializationContext {
+		/**
+		 * Returns the metric group for the parallel subtask of the source that runs
+		 * this {@link DeserializationSchema}.
+		 *
+		 * <p>Instances of this class can be used to register new metrics with Flink and to create a nested
+		 * hierarchy based on the group names. See {@link MetricGroup} for more information for the metrics
+		 * system.
+		 *
+		 * @see MetricGroup
+		 */
+		MetricGroup getMetricGroup();
+	}
 }

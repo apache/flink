@@ -17,9 +17,9 @@
 
 package org.apache.flink.formats.parquet.vector.reader;
 
-import org.apache.flink.table.dataformat.SqlTimestamp;
-import org.apache.flink.table.dataformat.vector.writable.WritableIntVector;
-import org.apache.flink.table.dataformat.vector.writable.WritableTimestampVector;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.vector.writable.WritableIntVector;
+import org.apache.flink.table.data.vector.writable.WritableTimestampVector;
 
 import org.apache.parquet.Preconditions;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -88,7 +88,7 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
 		}
 	}
 
-	public static SqlTimestamp decodeInt96ToTimestamp(
+	public static TimestampData decodeInt96ToTimestamp(
 			boolean utcTimestamp,
 			org.apache.parquet.column.Dictionary dictionary,
 			int id) {
@@ -100,17 +100,17 @@ public class TimestampColumnReader extends AbstractColumnReader<WritableTimestam
 		return int96ToTimestamp(utcTimestamp, buffer.getLong(), buffer.getInt());
 	}
 
-	private static SqlTimestamp int96ToTimestamp(
+	private static TimestampData int96ToTimestamp(
 			boolean utcTimestamp, long nanosOfDay, int julianDay) {
 		long millisecond = julianDayToMillis(julianDay) + (nanosOfDay / NANOS_PER_MILLISECOND);
 
 		if (utcTimestamp) {
 			int nanoOfMillisecond = (int) (nanosOfDay % NANOS_PER_MILLISECOND);
-			return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
+			return TimestampData.fromEpochMillis(millisecond, nanoOfMillisecond);
 		} else {
 			Timestamp timestamp = new Timestamp(millisecond);
 			timestamp.setNanos((int) (nanosOfDay % NANOS_PER_SECOND));
-			return SqlTimestamp.fromTimestamp(timestamp);
+			return TimestampData.fromTimestamp(timestamp);
 		}
 	}
 

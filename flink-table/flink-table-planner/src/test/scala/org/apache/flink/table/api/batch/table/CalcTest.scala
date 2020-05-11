@@ -202,7 +202,7 @@ class CalcTest extends TableTestBase {
 
     util.tableEnv.registerFunction("hashCode", MyHashCode)
 
-    val resultTable = sourceTable.select("hashCode(c), b")
+    val resultTable = sourceTable.select(call("hashCode", $"c"), $"b")
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -351,7 +351,7 @@ class CalcTest extends TableTestBase {
           term("groupBy", "word"),
           term("select", "word", "SUM(frequency) AS EXPR$0")
         ),
-        term("select", "word, EXPR$0 AS frequency"),
+        term("select", "word, EXPR$0"),
         term("where", "=(EXPR$0, 2)")
       )
 

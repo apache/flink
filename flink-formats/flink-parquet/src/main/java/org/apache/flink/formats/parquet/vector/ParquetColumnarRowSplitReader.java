@@ -20,10 +20,10 @@ package org.apache.flink.formats.parquet.vector;
 
 import org.apache.flink.formats.parquet.vector.reader.AbstractColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ColumnReader;
-import org.apache.flink.table.dataformat.ColumnarRow;
-import org.apache.flink.table.dataformat.vector.ColumnVector;
-import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
-import org.apache.flink.table.dataformat.vector.writable.WritableColumnVector;
+import org.apache.flink.table.data.ColumnarRowData;
+import org.apache.flink.table.data.vector.ColumnVector;
+import org.apache.flink.table.data.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.vector.writable.WritableColumnVector;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
@@ -73,7 +73,7 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 
 	private final VectorizedColumnBatch columnarBatch;
 
-	private final ColumnarRow row;
+	private final ColumnarRowData row;
 
 	private final LogicalType[] selectedTypes;
 
@@ -117,7 +117,7 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 		this.selectedTypes = selectedTypes;
 		this.batchSize = batchSize;
 		// then we need to apply the predicate push down filter
-		ParquetMetadata footer = readFooter(conf, path, range(splitStart, splitLength));
+		ParquetMetadata footer = readFooter(conf, path, range(splitStart, splitStart + splitLength));
 		MessageType fileSchema = footer.getFileMetaData().getSchema();
 		FilterCompat.Filter filter = getFilter(conf);
 		List<BlockMetaData> blocks = filterRowGroups(filter, footer.getBlocks(), fileSchema);
@@ -140,7 +140,7 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 
 		this.writableVectors = createWritableVectors();
 		this.columnarBatch = generator.generate(createReadableVectors());
-		this.row = new ColumnarRow(columnarBatch);
+		this.row = new ColumnarRowData(columnarBatch);
 	}
 
 	/**
@@ -222,7 +222,7 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 		return !ensureBatch();
 	}
 
-	public ColumnarRow nextRecord() {
+	public ColumnarRowData nextRecord() {
 		// return the next row
 		row.setRowId(this.nextRow++);
 		return row;

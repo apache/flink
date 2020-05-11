@@ -24,6 +24,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import unittest
 import uuid
 from stat import ST_MODE
 
@@ -44,6 +45,7 @@ from pyflink.fn_execution.boot import (PYTHON_REQUIREMENTS_FILE,
 from pyflink.fn_execution.tests.process_mode_test_data import (manifest, file_data,
                                                                test_provision_info_json)
 from pyflink.java_gateway import get_gateway
+from pyflink.pyflink_gateway_server import on_windows
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -103,8 +105,10 @@ class PythonBootTests(PyFlinkTestCase):
         # assume that this file is in flink-python source code directory.
         flink_python_source_root = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        runner_script = "pyflink-udf-runner.bat" if on_windows() else \
+            "pyflink-udf-runner.sh"
         self.runner_path = os.path.join(
-            flink_python_source_root, "src", "main", "resources", "pyflink-udf-runner.sh")
+            flink_python_source_root, "src", "main", "resources", runner_script)
 
     def run_boot_py(self):
         args = [self.runner_path, "--id", "1",
@@ -114,7 +118,7 @@ class PythonBootTests(PyFlinkTestCase):
                 "--control_endpoint", "localhost:0000",
                 "--semi_persist_dir", self.tmp_dir]
 
-        return subprocess.call(args, stdout=sys.stdout, stderr=sys.stderr, env=self.env)
+        return subprocess.call(args, env=self.env)
 
     def check_downloaded_files(self, staged_dir, manifest):
         expected_files_info = json.loads(manifest)["manifest"]["artifact"]
@@ -154,6 +158,8 @@ class PythonBootTests(PyFlinkTestCase):
         self.assertTrue(exit_code == 0, "the boot.py exited with non-zero code.")
         self.check_downloaded_files(os.path.join(self.tmp_dir, "staged"), manifest)
 
+    @unittest.skipIf(on_windows(), "'subprocess.check_output' in Windows always return empty "
+                                   "string, skip this test.")
     def test_param_validation(self):
         args = [self.runner_path]
         exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
@@ -194,6 +200,7 @@ class PythonBootTests(PyFlinkTestCase):
         JProcessPythonEnvironmentManager = \
             get_gateway().jvm.org.apache.flink.python.env.ProcessPythonEnvironmentManager
 
+        output_file = os.path.join(self.tmp_dir, "output.txt")
         pyflink_dir = os.path.join(self.tmp_dir, "pyflink")
         os.mkdir(pyflink_dir)
         # just create an empty file
@@ -202,14 +209,19 @@ class PythonBootTests(PyFlinkTestCase):
         os.mkdir(fn_execution_dir)
         open(os.path.join(fn_execution_dir, "__init__.py"), 'a').close()
         with open(os.path.join(fn_execution_dir, "boot.py"), "w") as f:
-            f.write("import os\nimport sys\nsys.stdout.write(os.getcwd())")
+            f.write("import os\nwith open(r'%s', 'w') as f:\n    f.write(os.getcwd())" %
+                    output_file)
 
         # test if the name of working directory variable of udf runner is consist with
         # ProcessPythonEnvironmentManager.
         self.env[JProcessPythonEnvironmentManager.PYTHON_WORKING_DIR] = self.tmp_dir
         self.env["python"] = sys.executable
         args = [self.runner_path]
-        process_cwd = subprocess.check_output(args, env=self.env).decode("utf-8")
+        subprocess.check_output(args, env=self.env)
+        process_cwd = None
+        if os.path.exists(output_file):
+            with open(output_file, 'r') as f:
+                process_cwd = f.read()
 
         self.assertEqual(os.path.realpath(self.tmp_dir),
                          process_cwd,

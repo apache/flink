@@ -22,6 +22,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType;
 
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.DEFAULT;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.FLASH_SSD_OPTIMIZED;
@@ -47,9 +48,10 @@ public class RocksDBOptions {
 	 * Choice of timer service implementation.
 	 */
 	@Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
-	public static final ConfigOption<String> TIMER_SERVICE_FACTORY = ConfigOptions
+	public static final ConfigOption<PriorityQueueStateType> TIMER_SERVICE_FACTORY = ConfigOptions
 		.key("state.backend.rocksdb.timer-service.factory")
-		.defaultValue(ROCKSDB.name())
+		.enumType(PriorityQueueStateType.class)
+		.defaultValue(ROCKSDB)
 		.withDescription(String.format("This determines the factory for timer service state implementation. Options " +
 			"are either %s (heap-based, default) or %s for an implementation based on RocksDB .",
 			HEAP.name(), ROCKSDB.name()));

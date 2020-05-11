@@ -243,7 +243,7 @@ class DeclarativeAggCodeGen(
             val t = argTypes(localIndex)
             toRexDistinctKey(relBuilder, name, t)
           } else {
-            // the distinct key is a BaseRow
+            // the distinct key is a RowData
             toRexInputRef(relBuilder, localIndex, argTypes(localIndex))
           }
         } else {

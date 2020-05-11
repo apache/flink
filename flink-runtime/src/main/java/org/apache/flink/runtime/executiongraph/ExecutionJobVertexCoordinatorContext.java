@@ -74,6 +74,11 @@ final class ExecutionJobVertexCoordinatorContext implements OperatorCoordinator.
 		jobVertex.getGraph().failGlobal(cause);
 	}
 
+	@Override
+	public int currentParallelism() {
+		return jobVertex.getParallelism();
+	}
+
 	private Execution getTaskExecution(int subtask) {
 		return jobVertex.getTaskVertices()[subtask].getCurrentExecutionAttempt();
 	}

@@ -54,11 +54,12 @@ public class HiveOutputFormatFactoryTest {
 		SerDeInfo serDeInfo = new SerDeInfo("name", LazySimpleSerDe.class.getName(), Collections.emptyMap());
 		HiveOutputFormatFactory factory = new HiveOutputFormatFactory(
 				new JobConf(),
-				VerifyURIOutputFormat.class.getName(),
+				VerifyURIOutputFormat.class,
 				serDeInfo, schema,
 				new String[0],
 				new Properties(),
-				HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()));
+				HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()),
+				false);
 		org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(TEST_URI_SCHEME, TEST_URI_AUTHORITY, "/foo/path");
 		factory.createOutputFormat(path);
 	}

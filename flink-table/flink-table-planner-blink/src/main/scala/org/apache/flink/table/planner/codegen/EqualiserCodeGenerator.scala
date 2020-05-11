@@ -40,7 +40,7 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
     val className = newName(name)
     val header =
       s"""
-         |if ($LEFT_INPUT.getHeader() != $RIGHT_INPUT.getHeader()) {
+         |if ($LEFT_INPUT.getRowKind() != $RIGHT_INPUT.getRowKind()) {
          |  return false;
          |}
        """.stripMargin
@@ -57,7 +57,7 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
       // TODO merge ScalarOperatorGens.generateEquals.
       val (equalsCode, equalsResult) = if (isInternalPrimitive(fieldType)) {
         ("", s"$leftFieldTerm == $rightFieldTerm")
-      } else if (isBaseRow(fieldType)) {
+      } else if (isRowData(fieldType)) {
         val equaliserGenerator = new EqualiserCodeGenerator(
           fieldType.asInstanceOf[RowType].getChildren.asScala.toArray)
         val generatedEqualiser = equaliserGenerator
@@ -72,15 +72,15 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
              |$equaliserTerm = ($equaliserTypeTerm)
              |  $generatedEqualiserTerm.newInstance(Thread.currentThread().getContextClassLoader());
              |""".stripMargin)
-        ("", s"$equaliserTerm.equalsWithoutHeader($leftFieldTerm, $rightFieldTerm)")
+        ("", s"$equaliserTerm.equals($leftFieldTerm, $rightFieldTerm)")
       } else {
         val left = GeneratedExpression(leftFieldTerm, leftNullTerm, "", fieldType)
         val right = GeneratedExpression(rightFieldTerm, rightNullTerm, "", fieldType)
         val gen = generateEquals(ctx, left, right)
         (gen.code, gen.resultTerm)
       }
-      val leftReadCode = baseRowFieldReadAccess(ctx, i, LEFT_INPUT, fieldType)
-      val rightReadCode = baseRowFieldReadAccess(ctx, i, RIGHT_INPUT, fieldType)
+      val leftReadCode = rowFieldReadAccess(ctx, i, LEFT_INPUT, fieldType)
+      val rightReadCode = rowFieldReadAccess(ctx, i, RIGHT_INPUT, fieldType)
       s"""
          |boolean $leftNullTerm = $LEFT_INPUT.isNullAt($i);
          |boolean $rightNullTerm = $RIGHT_INPUT.isNullAt($i);
@@ -112,22 +112,11 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
           }
 
           @Override
-          public boolean equals($BASE_ROW $LEFT_INPUT, $BASE_ROW $RIGHT_INPUT) {
+          public boolean equals($ROW_DATA $LEFT_INPUT, $ROW_DATA $RIGHT_INPUT) {
             if ($LEFT_INPUT instanceof $BINARY_ROW && $RIGHT_INPUT instanceof $BINARY_ROW) {
               return $LEFT_INPUT.equals($RIGHT_INPUT);
             } else {
               $header
-              ${ctx.reuseLocalVariableCode()}
-              ${codes.mkString("\n")}
-              return true;
-            }
-          }
-
-          @Override
-          public boolean equalsWithoutHeader($BASE_ROW $LEFT_INPUT, $BASE_ROW $RIGHT_INPUT) {
-            if ($LEFT_INPUT instanceof $BINARY_ROW && $RIGHT_INPUT instanceof $BINARY_ROW) {
-              return (($BINARY_ROW)$LEFT_INPUT).equalsWithoutHeader((($BINARY_ROW)$RIGHT_INPUT));
-            } else {
               ${ctx.reuseLocalVariableCode()}
               ${codes.mkString("\n")}
               return true;
@@ -146,7 +135,7 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
     case _ => false
   }
 
-  private def isBaseRow(t: LogicalType): Boolean = t match {
+  private def isRowData(t: LogicalType): Boolean = t match {
     case _: RowType => true
     case _ => false
   }

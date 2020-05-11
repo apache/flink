@@ -24,7 +24,9 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
@@ -42,20 +44,31 @@ public class SlotManagerConfiguration {
 	private final Time slotRequestTimeout;
 	private final Time taskManagerTimeout;
 	private final boolean waitResultConsumedBeforeRelease;
-	private final boolean evenlySpreadOutSlots;
+	private final SlotMatchingStrategy slotMatchingStrategy;
+	private final WorkerResourceSpec defaultWorkerResourceSpec;
+	private final int numSlotsPerWorker;
+	private final int maxSlotNum;
 
 	public SlotManagerConfiguration(
 			Time taskManagerRequestTimeout,
 			Time slotRequestTimeout,
 			Time taskManagerTimeout,
 			boolean waitResultConsumedBeforeRelease,
-			boolean evenlySpreadOutSlots) {
+			SlotMatchingStrategy slotMatchingStrategy,
+			WorkerResourceSpec defaultWorkerResourceSpec,
+			int numSlotsPerWorker,
+			int maxSlotNum) {
 
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
 		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
-		this.evenlySpreadOutSlots = evenlySpreadOutSlots;
+		this.slotMatchingStrategy = Preconditions.checkNotNull(slotMatchingStrategy);
+		this.defaultWorkerResourceSpec = Preconditions.checkNotNull(defaultWorkerResourceSpec);
+		Preconditions.checkState(numSlotsPerWorker > 0);
+		Preconditions.checkState(maxSlotNum > 0);
+		this.numSlotsPerWorker = numSlotsPerWorker;
+		this.maxSlotNum = maxSlotNum;
 	}
 
 	public Time getTaskManagerRequestTimeout() {
@@ -74,11 +87,26 @@ public class SlotManagerConfiguration {
 		return waitResultConsumedBeforeRelease;
 	}
 
-	public boolean evenlySpreadOutSlots() {
-		return evenlySpreadOutSlots;
+	public SlotMatchingStrategy getSlotMatchingStrategy() {
+		return slotMatchingStrategy;
 	}
 
-	public static SlotManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
+	public WorkerResourceSpec getDefaultWorkerResourceSpec() {
+		return defaultWorkerResourceSpec;
+	}
+
+	public int getNumSlotsPerWorker() {
+		return numSlotsPerWorker;
+	}
+
+	public int getMaxSlotNum() {
+		return maxSlotNum;
+	}
+
+	public static SlotManagerConfiguration fromConfiguration(
+			Configuration configuration,
+			WorkerResourceSpec defaultWorkerResourceSpec) throws ConfigurationException {
+
 		final Time rpcTimeout;
 		try {
 			rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration);
@@ -95,13 +123,22 @@ public class SlotManagerConfiguration {
 			configuration.getBoolean(ResourceManagerOptions.TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED);
 
 		boolean evenlySpreadOutSlots = configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+		final SlotMatchingStrategy slotMatchingStrategy = evenlySpreadOutSlots ?
+			LeastUtilizationSlotMatchingStrategy.INSTANCE : AnyMatchingSlotMatchingStrategy.INSTANCE;
+
+		int numSlotsPerWorker = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+
+		int maxSlotNum = configuration.getInteger(ResourceManagerOptions.MAX_SLOT_NUM);
 
 		return new SlotManagerConfiguration(
 			rpcTimeout,
 			slotRequestTimeout,
 			taskManagerTimeout,
 			waitResultConsumedBeforeRelease,
-			evenlySpreadOutSlots);
+			slotMatchingStrategy,
+			defaultWorkerResourceSpec,
+			numSlotsPerWorker,
+			maxSlotNum);
 	}
 
 	private static Time getSlotRequestTimeout(final Configuration configuration) {

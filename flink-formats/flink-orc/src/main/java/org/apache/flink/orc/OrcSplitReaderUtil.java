@@ -22,8 +22,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader.ColumnBatchGenerator;
 import org.apache.flink.orc.shim.OrcShim;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.dataformat.vector.ColumnVector;
-import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.vector.ColumnVector;
+import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.CharType;
@@ -158,8 +158,8 @@ public class OrcSplitReaderUtil {
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) type;
 				return TypeDescription.createDecimal()
-						.withPrecision(decimalType.getPrecision())
-						.withScale(decimalType.getScale());
+						.withScale(decimalType.getScale())
+						.withPrecision(decimalType.getPrecision());
 			case TINYINT:
 				return TypeDescription.createByte();
 			case SMALLINT:

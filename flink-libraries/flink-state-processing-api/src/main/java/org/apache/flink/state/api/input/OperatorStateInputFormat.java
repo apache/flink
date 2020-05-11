@@ -26,8 +26,10 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
@@ -44,11 +46,12 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import static java.util.Collections.singletonList;
+import static org.apache.flink.runtime.checkpoint.StateAssignmentOperation.reDistributePartitionableStates;
 
 /**
  * The base input format for reading operator state from a {@link CheckpointMetadata}.
@@ -118,14 +121,12 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
 	}
 
 	private OperatorStateInputSplit[] getOperatorStateInputSplits(int minNumSplits) {
-		final Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates = new HashMap<>();
-
-		StateAssignmentOperation.reDistributePartitionableStates(
-			Collections.singletonList(operatorState),
+		Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates = reDistributePartitionableStates(
+			singletonList(operatorState),
 			minNumSplits,
-			Collections.singletonList(operatorState.getOperatorID()),
-			newManagedOperatorStates,
-			new HashMap<>());
+			singletonList(OperatorIDPair.generatedIDOnly(operatorState.getOperatorID())),
+			OperatorSubtaskState::getManagedOperatorState,
+			RoundRobinOperatorStateRepartitioner.INSTANCE);
 
 		return CollectionUtil.mapWithIndex(
 			newManagedOperatorStates.values(),

@@ -19,9 +19,9 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 
 /**
  * The function to execute processing time bounded stream inner-join.
@@ -34,9 +34,9 @@ public final class ProcTimeBoundedStreamJoin extends TimeBoundedStreamJoin {
 			FlinkJoinType joinType,
 			long leftLowerBound,
 			long leftUpperBound,
-			BaseRowTypeInfo leftType,
-			BaseRowTypeInfo rightType,
-			GeneratedFunction<FlatJoinFunction<BaseRow, BaseRow, BaseRow>> genJoinFunc) {
+			RowDataTypeInfo leftType,
+			RowDataTypeInfo rightType,
+			GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc) {
 		super(joinType, leftLowerBound, leftUpperBound, 0L, leftType, rightType, genJoinFunc);
 	}
 
@@ -47,12 +47,12 @@ public final class ProcTimeBoundedStreamJoin extends TimeBoundedStreamJoin {
 	}
 
 	@Override
-	long getTimeForLeftStream(Context ctx, BaseRow row) {
+	long getTimeForLeftStream(Context ctx, RowData row) {
 		return leftOperatorTime;
 	}
 
 	@Override
-	long getTimeForRightStream(Context ctx, BaseRow row) {
+	long getTimeForRightStream(Context ctx, RowData row) {
 		return rightOperatorTime;
 	}
 

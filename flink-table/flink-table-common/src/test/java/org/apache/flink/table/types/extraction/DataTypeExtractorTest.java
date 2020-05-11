@@ -31,8 +31,6 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.extraction.utils.DataTypeHintMock;
-import org.apache.flink.table.types.extraction.utils.DataTypeTemplate;
-import org.apache.flink.table.types.inference.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.IntType;
@@ -40,6 +38,7 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 
 import org.hamcrest.Matcher;
@@ -74,7 +73,8 @@ import static org.junit.Assert.assertThat;
 @RunWith(Parameterized.class)
 public class DataTypeExtractorTest {
 
-	@Parameters
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	@Parameters(name = "{index}: {0}")
 	public static List<TestSpec> testData() {
 		return Arrays.asList(
 			// simple extraction of INT
@@ -213,9 +213,9 @@ public class DataTypeExtractorTest {
 					java.time.Period.class)
 				.expectDataType(DataTypes.INTERVAL(DataTypes.MONTH())),
 
-			// RAW with default serializer
 			TestSpec
 				.forType(
+					"RAW with default serializer",
 					new DataTypeHintMock() {
 						@Override
 						public HintFlag allowRawGlobally() {
@@ -229,9 +229,9 @@ public class DataTypeExtractorTest {
 						DataTypes.ARRAY(
 							DataTypes.RAW(new GenericTypeInfo<>(Object.class))))),
 
-			// RAW with custom serializer
 			TestSpec
 				.forType(
+					"RAW with custom serializer",
 					new DataTypeHintMock() {
 						@Override
 						public String value() {
@@ -244,11 +244,13 @@ public class DataTypeExtractorTest {
 						}
 					},
 					Integer.class)
-				.expectDataType(DataTypes.RAW(Integer.class, new IntSerializer())),
+				.expectDataType(
+					DataTypes.RAW(Object.class, (TypeSerializer) new IntSerializer())
+						.bridgedTo(Integer.class)),
 
-			// RAW with different conversion class
 			TestSpec
 				.forType(
+					"RAW with different conversion class",
 					new DataTypeHintMock() {
 						@Override
 						public String value() {
@@ -263,6 +265,26 @@ public class DataTypeExtractorTest {
 					Object.class)
 				.lookupExpects(Integer.class)
 				.expectDataType(DataTypes.RAW(new GenericTypeInfo<>(Integer.class))),
+
+			TestSpec
+				.forType(
+					"RAW with more specific conversion class",
+					new DataTypeHintMock() {
+						@Override
+						public String value() {
+							return "RAW";
+						}
+
+						@Override
+						public Class<?> bridgedTo() {
+							return RawTypeGeneric.class;
+						}
+					},
+					RawTypeSpecific.class)
+				.lookupExpects(RawTypeGeneric.class)
+				.expectDataType(
+					DataTypes.RAW(new GenericTypeInfo<>(RawTypeGeneric.class))
+						.bridgedTo(RawTypeSpecific.class)),
 
 			// MAP type with type variable magic
 			TestSpec
@@ -402,43 +424,73 @@ public class DataTypeExtractorTest {
 	 */
 	static class TestSpec {
 
-		private final Function<DataTypeFactory, DataType> extractor;
+		private final DataTypeFactoryMock typeFactory = new DataTypeFactoryMock();
 
-		private DataTypeFactoryMock typeFactory;
+		private final @Nullable String description;
+
+		private final Function<DataTypeFactory, DataType> extractor;
 
 		private @Nullable DataType expectedDataType;
 
 		private @Nullable String expectedErrorMessage;
 
-		private TestSpec(Function<DataTypeFactory, DataType> extractor) {
-			this.typeFactory = new DataTypeFactoryMock();
+		private TestSpec(@Nullable String description, Function<DataTypeFactory, DataType> extractor) {
+			this.description = description;
 			this.extractor = extractor;
 		}
 
+		static TestSpec forType(String description, Type type) {
+			return new TestSpec(description, (lookup) -> DataTypeExtractor.extractFromType(lookup, type));
+		}
+
 		static TestSpec forType(Type type) {
-			return new TestSpec((lookup) -> DataTypeExtractor.extractFromType(lookup, type));
+			return forType((String) null, type);
+		}
+
+		static TestSpec forType(String description, DataTypeHint hint, Type type) {
+			return new TestSpec(
+				description,
+				(lookup) ->
+					DataTypeExtractor.extractFromType(lookup, DataTypeTemplate.fromAnnotation(lookup, hint), type));
 		}
 
 		static TestSpec forType(DataTypeHint hint, Type type) {
-			return new TestSpec((lookup) ->
-				DataTypeExtractor.extractFromType(lookup, DataTypeTemplate.fromAnnotation(lookup, hint), type));
+			return forType(null, hint, type);
+		}
+
+		static TestSpec forGeneric(String description, Class<?> baseClass, int genericPos, Type contextType) {
+			return new TestSpec(
+				description,
+				(lookup) ->
+					DataTypeExtractor.extractFromGeneric(lookup, baseClass, genericPos, contextType));
 		}
 
 		static TestSpec forGeneric(Class<?> baseClass, int genericPos, Type contextType) {
-			return new TestSpec((lookup) ->
-				DataTypeExtractor.extractFromGeneric(lookup, baseClass, genericPos, contextType));
+			return forGeneric(null, baseClass, genericPos, contextType);
+		}
+
+		static TestSpec forMethodParameter(String description, Class<?> clazz, int paramPos) {
+			final Method method = clazz.getMethods()[0];
+			return new TestSpec(
+				description,
+				(lookup) ->
+					DataTypeExtractor.extractFromMethodParameter(lookup, clazz, method, paramPos));
 		}
 
 		static TestSpec forMethodParameter(Class<?> clazz, int paramPos) {
+			return forMethodParameter(null, clazz, paramPos);
+		}
+
+		static TestSpec forMethodOutput(String description, Class<?> clazz) {
 			final Method method = clazz.getMethods()[0];
-			return new TestSpec((lookup) ->
-				DataTypeExtractor.extractFromMethodParameter(lookup, clazz, method, paramPos));
+			return new TestSpec(
+				description,
+				(lookup) ->
+					DataTypeExtractor.extractFromMethodOutput(lookup, clazz, method));
 		}
 
 		static TestSpec forMethodOutput(Class<?> clazz) {
-			final Method method = clazz.getMethods()[0];
-			return new TestSpec((lookup) ->
-				DataTypeExtractor.extractFromMethodOutput(lookup, clazz, method));
+			return forMethodOutput(null, clazz);
 		}
 
 		boolean hasErrorMessage() {
@@ -459,6 +511,17 @@ public class DataTypeExtractorTest {
 		TestSpec expectErrorMessage(String expectedErrorMessage) {
 			this.expectedErrorMessage = expectedErrorMessage;
 			return this;
+		}
+
+		@Override
+		public String toString() {
+			if (description != null) {
+				return description;
+			}
+			if (expectedDataType != null) {
+				return "Expected data type: " + expectedDataType;
+			}
+			return "Expected error: " + expectedErrorMessage;
 		}
 	}
 
@@ -867,6 +930,16 @@ public class DataTypeExtractorTest {
 	 * Resolvable parameters.
 	 */
 	public static class IntegerVarArg extends VarArgMethod<Integer> {
+		// nothing to do
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static class RawTypeGeneric {
+		// nothing to do
+	}
+
+	private static class RawTypeSpecific extends RawTypeGeneric {
 		// nothing to do
 	}
 }

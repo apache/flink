@@ -20,15 +20,20 @@ package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.fs.Clock;
@@ -38,8 +43,6 @@ import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -140,7 +143,7 @@ public class BucketingSinkTestProgram {
 	/**
 	 * Data-generating source function.
 	 */
-	public static class Generator implements SourceFunction<Tuple3<Integer, Long, String>>, ListCheckpointed<Long> {
+	public static class Generator implements SourceFunction<Tuple3<Integer, Long, String>>, CheckpointedFunction {
 
 		private final int numKeys;
 		private final int idlenessMs;
@@ -148,6 +151,8 @@ public class BucketingSinkTestProgram {
 
 		private long ms = 0;
 		private volatile boolean canceled = false;
+
+		private ListState<Long> state = null;
 
 		public Generator(int numKeys, int idlenessMs, int durationSeconds) {
 			this.numKeys = numKeys;
@@ -178,15 +183,19 @@ public class BucketingSinkTestProgram {
 		}
 
 		@Override
-		public List<Long> snapshotState(long checkpointId, long timestamp) {
-			return Collections.singletonList(ms);
+		public void initializeState(FunctionInitializationContext context) throws Exception {
+			state = context.getOperatorStateStore().getListState(
+					new ListStateDescriptor<Long>("state", LongSerializer.INSTANCE));
+
+			for (Long l : state.get()) {
+				ms += l;
+			}
 		}
 
 		@Override
-		public void restoreState(List<Long> state) {
-			for (Long l : state) {
-				ms += l;
-			}
+		public void snapshotState(FunctionSnapshotContext context) throws Exception {
+			state.clear();
+			state.add(ms);
 		}
 	}
 }

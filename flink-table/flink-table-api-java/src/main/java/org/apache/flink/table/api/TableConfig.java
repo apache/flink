@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
@@ -107,12 +108,6 @@ public class TableConfig {
 	private Configuration configuration = new Configuration();
 
 	/**
-	 * The SQL dialect defines how to parse a SQL query. A different SQL dialect may support different
-	 * SQL grammar.
-	 */
-	private SqlDialect sqlDialect = SqlDialect.DEFAULT;
-
-	/**
 	 * Gives direct access to the underlying key-value map for advanced configuration.
 	 */
 	public Configuration getConfiguration() {
@@ -134,25 +129,66 @@ public class TableConfig {
 	 * Returns the current SQL dialect.
 	 */
 	public SqlDialect getSqlDialect() {
-		return this.sqlDialect;
+		return SqlDialect.valueOf(getConfiguration().getString(TableConfigOptions.TABLE_SQL_DIALECT).toUpperCase());
 	}
 
 	/**
 	 * Sets the current SQL dialect to parse a SQL query. Flink's SQL behavior by default.
 	 */
 	public void setSqlDialect(SqlDialect sqlDialect) {
-		this.sqlDialect = sqlDialect;
+		getConfiguration().setString(TableConfigOptions.TABLE_SQL_DIALECT, sqlDialect.name().toLowerCase());
 	}
 
 	/**
-	 * Returns the zone id for timestamp with local time zone.
+	 * Returns the current session time zone id. It is used when converting to/from
+	 * {@code TIMESTAMP WITH LOCAL TIME ZONE}. See {@link #setLocalTimeZone(ZoneId)} for more
+	 * details.
+	 *
+	 * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
 	 */
 	public ZoneId getLocalTimeZone() {
 		return localZoneId;
 	}
 
 	/**
-	 * Sets the zone id for timestamp with local time zone.
+	 * Sets the current session time zone id. It is used when converting to/from
+	 * {@link DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE()}. Internally, timestamps with local time zone are
+	 * always represented in the UTC time zone. However, when converting to data types that
+	 * don't include a time zone (e.g. TIMESTAMP, TIME, or simply STRING), the session time zone
+	 * is used during conversion.
+	 *
+	 * <p>Example:
+	 * <pre>{@code
+	 * TableEnvironment tEnv = ...
+	 * TableConfig config = tEnv.getConfig
+	 * config.setLocalTimeZone(ZoneOffset.ofHours(2));
+	 * tEnv("CREATE TABLE testTable (id BIGINT, tmstmp TIMESTAMP WITH LOCAL TIME ZONE)");
+	 * tEnv("INSERT INTO testTable VALUES ((1, '2000-01-01 2:00:00'), (2, TIMESTAMP '2000-01-01 2:00:00'))");
+	 * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+2
+	 * }</pre>
+	 * should produce:
+	 * <pre>
+	 * =============================
+	 *    id   |       tmstmp
+	 * =============================
+	 *    1    | 2000-01-01 2:00:00'
+	 *    2    | 2000-01-01 2:00:00'
+	 * </pre>
+	 * If we change the local time zone and query the same table:
+	 * <pre>{@code
+	 * config.setLocalTimeZone(ZoneOffset.ofHours(0));
+	 * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+0
+	 * }</pre>
+	 * we should get:
+	 * <pre>
+	 * =============================
+	 *    id   |       tmstmp
+	 * =============================
+	 *    1    | 2000-01-01 0:00:00'
+	 *    2    | 2000-01-01 0:00:00'
+	 * </pre>
+	 *
+	 * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
 	 */
 	public void setLocalTimeZone(ZoneId zoneId) {
 		this.localZoneId = Preconditions.checkNotNull(zoneId);

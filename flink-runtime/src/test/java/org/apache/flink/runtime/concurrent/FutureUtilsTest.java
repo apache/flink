@@ -803,6 +803,24 @@ public class FutureUtilsTest extends TestLogger {
 	}
 
 	@Test
+	public void testForwardAsync() throws Exception {
+		final CompletableFuture<String> source = new CompletableFuture<>();
+		final CompletableFuture<String> target = new CompletableFuture<>();
+		final ManuallyTriggeredScheduledExecutor executor = new ManuallyTriggeredScheduledExecutor();
+
+		FutureUtils.forwardAsync(source, target, executor);
+
+		source.complete("foobar");
+
+		assertThat(target.isDone(), is(false));
+
+		// execute the forward action
+		executor.triggerAll();
+
+		assertThat(target.get(), is(equalTo(source.get())));
+	}
+
+	@Test
 	public void testGetWithoutException() {
 		final CompletableFuture<Integer> completableFuture = new CompletableFuture<>();
 		completableFuture.complete(1);

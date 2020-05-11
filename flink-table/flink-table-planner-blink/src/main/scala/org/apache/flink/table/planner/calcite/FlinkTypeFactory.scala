@@ -32,10 +32,12 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.ConversionUtil
 import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, ValidationException}
+import org.apache.flink.table.calcite.ExtendedRelTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Nothing
@@ -49,7 +51,9 @@ import scala.collection.mutable
   * Flink specific type factory that represents the interface between Flink's [[LogicalType]]
   * and Calcite's [[RelDataType]].
   */
-class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImpl(typeSystem) {
+class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
+  extends JavaTypeFactoryImpl(typeSystem)
+  with ExtendedRelTypeFactory {
 
   private val seenTypes = mutable.HashMap[LogicalType, RelDataType]()
 
@@ -62,6 +66,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     */
   def createFieldTypeFromLogicalType(t: LogicalType): RelDataType = {
     def newRelDataType(): RelDataType = t.getTypeRoot match {
+      case LogicalTypeRoot.NULL => createSqlType(NULL)
       case LogicalTypeRoot.BOOLEAN => createSqlType(BOOLEAN)
       case LogicalTypeRoot.TINYINT => createSqlType(TINYINT)
       case LogicalTypeRoot.SMALLINT => createSqlType(SMALLINT)
@@ -118,10 +123,15 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
         createMultisetType(createFieldTypeFromLogicalType(multisetType.getElementType), -1)
 
       case LogicalTypeRoot.RAW =>
-        new GenericRelDataType(
-          t.asInstanceOf[TypeInformationRawType[_]],
-          true,
-          getTypeSystem)
+        t match {
+          case rawType: RawType[_] =>
+            new RawRelDataType(rawType)
+          case genericType: TypeInformationRawType[_] =>
+            new GenericRelDataType(genericType, true, getTypeSystem)
+        }
+
+      case LogicalTypeRoot.SYMBOL =>
+        createSqlType(SqlTypeName.SYMBOL)
 
       case _@t =>
         throw new TableException(s"Type is not supported: $t")
@@ -217,9 +227,22 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     val fields = fieldNames.zip(fieldTypes)
     fields foreach {
       case (fieldName, fieldType) =>
-        b.add(fieldName, createFieldTypeFromLogicalType(fieldType))
+        val fieldRelDataType = createFieldTypeFromLogicalType(fieldType)
+        checkForNullType(fieldRelDataType)
+        b.add(fieldName, fieldRelDataType)
     }
     b.build
+  }
+
+  /**
+   * Returns a projected [[RelDataType]] of the structure type.
+   */
+  def projectStructType(relType: RelDataType, selectedFields: Array[Int]): RelDataType = {
+    this.createStructType(
+        selectedFields
+          .map(idx => relType.getFieldList.get(idx))
+          .toList
+          .asJava)
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -248,12 +271,14 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
   override def createArrayType(elementType: RelDataType, maxCardinality: Long): RelDataType = {
     // Just validate type, make sure there is a failure in validate phase.
+    checkForNullType(elementType)
     toLogicalType(elementType)
     super.createArrayType(elementType, maxCardinality)
   }
 
   override def createMapType(keyType: RelDataType, valueType: RelDataType): RelDataType = {
     // Just validate type, make sure there is a failure in validate phase.
+    checkForNullType(keyType, valueType)
     toLogicalType(keyType)
     toLogicalType(valueType)
     super.createMapType(keyType, valueType)
@@ -261,8 +286,18 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
   override def createMultisetType(elementType: RelDataType, maxCardinality: Long): RelDataType = {
     // Just validate type, make sure there is a failure in validate phase.
+    checkForNullType(elementType)
     toLogicalType(elementType)
     super.createMultisetType(elementType, maxCardinality)
+  }
+
+  override def createRawType(className: String, serializerString: String): RelDataType = {
+    val rawType = RawType.restore(
+      FlinkTypeFactory.getClass.getClassLoader, // temporary solution until FLINK-15635 is fixed
+      className,
+      serializerString)
+    val rawRelDataType = createFieldTypeFromLogicalType(rawType)
+    canonize(rawRelDataType)
   }
 
   override def createSqlType(typeName: SqlTypeName): RelDataType = {
@@ -287,11 +322,19 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
     // change nullability
     val newType = relDataType match {
+      case raw: RawRelDataType =>
+        raw.createWithNullability(isNullable)
+
       case generic: GenericRelDataType =>
         new GenericRelDataType(generic.genericType, isNullable, typeSystem)
 
       case it: TimeIndicatorRelDataType =>
         new TimeIndicatorRelDataType(it.typeSystem, it.originalType, isNullable, it.isEventTime)
+
+      // for nested rows we keep the nullability property,
+      // top-level rows fall back to Calcite's default handling
+      case rt: RelRecordType if rt.getStructKind == StructKind.PEEK_FIELDS_NO_EXPAND =>
+        new RelRecordType(rt.getStructKind, rt.getFieldList, isNullable);
 
       case _ =>
         super.createTypeWithNullability(relDataType, isNullable)
@@ -301,16 +344,14 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   }
 
   override def leastRestrictive(types: util.List[RelDataType]): RelDataType = {
-    val type0 = types.get(0)
-    if (type0.getSqlTypeName != null) {
-      val resultType = resolveAllIdenticalTypes(types)
-      if (resultType.isDefined) {
-        // result type for identical types
-        return resultType.get
-      }
+    val leastRestrictive = resolveAllIdenticalTypes(types)
+      .getOrElse(super.leastRestrictive(types))
+    // NULL is reserved for untyped literals only
+    if (leastRestrictive == null || leastRestrictive.getSqlTypeName == NULL) {
+      null
+    } else {
+      leastRestrictive
     }
-    // fall back to super
-    super.leastRestrictive(types)
   }
 
   private def resolveAllIdenticalTypes(types: util.List[RelDataType]): Option[RelDataType] = {
@@ -339,6 +380,20 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
   override def getDefaultCharset: Charset = {
     Charset.forName(ConversionUtil.NATIVE_UTF16_CHARSET_NAME)
+  }
+
+  /**
+   * This is a safety check in case the null type ends up in the type factory for other use cases
+   * than untyped NULL literals.
+   */
+  private def checkForNullType(childTypes: RelDataType*): Unit = {
+    childTypes.foreach { t =>
+      if (t.getSqlTypeName == NULL) {
+        throw new ValidationException(
+          "The null type is reserved for representing untyped NULL literals. It should not be " +
+            "used in constructed types. Please cast NULL literals to a more explicit type.")
+      }
+    }
   }
 }
 
@@ -450,8 +505,7 @@ object FlinkTypeFactory {
         DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType
 
       case NULL =>
-        throw new TableException(
-          "Type NULL is not supported. Null values must have a supported type.")
+        new NullType()
 
       // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
       // are represented as Enum
@@ -478,6 +532,9 @@ object FlinkTypeFactory {
 
       // CURSOR for UDTF case, whose type info will never be used, just a placeholder
       case CURSOR => new TypeInformationRawType[Nothing](new NothingTypeInfo)
+
+      case OTHER if relDataType.isInstanceOf[RawRelDataType] =>
+        relDataType.asInstanceOf[RawRelDataType].getRawType
 
       case _@t =>
         throw new TableException(s"Type is not supported: $t")

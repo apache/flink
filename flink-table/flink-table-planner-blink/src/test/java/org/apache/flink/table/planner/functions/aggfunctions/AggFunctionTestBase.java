@@ -23,14 +23,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.dataformat.BinaryGeneric;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.MaxWithRetractAccumulator;
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.MinWithRetractAccumulator;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.typeutils.BinaryGenericSerializer;
+import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Test;
@@ -42,7 +42,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.table.utils.BinaryGenericAsserter.equivalent;
+import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -233,19 +233,19 @@ public abstract class AggFunctionTestBase<T, ACC> {
 			MaxWithRetractAccumulator r = (MaxWithRetractAccumulator) result;
 			assertEquals(e.max, r.max);
 			assertEquals(e.mapSize, r.mapSize);
-		} else if (expected instanceof BinaryGeneric && result instanceof BinaryGeneric) {
+		} else if (expected instanceof RawValueData && result instanceof RawValueData) {
 			TypeSerializer<?> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			assertThat(
-					(BinaryGeneric) result,
-					equivalent((BinaryGeneric) expected, new BinaryGenericSerializer(serializer)));
-		} else if (expected instanceof GenericRow && result instanceof GenericRow) {
-			validateGenericRow((GenericRow) expected, (GenericRow) result, (BaseRowTypeInfo) typeInfo);
+					(RawValueData) result,
+					equivalent((RawValueData<?>) expected, new RawValueDataSerializer<>(serializer)));
+		} else if (expected instanceof GenericRowData && result instanceof GenericRowData) {
+			validateGenericRow((GenericRowData) expected, (GenericRowData) result, (RowDataTypeInfo) typeInfo);
 		} else {
 			assertEquals(expected, result);
 		}
 	}
 
-	private void validateGenericRow(GenericRow expected, GenericRow result, BaseRowTypeInfo typeInfo) {
+	private void validateGenericRow(GenericRowData expected, GenericRowData result, RowDataTypeInfo typeInfo) {
 		assertEquals(expected.getArity(), result.getArity());
 
 		for (int i = 0; i < expected.getArity(); ++i) {

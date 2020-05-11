@@ -36,12 +36,12 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.BinaryRowWriter;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.MutableObjectIterator;
@@ -203,7 +203,7 @@ public class RandomSortMergeInnerJoinTest {
 	public static void match(Map<Integer, Collection<Match>> expectedMatchesMap,
 			LinkedBlockingQueue<Object> values) {
 		for (Object o : values) {
-			BinaryRow row = ((StreamRecord<BinaryRow>) o).getValue();
+			BinaryRowData row = ((StreamRecord<BinaryRowData>) o).getValue();
 
 			final Integer key = row.getInt(0);
 			final String value1 = row.isNullAt(1) ? null : row.getString(1).toString();
@@ -237,10 +237,10 @@ public class RandomSortMergeInnerJoinTest {
 			MutableObjectIterator<Tuple2<Integer, String>> input1,
 			MutableObjectIterator<Tuple2<Integer, String>> input2,
 			boolean input1First) throws Exception {
-		BaseRowTypeInfo typeInfo = new BaseRowTypeInfo(new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
-		BaseRowTypeInfo joinedInfo = new BaseRowTypeInfo(
+		RowDataTypeInfo typeInfo = new RowDataTypeInfo(new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
+		RowDataTypeInfo joinedInfo = new RowDataTypeInfo(
 				new IntType(), new VarCharType(VarCharType.MAX_LENGTH), new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
-		final TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
+		final TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
 			new TwoInputStreamTaskTestHarness<>(
 				TwoInputStreamTask::new, 2, 1, new int[]{1, 2}, typeInfo, (TypeInformation) typeInfo,
 				joinedInfo);
@@ -292,11 +292,11 @@ public class RandomSortMergeInnerJoinTest {
 		return testHarness.getOutput();
 	}
 
-	public static BinaryRow newRow(int i, String s1) {
-		BinaryRow row = new BinaryRow(2);
+	public static BinaryRowData newRow(int i, String s1) {
+		BinaryRowData row = new BinaryRowData(2);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeInt(0, i);
-		writer.writeString(1, BinaryString.fromString(s1));
+		writer.writeString(1, StringData.fromString(s1));
 		writer.complete();
 		return row;
 	}
@@ -357,8 +357,8 @@ public class RandomSortMergeInnerJoinTest {
 	public static LinkedBlockingQueue<Object> transformToBinary(LinkedBlockingQueue<Object> output) {
 		LinkedBlockingQueue<Object> ret = new LinkedBlockingQueue<>();
 		for (Object o : output) {
-			BaseRow row = ((StreamRecord<BaseRow>) o).getValue();
-			BinaryRow binaryRow;
+			RowData row = ((StreamRecord<RowData>) o).getValue();
+			BinaryRowData binaryRow;
 			if (row.isNullAt(0)) {
 				binaryRow = newRow(row.getInt(2), null, row.getString(3).toString());
 			} else if (row.isNullAt(2)) {
@@ -373,19 +373,19 @@ public class RandomSortMergeInnerJoinTest {
 		return ret;
 	}
 
-	public static BinaryRow newRow(int i, String s1, String s2) {
-		BinaryRow row = new BinaryRow(3);
+	public static BinaryRowData newRow(int i, String s1, String s2) {
+		BinaryRowData row = new BinaryRowData(3);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeInt(0, i);
 		if (s1 == null) {
 			writer.setNullAt(1);
 		} else {
-			writer.writeString(1, BinaryString.fromString(s1));
+			writer.writeString(1, StringData.fromString(s1));
 		}
 		if (s2 == null) {
 			writer.setNullAt(2);
 		} else {
-			writer.writeString(2, BinaryString.fromString(s2));
+			writer.writeString(2, StringData.fromString(s2));
 		}
 		writer.complete();
 		return row;
