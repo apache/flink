@@ -527,11 +527,12 @@ public class CheckpointCoordinator {
 			Preconditions.checkState(!isTriggering);
 			isTriggering = true;
 
+			final long timestamp = System.currentTimeMillis();
 			final CompletableFuture<PendingCheckpoint> pendingCheckpointCompletableFuture =
 				initializeCheckpoint(request.props, request.externalSavepointLocation)
 					.thenApplyAsync(
 						(checkpointIdAndStorageLocation) -> createPendingCheckpoint(
-							request.timestamp,
+							timestamp,
 							request.props,
 							ackTasks,
 							request.isPeriodic,
@@ -554,7 +555,7 @@ public class CheckpointCoordinator {
 						if (throwable == null && checkpoint != null && !checkpoint.isDiscarded()) {
 							// no exception, no discarding, everything is OK
 							snapshotTaskState(
-								request.timestamp,
+								timestamp,
 								checkpoint.getCheckpointId(),
 								checkpoint.getCheckpointStorageLocation(),
 								request.props,

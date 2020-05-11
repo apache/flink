@@ -22,6 +22,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinator.CheckpointTrigg
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.concurrent.GuardedBy;
 
 import java.util.Comparator;
@@ -32,12 +35,15 @@ import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import static java.lang.System.currentTimeMillis;
 import static java.lang.System.identityHashCode;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.TOO_MANY_CHECKPOINT_REQUESTS;
 
 @SuppressWarnings("ConstantConditions")
 class CheckpointRequestDecider {
+	private static final Logger LOG = LoggerFactory.getLogger(CheckpointRequestDecider.class);
+	private static final int LOG_TIME_IN_QUEUE_THRESHOLD_MS = 1;
 	private static final int DEFAULT_MAX_QUEUED_REQUESTS = 1000;
 
 	private final int maxConcurrentCheckpointAttempts;
@@ -98,14 +104,18 @@ class CheckpointRequestDecider {
 				if (queuedRequests.size() > maxQueuedRequests) {
 					queuedRequests.pollLast().completeExceptionally(new CheckpointException(TOO_MANY_CHECKPOINT_REQUESTS));
 				}
-				return chooseRequestToExecute(isTriggering, lastCompletionMs);
+				Optional<CheckpointTriggerRequest> request = chooseRequestToExecute(isTriggering, lastCompletionMs);
+				request.ifPresent(CheckpointRequestDecider::logInQueueTime);
+				return request;
 			}
 		}
 	}
 
 	Optional<CheckpointTriggerRequest> chooseQueuedRequestToExecute(boolean isTriggering, long lastCompletionMs) {
 		synchronized (lock) {
-			return chooseRequestToExecute(isTriggering, lastCompletionMs);
+			Optional<CheckpointTriggerRequest> request = chooseRequestToExecute(isTriggering, lastCompletionMs);
+			request.ifPresent(CheckpointRequestDecider::logInQueueTime);
+			return request;
 		}
 	}
 
@@ -188,4 +198,12 @@ class CheckpointRequestDecider {
 		};
 	}
 
+	private static void logInQueueTime(CheckpointTriggerRequest request) {
+		if (LOG.isDebugEnabled()) {
+			long timeInQueue = request.timestamp - currentTimeMillis();
+			if (timeInQueue > LOG_TIME_IN_QUEUE_THRESHOLD_MS) {
+				LOG.debug("checkpoint request time in queue: {}", timeInQueue);
+			}
+		}
+	}
 }
