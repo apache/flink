@@ -31,22 +31,22 @@ under the License.
 -------------------------------
 在大多数情况下，自定义函数在使用之前都需要注册。在 Scala Table API 中可以不用注册。
 
-通过调用 `registerFunction()` 把函数注册到 `TableEnvironment` 的函数 catalog 里面。当一个函数注册之后，它就在 `TableEnvironment` 的函数 catalog 里面了，这样 Table API 或者 SQL 就可以识别并使用它。
+通过调用 `registerFunction()` 把函数注册到 `TableEnvironment`。当一个函数注册之后，它就在 `TableEnvironment` 的函数 catalog 里面了，这样 Table API 或者 SQL 解析器就可以识别并使用它。
 
-关于如何注册和使用每种类型的自定义函数（标量函数，表值函数，和聚合函数），更多示例可以看下面的部分。
+关于如何注册和使用每种类型的自定义函数（标量函数、表值函数和聚合函数），更多示例可以看下面的部分。
 
 {% top %}
 
 标量函数
 ----------------
 
-要求自定义标量函数不能覆盖内置函数，Table API 和 SQL 都可以定义和使用自定义标量函数。自定义标量函数可以把0到多个标量值映射成1个标量值。
+如果需要的标量函数没有被内置函数覆盖，就可以在自定义一个标量函数在 Table API 和 SQL 中使用。自定义标量函数可以把 0 到多个标量值映射成 1 个标量值。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法。 标量函数的行为取决于你写的求值方法。求值方法并须是 `public` 的，而且名字必须是 `eval`。求值方法的参数类型以及返回值类型就决定了标量函数的参数类型和返回值类型。求值方法也可以实现为多个重载的 `eval` 方法。求值方法也支持可变参数，例如 `eval(String... strs)`。
+想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法。 标量函数的行为取决于你写的求值方法。求值方法并须是 `public` 的，而且名字必须是 `eval`。求值方法的参数类型以及返回值类型就决定了标量函数的参数类型和返回值类型。可以通过实现多个名为 `eval` 的方法对求值方法进行重载。求值方法也支持可变参数，例如 `eval(String... strs)`。
 
-下面的示例展示了如何实现一个求哈希值的函数。先把它注册到 `TableEnvironment` 里，然后在查询的时候就可以直接使用了。需要注意的是，你可以通过构造方法来配置你的标量函数：
+下面的示例展示了如何实现一个求哈希值的函数。先把它注册到 `TableEnvironment` 里，然后在查询的时候就可以直接使用了。需要注意的是，你可以在注册之前通过构造方法来配置你的标量函数：
 
 {% highlight java %}
 public class HashCode extends ScalarFunction {
@@ -73,9 +73,9 @@ myTable.select("string, string.hashCode(), hashCode(string)");
 tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable");
 {% endhighlight %}
 
-求值方法的返回值类型默认是由 Flink 的类型推导来决定的。类型推导可以推导出基本数据类型以及简单的 POJO，但是对于更复杂的、自定义的、或者组合类型，可能会推导出错误的结果。在这种情况下，可以通过覆盖 `ScalarFunction#getResultType()` 的方式来定义复杂类型。
+求值方法的返回值类型默认是由 Flink 的类型推导来决定的。类型推导可以推导出基本数据类型以及简单的 POJO，但是对于更复杂的、自定义的、或者组合类型，可能会推导出错误的结果。在这种情况下，可以通过覆盖 `ScalarFunction#getResultType()`，并且返回 `TypeInformation` 来定义复杂类型。
 
-下面的示例展示了一个高级一点的自定义标量函数用法，它接收一个内部的时间戳参数，并且以 `long` 的形式返回一个内部的时间戳。通过覆盖 `ScalarFunction#getResultType()`，我们定义了我们返回的 `long` 类型可以被解析为 `Types.TIMESTAMP` 类型，并被代码生成所使用。
+下面的示例展示了一个高级一点的自定义标量函数用法，它接收一个内部的时间戳参数，并且以 `long` 的形式返回该内部的时间戳。通过覆盖 `ScalarFunction#getResultType()`，我们定义了我们返回的 `long` 类型在代码生成时可以被解析为 `Types.TIMESTAMP` 类型。
 
 {% highlight java %}
 public static class TimestampModifier extends ScalarFunction {
@@ -91,9 +91,9 @@ public static class TimestampModifier extends ScalarFunction {
 </div>
 
 <div data-lang="scala" markdown="1">
-想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法. 标量函数的行为取决于你写的求值方法。求值方法并须是 `public` 的，而且名字必须是 `eval`。求值方法的参数类型以及返回值类型就决定了标量函数的参数类型和返回值类型。求值方法也可以实现多个重载的 `eval` 方法。求值方法也支持可变参数，例如 `@varargs def eval(str: String*)`。
+想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法。标量函数的行为取决于你写的求值方法。求值方法并须是 `public` 的，而且名字必须是 `eval`。求值方法的参数类型以及返回值类型就决定了标量函数的参数类型和返回值类型。可以通过实现多个名为 `eval` 的方法对求值方法进行重载。求值方法也支持可变参数，例如 `@varargs def eval(str: String*)`。
 
-下面的示例展示了如何实现一个求哈希值的函数。先把它注册到 `TableEnvironment` 里，然后在查询的时候就可以直接使用了。需要注意的是，你可以通过构造方法来配置你的标量函数：
+下面的示例展示了如何实现一个求哈希值的函数。先把它注册到 `TableEnvironment` 里，然后在查询的时候就可以直接使用了。需要注意的是，你可以在注册之前通过构造方法来配置你的标量函数：
 
 {% highlight scala %}
 // 必须定义在 static/object 上下文中
@@ -114,9 +114,9 @@ tableEnv.registerFunction("hashCode", new HashCode(10))
 tableEnv.sqlQuery("SELECT string, hashCode(string) FROM MyTable")
 {% endhighlight %}
 
-求值方法的返回值类型默认是由 Flink 的类型推导来决定的。类型推导可以推导出基本数据类型以及简单的 POJO，但是对于更复杂的、自定义的、或者组合类型，可能会推导出错误的结果。在这种情况下，可以通过覆盖 `ScalarFunction#getResultType()`的方式来定义复杂类型。
+求值方法的返回值类型默认是由 Flink 的类型推导来决定的。类型推导可以推导出基本数据类型以及简单的 POJO，但是对于更复杂的、自定义的、或者组合类型，可能会推导出错误的结果。在这种情况下，可以通过覆盖 `ScalarFunction#getResultType()`，并且返回 `TypeInformation` 来定义复杂类型。
 
-下面的示例展示了一个高级一点的自定义标量函数用法，它接收一个内部的时间戳参数，并且以 `long` 的形式返回一个内部的时间戳。通过覆盖 `ScalarFunction#getResultType()`，我们定义了我们返回的 `long` 类型可以被解析为 `Types.TIMESTAMP` 类型，并被代码生成所使用。
+下面的示例展示了一个高级一点的自定义标量函数用法，它接收一个内部的时间戳参数，并且以 `long` 的形式返回该内部的时间戳。通过覆盖 `ScalarFunction#getResultType()`，我们定义了我们返回的 `long` 类型在代码生成时可以被解析为 `Types.TIMESTAMP` 类型。
 
 {% highlight scala %}
 object TimestampModifier extends ScalarFunction {
@@ -132,7 +132,7 @@ object TimestampModifier extends ScalarFunction {
 </div>
 
 <div data-lang="python" markdown="1">
-要定义一个 Python 标量函数，你需要继承 `pyflink.table.udf` 下的 `ScalarFunction`，并且实现一个求值函数。Python 标量函数的行为取决于你实现的求值函数，它的名字必须是 `eval`。
+要定义一个 Python 标量函数，你可以继承 `pyflink.table.udf` 下的 `ScalarFunction`，并且实现一个求值函数。Python 标量函数的行为取决于你实现的求值函数，它的名字必须是 `eval`。
 
 下面的示例展示了如何自定义一个 Python 的求哈希值的函数，并且把它注册到 `TableEnvironment` 里，然后在查询中使用它。你可以在注册函数之前通过构造函数来配置你的标量函数。
 
@@ -166,19 +166,19 @@ table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 表值函数
 ---------------
 
-跟自定义标量函数一样，自定义表值函数的输入参数也可以是0到多个。但是跟标量函数只能返回一个值不同的是，它可以返回任意多行。返回的每一行可以包含1到多列。
+跟自定义标量函数一样，自定义表值函数的输入参数也可以是 0 到多个标量。但是跟标量函数只能返回一个值不同的是，它可以返回任意多行。返回的每一行可以包含 1 到多列。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-要定义一个表值函数，你需要扩展 `org.apache.flink.table.functions` 下的 `TableFunction`，并且实现（一个或者多个）求值方法。表值函数的行为取决于你实现的求值方法。求值方法必须被声明为 `public`，并且名字必须是 `eval`。你也可以写多个 `eval` 方法来重载表值函数。求值方法的参数类型决定了表值函数的参数类型。表值函数也可以支持变长参数，比如 `eval(String... strs)`。表值函数的返回值类型取决于 `TableFunction` 的泛型参数。求值方法通过 `collect(T)` 方法来输出结果。
+要定义一个表值函数，你需要扩展 `org.apache.flink.table.functions` 下的 `TableFunction`，并且实现（一个或者多个）求值方法。表值函数的行为取决于你实现的求值方法。求值方法必须被声明为 `public`，并且名字必须是 `eval`。可以通过实现多个名为 `eval` 的方法对求值方法进行重载。求值方法的参数类型决定了表值函数的参数类型。表值函数也可以支持变长参数，比如 `eval(String... strs)`。表值函数返回的表的类型取决于 `TableFunction` 的泛型参数。求值方法通过 `collect(T)` 方法来发送要输出的行。
 
-在 Table API 中，表值函数是通过 `.joinLateral` 或者 `.leftOuterJoinLateral` 来使用的。`joinLateral` 算子会把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行 （cross）join。`leftOuterJoinLateral` 算子也是把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行（cross）join，如果表值函数返回的是0行，就会保留外表的这一行。在 SQL 里面使用 CROSS JOIN 或者 LEFT JOIN 加上 ON TRUE 作为 Join 的条件来跟表值函数 `LATERAL TABLE（<TableFunction>)` 进行Join（见下面的例子）。
+在 Table API 中，表值函数是通过 `.joinLateral` 或者 `.leftOuterJoinLateral` 来使用的。`joinLateral` 算子会把外表（算子左侧的表）的每一行跟跟表值函数返回的所有行（位于算子右侧）进行 （cross）join。`leftOuterJoinLateral` 算子也是把外表（算子左侧的表）的每一行跟表值函数返回的所有行（位于算子右侧）进行（cross）join，并且如果表值函数返回 0 行也会保留外表的这一行。在 SQL 里面用 CORSS JOIN 或者 以 ON TRUE 为条件的 LEFT JOIN 来配合 `LATERAL TABLE（<TableFunction>)` 的使用。
 
-下面的例子展示了如何定义一个表值函数，如何在 TableEnvironment 中注册表值函数，以及如何在查询中使用表值函数。你可以通过构造函数来配置你的表值函数：
+下面的例子展示了如何定义一个表值函数，如何在 TableEnvironment 中注册表值函数，以及如何在查询中使用表值函数。你可以在注册之前通过构造函数来配置你的表值函数：
 
 {% highlight java %}
-// 泛型参数的类型 "Tuple2<String, Integer>" 决定了返回类型是（String，Integer）。
+// 泛型参数的类型 "Tuple2<String, Integer>" 决定了返回的表的 schema 是（String，Integer）。
 public class Split extends TableFunction<Tuple2<String, Integer>> {
     private String separator = " ";
     
@@ -216,14 +216,14 @@ tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(s
 
 <div data-lang="scala" markdown="1">
 
-要定义一个表值函数，你需要扩展 `org.apache.flink.table.functions` 下的 `TableFunction`，并且实现（一个或者多个）求值方法。表值函数的行为取决于你的求值方法。求值方法必须声明为 `public`，并且名字必须是 `eval`。可以实现多个 `eval`方法来重载表值函数。求值方法的参数类型决定了表值函数的参数类型。求值方法也可以支持变长参数，例如 `eval(String... strs)`。返回值的类型取决于 `TableFunction` 的泛型参数。求值方法通过 `collect(T)` 方法来输出数据。
+要定义一个表值函数，你需要扩展 `org.apache.flink.table.functions` 下的 `TableFunction`，并且实现（一个或者多个）求值方法。表值函数的行为取决于你实现的求值方法。求值方法必须被声明为 `public`，并且名字必须是 `eval`。可以通过实现多个名为 `eval` 的方法对求值方法进行重载。求值方法的参数类型决定了表值函数的参数类型。表值函数也可以支持变长参数，比如 `eval(String... strs)`。表值函数返回的表的类型取决于 `TableFunction` 的泛型参数。求值方法通过 `collect(T)` 方法来发送要输出的行。
 
-在 Table API 中，表值函数是通过 `.joinLateral` 或者 `.leftOuterJoinLateral` 来使用的。`joinLateral` 算子会把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行 （cross）join。`leftOuterJoinLateral` 算子也是把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行（cross）join，如果表值函数返回的是0行，就会保留外表的这一行。在 SQL 里面使用 CROSS JOIN 或者 LEFT JOIN 加上 ON TRUE 作为 Join 的条件来跟表值函数 `LATERAL TABLE（<TableFunction>)` 进行Join（见下面的例子）。
+在 Table API 中，表值函数是通过 `.joinLateral` 或者 `.leftOuterJoinLateral` 来使用的。`joinLateral` 算子会把外表（算子左侧的表）的每一行跟跟表值函数返回的所有行（位于算子右侧）进行 （cross）join。`leftOuterJoinLateral` 算子也是把外表（算子左侧的表）的每一行跟表值函数返回的所有行（位于算子右侧）进行（cross）join，并且如果表值函数返回 0 行也会保留外表的这一行。在 SQL 里面用 CORSS JOIN 或者 以 ON TRUE 为条件的 LEFT JOIN 来配合 `LATERAL TABLE（<TableFunction>)` 的使用。
 
-下面的例子展示了如何定义一个表值函数，如何在 TableEnvironment 中注册表值函数，以及如何在查询中使用表值函数。你可以通过构造函数来配置你的表值函数：
+下面的例子展示了如何定义一个表值函数，如何在 TableEnvironment 中注册表值函数，以及如何在查询中使用表值函数。你可以在注册之前通过构造函数来配置你的表值函数：
 
 {% highlight scala %}
-// 泛型参数的类型 "(String, Int)" 决定了返回类型是 (String, Integer)。
+// 泛型参数的类型 "(String, Int)" 决定了返回的表的 schema 是 (String, Integer)。
 class Split(separator: String) extends TableFunction[(String, Int)] {
   def eval(str: String): Unit = {
     // 使用 collect(...) 来输出一行
@@ -253,11 +253,11 @@ tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(s
 </div>
 
 <div data-lang="python" markdown="1">
-要实现一个 Python 表值函数，你需要扩展 `pyflink.table.udtf` 下的 `TableFunction`，并且实现一个求值方法。Python 表值函数的行为取决于你实现的求值方法，它的名字必须是 `eval`。
+要实现一个 Python 表值函数，你可以扩展 `pyflink.table.udtf` 下的 `TableFunction`，并且实现一个求值方法。Python 表值函数的行为取决于你实现的求值方法，它的名字必须是 `eval`。
 
-在 Python Table API 中，表值函数是通过 `.join_lateral` 或者 `.left_outer_join_lateral` 来使用的。`join_lateral` 算子会把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行 （cross）join。`left_outer_join_lateral` 算子也是把外表（算子左侧的表）的每一行跟表值函数（算子右侧的表）返回的所有行进行（cross）join，如果表值函数返回的是0行，就会保留外表的这一行。在 SQL 里面使用 CROSS JOIN 或者 LEFT JOIN 加上 ON TRUE 作为 Join 的条件来跟表值函数 `LATERAL TABLE（<TableFunction>)` 进行Join（见下面的例子）。
+在 Python Table API 中，表值函数是通过 `.join_lateral` 或者 `.left_outer_join_lateral` 来使用的。`join_lateral` 算子会把外表（算子左侧的表）的每一行跟跟表值函数返回的所有行（位于算子右侧）进行 （cross）join。`left_outer_join_lateral` 算子也是把外表（算子左侧的表）的每一行跟表值函数返回的所有行（位于算子右侧）进行（cross）join，并且如果表值函数返回 0 行也会保留外表的这一行。在 SQL 里面用 CORSS JOIN 或者 以 ON TRUE 为条件的 LEFT JOIN 来配合 `LATERAL TABLE（<TableFunction>)` 的使用。
 
-下面的例子展示了如何定义一个 Python 表值函数，如何在 TableEnvironment 中注册表值函数，以及如何在查询中使用表值函数。你可以通过构造函数来配置你的表值函数：
+下面的例子展示了如何定义一个 Python 表值函数，如何在 TableEnvironment 中注册表值函数，以及如何在查询中使用表值函数。你可以在注册之前通过构造函数来配置你的表值函数：
 
 {% highlight python %}
 class Split(TableFunction):
@@ -294,7 +294,7 @@ table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE
 
 `TableFunction` 的返回类型默认是用 Flink 自动类型推导来决定的。对于基础类型和简单的 POJO 类型推导是没有问题的，但是对于更复杂的、自定义的、以及组合的类型可能会推导错误。如果有这种情况，可以通过重写（override） `TableFunction#getResultType()` 并且返回 `TypeInformation` 来指定返回类型。
 
-下面的例子展示了 `TableFunction` 返回了一个 `Row` 类型，需要显示指定返回类型。我们通过重写 `TableFunction#getResultType` 来返回 `RowTypeInfo` 作为返回类型。
+下面的例子展示了 `TableFunction` 返回了一个 `Row` 类型，需要显示指定返回类型。我们通过重写 `TableFunction#getResultType` 来指定 `RowTypeInfo(String, Integer)` 作为返回的表的类型。
 
 {% highlight java %}
 public class CustomTypeSplit extends TableFunction<Row> {
@@ -353,7 +353,7 @@ class CustomTypeSplit extends TableFunction[Row] {
 <img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udagg-mechanism.png" width="80%">
 </center>
 
-上面的图片展示了一个聚合的例子。假设你有一个关于饮料的表。表里面有三个字段，分别是 `id`、`name`、`price`，表里有5行数据。假设你需要找到所有饮料里最贵的饮料的价格，执行一个 `max()` 聚合。你需要遍历所有5行数据，而结果就只有一个数值。
+上面的图片展示了一个聚合的例子。假设你有一个关于饮料的表。表里面有三个字段，分别是 `id`、`name`、`price`，表里有 5 行数据。假设你需要找到所有饮料里最贵的饮料的价格，即执行一个 `max()` 聚合。你需要遍历所有 5 行数据，而结果就只有一个数值。
 
 自定义聚合函数是通过扩展 `AggregateFunction` 来实现的。`AggregateFunction` 的工作过程如下。首先，它需要一个 `accumulator`，它是一个数据结构，存储了聚合的中间结果。通过调用 `AggregateFunction` 的 `createAccumulator()` 方法创建一个空的 accumulator。接下来，对于每一行数据，会调用 `accumulate()` 方法来更新 accumulator。当所有的数据都处理完了之后，通过调用 `getValue` 方法来计算和返回最终的结果。
 
@@ -363,7 +363,7 @@ class CustomTypeSplit extends TableFunction[Row] {
 - `accumulate()` 
 - `getValue()`
 
-Flink 的类型推导不能处理复杂的数据类型，只能处理基础类型或者是简单的 POJO 类型。所以跟 `ScalarFunction` 和 `TableFunction` 一样，`AggregateFunction` 也提供了 `AggregateFunction#getResultType()` 和 `AggregateFunction#getAccumulatorType()` 来分别指定返回值类型和 accumulator 的类型，两个函数的返回值类型也都是 `TypeInformation`。
+Flink 的类型推导在遇到复杂类型的时候可能会推导出错误的结果，比如那些非基本类型和普通的 POJO 类型的复杂类型。所以跟 `ScalarFunction` 和 `TableFunction` 一样，`AggregateFunction` 也提供了 `AggregateFunction#getResultType()` 和 `AggregateFunction#getAccumulatorType()` 来分别指定返回值类型和 accumulator 的类型，两个函数的返回值类型也都是 `TypeInformation`。
  
 除了上面的方法，还有几个方法可以选择实现。这些方法有些可以让查询更加高效，而有些是在某些特定场景下必须要实现的。例如，如果聚合函数用在会话窗口（当两个会话窗口合并的时候需要 merge 他们的 accumulator）的话，`merge()` 方法就是必须要实现的。
 
@@ -607,7 +607,7 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedAggregateFunction[T,
 
 为了计算加权平均值，accumulator 需要存储加权总和以及数据的条数。在我们的例子里，我们定义了一个类 `WeightedAvgAccum` 来作为 accumulator。Flink 的 checkpoint 机制会自动保存 accumulator，在失败时进行恢复，以此来保证精确一次的语义。
 
-我们的 `WeightedAvg` 的 `accumulate` 方法有三个输入参数。第一个是 `WeightedAvgAccum` accumulator，另外两个是用户自定义的输入：输入的值 `ivalue` 和 输入的权重 `iweight`。尽管 `retract()`、`merge()`、`resetAccumulator()` 这几个方法在大多数聚合类型中都不是必须实现的，我们也在样例中提供了他们的实现。请注意我们在 Scala 样例中也是用的是 Java 的基础类型，并且定义了 `getResultType()` 和 `getAccumulatorType()`，因为 Flink 的类型推导对于 Scala 的类型推导做的不是很好。
+我们的 `WeightedAvg`（聚合函数）的 `accumulate` 方法有三个输入参数。第一个是 `WeightedAvgAccum` accumulator，另外两个是用户自定义的输入：输入的值 `ivalue` 和 输入的权重 `iweight`。尽管 `retract()`、`merge()`、`resetAccumulator()` 这几个方法在大多数聚合类型中都不是必须实现的，我们也在样例中提供了他们的实现。请注意我们在 Scala 样例中也是用的是 Java 的基础类型，并且定义了 `getResultType()` 和 `getAccumulatorType()`，因为 Flink 的类型推导对于 Scala 的类型推导做的不是很好。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -832,7 +832,7 @@ t_env.sql_query("SELECT user, wAvg(points, level) AS avgPoints FROM userScores G
 <img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udtagg-mechanism.png" width="80%">
 </center>
 
-上图展示了一个表值聚合函数的例子。假设你有一个饮料的表，这个表有3列，分别是 `id`、`name` 和 `price`，一共有5行。假设你需要找到价格最高的两个饮料，类似于 `top2()` 表值聚合函数。你需要遍历所有5行数据，结果是有2行数据的一个表。
+上图展示了一个表值聚合函数的例子。假设你有一个饮料的表，这个表有 3 列，分别是 `id`、`name` 和 `price`，一共有 5 行。假设你需要找到价格最高的两个饮料，类似于 `top2()` 表值聚合函数。你需要遍历所有 5 行数据，结果是有 2 行数据的一个表。
 
 用户自定义表值聚合函数是通过扩展 `TableAggregateFunction` 类来实现的。一个 `TableAggregateFunction` 的工作过程如下。首先，它需要一个 `accumulator`，这个 `accumulator` 负责存储聚合的中间结果。 通过调用 `TableAggregateFunction` 的 `createAccumulator` 方法来构造一个空的 accumulator。接下来，对于每一行数据，会调用 `accumulate` 方法来更新 accumulator。当所有数据都处理完之后，调用 `emitValue` 方法来计算和返回最终的结果。
 
@@ -841,7 +841,7 @@ t_env.sql_query("SELECT user, wAvg(points, level) AS avgPoints FROM userScores G
 - `createAccumulator()`
 - `accumulate()` 
 
-Flink 类型推导在遇到复杂数据类型的时候可能会推导错误。所以类似于 `ScalarFunction` 和 `TableFunction`，`TableAggregateFunction` 也提供了 `TableAggregateFunction#getResultType()` 和 `TableAggregateFunction#getAccumulatorType()` 方法来指定返回值类型和 accumulator 的类型，这两个方法都需要返回 `TypeInformation`。
+Flink 的类型推导在遇到复杂类型的时候可能会推导出错误的结果，比如那些非基本类型和普通的 POJO 类型的复杂类型。所以类似于 `ScalarFunction` 和 `TableFunction`，`TableAggregateFunction` 也提供了 `TableAggregateFunction#getResultType()` 和 `TableAggregateFunction#getAccumulatorType()` 方法来指定返回值类型和 accumulator 的类型，这两个方法都需要返回 `TypeInformation`。
  
 除了上面的方法，还有几个其他的方法可以选择性的实现。有些方法可以让查询更加高效，而有些方法对于某些特定场景是必须要实现的。比如，在会话窗口（当两个会话窗口合并时会合并两个 accumulator）中使用聚合函数时，必须要实现`merge()` 方法。
 
@@ -1123,13 +1123,13 @@ abstract class TableAggregateFunction[T, ACC] extends UserDefinedAggregateFuncti
 
 下面的例子展示了如何
 
-- 定义一个 `TableAggregateFunction` 来计算最大的2个值，
+- 定义一个 `TableAggregateFunction` 来计算给定列的最大的 2 个值，
 - 在 `TableEnvironment` 中注册函数，
 - 在 Table API 查询中使用函数（当前只在 Table API 中支持 TableAggregateFunction）。
 
-为了计算最大的2个值，accumulator需要保存当前看到的最大的2个值。在我们的例子中，我们定义了类 `Top2Accum` 来作为 accumulator。Flink 的 checkpoint 机制会自动保存 accumulator，并且在失败时进行恢复，来保证精确一次的语义。
+为了计算最大的 2 个值，accumulator 需要保存当前看到的最大的 2 个值。在我们的例子中，我们定义了类 `Top2Accum` 来作为 accumulator。Flink 的 checkpoint 机制会自动保存 accumulator，并且在失败时进行恢复，来保证精确一次的语义。
 
-我们的 `Top2` 表值聚合函数的 `accumulate()` 方法有两个输入，第一个是 `Top2Accum` accumulator，另一个是用户定义的输入：输入的值 `v`。尽管 `merge()` 方法在大多数聚合类型中不是必须的，我们也在样例中提供了它的实现。请注意，我们在 Scala 样例中也使用的是 Java 的基础类型，并且定义了 `getResultType()` 和 `getAccumulatorType()` 方法，因为 Flink 的类型推导对于 Scala 的类型推导支持的不是很好。
+我们的 `Top2` 表值聚合函数（`TableAggregateFunction`）的 `accumulate()` 方法有两个输入，第一个是 `Top2Accum` accumulator，另一个是用户定义的输入：输入的值 `v`。尽管 `merge()` 方法在大多数聚合类型中不是必须的，我们也在样例中提供了它的实现。请注意，我们在 Scala 样例中也使用的是 Java 的基础类型，并且定义了 `getResultType()` 和 `getAccumulatorType()` 方法，因为 Flink 的类型推导对于 Scala 的类型推导支持的不是很好。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1423,7 +1423,7 @@ tab
 实现自定义函数的最佳实践
 ------------------------------------
 
-在 Table API 和 SQL 的内部，代码生成会尽量的使用基础类型。如果自定义函数使用的是对象，会有很多的对象创建、转换（cast）、以及自动拆装箱的开销。因此，强烈建议使用基础类型来作为参数以及返回值的类型。`Types.DATE` 和 `Types.TIME` 可以用 `int` 来表示。`Types.TIMESTAMP` 可以用 `long` 来表示。
+在 Table API 和 SQL 的内部，代码生成会尽量的使用基础类型。自定义函数的参数及返回值类型是对象，会有很多的对象创建、转换（cast）、以及自动拆装箱的开销。因此，强烈建议使用基础类型来作为参数以及返回值的类型。`Types.DATE` 和 `Types.TIME` 可以用 `int` 来表示。`Types.TIMESTAMP` 可以用 `long` 来表示。
 
 我们建议自定义函数用 Java 来实现，而不是用 Scala 来实现，因为 Flink 的类型推导对 Scala 不是很友好。
 
@@ -1434,16 +1434,16 @@ tab
 
 有时候自定义函数需要获取一些全局信息，或者在真正被调用之前做一些配置（setup）/清理（clean-up）的工作。自定义函数也提供了 `open()` 和 `close()` 方法，你可以重写这两个方法做到类似于 DataSet 或者 DataStream API 中 `RichFunction` 的功能。
 
-`open()` 方法在自定义函数被调用之前先调用。`close()` 方法在自定义函数调用完之后被调用。
+`open()` 方法在求值方法被调用之前先调用。`close()` 方法在求值方法调用完之后被调用。
 
-`open()` 方法提供了一个 `FunctionContext`，它包含了一些自定义函数被执行时的上下文信息，比如 metric group、分布式文件缓存，或者是全局的任务参数等。
+`open()` 方法提供了一个 `FunctionContext`，它包含了一些自定义函数被执行时的上下文信息，比如 metric group、分布式文件缓存，或者是全局的作业参数等。
 
 下面的信息可以通过调用 `FunctionContext` 的对应的方法来获得：
 
 | 方法                                  | 描述                                                    |
 | :------------------------------------ | :----------------------------------------------------- |
 | `getMetricGroup()`                    | 执行该函数的 subtask 的 Metric Group。                   |
-| `getCachedFile(name)`                 | 分布式文件缓存的本地临时文件拷贝。                         |
+| `getCachedFile(name)`                 | 分布式文件缓存的本地临时文件副本。                         |
 | `getJobParameter(name, defaultValue)` | 跟对应的 key 关联的全局参数值。                           |
 
 下面的例子展示了如何在一个标量函数中通过 `FunctionContext` 来获取一个全局的任务参数：
