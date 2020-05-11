@@ -59,7 +59,7 @@ public class ResourceManagerOptions {
 
 	@Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
 	public static final ConfigOption<Integer> MAX_SLOT_NUM = ConfigOptions
-		.key("slotmanager.max-number-of-slots")
+		.key("slotmanager.number-of-slots.max")
 		.intType()
 		.defaultValue(Integer.MAX_VALUE)
 		.withDescription("Defines the maximum number of slots that the Flink cluster allocates. This configuration option " +
