@@ -39,10 +39,10 @@ import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.HOST
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REST_PORT_OPTION;
 
 /**
- * Parser factory which generates a {@link StandaloneJobClusterConfiguration} from a given
+ * Parser factory which generates a {@link StandaloneApplicationClusterConfiguration} from a given
  * list of command line arguments.
  */
-public class StandaloneJobClusterConfigurationParserFactory implements ParserResultFactory<StandaloneJobClusterConfiguration> {
+public class StandaloneApplicationClusterConfigurationParserFactory implements ParserResultFactory<StandaloneApplicationClusterConfiguration> {
 
 	private static final Option JOB_CLASS_NAME_OPTION = Option.builder("j")
 		.longOpt("job-classname")
@@ -75,7 +75,7 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 	}
 
 	@Override
-	public StandaloneJobClusterConfiguration createResult(@Nonnull CommandLine commandLine) throws FlinkParseException {
+	public StandaloneApplicationClusterConfiguration createResult(@Nonnull CommandLine commandLine) throws FlinkParseException {
 		final String configDir = commandLine.getOptionValue(CONFIG_DIR_OPTION.getOpt());
 		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
 		final int restPort = getRestPort(commandLine);
@@ -84,7 +84,7 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		final JobID jobId = getJobId(commandLine);
 		final String jobClassName = commandLine.getOptionValue(JOB_CLASS_NAME_OPTION.getOpt());
 
-		return new StandaloneJobClusterConfiguration(
+		return new StandaloneApplicationClusterConfiguration(
 			configDir,
 			dynamicProperties,
 			commandLine.getArgs(),
