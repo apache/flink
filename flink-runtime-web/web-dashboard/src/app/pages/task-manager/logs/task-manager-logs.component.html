@@ -16,5 +16,6 @@
   ~ limitations under the License.
   -->
 
-<flink-monaco-editor [value]="dump"></flink-monaco-editor>
-<flink-refresh-download [compactMode]="true" [downloadHref]="'taskmanagers/'+taskManagerDetail?.id+'/thread-dump'" [downloadName]="'taskmanager_'+taskManagerDetail?.id+'_thread_dump'" (reload)="reload()"></flink-refresh-download>
+<flink-monaco-editor [value]="logs"></flink-monaco-editor>
+<flink-refresh-download [compactMode]="true" [downloadHref]="'taskmanagers/'+taskManagerDetail?.id+'/log'" [downloadName]="'taskmanager_'+taskManagerDetail?.id+'_log'" (reload)="reload()"></flink-refresh-download>
+

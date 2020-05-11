@@ -37,7 +37,6 @@ export class TaskManagerLogDetailComponent implements OnInit {
   isLoading = false;
   taskManagerDetail: TaskManagerDetailInterface;
   isFullScreen = false;
-  hasLogName = false;
   @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
 
   constructor(
@@ -49,7 +48,7 @@ export class TaskManagerLogDetailComponent implements OnInit {
   reloadLog() {
     this.isLoading = true;
     this.cdr.markForCheck();
-    this.taskManagerService.loadLog(this.taskManagerDetail.id, this.logName, this.hasLogName).subscribe(
+    this.taskManagerService.loadLog(this.taskManagerDetail.id, this.logName).subscribe(
       data => {
         this.logs = data.data;
         this.downloadUrl = data.url;
@@ -77,12 +76,7 @@ export class TaskManagerLogDetailComponent implements OnInit {
   ngOnInit() {
     this.taskManagerService.taskManagerDetail$.pipe(first()).subscribe(data => {
       this.taskManagerDetail = data;
-      this.hasLogName = this.activatedRoute.snapshot.data.hasLogName;
-      if (this.hasLogName) {
-        this.logName = this.activatedRoute.snapshot.params.logName;
-      } else {
-        this.logName = `taskmanager_${data.id}_log`;
-      }
+      this.logName = this.activatedRoute.snapshot.params.logName;
       this.reloadLog();
     });
   }
