@@ -222,7 +222,8 @@ watchdog () {
 
 			print_stacktraces | tee $TRACE_OUT
 
-			kill $(<$CMD_PID)
+			# Kill $CMD and all descendants
+			pkill -P $(<$CMD_PID)
 
 			exit 1
 		fi
