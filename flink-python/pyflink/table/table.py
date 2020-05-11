@@ -682,6 +682,7 @@ class Table(object):
         :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
                the :class:`~pyflink.table.Table` is written.
         :type table_path: str
+
         .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
                   use :class:`TableTableEnvironment`#:func:`create_statement_set`
                   for multiple sinks.

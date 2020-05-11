@@ -826,7 +826,9 @@ public interface TableEnvironment {
 	 * the result of the given {@link Table}.
 	 *
 	 * @param table The table for which the AST and execution plan will be returned.
+	 * @deprecated use {@link Table#explain(ExplainDetail...)}.
 	 */
+	@Deprecated
 	String explain(Table table);
 
 	/**
@@ -836,7 +838,9 @@ public interface TableEnvironment {
 	 * @param table The table for which the AST and execution plan will be returned.
 	 * @param extended if the plan should contain additional properties,
 	 * e.g. estimated cost, traits
+	 * @deprecated use {@link Table#explain(ExplainDetail...)}.
 	 */
+	@Deprecated
 	String explain(Table table, boolean extended);
 
 	/**
