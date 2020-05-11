@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-A task in Flink is the basic unit of execution. It is the place where each parallel instance of an operator is executed
+A task in Flink is the basic unit of execution. It is the place where each parallel instance of an operator is executed.
 As an example, an operator with a parallelism of *5* will have each of its instances executed by a separate task. 
 
 The `StreamTask` is the base for all different task sub-types in Flink's streaming engine. This document goes through 
