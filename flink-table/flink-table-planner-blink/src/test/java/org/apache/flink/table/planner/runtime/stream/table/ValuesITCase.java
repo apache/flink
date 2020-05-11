@@ -244,7 +244,7 @@ public class ValuesITCase extends StreamingTestBase {
 				"   `f16` ARRAY<DECIMAL(2, 1)>, " +
 				"   `f17` MAP<CHAR(1), DECIMAL(2, 1)>>) " +
 				"WITH ('connector' = 'COLLECTION')");
-		syncExecuteInsert(t, "SinkTable");
+		execInsertTableAndWaitResult(t, "SinkTable");
 
 		List<Row> actual = TestCollectionTableFactory.getResult();
 		assertThat(
@@ -300,7 +300,7 @@ public class ValuesITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		tEnv().executeSql(
 			"CREATE TABLE SinkTable(str STRING) WITH ('connector' = 'COLLECTION')");
-		TableEnvUtil.syncExecuteInsert(t, "SinkTable");
+		TableEnvUtil.execInsertTableAndWaitResult(t, "SinkTable");
 
 		List<Row> actual = TestCollectionTableFactory.getResult();
 		List<Row> expected = Arrays.asList(

@@ -466,7 +466,7 @@ public class FunctionITCase extends StreamingTestBase {
 		tEnv().executeSql("CREATE TABLE TestTable(i INT NOT NULL, b BIGINT NOT NULL, s STRING) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("PrimitiveScalarFunction", PrimitiveScalarFunction.class);
-		syncExecuteInsert("INSERT INTO TestTable SELECT i, PrimitiveScalarFunction(i, b, s), s FROM TestTable");
+		execInsertSqlAndWaitResult("INSERT INTO TestTable SELECT i, PrimitiveScalarFunction(i, b, s), s FROM TestTable");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
@@ -485,7 +485,7 @@ public class FunctionITCase extends StreamingTestBase {
 		tEnv().createTemporarySystemFunction("ClassNameScalarFunction", ClassNameScalarFunction.class);
 		tEnv().createTemporarySystemFunction("ClassNameOrUnknownScalarFunction", ClassNameOrUnknownScalarFunction.class);
 		tEnv().createTemporarySystemFunction("WildcardClassNameScalarFunction", WildcardClassNameScalarFunction.class);
-		syncExecuteInsert("INSERT INTO TestTable SELECT " +
+		execInsertSqlAndWaitResult("INSERT INTO TestTable SELECT " +
 			"ClassNameScalarFunction(NULL), " +
 			"ClassNameScalarFunction(CAST(NULL AS STRING)), " +
 			"ClassNameOrUnknownScalarFunction(NULL), " +
@@ -513,7 +513,7 @@ public class FunctionITCase extends StreamingTestBase {
 
 		tEnv().createTemporarySystemFunction("RowScalarFunction", RowScalarFunction.class);
 		// the names of the function input and r differ
-		syncExecuteInsert("INSERT INTO TestTable SELECT i, RowScalarFunction(r) FROM TestTable");
+		execInsertSqlAndWaitResult("INSERT INTO TestTable SELECT i, RowScalarFunction(r) FROM TestTable");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sourceData));
 	}
@@ -575,7 +575,7 @@ public class FunctionITCase extends StreamingTestBase {
 			"WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("ComplexScalarFunction", ComplexScalarFunction.class);
-		syncExecuteInsert(
+		execInsertSqlAndWaitResult(
 			"INSERT INTO SinkTable " +
 			"SELECT " +
 			"  i, " +
@@ -611,7 +611,7 @@ public class FunctionITCase extends StreamingTestBase {
 		tEnv().executeSql("CREATE TABLE SinkTable(i1 INT, i2 INT, i3 INT) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
-		syncExecuteInsert(
+		execInsertSqlAndWaitResult(
 			"INSERT INTO SinkTable " +
 			"SELECT " +
 			"  i, " +
@@ -679,7 +679,7 @@ public class FunctionITCase extends StreamingTestBase {
 			"WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RawLiteralScalarFunction", RawLiteralScalarFunction.class);
-		syncExecuteInsert(
+		execInsertSqlAndWaitResult(
 			"INSERT INTO SinkTable " +
 			"  (SELECT " +
 			"    i, " +
@@ -702,7 +702,7 @@ public class FunctionITCase extends StreamingTestBase {
 
 		tEnv().createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
 		try {
-			syncExecuteInsert(
+			execInsertSqlAndWaitResult(
 				"INSERT INTO SinkTable " +
 				"SELECT CustomScalarFunction('test')");
 			fail();
@@ -739,7 +739,7 @@ public class FunctionITCase extends StreamingTestBase {
 		tEnv().executeSql("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING> NOT NULL) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
-		syncExecuteInsert("INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable, LATERAL TABLE(RowTableFunction(s)) t");
+		execInsertSqlAndWaitResult("INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable, LATERAL TABLE(RowTableFunction(s)) t");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
@@ -757,7 +757,7 @@ public class FunctionITCase extends StreamingTestBase {
 		tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("DynamicTableFunction", DynamicTableFunction.class);
-		syncExecuteInsert(
+		execInsertSqlAndWaitResult(
 			"INSERT INTO SinkTable " +
 			"SELECT T1.s FROM TABLE(DynamicTableFunction('Test')) AS T1(s) " +
 			"UNION ALL " +

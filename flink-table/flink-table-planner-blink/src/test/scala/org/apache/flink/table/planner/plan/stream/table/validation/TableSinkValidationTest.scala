@@ -111,7 +111,7 @@ class TableSinkValidationTest extends TableTestBase {
     MemoryTableSourceSinkUtil.createDataTypeOutputFormatTable(
       tEnv, sinkSchema, "testSink")
     // must fail because query result table schema is different with sink table schema
-    TableEnvUtil.syncExecuteInsert(resultTable, "testSink")
+    TableEnvUtil.execInsertTableAndWaitResult(resultTable, "testSink")
   }
 
 }

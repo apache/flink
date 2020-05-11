@@ -128,7 +128,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 			"  (5.33,'US Dollar','2019-12-12 00:00:05.006001'), \n" +
 			"  (0,'DUMMY','2019-12-12 00:00:10'))\n" +
 			"  AS orders (price, currency, ts)";
-		TableEnvUtil.syncExecuteInsert(tEnv, initialValues);
+		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, initialValues);
 
 		// ---------- Consume stream from Kafka -------------------
 

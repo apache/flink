@@ -135,7 +135,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.LONG))
 
     tEnv.registerTableSink("upsertSink", sink)
-    syncExecuteInsert(t, "upsertSink")
+    execInsertTableAndWaitResult(t, "upsertSink")
 
     val expected = Seq("0,1,1", "1,2,3", "2,1,1", "3,1,1", "4,1,1", "5,2,3", "6,0,1")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
@@ -185,7 +185,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .join(rightTable, 'a === 'bb && ('a < 4 || 'a > 4))
       .select('a, 'b, 'c, 'd)
     tEnv.registerTableSink("retractSink", sink)
-    syncExecuteInsert(t, "retractSink")
+    execInsertTableAndWaitResult(t, "retractSink")
 
     val expected = Seq("1,1,1,1", "1,1,1,1", "1,1,1,1", "1,1,1,1", "2,2,2,2", "3,3,3,3",
                        "5,5,5,5", "5,5,5,5")
@@ -789,7 +789,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val sink = new TestingUpsertTableSink(Array(0, 2))
       .configure(schema.getFieldNames, schema.getFieldTypes)
     tEnv.registerTableSink("MySink", sink)
-    syncExecuteInsert(t, "MySink")
+    execInsertTableAndWaitResult(t, "MySink")
 
     val expected = Seq("1,5,1,2")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
@@ -869,7 +869,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val sink = new TestingRetractTableSink().configure(
       schema.getFieldNames, schema.getFieldTypes)
     tEnv.registerTableSink("MySink", sink)
-    syncExecuteInsert(t, "MySink")
+    execInsertTableAndWaitResult(t, "MySink")
 
     val expected = Seq("1,4,1,2", "1,5,1,2")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
@@ -1056,7 +1056,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val sink = new TestingUpsertTableSink(Array(0, 1))
       .configure(schema.getFieldNames, schema.getFieldTypes)
     tEnv.registerTableSink("MySink", sink)
-    syncExecuteInsert(t, "MySink")
+    execInsertTableAndWaitResult(t, "MySink")
 
     val expected = Seq("0,1,1", "1,2,3", "2,1,1", "3,1,1", "4,1,1", "5,2,3", "6,0,1")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
@@ -1338,7 +1338,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val sink = new TestingUpsertTableSink(Array(0, 1, 2))
       .configure(schema.getFieldNames, schema.getFieldTypes)
     tEnv.registerTableSink("sinkTests", sink)
-    syncExecuteInsert(t, "sinkTests")
+    execInsertTableAndWaitResult(t, "sinkTests")
 
     val expected = Seq("4,1,1,1")
     assertEquals(expected, sink.getUpsertResults)

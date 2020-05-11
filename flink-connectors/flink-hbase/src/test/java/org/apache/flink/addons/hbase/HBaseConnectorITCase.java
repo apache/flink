@@ -293,7 +293,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		tEnv.registerTableSink("hbase", tableSink);
 
 		String query = "INSERT INTO hbase SELECT ROW(f1c1), ROW(f2c1, f2c2), rowkey, ROW(f3c1, f3c2, f3c3) FROM src";
-		TableEnvUtil.syncExecuteInsert(tEnv, query);
+		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, query);
 
 		// start a batch scan job to verify contents in HBase table
 		// start a batch scan job to verify contents in HBase table
@@ -363,7 +363,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		String query = "INSERT INTO hbase " +
 			"SELECT rowkey, ROW(f1c1), ROW(f2c1, f2c2), ROW(f3c1, f3c2, f3c3), ROW(f4c1, f4c2, f4c3) " +
 			"FROM src";
-		TableEnvUtil.syncExecuteInsert(tEnv, query);
+		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, query);
 
 		// start a batch scan job to verify contents in HBase table
 		TableEnvironment batchTableEnv = createBatchTableEnv();

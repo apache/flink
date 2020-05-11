@@ -209,7 +209,7 @@ public class HiveCatalogITCase {
 			result
 		);
 
-		TableEnvUtil.syncExecuteInsert(tableEnv,
+		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv,
 			String.format("insert into myhive.`default`.%s select * from myhive.`default`.%s",
 				sinkTableName,
 				sourceTableName));
@@ -252,7 +252,7 @@ public class HiveCatalogITCase {
 				"window_end TIMESTAMP(3),max_ts TIMESTAMP(6),counter BIGINT,total_price DECIMAL(10, 2)) " +
 				String.format("WITH ('connector.type' = 'filesystem','connector.path' = '%s','format.type' = 'csv')", sinkPath));
 
-		TableEnvUtil.syncExecuteInsert(tableEnv, "INSERT INTO sink " +
+		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "INSERT INTO sink " +
 				"SELECT TUMBLE_END(ts, INTERVAL '5' SECOND),MAX(ts6),COUNT(*),MAX(price) FROM src " +
 				"GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)");
 

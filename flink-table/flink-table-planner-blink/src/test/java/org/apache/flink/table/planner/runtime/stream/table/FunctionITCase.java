@@ -76,7 +76,7 @@ public class FunctionITCase extends StreamingTestBase {
 					.plus(1)
 					.minus(call(new SimpleScalarFunction(), $("a"), $("b")))
 			);
-		syncExecuteInsert(table, "TestTable");
+		execInsertTableAndWaitResult(table, "TestTable");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}

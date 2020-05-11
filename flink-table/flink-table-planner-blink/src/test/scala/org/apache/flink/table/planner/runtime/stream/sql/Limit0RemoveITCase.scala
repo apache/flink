@@ -38,7 +38,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
     tEnv.registerTableSink("MySink", sink)
-    syncExecuteInsert(result, "MySink")
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -54,7 +54,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
     tEnv.registerTableSink("MySink", sink)
-    syncExecuteInsert(result, "MySink")
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -70,7 +70,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
     tEnv.registerTableSink("MySink", sink)
-    syncExecuteInsert(result, "MySink")
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -90,7 +90,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
     tEnv.registerTableSink("MySink", sink)
-    syncExecuteInsert(result, "MySink")
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -110,7 +110,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
     tEnv.registerTableSink("MySink", sink)
-    syncExecuteInsert(result, "MySink")
+    execInsertTableAndWaitResult(result, "MySink")
 
     val expected = Seq("1", "2", "3", "4", "5", "6")
     assertEquals(expected, sink.getAppendResults.sorted)
@@ -131,7 +131,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingRetractTableSink())
     tEnv.registerTableSink("MySink", sink)
-    syncExecuteInsert(result, "MySink")
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getRawResults.size)
   }
@@ -151,7 +151,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingRetractTableSink())
     tEnv.registerTableSink("MySink", sink)
-    syncExecuteInsert(result, "MySink")
+    execInsertTableAndWaitResult(result, "MySink")
 
     val expected = Seq("1", "2", "3", "4", "5", "6")
     assertEquals(expected, sink.getRetractResults.sorted)
@@ -172,7 +172,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
     tEnv.registerTableSink("MySink", sink)
-    syncExecuteInsert(result, "MySink")
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getAppendResults.size)
   }

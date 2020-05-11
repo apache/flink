@@ -98,7 +98,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerTable("src", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		TableEnvUtil.syncExecuteInsert(tableEnv.sqlQuery("select * from src"), "hive.`default`.dest");
+		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from src"), "hive.`default`.dest");
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
@@ -139,7 +139,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerTable("complexSrc", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		TableEnvUtil.syncExecuteInsert(tableEnv.sqlQuery("select * from complexSrc"), "hive.`default`.dest");
+		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from complexSrc"), "hive.`default`.dest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
@@ -177,7 +177,7 @@ public class HiveTableSinkTest {
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("nestedSrc", src);
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		TableEnvUtil.syncExecuteInsert(tableEnv.sqlQuery("select * from nestedSrc"), "hive.`default`.dest");
+		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from nestedSrc"), "hive.`default`.dest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
@@ -201,7 +201,7 @@ public class HiveTableSinkTest {
 			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 			tableEnv.useCatalog(hiveCatalog.getName());
 
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.dest select * from db1.src");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
 			List<String> results = hiveShell.executeQuery("select * from db1.dest");
 			assertEquals(1, results.size());
 			String[] cols = results.get(0).split("\t");

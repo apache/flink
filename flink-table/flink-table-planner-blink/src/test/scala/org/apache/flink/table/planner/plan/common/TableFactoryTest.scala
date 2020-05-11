@@ -85,7 +85,7 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
       """.stripMargin
     util.tableEnv.executeSql(sourceDDL)
     util.tableEnv.executeSql(sinkDDL)
-    TableEnvUtil.syncExecuteInsert(util.tableEnv, query)
+    TableEnvUtil.execInsertSqlAndWaitResult(util.tableEnv, query)
 
     util.tableEnv.executeSql(query)
     Assert.assertTrue(factory.hasInvokedSource)

@@ -620,7 +620,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     }
 
     tableEnv.executeSql("drop table dest1")
-    TableEnvUtil.syncExecuteInsert(tableEnv, "insert into dest2 select x from src")
+    TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into dest2 select x from src")
   }
 
   def getPersonData: List[(String, Int, Double, String)] = {

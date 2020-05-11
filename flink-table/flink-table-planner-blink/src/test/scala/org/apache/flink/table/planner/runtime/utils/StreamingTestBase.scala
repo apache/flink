@@ -77,11 +77,11 @@ class StreamingTestBase extends AbstractTestBase {
     row
   }
 
-  def syncExecuteInsert(insert: String): JobExecutionResult = {
-    TableEnvUtil.syncExecuteInsert(tEnv, insert)
+  def execInsertSqlAndWaitResult(insert: String): JobExecutionResult = {
+    TableEnvUtil.execInsertSqlAndWaitResult(tEnv, insert)
   }
 
-  def syncExecuteInsert(table: Table, targetPath: String): JobExecutionResult = {
-    TableEnvUtil.syncExecuteInsert(table, targetPath)
+  def execInsertTableAndWaitResult(table: Table, targetPath: String): JobExecutionResult = {
+    TableEnvUtil.execInsertTableAndWaitResult(table, targetPath)
   }
 }

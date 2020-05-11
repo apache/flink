@@ -23,7 +23,7 @@ import org.apache.flink.table.api.{Table, TableEnvironment}
 
 object TableEnvUtil {
 
-  def syncExecuteInsert(tEnv: TableEnvironment, insert: String): JobExecutionResult = {
+  def execInsertSqlAndWaitResult(tEnv: TableEnvironment, insert: String): JobExecutionResult = {
     val tableResult = tEnv.executeSql(insert)
     // wait to finish
     tableResult.getJobClient.get
@@ -31,7 +31,7 @@ object TableEnvUtil {
       .get
   }
 
-  def syncExecuteInsert(table: Table, targetPath: String): JobExecutionResult = {
+  def execInsertTableAndWaitResult(table: Table, targetPath: String): JobExecutionResult = {
     val tableResult =  table.executeInsert(targetPath)
     // wait to finish
     tableResult.getJobClient.get

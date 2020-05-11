@@ -25,7 +25,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase._
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil.syncExecuteInsert
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil.execInsertSqlAndWaitResult
 import org.apache.flink.types.Row
 
 import org.junit.rules.TemporaryFolder
@@ -95,7 +95,7 @@ trait FileSystemITCaseBase {
 
   @Test
   def testAllStaticPartitions1(): Unit = {
-    syncExecuteInsert(tableEnv, "insert into partitionedTable " +
+    execInsertSqlAndWaitResult(tableEnv, "insert into partitionedTable " +
         "partition(a='1', b='1') select x, y from originalT where a=1 and b=1")
 
     check(
@@ -111,7 +111,7 @@ trait FileSystemITCaseBase {
 
   @Test
   def testAllStaticPartitions2(): Unit = {
-    syncExecuteInsert(tableEnv, "insert into partitionedTable " +
+    execInsertSqlAndWaitResult(tableEnv, "insert into partitionedTable " +
         "partition(a='2', b='1') select x, y from originalT where a=2 and b=1")
 
     check(
@@ -127,7 +127,7 @@ trait FileSystemITCaseBase {
 
   @Test
   def testPartialDynamicPartition(): Unit = {
-    syncExecuteInsert(tableEnv, "insert into partitionedTable " +
+    execInsertSqlAndWaitResult(tableEnv, "insert into partitionedTable " +
         "partition(a=3) select x, y, b from originalT where a=3")
 
     check(
@@ -168,7 +168,7 @@ trait FileSystemITCaseBase {
 
   @Test
   def testDynamicPartition(): Unit = {
-    syncExecuteInsert(tableEnv, "insert into partitionedTable " +
+    execInsertSqlAndWaitResult(tableEnv, "insert into partitionedTable " +
         "select x, y, a, b from originalT")
 
     check(
@@ -189,7 +189,7 @@ trait FileSystemITCaseBase {
 
   @Test
   def testNonPartition(): Unit = {
-    syncExecuteInsert(tableEnv, "insert into nonPartitionedTable " +
+    execInsertSqlAndWaitResult(tableEnv, "insert into nonPartitionedTable " +
         "select x, y, a, b from originalT where a=1 and b=1")
 
     check(
@@ -202,7 +202,8 @@ trait FileSystemITCaseBase {
   def testLimitPushDown(): Unit = {
     tableEnv.getConfig.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
-    syncExecuteInsert(tableEnv, "insert into nonPartitionedTable select x, y, a, b from originalT")
+    execInsertSqlAndWaitResult(
+      tableEnv, "insert into nonPartitionedTable select x, y, a, b from originalT")
 
     check(
       "select x, y from nonPartitionedTable limit 3",
@@ -214,7 +215,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testFilterPushDown(): Unit = {
-    syncExecuteInsert(tableEnv, "insert into nonPartitionedTable select x, y, a, b from originalT")
+    execInsertSqlAndWaitResult(
+      tableEnv, "insert into nonPartitionedTable select x, y, a, b from originalT")
 
     check(
       "select x, y from nonPartitionedTable where a=10086",

@@ -1243,7 +1243,7 @@ class AggregateITCase(
       Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
     tEnv.registerTableSink("testSink", tableSink)
 
-    syncExecuteInsert(
+    execInsertSqlAndWaitResult(
       """
         |insert into testSink
         |select c, max(b) from

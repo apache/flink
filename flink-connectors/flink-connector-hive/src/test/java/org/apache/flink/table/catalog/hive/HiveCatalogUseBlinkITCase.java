@@ -213,7 +213,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 					false
 			);
 
-			TableEnvUtil.syncExecuteInsert(
+			TableEnvUtil.execInsertSqlAndWaitResult(
 					tEnv, format("insert into %s " + selectSql, sinkTableName));
 
 			// assert written result

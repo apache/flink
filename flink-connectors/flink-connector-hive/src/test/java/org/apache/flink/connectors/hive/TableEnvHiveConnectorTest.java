@@ -96,7 +96,7 @@ public class TableEnvHiveConnectorTest {
 		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 
 		// test generating partitions with default name
-		TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.part select * from db1.src");
+		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.part select * from db1.src");
 		HiveConf hiveConf = hiveShell.getHiveConf();
 		String defaultPartName = hiveConf.getVar(HiveConf.ConfVars.DEFAULTPARTITIONNAME);
 		Table hiveTable = hmsClient.getTable("db1", "part");
@@ -120,7 +120,7 @@ public class TableEnvHiveConnectorTest {
 		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 
 		// just make sure the query runs through, no need to verify result
-		TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.dest select count(d) from db1.src");
+		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select count(d) from db1.src");
 
 		hiveShell.execute("drop database db1 cascade");
 	}
@@ -187,7 +187,7 @@ public class TableEnvHiveConnectorTest {
 		verifyFlinkQueryResult(tableEnv.sqlQuery("select * from db1.src"), expected);
 
 		// populate dest table with source table
-		TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.dest select * from db1.src");
+		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
 
 		// verify data on hive side
 		verifyHiveQueryResult("select * from db1.dest", expected);
@@ -218,13 +218,13 @@ public class TableEnvHiveConnectorTest {
 
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			// populate src2 with same data from Flink
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.src2 values (cast(1.0 as decimal(10,2))), (cast(2.12 as decimal(10,2))), " +
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.src2 values (cast(1.0 as decimal(10,2))), (cast(2.12 as decimal(10,2))), " +
 					"(cast(5.123 as decimal(10,2))), (cast(5.456 as decimal(10,2))), (cast(123456789.12 as decimal(10,2)))");
 			// verify src1 and src2 contain same data
 			verifyHiveQueryResult("select * from db1.src2", hiveShell.executeQuery("select * from db1.src1"));
 
 			// populate dest with src1 from Flink -- to test reading decimal type from Hive
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.dest select * from db1.src1");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src1");
 			verifyHiveQueryResult("select * from db1.dest", hiveShell.executeQuery("select * from db1.src1"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
@@ -240,7 +240,7 @@ public class TableEnvHiveConnectorTest {
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "dest").addRow(new Object[]{1, "a"}).addRow(new Object[]{2, "b"}).commit();
 			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert overwrite db1.dest values (3, 'c')");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert overwrite db1.dest values (3, 'c')");
 			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("3\tc"));
 
 			// static partition
@@ -248,12 +248,12 @@ public class TableEnvHiveConnectorTest {
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part").addRow(new Object[]{1}).commit("y=1");
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part").addRow(new Object[]{2}).commit("y=2");
 			tableEnv = getTableEnvWithHiveCatalog();
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert overwrite db1.part partition (y=1) select 100");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert overwrite db1.part partition (y=1) select 100");
 			verifyHiveQueryResult("select * from db1.part", Arrays.asList("100\t1", "2\t2"));
 
 			// dynamic partition
 			tableEnv = getTableEnvWithHiveCatalog();
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert overwrite db1.part values (200,2),(3,3)");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert overwrite db1.part values (200,2),(3,3)");
 			// only overwrite dynamically matched partitions, other existing partitions remain intact
 			verifyHiveQueryResult("select * from db1.part", Arrays.asList("100\t1", "200\t2", "3\t3"));
 		} finally {
@@ -269,7 +269,7 @@ public class TableEnvHiveConnectorTest {
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src").addRow(new Object[]{1}).addRow(new Object[]{2}).commit();
 			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 string, p2 double)");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.dest partition (p1='1''1', p2=1.1) select x from db1.src");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest partition (p1='1''1', p2=1.1) select x from db1.src");
 			assertEquals(1, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
 			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\t1'1\t1.1", "2\t1'1\t1.1"));
 		} finally {
@@ -289,7 +289,7 @@ public class TableEnvHiveConnectorTest {
 					.commit();
 			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 string, p2 double)");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.dest select * from db1.src");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
 			assertEquals(3, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
 			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta\t1.1", "2\ta\t2.2", "3\tb\t3.3"));
 		} finally {
@@ -305,7 +305,7 @@ public class TableEnvHiveConnectorTest {
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src").addRow(new Object[]{1, "a"}).addRow(new Object[]{2, "b"}).commit();
 			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 double, p2 string)");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.dest partition (p1=1.1) select x,y from db1.src");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest partition (p1=1.1) select x,y from db1.src");
 			assertEquals(2, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
 			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\t1.1\ta", "2\t1.1\tb"));
 		} finally {
@@ -332,7 +332,7 @@ public class TableEnvHiveConnectorTest {
 			results = Lists.newArrayList(tableEnv.sqlQuery("select x from db1.part where dt=cast('2019-12-25' as date)").execute().collect());
 			assertEquals("[3]", results.toString());
 
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.part select 4,cast('2019-12-31' as date),cast('2019-12-31 12:00:00.0' as timestamp)");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.part select 4,cast('2019-12-31' as date),cast('2019-12-31 12:00:00.0' as timestamp)");
 			results = Lists.newArrayList(tableEnv.sqlQuery("select max(dt) from db1.part").execute().collect());
 			assertEquals("[2019-12-31]", results.toString());
 		} finally {
@@ -451,7 +451,7 @@ public class TableEnvHiveConnectorTest {
 			assertEquals(LocalDateTime.of(2019, 11, 11, 0, 0), results.get(0).getField(0));
 			assertEquals(LocalDateTime.of(2019, 12, 3, 15, 43, 32, 123456789), results.get(1).getField(0));
 			// test write timestamp to hive
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.dest select max(ts) from db1.src");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select max(ts) from db1.src");
 			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("2019-12-03 15:43:32.123456789"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
@@ -475,7 +475,7 @@ public class TableEnvHiveConnectorTest {
 			assertEquals(LocalDate.of(2019, 12, 9), results.get(0).getField(0));
 			assertEquals(LocalDate.of(2019, 12, 12), results.get(1).getField(0));
 			// test write date to hive
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert into db1.dest select max(dt) from db1.src");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select max(dt) from db1.src");
 			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("2019-12-12"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
@@ -545,7 +545,7 @@ public class TableEnvHiveConnectorTest {
 					.commit();
 			hiveCatalog.getHiveConf().setBoolVar(HiveConf.ConfVars.COMPRESSRESULT, true);
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert overwrite db1.dest select * from db1.src");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert overwrite db1.dest select * from db1.src");
 			List<String> expected = Arrays.asList("a\tb", "c\td");
 			verifyHiveQueryResult("select * from db1.dest", expected);
 			verifyFlinkQueryResult(tableEnv.sqlQuery("select * from db1.dest"), expected);
@@ -578,9 +578,9 @@ public class TableEnvHiveConnectorTest {
 		try {
 			hiveShell.execute("create table db1.dest (x int) partitioned by (p string) stored as rcfile");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert overwrite db1.dest partition (p='1') select 1");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert overwrite db1.dest partition (p='1') select 1");
 			hiveShell.execute("alter table db1.dest set fileformat sequencefile");
-			TableEnvUtil.syncExecuteInsert(tableEnv, "insert overwrite db1.dest partition (p='1') select 1");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert overwrite db1.dest partition (p='1') select 1");
 			assertEquals("[1,1]", Lists.newArrayList(tableEnv.sqlQuery("select * from db1.dest").execute().collect()).toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");

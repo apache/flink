@@ -132,7 +132,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(viewWith2ColumnDDL)
 
     val result = tableEnv.sqlQuery(query)
-    TableEnvUtil.syncExecuteInsert(result, "T2")
+    TableEnvUtil.execInsertTableAndWaitResult(result, "T2")
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
@@ -181,7 +181,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(viewDDL)
 
     val result = tableEnv.sqlQuery(query)
-    TableEnvUtil.syncExecuteInsert(result, "T2")
+    TableEnvUtil.execInsertTableAndWaitResult(result, "T2")
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
@@ -230,7 +230,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(viewDDL)
 
     val result = tableEnv.sqlQuery(query)
-    TableEnvUtil.syncExecuteInsert(result, "T2")
+    TableEnvUtil.execInsertTableAndWaitResult(result, "T2")
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
@@ -298,7 +298,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
     val query = "SELECT * FROM T3"
 
-    TableEnvUtil.syncExecuteInsert(tableEnv.sqlQuery(query), "T2")
+    TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery(query), "T2")
     // temporary view T3 masks permanent view T3
     assertEquals(temporaryViewData.sorted, TestCollectionTableFactory.RESULT.sorted)
 
@@ -310,7 +310,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |DROP TEMPORARY VIEW IF EXISTS T3
       """.stripMargin
     tableEnv.executeSql(dropTemporaryView)
-    TableEnvUtil.syncExecuteInsert(tableEnv.sqlQuery(query), "T2")
+    TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery(query), "T2")
     // now we only have permanent view T3
     assertEquals(permanentViewData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
