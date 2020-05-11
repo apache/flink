@@ -982,11 +982,35 @@ class TableEnvironmentTest {
     val sourceDDL =
       """
         |CREATE TABLE T1(
-        |  a int not null,
-        |  b varchar,
-        |  c row<f0 int not null, f1 int> not null,
-        |  ts AS to_timestamp(b),
-        |  PRIMARY KEY(a, c) NOT ENFORCED,
+        |  f0 char(10),
+        |  f1 varchar(10),
+        |  f2 string,
+        |  f3 BOOLEAN,
+        |  f4 BINARY(10),
+        |  f5 VARBINARY(10),
+        |  f6 BYTES,
+        |  f7 DECIMAL(10, 3),
+        |  f8 TINYINT,
+        |  f9 SMALLINT,
+        |  f10 INTEGER,
+        |  f11 BIGINT,
+        |  f12 FLOAT,
+        |  f13 DOUBLE,
+        |  f14 DATE,
+        |  f15 TIME,
+        |  f16 TIMESTAMP,
+        |  f17 TIMESTAMP(3),
+        |  f18 TIMESTAMP WITHOUT TIME ZONE,
+        |  f19 TIMESTAMP(3) WITH LOCAL TIME ZONE,
+        |  f20 TIMESTAMP WITH LOCAL TIME ZONE,
+        |  f21 ARRAY<INT>,
+        |  f22 MAP<INT, STRING>,
+        |  f23 ROW<f0 INT, f1 STRING>,
+        |  f24 int not null,
+        |  f25 varchar not null,
+        |  f26 row<f0 int not null, f1 int> not null,
+        |  ts AS to_timestamp(f25),
+        |  PRIMARY KEY(f24, f26) NOT ENFORCED,
         |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
         |) with (
         |  'connector' = 'COLLECTION'
@@ -995,7 +1019,7 @@ class TableEnvironmentTest {
 
     val viewDDL =
       """
-        |CREATE VIEW IF NOT EXISTS T2(d, e, f) AS SELECT a, b, c FROM T1
+        |CREATE VIEW IF NOT EXISTS T2(d, e, f) AS SELECT f24, f25, f26 FROM T1
       """.stripMargin
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(viewDDL)
@@ -1004,10 +1028,35 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
     checkData(
       util.Arrays.asList(
-        Row.of("a", "INT", Boolean.box(false), "PRI(a,c)", null, null),
-        Row.of("b", "STRING", Boolean.box(true), null, null, null),
-        Row.of("c", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), "PRI(a,c)", null, null),
-        Row.of("ts", "TIMESTAMP(3)", Boolean.box(true), null, "TO_TIMESTAMP(`b`)",
+        Row.of("f0", "CHAR(10)", Boolean.box(true), null, null, null),
+        Row.of("f1", "VARCHAR(10)", Boolean.box(true), null, null, null),
+        Row.of("f2", "STRING", Boolean.box(true), null, null, null),
+        Row.of("f3", "BOOLEAN", Boolean.box(true), null, null, null),
+        Row.of("f4", "BINARY(10)", Boolean.box(true), null, null, null),
+        Row.of("f5", "VARBINARY(10)", Boolean.box(true), null, null, null),
+        Row.of("f6", "BYTES", Boolean.box(true), null, null, null),
+        Row.of("f7", "DECIMAL(10, 3)", Boolean.box(true), null, null, null),
+        Row.of("f8", "TINYINT", Boolean.box(true), null, null, null),
+        Row.of("f9", "SMALLINT", Boolean.box(true), null, null, null),
+        Row.of("f10", "INT", Boolean.box(true), null, null, null),
+        Row.of("f11", "BIGINT", Boolean.box(true), null, null, null),
+        Row.of("f12", "FLOAT", Boolean.box(true), null, null, null),
+        Row.of("f13", "DOUBLE", Boolean.box(true), null, null, null),
+        Row.of("f14", "DATE", Boolean.box(true), null, null, null),
+        Row.of("f15", "TIME(0)", Boolean.box(true), null, null, null),
+        Row.of("f16", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
+        Row.of("f17", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+        Row.of("f18", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
+        Row.of("f19", "TIMESTAMP(3) WITH LOCAL TIME ZONE", Boolean.box(true), null, null, null),
+        Row.of("f20", "TIMESTAMP(6) WITH LOCAL TIME ZONE", Boolean.box(true), null, null, null),
+        Row.of("f21", "ARRAY<INT>", Boolean.box(true), null, null, null),
+        Row.of("f22", "MAP<INT, STRING>", Boolean.box(true), null, null, null),
+        Row.of("f23", "ROW<`f0` INT, `f1` STRING>", Boolean.box(true), null, null, null),
+        Row.of("f24", "INT", Boolean.box(false), "PRI(f24,f26)", null, null),
+        Row.of("f25", "STRING", Boolean.box(false), null, null, null),
+        Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
+          "PRI(f24,f26)", null, null),
+        Row.of("ts", "TIMESTAMP(3)", Boolean.box(true), null, "TO_TIMESTAMP(`f25`)",
           "`ts` - INTERVAL '1' SECOND")
       ).iterator(),
       tableResult1.collect())
@@ -1017,7 +1066,7 @@ class TableEnvironmentTest {
     checkData(
       util.Arrays.asList(
         Row.of("d", "INT", Boolean.box(false), null, null, null),
-        Row.of("e", "STRING", Boolean.box(true), null, null, null),
+        Row.of("e", "STRING", Boolean.box(false), null, null, null),
         Row.of("f", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), null, null, null)
       ).iterator(),
       tableResult2.collect())
@@ -1025,7 +1074,7 @@ class TableEnvironmentTest {
     // temporary view T2(x, y) masks permanent view T2(d, e, f)
     val temporaryViewDDL =
       """
-        |CREATE TEMPORARY VIEW IF NOT EXISTS T2(x, y) AS SELECT a, b FROM T1
+        |CREATE TEMPORARY VIEW IF NOT EXISTS T2(x, y) AS SELECT f24, f25 FROM T1
       """.stripMargin
     tableEnv.executeSql(temporaryViewDDL)
 
@@ -1034,7 +1083,7 @@ class TableEnvironmentTest {
     checkData(
       util.Arrays.asList(
         Row.of("x", "INT", Boolean.box(false), null, null, null),
-        Row.of("y", "STRING", Boolean.box(true), null, null, null)).iterator(),
+        Row.of("y", "STRING", Boolean.box(false), null, null, null)).iterator(),
       tableResult3.collect())
   }
 
