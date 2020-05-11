@@ -33,6 +33,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.UUID;
@@ -79,11 +80,15 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 	@Test(timeout = 30000L)
 	public void testHappyPath() throws IOException {
 		String topicName = "flink-kafka-producer-happy-path";
-		try (Producer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties)) {
+
+		Producer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties);
+		try {
 			kafkaProducer.initTransactions();
 			kafkaProducer.beginTransaction();
 			kafkaProducer.send(new ProducerRecord<>(topicName, "42", "42"));
 			kafkaProducer.commitTransaction();
+		} finally {
+			kafkaProducer.close(Duration.ofSeconds(5));
 		}
 		assertRecord(topicName, "42", "42");
 		deleteTestTopic(topicName);
@@ -92,7 +97,8 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 	@Test(timeout = 30000L)
 	public void testResumeTransaction() throws IOException {
 		String topicName = "flink-kafka-producer-resume-transaction";
-		try (FlinkKafkaInternalProducer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties)) {
+		FlinkKafkaInternalProducer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties);
+		try {
 			kafkaProducer.initTransactions();
 			kafkaProducer.beginTransaction();
 			kafkaProducer.send(new ProducerRecord<>(topicName, "42", "42"));
@@ -100,9 +106,12 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 			long producerId = kafkaProducer.getProducerId();
 			short epoch = kafkaProducer.getEpoch();
 
-			try (FlinkKafkaInternalProducer<String, String> resumeProducer = new FlinkKafkaInternalProducer<>(extraProperties)) {
+			FlinkKafkaInternalProducer<String, String> resumeProducer = new FlinkKafkaInternalProducer<>(extraProperties);
+			try {
 				resumeProducer.resumeTransaction(producerId, epoch);
 				resumeProducer.commitTransaction();
+			} finally {
+				resumeProducer.close(Duration.ofSeconds(5));
 			}
 
 			assertRecord(topicName, "42", "42");
@@ -111,10 +120,15 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 			kafkaProducer.commitTransaction();
 
 			// this shouldn't fail also, for same reason as above
-			try (FlinkKafkaInternalProducer<String, String> resumeProducer = new FlinkKafkaInternalProducer<>(extraProperties)) {
+			resumeProducer = new FlinkKafkaInternalProducer<>(extraProperties);
+			try {
 				resumeProducer.resumeTransaction(producerId, epoch);
 				resumeProducer.commitTransaction();
+			} finally {
+				resumeProducer.close(Duration.ofSeconds(5));
 			}
+		} finally {
+			kafkaProducer.close(Duration.ofSeconds(5));
 		}
 		deleteTestTopic(topicName);
 	}
@@ -122,14 +136,14 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 	@Test(timeout = 30000L, expected = IllegalStateException.class)
 	public void testPartitionsForAfterClosed() {
 		FlinkKafkaInternalProducer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties);
-		kafkaProducer.close();
+		kafkaProducer.close(Duration.ofSeconds(5));
 		kafkaProducer.partitionsFor("Topic");
 	}
 
 	@Test(timeout = 30000L, expected = IllegalStateException.class)
 	public void testInitTransactionsAfterClosed() {
 		FlinkKafkaInternalProducer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties);
-		kafkaProducer.close();
+		kafkaProducer.close(Duration.ofSeconds(5));
 		kafkaProducer.initTransactions();
 	}
 
@@ -137,7 +151,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 	public void testBeginTransactionAfterClosed() {
 		FlinkKafkaInternalProducer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties);
 		kafkaProducer.initTransactions();
-		kafkaProducer.close();
+		kafkaProducer.close(Duration.ofSeconds(5));
 		kafkaProducer.beginTransaction();
 	}
 
@@ -174,12 +188,15 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 	public void testProducerWhenCommitEmptyPartitionsToOutdatedTxnCoordinator() throws Exception {
 		String topic = "flink-kafka-producer-txn-coordinator-changed";
 		createTestTopic(topic, 1, 2);
-		try (Producer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties)) {
+		Producer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties);
+		try {
 			kafkaProducer.initTransactions();
 			kafkaProducer.beginTransaction();
 			restartBroker(kafkaServer.getLeaderToShutDown("__transaction_state"));
 			kafkaProducer.flush();
 			kafkaProducer.commitTransaction();
+		} finally {
+			kafkaProducer.close(Duration.ofSeconds(5));
 		}
 		deleteTestTopic(topic);
 	}
@@ -189,7 +206,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 		kafkaProducer.initTransactions();
 		kafkaProducer.beginTransaction();
 		kafkaProducer.send(new ProducerRecord<>(topicName, "42", "42"));
-		kafkaProducer.close();
+		kafkaProducer.close(Duration.ofSeconds(5));
 		return kafkaProducer;
 	}
 

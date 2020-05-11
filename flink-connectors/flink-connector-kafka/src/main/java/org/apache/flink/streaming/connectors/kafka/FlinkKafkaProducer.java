@@ -47,7 +47,6 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartiti
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
@@ -71,6 +70,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -84,6 +84,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -877,7 +878,8 @@ public class FlinkKafkaProducer<IN>
 						break;
 					case AT_LEAST_ONCE:
 					case NONE:
-						currentTransaction.producer.close();
+						currentTransaction.producer.flush();
+						currentTransaction.producer.close(Duration.ofSeconds(0));
 						break;
 				}
 			}
@@ -888,12 +890,20 @@ public class FlinkKafkaProducer<IN>
 			// We may have to close producer of the current transaction in case some exception was thrown before
 			// the normal close routine finishes.
 			if (currentTransaction() != null) {
-				IOUtils.closeQuietly(currentTransaction().producer);
+				try {
+					currentTransaction().producer.close(Duration.ofSeconds(0));
+				} catch (Throwable t) {
+					LOG.warn("Error closing producer.", t);
+				}
 			}
 			// Make sure all the producers for pending transactions are closed.
-			pendingTransactions().forEach(transaction ->
-					IOUtils.closeQuietly(transaction.getValue().producer)
-			);
+			pendingTransactions().forEach(transaction -> {
+						try {
+							transaction.getValue().producer.close(Duration.ofSeconds(0));
+						} catch (Throwable t) {
+							LOG.warn("Error closing producer.", t);
+						}
+					});
 			// make sure we propagate pending errors
 			checkErroneous();
 		}
@@ -950,9 +960,10 @@ public class FlinkKafkaProducer<IN>
 	@Override
 	protected void recoverAndCommit(FlinkKafkaProducer.KafkaTransactionState transaction) {
 		if (transaction.isTransactional()) {
-			try (
-				FlinkKafkaInternalProducer<byte[], byte[]> producer =
-					initTransactionalProducer(transaction.transactionalId, false)) {
+			FlinkKafkaInternalProducer<byte[], byte[]> producer = null;
+			try {
+				producer =
+					initTransactionalProducer(transaction.transactionalId, false);
 				producer.resumeTransaction(transaction.producerId, transaction.epoch);
 				producer.commitTransaction();
 			} catch (InvalidTxnStateException | ProducerFencedException ex) {
@@ -961,6 +972,10 @@ public class FlinkKafkaProducer<IN>
 						"Presumably this transaction has been already committed before",
 					ex,
 					transaction);
+			} finally {
+				if (producer != null) {
+					producer.close(0, TimeUnit.SECONDS);
+				}
 			}
 		}
 	}
@@ -976,10 +991,15 @@ public class FlinkKafkaProducer<IN>
 	@Override
 	protected void recoverAndAbort(FlinkKafkaProducer.KafkaTransactionState transaction) {
 		if (transaction.isTransactional()) {
-			try (
-				FlinkKafkaInternalProducer<byte[], byte[]> producer =
-					initTransactionalProducer(transaction.transactionalId, false)) {
+			FlinkKafkaInternalProducer<byte[], byte[]> producer = null;
+			try {
+				producer =
+						initTransactionalProducer(transaction.transactionalId, false);
 				producer.initTransactions();
+			} finally {
+				if (producer != null) {
+					producer.close(0, TimeUnit.SECONDS);
+				}
 			}
 		}
 	}
@@ -1146,10 +1166,16 @@ public class FlinkKafkaProducer<IN>
 				final Properties myConfig = new Properties();
 				myConfig.putAll(producerConfig);
 				initTransactionalProducerConfig(myConfig, transactionalId);
-				try (FlinkKafkaInternalProducer<byte[], byte[]> kafkaProducer =
-						new FlinkKafkaInternalProducer<>(myConfig)) {
+				FlinkKafkaInternalProducer<byte[], byte[]> kafkaProducer = null;
+				try {
+					kafkaProducer =
+							new FlinkKafkaInternalProducer<>(myConfig);
 					// it suffices to call initTransactions - this will abort any lingering transactions
 					kafkaProducer.initTransactions();
+				} finally {
+					if (kafkaProducer != null) {
+						kafkaProducer.close(Duration.ofSeconds(0));
+					}
 				}
 			}
 		});
@@ -1182,7 +1208,8 @@ public class FlinkKafkaProducer<IN>
 
 	private void recycleTransactionalProducer(FlinkKafkaInternalProducer<byte[], byte[]> producer) {
 		availableTransactionalIds.add(producer.getTransactionalId());
-		producer.close();
+		producer.flush();
+		producer.close(Duration.ofSeconds(0));
 	}
 
 	private FlinkKafkaInternalProducer<byte[], byte[]> initTransactionalProducer(String transactionalId, boolean registerMetrics) {
