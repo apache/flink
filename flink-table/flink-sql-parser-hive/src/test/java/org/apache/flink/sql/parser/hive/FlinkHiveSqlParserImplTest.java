@@ -167,6 +167,7 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"PARTITIONED BY (\n" +
 						"  `P`  TIMESTAMP(9)\n" +
 						")");
+		sql("create table tbl (v varchar)").fails("VARCHAR precision is mandatory");
 		// TODO: support CLUSTERED BY, SKEWED BY, STORED BY, col constraints
 	}
 

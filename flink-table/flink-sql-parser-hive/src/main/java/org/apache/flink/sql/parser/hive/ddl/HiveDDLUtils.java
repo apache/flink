@@ -154,7 +154,7 @@ public class HiveDDLUtils {
 		return new SqlTableOption(SqlLiteral.createCharString(key, pos), SqlLiteral.createCharString(value, pos), pos);
 	}
 
-	public static void convertDataTypes(SqlNodeList columns) {
+	public static void convertDataTypes(SqlNodeList columns) throws ParseException {
 		if (columns != null) {
 			for (SqlNode node : columns) {
 				convertDataTypes((SqlTableColumn) node);
@@ -162,12 +162,12 @@ public class HiveDDLUtils {
 		}
 	}
 
-	// data types may need to be converted to comply with HiveQL, e.g. TIMESTAMP and BINARY
-	public static void convertDataTypes(SqlTableColumn column) {
+	// Check and convert data types to comply with HiveQL, e.g. TIMESTAMP and BINARY
+	public static void convertDataTypes(SqlTableColumn column) throws ParseException {
 		column.setType(convertDataTypes(column.getType()));
 	}
 
-	private static SqlDataTypeSpec convertDataTypes(SqlDataTypeSpec typeSpec) {
+	private static SqlDataTypeSpec convertDataTypes(SqlDataTypeSpec typeSpec) throws ParseException {
 		SqlTypeNameSpec nameSpec = typeSpec.getTypeNameSpec();
 		SqlTypeNameSpec convertedNameSpec = convertDataTypes(nameSpec);
 		if (nameSpec != convertedNameSpec) {
@@ -177,7 +177,7 @@ public class HiveDDLUtils {
 		return typeSpec;
 	}
 
-	private static SqlTypeNameSpec convertDataTypes(SqlTypeNameSpec nameSpec) {
+	private static SqlTypeNameSpec convertDataTypes(SqlTypeNameSpec nameSpec) throws ParseException {
 		if (nameSpec instanceof SqlBasicTypeNameSpec) {
 			SqlBasicTypeNameSpec basicNameSpec = (SqlBasicTypeNameSpec) nameSpec;
 			if (basicNameSpec.getTypeName().getSimple().equalsIgnoreCase(SqlTypeName.TIMESTAMP.name())) {
@@ -189,6 +189,10 @@ public class HiveDDLUtils {
 				if (basicNameSpec.getPrecision() < 0) {
 					nameSpec = new SqlBasicTypeNameSpec(SqlTypeName.VARBINARY, Integer.MAX_VALUE, basicNameSpec.getScale(),
 							basicNameSpec.getCharSetName(), basicNameSpec.getParserPos());
+				}
+			} else if (basicNameSpec.getTypeName().getSimple().equalsIgnoreCase(SqlTypeName.VARCHAR.name())) {
+				if (basicNameSpec.getPrecision() < 0) {
+					throw new ParseException("VARCHAR precision is mandatory");
 				}
 			}
 		} else if (nameSpec instanceof ExtendedSqlCollectionTypeNameSpec) {
