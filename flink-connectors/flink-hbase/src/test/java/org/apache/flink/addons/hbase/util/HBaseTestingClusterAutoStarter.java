@@ -146,7 +146,7 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 	public static void setUp() throws Exception {
 		// HBase 1.4 does not work with Hadoop 3
 		// because it uses Guava 12.0.1, Hadoop 3 uses Guava 27.0-jre.
-		// There is not Guava version in between that works with both.
+		// There is no Guava version in between that works with both.
 		Assume.assumeTrue("This test is skipped for Hadoop versions above 3", VersionUtil.compareVersions(System.getProperty("hadoop.version"), "3.0.0") < 0);
 
 		LOG.info("HBase minicluster: Starting");
