@@ -341,41 +341,6 @@ public abstract class AbstractFetcher<T, KPH> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Emits a record without attaching an existing timestamp to it.
-	 *
-	 * <p>Implementation Note: This method is kept brief to be JIT inlining friendly.
-	 * That makes the fast path efficient, the extended paths are called as separate methods.
-	 *
-	 * @param record The record to emit
-	 * @param partitionState The state of the Kafka partition from which the record was fetched
-	 * @param offset The offset of the record
-	 */
-	protected void emitRecord(T record, KafkaTopicPartitionState<KPH> partitionState, long offset) throws Exception {
-
-		if (record != null) {
-			if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
-				// fast path logic, in case there are no watermarks
-
-				// emit the record, using the checkpoint lock to guarantee
-				// atomicity of record emission and offset state update
-				synchronized (checkpointLock) {
-					sourceContext.collect(record);
-					partitionState.setOffset(offset);
-				}
-			} else if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
-				emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset, Long.MIN_VALUE);
-			} else {
-				emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset, Long.MIN_VALUE);
-			}
-		} else {
-			// if the record is null, simply just update the offset state for partition
-			synchronized (checkpointLock) {
-				partitionState.setOffset(offset);
-			}
-		}
-	}
-
-	/**
 	 * Emits a record attaching a timestamp to it.
 	 *
 	 * <p>Implementation Note: This method is kept brief to be JIT inlining friendly.
