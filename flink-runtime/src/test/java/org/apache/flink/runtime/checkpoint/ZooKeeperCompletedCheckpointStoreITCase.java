@@ -84,7 +84,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 	/**
 	 * Tests that older checkpoints are not cleaned up right away when recovering. Only after
-	 * another checkpointed has been completed the old checkpoints exceeding the number of
+	 * another checkpoint has been completed the old checkpoints exceeding the number of
 	 * checkpoints to retain will be removed.
 	 */
 	@Test
