@@ -29,7 +29,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.filesystem.PartitionPathUtils.extractPartitionValues;
+import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionValues;
 
 /**
  * Directory monitor {@link PartitionDiscovery}.
