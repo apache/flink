@@ -860,7 +860,28 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			final String message = "TaskManager received a checkpoint confirmation for unknown task " + executionAttemptID + '.';
 
 			log.debug(message);
-			return FutureUtils.completedExceptionally(new CheckpointException(message, CheckpointFailureReason.TASK_CHECKPOINT_FAILURE));
+			return FutureUtils.completedExceptionally(new CheckpointException(message, CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE));
+		}
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> abortCheckpoint(
+			ExecutionAttemptID executionAttemptID,
+			long checkpointId,
+			long checkpointTimestamp) {
+		log.debug("Abort checkpoint {}@{} for {}.", checkpointId, checkpointTimestamp, executionAttemptID);
+
+		final Task task = taskSlotTable.getTask(executionAttemptID);
+
+		if (task != null) {
+			task.notifyCheckpointAborted(checkpointId);
+
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		} else {
+			final String message = "TaskManager received an aborted checkpoint for unknown task " + executionAttemptID + '.';
+
+			log.debug(message);
+			return FutureUtils.completedExceptionally(new CheckpointException(message, CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE));
 		}
 	}
 
