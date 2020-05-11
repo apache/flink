@@ -77,6 +77,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -449,7 +450,7 @@ public class LocalExecutor implements Executor {
 		// translate
 		try {
 			final Table table = createTable(context, tableEnv, statement);
-			return context.wrapClassLoader(() -> tableEnv.explain(table));
+			return context.wrapClassLoader((Supplier<String>) table::explain);
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);

@@ -56,7 +56,7 @@ class TableEnvironmentTest(object):
         t = t_env.from_elements([], schema)
         result = t.select("1 + a, b, c")
 
-        actual = t_env.explain(result)
+        actual = result.explain()
 
         assert isinstance(actual, str)
 
@@ -69,7 +69,7 @@ class TableEnvironmentTest(object):
         t = t_env.from_elements([], schema)
         result = t.select("1 + a, b, c")
 
-        actual = t_env.explain(result, True)
+        actual = result.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE)
 
         assert isinstance(actual, str)
 

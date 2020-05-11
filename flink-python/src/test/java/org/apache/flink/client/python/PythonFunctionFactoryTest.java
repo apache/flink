@@ -119,7 +119,7 @@ public class PythonFunctionFactoryTest {
 	}
 
 	private static void verifyPlan(Table table, TableEnvironment tableEnvironment) {
-		String plan = tableEnvironment.explain(table);
+		String plan = table.explain();
 		String expected = "PythonCalc(select=[func1(f0) AS _c0])";
 		if (!plan.contains(expected)) {
 			throw new AssertionError(String.format("This plan does not contains \"%s\":\n%s", expected, plan));
