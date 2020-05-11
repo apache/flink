@@ -155,7 +155,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	public void testStartYarnSessionClusterInQaTeamQueue() throws Exception {
 		runTest(() -> runWithArgs(new String[]{
 				"-j", flinkUberjar.getAbsolutePath(),
-				"-t", flinkLibFolder.getAbsolutePath(), "-jm", "768m",
+				"-t", flinkLibFolder.getAbsolutePath(),
+				"-jm", "768m",
 				"-tm", "1024m", "-qu", "qa-team"},
 			"JobManager Web Interface:", null, RunTypes.YARN_SESSION, 0));
 	}

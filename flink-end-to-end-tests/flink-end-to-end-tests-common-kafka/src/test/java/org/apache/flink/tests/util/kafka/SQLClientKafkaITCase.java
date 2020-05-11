@@ -35,6 +35,7 @@ import org.apache.flink.shaded.guava18.com.google.common.base.Charsets;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -95,7 +96,8 @@ public class SQLClientKafkaITCase extends TestLogger {
 	private Path result;
 	private Path sqlClientSessionConf;
 
-	private static final DownloadCache downloadCache = DownloadCache.get();
+	@ClassRule
+	public static final DownloadCache DOWNLOAD_CACHE = DownloadCache.get();
 
 	private static final Path sqlAvroJar = TestUtils.getResourceJar(".*avro.jar");
 	private static final Path sqlJsonJar = TestUtils.getResourceJar(".*json.jar");
@@ -112,15 +114,15 @@ public class SQLClientKafkaITCase extends TestLogger {
 
 	@Before
 	public void before() throws Exception {
-		downloadCache.before();
+		DOWNLOAD_CACHE.before();
 		Path tmpPath = tmp.getRoot().toPath();
 		LOG.info("The current temporary path: {}", tmpPath);
 		this.sqlClientSessionConf = tmpPath.resolve("sql-client-session.conf");
 		this.result = tmpPath.resolve("result");
 
-		apacheAvroJars.add(downloadCache.getOrDownload("https://repo1.maven.org/maven2/org/apache/avro/avro/1.8.2/avro-1.8.2.jar", tmpPath));
-		apacheAvroJars.add(downloadCache.getOrDownload("https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-core-asl/1.9.13/jackson-core-asl-1.9.13.jar", tmpPath));
-		apacheAvroJars.add(downloadCache.getOrDownload("https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-mapper-asl/1.9.13/jackson-mapper-asl-1.9.13.jar", tmpPath));
+		apacheAvroJars.add(DOWNLOAD_CACHE.getOrDownload("https://repo1.maven.org/maven2/org/apache/avro/avro/1.8.2/avro-1.8.2.jar", tmpPath));
+		apacheAvroJars.add(DOWNLOAD_CACHE.getOrDownload("https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-core-asl/1.9.13/jackson-core-asl-1.9.13.jar", tmpPath));
+		apacheAvroJars.add(DOWNLOAD_CACHE.getOrDownload("https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-mapper-asl/1.9.13/jackson-mapper-asl-1.9.13.jar", tmpPath));
 	}
 
 	@Test
