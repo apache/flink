@@ -32,10 +32,10 @@ import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
-import org.apache.flink.table.filesystem.PartitionPathUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.utils.PartitionPathUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.hadoop.ParquetOutputFormat;
@@ -135,10 +135,10 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 		properties.putProperties(context.getFormatProperties());
 
 		return Optional.of(ParquetRowDataBuilder.createWriterFactory(
-				RowType.of(Arrays.stream(context.getFieldTypesWithoutPartKeys())
+				RowType.of(Arrays.stream(context.getFormatFieldTypes())
 								.map(DataType::getLogicalType)
 								.toArray(LogicalType[]::new),
-						context.getFieldNamesWithoutPartKeys()),
+						context.getFormatFieldNames()),
 				getParquetConfiguration(properties),
 				isUtcTimestamp(properties)
 		));

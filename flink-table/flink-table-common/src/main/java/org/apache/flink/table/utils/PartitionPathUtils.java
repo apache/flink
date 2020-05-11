@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.filesystem;
+package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -24,8 +24,15 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -199,6 +206,80 @@ public class PartitionPathUtils {
 			ret.add(new Tuple2<>(extractPartitionSpecFromPath(part.getPath()), part.getPath()));
 		}
 		return ret;
+	}
+
+	/**
+	 * Extract partition value from path and fill to record.
+	 * @param fieldNames record field names.
+	 * @param fieldTypes record field types.
+	 * @param selectFields the selected fields.
+	 * @param partitionKeys the partition field names.
+	 * @param path the file path that the partition located.
+	 * @param defaultPartValue default value of partition field.
+	 * @return the filled record.
+	 */
+	public static GenericRowData fillPartitionValueForRecord(
+			String[] fieldNames,
+			DataType[] fieldTypes,
+			int[] selectFields,
+			List<String> partitionKeys,
+			Path path,
+			String defaultPartValue) {
+		GenericRowData record = new GenericRowData(selectFields.length);
+		LinkedHashMap<String, String> partSpec = PartitionPathUtils.extractPartitionSpecFromPath(path);
+		for (int i = 0; i < selectFields.length; i++) {
+			int selectField = selectFields[i];
+			String name = fieldNames[selectField];
+			if (partitionKeys.contains(name)) {
+				String value = partSpec.get(name);
+				value = defaultPartValue.equals(value) ? null : value;
+				record.setField(i, PartitionPathUtils.convertStringToInternalValue(value, fieldTypes[selectField]));
+			}
+		}
+		return record;
+	}
+
+	/**
+	 * Restore partition value from string and type.
+	 *
+	 * @param valStr string partition value.
+	 * @param type type of partition field.
+	 * @return partition value.
+	 */
+	public static Object convertStringToInternalValue(String valStr, DataType type) {
+		if (valStr == null) {
+			return null;
+		}
+
+		LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
+		switch (typeRoot) {
+			case CHAR:
+			case VARCHAR:
+				return StringData.fromString(valStr);
+			case BOOLEAN:
+				return Boolean.parseBoolean(valStr);
+			case TINYINT:
+				return Byte.parseByte(valStr);
+			case SMALLINT:
+				return Short.parseShort(valStr);
+			case INTEGER:
+				return Integer.parseInt(valStr);
+			case BIGINT:
+				return Long.parseLong(valStr);
+			case FLOAT:
+				return Float.parseFloat(valStr);
+			case DOUBLE:
+				return Double.parseDouble(valStr);
+			case DATE:
+				return (int) LocalDate.parse(valStr).toEpochDay();
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return TimestampData.fromLocalDateTime(LocalDateTime.parse(valStr));
+			default:
+				throw new RuntimeException(String.format(
+					"Can not convert %s to type %s for partition value",
+					valStr,
+					type));
+		}
 	}
 
 	private static FileStatus[] getFileStatusRecurse(Path path, int expectLevel, FileSystem fs) {

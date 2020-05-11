@@ -30,7 +30,7 @@ import org.apache.flink.types.Row
 import org.junit.rules.TemporaryFolder
 import org.junit.{Rule, Test}
 
-import scala.collection.Seq
+import scala.collection.{JavaConverters, Seq}
 
 /**
   * Test File system table factory.
@@ -48,6 +48,11 @@ trait FileSystemITCaseBase {
   def tableEnv: TableEnvironment
 
   def check(sqlQuery: String, expectedResult: Seq[Row]): Unit
+
+  def check(sqlQuery: String, expectedResult: java.util.List[Row]): Unit = {
+    check(sqlQuery,
+      JavaConverters.asScalaIteratorConverter(expectedResult.iterator()).asScala.toSeq)
+  }
 
   def open(): Unit = {
     resultPath = fileTmpFolder.newFolder().toURI.toString

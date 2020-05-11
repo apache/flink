@@ -29,10 +29,10 @@ import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
-import org.apache.flink.table.filesystem.PartitionPathUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.utils.PartitionPathUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
@@ -111,12 +111,12 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 		DescriptorProperties properties = new DescriptorProperties();
 		properties.putProperties(context.getFormatProperties());
 
-		LogicalType[] orcTypes = Arrays.stream(context.getFieldTypesWithoutPartKeys())
+		LogicalType[] orcTypes = Arrays.stream(context.getFormatFieldTypes())
 				.map(DataType::getLogicalType)
 				.toArray(LogicalType[]::new);
 
 		TypeDescription typeDescription = OrcSplitReaderUtil.logicalTypeToOrcType(
-				RowType.of(orcTypes, context.getFieldNamesWithoutPartKeys()));
+				RowType.of(orcTypes, context.getFormatFieldNames()));
 
 		OrcBulkWriterFactory<RowData> factory = new OrcBulkWriterFactory<>(
 				new RowDataVectorizer(typeDescription.toString(), orcTypes),
