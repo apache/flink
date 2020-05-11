@@ -58,14 +58,16 @@ public class FileSystemOptions {
 					.defaultValue("1970-00-00")
 					.withDescription("Start offset for streaming consuming." +
 							" How to parse and compare offsets depends on your order." +
-							" For create-time and partition-time, should be a timestamp string.");
+							" For create-time and partition-time, should be a timestamp string." +
+							" For partition-time, will use partition time extractor to" +
+							" extract time from partition.");
 
 	public static final ConfigOption<String> PARTITION_TIME_EXTRACTOR_KIND =
 			key("partition.time-extractor.kind")
 					.stringType()
 					.defaultValue("default")
-					.withDescription("Time extractor to extract time from partition values. Only be" +
-							" used if order is set to partition-time. Support default and custom." +
+					.withDescription("Time extractor to extract time from partition values." +
+							" Support default and custom." +
 							" For default, can configure timestamp pattern." +
 							" For custom, should configure extractor class.");
 
