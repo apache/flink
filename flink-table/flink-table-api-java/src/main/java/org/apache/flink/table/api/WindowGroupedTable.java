@@ -95,8 +95,7 @@ public interface WindowGroupedTable {
 	 *
 	 * <pre>
 	 * {@code
-	 *   AggregateFunction aggFunc = new MyAggregateFunction();
-	 *   windowGroupedTable.aggregate(call(aggFunc, $("a"), $("b")).as("x", "y", "z"))
+	 *   windowGroupedTable.aggregate(call(MyAggregateFunction.class, $("a"), $("b")).as("x", "y", "z"))
 	 *     .select($("key"), $("window").start(), $("x"), $("y"), $("z"));
 	 * }
 	 * </pre>
@@ -142,8 +141,7 @@ public interface WindowGroupedTable {
 	 *
 	 * <pre>
 	 * {@code
-	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction();
-	 *   windowGroupedTable.flatAggregate(call(tableAggFunc, $("a"), $("b")).as("x", "y", "z"))
+	 *   windowGroupedTable.flatAggregate(call(MyTableAggregateFunction.class, $("a"), $("b")).as("x", "y", "z"))
 	 *     .select($("key"), $("window").start(), $("x"), $("y"), $("z"));
 	 * }
 	 * </pre>
