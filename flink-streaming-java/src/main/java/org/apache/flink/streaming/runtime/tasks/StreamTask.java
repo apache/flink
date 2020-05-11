@@ -933,6 +933,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
+	@Override
+	public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+		return mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY).submit(
+			() -> subtaskCheckpointCoordinator.notifyCheckpointAborted(checkpointId, operatorChain, this::isRunning),
+			"checkpoint %d aborted", checkpointId);
+	}
+
 	private void tryShutdownTimerService() {
 
 		if (!timerService.isTerminated()) {

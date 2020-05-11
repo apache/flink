@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -41,19 +42,31 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiFunctionWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
@@ -62,10 +75,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SubtaskCheckpointCoordinatorImpl.class);
+	private static final int DEFAULT_MAX_RECORD_ABORTED_CHECKPOINTS = 128;
 
 	private final CachingCheckpointStorageWorkerView checkpointStorage;
 	private final String taskName;
-	private final CloseableRegistry closeableRegistry;
 	private final ExecutorService executorService;
 	private final Environment env;
 	private final AsyncExceptionHandler asyncExceptionHandler;
@@ -73,6 +86,19 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	private final StreamTaskActionExecutor actionExecutor;
 	private final boolean unalignedCheckpointEnabled;
 	private final BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot;
+	/** The IDs of the checkpoint for which we are notified aborted. */
+	private final Set<Long> abortedCheckpointIds;
+	private long lastCheckpointId;
+
+	/** Lock that guards state of AsyncCheckpointRunnable registry. **/
+	private final Object lock;
+
+	@GuardedBy("lock")
+	private final Map<Long, AsyncCheckpointRunnable> checkpoints;
+
+	/** Indicates if this registry is closed. */
+	@GuardedBy("lock")
+	private boolean closed;
 
 	SubtaskCheckpointCoordinatorImpl(
 			CheckpointStorageWorkerView checkpointStorage,
@@ -84,9 +110,34 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			AsyncExceptionHandler asyncExceptionHandler,
 			boolean unalignedCheckpointEnabled,
 			BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot) throws IOException {
+		this(checkpointStorage,
+			taskName,
+			actionExecutor,
+			closeableRegistry,
+			executorService,
+			env,
+			asyncExceptionHandler,
+			unalignedCheckpointEnabled,
+			prepareInputSnapshot,
+			DEFAULT_MAX_RECORD_ABORTED_CHECKPOINTS);
+	}
+
+	@VisibleForTesting
+	SubtaskCheckpointCoordinatorImpl(
+			CheckpointStorageWorkerView checkpointStorage,
+			String taskName,
+			StreamTaskActionExecutor actionExecutor,
+			CloseableRegistry closeableRegistry,
+			ExecutorService executorService,
+			Environment env,
+			AsyncExceptionHandler asyncExceptionHandler,
+			boolean unalignedCheckpointEnabled,
+			BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot,
+			int maxRecordAbortedCheckpoints) throws IOException {
 		this.checkpointStorage = new CachingCheckpointStorageWorkerView(checkNotNull(checkpointStorage));
 		this.taskName = checkNotNull(taskName);
-		this.closeableRegistry = checkNotNull(closeableRegistry);
+		this.checkpoints = new HashMap<>();
+		this.lock = new Object();
 		this.executorService = checkNotNull(executorService);
 		this.env = checkNotNull(env);
 		this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
@@ -94,7 +145,10 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		this.channelStateWriter = unalignedCheckpointEnabled ? openChannelStateWriter() : ChannelStateWriter.NO_OP;
 		this.unalignedCheckpointEnabled = unalignedCheckpointEnabled;
 		this.prepareInputSnapshot = prepareInputSnapshot;
-		this.closeableRegistry.registerCloseable(this);
+		this.abortedCheckpointIds = createAbortedCheckpointSetWithLimitSize(maxRecordAbortedCheckpoints);
+		this.lastCheckpointId = -1L;
+		closeableRegistry.registerCloseable(this);
+		this.closed = false;
 	}
 
 	private ChannelStateWriter openChannelStateWriter() {
@@ -144,6 +198,15 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		// We generally try to emit the checkpoint barrier as soon as possible to not affect downstream
 		// checkpoint alignments
 
+		// Step (0): Record the last triggered checkpointId.
+		Preconditions.checkArgument(lastCheckpointId < metadata.getCheckpointId(), String.format(
+			"Unexpected current checkpoint-id: %s vs last checkpoint-id: %s", metadata.getCheckpointId(), lastCheckpointId));
+		lastCheckpointId = metadata.getCheckpointId();
+		if (checkAndClearAbortedStatus(metadata.getCheckpointId())) {
+			LOG.info("Checkpoint {} has been notified as aborted, would not trigger any checkpoint.", metadata.getCheckpointId());
+			return;
+		}
+
 		// Step (1): Prepare the checkpoint, allow operators to do some pre-barrier work.
 		//           The pre-barrier work should be nothing or minimal in the common case.
 		operatorChain.prepareSnapshotPreBarrier(metadata.getCheckpointId());
@@ -186,6 +249,106 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", taskName);
 		}
 		env.getTaskStateManager().notifyCheckpointComplete(checkpointId);
+	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning) throws Exception {
+
+		Exception previousException = null;
+		if (isRunning.get()) {
+			LOG.debug("Notification of aborted checkpoint for task {}", taskName);
+
+			boolean canceled = cancelAsyncCheckpointRunnable(checkpointId);
+
+			if (!canceled) {
+				if (checkpointId > lastCheckpointId) {
+					// only record checkpoints that have not triggered on task side.
+					abortedCheckpointIds.add(checkpointId);
+				}
+			}
+
+			for (StreamOperatorWrapper<?, ?> operatorWrapper : operatorChain.getAllOperators(true)) {
+				try {
+					operatorWrapper.getStreamOperator().notifyCheckpointAborted(checkpointId);
+				} catch (Exception e) {
+					previousException = e;
+				}
+			}
+
+		} else {
+			LOG.debug("Ignoring notification of aborted checkpoint for not-running task {}", taskName);
+		}
+
+		env.getTaskStateManager().notifyCheckpointAborted(checkpointId);
+		ExceptionUtils.tryRethrowException(previousException);
+	}
+
+	@Override
+	public void close() throws IOException {
+		List<AsyncCheckpointRunnable> asyncCheckpointRunnables = null;
+		synchronized (lock) {
+			if (!closed) {
+				closed = true;
+				asyncCheckpointRunnables = new ArrayList<>(checkpoints.values());
+				checkpoints.clear();
+			}
+		}
+		IOUtils.closeAllQuietly(asyncCheckpointRunnables);
+		channelStateWriter.close();
+	}
+
+	@VisibleForTesting
+	int getAsyncCheckpointRunnableSize() {
+		synchronized (lock) {
+			return checkpoints.size();
+		}
+	}
+
+	@VisibleForTesting
+	int getAbortedCheckpointSize() {
+		return abortedCheckpointIds.size();
+	}
+
+	private boolean checkAndClearAbortedStatus(long checkpointId) {
+		return abortedCheckpointIds.remove(checkpointId);
+	}
+
+	private void registerAsyncCheckpointRunnable(long checkpointId, AsyncCheckpointRunnable asyncCheckpointRunnable) throws IOException {
+		StringBuilder exceptionMessage = new StringBuilder("Cannot register Closeable, ");
+		synchronized (lock) {
+			if (!closed) {
+				if (!checkpoints.containsKey(checkpointId)) {
+					checkpoints.put(checkpointId, asyncCheckpointRunnable);
+					return;
+				} else {
+					exceptionMessage.append("async checkpoint ").append(checkpointId).append(" runnable has been register. ");
+				}
+			} else {
+				exceptionMessage.append("this subtaskCheckpointCoordinator is already closed. ");
+			}
+		}
+
+		IOUtils.closeQuietly(asyncCheckpointRunnable);
+		throw new IOException(exceptionMessage.append("Closing argument.").toString());
+	}
+
+	private boolean unregisterAsyncCheckpointRunnable(long checkpointId) {
+		synchronized (lock) {
+			return checkpoints.remove(checkpointId) != null;
+		}
+	}
+
+	/**
+	 * Cancel the async checkpoint runnable with given checkpoint id.
+	 * If given checkpoint id is not registered, return false, otherwise return true.
+	 */
+	private boolean cancelAsyncCheckpointRunnable(long checkpointId) {
+		AsyncCheckpointRunnable asyncCheckpointRunnable;
+		synchronized (lock) {
+			asyncCheckpointRunnable = checkpoints.remove(checkpointId);
+		}
+		IOUtils.closeQuietly(asyncCheckpointRunnable);
+		return asyncCheckpointRunnable != null;
 	}
 
 	private void cleanup(
@@ -251,9 +414,24 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			channelWrittenFuture,
 			System.nanoTime(),
 			taskName,
-			closeableRegistry,
+			registerConsumer(),
+			unregisterConsumer(),
 			env,
 			asyncExceptionHandler));
+	}
+
+	private Consumer<AsyncCheckpointRunnable> registerConsumer() {
+		return asyncCheckpointRunnable -> {
+			try {
+				registerAsyncCheckpointRunnable(asyncCheckpointRunnable.getCheckpointId(), asyncCheckpointRunnable);
+			} catch (IOException e) {
+				throw new UncheckedIOException(e);
+			}
+		};
+	}
+
+	private Consumer<AsyncCheckpointRunnable> unregisterConsumer() {
+		return asyncCheckpointRunnable -> unregisterAsyncCheckpointRunnable(asyncCheckpointRunnable.getCheckpointId());
 	}
 
 	private boolean takeSnapshotSync(
@@ -342,9 +520,15 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		return snapshotInProgress;
 	}
 
-	@Override
-	public void close() throws IOException {
-		channelStateWriter.close();
+	private Set<Long> createAbortedCheckpointSetWithLimitSize(int maxRecordAbortedCheckpoints) {
+		return Collections.newSetFromMap(new LinkedHashMap<Long, Boolean>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			protected boolean removeEldestEntry(Map.Entry<Long, Boolean> eldest) {
+				return size() > maxRecordAbortedCheckpoints;
+			}
+		});
 	}
 
 	// Caches checkpoint output stream factories to prevent multiple output stream per checkpoint.

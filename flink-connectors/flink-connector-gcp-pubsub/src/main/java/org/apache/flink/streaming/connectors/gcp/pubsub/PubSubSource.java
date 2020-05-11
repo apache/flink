@@ -194,6 +194,10 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
+	@Override
 	public List<AcknowledgeIdsForCheckpoint<String>> snapshotState(long checkpointId, long timestamp) throws Exception {
 		return acknowledgeOnCheckpoint.snapshotState(checkpointId, timestamp);
 	}

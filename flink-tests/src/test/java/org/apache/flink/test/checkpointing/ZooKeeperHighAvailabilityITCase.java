@@ -422,6 +422,10 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 				checkpointCompletedIncludingData.compareAndSet(false, true);
 			}
 		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
 	}
 
 	/**
