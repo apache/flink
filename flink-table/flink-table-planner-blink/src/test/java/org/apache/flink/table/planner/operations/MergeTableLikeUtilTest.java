@@ -24,20 +24,13 @@ import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.SqlTableLikeOption;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
-import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
-import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.SqlAsOperator;
@@ -49,18 +42,17 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeUtil;
+import org.apache.calcite.sql.validate.SqlValidator;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -74,24 +66,7 @@ public class MergeTableLikeUtilTest {
 	public ExpectedException thrown = ExpectedException.none();
 
 	private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(new FlinkTypeSystem());
-	private final TableConfig tableConfig = new TableConfig();
-	private final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
-	private final ModuleManager moduleManager = new ModuleManager();
-	private final FunctionCatalog functionCatalog = new FunctionCatalog(
-		tableConfig,
-		catalogManager,
-		moduleManager);
-	private final PlannerContext plannerContext =
-		new PlannerContext(
-			tableConfig,
-			functionCatalog,
-			catalogManager,
-			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
-			new ArrayList<>());
-	private final FlinkCalciteSqlValidator sqlValidator = plannerContext.createFlinkPlanner(
-		catalogManager.getCurrentCatalog(),
-		catalogManager.getCurrentDatabase())
-		.getOrCreateSqlValidator();
+	private final SqlValidator sqlValidator = PlannerMocks.createDefaultPlanner().getOrCreateSqlValidator();
 	private final MergeTableLikeUtil util = new MergeTableLikeUtil(
 		sqlValidator,
 		SqlNode::toString
