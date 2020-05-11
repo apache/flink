@@ -16,25 +16,11 @@
  * limitations under the License.
  */
 
-import { Component, ChangeDetectionStrategy, Input, Output, EventEmitter } from '@angular/core';
+flink-monaco-editor {
+  height: calc(~"100vh - 160px");
+}
 
-@Component({
-  selector: 'flink-refresh-download',
-  templateUrl: './refresh-download.component.html',
-  styleUrls: ['./refresh-download.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
-})
-export class RefreshDownloadComponent {
-  @Input() downloadName: string;
-  @Input() downloadHref: string;
-  @Input() isLoading = false;
-  @Input() compactMode = false;
-  @Output() reload = new EventEmitter<void>();
-  @Output() fullScreen = new EventEmitter<boolean>();
-  isFullScreen = false;
-
-  toggleFullScreen() {
-    this.isFullScreen = !this.isFullScreen;
-    this.fullScreen.emit(this.isFullScreen);
-  }
+:host {
+  position: relative;
+  display: block;
 }

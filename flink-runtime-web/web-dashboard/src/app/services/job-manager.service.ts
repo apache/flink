@@ -33,6 +33,25 @@ export class JobManagerService {
   }
 
   /**
+   * Load JM logs
+   */
+  loadLogs() {
+    return this.httpClient.get(`${BASE_URL}/jobmanager/log`, {
+      responseType: 'text',
+      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
+    });
+  }
+
+  /**
+   * Load JM stdout
+   */
+  loadStdout() {
+    return this.httpClient.get(`${BASE_URL}/jobmanager/stdout`, {
+      responseType: 'text',
+      headers: new HttpHeaders().append('Cache-Control', 'no-cache')
+    });
+  }
+  /**
    * Load JM log list
    */
   loadLogList() {

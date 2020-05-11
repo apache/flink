@@ -16,25 +16,31 @@
  * limitations under the License.
  */
 
-import { Component, ChangeDetectionStrategy, Input, Output, EventEmitter } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { JobManagerService } from 'services';
+import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
 
 @Component({
-  selector: 'flink-refresh-download',
-  templateUrl: './refresh-download.component.html',
-  styleUrls: ['./refresh-download.component.less'],
+  selector: 'flink-job-manager-stdout',
+  templateUrl: './job-manager-stdout.component.html',
+  styleUrls: ['./job-manager-stdout.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class RefreshDownloadComponent {
-  @Input() downloadName: string;
-  @Input() downloadHref: string;
-  @Input() isLoading = false;
-  @Input() compactMode = false;
-  @Output() reload = new EventEmitter<void>();
-  @Output() fullScreen = new EventEmitter<boolean>();
-  isFullScreen = false;
+export class JobManagerStdoutComponent implements OnInit {
+  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+  stdout = '';
 
-  toggleFullScreen() {
-    this.isFullScreen = !this.isFullScreen;
-    this.fullScreen.emit(this.isFullScreen);
+  reload() {
+    this.jobManagerService.loadStdout().subscribe(data => {
+      this.monacoEditorComponent.layout();
+      this.stdout = data;
+      this.cdr.markForCheck();
+    });
+  }
+
+  constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
+
+  ngOnInit() {
+    this.reload();
   }
 }
