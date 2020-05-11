@@ -118,7 +118,6 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	@Test
 	public void testRestoreLatestCheckpointedState() throws Exception {
 		final JobID jid = new JobID();
-		final long timestamp = System.currentTimeMillis();
 
 		final JobVertexID jobVertexID1 = new JobVertexID();
 		final JobVertexID jobVertexID2 = new JobVertexID();
@@ -156,7 +155,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				.build();
 
 		// trigger the checkpoint
-		coord.triggerCheckpoint(timestamp, false);
+		coord.triggerCheckpoint(false);
 		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getPendingCheckpoints().size());
@@ -243,7 +242,6 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	private void testRestoreLatestCheckpointIsPreferSavepoint(boolean isPreferCheckpoint) {
 		try {
 			final JobID jid = new JobID();
-			long timestamp = System.currentTimeMillis();
 			StandaloneCheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
 
 			final JobVertexID statefulId = new JobVertexID();
@@ -282,7 +280,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 			//trigger a checkpoint and wait to become a completed checkpoint
 			final CompletableFuture<CompletedCheckpoint> checkpointFuture =
-				coord.triggerCheckpoint(timestamp, false);
+				coord.triggerCheckpoint(false);
 			manuallyTriggeredScheduledExecutor.triggerAll();
 			assertFalse(checkpointFuture.isCompletedExceptionally());
 
@@ -310,8 +308,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
 			// trigger a savepoint and wait it to be finished
 			String savepointDir = tmpFolder.newFolder().getAbsolutePath();
-			timestamp = System.currentTimeMillis();
-			CompletableFuture<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(timestamp, savepointDir);
+			CompletableFuture<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(savepointDir);
 
 			KeyGroupRange keyGroupRangeForSavepoint = KeyGroupRange.of(1, 1);
 			List<SerializableObject> testStatesForSavepoint = Collections.singletonList(new SerializableObject());
@@ -381,7 +378,6 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	 */
 	private void testRestoreLatestCheckpointedStateWithChangingParallelism(boolean scaleOut) throws Exception {
 		final JobID jid = new JobID();
-		final long timestamp = System.currentTimeMillis();
 
 		final JobVertexID jobVertexID1 = new JobVertexID();
 		final JobVertexID jobVertexID2 = new JobVertexID();
@@ -419,7 +415,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				.build();
 
 		// trigger the checkpoint
-		coord.triggerCheckpoint(timestamp, false);
+		coord.triggerCheckpoint(false);
 		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getPendingCheckpoints().size());
@@ -548,7 +544,6 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	@Test(expected = IllegalStateException.class)
 	public void testRestoreLatestCheckpointFailureWhenMaxParallelismChanges() throws Exception {
 		final JobID jid = new JobID();
-		final long timestamp = System.currentTimeMillis();
 
 		final JobVertexID jobVertexID1 = new JobVertexID();
 		final JobVertexID jobVertexID2 = new JobVertexID();
@@ -582,7 +577,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				.build();
 
 		// trigger the checkpoint
-		coord.triggerCheckpoint(timestamp, false);
+		coord.triggerCheckpoint(false);
 		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getPendingCheckpoints().size());

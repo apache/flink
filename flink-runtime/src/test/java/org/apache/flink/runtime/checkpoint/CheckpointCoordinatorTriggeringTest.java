@@ -273,7 +273,6 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 
 		// Not periodic
 		final CompletableFuture<CompletedCheckpoint> onCompletionPromise2 = checkpointCoordinator.triggerCheckpoint(
-			System.currentTimeMillis(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			null,
 			false,
@@ -547,7 +546,6 @@ checkpointCoordinator.startCheckpointScheduler();
 		CheckpointCoordinator checkpointCoordinator) {
 
 		return checkpointCoordinator.triggerCheckpoint(
-			System.currentTimeMillis(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			null,
 			true,
@@ -558,7 +556,6 @@ checkpointCoordinator.startCheckpointScheduler();
 		CheckpointCoordinator checkpointCoordinator) {
 
 		return checkpointCoordinator.triggerCheckpoint(
-			System.currentTimeMillis(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			null,
 			false,

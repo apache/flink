@@ -417,7 +417,6 @@ public class CheckpointCoordinator {
 	/**
 	 * Triggers a savepoint with the given savepoint directory as a target.
 	 *
-	 * @param timestamp The timestamp for the savepoint.
 	 * @param targetLocation Target location for the savepoint, optional. If null, the
 	 *                       state backend's configured default will be used.
 	 * @return A future to the completed checkpoint
@@ -425,8 +424,8 @@ public class CheckpointCoordinator {
 	 *                               specified and no default savepoint directory has been
 	 *                               configured
 	 */
-	public CompletableFuture<CompletedCheckpoint> triggerSavepoint(final long timestamp, @Nullable final String targetLocation) {
-		return triggerSavepointInternal(timestamp, CheckpointProperties.forSavepoint(!unalignedCheckpointsEnabled), false, targetLocation);
+	public CompletableFuture<CompletedCheckpoint> triggerSavepoint(@Nullable final String targetLocation) {
+		return triggerSavepointInternal(CheckpointProperties.forSavepoint(!unalignedCheckpointsEnabled), false, targetLocation);
 	}
 
 	/**
@@ -443,17 +442,15 @@ public class CheckpointCoordinator {
 	 *                               configured
 	 */
 	public CompletableFuture<CompletedCheckpoint> triggerSynchronousSavepoint(
-			final long timestamp,
 			final boolean advanceToEndOfEventTime,
 			@Nullable final String targetLocation) {
 
 		final CheckpointProperties properties = CheckpointProperties.forSyncSavepoint(!unalignedCheckpointsEnabled);
 
-		return triggerSavepointInternal(timestamp, properties, advanceToEndOfEventTime, targetLocation);
+		return triggerSavepointInternal(properties, advanceToEndOfEventTime, targetLocation);
 	}
 
 	private CompletableFuture<CompletedCheckpoint> triggerSavepointInternal(
-			final long timestamp,
 			final CheckpointProperties checkpointProperties,
 			final boolean advanceToEndOfEventTime,
 			@Nullable final String targetLocation) {
@@ -464,7 +461,6 @@ public class CheckpointCoordinator {
 		// for now, execute the trigger in timer thread to avoid competition
 		final CompletableFuture<CompletedCheckpoint> resultFuture = new CompletableFuture<>();
 		timer.execute(() -> triggerCheckpoint(
-			timestamp,
 			checkpointProperties,
 			targetLocation,
 			false,
@@ -484,19 +480,17 @@ public class CheckpointCoordinator {
 	 * timestamp. The return value is a future. It completes when the checkpoint triggered finishes
 	 * or an error occurred.
 	 *
-	 * @param timestamp The timestamp for the checkpoint.
 	 * @param isPeriodic Flag indicating whether this triggered checkpoint is
 	 * periodic. If this flag is true, but the periodic scheduler is disabled,
 	 * the checkpoint will be declined.
 	 * @return a future to the completed checkpoint.
 	 */
-	public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(long timestamp, boolean isPeriodic) {
-		return triggerCheckpoint(timestamp, checkpointProperties, null, isPeriodic, false);
+	public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(boolean isPeriodic) {
+		return triggerCheckpoint(checkpointProperties, null, isPeriodic, false);
 	}
 
 	@VisibleForTesting
 	public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
-			long timestamp,
 			CheckpointProperties props,
 			@Nullable String externalSavepointLocation,
 			boolean isPeriodic,
@@ -507,7 +501,7 @@ public class CheckpointCoordinator {
 				"Only synchronous savepoints are allowed to advance the watermark to MAX."));
 		}
 
-		CheckpointTriggerRequest request = new CheckpointTriggerRequest(timestamp, props, externalSavepointLocation, isPeriodic, advanceToEndOfTime);
+		CheckpointTriggerRequest request = new CheckpointTriggerRequest(props, externalSavepointLocation, isPeriodic, advanceToEndOfTime);
 		requestDecider
 			.chooseRequestToExecute(request, isTriggering, lastCheckpointCompletionRelativeTime)
 			.ifPresent(this::startTriggeringCheckpoint);
@@ -1409,7 +1403,7 @@ public class CheckpointCoordinator {
 		@Override
 		public void run() {
 			try {
-				triggerCheckpoint(System.currentTimeMillis(), true);
+				triggerCheckpoint(true);
 			}
 			catch (Exception e) {
 				LOG.error("Exception while triggering checkpoint for job {}.", job, e);
@@ -1599,13 +1593,12 @@ public class CheckpointCoordinator {
 		private final CompletableFuture<CompletedCheckpoint> onCompletionPromise = new CompletableFuture<>();
 
 		CheckpointTriggerRequest(
-				long timestamp,
 				CheckpointProperties props,
 				@Nullable String externalSavepointLocation,
 				boolean isPeriodic,
 				boolean advanceToEndOfTime) {
 
-			this.timestamp = timestamp;
+			this.timestamp = System.currentTimeMillis();
 			this.props = checkNotNull(props);
 			this.externalSavepointLocation = externalSavepointLocation;
 			this.isPeriodic = isPeriodic;

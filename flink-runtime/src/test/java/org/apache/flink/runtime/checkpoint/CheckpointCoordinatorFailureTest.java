@@ -65,8 +65,6 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
 		final ExecutionVertex vertex = CheckpointCoordinatorTestingUtils.mockExecutionVertex(executionAttemptId);
 
-		final long triggerTimestamp = 1L;
-
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord =
 			new CheckpointCoordinatorBuilder()
@@ -76,7 +74,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 				.setTimer(manuallyTriggeredScheduledExecutor)
 				.build();
 
-		coord.triggerCheckpoint(triggerTimestamp, false);
+		coord.triggerCheckpoint(false);
 
 		manuallyTriggeredScheduledExecutor.triggerAll();
 

@@ -232,7 +232,7 @@ public class SchedulerTestingUtils {
 
 	public static CompletedCheckpoint takeCheckpoint(DefaultScheduler scheduler) throws Exception {
 		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
-		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(), false);
+		checkpointCoordinator.triggerCheckpoint(false);
 
 		assertEquals("test setup inconsistent", 1, checkpointCoordinator.getNumberOfPendingCheckpoints());
 		final PendingCheckpoint checkpoint = checkpointCoordinator.getPendingCheckpoints().values().iterator().next();
