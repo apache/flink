@@ -147,16 +147,7 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 
 	@Override
 	public void close() {
-		synchronized (producerClosingLock) {
-			kafkaProducer.close();
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(
-						"Closed internal KafkaProducer {}. Stacktrace: {}",
-						System.identityHashCode(this),
-						Joiner.on("\n").join(Thread.currentThread().getStackTrace()));
-			}
-			closed = true;
-		}
+		throw new UnsupportedOperationException("Close without timeout is now allowed because it can leave lingering Kafka threads.");
 	}
 
 	@Override

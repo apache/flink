@@ -83,6 +83,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -675,7 +676,8 @@ public class FlinkKafkaProducer011<IN>
 						break;
 					case AT_LEAST_ONCE:
 					case NONE:
-						currentTransaction.producer.close();
+						currentTransaction.producer.flush();
+						currentTransaction.producer.close(0, TimeUnit.SECONDS);
 						break;
 				}
 			}
@@ -959,7 +961,8 @@ public class FlinkKafkaProducer011<IN>
 
 	private void recycleTransactionalProducer(FlinkKafkaProducer<byte[], byte[]> producer) {
 		availableTransactionalIds.add(producer.getTransactionalId());
-		producer.close();
+		producer.flush();
+		producer.close(0, TimeUnit.SECONDS);
 	}
 
 	private FlinkKafkaProducer<byte[], byte[]> initTransactionalProducer(String transactionalId, boolean registerMetrics) {
