@@ -23,7 +23,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -48,9 +47,9 @@ import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMA
  * CSV format factory for file system.
  */
 public class CsvRowDataFileSystemFormatFactory implements FileSystemFormatFactory {
+
 	@Override
 	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-
 		DescriptorProperties properties = getValidatedProperties(context.getFormatProperties());
 
 		RowType formatRowType = context.getFormatRowType();
@@ -159,7 +158,9 @@ public class CsvRowDataFileSystemFormatFactory implements FileSystemFormatFactor
 		properties.getOptionalString(FORMAT_NULL_LITERAL)
 			.ifPresent(builder::setNullLiteral);
 
-		return Optional.of(new CsvRowDataEncoder(builder.build()));
+		final CsvRowDataSerializationSchema serializationSchema = builder.build();
+
+		return Optional.of((record, stream) -> stream.write(serializationSchema.serialize(record)));
 	}
 
 	@Override
@@ -237,18 +238,18 @@ public class CsvRowDataFileSystemFormatFactory implements FileSystemFormatFactor
 		private transient MappingIterator<JsonNode> iterator;
 
 		public CsvInputFormat(
-				Path[] filePaths,
-				DataType[] fieldTypes,
-				String[] fieldNames,
-				CsvSchema csvSchema,
-				RowType formatRowType,
-				int[] selectFields,
-				List<String> partitionKeys,
-				String defaultPartValue,
-				long limit,
-				int[] csvSelectFieldToProjectFieldMapping,
-				int[] csvSelectFieldToCsvFieldMapping,
-				boolean ignoreParseErrors) {
+			Path[] filePaths,
+			DataType[] fieldTypes,
+			String[] fieldNames,
+			CsvSchema csvSchema,
+			RowType formatRowType,
+			int[] selectFields,
+			List<String> partitionKeys,
+			String defaultPartValue,
+			long limit,
+			int[] csvSelectFieldToProjectFieldMapping,
+			int[] csvSelectFieldToCsvFieldMapping,
+			boolean ignoreParseErrors) {
 			super(filePaths, csvSchema);
 			this.fieldTypes = fieldTypes;
 			this.fieldNames = fieldNames;
@@ -278,7 +279,7 @@ public class CsvRowDataFileSystemFormatFactory implements FileSystemFormatFactor
 			prepareRuntimeConverter();
 		}
 
-		private void prepareRuntimeConverter(){
+		private void prepareRuntimeConverter() {
 			CsvRowDataDeserializationSchema.Builder builder = new CsvRowDataDeserializationSchema.Builder(
 				formatRowType, new GenericTypeInfo<>(RowData.class))
 				.setIgnoreParseErrors(ignoreParseErrors);
@@ -293,26 +294,24 @@ public class CsvRowDataFileSystemFormatFactory implements FileSystemFormatFactor
 		@Override
 		public RowData nextRecord(RowData reuse) throws IOException {
 			GenericRowData csvRow = null;
-			do {
+			while (csvRow == null) {
 				try {
 					JsonNode root = iterator.nextValue();
 					csvRow = (GenericRowData) runtimeConverter.convert(root);
 				} catch (NoSuchElementException e) {
 					end = true;
+					return null;
 				} catch (Throwable t) {
 					if (!ignoreParseErrors) {
 						throw new IOException("Failed to deserialize CSV row.", t);
 					}
 				}
-			} while (csvRow == null && !reachedEnd());
+			}
 
-			GenericRowData returnRecord = null;
-			if (csvRow != null) {
-				returnRecord = rowData;
-				for (int i = 0; i < csvSelectFieldToCsvFieldMapping.length; i++) {
-					returnRecord.setField(csvSelectFieldToProjectFieldMapping[i],
-						csvRow.getField(csvSelectFieldToCsvFieldMapping[i]));
-				}
+			GenericRowData returnRecord = rowData;
+			for (int i = 0; i < csvSelectFieldToCsvFieldMapping.length; i++) {
+				returnRecord.setField(csvSelectFieldToProjectFieldMapping[i],
+					csvRow.getField(csvSelectFieldToCsvFieldMapping[i]));
 			}
 			emitted++;
 			return returnRecord;
@@ -329,24 +328,6 @@ public class CsvRowDataFileSystemFormatFactory implements FileSystemFormatFactor
 				inputStreamReader.close();
 				inputStreamReader = null;
 			}
-		}
-	}
-
-	/**
-	 * A {@link Encoder} writes {@link RowData} record into {@link java.io.OutputStream} with csv format.
-	 */
-	public static class CsvRowDataEncoder implements Encoder<RowData> {
-
-		private static final long serialVersionUID = 1L;
-		private final CsvRowDataSerializationSchema serializationSchema;
-
-		public CsvRowDataEncoder(CsvRowDataSerializationSchema serializationSchema) {
-			this.serializationSchema = serializationSchema;
-		}
-
-		@Override
-		public void encode(RowData element, OutputStream stream) throws IOException {
-			stream.write(serializationSchema.serialize(element));
 		}
 	}
 }

@@ -14,8 +14,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import scala.collection.JavaConverters;
-
 /**
  * ITCase to test csv format for {@link CsvRowDataFileSystemFormatFactory} in batch mode.
  */
@@ -63,9 +61,9 @@ public class CsvRowDataFilesystemBatchITCase {
 					"x5,5,1,1");
 
 			check("select * from nonPartitionedTable",
-				JavaConverters.asScalaIteratorConverter(Arrays.asList(
+				Arrays.asList(
 					Row.of("x5,5,1,1"),
-					Row.of("x5,5,1,1")).iterator()).asScala().toSeq());
+					Row.of("x5,5,1,1")));
 		}
 
 		@Test
@@ -79,9 +77,9 @@ public class CsvRowDataFilesystemBatchITCase {
 					"x5,\t5,2,2");
 
 			check("select * from nonPartitionedTable",
-				JavaConverters.asScalaIteratorConverter(Arrays.asList(
+				Arrays.asList(
 					Row.of("x5,5,1,1"),
-					Row.of("x5,5,2,2")).iterator()).asScala().toSeq());
+					Row.of("x5,5,2,2")));
 		}
 	}
 }
