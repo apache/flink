@@ -65,4 +65,16 @@ interface SubtaskCheckpointCoordinator extends Closeable {
 		long checkpointId,
 		OperatorChain<?, ?> operatorChain,
 		Supplier<Boolean> isRunning) throws Exception;
+
+	/**
+	 * Notified on the task side once a distributed checkpoint has been aborted.
+	 *
+	 * @param checkpointId The checkpoint id to notify as been completed.
+	 * @param operatorChain The chain of operators executed by the task.
+	 * @param isRunning Whether the task is running.
+	 */
+	void notifyCheckpointAborted(
+		long checkpointId,
+		OperatorChain<?, ?> operatorChain,
+		Supplier<Boolean> isRunning) throws Exception;
 }

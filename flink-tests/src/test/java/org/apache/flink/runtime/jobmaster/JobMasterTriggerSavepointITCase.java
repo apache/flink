@@ -251,6 +251,11 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 		public Future<Void> notifyCheckpointCompleteAsync(final long checkpointId) {
 			return CompletableFuture.completedFuture(null);
 		}
+
+		@Override
+		public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+			return CompletableFuture.completedFuture(null);
+		}
 	}
 
 	private String cancelWithSavepoint() throws Exception {

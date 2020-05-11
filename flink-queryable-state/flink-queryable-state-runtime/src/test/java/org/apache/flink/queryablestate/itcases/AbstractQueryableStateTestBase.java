@@ -1124,6 +1124,10 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 				LATEST_CHECKPOINT_ID.set(checkpointId);
 			}
 		}
+
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
 	}
 
 	/**

@@ -378,6 +378,10 @@ public class StickyAllocationAndLocalRecoveryTestJob {
 			failTask = currentSchedulingAndFailureInfo.failingTask;
 		}
 
+		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
+
 		private boolean shouldTaskFailForThisAttempt() {
 			RuntimeContext runtimeContext = getRuntimeContext();
 			int numSubtasks = runtimeContext.getNumberOfParallelSubtasks();
