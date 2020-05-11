@@ -35,6 +35,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
@@ -61,9 +62,11 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -72,6 +75,9 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -181,6 +187,10 @@ public class SchedulerTestingUtils {
 	}
 
 	public static void enableCheckpointing(final JobGraph jobGraph) {
+		enableCheckpointing(jobGraph, null);
+	}
+
+	public static void enableCheckpointing(final JobGraph jobGraph, @Nullable StateBackend stateBackend) {
 		final List<JobVertexID> triggerVertices = new ArrayList<>();
 		final List<JobVertexID> allVertices = new ArrayList<>();
 
@@ -202,15 +212,47 @@ public class SchedulerTestingUtils {
 			false,
 			0);
 
+		SerializedValue<StateBackend> serializedStateBackend = null;
+		if (stateBackend != null) {
+			try {
+				serializedStateBackend = new SerializedValue<>(stateBackend);
+			} catch (IOException e) {
+				throw new RuntimeException("could not serialize state backend", e);
+			}
+		}
+
 		jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
 				triggerVertices, allVertices, allVertices,
-				config, null));
+				config, serializedStateBackend));
 	}
 
 	public static Collection<ExecutionAttemptID> getAllCurrentExecutionAttempts(DefaultScheduler scheduler) {
 		return StreamSupport.stream(scheduler.requestJob().getAllExecutionVertices().spliterator(), false)
 			.map((vertex) -> vertex.getCurrentExecutionAttempt().getAttemptId())
 			.collect(Collectors.toList());
+	}
+
+	public static ExecutionState getExecutionState(DefaultScheduler scheduler, JobVertexID jvid, int subtask) {
+		final ExecutionJobVertex ejv = getJobVertex(scheduler, jvid);
+		return ejv.getTaskVertices()[subtask].getCurrentExecutionAttempt().getState();
+	}
+
+	public static void failExecution(DefaultScheduler scheduler, JobVertexID jvid, int subtask) {
+		final ExecutionJobVertex ejv = getJobVertex(scheduler, jvid);
+		assert ejv != null;
+		final ExecutionAttemptID attemptID = ejv.getTaskVertices()[subtask].getCurrentExecutionAttempt().getAttemptId();
+
+		scheduler.updateTaskExecutionState(new TaskExecutionState(
+			ejv.getJobId(), attemptID, ExecutionState.FAILED, new Exception("test task failure")));
+	}
+
+	public static void setExecutionToRunning(DefaultScheduler scheduler, JobVertexID jvid, int subtask) {
+		final ExecutionJobVertex ejv = getJobVertex(scheduler, jvid);
+		assert ejv != null;
+		final ExecutionAttemptID attemptID = ejv.getTaskVertices()[subtask].getCurrentExecutionAttempt().getAttemptId();
+
+		scheduler.updateTaskExecutionState(new TaskExecutionState(
+			ejv.getJobId(), attemptID, ExecutionState.RUNNING));
 	}
 
 	public static void setAllExecutionsToRunning(final DefaultScheduler scheduler) {
@@ -248,6 +290,11 @@ public class SchedulerTestingUtils {
 	@SuppressWarnings("deprecation")
 	public static CheckpointCoordinator getCheckpointCoordinator(SchedulerBase scheduler) {
 		return scheduler.getCheckpointCoordinator();
+	}
+
+	private static ExecutionJobVertex getJobVertex(DefaultScheduler scheduler, JobVertexID jobVertexId) {
+		final ExecutionVertexID id = new ExecutionVertexID(jobVertexId, 0);
+		return scheduler.getExecutionVertex(id).getJobVertex();
 	}
 
 	// ------------------------------------------------------------------------
