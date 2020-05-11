@@ -1073,7 +1073,7 @@ object ScalarOperatorGens {
     // String -> binary
     case (VARCHAR | CHAR, VARBINARY | BINARY) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
-        operandTerm => s"$operandTerm.getBytes()"
+        operandTerm => s"$operandTerm.toBytes()"
       }
 
     // Note: SQL2003 $6.12 - casting is not allowed between boolean and numeric types.

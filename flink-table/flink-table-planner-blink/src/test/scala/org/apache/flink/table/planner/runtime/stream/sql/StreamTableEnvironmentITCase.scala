@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.JavaPojos.{Device, Order, ProductItem}
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, StringSink}
 
@@ -30,7 +31,7 @@ import org.junit.Test
 import java.util.Collections
 
 /**
-  * Integration tests for methods on [[org.apache.flink.table.api.scala.StreamTableEnvironment]].
+  * Integration tests for methods on [[StreamTableEnvironment]].
   */
 class StreamTableEnvironmentITCase extends StreamingTestBase {
 

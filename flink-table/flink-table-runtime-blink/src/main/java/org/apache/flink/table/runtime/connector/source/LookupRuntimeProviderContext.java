@@ -18,21 +18,17 @@
 
 package org.apache.flink.table.runtime.connector.source;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.source.DynamicTableSource.DataStructureConverter;
 import org.apache.flink.table.connector.source.LookupTableSource;
-import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.types.DataType;
 
-import static org.apache.flink.table.data.util.DataFormatConverters.getConverterForDataType;
-
 /**
- * Implementation of {@link LookupTableSource.Context}. Currently we delegate
- * {@link #createDataStructureConverter} to {@link DataFormatConverter}.
- *
- * <p>In the future, we can code generate the implementation of {@link #createDataStructureConverter}
- * for better performance.
+ * Implementation of {@link LookupTableSource.Context}.
  */
-public class LookupRuntimeProviderContext implements LookupTableSource.Context {
+@Internal
+public final class LookupRuntimeProviderContext implements LookupTableSource.Context {
 
 	private final int[][] lookupKeys;
 
@@ -45,10 +41,8 @@ public class LookupRuntimeProviderContext implements LookupTableSource.Context {
 		return lookupKeys;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public DataStructureConverter createDataStructureConverter(DataType producedDataType) {
-		DataFormatConverter<Object, Object> converter = getConverterForDataType(producedDataType);
-		return new DataFormatConverterWrapper(converter);
+		return new DataStructureConverterWrapper(DataStructureConverters.getConverter(producedDataType));
 	}
 }

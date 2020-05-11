@@ -27,6 +27,8 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
+import javax.annotation.Nullable;
+
 import java.util.Optional;
 
 /**
@@ -88,6 +90,31 @@ public class TableFactoryUtil {
 					.createTableSink(context);
 		} catch (Throwable t) {
 			throw new TableException("findAndCreateTableSink failed.", t);
+		}
+	}
+
+	/**
+	 * Creates a {@link TableSink} from a {@link CatalogTable}.
+	 *
+	 * <p>It considers {@link Catalog#getFactory()} if provided.
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> TableSink<T> findAndCreateTableSink(
+			@Nullable Catalog catalog,
+			ObjectIdentifier objectIdentifier,
+			CatalogTable catalogTable,
+			ReadableConfig configuration,
+			boolean isStreamingMode) {
+		TableSinkFactory.Context context = new TableSinkFactoryContextImpl(
+			objectIdentifier,
+			catalogTable,
+			configuration,
+			!isStreamingMode);
+		if (catalog == null) {
+			return findAndCreateTableSink(context);
+		} else {
+			return createTableSinkForCatalogTable(catalog, context)
+				.orElseGet(() -> findAndCreateTableSink(context));
 		}
 	}
 

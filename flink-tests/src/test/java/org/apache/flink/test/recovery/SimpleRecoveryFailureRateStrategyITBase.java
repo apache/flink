@@ -22,17 +22,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 
 import org.junit.ClassRule;
-import org.junit.experimental.categories.Category;
 
 import java.time.Duration;
 
 /**
  * Test cluster configuration with failure-rate recovery.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class SimpleRecoveryFailureRateStrategyITBase extends SimpleRecoveryITCaseBase {
 
 	@ClassRule

@@ -22,6 +22,7 @@ import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.factories.TableFactory
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.plan.utils.TestContextTableFactory
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.runner.RunWith
@@ -82,11 +83,10 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
         |insert into t2
         |select t1.a, t1.c from t1
       """.stripMargin
-    util.tableEnv.sqlUpdate(sourceDDL)
-    util.tableEnv.sqlUpdate(sinkDDL)
-    util.tableEnv.sqlUpdate(query)
+    util.tableEnv.executeSql(sourceDDL)
+    util.tableEnv.executeSql(sinkDDL)
 
-    util.tableEnv.explain(false)
+    util.tableEnv.explainSql(query)
     Assert.assertTrue(factory.hasInvokedSource)
     Assert.assertTrue(factory.hasInvokedSink)
   }

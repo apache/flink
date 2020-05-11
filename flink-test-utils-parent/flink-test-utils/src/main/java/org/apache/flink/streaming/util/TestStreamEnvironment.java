@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.client.deployment.executors.LocalExecutor;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutor;
@@ -54,6 +56,8 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 		this.jobExecutor = Preconditions.checkNotNull(jobExecutor);
 		this.jarFiles = Preconditions.checkNotNull(jarFiles);
 		this.classPaths = Preconditions.checkNotNull(classPaths);
+		getConfiguration().set(DeploymentOptions.TARGET, LocalExecutor.NAME);
+		getConfiguration().set(DeploymentOptions.ATTACHED, true);
 
 		setParallelism(parallelism);
 	}

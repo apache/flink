@@ -25,6 +25,9 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
  * to the SourceCoordinator.
  */
 public class ReaderRegistrationEvent implements OperatorEvent {
+
+	private static final long serialVersionUID = 1L;
+
 	private final int subtaskId;
 	private final String location;
 

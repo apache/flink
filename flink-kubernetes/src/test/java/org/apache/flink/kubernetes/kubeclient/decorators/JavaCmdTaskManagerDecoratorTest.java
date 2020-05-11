@@ -27,7 +27,6 @@ import org.apache.flink.kubernetes.taskmanager.KubernetesTaskExecutorRunner;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -71,13 +70,18 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 
 	private JavaCmdTaskManagerDecorator javaCmdTaskManagerDecorator;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
 
 		flinkConfig.setString(KubernetesConfigOptions.KUBERNETES_ENTRY_PATH, KUBERNETES_ENTRY_PATH);
 		flinkConfig.set(KubernetesConfigOptions.FLINK_CONF_DIR, FLINK_CONF_DIR_IN_POD);
 		flinkConfig.set(KubernetesConfigOptions.FLINK_LOG_DIR, FLINK_LOG_DIR_IN_POD);
+	}
+
+	@Override
+	public void onSetup() throws Exception {
+		super.onSetup();
 
 		this.mainClassArgs = String.format(
 				"%s--configDir %s",

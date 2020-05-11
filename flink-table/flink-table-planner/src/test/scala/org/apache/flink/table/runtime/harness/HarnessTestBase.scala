@@ -366,7 +366,7 @@ class HarnessTestBase extends StreamingWithStateTestBase {
         }
       case union: UnionTransformation[_] => extractFromInputs(union.getInputs.toSeq: _*)
       case p: PartitionTransformation[_] => extractFromInputs(p.getInput)
-      case _: SourceTransformation[_] => null
+      case _: LegacySourceTransformation[_] => null
       case _ => throw new UnsupportedOperationException("This should not happen.")
     }
   }

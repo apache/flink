@@ -67,6 +67,10 @@ public class MockSourceSplit implements SourceSplit, Serializable {
 		return endIndex;
 	}
 
+	public boolean isAvailable() {
+		return !isFinished() && !records.isEmpty();
+	}
+
 	public boolean isFinished() {
 		return index == endIndex;
 	}

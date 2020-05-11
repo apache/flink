@@ -595,8 +595,7 @@ public interface Table {
 	 *     }
 	 *   }
 	 *
-	 *   TableFunction<String> split = new MySplitUDTF();
-	 *   table.joinLateral(call(split, $("c")).as("s"))
+	 *   table.joinLateral(call(MySplitUDTF.class, $("c")).as("s"))
 	 *        .select($("a"), $("b"), $("c"), $("s"));
 	 * }
 	 * </pre>
@@ -659,8 +658,7 @@ public interface Table {
 	 *     }
 	 *   }
 	 *
-	 *   TableFunction<String> split = new MySplitUDTF();
-	 *   table.joinLateral(call(split, $("c")).as("s"), $("a").isEqual($("s")))
+	 *   table.joinLateral(call(MySplitUDTF.class, $("c")).as("s"), $("a").isEqual($("s")))
 	 *        .select($("a"), $("b"), $("c"), $("s"));
 	 * }
 	 * </pre>
@@ -725,8 +723,7 @@ public interface Table {
 	 *     }
 	 *   }
 	 *
-	 *   TableFunction<String> split = new MySplitUDTF();
-	 *   table.leftOuterJoinLateral(call(split, $("c")).as("s"))
+	 *   table.leftOuterJoinLateral(call(MySplitUDTF.class, $("c")).as("s"))
 	 *        .select($("a"), $("b"), $("c"), $("s"));
 	 * }
 	 * </pre>
@@ -791,8 +788,7 @@ public interface Table {
 	 *     }
 	 *   }
 	 *
-	 *   TableFunction<String> split = new MySplitUDTF();
-	 *   table.leftOuterJoinLateral(call(split, $("c")).as("s"), $("a").isEqual($("s")))
+	 *   table.leftOuterJoinLateral(call(MySplitUDTF.class, $("c")).as("s"), $("a").isEqual($("s")))
 	 *        .select($("a"), $("b"), $("c"), $("s"));
 	 * }
 	 * </pre>
@@ -1012,7 +1008,10 @@ public interface Table {
 	 *
 	 * @param tablePath The path of the registered {@link TableSink} to which the {@link Table} is
 	 *        written.
+	 * @deprecated use {@link #executeInsert(String)} for single sink,
+	 *             use {@link TableEnvironment#createStatementSet()} for multiple sinks.
 	 */
+	@Deprecated
 	void insertInto(String tablePath);
 
 	/**
@@ -1267,8 +1266,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   ScalarFunction func = new MyMapFunction();
-	 *   tab.map(call(func, $("c")))
+	 *   tab.map(call(MyMapFunction.class, $("c")))
 	 * }
 	 * </pre>
 	 *
@@ -1309,8 +1307,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   TableFunction func = new MyFlatMapFunction();
-	 *   tab.flatMap(call(func, $("c")))
+	 *   tab.flatMap(call(MyFlatMapFunction.class, $("c")))
 	 * }
 	 * </pre>
 	 *
@@ -1354,8 +1351,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   AggregateFunction aggFunc = new MyAggregateFunction();
-	 *   tab.aggregate(call(aggFunc, $("a"), $("b")).as("f0", "f1", "f2"))
+	 *   tab.aggregate(call(MyAggregateFunction.class, $("a"), $("b")).as("f0", "f1", "f2"))
 	 *     .select($("f0"), $("f1"));
 	 * }
 	 * </pre>
@@ -1399,8 +1395,7 @@ public interface Table {
 	 *
 	 * <pre>
 	 * {@code
-	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction();
-	 *   tab.flatAggregate(call(tableAggFunc, $("a"), $("b")).as("x", "y", "z"))
+	 *   tab.flatAggregate(call(MyTableAggregateFunction.class, $("a"), $("b")).as("x", "y", "z"))
 	 *     .select($("x"), $("y"), $("z"));
 	 * }
 	 * </pre>
@@ -1475,11 +1470,24 @@ public interface Table {
 	TableResult executeInsert(String tablePath, boolean overwrite);
 
 	/**
+	 * Collects the contents of the current table local client.
+	 *
+	 *  <pre>
+	 * {@code
+	 *   Table table = tableEnv.fromQuery("select * from MyTable");
+	 *   TableResult tableResult = table.execute();
+	 *   tableResult...
+	 * }
+	 * </pre>
+	 */
+	TableResult execute();
+
+	/**
 	 * Returns the AST of this table and the execution plan to compute
 	 * the result of this table.
 	 *
 	 * @param extraDetails The extra explain details which the explain result should include,
-	 *   e.g. estimated cost, change log trait for streaming
+	 *   e.g. estimated cost, changelog mode for streaming
 	 * @return AST and the execution plan.
 	 */
 	String explain(ExplainDetail... extraDetails);

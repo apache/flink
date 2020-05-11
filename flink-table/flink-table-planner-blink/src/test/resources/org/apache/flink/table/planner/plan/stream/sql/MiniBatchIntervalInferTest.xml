@@ -246,7 +246,7 @@ Calc(select=[a, b])
   <TestCase name="testMultipleWindowAggregates">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
 +- LogicalProject(id1=[$1], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
       +- LogicalProject($f0=[HOP(TUMBLE_ROWTIME($0), 12000:INTERVAL SECOND, 4000:INTERVAL SECOND)], id1=[$1], text=[$2], $f3=[_UTF-16LE'*'])
@@ -259,7 +259,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a
                      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 0:INTERVAL MILLISECOND)])
                         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
 +- LogicalProject(id1=[$1], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
       +- LogicalProject($f0=[$TUMBLE($1, 9000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'-'])
@@ -270,7 +270,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a
                +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($1, 0:INTERVAL MILLISECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a, b])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a, b])
 +- LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
    +- LogicalProject(id1=[$1], text=[$2])
       +- LogicalAggregate(group=[{0, 1}], text=[LISTAGG($2, $3)])
@@ -295,20 +295,20 @@ Exchange(distribution=[hash[id1]], reuse_id=[2])
 +- Calc(select=[rowtime, id1, text, _UTF-16LE'#' AS $f3])
    +- Reused(reference_id=[1])
 
-Sink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
 +- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, $f0, 4000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- Calc(select=[w$rowtime AS $f0, id1, text, _UTF-16LE'*' AS $f3])
          +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 6000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[id1, LISTAGG(text, $f3) AS text, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
             +- Reused(reference_id=[2])
 
-Sink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
 +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 9000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- Calc(select=[rowtime, id1, text, _UTF-16LE'-' AS $f3])
          +- Reused(reference_id=[1])
 
-Sink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a, b])
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a, b])
 +- GlobalGroupAggregate(groupBy=[id1], select=[id1, COUNT(count$0) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- LocalGroupAggregate(groupBy=[id1], select=[id1, COUNT(text) AS count$0])

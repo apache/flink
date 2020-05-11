@@ -76,6 +76,13 @@ public class InputChannelTestUtils {
 		return new SingleInputGateBuilder().setNumberOfChannels(numberOfChannels).build();
 	}
 
+	public static SingleInputGate createSingleInputGate(int numberOfChannels, MemorySegmentProvider segmentProvider) {
+		return new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfChannels)
+			.setSegmentProvider(segmentProvider)
+			.build();
+	}
+
 	public static ConnectionManager createDummyConnectionManager() throws Exception {
 		final PartitionRequestClient mockClient = mock(PartitionRequestClient.class);
 
@@ -129,12 +136,10 @@ public class InputChannelTestUtils {
 
 	public static RemoteInputChannel createRemoteInputChannel(
 		SingleInputGate inputGate,
-		PartitionRequestClient client,
-		MemorySegmentProvider memorySegmentProvider) {
+		PartitionRequestClient client) {
 
 		return InputChannelBuilder.newBuilder()
 			.setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
-			.setMemorySegmentProvider(memorySegmentProvider)
 			.buildRemoteChannel(inputGate);
 	}
 

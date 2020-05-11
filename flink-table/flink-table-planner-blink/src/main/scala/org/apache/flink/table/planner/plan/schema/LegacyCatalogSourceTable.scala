@@ -76,9 +76,6 @@ class LegacyCatalogSourceTable[T](
       .unwrap(classOf[FlinkContext])
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
-    // erase time indicator types in the rowType
-    val erasedRowType = eraseTimeIndicator(rowType, typeFactory)
-
     val conf = flinkContext.getTableConfig.getConfiguration
 
     val hintedOptions = FlinkHints.getHintedOptions(context.getTableHints)
@@ -92,10 +89,14 @@ class LegacyCatalogSourceTable[T](
     val tableSource = findAndCreateLegacyTableSource(
       hintedOptions,
       conf)
+
+    // erase time indicator types in the rowType
+    val actualRowType = eraseTimeIndicator(rowType, typeFactory, tableSource)
+
     val tableSourceTable = new LegacyTableSourceTable[T](
       relOptSchema,
       schemaTable.getTableIdentifier,
-      erasedRowType,
+      actualRowType,
       statistic,
       tableSource,
       schemaTable.isStreamingMode,
@@ -119,7 +120,7 @@ class LegacyCatalogSourceTable[T](
     val toRexFactory = flinkContext.getSqlExprToRexConverterFactory
 
     // 2. push computed column project
-    val fieldNames = erasedRowType.getFieldNames.asScala
+    val fieldNames = actualRowType.getFieldNames.asScala
     if (columnExprs.nonEmpty) {
       val fieldExprs = fieldNames
         .map { name =>
@@ -152,7 +153,7 @@ class LegacyCatalogSourceTable[T](
       }
       val rowtimeIndex = fieldNames.indexOf(rowtime)
       val watermarkRexNode = toRexFactory
-        .create(erasedRowType)
+        .create(actualRowType)
         .convertToRexNode(watermarkSpec.get.getWatermarkExpr)
       relBuilder.watermark(rowtimeIndex, watermarkRexNode)
     }
@@ -212,20 +213,34 @@ class LegacyCatalogSourceTable[T](
    */
   private def eraseTimeIndicator(
       relDataType: RelDataType,
-      factory: FlinkTypeFactory): RelDataType = {
-    val logicalRowType = FlinkTypeFactory.toLogicalRowType(relDataType)
-    val fieldNames = logicalRowType.getFieldNames
-    val fieldTypes = logicalRowType.getFields.map { f =>
-      if (FlinkTypeFactory.isTimeIndicatorType(f.getType)) {
-        val timeIndicatorType = f.getType.asInstanceOf[TimestampType]
-        new TimestampType(
-          timeIndicatorType.isNullable,
-          TimestampKind.REGULAR,
-          timeIndicatorType.getPrecision)
-      } else {
-        f.getType
+      factory: FlinkTypeFactory,
+      tableSource: TableSource[_]): RelDataType = {
+
+    val hasLegacyTimeAttributes =
+      TableSourceValidation.hasRowtimeAttribute(tableSource) ||
+        TableSourceValidation.hasProctimeAttribute(tableSource)
+
+    // If the table source is defined by TableEnvironment.connect() and the time attributes are
+    // defined by legacy proctime and rowtime descriptors, we should not erase time indicator types
+    if (columnExprs.isEmpty
+      && catalogTable.getSchema.getWatermarkSpecs.isEmpty
+      && hasLegacyTimeAttributes) {
+      relDataType
+    } else {
+      val logicalRowType = FlinkTypeFactory.toLogicalRowType(relDataType)
+      val fieldNames = logicalRowType.getFieldNames
+      val fieldTypes = logicalRowType.getFields.map { f =>
+        if (FlinkTypeFactory.isTimeIndicatorType(f.getType)) {
+          val timeIndicatorType = f.getType.asInstanceOf[TimestampType]
+          new TimestampType(
+            timeIndicatorType.isNullable,
+            TimestampKind.REGULAR,
+            timeIndicatorType.getPrecision)
+        } else {
+          f.getType
+        }
       }
+      factory.buildRelNodeRowType(fieldNames, fieldTypes)
     }
-    factory.buildRelNodeRowType(fieldNames, fieldTypes)
   }
 }

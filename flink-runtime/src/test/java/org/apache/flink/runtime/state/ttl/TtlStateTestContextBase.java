@@ -46,6 +46,10 @@ public abstract class TtlStateTestContextBase<S extends InternalKvState<?, Strin
 
 	public abstract Object getOriginal() throws Exception;
 
+	public boolean isOriginalEmptyValue() throws Exception {
+		return getOriginal() == emptyValue || getOriginal().equals(emptyValue);
+	}
+
 	public String getName() {
 		return this.getClass().getSimpleName();
 	}

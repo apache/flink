@@ -20,7 +20,7 @@ package org.apache.flink.table.examples.java;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 
@@ -66,7 +66,7 @@ public class StreamWindowSQLExample {
 			"  'connector.path' = '" + path + "',\n" +
 			"  'format.type' = 'csv'\n" +
 			")";
-		tEnv.sqlUpdate(ddl);
+		tEnv.executeSql(ddl);
 
 		// run a SQL query on the table and retrieve the result as a new Table
 		String query = "SELECT\n" +

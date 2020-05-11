@@ -90,10 +90,10 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 					int[] record = split.getNext(blockingFetch);
 					if (record != null) {
 						records.add(entry.getKey(), record);
-						if (split.isFinished()) {
-							records.addFinishedSplit(entry.getKey());
-						}
 					}
+				}
+				if (split.isFinished()) {
+					records.addFinishedSplit(entry.getKey());
 				}
 			}
 		} catch (InterruptedException ie) {

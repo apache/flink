@@ -20,7 +20,9 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ViewEntry;
@@ -90,14 +92,18 @@ public class CliClientTest extends TestLogger {
 
 	@Test
 	public void testSqlCompletion() throws IOException {
-		verifySqlCompletion("", 0, Arrays.asList("SELECT", "QUIT;", "RESET;"), Collections.emptyList());
-		verifySqlCompletion("SELEC", 5, Collections.singletonList("SELECT"), Collections.singletonList("QUIT;"));
-		verifySqlCompletion("SELE", 0, Collections.singletonList("SELECT"), Collections.singletonList("QUIT;"));
+		verifySqlCompletion("", 0, Arrays.asList("SOURCE", "QUIT;", "RESET;"), Collections.emptyList());
+		verifySqlCompletion("SELE", 5, Collections.singletonList("HintA"), Collections.singletonList("QUIT;"));
+		verifySqlCompletion("SOUR", 5, Collections.singletonList("SOURCE"), Collections.singletonList("QUIT;"));
+		verifySqlCompletion("SOUR", 0, Collections.singletonList("SOURCE"), Collections.singletonList("QUIT;"));
 		verifySqlCompletion("QU", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
 		verifySqlCompletion("qu", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
 		verifySqlCompletion("  qu", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
 		verifySqlCompletion("set ", 3, Collections.emptyList(), Collections.singletonList("SET"));
 		verifySqlCompletion("show t ", 6, Collections.emptyList(), Collections.singletonList("SET"));
+		verifySqlCompletion("show", 7, Collections.singletonList("MODULES;"), Collections.singletonList("QUIT;"));
+		verifySqlCompletion("show ", 4, Collections.singletonList("MODULES;"), Collections.singletonList("QUIT;"));
+		verifySqlCompletion("show modules", 13, Collections.emptyList(), Collections.singletonList("QUIT;"));
 	}
 
 	@Test
@@ -260,16 +266,17 @@ public class CliClientTest extends TestLogger {
 		public String receivedStatement;
 		public int receivedPosition;
 		private final Map<String, SessionContext> sessionMap = new HashMap<>();
+		private final SqlParserHelper helper = new SqlParserHelper();
 
 		@Override
 		public void start() throws SqlExecutionException {
-			// nothing to do
 		}
 
 		@Override
 		public String openSession(SessionContext session) throws SqlExecutionException {
 			String sessionId = UUID.randomUUID().toString();
 			sessionMap.put(sessionId, session);
+			helper.registerTables();
 			return sessionId;
 		}
 
@@ -339,6 +346,11 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
+		public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
 		public List<String> listFunctions(String sessionId) throws SqlExecutionException {
 			return null;
 		}
@@ -364,8 +376,8 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
-		public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
-			return null;
+		public org.apache.flink.table.delegation.Parser getSqlParser(String sessionId) {
+			return helper.getSqlParser();
 		}
 
 		@Override

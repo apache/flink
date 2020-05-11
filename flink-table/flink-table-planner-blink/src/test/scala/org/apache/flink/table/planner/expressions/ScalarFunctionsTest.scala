@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.api.scala.{currentDate, currentTime, currentTimestamp, localTime, localTimestamp, nullOf, temporalOverlaps, _}
-import org.apache.flink.table.api.{DataTypes, Types}
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
+
 import org.junit.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {

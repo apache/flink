@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -37,16 +38,19 @@ public class StreamOperatorParameters<OUT> {
 	private final StreamConfig config;
 	private final Output<StreamRecord<OUT>> output;
 	private final ProcessingTimeService processingTimeService;
+	private final OperatorEventDispatcher operatorEventDispatcher;
 
 	public StreamOperatorParameters(
 			StreamTask<?, ?> containingTask,
 			StreamConfig config,
 			Output<StreamRecord<OUT>> output,
-			ProcessingTimeService processingTimeService) {
+			ProcessingTimeService processingTimeService,
+			OperatorEventDispatcher operatorEventDispatcher) {
 		this.containingTask = containingTask;
 		this.config = config;
 		this.output = output;
 		this.processingTimeService = processingTimeService;
+		this.operatorEventDispatcher = operatorEventDispatcher;
 	}
 
 	public StreamTask<?, ?> getContainingTask() {
@@ -63,5 +67,9 @@ public class StreamOperatorParameters<OUT> {
 
 	public ProcessingTimeService getProcessingTimeService() {
 		return processingTimeService;
+	}
+
+	public OperatorEventDispatcher getOperatorEventDispatcher() {
+		return operatorEventDispatcher;
 	}
 }

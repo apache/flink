@@ -22,9 +22,11 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
@@ -35,9 +37,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -103,15 +108,15 @@ public class ValuesITCase extends StreamingTestBase {
 		);
 
 		TestCollectionTableFactory.reset();
-		tEnv().sqlUpdate(
+		tEnv().executeSql(
 			"CREATE TABLE SinkTable(" +
 				"a DECIMAL(10, 2) NOT NULL, " +
 				"b CHAR(4) NOT NULL," +
 				"c TIMESTAMP(4) NOT NULL," +
 				"`row` ROW<a DECIMAL(10, 3) NOT NULL, b BINARY(2), c CHAR(5) NOT NULL, d ARRAY<DECIMAL(10, 2)>>) " +
 				"WITH ('connector' = 'COLLECTION')");
-		t.insertInto("SinkTable");
-		tEnv().execute("");
+		TableResult tableResult = t.executeInsert("SinkTable");
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 
 		List<Row> expected = Arrays.asList(
 			Row.of(
@@ -206,7 +211,7 @@ public class ValuesITCase extends StreamingTestBase {
 		Table t = tEnv().fromValues(data);
 
 		TestCollectionTableFactory.reset();
-		tEnv().sqlUpdate(
+		tEnv().executeSql(
 			"CREATE TABLE SinkTable(" +
 				"f0 TINYINT, " +
 				"f1 SMALLINT, " +
@@ -242,8 +247,7 @@ public class ValuesITCase extends StreamingTestBase {
 				"   `f16` ARRAY<DECIMAL(2, 1)>, " +
 				"   `f17` MAP<CHAR(1), DECIMAL(2, 1)>>) " +
 				"WITH ('connector' = 'COLLECTION')");
-		t.insertInto("SinkTable");
-		tEnv().execute("");
+		execInsertTableAndWaitResult(t, "SinkTable");
 
 		List<Row> actual = TestCollectionTableFactory.getResult();
 		assertThat(
@@ -297,10 +301,9 @@ public class ValuesITCase extends StreamingTestBase {
 			.select(call("func", withColumns(range("f0", "f15"))));
 
 		TestCollectionTableFactory.reset();
-		tEnv().sqlUpdate(
+		tEnv().executeSql(
 			"CREATE TABLE SinkTable(str STRING) WITH ('connector' = 'COLLECTION')");
-		t.insertInto("SinkTable");
-		tEnv().execute("");
+		TableEnvUtil.execInsertTableAndWaitResult(t, "SinkTable");
 
 		List<Row> actual = TestCollectionTableFactory.getResult();
 		List<Row> expected = Arrays.asList(
@@ -314,6 +317,22 @@ public class ValuesITCase extends StreamingTestBase {
 		assertThat(
 			new HashSet<>(actual),
 			equalTo(new HashSet<>(expected)));
+	}
+
+	@Test
+	public void testRegisteringValuesWithComplexTypes() {
+		Map<Integer, Integer> mapData = new HashMap<>();
+		mapData.put(1, 1);
+		mapData.put(2, 2);
+
+		Row row = Row.of(mapData, Row.of(1, 2, 3), new Integer[]{1, 2});
+		Table values = tEnv().fromValues(Collections.singletonList(row));
+		tEnv().createTemporaryView("values_t", values);
+		Iterator<Row> iter = tEnv().executeSql("select * from values_t").collect();
+
+		List<Row> results = new ArrayList<>();
+		iter.forEachRemaining(results::add);
+		assertThat(results, equalTo(Collections.singletonList(row)));
 	}
 
 	/**

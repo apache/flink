@@ -90,17 +90,17 @@ class TableResultImpl implements TableResult {
 	@Override
 	public void print() {
 		Iterator<Row> it = collect();
-		switch (printStyle) {
-			case TABLEAU:
-				PrintUtils.printAsTableauForm(getTableSchema(), it, new PrintWriter(System.out));
-				break;
-			case RAW_CONTENT:
-				while (it.hasNext()) {
-					System.out.println(String.join(",", PrintUtils.rowToString(it.next())));
-				}
-				break;
-			default:
-				throw new TableException("Unsupported print style: " + printStyle);
+		if (printStyle instanceof TableauStyle) {
+			int maxColumnWidth = ((TableauStyle) printStyle).getMaxColumnWidth();
+			String nullColumn = ((TableauStyle) printStyle).getNullColumn();
+			PrintUtils.printAsTableauForm(
+					getTableSchema(), it, new PrintWriter(System.out), maxColumnWidth, nullColumn);
+		} else if (printStyle instanceof RawContentStyle) {
+			while (it.hasNext()) {
+				System.out.println(String.join(",", PrintUtils.rowToString(it.next())));
+			}
+		} else {
+			throw new TableException("Unsupported print style: " + printStyle);
 		}
 	}
 
@@ -116,7 +116,7 @@ class TableResultImpl implements TableResult {
 		private TableSchema tableSchema = null;
 		private ResultKind resultKind = null;
 		private Iterator<Row> data = null;
-		private PrintStyle printStyle = PrintStyle.TABLEAU;
+		private PrintStyle printStyle = PrintStyle.tableau(Integer.MAX_VALUE, PrintUtils.NULL_COLUMN);
 
 		private Builder() {
 		}
@@ -176,7 +176,7 @@ class TableResultImpl implements TableResult {
 		}
 
 		/**
-		 * Specifies print style. Default is {@link PrintStyle#TABLEAU}.
+		 * Specifies print style. Default is {@link TableauStyle} with max integer column width.
 		 */
 		public Builder setPrintStyle(PrintStyle printStyle) {
 			Preconditions.checkNotNull(printStyle, "printStyle should not be null");
@@ -193,19 +193,56 @@ class TableResultImpl implements TableResult {
 	}
 
 	/**
-	 * PrintStyle defines the styles of printing.
+	 * Root interface for all print styles.
 	 */
-	public enum PrintStyle {
+	public interface PrintStyle {
 		/**
-		 * print the result schema and content as tableau form.
+		 * Create a tableau print style with given max column width and null column,
+		 * which prints the result schema and content as tableau form.
 		 */
-		TABLEAU,
+		static PrintStyle tableau(int maxColumnWidth, String nullColumn) {
+			Preconditions.checkArgument(maxColumnWidth > 0, "maxColumnWidth should be greater than 0");
+			Preconditions.checkNotNull(nullColumn, "nullColumn should not be null");
+			return new TableauStyle(maxColumnWidth, nullColumn);
+		}
 
 		/**
-		 * only print the result content as raw form.
+		 * Create a raw content print style,
+		 * which only print the result content as raw form.
 		 * column delimiter is ",", row delimiter is "\n".
 		 */
-		RAW_CONTENT
+		static PrintStyle rawContent() {
+			return new RawContentStyle();
+		}
+	}
+
+	/**
+	 * print the result schema and content as tableau form.
+	 */
+	private static final class TableauStyle implements PrintStyle {
+
+		private final int maxColumnWidth;
+		private final String nullColumn;
+
+		private TableauStyle(int maxColumnWidth, String nullColumn) {
+			this.maxColumnWidth = maxColumnWidth;
+			this.nullColumn = nullColumn;
+		}
+
+		int getMaxColumnWidth() {
+			return maxColumnWidth;
+		}
+
+		String getNullColumn() {
+			return nullColumn;
+		}
+	}
+
+	/**
+	 * only print the result content as raw form.
+	 * column delimiter is ",", row delimiter is "\n".
+	 */
+	private static final class RawContentStyle implements PrintStyle {
 	}
 
 }

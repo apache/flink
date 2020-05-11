@@ -20,14 +20,12 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.nio.file.Files;
@@ -41,7 +39,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 /**
  * Tests for the {@link JarRunHandler} and  {@link JarPlanHandler}.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class JarHandlerTest extends TestLogger {
 
 	private static final String JAR_NAME = "output-test-program.jar";

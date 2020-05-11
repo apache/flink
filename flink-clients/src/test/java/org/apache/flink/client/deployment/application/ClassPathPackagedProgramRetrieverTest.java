@@ -48,6 +48,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -299,7 +300,36 @@ public class ClassPathPackagedProgramRetrieverTest extends TestLogger {
 				containsInAnyOrder(expectedURLs.stream().map(URL::toString).toArray()));
 	}
 
-	private JobGraph retrieveJobGraph(ClassPathPackagedProgramRetriever retrieverUnderTest, Configuration configuration) throws FlinkException, ProgramInvocationException {
+	@Test
+	public void testRetrieveFromJarFileWithoutUserLib() throws IOException, FlinkException, ProgramInvocationException {
+		final File testJar = TestJob.getTestJobJar();
+		final ClassPathPackagedProgramRetriever retrieverUnderTest =
+			ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS)
+				.setJarFile(testJar)
+				.build();
+		final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
+
+		assertThat(jobGraph.getUserJars(), containsInAnyOrder(new org.apache.flink.core.fs.Path(testJar.toURI())));
+		assertThat(jobGraph.getClasspaths().isEmpty(), is(true));
+	}
+
+	@Test
+	public void testRetrieveFromJarFileWithUserLib() throws IOException, FlinkException, ProgramInvocationException {
+		final File testJar = TestJob.getTestJobJar();
+		final ClassPathPackagedProgramRetriever retrieverUnderTest =
+			ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS)
+				.setJarFile(testJar)
+				.setUserLibDirectory(userDirHasEntryClass)
+				.build();
+		final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
+
+		assertThat(jobGraph.getUserJars(), containsInAnyOrder(new org.apache.flink.core.fs.Path(testJar.toURI())));
+		assertThat(
+			jobGraph.getClasspaths().stream().map(URL::toString).collect(Collectors.toList()),
+			containsInAnyOrder(expectedURLs.stream().map(URL::toString).toArray()));
+	}
+
+	private JobGraph retrieveJobGraph(ClassPathPackagedProgramRetriever retrieverUnderTest, Configuration configuration) throws FlinkException, ProgramInvocationException, MalformedURLException {
 		final PackagedProgram packagedProgram = retrieverUnderTest.getPackagedProgram();
 
 		final int defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);

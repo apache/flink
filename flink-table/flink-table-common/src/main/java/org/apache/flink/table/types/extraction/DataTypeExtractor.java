@@ -53,6 +53,7 @@ import static org.apache.flink.table.types.extraction.ExtractionUtils.collectTyp
 import static org.apache.flink.table.types.extraction.ExtractionUtils.createRawType;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractAssigningConstructor;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.hasInvokableConstructor;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.isStructuredFieldMutable;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.resolveVariable;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.toClass;
@@ -475,6 +476,12 @@ public final class DataTypeExtractor {
 				clazz.getName(),
 				fields.stream().map(Field::getName).collect(Collectors.joining(", ")));
 		}
+		// check for a default constructor otherwise
+		else if (constructor == null && !hasInvokableConstructor(clazz)) {
+			throw extractionError(
+				"Class '%s' has neither a constructor that assigns all fields nor a default constructor.",
+				clazz.getName());
+		}
 
 		final Map<String, DataType> fieldDataTypes = extractStructuredTypeFields(
 			template,
@@ -482,11 +489,20 @@ public final class DataTypeExtractor {
 			type,
 			fields);
 
+		final List<StructuredAttribute> attributes = createStructuredTypeAttributes(
+			constructor,
+			fieldDataTypes);
+
 		final StructuredType.Builder builder = StructuredType.newBuilder(clazz);
-		builder.attributes(createStructuredTypeAttributes(constructor, fieldDataTypes));
+		builder.attributes(attributes);
 		builder.setFinal(true); // anonymous structured types should not allow inheritance
 		builder.setInstantiable(true);
-		return new FieldsDataType(builder.build(), clazz, fieldDataTypes);
+		return new FieldsDataType(
+			builder.build(),
+			clazz,
+			attributes.stream()
+				.map(a -> fieldDataTypes.get(a.getName()))
+				.collect(Collectors.toList()));
 	}
 
 	private Map<String, DataType> extractStructuredTypeFields(

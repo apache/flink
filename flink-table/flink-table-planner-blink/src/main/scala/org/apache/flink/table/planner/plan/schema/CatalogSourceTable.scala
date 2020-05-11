@@ -200,7 +200,6 @@ class CatalogSourceTable[T](
   private def validateTableSource(tableSource: DynamicTableSource): Unit = {
     // throw exception if unsupported ability interface is implemented
     val unsupportedAbilities = List(
-      classOf[SupportsProjectionPushDown],
       classOf[SupportsFilterPushDown],
       classOf[SupportsLimitPushDown],
       classOf[SupportsPartitionPushDown],

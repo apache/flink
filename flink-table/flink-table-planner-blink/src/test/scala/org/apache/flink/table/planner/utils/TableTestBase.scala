@@ -17,33 +17,32 @@
  */
 package org.apache.flink.table.planner.utils
 
-import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableImpl}
-import org.apache.flink.table.api.java.internal.{StreamTableEnvironmentImpl => JavaStreamTableEnvImpl}
-import org.apache.flink.table.api.java.{StreamTableEnvironment => JavaStreamTableEnv}
-import org.apache.flink.table.api.scala.internal.{StreamTableEnvironmentImpl => ScalaStreamTableEnvImpl}
-import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
+import org.apache.flink.table.api.bridge.java.internal.{StreamTableEnvironmentImpl => JavaStreamTableEnvImpl}
+import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
+import org.apache.flink.table.api.bridge.scala.internal.{StreamTableEnvironmentImpl => ScalaStreamTableEnvImpl}
+import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
-import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
 import org.apache.flink.table.descriptors.Schema.SCHEMA
+import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.{ComponentFactoryService, StreamTableSourceFactory}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.ddl.CreateTableOperation
-import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, QueryOperation}
+import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
@@ -72,8 +71,6 @@ import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
-
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -149,17 +146,11 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     getTableEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   }
 
-  def writeToSink(table: Table, sink: TableSink[_], sinkName: String): Unit = {
-    val tableEnv = getTableEnv
-    tableEnv.registerTableSink(sinkName, sink)
-    tableEnv.insertInto(sinkName, table)
-  }
-
   /**
     * Creates a table with the given DDL SQL string.
     */
   def addTable(ddl: String): Unit = {
-    getTableEnv.sqlUpdate(ddl)
+    getTableEnv.executeSql(ddl)
   }
 
   /**
@@ -176,7 +167,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val dataStream = env.fromElements[T]().javaStream
     val tableEnv = getTableEnv
     TableTestUtil.createTemporaryView(tableEnv, name, dataStream, Some(fields.toArray))
-    tableEnv.scan(name)
+    tableEnv.from(name)
   }
 
   /**
@@ -249,8 +240,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def addTableSource(
       name: String,
       tableSource: TableSource[_]): Table = {
-    getTableEnv.registerTableSource(name, tableSource)
-    getTableEnv.scan(name)
+    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      name, tableSource)
+    getTableEnv.from(name)
   }
 
   /**
@@ -275,35 +267,27 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   def verifyPlan(sql: String): Unit = {
-    doVerifyPlan(
-      sql,
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRowType = false,
-      printPlanBefore = true)
+    doVerifyPlan(sql, Array.empty[ExplainDetail], withRowType = false, printPlanBefore = true)
+  }
+
+  def verifyPlan(sql: String, extraDetails: ExplainDetail*): Unit = {
+    doVerifyPlan(sql, extraDetails.toArray, withRowType = false, printPlanBefore = true)
   }
 
   def verifyPlan(table: Table): Unit = {
-    doVerifyPlan(
-      table,
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRowType = false,
-      printPlanBefore = true)
+    doVerifyPlan(table, Array.empty[ExplainDetail], withRowType = false, printPlanBefore = true)
+  }
+
+  def verifyPlan(table: Table, extraDetails: ExplainDetail*): Unit = {
+    doVerifyPlan(table, extraDetails.toArray, withRowType = false, printPlanBefore = true)
   }
 
   def verifyPlanWithType(sql: String): Unit = {
-    doVerifyPlan(
-      sql,
-      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRowType = true,
-      printPlanBefore = true)
+    doVerifyPlan(sql, Array.empty[ExplainDetail], withRowType = true, printPlanBefore = true)
   }
 
   def verifyPlanWithType(table: Table): Unit = {
-    doVerifyPlan(
-      table,
-      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRowType = true,
-      printPlanBefore = true)
+    doVerifyPlan(table, Array.empty[ExplainDetail], withRowType = true, printPlanBefore = true)
   }
 
   def verifyPlanNotExpected(sql: String, notExpected: String*): Unit = {
@@ -313,59 +297,54 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlanNotExpected(table: Table, notExpected: String*): Unit = {
     require(notExpected.nonEmpty)
     val relNode = TableTestUtil.toRelNode(table)
-    val optimizedPlan = getOptimizedPlan(
-      Array(relNode),
-      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withChangelogTraits = false,
-      withRowType = false)
+    val optimizedPlan = getOptimizedPlan(Array(relNode), Array.empty, withRowType = false)
     val result = notExpected.forall(!optimizedPlan.contains(_))
     val message = s"\nactual plan:\n$optimizedPlan\nnot expected:\n${notExpected.mkString(", ")}"
     assertTrue(message, result)
   }
 
-  def verifyExplain(): Unit = verifyExplain(extended = false)
+  def verifyExplain(stmtSet: StatementSet, extraDetails: ExplainDetail*): Unit = {
+    doVerifyExplain(
+      stmtSet.explain(extraDetails: _*),
+      extraDetails.contains(ExplainDetail.ESTIMATED_COST))
+  }
 
-  def verifyExplain(extended: Boolean): Unit = doVerifyExplain(extended = extended)
+  def verifyExplain(sql: String): Unit = verifyExplain(getTableEnv.sqlQuery(sql))
 
-  def verifyExplain(sql: String): Unit = verifyExplain(sql, extended = false)
-
-  def verifyExplain(sql: String, extended: Boolean): Unit = {
+  def verifyExplain(sql: String, extraDetails: ExplainDetail*): Unit = {
     val table = getTableEnv.sqlQuery(sql)
-    verifyExplain(table, extended)
+    verifyExplain(table, extraDetails: _*)
   }
 
-  def verifyExplain(table: Table): Unit = verifyExplain(table, extended = false)
+  def verifyExplain(table: Table): Unit = {
+    doVerifyExplain(table.explain(), needReplaceEstimatedCost = false)
+  }
 
-  def verifyExplain(table: Table, extended: Boolean): Unit = {
-    doVerifyExplain(Some(table), extended = extended)
+  def verifyExplain(table: Table, extraDetails: ExplainDetail*): Unit = {
+    doVerifyExplain(
+      table.explain(extraDetails: _*),
+      extraDetails.contains(ExplainDetail.ESTIMATED_COST))
+  }
+
+  def verifyExplainInsert(
+      table: Table,
+      sink: TableSink[_],
+      targetPath: String,
+      extraDetails: ExplainDetail*): Unit = {
+    val stmtSet = getTableEnv.createStatementSet()
+    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
+    stmtSet.addInsert(targetPath, table)
+    verifyExplain(stmtSet, extraDetails: _*)
   }
 
   def doVerifyPlan(
       sql: String,
-      explainLevel: SqlExplainLevel,
-      withRowType: Boolean,
-      printPlanBefore: Boolean): Unit = {
-    doVerifyPlan(
-      sql = sql,
-      explainLevel = explainLevel,
-      withChangelogTraits = false,
-      withRowType = withRowType,
-      printPlanBefore = printPlanBefore)
-  }
-
-  def doVerifyPlan(
-      sql: String,
-      explainLevel: SqlExplainLevel,
-      withChangelogTraits: Boolean,
+      extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
       printPlanBefore: Boolean): Unit = {
     val table = getTableEnv.sqlQuery(sql)
     val relNode = TableTestUtil.toRelNode(table)
-    val optimizedPlan = getOptimizedPlan(
-      Array(relNode),
-      explainLevel,
-      withChangelogTraits = withChangelogTraits,
-      withRowType = withRowType)
+    val optimizedPlan = getOptimizedPlan(Array(relNode), extraDetails, withRowType = withRowType)
 
     assertEqualsOrExpand("sql", sql)
 
@@ -387,38 +366,35 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val table = getTableEnv.sqlQuery(sql)
     doVerifyPlan(
       table,
-      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      Array.empty,
       withRowType = false,
-      withChangelogTraits = false,
       printResource = true,
       printPlanBefore = false)
   }
 
   def doVerifyPlan(
       table: Table,
-      explainLevel: SqlExplainLevel,
+      extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
       printPlanBefore: Boolean): Unit = {
     doVerifyPlan(
       table = table,
-      explainLevel = explainLevel,
-      withChangelogTraits = false,
+      extraDetails,
       withRowType = withRowType,
-      printPlanBefore = printPlanBefore)
+      printPlanBefore = printPlanBefore,
+      printResource = false)
   }
 
   def doVerifyPlan(
       table: Table,
-      explainLevel: SqlExplainLevel,
+      extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
-      withChangelogTraits: Boolean,
       printPlanBefore: Boolean,
-      printResource: Boolean = false): Unit = {
+      printResource: Boolean): Unit = {
     val relNode = TableTestUtil.toRelNode(table)
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
-      explainLevel,
-      withChangelogTraits = withChangelogTraits,
+      extraDetails,
       withRowType = withRowType,
       withResource = printResource)
 
@@ -435,12 +411,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     assertEqualsOrExpand("planAfter", actual.toString, expand = false)
   }
 
-  private def doVerifyExplain(table: Option[Table] = None, extended: Boolean = false): Unit = {
-    val explainResult = table match {
-      case Some(t) => getTableEnv.explain(t, extended)
-      case _ => getTableEnv.explain(extended)
-    }
-    val actual = if (extended) {
+  private def doVerifyExplain(explainResult: String, needReplaceEstimatedCost: Boolean): Unit = {
+    val actual = if (needReplaceEstimatedCost) {
       replaceEstimatedCost(explainResult)
     } else {
       explainResult
@@ -450,13 +422,19 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
   protected def getOptimizedPlan(
       relNodes: Array[RelNode],
-      explainLevel: SqlExplainLevel,
-      withChangelogTraits: Boolean,
+      extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
       withResource: Boolean = false): String = {
     require(relNodes.nonEmpty)
     val planner = getPlanner
     val optimizedRels = planner.optimize(relNodes)
+    val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
+      SqlExplainLevel.ALL_ATTRIBUTES
+    } else {
+      SqlExplainLevel.EXPPLAN_ATTRIBUTES
+    }
+    val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
+
     optimizedRels.head match {
       case _: ExecNode[_, _] =>
         val optimizedNodes = planner.translateToExecNodePlan(optimizedRels)
@@ -563,8 +541,8 @@ abstract class TableTestUtil(
       name: String,
       tableSource: TableSource[_],
       statistic: FlinkStatistic): Table = {
-    // TODO RichTableSourceQueryOperation should be deleted and use registerTableSource method
-    //  instead of registerTable method here after unique key in TableSchema is ready
+    // TODO RichTableSourceQueryOperation should be deleted and use registerTableSourceInternal
+    //  method instead of registerTable method here after unique key in TableSchema is ready
     //  and setting catalog statistic to TableSourceTable in DatabaseCalciteSchema is ready
     val identifier = ObjectIdentifier.of(
       testingTableEnv.getCurrentCatalog,
@@ -576,7 +554,7 @@ abstract class TableTestUtil(
       statistic)
     val table = testingTableEnv.createTable(operation)
     testingTableEnv.registerTable(name, table)
-    testingTableEnv.scan(name)
+    testingTableEnv.from(name)
   }
 
   /**
@@ -602,41 +580,44 @@ abstract class TableTestUtil(
     testingTableEnv.registerFunction(name, function)
   }
 
-  def verifySqlUpdate(sql: String): Unit = {
-    doVerifySqlUpdate(
-      sql,
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRowType = false,
-      withChangelogTraits = false,
-      printPlanBefore = true)
+  def verifyPlanInsert(sql: String): Unit = {
+    doVerifyPlanInsert(sql, Array.empty, withRowType = false, printPlanBefore = true)
   }
 
-  def verifyPlan(): Unit = {
-    doVerifyPlan(
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withRowType = false,
-      withChangelogTraits = false,
-      printPlanBefore = true)
+  def verifyPlanInsert(
+      table: Table,
+      sink: TableSink[_],
+      targetPath: String,
+      extraDetails: ExplainDetail*): Unit = {
+    val stmtSet = tableEnv.createStatementSet()
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
+    stmtSet.addInsert(targetPath, table)
+    verifyPlan(stmtSet, extraDetails: _*)
   }
 
-  def doVerifySqlUpdate(
+  def verifyPlan(stmtSet: StatementSet, extraDetails: ExplainDetail*): Unit = {
+    doVerifyPlan(stmtSet, extraDetails.toArray, withRowType = false, printPlanBefore = true)
+  }
+
+  def doVerifyPlanInsert(
       sql: String,
-      explainLevel: SqlExplainLevel,
+      extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
-      withChangelogTraits: Boolean,
       printPlanBefore: Boolean): Unit = {
-    tableEnv.sqlUpdate(sql)
     assertEqualsOrExpand("sql", sql)
-    doVerifyPlan(explainLevel, withRowType, withChangelogTraits, printPlanBefore)
+    val stmtSet = tableEnv.createStatementSet()
+    stmtSet.addInsertSql(sql)
+    doVerifyPlan(stmtSet, extraDetails, withRowType, printPlanBefore)
   }
 
   def doVerifyPlan(
-      explainLevel: SqlExplainLevel,
+      stmtSet: StatementSet,
+      extraDetails: Array[ExplainDetail],
       withRowType: Boolean,
-      withChangelogTraits: Boolean,
       printPlanBefore: Boolean): Unit = {
-    val testTableEnv = tableEnv.asInstanceOf[TestingTableEnvironment]
-    val relNodes = testTableEnv.getBufferedOperations.map(getPlanner.translateToRel)
+    val testStmtSet = stmtSet.asInstanceOf[TestingStatementSet]
+
+    val relNodes = testStmtSet.getOperations.map(getPlanner.translateToRel)
     if (relNodes.isEmpty) {
       throw new TableException("No output table have been created yet. " +
         "A program needs at least one output table that consumes data.\n" +
@@ -645,10 +626,8 @@ abstract class TableTestUtil(
 
     val optimizedPlan = getOptimizedPlan(
       relNodes.toArray,
-      explainLevel,
-      withChangelogTraits = withChangelogTraits,
+      extraDetails,
       withRowType = withRowType)
-    testTableEnv.clearBufferedOperations()
 
     if (printPlanBefore) {
       val planBefore = new StringBuilder
@@ -659,7 +638,11 @@ abstract class TableTestUtil(
       assertEqualsOrExpand("planBefore", planBefore.toString())
     }
 
-    val actual = SystemUtils.LINE_SEPARATOR + optimizedPlan
+    val actual = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
+      SystemUtils.LINE_SEPARATOR + replaceEstimatedCost(optimizedPlan)
+    } else {
+      SystemUtils.LINE_SEPARATOR + optimizedPlan
+    }
     assertEqualsOrExpand("planAfter", actual.toString, expand = false)
   }
 }
@@ -776,32 +759,6 @@ case class StreamTableTestUtil(
     )
     val queryOperation = new PlannerQueryOperation(watermarkAssigner)
     testingTableEnv.registerTable(tableName, testingTableEnv.createTable(queryOperation))
-  }
-
-  def verifyPlanWithTrait(): Unit = {
-    doVerifyPlan(
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withChangelogTraits = true,
-      withRowType = false,
-      printPlanBefore = true)
-  }
-
-  def verifyPlanWithTrait(sql: String): Unit = {
-    doVerifyPlan(
-      sql,
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withChangelogTraits = true,
-      withRowType = false,
-      printPlanBefore = true)
-  }
-
-  def verifyPlanWithTrait(table: Table): Unit = {
-    doVerifyPlan(
-      table,
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
-      withChangelogTraits = true,
-      withRowType = false,
-      printPlanBefore = true)
   }
 
   def buildStreamProgram(firstProgramNameToRemove: String): Unit = {
@@ -1012,12 +969,6 @@ class TestingTableEnvironment private(
     planner,
     isStreamingMode) {
 
-  private val bufferedOperations: util.List[ModifyOperation] = new util.ArrayList[ModifyOperation]
-
-  def getBufferedOperations: util.List[ModifyOperation] = bufferedOperations
-
-  def clearBufferedOperations(): Unit = bufferedOperations.clear()
-
   // just for testing, remove this method while
   // `<T, ACC> void registerFunction(String name, AggregateFunction<T, ACC> aggregateFunction);`
   // is added into TableEnvironment
@@ -1064,52 +1015,63 @@ class TestingTableEnvironment private(
     )
   }
 
-  override def insertInto(path: String, table: Table): Unit = {
-    val unresolvedIdentifier = parser.parseIdentifier(path)
-    val identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
-    buffer(List(new CatalogSinkModifyOperation(identifier, table.getQueryOperation)))
-  }
-
-  override def sqlUpdate(stmt: String): Unit = {
-    val operations = parser.parse(stmt)
-    if (operations.size != 1) {
-      throw new TableException(
-        "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type INSERT.")
-    }
-    val operation = operations.get(0)
-    operation match {
-      case modifyOperation: ModifyOperation =>
-        buffer(List(modifyOperation))
-      case createOperation: CreateTableOperation =>
-        catalogManager.createTable(
-          createOperation.getCatalogTable,
-          createOperation.getTableIdentifier,
-          createOperation.isIgnoreIfExists)
-      case _ => throw new TableException(
-        "Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of type INSERT.")
-    }
-  }
-
-  override def explain(extended: Boolean): String = {
-    planner.explain(bufferedOperations.toList, getExplainDetails(extended): _*)
-  }
-
-  @throws[Exception]
-  override def execute(jobName: String): JobExecutionResult = {
-    val transformations = planner.translate(bufferedOperations)
-    bufferedOperations.clear()
-    val pipeline = executor.createPipeline(transformations, tableConfig, jobName)
-    execEnv.execute(pipeline)
-  }
-
   override def createTable(tableOperation: QueryOperation): TableImpl = {
     super.createTable(tableOperation)
   }
 
-  private def buffer(modifyOperations: List[ModifyOperation]): Unit = {
-    bufferedOperations.addAll(modifyOperations)
+  override def createStatementSet(): StatementSet = new TestingStatementSet(this)
+}
+
+class TestingStatementSet(tEnv: TestingTableEnvironment) extends StatementSet {
+
+  private val operations: util.List[ModifyOperation] = new util.ArrayList[ModifyOperation]
+
+  def getOperations: util.List[ModifyOperation] = operations
+
+  override def addInsertSql(statement: String): StatementSet = {
+    val operations = tEnv.getParser.parse(statement)
+
+    if (operations.size != 1) {
+      throw new TableException("Only single statement is supported.")
+    }
+
+    operations.get(0) match {
+      case op: ModifyOperation =>
+        this.operations.add(op)
+      case _ =>
+        throw new TableException("Only insert statement is supported now.")
+    }
+    this
   }
 
+  override def addInsert(targetPath: String, table: Table): StatementSet = {
+    this.addInsert(targetPath, table, overwrite = false)
+  }
+
+  override def addInsert(targetPath: String, table: Table, overwrite: Boolean): StatementSet = {
+    val unresolvedIdentifier = tEnv.getParser.parseIdentifier(targetPath)
+    val objectIdentifier = tEnv.getCatalogManager.qualifyIdentifier(unresolvedIdentifier)
+
+    operations.add(new CatalogSinkModifyOperation(
+      objectIdentifier,
+      table.getQueryOperation,
+      util.Collections.emptyMap[String, String],
+      overwrite,
+      util.Collections.emptyMap[String, String]))
+    this
+  }
+
+  override def explain(extraDetails: ExplainDetail*): String = {
+    tEnv.explainInternal(operations.map(o => o.asInstanceOf[Operation]), extraDetails: _*)
+  }
+
+  override def execute(): TableResult = {
+    try {
+      tEnv.executeInternal(operations)
+    } finally {
+      operations.clear()
+    }
+  }
 }
 
 object TestingTableEnvironment {

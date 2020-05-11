@@ -91,4 +91,8 @@ public class FiniteTestSource<T> implements SourceFunction<T>, CheckpointListene
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		numCheckpointsComplete++;
 	}
+
+	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
 }

@@ -76,6 +76,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,6 +84,11 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
+import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
+import static org.apache.flink.table.planner.utils.OperationMatchers.isCreateTableOperation;
+import static org.apache.flink.table.planner.utils.OperationMatchers.partitionedBy;
+import static org.apache.flink.table.planner.utils.OperationMatchers.withOptions;
+import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -112,7 +118,7 @@ public class SqlToOperationConverterTest {
 			new ArrayList<>());
 
 	@Rule
-	public ExpectedException exceptionRule = ExpectedException.none();
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Before
 	public void before() throws TableAlreadyExistException, DatabaseNotExistException {
@@ -327,8 +333,8 @@ public class SqlToOperationConverterTest {
 				")\n";
 		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
 		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-		exceptionRule.expect(ValidationException.class);
-		exceptionRule.expectMessage("Flink doesn't support ENFORCED mode for PRIMARY KEY "
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Flink doesn't support ENFORCED mode for PRIMARY KEY "
 				+ "constaint. ENFORCED/NOT ENFORCED  controls if the constraint "
 				+ "checks are performed on the incoming/outgoing data. "
 				+ "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode");
@@ -349,9 +355,43 @@ public class SqlToOperationConverterTest {
 				")\n";
 		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
 		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-		exceptionRule.expect(UnsupportedOperationException.class);
-		exceptionRule.expectMessage("UNIQUE constraint is not supported yet");
+		thrown.expect(UnsupportedOperationException.class);
+		thrown.expectMessage("UNIQUE constraint is not supported yet");
 		parse(sql, planner, parser);
+	}
+
+	@Test
+	public void testPrimaryKeyOnGeneratedColumn() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage(
+			"Could not create a PRIMARY KEY with a generated column 'c', at line 5, column 34.\n" +
+				"PRIMARY KEY constraint is not allowed on computed columns.");
+		final String sql2 = "CREATE TABLE tbl1 (\n" +
+			"  a bigint not null,\n" +
+			"  b varchar not null,\n" +
+			"  c as 2 * (a + 1),\n" +
+			"  constraint ct1 primary key (b, c) not enforced" +
+			") with (\n" +
+			"    'connector' = 'kafka',\n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		parseAndConvert(sql2);
+	}
+
+	@Test
+	public void testPrimaryKeyNonExistentColumn() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Primary key column 'd' is not defined in the schema, at line 5, column 34");
+		final String sql2 = "CREATE TABLE tbl1 (\n" +
+			"  a bigint not null,\n" +
+			"  b varchar not null,\n" +
+			"  c as 2 * (a + 1),\n" +
+			"  constraint ct1 primary key (b, d) not enforced" +
+			") with (\n" +
+			"    'connector' = 'kafka',\n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		parseAndConvert(sql2);
 	}
 
 	@Test
@@ -422,6 +462,206 @@ public class SqlToOperationConverterTest {
 	}
 
 	@Test
+	public void testBasicCreateTableLike() {
+		Map<String, String> sourceProperties = new HashMap<>();
+		sourceProperties.put("format.type", "json");
+		CatalogTableImpl catalogTable = new CatalogTableImpl(
+			TableSchema.builder()
+				.field("f0", DataTypes.INT().notNull())
+				.field("f1", DataTypes.TIMESTAMP(3))
+				.build(),
+			sourceProperties,
+			null
+		);
+		catalogManager.createTable(catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+		final String sql = "create table derivedTable(\n" +
+				"  a int,\n" +
+				"  watermark for f1 as `f1` - interval '5' second\n" +
+				")\n" +
+				"PARTITIONED BY (a, f0)\n" +
+				"with (\n" +
+				"  'connector.type' = 'kafka'" +
+				")\n" +
+				"like sourceTable";
+		Operation operation = parseAndConvert(sql);
+
+		assertThat(
+			operation,
+			isCreateTableOperation(
+				withSchema(
+					TableSchema.builder()
+						.field("f0", DataTypes.INT().notNull())
+						.field("f1", DataTypes.TIMESTAMP(3))
+						.field("a", DataTypes.INT())
+						.watermark("f1", "`f1` - INTERVAL '5' SECOND", DataTypes.TIMESTAMP(3))
+						.build()
+				),
+				withOptions(
+					entry("connector.type", "kafka"),
+					entry("format.type", "json")
+				),
+				partitionedBy(
+					"a", "f0"
+				)
+			)
+		);
+	}
+
+	@Test
+	public void testMergingCreateTableLike() {
+		Map<String, String> sourceProperties = new HashMap<>();
+		sourceProperties.put("format.type", "json");
+		CatalogTableImpl catalogTable = new CatalogTableImpl(
+			TableSchema.builder()
+				.field("f0", DataTypes.INT().notNull())
+				.field("f1", DataTypes.TIMESTAMP(3))
+				.field("f2", DataTypes.BIGINT(), "`f0` + 12345")
+				.watermark("f1", "`f1` - interval '1' second", DataTypes.TIMESTAMP(3))
+				.build(),
+			Arrays.asList("f0", "f1"),
+			sourceProperties,
+			null
+		);
+		catalogManager.createTable(catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+		final String sql = "create table derivedTable(\n" +
+			"  a int,\n" +
+			"  watermark for f1 as `f1` - interval '5' second\n" +
+			")\n" +
+			"PARTITIONED BY (a, f0)\n" +
+			"with (\n" +
+			"  'connector.type' = 'kafka'" +
+			")\n" +
+			"like sourceTable (\n" +
+			"   EXCLUDING GENERATED\n" +
+			"   EXCLUDING PARTITIONS\n" +
+			"   OVERWRITING OPTIONS\n" +
+			"   OVERWRITING WATERMARKS" +
+			")";
+		Operation operation = parseAndConvert(sql);
+
+		assertThat(
+			operation,
+			isCreateTableOperation(
+				withSchema(
+					TableSchema.builder()
+						.field("f0", DataTypes.INT().notNull())
+						.field("f1", DataTypes.TIMESTAMP(3))
+						.field("a", DataTypes.INT())
+						.watermark("f1", "`f1` - INTERVAL '5' SECOND", DataTypes.TIMESTAMP(3))
+						.build()
+				),
+				withOptions(
+					entry("connector.type", "kafka"),
+					entry("format.type", "json")
+				),
+				partitionedBy(
+					"a", "f0"
+				)
+			)
+		);
+	}
+
+	@Test
+	public void testCreateTableInvalidPartition() {
+		final String sql = "create table derivedTable(\n" +
+			"  a int\n" +
+			")\n" +
+			"PARTITIONED BY (f3)";
+
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Partition column 'f3' not defined in the table schema. Available columns: ['a']");
+		parseAndConvert(sql);
+	}
+
+	@Test
+	public void testCreateTableLikeInvalidPartition() {
+		CatalogTableImpl catalogTable = new CatalogTableImpl(
+			TableSchema.builder()
+				.field("f0", DataTypes.INT().notNull())
+				.build(),
+			Collections.emptyMap(),
+			null
+		);
+		catalogManager.createTable(catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+		final String sql = "create table derivedTable(\n" +
+			"  a int\n" +
+			")\n" +
+			"PARTITIONED BY (f3)\n" +
+			"like sourceTable";
+
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Partition column 'f3' not defined in the table schema. Available columns: ['f0', 'a']");
+		parseAndConvert(sql);
+	}
+
+	@Test
+	public void testCreateTableInvalidWatermark() {
+		final String sql = "create table derivedTable(\n" +
+			"  a int,\n" +
+			"  watermark for f1 as `f1` - interval '5' second\n" +
+			")";
+
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("The rowtime attribute field 'f1' is not defined in the table schema," +
+			" at line 3, column 17\n" +
+			"Available fields: ['a']");
+		parseAndConvert(sql);
+	}
+
+	@Test
+	public void testCreateTableLikeInvalidWatermark() {
+		CatalogTableImpl catalogTable = new CatalogTableImpl(
+			TableSchema.builder()
+				.field("f0", DataTypes.INT().notNull())
+				.build(),
+			Collections.emptyMap(),
+			null
+		);
+		catalogManager.createTable(catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+		final String sql = "create table derivedTable(\n" +
+			"  a int,\n" +
+			"  watermark for f1 as `f1` - interval '5' second\n" +
+			")\n" +
+			"like sourceTable";
+
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("The rowtime attribute field 'f1' is not defined in the table schema," +
+			" at line 3, column 17\n" +
+			"Available fields: ['f0', 'a']");
+		parseAndConvert(sql);
+	}
+
+	@Test
+	public void testCreateTableLikeNestedWatermark() {
+		CatalogTableImpl catalogTable = new CatalogTableImpl(
+			TableSchema.builder()
+				.field("f0", DataTypes.INT().notNull())
+				.field("f1", DataTypes.ROW(DataTypes.FIELD("tmstmp", DataTypes.TIMESTAMP(3))))
+				.build(),
+			Collections.emptyMap(),
+			null
+		);
+		catalogManager.createTable(catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+
+		final String sql = "create table derivedTable(\n" +
+			"  a int,\n" +
+			"  watermark for f1.t as f1.t - interval '5' second\n" +
+			")\n" +
+			"like sourceTable";
+
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("The rowtime attribute field 'f1.t' is not defined in the table schema," +
+			" at line 3, column 20\n" +
+			"Nested field 't' was not found in a composite type:" +
+			" ROW<`tmstmp` TIMESTAMP(3)>.");
+		parseAndConvert(sql);
+	}
+
+	@Test
 	public void testSqlInsertWithStaticPartition() {
 		final String sql = "insert into t1 partition(a=1) select b, c, d from t2";
 		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
@@ -454,8 +694,8 @@ public class SqlToOperationConverterTest {
 		final String sql = "select * from t1 /*+ OPTIONS('opt1', 'opt2') */";
 		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
 		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-		exceptionRule.expect(AssertionError.class);
-		exceptionRule.expectMessage("Hint [OPTIONS] only support "
+		thrown.expect(AssertionError.class);
+		thrown.expectMessage("Hint [OPTIONS] only support "
 				+ "non empty key value options");
 		parse(sql, planner, parser);
 	}
@@ -723,8 +963,8 @@ public class SqlToOperationConverterTest {
 				is("ALTER TABLE ADD CONSTRAINT: (identifier: [`cat1`.`db1`.`tb1`], "
 						+ "constraintName: [ct1], columns: [a, b])"));
 		// Test alter table add pk on nullable column
-		exceptionRule.expect(ValidationException.class);
-		exceptionRule.expectMessage("Could not create a PRIMARY KEY 'ct1'. Column 'c' is nullable.");
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Could not create a PRIMARY KEY 'ct1'. Column 'c' is nullable.");
 		parse("alter table tb1 add constraint ct1 primary key(c) not enforced",
 				SqlDialect.DEFAULT);
 	}
@@ -746,8 +986,8 @@ public class SqlToOperationConverterTest {
 		catalogManager.setCurrentDatabase("db1");
 		catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
 		// Test alter table add enforced
-		exceptionRule.expect(ValidationException.class);
-		exceptionRule.expectMessage("Flink doesn't support ENFORCED mode for PRIMARY KEY constaint. "
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Flink doesn't support ENFORCED mode for PRIMARY KEY constaint. "
 				+ "ENFORCED/NOT ENFORCED  controls if the constraint checks are performed on the "
 				+ "incoming/outgoing data. Flink does not own the data therefore the "
 				+ "only supported mode is the NOT ENFORCED mode");
@@ -771,8 +1011,8 @@ public class SqlToOperationConverterTest {
 		catalogManager.setCurrentDatabase("db1");
 		catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
 		// Test alter add table constraint.
-		exceptionRule.expect(UnsupportedOperationException.class);
-		exceptionRule.expectMessage("UNIQUE constraint is not supported yet");
+		thrown.expect(UnsupportedOperationException.class);
+		thrown.expectMessage("UNIQUE constraint is not supported yet");
 		parse("alter table tb1 add constraint ct1 unique(a, b) not enforced",
 				SqlDialect.DEFAULT);
 	}
@@ -794,8 +1034,8 @@ public class SqlToOperationConverterTest {
 		catalogManager.setCurrentDatabase("db1");
 		catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
 		// Test alter table add enforced
-		exceptionRule.expect(UnsupportedOperationException.class);
-		exceptionRule.expectMessage("UNIQUE constraint is not supported yet");
+		thrown.expect(UnsupportedOperationException.class);
+		thrown.expectMessage("UNIQUE constraint is not supported yet");
 		parse("alter table tb1 add constraint ct1 unique(a, b)",
 				SqlDialect.DEFAULT);
 	}
@@ -822,8 +1062,8 @@ public class SqlToOperationConverterTest {
 		assert operation instanceof AlterTableDropConstraintOperation;
 		AlterTableDropConstraintOperation dropConstraint = (AlterTableDropConstraintOperation) operation;
 		assertThat(dropConstraint.asSummaryString(), is("ALTER TABLE `cat1`.`db1`.`tb1` DROP CONSTRAINT ct1"));
-		exceptionRule.expect(ValidationException.class);
-		exceptionRule.expectMessage("CONSTRAINT [ct2] does not exist");
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("CONSTRAINT [ct2] does not exist");
 		parse("alter table tb1 drop constraint ct2", SqlDialect.DEFAULT);
 	}
 
@@ -897,4 +1137,11 @@ public class SqlToOperationConverterTest {
 		}
 	}
 
+	private Operation parseAndConvert(String sql) {
+		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+
+		SqlNode node = parser.parse(sql);
+		return SqlToOperationConverter.convert(planner, catalogManager, node).get();
+	}
 }

@@ -34,6 +34,7 @@ import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -72,6 +73,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.net.InetAddress;
 import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -167,7 +169,10 @@ public class JvmExitOnFatalErrorTest {
 
 				final Configuration copiedConf = new Configuration(taskManagerConfig);
 				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration
-					.fromConfiguration(taskManagerConfig, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf));
+					.fromConfiguration(
+						taskManagerConfig,
+						TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf),
+						InetAddress.getLoopbackAddress().getHostAddress());
 
 				final Executor executor = Executors.newCachedThreadPool();
 
@@ -204,6 +209,7 @@ public class JvmExitOnFatalErrorTest {
 						new KvStateService(new KvStateRegistry(), null, null),
 						new BroadcastVariableManager(),
 						new TaskEventDispatcher(),
+						ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 						slotStateManager,
 						new NoOpTaskManagerActions(),
 						new NoOpInputSplitProvider(),

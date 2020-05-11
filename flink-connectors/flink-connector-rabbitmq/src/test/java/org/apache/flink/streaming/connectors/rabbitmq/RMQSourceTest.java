@@ -329,6 +329,26 @@ public class RMQSourceTest {
 		assertThat("Open method was not called", deserializationSchema.isOpenCalled(), is(true));
 	}
 
+	@Test
+	public void testOverrideConnection() throws Exception {
+		final Connection mockConnection = Mockito.mock(Connection.class);
+		Channel channel = Mockito.mock(Channel.class);
+		Mockito.when(mockConnection.createChannel()).thenReturn(channel);
+
+		RMQMockedRuntimeTestSource source = new RMQMockedRuntimeTestSource() {
+			@Override
+			protected Connection setupConnection() throws Exception {
+				return mockConnection;
+			}
+		};
+
+		FunctionInitializationContext mockContext = getMockContext();
+		source.initializeState(mockContext);
+		source.open(new Configuration());
+
+		Mockito.verify(mockConnection, Mockito.times(1)).createChannel();
+	}
+
 	private static class ConstructorTestClass extends RMQSource<String> {
 
 		private ConnectionFactory factory;
@@ -411,6 +431,10 @@ public class RMQSourceTest {
 			this(connectionConfig, new StringDeserializationScheme());
 		}
 
+		public RMQMockedRuntimeTestSource() {
+			this(new StringDeserializationScheme());
+		}
+
 		@Override
 		public RuntimeContext getRuntimeContext() {
 			return runtimeContext;
@@ -421,7 +445,7 @@ public class RMQSourceTest {
 		private ArrayDeque<Tuple2<Long, Set<String>>> restoredState;
 
 		public RMQTestSource() {
-			this(new StringDeserializationScheme());
+			super();
 		}
 
 		public RMQTestSource(DeserializationSchema<String> deserializationSchema) {

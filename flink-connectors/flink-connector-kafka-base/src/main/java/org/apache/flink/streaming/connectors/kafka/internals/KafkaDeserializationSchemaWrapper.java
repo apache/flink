@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
+import org.apache.flink.util.Collector;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
@@ -47,7 +48,12 @@ public class KafkaDeserializationSchemaWrapper<T> implements KafkaDeserializatio
 
 	@Override
 	public T deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
-		return deserializationSchema.deserialize(record.value());
+		throw new UnsupportedOperationException("Should never be called");
+	}
+
+	@Override
+	public void deserialize(ConsumerRecord<byte[], byte[]> message, Collector<T> out) throws Exception {
+		deserializationSchema.deserialize(message.value(), out);
 	}
 
 	@Override

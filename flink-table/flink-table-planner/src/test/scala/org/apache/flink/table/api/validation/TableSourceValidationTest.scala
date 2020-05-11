@@ -22,7 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{EnvironmentSettings, TableSchema, Types, ValidationException}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
@@ -53,7 +54,7 @@ class TableSourceValidationTest extends TableTestBase{
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row]())
 
     // should fail because schema field "value" cannot be resolved in result type
-    tEnv.registerTableSource("testTable", ts)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("testTable", ts)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -67,7 +68,7 @@ class TableSourceValidationTest extends TableTestBase{
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row]())
 
     // should fail because types of "name" fields are different
-    tEnv.registerTableSource("testTable", ts)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("testTable", ts)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -80,7 +81,7 @@ class TableSourceValidationTest extends TableTestBase{
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), mapping = mapping)
 
     // should fail because mapping maps field "id" to unknown field
-    tEnv.registerTableSource("testTable", ts)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("testTable", ts)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -93,7 +94,7 @@ class TableSourceValidationTest extends TableTestBase{
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), mapping = mapping)
 
     // should fail because mapping maps fields with different types
-    tEnv.registerTableSource("testTable", ts)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("testTable", ts)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -107,7 +108,7 @@ class TableSourceValidationTest extends TableTestBase{
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), proctime = "ptime")
 
     // should fail because processing time field has invalid type
-    tEnv.registerTableSource("testTable", ts)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("testTable", ts)
   }
 
   @Test
@@ -129,7 +130,7 @@ class TableSourceValidationTest extends TableTestBase{
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), rowtime = "rowtime")
 
     // should fail because rowtime field does not exist in the TableSchema
-    tEnv.registerTableSource("testTable", ts)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("testTable", ts)
   }
 
   @Test
@@ -151,7 +152,7 @@ class TableSourceValidationTest extends TableTestBase{
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), proctime = "proctime")
 
     // should fail because proctime field does not exist in the TableSchema
-    tEnv.registerTableSource("testTable", ts)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("testTable", ts)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -166,7 +167,7 @@ class TableSourceValidationTest extends TableTestBase{
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), rowtime = "rtime")
 
     // should fail because rowtime field has invalid type
-    tEnv.registerTableSource("testTable", ts)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("testTable", ts)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -182,7 +183,7 @@ class TableSourceValidationTest extends TableTestBase{
       new TestTableSourceWithTime(schema, rowType, Seq[Row](), rowtime = "time", proctime = "time")
 
     // should fail because rowtime field has invalid type
-    tEnv.registerTableSource("testTable", ts)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("testTable", ts)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -206,7 +207,7 @@ class TableSourceValidationTest extends TableTestBase{
     }
 
     // should fail because timestamp extractor argument field does not exist
-    tEnv.registerTableSource("testTable", ts)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("testTable", ts)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -221,7 +222,7 @@ class TableSourceValidationTest extends TableTestBase{
     val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), rowtime = "amount")
 
     // should fail because configured rowtime field is not of type Long or Timestamp
-    tEnv.registerTableSource("testTable", ts)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("testTable", ts)
   }
 
   // CsvTableSource Tests

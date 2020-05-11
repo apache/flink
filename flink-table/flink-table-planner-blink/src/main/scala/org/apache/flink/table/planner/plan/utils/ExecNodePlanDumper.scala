@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
+import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, ExecNodeVisitorImpl}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
@@ -116,7 +116,8 @@ object ExecNodePlanDumper {
         }
         val reuseId = reuseInfoBuilder.getReuseId(node)
         val isReuseNode = reuseId.isDefined
-        if (node.isInstanceOf[Sink] || (isReuseNode && !reuseInfoMap.containsKey(node))) {
+        if (node.isInstanceOf[LegacySink] || node.isInstanceOf[Sink] ||
+            (isReuseNode && !reuseInfoMap.containsKey(node))) {
           if (isReuseNode) {
             reuseInfoMap.put(node, (reuseId.get, true))
           }

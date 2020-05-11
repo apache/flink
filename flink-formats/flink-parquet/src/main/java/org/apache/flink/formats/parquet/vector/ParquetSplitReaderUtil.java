@@ -112,7 +112,7 @@ public class ParquetSplitReaderUtil {
 				LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
 				vectors[i] = partitionSpec.containsKey(name) ?
 						createVectorFromConstant(type, partitionSpec.get(name), batchSize) :
-						readVectors[i];
+						readVectors[selNonPartNames.indexOf(name)];
 			}
 			return new VectorizedColumnBatch(vectors);
 		};

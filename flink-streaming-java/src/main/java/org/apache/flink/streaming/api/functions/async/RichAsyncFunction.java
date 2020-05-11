@@ -27,6 +27,7 @@ import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
@@ -51,6 +52,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Rich variant of the {@link AsyncFunction}. As a {@link RichFunction}, it gives access to the
@@ -147,6 +149,11 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 		@Override
 		public ClassLoader getUserCodeClassLoader() {
 			return runtimeContext.getUserCodeClassLoader();
+		}
+
+		@Override
+		public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
+			return runtimeContext.getExternalResourceInfos(resourceName);
 		}
 
 		// -----------------------------------------------------------------------------------

@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -205,4 +208,10 @@ public interface HiveShim extends Serializable {
 	 */
 	void createTableWithConstraints(IMetaStoreClient client, Table table, Configuration conf,
 			UniqueConstraint pk, List<Byte> pkTraits, List<String> notNullCols, List<Byte> nnTraits);
+
+	/**
+	 * Create orc {@link BulkWriter.Factory} for different hive versions.
+	 */
+	BulkWriter.Factory<RowData> createOrcBulkWriterFactory(
+			Configuration conf, String schema, LogicalType[] fieldTypes);
 }

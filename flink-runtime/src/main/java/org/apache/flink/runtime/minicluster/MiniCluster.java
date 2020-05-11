@@ -46,10 +46,12 @@ import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceMa
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -60,6 +62,8 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
@@ -69,8 +73,8 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
+import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
@@ -79,6 +83,7 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
@@ -259,6 +264,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				LOG.info("Starting RPC Service(s)");
 
 				final RpcServiceFactory dispatcherResourceManagreComponentRpcServiceFactory;
+				final RpcService metricQueryServiceRpcService;
 
 				if (useSingleRpcService) {
 					// we always need the 'commonRpcService' for auxiliary calls
@@ -266,6 +272,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					final CommonRpcServiceFactory commonRpcServiceFactory = new CommonRpcServiceFactory(commonRpcService);
 					taskManagerRpcServiceFactory = commonRpcServiceFactory;
 					dispatcherResourceManagreComponentRpcServiceFactory = commonRpcServiceFactory;
+					metricQueryServiceRpcService = MetricUtils.startLocalMetricsRpcService(configuration);
 				} else {
 
 					// start a new service per component, possibly with custom bind addresses
@@ -292,11 +299,11 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					// we always need the 'commonRpcService' for auxiliary calls
 					// bind to the JobManager address with port 0
 					commonRpcService = createRemoteRpcService(configuration, jobManagerBindAddress, 0);
+					metricQueryServiceRpcService = MetricUtils.startRemoteMetricsRpcService(
+						configuration,
+						commonRpcService.getAddress());
 				}
 
-				RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(
-					configuration,
-					commonRpcService.getAddress());
 				metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
 				processMetricGroup = MetricUtils.instantiateProcessMetricGroup(
@@ -305,7 +312,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 
 				ioExecutor = Executors.newFixedThreadPool(
-					Hardware.getNumberCPUCores(),
+					ClusterEntrypointUtils.getPoolSize(configuration),
 					new ExecutorThreadFactory("mini-cluster-io"));
 				haServices = createHighAvailabilityServices(configuration, ioExecutor);
 
@@ -530,6 +537,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				metricRegistry,
 				blobCacheService,
 				useLocalCommunication(),
+				ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 				taskManagerTerminatingFatalErrorHandlerFactory.create(taskManagers.size()));
 
 			taskExecutor.start();
@@ -597,6 +605,16 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	public CompletableFuture<? extends AccessExecutionGraph> getExecutionGraph(JobID jobId) {
 		return runDispatcherCommand(dispatcherGateway -> dispatcherGateway.requestJob(jobId, rpcTimeout));
+	}
+
+	public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
+			JobID jobId,
+			OperatorID operatorId,
+			SerializedValue<CoordinationRequest> serializedRequest) {
+		return runDispatcherCommand(
+			dispatcherGateway ->
+				dispatcherGateway.deliverCoordinationRequestToCoordinator(
+					jobId, operatorId, serializedRequest, rpcTimeout));
 	}
 
 	private <T> CompletableFuture<T> runDispatcherCommand(Function<DispatcherGateway, CompletableFuture<T>> dispatcherCommand) {

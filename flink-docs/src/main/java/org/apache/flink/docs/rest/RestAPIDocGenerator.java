@@ -18,6 +18,8 @@
 
 package org.apache.flink.docs.rest;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationStatusMessageHeaders;
@@ -120,16 +122,22 @@ public class RestAPIDocGenerator {
 		}
 	}
 
-	private static void createHtmlFile(DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion, Path outputFile) throws IOException {
+	@VisibleForTesting
+	static void createHtmlFile(DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion, Path outputFile) throws IOException {
 		StringBuilder html = new StringBuilder();
 
 		List<MessageHeaders> specs = restEndpoint.getSpecs().stream()
 			.filter(spec -> spec.getSupportedAPIVersions().contains(apiVersion))
+			.filter(RestAPIDocGenerator::shouldBeDocumented)
 			.collect(Collectors.toList());
 		specs.forEach(spec -> html.append(createHtmlEntry(spec)));
 
 		Files.deleteIfExists(outputFile);
 		Files.write(outputFile, html.toString().getBytes(StandardCharsets.UTF_8));
+	}
+
+	private static boolean shouldBeDocumented(MessageHeaders spec) {
+		return spec.getClass().getAnnotation(Documentation.ExcludeFromDocumentation.class) == null;
 	}
 
 	private static String createHtmlEntry(MessageHeaders<?, ?, ?> spec) {

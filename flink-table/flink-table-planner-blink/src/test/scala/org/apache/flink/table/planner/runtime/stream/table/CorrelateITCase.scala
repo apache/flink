@@ -19,13 +19,13 @@ package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.expressions.utils.{Func18, FuncWithOpen, RichFunc2}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils._
-import org.apache.flink.table.planner.utils.{PojoTableFunc, RF, RichTableFunc1, TableFunc0, TableFunc2, TableFunc3, TableFunc6, TableFunc7, VarArgsFunc0}
+import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
 
 import org.junit.Assert._

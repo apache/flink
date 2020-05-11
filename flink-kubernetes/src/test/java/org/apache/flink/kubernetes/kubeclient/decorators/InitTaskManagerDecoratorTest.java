@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
+import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
@@ -33,7 +34,6 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Toleration;
 import org.hamcrest.Matchers;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -66,15 +66,30 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 		new Toleration("NoSchedule", "key1", "Equal", null, "value1"),
 		new Toleration("NoExecute", "key2", "Exists", 6000L, null));
 
+	private static final String RESOURCE_NAME = "test";
+	private static final Long RESOURCE_AMOUNT = 2L;
+	private static final String RESOURCE_CONFIG_KEY = "test.com/test";
+
 	private Pod resultPod;
 	private Container resultMainContainer;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
+
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_SECRETS, IMAGE_PULL_SECRETS);
 		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_ANNOTATIONS, ANNOTATIONS);
 		this.flinkConfig.setString(KubernetesConfigOptions.TASK_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
+
+		// Set up external resource configs
+		flinkConfig.setString(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), RESOURCE_NAME);
+		flinkConfig.setLong(ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(RESOURCE_NAME, ExternalResourceOptions.EXTERNAL_RESOURCE_AMOUNT_SUFFIX), RESOURCE_AMOUNT);
+		flinkConfig.setString(ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(RESOURCE_NAME, KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX), RESOURCE_CONFIG_KEY);
+	}
+
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
 
 		final InitTaskManagerDecorator initTaskManagerDecorator =
 			new InitTaskManagerDecorator(kubernetesTaskManagerParameters);
@@ -117,6 +132,17 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 		final Map<String, Quantity> limits = resourceRequirements.getLimits();
 		assertEquals(Double.toString(TASK_MANAGER_CPU), limits.get("cpu").getAmount());
 		assertEquals(TOTAL_PROCESS_MEMORY + "Mi", limits.get("memory").getAmount());
+	}
+
+	@Test
+	public void testExternalResourceInResourceRequirements() {
+		final ResourceRequirements resourceRequirements = this.resultMainContainer.getResources();
+
+		final Map<String, Quantity> requests = resourceRequirements.getRequests();
+		assertEquals(Long.toString(RESOURCE_AMOUNT), requests.get(RESOURCE_CONFIG_KEY).getAmount());
+
+		final Map<String, Quantity> limits = resourceRequirements.getLimits();
+		assertEquals(Long.toString(RESOURCE_AMOUNT), limits.get(RESOURCE_CONFIG_KEY).getAmount());
 	}
 
 	@Test

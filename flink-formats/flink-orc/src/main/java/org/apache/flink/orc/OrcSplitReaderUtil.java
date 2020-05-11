@@ -134,7 +134,7 @@ public class OrcSplitReaderUtil {
 	/**
 	 * See {@code org.apache.flink.table.catalog.hive.util.HiveTypeUtil}.
 	 */
-	static TypeDescription logicalTypeToOrcType(LogicalType type) {
+	public static TypeDescription logicalTypeToOrcType(LogicalType type) {
 		type = type.copy(true);
 		switch (type.getTypeRoot()) {
 			case CHAR:

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -85,6 +86,7 @@ public final class TestTaskBuilder {
 	private JobID jobId = new JobID();
 	private AllocationID allocationID = new AllocationID();
 	private ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+	private ExternalResourceInfoProvider externalResourceInfoProvider = ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
 
 	public TestTaskBuilder(ShuffleEnvironment<?, ?> shuffleEnvironment) {
 		this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
@@ -170,6 +172,11 @@ public final class TestTaskBuilder {
 		return this;
 	}
 
+	public TestTaskBuilder setExternalResourceInfoProvider(ExternalResourceInfoProvider externalResourceInfoProvider) {
+		this.externalResourceInfoProvider = externalResourceInfoProvider;
+		return this;
+	}
+
 	public Task build() throws Exception {
 		final JobVertexID jobVertexId = new JobVertexID();
 
@@ -209,6 +216,7 @@ public final class TestTaskBuilder {
 			kvStateService,
 			new BroadcastVariableManager(),
 			new TaskEventDispatcher(),
+			externalResourceInfoProvider,
 			new TestTaskStateManager(),
 			taskManagerActions,
 			new MockInputSplitProvider(),

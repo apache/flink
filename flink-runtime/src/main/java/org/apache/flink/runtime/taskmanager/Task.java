@@ -45,6 +45,7 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
@@ -193,6 +194,9 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	private final TaskEventDispatcher taskEventDispatcher;
 
+	/** Information provider for external resources. */
+	private final ExternalResourceInfoProvider externalResourceInfoProvider;
+
 	/** The manager for state of operators running in this task/slot. */
 	private final TaskStateManager taskStateManager;
 
@@ -294,6 +298,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		KvStateService kvStateService,
 		BroadcastVariableManager bcVarManager,
 		TaskEventDispatcher taskEventDispatcher,
+		ExternalResourceInfoProvider externalResourceInfoProvider,
 		TaskStateManager taskStateManager,
 		TaskManagerActions taskManagerActions,
 		InputSplitProvider inputSplitProvider,
@@ -351,6 +356,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		this.operatorCoordinatorEventGateway = Preconditions.checkNotNull(operatorCoordinatorEventGateway);
 		this.aggregateManager = Preconditions.checkNotNull(aggregateManager);
 		this.taskManagerActions = checkNotNull(taskManagerActions);
+		this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
 
 		this.classLoaderHandle = Preconditions.checkNotNull(classLoaderHandle);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
@@ -680,7 +686,8 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				operatorCoordinatorEventGateway,
 				taskManagerConfig,
 				metrics,
-				this);
+				this,
+				externalResourceInfoProvider);
 
 			// Make sure the user code classloader is accessible thread-locally.
 			// We are setting the correct context class loader before instantiating the invokable
@@ -855,7 +862,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	@VisibleForTesting
 	public static void setupPartitionsAndGates(
-		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException, InterruptedException {
+		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException {
 
 		for (ResultPartitionWriter partition : producedPartitions) {
 			partition.setup();
@@ -1208,6 +1215,34 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		}
 		else {
 			LOG.debug("Ignoring checkpoint commit notification for non-running task {}.", taskNameWithSubtask);
+		}
+	}
+
+	@Override
+	public void notifyCheckpointAborted(final long checkpointID) {
+		final AbstractInvokable invokable = this.invokable;
+
+		if (executionState == ExecutionState.RUNNING && invokable != null) {
+			try {
+				invokable.notifyCheckpointAbortAsync(checkpointID);
+			}
+			catch (RejectedExecutionException ex) {
+				// This may happen if the mailbox is closed. It means that the task is shutting down, so we just ignore it.
+				LOG.debug(
+					"Notify checkpoint abort {} for {} ({}) was rejected by the mailbox",
+					checkpointID, taskNameWithSubtask, executionId);
+			}
+			catch (Throwable t) {
+				if (getExecutionState() == ExecutionState.RUNNING) {
+					// fail task if checkpoint aborted notification failed.
+					failExternally(new RuntimeException(
+						"Error while aborting checkpoint",
+						t));
+				}
+			}
+		}
+		else {
+			LOG.info("Ignoring checkpoint aborted notification for non-running task {}.", taskNameWithSubtask);
 		}
 	}
 

@@ -20,9 +20,9 @@ package org.apache.flink.runtime.checkpoint.channel;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.util.CloseableIterator;
 
 import java.io.Closeable;
 import java.util.Collection;
@@ -33,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
  * Writes channel state during checkpoint/savepoint.
  */
 @Internal
-public interface ChannelStateWriter extends Closeable, CheckpointListener {
+public interface ChannelStateWriter extends Closeable {
 
 	/**
 	 * Channel state write result.
@@ -100,11 +100,10 @@ public interface ChannelStateWriter extends Closeable, CheckpointListener {
 	 *                    It is intended to use for incremental snapshots.
 	 *                    If no data is passed it is ignored.
 	 * @param data zero or more <b>data</b> buffers ordered by their sequence numbers
-	 * @throws IllegalArgumentException if one or more passed buffers {@link Buffer#isBuffer()  isn't a buffer}
 	 * @see org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter#SEQUENCE_NUMBER_RESTORED
 	 * @see org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter#SEQUENCE_NUMBER_UNKNOWN
 	 */
-	void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, Buffer... data) throws IllegalArgumentException;
+	void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, CloseableIterator<Buffer> data);
 
 	/**
 	 * Add in-flight buffers from the {@link org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition}.
@@ -146,6 +145,11 @@ public interface ChannelStateWriter extends Closeable, CheckpointListener {
 	 */
 	ChannelStateWriteResult getWriteResult(long checkpointId);
 
+	/**
+	 * Cleans up the internal state for the given checkpoint.
+	 */
+	void stop(long checkpointId);
+
 	ChannelStateWriter NO_OP = new NoOpChannelStateWriter();
 
 	/**
@@ -157,7 +161,7 @@ public interface ChannelStateWriter extends Closeable, CheckpointListener {
 		}
 
 		@Override
-		public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, Buffer... data) {
+		public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, CloseableIterator<Buffer> data) {
 		}
 
 		@Override
@@ -178,9 +182,7 @@ public interface ChannelStateWriter extends Closeable, CheckpointListener {
 
 		@Override
 		public ChannelStateWriteResult getWriteResult(long checkpointId) {
-			return new ChannelStateWriteResult(
-				CompletableFuture.completedFuture(Collections.emptyList()),
-				CompletableFuture.completedFuture(Collections.emptyList()));
+			return ChannelStateWriteResult.EMPTY;
 		}
 
 		@Override
@@ -188,7 +190,7 @@ public interface ChannelStateWriter extends Closeable, CheckpointListener {
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
+		public void stop(long checkpointId) {
 		}
 	}
 }

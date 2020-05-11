@@ -175,6 +175,20 @@ public class ExpressionResolverTest {
 						DataTypes.INT().notNull().bridgedTo(int.class)
 					)),
 
+			TestSpec.test("Inline function call via a class")
+				.inputSchemas(
+					TableSchema.builder()
+						.field("f0", DataTypes.INT())
+						.build()
+				)
+				.select(call(ScalarFunc.class, 1, $("f0")))
+				.equalTo(
+					new CallExpression(
+						new ScalarFunc(),
+						Arrays.asList(valueLiteral(1), new FieldReferenceExpression("f0", DataTypes.INT(), 0, 0)),
+						DataTypes.INT().notNull().bridgedTo(int.class)
+					)),
+
 			TestSpec.test("Lookup catalog function call")
 				.inputSchemas(
 					TableSchema.builder()

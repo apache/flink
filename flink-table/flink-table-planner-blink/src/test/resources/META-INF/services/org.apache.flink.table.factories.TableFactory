@@ -17,8 +17,7 @@ org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 org.apache.flink.table.planner.runtime.batch.sql.TestPartitionableSinkFactory
 org.apache.flink.table.planner.utils.TestPartitionableSourceFactory
 org.apache.flink.table.planner.utils.TestFilterableTableSourceFactory
-org.apache.flink.table.planner.utils.TestProjectableTableSourceFactory
-org.apache.flink.table.planner.utils.TestCsvFileSystemFormatFactory
+org.apache.flink.table.planner.utils.TestLegacyProjectableTableSourceFactory
 org.apache.flink.table.planner.utils.TestOptionsTableFactory
 
 org.apache.flink.table.planner.utils.WithoutTimeAttributesTableSourceFactory
@@ -35,3 +34,4 @@ org.apache.flink.table.planner.utils.TestDataTypeTableSourceFactory
 org.apache.flink.table.planner.utils.TestDataTypeTableSourceWithTimeFactory
 org.apache.flink.table.planner.utils.TestStreamTableSourceFactory
 org.apache.flink.table.planner.utils.TestFileInputFormatTableSourceFactory
+org.apache.flink.table.planner.utils.TestTableSourceWithTimeFactory

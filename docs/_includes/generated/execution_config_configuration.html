@@ -59,6 +59,12 @@ By default no operator is disabled.</td>
             <td>Sets exec shuffle mode.<br />Accepted values are:<ul><li><span markdown="span">`ALL_EDGES_BLOCKING`</span>: All edges will use blocking shuffle.</li><li><span markdown="span">`FORWARD_EDGES_PIPELINED`</span>: Forward edges will use pipelined shuffle, others blocking.</li><li><span markdown="span">`POINTWISE_EDGES_PIPELINED`</span>: Pointwise edges will use pipelined shuffle, others blocking. Pointwise edges include forward and rescale edges.</li><li><span markdown="span">`ALL_EDGES_PIPELINED`</span>: All edges will use pipelined shuffle.</li><li><span markdown="span">`batch`</span>: the same as <span markdown="span">`ALL_EDGES_BLOCKING`</span>. Deprecated.</li><li><span markdown="span">`pipelined`</span>: the same as <span markdown="span">`ALL_EDGES_PIPELINED`</span>. Deprecated.</li></ul>Note: Blocking shuffle means data will be fully produced before sent to consumer tasks. Pipelined shuffle means data will be sent to consumer tasks once produced.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.sink.not-null-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">ERROR</td>
+            <td><p>Enum</p>Possible values: [ERROR, DROP]</td>
+            <td>The NOT NULL column constraint on a table enforces that null values can't be inserted into the table. Flink supports 'error' (default) and 'drop' enforcement behavior. By default, Flink will check values and throw runtime exception when null values writing into NOT NULL columns. Users can change the behavior to 'drop' to silently drop such records without throwing exception.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.sort.async-merge-enabled</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

@@ -31,6 +31,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -82,6 +83,19 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		return Optional.empty();
 	}
 
+	/**
+	 * Returns true if there is in-flight data in the buffers for the given channel and checkpoint. More specifically,
+	 * this method returns true iff the unaligner still expects the respective barrier to be <i>consumed</i> on the
+	 * that channel.
+	 */
+	public boolean hasInflightData(long checkpointId, int channelIndex) {
+		return false;
+	}
+
+	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
+		return CompletableFuture.completedFuture(null);
+	}
+
 	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long alignmentDurationNanos) throws IOException {
 		CheckpointMetaData checkpointMetaData =
 			new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
@@ -117,4 +131,6 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 			Object... descriptionArgs) throws E {
 		toNotifyOnCheckpoint.executeInTaskThread(runnable, descriptionFormat, descriptionArgs);
 	}
+
+	protected abstract boolean isCheckpointPending();
 }

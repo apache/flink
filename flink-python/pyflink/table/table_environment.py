@@ -190,7 +190,7 @@ class TableEnvironment(object):
         .. note:: Deprecated in 1.10. Use :func:`connect` instead.
         """
         warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
-        self._j_tenv.registerTableSource(name, table_source._j_table_source)
+        self._j_tenv.registerTableSourceInternal(name, table_source._j_table_source)
 
     def register_table_sink(self, name, table_sink):
         """
@@ -215,7 +215,7 @@ class TableEnvironment(object):
         .. note:: Deprecated in 1.10. Use :func:`connect` instead.
         """
         warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
-        self._j_tenv.registerTableSink(name, table_sink._j_table_sink)
+        self._j_tenv.registerTableSinkInternal(name, table_sink._j_table_sink)
 
     def scan(self, *table_path):
         """
@@ -312,7 +312,12 @@ class TableEnvironment(object):
         .. versionchanged:: 1.10.0
             The signature is changed, e.g. the parameter *table_path_continued* was removed and
             the parameter *target_path* is moved before the parameter *table*.
+
+        .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
+                  use :func:`create_statement_set` for multiple sinks.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_insert for single sink,"
+                      "use create_statement_set for multiple sinks.", DeprecationWarning)
         self._j_tenv.insertInto(target_path, table._j_table)
 
     def list_catalogs(self):
@@ -464,7 +469,10 @@ class TableEnvironment(object):
         :type extended: bool
         :return: The table for which the AST and execution plan will be returned.
         :rtype: str
+
+        .. note:: Deprecated in 1.11. Use :class:`Table`#:func:`explain` instead.
         """
+        warnings.warn("Deprecated in 1.11. Use Table#explain instead.", DeprecationWarning)
         if table is None:
             return self._j_tenv.explain(extended)
         else:
@@ -523,6 +531,7 @@ class TableEnvironment(object):
                 the affected row count for `DML` (-1 means unknown),
                 or a string message ("OK") for other statements.
         """
+        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
         return self._j_tenv.executeSql(stmt)
 
     def create_statement_set(self):
@@ -607,7 +616,12 @@ class TableEnvironment(object):
 
         :param stmt: The SQL statement to evaluate.
         :type stmt: str
+
+        .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single statement,
+                  use :func:`create_statement_set` for multiple DML statements.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_sql for single statement, "
+                      "use create_statement_set for multiple DML statements.", DeprecationWarning)
         self._j_tenv.sqlUpdate(stmt)
 
     def get_current_catalog(self):
@@ -1021,7 +1035,12 @@ class TableEnvironment(object):
         :param job_name: Desired name of the job.
         :type job_name: str
         :return: The result of the job execution, containing elapsed time and accumulators.
+
+        .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single sink,
+                  use :func:`create_statement_set` for multiple sinks.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_sql for single sink, "
+                      "use create_statement_set for multiple sinks.", DeprecationWarning)
         jvm = get_gateway().jvm
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()

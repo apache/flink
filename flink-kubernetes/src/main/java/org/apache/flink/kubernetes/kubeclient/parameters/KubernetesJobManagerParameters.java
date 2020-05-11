@@ -85,6 +85,10 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 		return flinkConfig.getOptional(KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS).orElse(Collections.emptyList());
 	}
 
+	public Map<String, String> getRestServiceAnnotations() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS).orElse(Collections.emptyMap());
+	}
+
 	public String getJobManagerMainContainerName() {
 		return JOB_MANAGER_MAIN_CONTAINER_NAME;
 	}

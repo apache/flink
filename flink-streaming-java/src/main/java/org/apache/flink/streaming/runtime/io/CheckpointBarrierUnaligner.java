@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -44,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.util.CloseableIterator.ofElement;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -117,7 +119,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 	@Override
 	public void releaseBlocksAndResetBarriers() {
-		if (numBarrierConsumed > 0) {
+		if (isCheckpointPending()) {
 			// make sure no additional data is persisted
 			Arrays.fill(hasInflightBuffers, false);
 			// the next barrier that comes must assume it is the first
@@ -149,7 +151,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			CheckpointBarrier receivedBarrier,
 			int channelIndex) throws Exception {
 		long barrierId = receivedBarrier.getId();
-		if (currentConsumedCheckpointId > barrierId || (currentConsumedCheckpointId == barrierId && numBarrierConsumed == 0)) {
+		if (currentConsumedCheckpointId > barrierId || (currentConsumedCheckpointId == barrierId && !isCheckpointPending())) {
 			// ignore old and cancelled barriers
 			return;
 		}
@@ -172,11 +174,11 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
 		final long barrierId = cancelBarrier.getCheckpointId();
 
-		if (currentConsumedCheckpointId >= barrierId && numBarrierConsumed == 0) {
+		if (currentConsumedCheckpointId >= barrierId && !isCheckpointPending()) {
 			return;
 		}
 
-		if (numBarrierConsumed > 0) {
+		if (isCheckpointPending()) {
 			LOG.warn("{}: Received cancellation barrier for checkpoint {} before completing current checkpoint {}. " +
 							"Skipping current checkpoint.",
 					taskName,
@@ -195,7 +197,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	public void processEndOfPartition() throws Exception {
 		threadSafeUnaligner.onChannelClosed();
 
-		if (numBarrierConsumed > 0) {
+		if (isCheckpointPending()) {
 			// let the task know we skip a checkpoint
 			notifyAbort(
 				currentConsumedCheckpointId,
@@ -226,11 +228,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		threadSafeUnaligner.close();
 	}
 
-	/**
-	 * Returns true if there is in-flight data in the buffers for the given channel and checkpoint. More specifically,
-	 * this method returns true iff the unaligner still expects the respective barrier to be <i>consumed</i> on the
-	 * that channel.
-	 */
+	@Override
 	public boolean hasInflightData(long checkpointId, int channelIndex) {
 		if (checkpointId < currentConsumedCheckpointId) {
 			return false;
@@ -241,6 +239,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		return hasInflightBuffers[channelIndex];
 	}
 
+	@Override
 	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
 		return threadSafeUnaligner.getAllBarriersReceivedFuture(checkpointId);
 	}
@@ -248,6 +247,11 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	@Override
 	public Optional<BufferReceivedListener> getBufferReceivedListener() {
 		return Optional.of(threadSafeUnaligner);
+	}
+
+	@Override
+	protected boolean isCheckpointPending() {
+		return numBarrierConsumed > 0;
 	}
 
 	private int getFlattenedChannelIndex(InputChannelInfo channelInfo) {
@@ -327,7 +331,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 					currentReceivedCheckpointId,
 					channelInfo,
 					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
-					buffer);
+					ofElement(buffer, Buffer::recycleBuffer));
 			} else {
 				buffer.recycleBuffer();
 			}
@@ -338,9 +342,13 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			allBarriersReceivedFuture.cancel(false);
 		}
 
+		boolean isCheckpointPending() {
+			return numBarriersReceived > 0;
+		}
+
 		private synchronized void handleNewCheckpoint(CheckpointBarrier barrier) throws IOException {
 			long barrierId = barrier.getId();
-			if (!allBarriersReceivedFuture.isDone()) {
+			if (!allBarriersReceivedFuture.isDone() && isCheckpointPending()) {
 				// we did not complete the current checkpoint, another started before
 				LOG.warn("{}: Received checkpoint barrier for checkpoint {} before completing current checkpoint {}. " +
 						"Skipping current checkpoint.",
@@ -391,5 +399,15 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		public synchronized void setCurrentReceivedCheckpointId(long currentReceivedCheckpointId) {
 			this.currentReceivedCheckpointId = Math.max(currentReceivedCheckpointId, this.currentReceivedCheckpointId);
 		}
+
+		@VisibleForTesting
+		public synchronized int getNumOpenChannels() {
+			return numOpenChannels;
+		}
+	}
+
+	@VisibleForTesting
+	public int getNumOpenChannels() {
+		return threadSafeUnaligner.getNumOpenChannels();
 	}
 }

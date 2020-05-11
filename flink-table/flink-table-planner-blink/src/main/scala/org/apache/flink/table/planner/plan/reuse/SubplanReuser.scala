@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.reuse
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
+import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.utils.{DefaultRelShuttle, FlinkRelOptUtil}
@@ -157,7 +157,7 @@ object SubplanReuser {
         // Exchange node can not be reused if its input is reusable disabled
         case e: Exchange => isNodeReusableDisabled(e.getInput)
         // TableFunctionScan and sink can not be reused
-        case _: TableFunctionScan | _: Sink => true
+        case _: TableFunctionScan | _: LegacySink | _: Sink => true
         case _ => false
       }
     }

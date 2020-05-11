@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.planner.plan.schema
 
-import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.RelOptSchema
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.connector.source.DynamicTableSource
 import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
+
+import com.google.common.collect.ImmutableList
+import org.apache.calcite.plan.RelOptSchema
+import org.apache.calcite.rel.`type`.RelDataType
 
 import java.util
 
@@ -41,6 +42,8 @@ import java.util
  * @param isStreamingMode A flag that tells if the current table is in stream mode
  * @param catalogTable Catalog table where this table source table comes from
  * @param dynamicOptions The dynamic hinted options
+ * @param extraDigests The extra digests which will be added into `getQualifiedName`
+ *                     as a part of table digest
  */
 class TableSourceTable(
     relOptSchema: RelOptSchema,
@@ -50,7 +53,8 @@ class TableSourceTable(
     val tableSource: DynamicTableSource,
     val isStreamingMode: Boolean,
     val catalogTable: CatalogTable,
-    dynamicOptions: JMap[String, String])
+    val dynamicOptions: JMap[String, String],
+    val extraDigests: Array[String] = Array.empty)
   extends FlinkPreparingTableBase(
     relOptSchema,
     rowType,
@@ -62,16 +66,38 @@ class TableSourceTable(
 
   override def getQualifiedName: util.List[String] = {
     val names = super.getQualifiedName
-    if (dynamicOptions.size() == 0) {
-      names
-    } else {
+    val builder = ImmutableList.builder[String]()
+    builder.addAll(names)
+    if (dynamicOptions.size() != 0) {
       // Add the dynamic options as part of the table digest,
       // this is a temporary solution, we expect to avoid this
       // before Calcite 1.23.0.
-      ImmutableList.builder[String]()
-        .addAll(names)
-        .add(s"dynamic options: $dynamicOptions")
-        .build()
+      builder.add(s"dynamic options: $dynamicOptions")
     }
+    extraDigests.foreach(builder.add)
+    builder.build()
+  }
+
+  /**
+   * Creates a copy of this table with specified digest.
+   *
+   * @param newTableSource tableSource to replace
+   * @param newRowType new row type
+   * @return added TableSourceTable instance with specified digest
+   */
+  def copy(
+      newTableSource: DynamicTableSource,
+      newRowType: RelDataType,
+      newExtraDigests: Array[String]): TableSourceTable = {
+    new TableSourceTable(
+      relOptSchema,
+      tableIdentifier,
+      newRowType,
+      statistic,
+      newTableSource,
+      isStreamingMode,
+      catalogTable,
+      dynamicOptions,
+      extraDigests ++ newExtraDigests)
   }
 }

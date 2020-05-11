@@ -395,8 +395,10 @@ public class PartitionRequestQueueTest {
 	@Test
 	public void testEnqueueReaderByResumingConsumption() throws Exception {
 		PipelinedSubpartition subpartition = PipelinedSubpartitionTest.createPipelinedSubpartition();
-		subpartition.add(createEventBufferConsumer(4096, Buffer.DataType.ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER));
-		subpartition.add(createEventBufferConsumer(4096, Buffer.DataType.DATA_BUFFER));
+		Buffer.DataType dataType1 = Buffer.DataType.ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER;
+		Buffer.DataType dataType2 = Buffer.DataType.DATA_BUFFER;
+		subpartition.add(createEventBufferConsumer(4096, dataType1));
+		subpartition.add(createEventBufferConsumer(4096, dataType2));
 
 		BufferAvailabilityListener bufferAvailabilityListener = new NoOpBufferAvailablityListener();
 		PipelinedSubpartitionView view = subpartition.createReadView(bufferAvailabilityListener);
@@ -423,9 +425,9 @@ public class PartitionRequestQueueTest {
 		assertEquals(0, subpartition.unsynchronizedGetNumberOfQueuedBuffers());
 
 		Object data1 = channel.readOutbound();
-		assertFalse(((NettyMessage.BufferResponse) data1).isBuffer);
+		assertEquals(dataType1, ((NettyMessage.BufferResponse) data1).buffer.getDataType());
 		Object data2 = channel.readOutbound();
-		assertTrue(((NettyMessage.BufferResponse) data2).isBuffer);
+		assertEquals(dataType2, ((NettyMessage.BufferResponse) data2).buffer.getDataType());
 	}
 
 	@Test

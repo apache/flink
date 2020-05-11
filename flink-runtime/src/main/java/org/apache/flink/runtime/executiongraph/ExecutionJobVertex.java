@@ -44,13 +44,13 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorUtil;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -119,7 +119,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 */
 	private Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey = null;
 
-	private final Map<OperatorID, OperatorCoordinator> operatorCoordinators;
+	private final Collection<OperatorCoordinatorHolder> operatorCoordinators;
 
 	private InputSplitAssigner splitAssigner;
 
@@ -229,16 +229,20 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			}
 		}
 
-		try {
-			final Map<OperatorID, OperatorCoordinator> coordinators = OperatorCoordinatorUtil.instantiateCoordinators(
-					jobVertex.getOperatorCoordinators(),
-					graph.getUserClassLoader(),
-					(opId) -> new ExecutionJobVertexCoordinatorContext(opId, this));
-
-			this.operatorCoordinators = Collections.unmodifiableMap(coordinators);
-		}
-		catch (IOException | ClassNotFoundException e) {
-			throw new JobException("Cannot instantiate the coordinator for operator " + getName(), e);
+		final List<SerializedValue<OperatorCoordinator.Provider>> coordinatorProviders = getJobVertex().getOperatorCoordinators();
+		if (coordinatorProviders.isEmpty()) {
+			this.operatorCoordinators = Collections.emptyList();
+		} else {
+			final ArrayList<OperatorCoordinatorHolder> coordinators = new ArrayList<>(coordinatorProviders.size());
+			try {
+				for (final SerializedValue<OperatorCoordinator.Provider> provider : coordinatorProviders) {
+					coordinators.add(OperatorCoordinatorHolder.create(provider, this, graph.getUserClassLoader()));
+				}
+			} catch (Exception | LinkageError e) {
+				IOUtils.closeAllQuietly(coordinators);
+				throw new JobException("Cannot instantiate the coordinator for operator " + getName(), e);
+			}
+			this.operatorCoordinators = Collections.unmodifiableList(coordinators);
 		}
 
 		// set up the input splits, if the vertex has any
@@ -371,17 +375,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return getJobVertex().getInputDependencyConstraint();
 	}
 
-	@Nullable
-	public OperatorCoordinator getOperatorCoordinator(OperatorID operatorId) {
-		return operatorCoordinators.get(operatorId);
-	}
-
-	public Map<OperatorID, OperatorCoordinator> getOperatorCoordinatorMap() {
+	public Collection<OperatorCoordinatorHolder> getOperatorCoordinators() {
 		return operatorCoordinators;
-	}
-
-	public Collection<OperatorCoordinator> getOperatorCoordinators() {
-		return operatorCoordinators.values();
 	}
 
 	public Either<SerializedValue<TaskInformation>, PermanentBlobKey> getTaskInformationOrBlobKey() throws IOException {

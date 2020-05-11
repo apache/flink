@@ -21,10 +21,8 @@ package org.apache.flink.table.runtime.stream.table
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
-
-import java.math.BigDecimal
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.stream.table.GroupWindowITCase._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.utils.Top3
@@ -33,6 +31,8 @@ import org.apache.flink.types.Row
 
 import org.junit.Assert._
 import org.junit.{Before, Test}
+
+import java.math.BigDecimal
 
 /**
   * We only test some aggregations until better testing of constructed DataStream

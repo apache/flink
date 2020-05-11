@@ -24,6 +24,8 @@ import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 
+import java.util.Objects;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -31,7 +33,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Right now, it contains info about the partition of the split.
  */
 public class HiveTableInputSplit extends HadoopInputSplit {
-	private final HiveTablePartition hiveTablePartition;
+
+	private static final long serialVersionUID = 1L;
+
+	protected final HiveTablePartition hiveTablePartition;
 
 	public HiveTableInputSplit(
 			int splitNumber,
@@ -44,5 +49,32 @@ public class HiveTableInputSplit extends HadoopInputSplit {
 
 	public HiveTablePartition getHiveTablePartition() {
 		return hiveTablePartition;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		if (!super.equals(o)) {
+			return false;
+		}
+		HiveTableInputSplit split = (HiveTableInputSplit) o;
+		return Objects.equals(hiveTablePartition, split.hiveTablePartition);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(super.hashCode(), hiveTablePartition);
+	}
+
+	@Override
+	public String toString() {
+		return "HiveTableInputSplit{" +
+				"hiveTablePartition=" + hiveTablePartition +
+				'}';
 	}
 }

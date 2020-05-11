@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.gcp.pubsub.common;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.util.Collector;
 
 import com.google.pubsub.v1.PubsubMessage;
 
@@ -62,4 +63,21 @@ public interface PubSubDeserializationSchema<T> extends Serializable, ResultType
 	 * @return The deserialized message as an object (null if the message cannot be deserialized).
 	 */
 	T deserialize(PubsubMessage message) throws Exception;
+
+	/**
+	 * Deserializes the PubSub record.
+	 *
+	 * <p>Can output multiple records through the {@link Collector}. Note that number and size of the
+	 * produced records should be relatively small. Depending on the source implementation records
+	 * can be buffered in memory or collecting records might delay emitting checkpoint barrier.
+	 *
+	 * @param message PubsubMessage to be deserialized.
+	 * @param out The collector to put the resulting messages.
+	 */
+	default void deserialize(PubsubMessage message, Collector<T> out) throws Exception {
+		T deserialized = deserialize(message);
+		if (deserialized != null) {
+			out.collect(deserialized);
+		}
+	}
 }

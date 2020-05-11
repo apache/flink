@@ -127,10 +127,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	@Override
 	public boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) throws IOException {
 		if (isPriorityEvent) {
-			if (readView != null && readView.notifyPriorityEvent(bufferConsumer)) {
-				bufferConsumer.close();
-				return true;
-			}
+			// TODO: use readView.notifyPriorityEvent for local channels
 			return add(bufferConsumer, false, true);
 		}
 		return add(bufferConsumer, false, false);
@@ -177,7 +174,9 @@ public class PipelinedSubpartition extends ResultSubpartition {
 			// Meanwhile prepare the collection of in-flight buffers which would be fetched in the next step later.
 			for (BufferConsumer buffer : buffers) {
 				try (BufferConsumer bc = buffer.copy()) {
-					inflightBufferSnapshot.add(bc.build());
+					if (bc.isBuffer()) {
+						inflightBufferSnapshot.add(bc.build());
+					}
 				}
 			}
 
@@ -269,7 +268,7 @@ public class PipelinedSubpartition extends ResultSubpartition {
 				return null;
 			}
 
-			if (Buffer.DataType.isAlignedExactlyOnceCheckpointBarrier(buffer)) {
+			if (buffer.getDataType().isBlockingUpstream()) {
 				isBlockedByCheckpoint = true;
 			}
 

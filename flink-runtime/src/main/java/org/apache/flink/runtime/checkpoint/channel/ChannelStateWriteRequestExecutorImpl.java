@@ -32,6 +32,9 @@ import java.util.List;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.util.IOUtils.closeAll;
 
 /**
  * Executes {@link ChannelStateWriteRequest}s in a separate thread. Any exception occurred during execution causes this
@@ -48,15 +51,20 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
 	private final Thread thread;
 	private volatile Exception thrown = null;
 	private volatile boolean wasClosed = false;
+	private final String taskName;
 
-	ChannelStateWriteRequestExecutorImpl(ChannelStateWriteRequestDispatcher dispatcher) {
-		this(dispatcher, new LinkedBlockingDeque<>(DEFAULT_HANDOVER_CAPACITY));
+	ChannelStateWriteRequestExecutorImpl(String taskName, ChannelStateWriteRequestDispatcher dispatcher) {
+		this(taskName, dispatcher, new LinkedBlockingDeque<>(DEFAULT_HANDOVER_CAPACITY));
 	}
 
-	ChannelStateWriteRequestExecutorImpl(ChannelStateWriteRequestDispatcher dispatcher, BlockingDeque<ChannelStateWriteRequest> deque) {
+	ChannelStateWriteRequestExecutorImpl(
+			String taskName,
+			ChannelStateWriteRequestDispatcher dispatcher,
+			BlockingDeque<ChannelStateWriteRequest> deque) {
+		this.taskName = taskName;
 		this.dispatcher = dispatcher;
 		this.deque = deque;
-		this.thread = new Thread(this::run);
+		this.thread = new Thread(this::run, "Channel state writer " + taskName);
 		this.thread.setDaemon(true);
 	}
 
@@ -67,10 +75,17 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
 		} catch (Exception ex) {
 			thrown = ex;
 		} finally {
-			cleanupRequests();
-			dispatcher.fail(thrown == null ? new CancellationException() : thrown);
+			try {
+				closeAll(
+					this::cleanupRequests,
+					() -> dispatcher.fail(thrown == null ? new CancellationException() : thrown)
+				);
+			} catch (Exception e) {
+				//noinspection NonAtomicOperationOnVolatileField
+				thrown = ExceptionUtils.firstOrSuppressed(e, thrown);
+			}
 		}
-		LOG.debug("loop terminated");
+		LOG.debug("{} loop terminated", taskName);
 	}
 
 	private void loop() throws Exception {
@@ -79,7 +94,7 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
 				dispatcher.dispatch(deque.take());
 			} catch (InterruptedException e) {
 				if (!wasClosed) {
-					LOG.debug("interrupted while waiting for a request (continue waiting)", e);
+					LOG.debug(taskName + " interrupted while waiting for a request (continue waiting)", e);
 				} else {
 					Thread.currentThread().interrupt();
 				}
@@ -87,14 +102,12 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
 		}
 	}
 
-	private void cleanupRequests() {
+	private void cleanupRequests() throws Exception {
 		Throwable cause = thrown == null ? new CancellationException() : thrown;
 		List<ChannelStateWriteRequest> drained = new ArrayList<>();
 		deque.drainTo(drained);
-		LOG.info("discarding {} drained requests", drained.size());
-		for (ChannelStateWriteRequest request : drained) {
-			request.cancel(cause);
-		}
+		LOG.info("{} discarding {} drained requests", taskName, drained.size());
+		closeAll(drained.stream().<AutoCloseable>map(request -> () -> request.cancel(cause)).collect(Collectors.toList()));
 	}
 
 	@Override
@@ -142,7 +155,7 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
 				if (!thread.isAlive()) {
 					Thread.currentThread().interrupt();
 				}
-				LOG.debug("interrupted while waiting for the writer thread to die", e);
+				LOG.debug(taskName + " interrupted while waiting for the writer thread to die", e);
 			}
 		}
 		if (thrown != null) {

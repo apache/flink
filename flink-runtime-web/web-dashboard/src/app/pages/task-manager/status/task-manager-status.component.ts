@@ -30,7 +30,13 @@ import { TaskManagerService } from 'services';
 })
 export class TaskManagerStatusComponent implements OnInit, OnDestroy {
   @Input() isLoading = true;
-  listOfNavigation = [{ path: 'metrics', title: 'Metrics' }, { path: 'log-list', title: 'Log' }, { path: 'thread-dump', title: 'Thread Dump' }];
+  listOfNavigation = [
+    { path: 'metrics', title: 'Metrics' },
+    { path: 'logs', title: 'Logs' },
+    { path: 'stdout', title: 'Stdout' },
+    { path: 'log-list', title: 'Log List' },
+    { path: 'thread-dump', title: 'Thread Dump' }
+  ];
   taskManagerDetail: TaskManagerDetailInterface;
   private destroy$ = new Subject();
 

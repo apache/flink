@@ -21,18 +21,25 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -42,11 +49,14 @@ import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,7 +65,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -97,8 +113,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerTable("src", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from src").insertInto("hive.`default`.dest");
-		tableEnv.execute("mytest");
+		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from src"), "hive.`default`.dest");
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
@@ -139,8 +154,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerTable("complexSrc", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from complexSrc").insertInto("hive.`default`.dest");
-		tableEnv.execute("mytest");
+		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from complexSrc"), "hive.`default`.dest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
@@ -178,8 +192,7 @@ public class HiveTableSinkTest {
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("nestedSrc", src);
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from nestedSrc").insertInto("hive.`default`.dest");
-		tableEnv.execute("mytest");
+		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from nestedSrc"), "hive.`default`.dest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
@@ -203,8 +216,7 @@ public class HiveTableSinkTest {
 			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 			tableEnv.useCatalog(hiveCatalog.getName());
 
-			tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
-			tableEnv.execute("write to dest");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
 			List<String> results = hiveShell.executeQuery("select * from db1.dest");
 			assertEquals(1, results.size());
 			String[] cols = results.get(0).split("\t");
@@ -213,6 +225,124 @@ public class HiveTableSinkTest {
 			assertEquals(1, new HashSet<>(Arrays.asList(cols)).size());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test(timeout = 120000)
+	public void testDefaultSerPartStreamingWrite() throws Exception {
+		testStreamingWrite(true, false, true, this::checkSuccessFiles);
+	}
+
+	@Test(timeout = 120000)
+	public void testPartStreamingWrite() throws Exception {
+		testStreamingWrite(true, false, false, this::checkSuccessFiles);
+	}
+
+	@Test(timeout = 120000)
+	public void testNonPartStreamingWrite() throws Exception {
+		testStreamingWrite(false, false, false, (p) -> {});
+	}
+
+	@Test(timeout = 120000)
+	public void testPartStreamingMrWrite() throws Exception {
+		testStreamingWrite(true, true, false, this::checkSuccessFiles);
+	}
+
+	@Test(timeout = 120000)
+	public void testNonPartStreamingMrWrite() throws Exception {
+		testStreamingWrite(false, true, false, (p) -> {});
+	}
+
+	private void checkSuccessFiles(String path) {
+		File basePath = new File(path, "d=2020-05-03");
+		Assert.assertEquals(5, basePath.list().length);
+		Assert.assertTrue(new File(new File(basePath, "e=7"), "_MY_SUCCESS").exists());
+		Assert.assertTrue(new File(new File(basePath, "e=8"), "_MY_SUCCESS").exists());
+		Assert.assertTrue(new File(new File(basePath, "e=9"), "_MY_SUCCESS").exists());
+		Assert.assertTrue(new File(new File(basePath, "e=10"), "_MY_SUCCESS").exists());
+		Assert.assertTrue(new File(new File(basePath, "e=11"), "_MY_SUCCESS").exists());
+	}
+
+	private void testStreamingWrite(
+			boolean part,
+			boolean useMr,
+			boolean defaultSer,
+			Consumer<String> pathConsumer) throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		env.enableCheckpointing(100);
+
+		StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
+		tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tEnv.useCatalog(hiveCatalog.getName());
+		tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+		if (useMr) {
+			tEnv.getConfig().getConfiguration().set(
+					HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER, true);
+		} else {
+			tEnv.getConfig().getConfiguration().set(
+					HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER, false);
+		}
+
+		try {
+			tEnv.executeSql("create database db1");
+			tEnv.useDatabase("db1");
+
+			// prepare source
+			List<Row> data = Arrays.asList(
+					Row.of(1, "a", "b", "2020-05-03", "7"),
+					Row.of(2, "p", "q", "2020-05-03", "8"),
+					Row.of(3, "x", "y", "2020-05-03", "9"),
+					Row.of(4, "x", "y", "2020-05-03", "10"),
+					Row.of(5, "x", "y", "2020-05-03", "11"));
+			DataStream<Row> stream = env.addSource(
+					new FiniteTestSource<>(data),
+					new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.STRING, Types.STRING));
+			tEnv.createTemporaryView("my_table", stream, $("a"), $("b"), $("c"), $("d"), $("e"));
+
+			// DDL
+			tEnv.executeSql("create external table sink_table (a int,b string,c string" +
+					(part ? "" : ",d string,e string") +
+					") " +
+					(part ? "partitioned by (d string,e string) " : "") +
+					(defaultSer ? "" : " stored as parquet") +
+					" TBLPROPERTIES (" +
+					"'" + PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key() + "'='$d $e:00:00'," +
+					"'" + SINK_PARTITION_COMMIT_DELAY.key() + "'='1h'," +
+					"'" + SINK_PARTITION_COMMIT_POLICY_KIND.key() + "'='metastore,success-file'," +
+					"'" + SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.key() + "'='_MY_SUCCESS'" +
+					")");
+
+			TableEnvUtil.execInsertTableAndWaitResult(
+					tEnv.sqlQuery("select * from my_table"),
+					"sink_table");
+
+			// using batch table env to query.
+			List<String> results = new ArrayList<>();
+			TableEnvironment batchTEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+			batchTEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+			batchTEnv.useCatalog(hiveCatalog.getName());
+			batchTEnv.executeSql("select * from db1.sink_table").collect()
+					.forEachRemaining(r -> results.add(r.toString()));
+			results.sort(String::compareTo);
+			Assert.assertEquals(
+					Arrays.asList(
+							"1,a,b,2020-05-03,7",
+							"1,a,b,2020-05-03,7",
+							"2,p,q,2020-05-03,8",
+							"2,p,q,2020-05-03,8",
+							"3,x,y,2020-05-03,9",
+							"3,x,y,2020-05-03,9",
+							"4,x,y,2020-05-03,10",
+							"4,x,y,2020-05-03,10",
+							"5,x,y,2020-05-03,11",
+							"5,x,y,2020-05-03,11"),
+					results);
+
+			pathConsumer.accept(URI.create(hiveCatalog.getHiveTable(
+					ObjectPath.fromString("db1.sink_table")).getSd().getLocation()).getPath());
+		} finally {
+			tEnv.executeSql("drop database db1 cascade");
 		}
 	}
 

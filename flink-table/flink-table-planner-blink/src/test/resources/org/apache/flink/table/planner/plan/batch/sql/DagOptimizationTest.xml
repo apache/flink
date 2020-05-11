@@ -19,12 +19,12 @@ limitations under the License.
   <TestCase name="testMultiLevelViews">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b, c])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%hello%')])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[b, cnt])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[b, cnt])
 +- LogicalProject(b=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($0, 4)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
@@ -37,7 +37,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[b, cnt]
                   +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%world%')])
                      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink3`], fields=[b, cnt])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink3`], fields=[b, cnt])
 +- LogicalProject(b=[$0], cnt=[$1])
    +- LogicalFilter(condition=[AND(>=($0, 4), <($0, 6))])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
@@ -58,7 +58,7 @@ LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source
 Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%hello%')], reuse_id=[1])
 +- Reused(reference_id=[2])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b, c])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b, c])
 +- Reused(reference_id=[1])
 
 HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS cnt], reuse_id=[3])
@@ -70,11 +70,11 @@ HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS cn
          +- Calc(select=[b, a], where=[LIKE(c, _UTF-16LE'%world%')])
             +- Reused(reference_id=[2])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[b, cnt])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[b, cnt])
 +- Calc(select=[b, cnt], where=[<(b, 4)])
    +- Reused(reference_id=[3])
 
-Sink(name=[`default_catalog`.`default_database`.`sink3`], fields=[b, cnt])
+LegacySink(name=[`default_catalog`.`default_database`.`sink3`], fields=[b, cnt])
 +- Calc(select=[b, cnt], where=[AND(>=(b, 4), <(b, 6))])
    +- Reused(reference_id=[3])
 ]]>
@@ -83,14 +83,14 @@ Sink(name=[`default_catalog`.`default_database`.`sink3`], fields=[b, cnt])
   <TestCase name="testMultiSinks1">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
    +- LogicalProject(sum_a=[$1])
       +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
          +- LogicalProject(c=[$2], a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
    +- LogicalProject(sum_a=[$1])
       +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
@@ -107,13 +107,13 @@ Calc(select=[sum_a], reuse_id=[1])
          +- Calc(select=[c, a])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS total_sum])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_SUM(sum_a) AS sum$0])
          +- Reused(reference_id=[1])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS total_min])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_MIN(sum_a) AS min$0])
@@ -124,7 +124,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
   <TestCase name="testMultiSinks2">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b1])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b1])
 +- LogicalUnion(all=[true])
    :- LogicalProject(a1=[$0], b1=[$1])
    :  +- LogicalFilter(condition=[<=($0, 10)])
@@ -137,7 +137,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b1])
             :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, b1])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, b1])
 +- LogicalUnion(all=[true])
    :- LogicalProject(a1=[$0], b1=[$1])
    :  +- LogicalFilter(condition=[<=($0, 10)])
@@ -166,10 +166,10 @@ Union(all=[true], union=[a, b], reuse_id=[2])
          +- Calc(select=[a])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b1])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b1])
 +- Reused(reference_id=[2])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, b1])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, b1])
 +- Reused(reference_id=[2])
 ]]>
     </Resource>
@@ -177,7 +177,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, b1])
   <TestCase name="testMultiSinks3">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b1])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b1])
 +- LogicalProject(a=[$2], b1=[$1])
    +- LogicalFilter(condition=[=($2, $0)])
       +- LogicalJoin(condition=[true], joinType=[inner])
@@ -186,7 +186,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b1])
          :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, b1])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, b1])
 +- LogicalUnion(all=[true])
    :- LogicalProject(a1=[$0], b1=[$1])
    :  +- LogicalFilter(condition=[<=($0, 10)])
@@ -213,10 +213,10 @@ Calc(select=[a, b1], reuse_id=[2])
    +- Exchange(distribution=[hash[a]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b1])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b1])
 +- Reused(reference_id=[2])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, b1])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, b1])
 +- Union(all=[true], union=[a1, b1])
    :- Reused(reference_id=[1])
    +- Reused(reference_id=[2])
@@ -226,7 +226,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, b1])
   <TestCase name="testMultiSinks4">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a1, b, c2])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a1, b, c2])
 +- LogicalProject(a1=[$0], b=[$1], c2=[$3])
    +- LogicalFilter(condition=[=($0, $2)])
       +- LogicalJoin(condition=[true], joinType=[inner])
@@ -239,7 +239,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a1, b, 
                   +- LogicalFilter(condition=[>=($0, 0)])
                      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a1, b, c1])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a1, b, c1])
 +- LogicalProject(a1=[$2], b=[$3], c1=[$1])
    +- LogicalFilter(condition=[=($2, $0)])
       +- LogicalJoin(condition=[true], joinType=[inner])
@@ -277,10 +277,10 @@ Calc(select=[a AS a1, b, c AS c2], reuse_id=[3])
       +- Calc(select=[a AS a2, c], where=[>=(b, 5)])
          +- Reused(reference_id=[2])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a1, b, c2])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a1, b, c2])
 +- Reused(reference_id=[3])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a1, b, c1])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a1, b, c1])
 +- Calc(select=[a1, b, c1])
    +- HashJoin(joinType=[InnerJoin], where=[=(a1, a3)], select=[a3, c1, a1, b], build=[left])
       :- Exchange(distribution=[hash[a3]])
@@ -295,12 +295,12 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a1, b, c1])
   <TestCase name="testMultiSinks5">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
    +- LogicalProject(a=[random_udf($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
    +- LogicalProject(a=[random_udf($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
@@ -311,13 +311,13 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_m
 Calc(select=[random_udf(a) AS a], reuse_id=[1])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS total_sum])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_SUM(a) AS sum$0])
          +- Reused(reference_id=[1])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS total_min])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_MIN(a) AS min$0])
@@ -328,7 +328,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
   <TestCase name="testMultiSinksSplitOnUnion1">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
@@ -337,7 +337,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_s
          +- LogicalProject(d=[$0], f=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
@@ -357,13 +357,13 @@ Union(all=[true], union=[a], reuse_id=[1])
    +- Calc(select=[d, f])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS total_sum])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_SUM(a) AS sum$0])
          +- Reused(reference_id=[1])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS total_min])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_MIN(a) AS min$0])
@@ -374,7 +374,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
   <TestCase name="testMultiSinksSplitOnUnion2">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
@@ -386,7 +386,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_s
          +- LogicalProject(a=[$0], c=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
@@ -398,7 +398,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_m
          +- LogicalProject(a=[$0], c=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink3`], fields=[a])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink3`], fields=[a])
 +- LogicalProject(a=[$0])
    +- LogicalUnion(all=[true])
       :- LogicalProject(a=[$0], c=[$2])
@@ -422,19 +422,19 @@ Union(all=[true], union=[a], reuse_id=[1])
 +- Calc(select=[a])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS total_sum])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_SUM(a) AS sum$0])
          +- Reused(reference_id=[1])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS total_min])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_MIN(a) AS min$0])
          +- Reused(reference_id=[1])
 
-Sink(name=[`default_catalog`.`default_database`.`sink3`], fields=[a])
+LegacySink(name=[`default_catalog`.`default_database`.`sink3`], fields=[a])
 +- Reused(reference_id=[2])
 ]]>
     </Resource>
@@ -442,14 +442,14 @@ Sink(name=[`default_catalog`.`default_database`.`sink3`], fields=[a])
   <TestCase name="testMultiSinksSplitOnUnion3">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, c])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, c])
 +- LogicalUnion(all=[true])
    :- LogicalProject(a=[$0], c=[$2])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(d=[$0], f=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_sum])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
@@ -462,7 +462,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_s
          +- LogicalProject(a=[$0], c=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink3`], fields=[total_min])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink3`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
@@ -484,7 +484,7 @@ Union(all=[true], union=[a, c], reuse_id=[1])
 +- Calc(select=[d, f])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, c])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, c])
 +- Reused(reference_id=[1])
 
 Union(all=[true], union=[a], reuse_id=[2])
@@ -494,13 +494,13 @@ Union(all=[true], union=[a], reuse_id=[2])
    +- Calc(select=[a, c])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_sum])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_sum])
 +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS total_sum])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_SUM(a) AS sum$0])
          +- Reused(reference_id=[2])
 
-Sink(name=[`default_catalog`.`default_database`.`sink3`], fields=[total_min])
+LegacySink(name=[`default_catalog`.`default_database`.`sink3`], fields=[total_min])
 +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS total_min])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_MIN(a) AS min$0])
@@ -511,7 +511,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink3`], fields=[total_min])
   <TestCase name="testMultiSinksSplitOnUnion4">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
@@ -523,7 +523,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_s
          +- LogicalProject(a=[$0], c=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
@@ -550,13 +550,13 @@ Union(all=[true], union=[a], reuse_id=[1])
    +- Calc(select=[a, c])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS total_sum])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_SUM(a) AS sum$0])
          +- Reused(reference_id=[1])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS total_min])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_MIN(a) AS min$0])
@@ -567,13 +567,13 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
   <TestCase name="testMultiSinksWithWindow">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, sum_c, time, window_start, window_end])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, sum_c, time, window_start, window_end])
 +- LogicalProject(a=[$1], sum_c=[$2], time=[TUMBLE_END($0)], window_start=[TUMBLE_START($0)], window_end=[TUMBLE_END($0)])
    +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
       +- LogicalProject($f0=[$TUMBLE($3, 15000:INTERVAL SECOND)], a=[$0], $f2=[CAST($2):DOUBLE])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, ts)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, sum_c, time])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, sum_c, time])
 +- LogicalProject(a=[$1], sum_c=[$2], time=[TUMBLE_END($0)])
    +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
       +- LogicalProject($f0=[$TUMBLE($3, 15000:INTERVAL SECOND)], a=[$0], $f2=[CAST($2):DOUBLE])
@@ -588,11 +588,11 @@ HashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 15000)], p
       +- Calc(select=[ts, a, CAST(c) AS c])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, ts)]]], fields=[a, b, c, ts])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, sum_c, time, window_start, window_end])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, sum_c, time, window_start, window_end])
 +- Calc(select=[a, sum_c, w$end AS time, w$start AS window_start, w$end AS window_end])
    +- Reused(reference_id=[1])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, sum_c, time])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, sum_c, time])
 +- Calc(select=[a, sum_c, w$end AS time])
    +- Reused(reference_id=[1])
 ]]>
@@ -601,7 +601,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, sum_c, time
   <TestCase name="testMultiSinksWithUDTF">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, total_c])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, total_c])
 +- LogicalProject(a=[$0], total_c=[$1])
    +- LogicalFilter(condition=[>($0, 50)])
       +- LogicalUnion(all=[true])
@@ -618,7 +618,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, tota
             +- LogicalFilter(condition=[>=($1, UNIX_TIMESTAMP(_UTF-16LE'${startTime}'))])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, total_c])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, total_c])
 +- LogicalProject(a=[$0], total_c=[$1])
    +- LogicalFilter(condition=[<($0, 50)])
       +- LogicalUnion(all=[true])
@@ -655,14 +655,14 @@ Calc(select=[a, total_c], reuse_id=[2])
 Calc(select=[a, 0 AS total_c], where=[>=(b, UNIX_TIMESTAMP(_UTF-16LE'${startTime}'))], reuse_id=[3])
 +- Reused(reference_id=[1])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, total_c])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, total_c])
 +- Union(all=[true], union=[a, total_c])
    :- Calc(select=[a, total_c], where=[>(a, 50)])
    :  +- Reused(reference_id=[2])
    +- Calc(select=[a, CAST(total_c) AS total_c], where=[>(a, 50)])
       +- Reused(reference_id=[3])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, total_c])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, total_c])
 +- Union(all=[true], union=[a, total_c])
    :- Calc(select=[a, total_c], where=[<(a, 50)])
    :  +- Reused(reference_id=[2])
@@ -674,7 +674,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, total_c])
   <TestCase name="testSingleSink1">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[c, cnt])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[c, cnt])
 +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
    +- LogicalProject(c=[$2], a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
@@ -682,7 +682,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[c,
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[c, cnt])
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[c, cnt])
 +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_COUNT(count$0) AS cnt])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashAggregate(groupBy=[c], select=[c, Partial_COUNT(a) AS count$0])
@@ -694,7 +694,7 @@ Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[c, cnt])
   <TestCase name="testSingleSink2">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b, c1])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b, c1])
 +- LogicalProject(a1=[$2], b=[$3], c1=[$1])
    +- LogicalFilter(condition=[=($2, $0)])
       +- LogicalJoin(condition=[true], joinType=[inner])
@@ -718,7 +718,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b, c1])
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b, c1])
 +- Calc(select=[a1, b, c1])
    +- HashJoin(joinType=[InnerJoin], where=[=(a1, a3)], select=[a3, c1, a1, b], build=[right])
       :- Exchange(distribution=[hash[a3]], shuffle_mode=[BATCH])
@@ -738,7 +738,7 @@ Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b, c1
   <TestCase name="testSingleSink3">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b1])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b1])
 +- LogicalUnion(all=[true])
    :- LogicalProject(a1=[$0], b1=[$1])
    :  +- LogicalFilter(condition=[<=($0, 10)])
@@ -754,7 +754,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b1])
+LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b1])
 +- Union(all=[true], union=[a, b])
    :- Calc(select=[a, b], where=[<=(a, 10)], reuse_id=[1])
    :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -771,7 +771,7 @@ Sink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b1])
   <TestCase name="testSingleSink4">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 +- LogicalProject(a1=[$0], b1=[$3], c1=[$4])
    +- LogicalFilter(condition=[=($0, $2)])
       +- LogicalJoin(condition=[true], joinType=[inner])
@@ -801,7 +801,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c]
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 +- Calc(select=[a AS a1, b1, c1])
    +- HashJoin(joinType=[InnerJoin], where=[=(a, a3)], select=[a, a3, b1, c1], build=[right])
       :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
@@ -826,7 +826,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
   <TestCase name="testSingleSinkWithUDTF">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], i=[$6], j=[$7], k=[$8], l=[$9], m=[$10], s=[$11])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], i=[$6], j=[$7], k=[$8], l=[$9], m=[$10])
@@ -841,7 +841,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c,
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s])
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c, d, e, f, i, j, k, l, m, s])
 +- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,d,e,f,i,j,k,l,m,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, BIGINT e, VARCHAR(2147483647) f, INTEGER i, BIGINT j, INTEGER k, VARCHAR(2147483647) l, BIGINT m, VARCHAR(2147483647) f0)], joinType=[INNER])
    +- HashJoin(joinType=[InnerJoin], where=[=(a, i)], select=[a, b, c, d, e, f, i, j, k, l, m], build=[left])
       :- Exchange(distribution=[hash[a]])
@@ -858,7 +858,7 @@ Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c, d, e, 
   <TestCase name="testSingleSinkSplitOnUnion">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[total_sum])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
@@ -870,7 +870,7 @@ LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[total_su
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[total_sum])
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[total_sum])
 +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS total_sum])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_SUM(a) AS sum$0])

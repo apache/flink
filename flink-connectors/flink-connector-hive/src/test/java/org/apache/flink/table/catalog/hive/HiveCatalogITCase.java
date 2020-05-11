@@ -26,7 +26,6 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.TableUtils;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -35,8 +34,11 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -105,7 +107,7 @@ public class HiveCatalogITCase {
 
 		String path = this.getClass().getResource("/csv/test.csv").getPath();
 
-		tableEnv.sqlUpdate("create table test2 (name String, age Int) with (\n" +
+		tableEnv.executeSql("create table test2 (name String, age Int) with (\n" +
 			"   'connector.type' = 'filesystem',\n" +
 			"   'connector.path' = 'file://" + path + "',\n" +
 			"   'format.type' = 'csv'\n" +
@@ -113,7 +115,7 @@ public class HiveCatalogITCase {
 
 		Table t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.test2");
 
-		List<Row> result = TableUtils.collectToList(t);
+		List<Row> result = Lists.newArrayList(t.execute().collect());
 
 		// assert query result
 		assertEquals(
@@ -124,11 +126,11 @@ public class HiveCatalogITCase {
 			new HashSet<>(result)
 		);
 
-		tableEnv.sqlUpdate("ALTER TABLE test2 RENAME TO newtable");
+		tableEnv.executeSql("ALTER TABLE test2 RENAME TO newtable");
 
 		t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.newtable");
 
-		result = TableUtils.collectToList(t);
+		result = Lists.newArrayList(t.execute().collect());
 
 		// assert query result
 		assertEquals(
@@ -139,7 +141,7 @@ public class HiveCatalogITCase {
 			new HashSet<>(result)
 		);
 
-		tableEnv.sqlUpdate("DROP TABLE newtable");
+		tableEnv.executeSql("DROP TABLE newtable");
 	}
 
 	@Test
@@ -195,7 +197,7 @@ public class HiveCatalogITCase {
 		Table t = tableEnv.sqlQuery(
 			String.format("select * from myhive.`default`.%s", sourceTableName));
 
-		List<Row> result = TableUtils.collectToList(t);
+		List<Row> result = Lists.newArrayList(t.execute().collect());
 		result.sort(Comparator.comparing(String::valueOf));
 
 		// assert query result
@@ -207,11 +209,10 @@ public class HiveCatalogITCase {
 			result
 		);
 
-		tableEnv.sqlUpdate(
+		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv,
 			String.format("insert into myhive.`default`.%s select * from myhive.`default`.%s",
 				sinkTableName,
 				sourceTableName));
-		tableEnv.execute("myjob");
 
 		// assert written result
 		File resultFile = new File(p.toAbsolutePath().toString());
@@ -225,8 +226,8 @@ public class HiveCatalogITCase {
 		// No more line
 		assertNull(reader.readLine());
 
-		tableEnv.sqlUpdate(String.format("DROP TABLE %s", sourceTableName));
-		tableEnv.sqlUpdate(String.format("DROP TABLE %s", sinkTableName));
+		tableEnv.executeSql(String.format("DROP TABLE %s", sourceTableName));
+		tableEnv.executeSql(String.format("DROP TABLE %s", sinkTableName));
 	}
 
 	@Test
@@ -241,21 +242,19 @@ public class HiveCatalogITCase {
 
 		String srcPath = this.getClass().getResource("/csv/test3.csv").getPath();
 
-		tableEnv.sqlUpdate("CREATE TABLE src (" +
+		tableEnv.executeSql("CREATE TABLE src (" +
 				"price DECIMAL(10, 2),currency STRING,ts6 TIMESTAMP(6),ts AS CAST(ts6 AS TIMESTAMP(3)),WATERMARK FOR ts AS ts) " +
 				String.format("WITH ('connector.type' = 'filesystem','connector.path' = 'file://%s','format.type' = 'csv')", srcPath));
 
 		String sinkPath = new File(tempFolder.newFolder(), "csv-order-sink").toURI().toString();
 
-		tableEnv.sqlUpdate("CREATE TABLE sink (" +
+		tableEnv.executeSql("CREATE TABLE sink (" +
 				"window_end TIMESTAMP(3),max_ts TIMESTAMP(6),counter BIGINT,total_price DECIMAL(10, 2)) " +
 				String.format("WITH ('connector.type' = 'filesystem','connector.path' = '%s','format.type' = 'csv')", sinkPath));
 
-		tableEnv.sqlUpdate("INSERT INTO sink " +
+		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "INSERT INTO sink " +
 				"SELECT TUMBLE_END(ts, INTERVAL '5' SECOND),MAX(ts6),COUNT(*),MAX(price) FROM src " +
 				"GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)");
-
-		tableEnv.execute("testJob");
 
 		String expected = "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
 				"2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n";

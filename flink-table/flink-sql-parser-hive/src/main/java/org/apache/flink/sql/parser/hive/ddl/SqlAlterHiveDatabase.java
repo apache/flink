@@ -30,7 +30,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  */
 public abstract class SqlAlterHiveDatabase extends SqlAlterDatabase {
 
-	public static final String ALTER_DATABASE_OP = "alter.database.op";
+	public static final String ALTER_DATABASE_OP = "hive.alter.database.op";
 
 	protected final SqlNodeList originPropList;
 

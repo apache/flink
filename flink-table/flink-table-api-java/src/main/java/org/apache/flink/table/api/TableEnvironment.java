@@ -21,7 +21,6 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
@@ -325,7 +324,9 @@ public interface TableEnvironment {
 	 * Creates a table from a table source.
 	 *
 	 * @param source table source used as table
+	 * @deprecated use {@link #createTemporaryView(String, Table)}.
 	 */
+	@Deprecated
 	Table fromTableSource(TableSource<?> source);
 
 	/**
@@ -544,55 +545,6 @@ public interface TableEnvironment {
 	void createTemporaryView(String path, Table view);
 
 	/**
-	 * Registers an external {@link TableSource} in this {@link TableEnvironment}'s catalog.
-	 * Registered tables can be referenced in SQL queries.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again one can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name        The name under which the {@link TableSource} is registered.
-	 * @param tableSource The {@link TableSource} to register.
-	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
-	 */
-	@Deprecated
-	void registerTableSource(String name, TableSource<?> tableSource);
-
-	/**
-	 * Registers an external {@link TableSink} with given field names and types in this
-	 * {@link TableEnvironment}'s catalog.
-	 * Registered sink tables can be referenced in SQL DML statements.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again one can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name The name under which the {@link TableSink} is registered.
-	 * @param fieldNames The field names to register with the {@link TableSink}.
-	 * @param fieldTypes The field types to register with the {@link TableSink}.
-	 * @param tableSink The {@link TableSink} to register.
-	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
-	 */
-	@Deprecated
-	void registerTableSink(String name, String[] fieldNames, TypeInformation<?>[] fieldTypes, TableSink<?> tableSink);
-
-	/**
-	 * Registers an external {@link TableSink} with already configured field names and field types in
-	 * this {@link TableEnvironment}'s catalog.
-	 * Registered sink tables can be referenced in SQL DML statements.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again one can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name The name under which the {@link TableSink} is registered.
-	 * @param configuredSink The configured {@link TableSink} to register.
-	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
-	 */
-	@Deprecated
-	void registerTableSink(String name, TableSink<?> configuredSink);
-
-	/**
 	 * Scans a registered table and returns the resulting {@link Table}.
 	 *
 	 * <p>A table to scan must be registered in the {@link TableEnvironment}. It can be either directly
@@ -676,7 +628,8 @@ public interface TableEnvironment {
 	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
 	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
 	 *        {@link Table} is written.
-	 * @deprecated use {@link #insertInto(String, Table)}
+	 * @deprecated use {@link Table#executeInsert(String)} for single sink,
+	 *             use {@link TableEnvironment#createStatementSet()} for multiple sinks.
 	 */
 	@Deprecated
 	void insertInto(Table table, String sinkPath, String... sinkPathContinued);
@@ -689,7 +642,10 @@ public interface TableEnvironment {
 	 *
 	 * @param targetPath The path of the registered {@link TableSink} to which the {@link Table} is written.
 	 * @param table The Table to write to the sink.
+	 * @deprecated use {@link Table#executeInsert(String)} for single sink,
+	 *             use {@link TableEnvironment#createStatementSet()} for multiple sinks.
 	 */
+	@Deprecated
 	void insertInto(String targetPath, Table table);
 
 	/**
@@ -820,7 +776,9 @@ public interface TableEnvironment {
 	 * the result of the given {@link Table}.
 	 *
 	 * @param table The table for which the AST and execution plan will be returned.
+	 * @deprecated use {@link Table#explain(ExplainDetail...)}.
 	 */
+	@Deprecated
 	String explain(Table table);
 
 	/**
@@ -830,7 +788,9 @@ public interface TableEnvironment {
 	 * @param table The table for which the AST and execution plan will be returned.
 	 * @param extended if the plan should contain additional properties,
 	 * e.g. estimated cost, traits
+	 * @deprecated use {@link Table#explain(ExplainDetail...)}.
 	 */
+	@Deprecated
 	String explain(Table table, boolean extended);
 
 	/**
@@ -839,7 +799,9 @@ public interface TableEnvironment {
 	 *
 	 * @param extended if the plan should contain additional properties,
 	 * e.g. estimated cost, traits
+	 * @deprecated use {@link StatementSet#explain(ExplainDetail...)}.
 	 */
+	@Deprecated
 	String explain(boolean extended);
 
 	/**
@@ -848,7 +810,7 @@ public interface TableEnvironment {
 	 *
 	 * @param statement The statement for which the AST and execution plan will be returned.
 	 * @param extraDetails The extra explain details which the explain result should include,
-	 *   e.g. estimated cost, change log trait for streaming
+	 *   e.g. estimated cost, changelog mode for streaming
 	 * @return AST and the execution plan.
 	 */
 	String explainSql(String statement, ExplainDetail... extraDetails);
@@ -912,7 +874,7 @@ public interface TableEnvironment {
 	 * <pre>
 	 * {@code
 	 *   // register the configured table sink into which the result is inserted.
-	 *   tEnv.registerTableSink("sinkTable", configuredSink);
+	 *   tEnv.registerTableSinkInternal("sinkTable", configuredSink);
 	 *   Table sourceTable = ...
 	 *   String tableName = sourceTable.toString();
 	 *   // sourceTable is not registered to the table environment
@@ -968,7 +930,10 @@ public interface TableEnvironment {
 	 * This code snippet creates a job to read data from Kafka source into a CSV sink.
 	 *
 	 * @param stmt The SQL statement to evaluate.
+	 * @deprecated use {@link #executeSql(String)} for single statement,
+	 *             use {@link TableEnvironment#createStatementSet()} for multiple DML statements.
 	 */
+	@Deprecated
 	void sqlUpdate(String stmt);
 
 	/**
@@ -1130,7 +1095,10 @@ public interface TableEnvironment {
 	 * @param jobName Desired name of the job
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception which occurs during job execution.
+	 * @deprecated use {@link #executeSql(String)} or {@link Table#executeInsert(String)} for single sink,
+	 *             use {@link #createStatementSet()} for multiple sinks.
 	 */
+	@Deprecated
 	JobExecutionResult execute(String jobName) throws Exception;
 
 	/**

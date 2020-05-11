@@ -70,7 +70,7 @@ final class TestingOverwritableTableSink private (
 
   override def getConsumedDataType: DataType = getTableSchema.toRowDataType
 
-  def getTableSchema: TableSchema = {
+  override def getTableSchema: TableSchema = {
     val dataTypes: Array[DataType] = fieldTypes.map(TypeConversions.fromLegacyInfoToDataType)
     TableSchema.builder().fields(fieldNames, dataTypes).build()
   }

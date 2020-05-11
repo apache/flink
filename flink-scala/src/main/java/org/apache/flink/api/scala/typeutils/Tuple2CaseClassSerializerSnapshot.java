@@ -95,8 +95,10 @@ public final class Tuple2CaseClassSerializerSnapshot<T1, T2>
 	}
 
 	@Override
-	protected boolean isOuterSnapshotCompatible(ScalaCaseClassSerializer<Tuple2<T1, T2>> newSerializer) {
-		return Objects.equals(type, newSerializer.getTupleClass());
+	protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(ScalaCaseClassSerializer<Tuple2<T1, T2>> newSerializer) {
+		return (Objects.equals(type, newSerializer.getTupleClass()))
+			? OuterSchemaCompatibility.COMPATIBLE_AS_IS
+			: OuterSchemaCompatibility.INCOMPATIBLE;
 	}
 
 	private static <T1, T2> Class<ScalaCaseClassSerializer<scala.Tuple2<T1, T2>>> correspondingSerializerClass() {

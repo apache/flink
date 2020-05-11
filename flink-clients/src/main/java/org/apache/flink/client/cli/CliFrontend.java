@@ -65,12 +65,14 @@ import java.io.FileNotFoundException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
@@ -184,23 +186,13 @@ public class CliFrontend {
 		final ApplicationDeployer deployer =
 				new ApplicationClusterDeployer(clusterClientServiceLoader);
 
-		final PackagedProgram program =
-				getPackagedProgram(programOptions);
-
+		programOptions.validate();
+		final URI uri = PackagedProgramUtils.resolveURI(programOptions.getJarFilePath());
+		final Configuration effectiveConfiguration =
+			getEffectiveConfiguration(commandLine, programOptions, Collections.singletonList(uri.toString()));
 		final ApplicationConfiguration applicationConfiguration =
-				new ApplicationConfiguration(program.getArguments(), program.getMainClassName());
-
-		try {
-			final List<URL> jobJars = program.getJobJarAndDependencies();
-			final Configuration effectiveConfiguration =
-					getEffectiveConfiguration(commandLine, programOptions, jobJars);
-
-			LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
-
-			deployer.run(effectiveConfiguration, applicationConfiguration);
-		} finally {
-			program.deleteExtractedLibraries();
-		}
+			new ApplicationConfiguration(programOptions.getProgramArgs(), programOptions.getEntryPointClassName());
+		deployer.run(effectiveConfiguration, applicationConfiguration);
 	}
 
 	/**
@@ -249,10 +241,10 @@ public class CliFrontend {
 		return program;
 	}
 
-	private Configuration getEffectiveConfiguration(
+	private <T> Configuration getEffectiveConfiguration(
 			final CommandLine commandLine,
 			final ProgramOptions programOptions,
-			final List<URL> jobJars) throws FlinkException {
+			final List<T> jobJars) throws FlinkException {
 
 		final CustomCommandLine customCommandLine = getActiveCustomCommandLine(checkNotNull(commandLine));
 		final ExecutionConfigAccessor executionParameters = ExecutionConfigAccessor.fromProgramOptions(
@@ -261,7 +253,10 @@ public class CliFrontend {
 
 		final Configuration executorConfig = customCommandLine.applyCommandLineOptionsToConfiguration(commandLine);
 		final Configuration effectiveConfiguration = new Configuration(executorConfig);
-		return executionParameters.applyToConfiguration(effectiveConfiguration);
+
+		executionParameters.applyToConfiguration(effectiveConfiguration);
+		LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
+		return effectiveConfiguration;
 	}
 
 	/**

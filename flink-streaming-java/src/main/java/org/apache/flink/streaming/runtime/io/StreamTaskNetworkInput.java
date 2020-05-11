@@ -210,12 +210,14 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 			final InputChannel channel = checkpointedInputGate.getChannel(channelIndex);
 
 			// Assumption for retrieving buffers = one concurrent checkpoint
-			recordDeserializers[channelIndex].getUnconsumedBuffer().ifPresent(buffer ->
+			RecordDeserializer<?> deserializer = recordDeserializers[channelIndex];
+			if (deserializer != null) {
 				channelStateWriter.addInputData(
 					checkpointId,
 					channel.getChannelInfo(),
 					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
-					buffer));
+					deserializer.getUnconsumedBuffer());
+			}
 
 			checkpointedInputGate.spillInflightBuffers(checkpointId, channelIndex, channelStateWriter);
 		}

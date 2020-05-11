@@ -103,7 +103,7 @@ class LimitITCase extends BatchTestBase {
   @Test(expected = classOf[ValidationException])
   def testTableLimitWithLimitTable(): Unit = {
     Assert.assertEquals(
-      executeQuery(tEnv.scan("LimitTable").fetch(5)).size,
+      executeQuery(tEnv.from("LimitTable").fetch(5)).size,
       5)
   }
 

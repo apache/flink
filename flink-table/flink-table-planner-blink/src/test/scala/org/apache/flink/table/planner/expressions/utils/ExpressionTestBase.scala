@@ -25,7 +25,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
@@ -239,7 +239,7 @@ abstract class ExpressionTestBase {
   private def addTableApiTestExpr(tableApiExpr: Expression, expected: String): Unit = {
     // create RelNode from Table API expression
     val relNode = relBuilder
-        .queryOperation(tEnv.scan(tableName).select(tableApiExpr).getQueryOperation).build()
+        .queryOperation(tEnv.from(tableName).select(tableApiExpr).getQueryOperation).build()
 
     addTestExpr(relNode, expected, tableApiExpr.asSummaryString())
   }

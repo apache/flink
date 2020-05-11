@@ -28,7 +28,7 @@ import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateUtil;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -235,7 +235,7 @@ public class PendingCheckpoint {
 	 */
 	public boolean canBeSubsumed() {
 		// If the checkpoint is forced, it cannot be subsumed.
-		return !props.forceCheckpoint();
+		return !props.isSavepoint();
 	}
 
 	CheckpointProperties getProps() {
@@ -432,7 +432,7 @@ public class PendingCheckpoint {
 
 	public TaskAcknowledgeResult acknowledgeCoordinatorState(
 			OperatorCoordinatorCheckpointContext coordinatorInfo,
-			@Nullable StreamStateHandle stateHandle) {
+			@Nullable ByteStreamStateHandle stateHandle) {
 
 		synchronized (lock) {
 			if (discarded) {
@@ -506,8 +506,8 @@ public class PendingCheckpoint {
 	}
 
 	private void assertAbortSubsumedForced(CheckpointFailureReason reason) {
-		if (props.forceCheckpoint() && reason == CheckpointFailureReason.CHECKPOINT_SUBSUMED) {
-			throw new IllegalStateException("Bug: forced checkpoints must never be subsumed, " +
+		if (props.isSavepoint() && reason == CheckpointFailureReason.CHECKPOINT_SUBSUMED) {
+			throw new IllegalStateException("Bug: savepoints must never be subsumed, " +
 				"the abort reason is : " + reason.message());
 		}
 	}

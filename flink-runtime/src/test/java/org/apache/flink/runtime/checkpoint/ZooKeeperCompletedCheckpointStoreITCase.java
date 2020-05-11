@@ -23,7 +23,6 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 
@@ -282,14 +281,6 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
 		// the checkpoint should be discarded eventually because there is no lock on it anymore
 		recoveredTestCheckpoint.awaitDiscard();
-	}
-
-
-	static class HeapStateStorageHelper implements RetrievableStateStorageHelper<CompletedCheckpoint> {
-		@Override
-		public RetrievableStateHandle<CompletedCheckpoint> store(CompletedCheckpoint state) throws Exception {
-			return new HeapRetrievableStateHandle<>(state);
-		}
 	}
 
 	static class HeapRetrievableStateHandle<T extends Serializable> implements RetrievableStateHandle<T> {

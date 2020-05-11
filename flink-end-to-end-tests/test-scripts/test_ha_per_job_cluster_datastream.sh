@@ -32,7 +32,7 @@ JOB_ID="00000000000000000000000000000000"
 
 function ha_cleanup() {
   stop_watchdogs
-  kill_all 'StandaloneJobClusterEntryPoint'
+  kill_all 'StandaloneApplicationClusterEntryPoint'
 }
 
 on_exit ha_cleanup
@@ -128,7 +128,7 @@ function run_ha_test() {
     wait_job_running ${JOB_ID}
 
     # start the watchdog that keeps the number of JMs stable
-    start_ha_jm_watchdog 1 "StandaloneJobClusterEntryPoint" run_job ${PARALLELISM} ${BACKEND} ${ASYNC} ${INCREM}
+    start_ha_jm_watchdog 1 "StandaloneApplicationClusterEntryPoint" run_job ${PARALLELISM} ${BACKEND} ${ASYNC} ${INCREM}
 
     # start the watchdog that keeps the number of TMs stable
     start_ha_tm_watchdog ${JOB_ID} ${neededTaskmanagers}
@@ -139,7 +139,7 @@ function run_ha_test() {
     for (( c=1; c<=${JM_KILLS}; c++ )); do
         # kill the JM and wait for watchdog to
         # create a new one which will take over
-        kill_single 'StandaloneJobClusterEntryPoint'
+        kill_single 'StandaloneApplicationClusterEntryPoint'
         # let the job start and take some checkpoints
         wait_num_of_occurence_in_logs "Completed checkpoint [1-9]* for job ${JOB_ID}" 2 "standalonejob-${c}"
     done

@@ -23,8 +23,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
@@ -49,6 +50,7 @@ import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.Field;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
@@ -396,21 +398,22 @@ public class TableSchema {
 		// field can be nested.
 
 		// This also check duplicate fields.
-		final Map<String, DataType> fieldNameToType = new HashMap<>();
+		final Map<String, LogicalType> fieldNameToType = new HashMap<>();
 		for (TableColumn column : columns) {
-			validateAndCreateNameToTypeMapping(fieldNameToType,
+			validateAndCreateNameToTypeMapping(
+				fieldNameToType,
 				column.getName(),
-				column.getType(),
+				column.getType().getLogicalType(),
 				"");
 		}
 
 		// Validate watermark and rowtime attribute.
 		for (WatermarkSpec watermark : watermarkSpecs) {
 			String rowtimeAttribute = watermark.getRowtimeAttribute();
-			DataType rowtimeType = Optional.ofNullable(fieldNameToType.get(rowtimeAttribute))
+			LogicalType rowtimeType = Optional.ofNullable(fieldNameToType.get(rowtimeAttribute))
 				.orElseThrow(() -> new ValidationException(String.format(
 					"Rowtime attribute '%s' is not defined in schema.", rowtimeAttribute)));
-			if (rowtimeType.getLogicalType().getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
+			if (rowtimeType.getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
 				throw new ValidationException(String.format(
 					"Rowtime attribute '%s' must be of type TIMESTAMP but is of type '%s'.",
 					rowtimeAttribute, rowtimeType));
@@ -474,19 +477,25 @@ public class TableSchema {
 	 * @param parentFieldName Field name of parent type, e.g. "f0" in the above example
 	 */
 	private static void validateAndCreateNameToTypeMapping(
-			Map<String, DataType> fieldNameToType,
+			Map<String, LogicalType> fieldNameToType,
 			String fieldName,
-			DataType fieldType,
+			LogicalType fieldType,
 			String parentFieldName) {
 		String fullFieldName = parentFieldName.isEmpty() ? fieldName : parentFieldName + "." + fieldName;
-		DataType oldType = fieldNameToType.put(fullFieldName, fieldType);
+		LogicalType oldType = fieldNameToType.put(fullFieldName, fieldType);
 		if (oldType != null) {
 			throw new ValidationException("Field names must be unique. Duplicate field: '" + fullFieldName + "'");
 		}
-		if (fieldType instanceof FieldsDataType) {
-			Map<String, DataType> fieldDataTypes = ((FieldsDataType) fieldType).getFieldDataTypes();
-			fieldDataTypes.forEach((key, value) ->
-				validateAndCreateNameToTypeMapping(fieldNameToType, key, value, fullFieldName));
+		if (isCompositeType(fieldType) && !(fieldType instanceof LegacyTypeInformationType)) {
+			final List<String> fieldNames = LogicalTypeChecks.getFieldNames(fieldType);
+			final List<LogicalType> fieldTypes = fieldType.getChildren();
+			IntStream.range(0, fieldNames.size())
+				.forEach(i ->
+					validateAndCreateNameToTypeMapping(
+						fieldNameToType,
+						fieldNames.get(i),
+						fieldTypes.get(i),
+						fullFieldName));
 		}
 	}
 
@@ -553,6 +562,16 @@ public class TableSchema {
 		}
 
 		/**
+		 * Adds a {@link TableColumn} to this builder.
+		 *
+		 * <p>The call order of this method determines the order of fields in the schema.
+		 */
+		public Builder add(TableColumn column) {
+			columns.add(column);
+			return this;
+		}
+
+		/**
 		 * Add an array of fields with names and data types.
 		 *
 		 * <p>The call order of this method determines the order of fields in the schema.
@@ -605,6 +624,17 @@ public class TableSchema {
 				rowtimeAttribute,
 				watermarkExpressionString,
 				watermarkExprOutputType));
+			return this;
+		}
+
+		/**
+		 * Adds the given {@link WatermarkSpec} to this builder.
+		 */
+		public Builder watermark(WatermarkSpec watermarkSpec) {
+			if (!this.watermarkSpecs.isEmpty()) {
+				throw new IllegalStateException("Multiple watermark definition is not supported yet.");
+			}
+			this.watermarkSpecs.add(watermarkSpec);
 			return this;
 		}
 

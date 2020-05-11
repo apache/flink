@@ -32,6 +32,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.Utils;
@@ -1591,25 +1592,52 @@ public class StreamExecutionEnvironment {
 	@SuppressWarnings("unchecked")
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
 
-		if (function instanceof ResultTypeQueryable) {
-			typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
-		}
-		if (typeInfo == null) {
-			try {
-				typeInfo = TypeExtractor.createTypeInfo(
-						SourceFunction.class,
-						function.getClass(), 0, null, null);
-			} catch (final InvalidTypesException e) {
-				typeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
-			}
-		}
+		TypeInformation<OUT> resolvedTypeInfo = getTypeInfo(function, sourceName, SourceFunction.class, typeInfo);
 
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
 		clean(function);
 
 		final StreamSource<OUT, ?> sourceOperator = new StreamSource<>(function);
-		return new DataStreamSource<>(this, typeInfo, sourceOperator, isParallel, sourceName);
+		return new DataStreamSource<>(this, resolvedTypeInfo, sourceOperator, isParallel, sourceName);
+	}
+
+	/**
+	 * Add a data {@link Source} to the environment to get a {@link DataStream}.
+	 *
+	 * @param source
+	 * 		the user defined source
+	 * @param sourceName
+	 * 		Name of the data source
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @return the data stream constructed
+	 */
+	@PublicEvolving
+	public <OUT> DataStreamSource<OUT> continuousSource(Source<OUT, ?, ?> source, String sourceName) {
+		return continuousSource(source, sourceName, null);
+	}
+
+	/**
+	 * Add a data {@link Source} to the environment to get a {@link DataStream}.
+	 *
+	 * @param source
+	 * 		the user defined source
+	 * @param sourceName
+	 * 		Name of the data source
+	 * @param <OUT>
+	 * 		type of the returned stream
+	 * @param typeInfo
+	 * 		the user defined type information for the stream
+	 * @return the data stream constructed
+	 */
+	@PublicEvolving
+	public <OUT> DataStreamSource<OUT> continuousSource(
+			Source<OUT, ?, ?> source,
+			String sourceName,
+			TypeInformation<OUT> typeInfo) {
+		TypeInformation<OUT> resolvedTypeInfo = getTypeInfo(source, sourceName, Source.class, typeInfo);
+		return new DataStreamSource<>(this, source, resolvedTypeInfo, sourceName);
 	}
 
 	/**
@@ -2105,5 +2133,28 @@ public class StreamExecutionEnvironment {
 	 */
 	public void registerCachedFile(String filePath, String name, boolean executable) {
 		this.cacheFile.add(new Tuple2<>(name, new DistributedCache.DistributedCacheEntry(filePath, executable)));
+	}
+
+	// Private helpers.
+	@SuppressWarnings("unchecked")
+	private <OUT, T extends TypeInformation<OUT>> T getTypeInfo(
+			Object source,
+			String sourceName,
+			Class<?> baseSourceClass,
+			TypeInformation<OUT> typeInfo) {
+		TypeInformation<OUT> resolvedTypeInfo = typeInfo;
+		if (source instanceof ResultTypeQueryable) {
+			resolvedTypeInfo = ((ResultTypeQueryable<OUT>) source).getProducedType();
+		}
+		if (resolvedTypeInfo == null) {
+			try {
+				resolvedTypeInfo = TypeExtractor.createTypeInfo(
+						baseSourceClass,
+						source.getClass(), 0, null, null);
+			} catch (final InvalidTypesException e) {
+				resolvedTypeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
+			}
+		}
+		return (T) resolvedTypeInfo;
 	}
 }

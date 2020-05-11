@@ -21,17 +21,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.elasticsearch.testutils.ElasticsearchResource;
 import org.apache.flink.streaming.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.util.InstantiationUtil;
 
 import org.elasticsearch.client.Client;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,41 +44,10 @@ import static org.junit.Assert.fail;
  */
 public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> extends AbstractTestBase {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSinkTestBase.class);
-
 	protected static final String CLUSTER_NAME = "test-cluster";
 
-	protected static EmbeddedElasticsearchNodeEnvironment embeddedNodeEnv;
-
 	@ClassRule
-	public static TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@BeforeClass
-	public static void prepare() throws Exception {
-
-		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    Starting embedded Elasticsearch node ");
-		LOG.info("-------------------------------------------------------------------------");
-
-		// dynamically load version-specific implementation of the Elasticsearch embedded node environment
-		Class<?> clazz = Class.forName(
-			"org.apache.flink.streaming.connectors.elasticsearch.EmbeddedElasticsearchNodeEnvironmentImpl");
-		embeddedNodeEnv = (EmbeddedElasticsearchNodeEnvironment) InstantiationUtil.instantiate(clazz);
-
-		embeddedNodeEnv.start(tempFolder.newFolder(), CLUSTER_NAME);
-
-	}
-
-	@AfterClass
-	public static void shutdown() throws Exception {
-
-		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    Shutting down embedded Elasticsearch node ");
-		LOG.info("-------------------------------------------------------------------------");
-
-		embeddedNodeEnv.close();
-
-	}
+	public static ElasticsearchResource elasticsearchResource = new ElasticsearchResource(CLUSTER_NAME);
 
 	/**
 	 * Tests that the Elasticsearch sink works properly with json.
@@ -128,7 +92,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		env.execute("Elasticsearch Sink Test");
 
 		// verify the results
-		Client client = embeddedNodeEnv.getClient();
+		Client client = elasticsearchResource.getClient();
 		SourceSinkDataTestKit.verifyProducedSinkData(client, index);
 
 		client.close();

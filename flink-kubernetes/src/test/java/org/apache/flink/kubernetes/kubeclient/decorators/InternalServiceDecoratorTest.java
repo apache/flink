@@ -29,7 +29,6 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -47,9 +46,10 @@ public class InternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
 	private InternalServiceDecorator internalServiceDecorator;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
+
 		this.internalServiceDecorator = new InternalServiceDecorator(this.kubernetesJobManagerParameters);
 	}
 

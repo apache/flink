@@ -35,9 +35,9 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinator;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -120,13 +120,13 @@ public class PendingCheckpointTest {
 		// Non-forced checkpoints can be subsumed
 		CheckpointProperties subsumed = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
 		pending = createPendingCheckpoint(subsumed);
-		assertTrue(pending.canBeSubsumed());
+		assertFalse(pending.canBeSubsumed());
 	}
 
 	@Test
 	public void testSyncSavepointCannotBeSubsumed() throws Exception {
 		// Forced checkpoints cannot be subsumed
-		CheckpointProperties forced = CheckpointProperties.forSyncSavepoint();
+		CheckpointProperties forced = CheckpointProperties.forSyncSavepoint(true);
 		PendingCheckpoint pending = createPendingCheckpoint(forced);
 		assertFalse(pending.canBeSubsumed());
 
@@ -198,7 +198,7 @@ public class PendingCheckpointTest {
 	 */
 	@Test
 	public void testAbortDiscardsState() throws Exception {
-		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+		CheckpointProperties props = new CheckpointProperties(false, CheckpointType.CHECKPOINT, false, false, false, false, false);
 		QueueExecutor executor = new QueueExecutor();
 
 		OperatorState state = mock(OperatorState.class);
@@ -519,7 +519,7 @@ public class PendingCheckpointTest {
 		return checkpoint;
 	}
 
-	private PendingCheckpoint createPendingCheckpointWithAcknowledgedCoordinators(StreamStateHandle... handles) throws IOException {
+	private PendingCheckpoint createPendingCheckpointWithAcknowledgedCoordinators(ByteStreamStateHandle... handles) throws IOException {
 		OperatorCoordinatorCheckpointContext[] coords = new OperatorCoordinatorCheckpointContext[handles.length];
 		for (int i = 0; i < handles.length; i++) {
 			coords[i] = createOperatorCoordinator();

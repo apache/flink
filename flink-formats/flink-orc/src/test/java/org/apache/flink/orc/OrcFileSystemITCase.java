@@ -20,9 +20,17 @@ package org.apache.flink.orc;
 
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.orc.OrcFile;
+import org.apache.orc.Reader;
+import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -50,8 +58,31 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
 		List<String> ret = new ArrayList<>();
 		ret.add("'format'='orc'");
 		if (configure) {
-			ret.add("'format.orc.compress'='snappy'");
+			ret.add("'orc.compress'='snappy'");
 		}
 		return ret.toArray(new String[0]);
+	}
+
+	@Override
+	public void testNonPartition() {
+		super.testNonPartition();
+
+		// test configure success
+		File directory = new File(URI.create(resultPath()).getPath());
+		File[] files = directory.listFiles((dir, name) ->
+				!name.startsWith(".") && !name.startsWith("_"));
+		Assert.assertNotNull(files);
+		Path path = new Path(URI.create(files[0].getAbsolutePath()));
+
+		try {
+			Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(new Configuration()));
+			if (configure) {
+				Assert.assertEquals("SNAPPY", reader.getCompressionKind().toString());
+			} else {
+				Assert.assertEquals("ZLIB", reader.getCompressionKind().toString());
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }

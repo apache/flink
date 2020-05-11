@@ -19,12 +19,13 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
@@ -69,7 +70,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |FROM src
         |GROUP BY TUMBLE(ts, INTERVAL '0.003' SECOND)
       """.stripMargin
-    tEnv.sqlUpdate(ddl)
+    tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
     env.execute("SQL JOB")
@@ -106,7 +107,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |FROM src
         |GROUP BY TUMBLE(ts, INTERVAL '0.003' SECOND)
       """.stripMargin
-    tEnv.sqlUpdate(ddl)
+    tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
     env.execute("SQL JOB")
@@ -143,7 +144,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |FROM src
         |GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)
       """.stripMargin
-    tEnv.sqlUpdate(ddl)
+    tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
     env.execute("SQL JOB")
@@ -177,7 +178,7 @@ class TimeAttributeITCase extends StreamingTestBase {
         |FROM src
         |GROUP BY TUMBLE(col.ts, INTERVAL '0.003' SECOND)
       """.stripMargin
-    tEnv.sqlUpdate(ddl)
+    tEnv.executeSql(ddl)
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       "Nested field 'col.ts' as rowtime attribute is not supported right now.")

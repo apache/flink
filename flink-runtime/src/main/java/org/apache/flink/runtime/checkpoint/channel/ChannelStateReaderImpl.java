@@ -88,6 +88,11 @@ public class ChannelStateReaderImpl implements ChannelStateReader {
 	}
 
 	@Override
+	public boolean hasChannelStates() {
+		return !(inputChannelHandleReaders.isEmpty() && resultSubpartitionHandleReaders.isEmpty());
+	}
+
+	@Override
 	public ReadResult readInputData(InputChannelInfo info, Buffer buffer) throws IOException {
 		Preconditions.checkState(!isClosed, "reader is closed");
 		log.debug("readInputData, resultSubpartitionInfo: {} , buffer {}", info, buffer);

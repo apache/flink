@@ -20,6 +20,9 @@ package org.apache.flink.table.filesystem;
 
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.io.CollectionInputFormat;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DelegatingConfiguration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
@@ -59,7 +62,7 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 	private final Path path;
 	private final List<String> partitionKeys;
 	private final String defaultPartName;
-	private final Map<String, String> formatProperties;
+	private final Map<String, String> properties;
 
 	private final int[] selectFields;
 	private final Long limit;
@@ -75,15 +78,15 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 	 * @param partitionKeys partition keys of the table.
 	 * @param defaultPartName The default partition name in case the dynamic partition column value
 	 *                        is null/empty string.
-	 * @param formatProperties format properties.
+	 * @param properties table properties.
 	 */
 	public FileSystemTableSource(
 			TableSchema schema,
 			Path path,
 			List<String> partitionKeys,
 			String defaultPartName,
-			Map<String, String> formatProperties) {
-		this(schema, path, partitionKeys, defaultPartName, formatProperties, null, null, null, null);
+			Map<String, String> properties) {
+		this(schema, path, partitionKeys, defaultPartName, properties, null, null, null, null);
 	}
 
 	private FileSystemTableSource(
@@ -91,7 +94,7 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 			Path path,
 			List<String> partitionKeys,
 			String defaultPartName,
-			Map<String, String> formatProperties,
+			Map<String, String> properties,
 			List<Map<String, String>> readPartitions,
 			int[] selectFields,
 			Long limit,
@@ -100,7 +103,7 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 		this.path = path;
 		this.partitionKeys = partitionKeys;
 		this.defaultPartName = defaultPartName;
-		this.formatProperties = formatProperties;
+		this.properties = properties;
 		this.readPartitions = readPartitions;
 		this.selectFields = selectFields;
 		this.limit = limit;
@@ -114,8 +117,10 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 			return new CollectionInputFormat<>(new ArrayList<>(), null);
 		}
 
-		return createFormatFactory(formatProperties).createReader(
-				new FileSystemFormatFactory.ReaderContext() {
+		FileSystemFormatFactory formatFactory = createFormatFactory(properties);
+		Configuration conf = new Configuration();
+		properties.forEach(conf::setString);
+		return formatFactory.createReader(new FileSystemFormatFactory.ReaderContext() {
 
 			@Override
 			public TableSchema getSchema() {
@@ -123,8 +128,8 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 			}
 
 			@Override
-			public Map<String, String> getFormatProperties() {
-				return formatProperties;
+			public ReadableConfig getFormatOptions() {
+				return new DelegatingConfiguration(conf, formatFactory.factoryIdentifier() + ".");
 			}
 
 			@Override
@@ -212,7 +217,7 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 				path,
 				partitionKeys,
 				defaultPartName,
-				formatProperties,
+				properties,
 				remainingPartitions,
 				selectFields,
 				limit,
@@ -226,7 +231,7 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 				path,
 				partitionKeys,
 				defaultPartName,
-				formatProperties,
+				properties,
 				readPartitions,
 				fields,
 				limit,
@@ -240,7 +245,7 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 				path,
 				partitionKeys,
 				defaultPartName,
-				formatProperties,
+				properties,
 				readPartitions,
 				selectFields,
 				limit,
@@ -259,7 +264,7 @@ public class FileSystemTableSource extends InputFormatTableSource<RowData> imple
 				path,
 				partitionKeys,
 				defaultPartName,
-				formatProperties,
+				properties,
 				readPartitions,
 				selectFields,
 				limit,

@@ -67,6 +67,7 @@ import java.util.Optional;
 import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -169,6 +170,26 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		final StreamExecutionEnvironmentMock mock = new StreamExecutionEnvironmentMock();
 		actualKafkaSource.getDataStream(mock);
 		assertTrue(getExpectedFlinkKafkaConsumer().isAssignableFrom(mock.sourceFunction.getClass()));
+		assertTrue(((FlinkKafkaConsumerBase) mock.sourceFunction).getEnableCommitOnCheckpoints());
+
+		Properties propsWithoutGroupId = new Properties();
+		propsWithoutGroupId.setProperty("bootstrap.servers", "dummy");
+
+		final KafkaTableSourceBase sourceWithoutGroupId = getExpectedKafkaTableSource(
+			schema,
+			Optional.of(PROC_TIME),
+			rowtimeAttributeDescriptors,
+			fieldMapping,
+			TOPIC,
+			propsWithoutGroupId,
+			deserializationSchema,
+			StartupMode.LATEST,
+			new HashMap<>(),
+			0L);
+
+		sourceWithoutGroupId.getDataStream(mock);
+		assertTrue(mock.sourceFunction instanceof FlinkKafkaConsumerBase);
+		assertFalse(((FlinkKafkaConsumerBase) mock.sourceFunction).getEnableCommitOnCheckpoints());
 	}
 
 	@Test

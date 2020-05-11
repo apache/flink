@@ -18,10 +18,14 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
+import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.orc.nohive.OrcNoHiveBulkWriterFactory;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
@@ -306,6 +310,12 @@ public class HiveShimV100 implements HiveShim {
 			List<String> notNullCols,
 			List<Byte> nnTraits) {
 		throw new UnsupportedOperationException("Table constraints not supported until 2.1.0");
+	}
+
+	@Override
+	public BulkWriter.Factory<RowData> createOrcBulkWriterFactory(
+			Configuration conf, String schema, LogicalType[] fieldTypes) {
+		return new OrcNoHiveBulkWriterFactory(conf, schema, fieldTypes);
 	}
 
 	Optional<Writable> javaToWritable(@Nonnull Object value) {

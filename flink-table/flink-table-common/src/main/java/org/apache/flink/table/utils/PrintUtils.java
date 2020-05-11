@@ -39,8 +39,8 @@ import java.util.List;
 public class PrintUtils {
 
 	// constants for printing
-	private static final int MAX_COLUMN_WIDTH = 30;
-	private static final String NULL_COLUMN = "(NULL)";
+	public static final int MAX_COLUMN_WIDTH = 30;
+	public static final String NULL_COLUMN = "(NULL)";
 	private static final String COLUMN_TRUNCATED_FLAG = "...";
 
 	private PrintUtils() {
@@ -65,16 +65,40 @@ public class PrintUtils {
 			TableSchema tableSchema,
 			Iterator<Row> it,
 			PrintWriter printWriter) {
+		printAsTableauForm(tableSchema, it, printWriter, MAX_COLUMN_WIDTH, NULL_COLUMN);
+	}
+
+	/**
+	 * Displays the result in a tableau form.
+	 *
+	 * <p>For example:
+	 * +-------------+---------+-------------+
+	 * | boolean_col | int_col | varchar_col |
+	 * +-------------+---------+-------------+
+	 * |        true |       1 |         abc |
+	 * |       false |       2 |         def |
+	 * |      (NULL) |  (NULL) |      (NULL) |
+	 * +-------------+---------+-------------+
+	 * 3 rows in result
+	 *
+	 * <p>Changelog is not supported until FLINK-16998 is finished.
+	 */
+	public static void printAsTableauForm(
+			TableSchema tableSchema,
+			Iterator<Row> it,
+			PrintWriter printWriter,
+			int maxColumnWidth,
+			String nullColumn) {
 		List<String[]> rows = new ArrayList<>();
 
 		// fill field names first
 		List<TableColumn> columns = tableSchema.getTableColumns();
 		rows.add(columns.stream().map(TableColumn::getName).toArray(String[]::new));
 		while (it.hasNext()) {
-			rows.add(rowToString(it.next()));
+			rows.add(rowToString(it.next(), nullColumn));
 		}
 
-		int[] colWidths = columnWidthsByContent(columns, rows);
+		int[] colWidths = columnWidthsByContent(columns, rows, maxColumnWidth);
 		String borderline = genBorderLine(colWidths);
 
 		// print field names
@@ -100,11 +124,15 @@ public class PrintUtils {
 	}
 
 	public static String[] rowToString(Row row) {
+		return rowToString(row, NULL_COLUMN);
+	}
+
+	public static String[] rowToString(Row row, String nullColumn) {
 		final String[] fields = new String[row.getArity()];
 		for (int i = 0; i < row.getArity(); i++) {
 			final Object field = row.getField(i);
 			if (field == null) {
-				fields[i] = NULL_COLUMN;
+				fields[i] = nullColumn;
 			} else {
 				fields[i] = StringUtils.arrayAwareToString(field);
 			}
@@ -112,7 +140,10 @@ public class PrintUtils {
 		return fields;
 	}
 
-	private static int[] columnWidthsByContent(List<TableColumn> columns, List<String[]> rows) {
+	private static int[] columnWidthsByContent(
+			List<TableColumn> columns,
+			List<String[]> rows,
+			int maxColumnWidth) {
 		// fill width with field names first
 		int[] colWidths = columns.stream().mapToInt(col -> col.getName().length()).toArray();
 
@@ -125,7 +156,7 @@ public class PrintUtils {
 
 		// adjust column width with maximum length
 		for (int i = 0; i < colWidths.length; ++i) {
-			colWidths[i] = Math.min(colWidths[i], MAX_COLUMN_WIDTH);
+			colWidths[i] = Math.min(colWidths[i], maxColumnWidth);
 		}
 
 		return colWidths;

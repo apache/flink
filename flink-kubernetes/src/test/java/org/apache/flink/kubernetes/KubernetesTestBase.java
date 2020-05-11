@@ -71,13 +71,20 @@ public class KubernetesTestBase extends TestLogger {
 
 	protected FlinkKubeClient flinkKubeClient;
 
-	@Before
-	public void setup() throws Exception {
+	protected void setupFlinkConfig() {
 		flinkConfig.setString(KubernetesConfigOptions.NAMESPACE, NAMESPACE);
 		flinkConfig.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
 		flinkConfig.setString(KubernetesConfigOptions.CONTAINER_IMAGE, CONTAINER_IMAGE);
 		flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY, CONTAINER_IMAGE_PULL_POLICY);
 		flinkConfig.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(JOB_MANAGER_MEMORY));
+	}
+
+	protected void onSetup() throws Exception {
+	}
+
+	@Before
+	public final void setup() throws Exception {
+		setupFlinkConfig();
 
 		flinkConfDir = temporaryFolder.newFolder().getAbsoluteFile();
 		hadoopConfDir = temporaryFolder.newFolder().getAbsoluteFile();
@@ -90,6 +97,8 @@ public class KubernetesTestBase extends TestLogger {
 
 		kubeClient = server.getClient().inNamespace(NAMESPACE);
 		flinkKubeClient = new Fabric8FlinkKubeClient(flinkConfig, kubeClient, Executors::newDirectExecutorService);
+
+		onSetup();
 	}
 
 	@After

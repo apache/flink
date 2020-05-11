@@ -19,15 +19,14 @@
 package org.apache.flink.table.api.batch
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{ResultKind, TableException}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.runtime.stream.sql.FunctionITCase.{SimpleScalarFunction, TestUDF}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId, _}
 import org.apache.flink.types.Row
 
-import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.Test
 
@@ -267,17 +266,6 @@ class BatchTableEnvironmentTest extends TableTestBase {
     checkData(
       util.tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
       tableResult.collect())
-  }
-
-  @Test
-  def testExecuteSqlWithUnsupportedStmt(): Unit = {
-    val util = batchTestUtil()
-    util.addTable[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(containsString("Unsupported SQL query!"))
-    // TODO supports select later
-    util.tableEnv.executeSql("select * from MyTable")
   }
 
   @Test
@@ -536,6 +524,34 @@ class BatchTableEnvironmentTest extends TableTestBase {
       case e =>
         fail("This should not happen, " + e.getMessage)
     }
+  }
+
+  @Test
+  def testExecuteSqlWithDescribe(): Unit = {
+    val testUtil = batchTestUtil()
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = testUtil.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val tableResult2 = testUtil.tableEnv.executeSql("DESCRIBE tbl1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    checkData(
+      java.util.Arrays.asList(
+        Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+        Row.of("b", "INT", Boolean.box(true), null, null, null),
+        Row.of("c", "STRING", Boolean.box(true), null, null, null)
+      ).iterator(),
+      tableResult2.collect())
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {

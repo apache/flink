@@ -79,7 +79,7 @@ public final class TypeStrategies {
 			.mapToObj(idx -> DataTypes.FIELD("f" + idx, argumentDataTypes.get(idx)))
 			.toArray(DataTypes.Field[]::new);
 
-		return Optional.of(DataTypes.ROW(fields));
+		return Optional.of(DataTypes.ROW(fields).notNull());
 	};
 
 	/**
@@ -91,7 +91,7 @@ public final class TypeStrategies {
 		if (argumentDataTypes.size() < 2) {
 			return Optional.empty();
 		}
-		return Optional.of(DataTypes.MAP(argumentDataTypes.get(0), argumentDataTypes.get(1)));
+		return Optional.of(DataTypes.MAP(argumentDataTypes.get(0), argumentDataTypes.get(1)).notNull());
 	};
 
 	/**
@@ -103,7 +103,7 @@ public final class TypeStrategies {
 		if (argumentDataTypes.size() < 1) {
 			return Optional.empty();
 		}
-		return Optional.of(DataTypes.ARRAY(argumentDataTypes.get(0)));
+		return Optional.of(DataTypes.ARRAY(argumentDataTypes.get(0)).notNull());
 	};
 
 	// --------------------------------------------------------------------------------------------

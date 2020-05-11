@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.configuration.Configuration;
+
 import java.net.URL;
 import java.util.List;
 
@@ -35,6 +37,7 @@ public class CliOptions {
 	private final List<URL> libraryDirs;
 	private final String updateStatement;
 	private final String historyFilePath;
+	private final Configuration pythonConfiguration;
 
 	public CliOptions(
 			boolean isPrintHelp,
@@ -44,7 +47,8 @@ public class CliOptions {
 			List<URL> jars,
 			List<URL> libraryDirs,
 			String updateStatement,
-			String historyFilePath) {
+			String historyFilePath,
+			Configuration pythonConfiguration) {
 		this.isPrintHelp = isPrintHelp;
 		this.sessionId = sessionId;
 		this.environment = environment;
@@ -53,6 +57,7 @@ public class CliOptions {
 		this.libraryDirs = libraryDirs;
 		this.updateStatement = updateStatement;
 		this.historyFilePath = historyFilePath;
+		this.pythonConfiguration = pythonConfiguration;
 	}
 
 	public boolean isPrintHelp() {
@@ -85,5 +90,9 @@ public class CliOptions {
 
 	public String getHistoryFilePath() {
 		return historyFilePath;
+	}
+
+	public Configuration getPythonConfiguration() {
+		return pythonConfiguration;
 	}
 }

@@ -226,6 +226,7 @@ object FlinkStreamRuleSets {
     */
   private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
     // scan optimization
+    PushProjectIntoTableSourceScanRule.INSTANCE,
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
 
@@ -310,7 +311,8 @@ object FlinkStreamRuleSets {
     FlinkLogicalWindowTableAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
     FlinkLogicalMatch.CONVERTER,
-    FlinkLogicalSink.CONVERTER
+    FlinkLogicalSink.CONVERTER,
+    FlinkLogicalLegacySink.CONVERTER
   )
 
   /**
@@ -406,7 +408,8 @@ object FlinkStreamRuleSets {
     StreamExecCorrelateRule.INSTANCE,
     StreamExecPythonCorrelateRule.INSTANCE,
     // sink
-    StreamExecSinkRule.INSTANCE
+    StreamExecSinkRule.INSTANCE,
+    StreamExecLegacySinkRule.INSTANCE
   )
 
   /**

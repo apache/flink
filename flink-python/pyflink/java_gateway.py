@@ -22,9 +22,11 @@ import shutil
 import struct
 import tempfile
 import time
+from logging import WARN
 from threading import RLock
 
-from py4j.java_gateway import java_import, JavaGateway, GatewayParameters, CallbackServerParameters
+from py4j.java_gateway import (java_import, logger, JavaGateway, GatewayParameters,
+                               CallbackServerParameters)
 from pyflink.pyflink_gateway_server import launch_gateway_server_process
 from pyflink.util.exceptions import install_exception_handler
 
@@ -46,6 +48,8 @@ def get_gateway():
     global _lock
     with _lock:
         if _gateway is None:
+            # Set the level to WARN to mute the noisy INFO level logs
+            logger.level = WARN
             # if Java Gateway is already running
             if 'PYFLINK_GATEWAY_PORT' in os.environ:
                 gateway_port = int(os.environ['PYFLINK_GATEWAY_PORT'])
@@ -126,6 +130,7 @@ def import_flink_view(gateway):
     # Import the classes used by PyFlink
     java_import(gateway.jvm, "org.apache.flink.table.api.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.java.*")
+    java_import(gateway.jvm, "org.apache.flink.table.api.bridge.java.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.dataview.*")
     java_import(gateway.jvm, "org.apache.flink.table.catalog.*")
     java_import(gateway.jvm, "org.apache.flink.table.descriptors.*")

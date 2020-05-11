@@ -24,8 +24,14 @@ import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.RuntimeConverter;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.OutputFormatProvider;
+import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.InputFormatProvider;
@@ -34,15 +40,23 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.AsyncTableFunction;
-import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingOutputFormat;
+import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingSinkFunction;
+import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AsyncTestValueLookupFunction;
+import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.KeyedUpsertingSinkFunction;
+import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.RetractingSinkFunction;
+import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.FlinkException;
@@ -60,20 +74,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.collection.Seq;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Test implementation of {@link DynamicTableSourceFactory} that creates
  * a source that produces a sequence of values.
  */
-public class TestValuesTableFactory implements DynamicTableSourceFactory {
+public final class TestValuesTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
 	// --------------------------------------------------------------------------------------------
 	// Data Registration
@@ -123,10 +132,30 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 	}
 
 	/**
+	 * Returns received raw results of the registered table sink.
+	 * The raw results are encoded with {@link RowKind}.
+	 *
+	 * @param tableName the table name of the registered table sink.
+	 */
+	public static List<String> getRawResults(String tableName) {
+		return TestValuesRuntimeFunctions.getRawResults(tableName);
+	}
+
+	/**
+	 * Returns materialized (final) results of the registered table sink.
+	 *
+	 * @param tableName the table name of the registered table sink.
+	 */
+	public static List<String> getResults(String tableName) {
+		return TestValuesRuntimeFunctions.getResults(tableName);
+	}
+
+	/**
 	 * Removes the registered data under the given data id.
 	 */
-	public static void clearAllRegisteredData() {
+	public static void clearAllData() {
 		registeredData.clear();
+		TestValuesRuntimeFunctions.clearResults();
 	}
 
 	/**
@@ -181,6 +210,11 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 		.stringType()
 		.defaultValue("SourceFunction"); // another is "InputFormat"
 
+	private static final ConfigOption<String> RUNTIME_SINK = ConfigOptions
+		.key("runtime-sink")
+		.stringType()
+		.defaultValue("SinkFunction"); // another is "OutputFormat"
+
 	private static final ConfigOption<String> TABLE_SOURCE_CLASS = ConfigOptions
 		.key("table-source-class")
 		.stringType()
@@ -193,6 +227,16 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 
 	private static final ConfigOption<Boolean> ASYNC_ENABLED = ConfigOptions
 		.key("async")
+		.booleanType()
+		.defaultValue(false);
+
+	private static final ConfigOption<Boolean> SINK_INSERT_ONLY = ConfigOptions
+		.key("sink-insert-only")
+		.booleanType()
+		.defaultValue(true);
+
+	private static final ConfigOption<Boolean> NESTED_PROJECTION_SUPPORTED = ConfigOptions
+		.key("nested-projection-supported")
 		.booleanType()
 		.defaultValue(false);
 
@@ -212,18 +256,21 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 		String sourceClass = helper.getOptions().get(TABLE_SOURCE_CLASS);
 		boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
 		String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
+		boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
 
 		if (sourceClass.equals("DEFAULT")) {
 			Collection<Tuple2<RowKind, Row>> data = registeredData.getOrDefault(dataId, Collections.emptyList());
-			DataType rowDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+			TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
 			return new TestValuesTableSource(
+				physicalSchema,
 				changelogMode,
 				isBounded,
 				runtimeSource,
-				rowDataType,
 				data,
 				isAsync,
-				lookupFunctionClass);
+				lookupFunctionClass,
+				nestedProjectionSupported,
+				null);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -234,6 +281,20 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 				throw new RuntimeException("Can't instantiate class " + sourceClass, e);
 			}
 		}
+	}
+
+	@Override
+	public DynamicTableSink createDynamicTableSink(Context context) {
+		FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+		helper.validate();
+		boolean isInsertOnly = helper.getOptions().get(SINK_INSERT_ONLY);
+		String runtimeSink = helper.getOptions().get(RUNTIME_SINK);
+		TableSchema schema = context.getCatalogTable().getSchema();
+		return new TestValuesTableSink(
+			schema,
+			context.getObjectIdentifier().getObjectName(),
+			isInsertOnly,
+			runtimeSink);
 	}
 
 	@Override
@@ -250,7 +311,11 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 			RUNTIME_SOURCE,
 			TABLE_SOURCE_CLASS,
 			LOOKUP_FUNCTION_CLASS,
-			ASYNC_ENABLED));
+			ASYNC_ENABLED,
+			TABLE_SOURCE_CLASS,
+			SINK_INSERT_ONLY,
+			RUNTIME_SINK,
+			NESTED_PROJECTION_SUPPORTED));
 	}
 
 	private ChangelogMode parseChangelogMode(String string) {
@@ -277,36 +342,43 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// Table source
+	// Table sources
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Values {@link DynamicTableSource} for testing.
 	 */
-	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource {
+	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
 
+		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;
 		private final boolean bounded;
 		private final String runtimeSource;
-		private final DataType physicalRowDataType;
 		private final Collection<Tuple2<RowKind, Row>> data;
 		private final boolean isAsync;
 		private final @Nullable String lookupFunctionClass;
+		private final boolean nestedProjectionSupported;
+		private @Nullable int[] projectedFields;
 
 		private TestValuesTableSource(
+				TableSchema physicalSchema,
 				ChangelogMode changelogMode,
-				boolean bounded, String runtimeSource,
-				DataType physicalRowDataType,
+				boolean bounded,
+				String runtimeSource,
 				Collection<Tuple2<RowKind, Row>> data,
 				boolean isAsync,
-				@Nullable String lookupFunctionClass) {
+				@Nullable String lookupFunctionClass,
+				boolean nestedProjectionSupported,
+				int[] projectedFields) {
+			this.physicalSchema = physicalSchema;
 			this.changelogMode = changelogMode;
 			this.bounded = bounded;
 			this.runtimeSource = runtimeSource;
-			this.physicalRowDataType = physicalRowDataType;
 			this.data = data;
 			this.isAsync = isAsync;
 			this.lookupFunctionClass = lookupFunctionClass;
+			this.nestedProjectionSupported = nestedProjectionSupported;
+			this.projectedFields = projectedFields;
 		}
 
 		@Override
@@ -318,10 +390,11 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 		@Override
 		public ScanRuntimeProvider getScanRuntimeProvider(ScanTableSource.Context runtimeProviderContext) {
 			TypeSerializer<RowData> serializer = (TypeSerializer<RowData>) runtimeProviderContext
-				.createTypeInformation(physicalRowDataType)
+				.createTypeInformation(physicalSchema.toRowDataType())
 				.createSerializer(new ExecutionConfig());
-			DataStructureConverter converter = runtimeProviderContext.createDataStructureConverter(physicalRowDataType);
-			Collection<RowData> values = convertToRowData(data, converter);
+			DataStructureConverter converter = runtimeProviderContext.createDataStructureConverter(physicalSchema.toRowDataType());
+			converter.open(RuntimeConverter.Context.create(TestValuesTableFactory.class.getClassLoader()));
+			Collection<RowData> values = convertToRowData(data, projectedFields, converter);
 
 			if (runtimeSource.equals("SourceFunction")) {
 				try {
@@ -381,8 +454,28 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 		}
 
 		@Override
+		public boolean supportsNestedProjection() {
+			return nestedProjectionSupported;
+		}
+
+		@Override
+		public void applyProjection(int[][] projectedFields) {
+			this.physicalSchema = TableSchemaUtils.projectSchema(physicalSchema, projectedFields);
+			this.projectedFields = Arrays.stream(projectedFields).mapToInt(f -> f[0]).toArray();
+		}
+
+		@Override
 		public DynamicTableSource copy() {
-			return new TestValuesTableSource(changelogMode, bounded, runtimeSource, physicalRowDataType, data, isAsync, lookupFunctionClass);
+			return new TestValuesTableSource(
+				physicalSchema,
+				changelogMode,
+				bounded,
+				runtimeSource,
+				data,
+				isAsync,
+				lookupFunctionClass,
+				nestedProjectionSupported,
+				projectedFields);
 		}
 
 		@Override
@@ -392,103 +485,27 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 
 		private static Collection<RowData> convertToRowData(
 				Collection<Tuple2<RowKind, Row>> data,
+				int[] projectedFields,
 				DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
 			for (Tuple2<RowKind, Row> value : data) {
-				RowData rowData = (RowData) converter.toInternal(value.f1);
+				Row projectedRow;
+				if (projectedFields == null) {
+					projectedRow = value.f1;
+				} else {
+					Object[] newValues = new Object[projectedFields.length];
+					for (int i = 0; i < projectedFields.length; ++i) {
+						newValues[i] = value.f1.getField(projectedFields[i]);
+					}
+					projectedRow = Row.of(newValues);
+				}
+				RowData rowData = (RowData) converter.toInternal(projectedRow);
 				if (rowData != null) {
 					rowData.setRowKind(value.f0);
 					result.add(rowData);
 				}
 			}
 			return result;
-		}
-	}
-
-	/**
-	 * A lookup function which find matched rows with the given fields.
-	 */
-	public static class TestValuesLookupFunction extends TableFunction<Row> {
-
-		private static final long serialVersionUID = 1L;
-		private final Map<Row, List<Row>> data;
-		private transient boolean isOpenCalled = false;
-
-		private TestValuesLookupFunction(Map<Row, List<Row>> data) {
-			this.data = data;
-		}
-
-		@Override
-		public void open(FunctionContext context) throws Exception {
-			RESOURCE_COUNTER.incrementAndGet();
-			isOpenCalled = true;
-		}
-
-		public void eval(Object... inputs) {
-			checkArgument(isOpenCalled, "open() is not called.");
-			Row key = Row.of(inputs);
-			if (Arrays.asList(inputs).contains(null)) {
-				throw new IllegalArgumentException(String.format(
-					"Lookup key %s contains null value, which should not happen.", key));
-			}
-			List<Row> list = data.get(key);
-			if (list != null) {
-				list.forEach(this::collect);
-			}
-		}
-
-		@Override
-		public void close() throws Exception {
-			RESOURCE_COUNTER.decrementAndGet();
-		}
-	}
-
-	/**
-	 * An async lookup function which find matched rows with the given fields.
-	 */
-	public static class AsyncTestValueLookupFunction extends AsyncTableFunction<Row> {
-
-		private static final long serialVersionUID = 1L;
-		private final Map<Row, List<Row>> mapping;
-		private transient boolean isOpenCalled = false;
-		private transient ExecutorService executor;
-
-		private AsyncTestValueLookupFunction(Map<Row, List<Row>> mapping) {
-			this.mapping = mapping;
-		}
-
-		@Override
-		public void open(FunctionContext context) throws Exception {
-			RESOURCE_COUNTER.incrementAndGet();
-			isOpenCalled = true;
-			executor = Executors.newSingleThreadExecutor();
-		}
-
-		public void eval(CompletableFuture<Collection<Row>> resultFuture, Object... inputs) {
-			checkArgument(isOpenCalled, "open() is not called.");
-			final Row key = Row.of(inputs);
-			if (Arrays.asList(inputs).contains(null)) {
-				throw new IllegalArgumentException(String.format(
-					"Lookup key %s contains null value, which should not happen.", key));
-			}
-			CompletableFuture
-				.supplyAsync(() -> {
-					List<Row> list = mapping.get(key);
-					if (list == null) {
-						return Collections.<Row>emptyList();
-					} else {
-						return list;
-					}
-				}, executor)
-				.thenAccept(resultFuture::complete);
-		}
-
-		@Override
-		public void close() throws Exception {
-			RESOURCE_COUNTER.decrementAndGet();
-			if (executor != null && !executor.isShutdown()) {
-				executor.shutdown();
-			}
 		}
 	}
 
@@ -543,4 +560,102 @@ public class TestValuesTableFactory implements DynamicTableSourceFactory {
 			return null;
 		}
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Table sinks
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Values {@link DynamicTableSink} for testing.
+	 */
+	private static class TestValuesTableSink implements DynamicTableSink {
+
+		private final TableSchema schema;
+		private final String tableName;
+		private final boolean isInsertOnly;
+		private final String runtimeSink;
+
+		private TestValuesTableSink(
+				TableSchema schema,
+				String tableName,
+				boolean isInsertOnly, String runtimeSink) {
+			this.schema = schema;
+			this.tableName = tableName;
+			this.isInsertOnly = isInsertOnly;
+			this.runtimeSink = runtimeSink;
+		}
+
+		@Override
+		public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
+			if (isInsertOnly) {
+				return ChangelogMode.insertOnly();
+			} else {
+				ChangelogMode.Builder builder = ChangelogMode.newBuilder();
+				if (schema.getPrimaryKey().isPresent()) {
+					// can update on key, ignore UPDATE_BEFORE
+					for (RowKind kind : requestedMode.getContainedKinds()) {
+						if (kind != RowKind.UPDATE_BEFORE) {
+							builder.addContainedKind(kind);
+						}
+					}
+					return builder.build();
+				} else {
+					// don't have key, works in retract mode
+					return requestedMode;
+				}
+			}
+		}
+
+		@Override
+		public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+			assert context.createTypeInformation(schema.toPhysicalRowDataType()) instanceof RowDataTypeInfo;
+			DataStructureConverter converter = context.createDataStructureConverter(schema.toPhysicalRowDataType());
+			if (isInsertOnly) {
+				if (runtimeSink.equals("SinkFunction")) {
+					return SinkFunctionProvider.of(
+						new AppendingSinkFunction(
+							tableName,
+							converter));
+				} else if (runtimeSink.equals("OutputFormat")) {
+					return OutputFormatProvider.of(
+						new AppendingOutputFormat(
+							tableName,
+							converter));
+				} else {
+					throw new IllegalArgumentException("Unsupported runtime sink class: " + runtimeSink);
+				}
+			} else {
+				// we don't support OutputFormat for updating query in the TestValues connector
+				assert runtimeSink.equals("SinkFunction");
+				SinkFunction<RowData> sinkFunction;
+				if (schema.getPrimaryKey().isPresent()) {
+					int[] keyIndices = TableSchemaUtils.getPrimaryKeyIndices(schema);
+					sinkFunction = new KeyedUpsertingSinkFunction(
+						tableName,
+						converter,
+						keyIndices);
+				} else {
+					sinkFunction = new RetractingSinkFunction(
+						tableName,
+						converter);
+				}
+				return SinkFunctionProvider.of(sinkFunction);
+			}
+		}
+
+		@Override
+		public DynamicTableSink copy() {
+			return new TestValuesTableSink(
+				schema,
+				tableName,
+				isInsertOnly,
+				runtimeSink);
+		}
+
+		@Override
+		public String asSummaryString() {
+			return "TestValues";
+		}
+	}
+
 }

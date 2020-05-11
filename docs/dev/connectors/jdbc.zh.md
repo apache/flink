@@ -63,7 +63,7 @@ To use it, add the following dependency to your project (along with your JDBC-dr
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-jdbc{{ site.scala_version_suffix }}</artifactId>
+  <artifactId>flink-connector-jdbc{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 {% endhighlight %}
@@ -78,7 +78,7 @@ Example usage:
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env
         .fromElements(...)
-        .addSink(JdbcFacade.sink(
+        .addSink(JdbcSink.sink(
                 "insert into books (id, title, author, price, qty) values (?,?,?,?,?)",
                 (ps, t) -> {
                     ps.setInt(1, t.id);
@@ -94,4 +94,4 @@ env
 env.execute();
 {% endhighlight %}
 
-Please refer to the [API documentation]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/java/io/jdbc/JdbcSink.html) for more details.
+Please refer to the [API documentation]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/jdbc/JdbcSink.html) for more details.

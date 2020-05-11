@@ -18,6 +18,10 @@
 
 package org.apache.flink.testutils.migration;
 
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 /**
  * Enumeration for Flink versions, used in migration integration tests
  * to indicate the migrated snapshot version.
@@ -25,7 +29,8 @@ package org.apache.flink.testutils.migration;
 public enum MigrationVersion {
 
 	// NOTE: the version strings must not change,
-	// as they are used to locate snapshot file paths
+	// as they are used to locate snapshot file paths.
+	// The definition order matters for performing version arithmetic.
 	v1_3("1.3"),
 	v1_4("1.4"),
 	v1_5("1.5"),
@@ -47,6 +52,15 @@ public enum MigrationVersion {
 	}
 
 	public boolean isNewerVersionThan(MigrationVersion otherVersion) {
-		return Double.valueOf(versionStr) > Double.valueOf(otherVersion.versionStr);
+		return this.ordinal() > otherVersion.ordinal();
+	}
+
+	/**
+	 * Returns all versions equal to or higher than the selected version.
+	 */
+	public List<MigrationVersion> orHigher() {
+		return Stream.of(MigrationVersion.values())
+			.filter(v -> this.ordinal() <= v.ordinal())
+			.collect(Collectors.toList());
 	}
 }

@@ -49,6 +49,7 @@ import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -308,14 +309,9 @@ public class LocalFileSystem extends FileSystem {
 
 	/**
 	 * Converts the given Path to a File for this file system.
-	 *
-	 * <p>If the path is not absolute, it is interpreted relative to this FileSystem's working directory.
 	 */
 	public File pathToFile(Path path) {
-		if (!path.isAbsolute()) {
-			path = new Path(getWorkingDirectory(), path);
-		}
-		return new File(path.toUri().getPath());
+		return Paths.get(path.getPath()).toFile();
 	}
 
 	// ------------------------------------------------------------------------

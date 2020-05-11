@@ -25,8 +25,11 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.operators.CoordinatedOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -36,6 +39,7 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -94,14 +98,13 @@ public class StreamNode implements Serializable {
 	}
 
 	public StreamNode(
-		Integer id,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		StreamOperatorFactory<?> operatorFactory,
-		String operatorName,
-		List<OutputSelector<?>> outputSelector,
-		Class<? extends AbstractInvokable> jobVertexClass) {
-
+			Integer id,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<?> operatorFactory,
+			String operatorName,
+			List<OutputSelector<?>> outputSelector,
+			Class<? extends AbstractInvokable> jobVertexClass) {
 		this.id = id;
 		this.operatorName = operatorName;
 		this.operatorFactory = operatorFactory;
@@ -334,6 +337,17 @@ public class StreamNode implements Serializable {
 
 	public void setUserHash(String userHash) {
 		this.userHash = userHash;
+	}
+
+	public Optional<OperatorCoordinator.Provider> getCoordinatorProvider(
+			String operatorName,
+			OperatorID operatorID) {
+		if (operatorFactory instanceof CoordinatedOperatorFactory) {
+			return Optional.of(((CoordinatedOperatorFactory) operatorFactory)
+					.getCoordinatorProvider(operatorName, operatorID));
+		} else {
+			return Optional.empty();
+		}
 	}
 
 	@Override

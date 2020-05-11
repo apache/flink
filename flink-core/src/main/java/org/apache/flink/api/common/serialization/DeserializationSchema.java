@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.Collector;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -64,6 +65,24 @@ public interface DeserializationSchema<T> extends Serializable, ResultTypeQuerya
 	 * @return The deserialized message as an object (null if the message cannot be deserialized).
 	 */
 	T deserialize(byte[] message) throws IOException;
+
+	/**
+	 * Deserializes the byte message.
+	 *
+	 * <p>Can output multiple records through the {@link Collector}. Note that number and size of the
+	 * produced records should be relatively small. Depending on the source implementation records
+	 * can be buffered in memory or collecting records might delay emitting checkpoint barrier.
+	 *
+	 * @param message The message, as a byte array.
+	 * @param out The collector to put the resulting messages.
+	 */
+	@PublicEvolving
+	default void deserialize(byte[] message, Collector<T> out) throws IOException {
+		T deserialize = deserialize(message);
+		if (deserialize != null) {
+			out.collect(deserialize);
+		}
+	}
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If

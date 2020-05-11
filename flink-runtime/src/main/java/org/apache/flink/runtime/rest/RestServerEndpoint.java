@@ -64,6 +64,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -140,7 +141,6 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			final Router router = new Router();
 			final CompletableFuture<String> restAddressFuture = new CompletableFuture<>();
-			final Set<ChannelInboundHandler> distinctHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
 
 			handlers = initializeHandlers(restAddressFuture);
 
@@ -155,14 +155,8 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 				handlers,
 				RestHandlerUrlComparator.INSTANCE);
 
-			handlers.forEach(handler -> {
-				if (distinctHandlers.contains(handler.f1)) {
-					throw new FlinkRuntimeException("Duplicate REST handler instance found."
-						+ " Please ensure each instance is registered only once.");
-				}
-				registerHandler(router, handler, log);
-				distinctHandlers.add(handler.f1);
-			});
+			checkAllEndpointsAndHandlersAreUnique(handlers);
+			handlers.forEach(handler -> registerHandler(router, handler, log));
 
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
@@ -488,6 +482,37 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 			throw new IOException(
 				String.format("Upload directory %s cannot be created or is not writable.",
 					uploadDir));
+		}
+	}
+
+	private static void checkAllEndpointsAndHandlersAreUnique(final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) {
+		// check for all handlers that
+		// 1) the instance is only registered once
+		// 2) only 1 handler is registered for each endpoint (defined by (version, method, url))
+		// technically the first check is redundant since a duplicate instance also returns the same headers which
+		// should fail the second check, but we get a better error message
+		final Set<String> uniqueEndpoints = new HashSet<>();
+		final Set<ChannelInboundHandler> distinctHandlers = Collections.newSetFromMap(new IdentityHashMap<>());
+		for (Tuple2<RestHandlerSpecification, ChannelInboundHandler> handler : handlers) {
+			boolean isNewHandler = distinctHandlers.add(handler.f1);
+			if (!isNewHandler) {
+				throw new FlinkRuntimeException("Duplicate REST handler instance found."
+					+ " Please ensure each instance is registered only once.");
+			}
+
+			final RestHandlerSpecification headers = handler.f0;
+			for (RestAPIVersion supportedAPIVersion : headers.getSupportedAPIVersions()) {
+				final String parameterizedEndpoint = supportedAPIVersion.toString() + headers.getHttpMethod() + headers.getTargetRestEndpointURL();
+				// normalize path parameters; distinct path parameters still clash at runtime
+				final String normalizedEndpoint = parameterizedEndpoint.replaceAll(":[\\w-]+", ":param");
+				boolean isNewEndpoint = uniqueEndpoints.add(normalizedEndpoint);
+				if (!isNewEndpoint) {
+					throw new FlinkRuntimeException(
+						String.format(
+							"REST handler registration overlaps with another registration for: version=%s, method=%s, url=%s.",
+							supportedAPIVersion, headers.getHttpMethod(), headers.getTargetRestEndpointURL()));
+				}
+			}
 		}
 	}
 

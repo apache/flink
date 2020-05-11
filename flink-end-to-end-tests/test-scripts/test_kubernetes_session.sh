@@ -26,15 +26,9 @@ LOCAL_OUTPUT_PATH="${TEST_DATA_DIR}/out/wc_out"
 OUTPUT_PATH="/tmp/wc_out"
 ARGS="--output ${OUTPUT_PATH}"
 
-SUCCEEDED=1
-
-function cleanup {
-    if [ $SUCCEEDED != 0 ];then
-      debug_and_show_logs
-    fi
+function internal_cleanup {
     kubectl delete deployment ${CLUSTER_ID}
     kubectl delete clusterrolebinding ${CLUSTER_ROLE_BINDING}
-    stop_kubernetes
 }
 
 function setConsoleLogging {
@@ -53,9 +47,7 @@ setConsoleLogging
 
 start_kubernetes
 
-cd "$DOCKER_MODULE_DIR"
-# Build a Flink image without any user jars
-build_image_with_jar ${TEST_INFRA_DIR}/test-data/words ${FLINK_IMAGE_NAME}
+build_image ${FLINK_IMAGE_NAME}
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
 
@@ -81,4 +73,3 @@ wait_rest_endpoint_up_k8s $jm_pod_name
 kubectl cp `kubectl get pods | awk '/taskmanager/ {print $1}'`:${OUTPUT_PATH} ${LOCAL_OUTPUT_PATH}
 
 check_result_hash "WordCount" "${LOCAL_OUTPUT_PATH}" "${RESULT_HASH}"
-SUCCEEDED=$?

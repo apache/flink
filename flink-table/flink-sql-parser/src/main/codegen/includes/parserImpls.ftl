@@ -79,6 +79,27 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
     }
 }
 
+SqlDrop SqlDropCatalog(Span s, boolean replace) :
+{
+    SqlIdentifier catalogName = null;
+    boolean ifExists = false;
+}
+{
+    <CATALOG>
+
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
+
+    catalogName = CompoundIdentifier()
+
+    {
+        return new SqlDropCatalog(s.pos(), catalogName, ifExists);
+    }
+}
+
 /**
 * Parse a "Show DATABASES" metadata query command.
 */
@@ -775,6 +796,8 @@ SqlTableLikeOption SqlTableLikeOption():
         <OPTIONS> { featureOption = FeatureOption.OPTIONS;}
     |
         <PARTITIONS> { featureOption = FeatureOption.PARTITIONS;}
+    |
+        <WATERMARKS> { featureOption = FeatureOption.WATERMARKS;}
     )
 
     {
@@ -929,7 +952,7 @@ SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
     <AS>
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, isTemporary, ifNotExists, comment);
+        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, isTemporary, ifNotExists, comment, null);
     }
 }
 
@@ -1300,6 +1323,8 @@ SqlDrop SqlDropExtended(Span s, boolean replace) :
         <TEMPORARY> { isTemporary = true; }
     ]
     (
+        drop = SqlDropCatalog(s, replace)
+        |
         drop = SqlDropTable(s, replace, isTemporary)
         |
         drop = SqlDropView(s, replace, isTemporary)

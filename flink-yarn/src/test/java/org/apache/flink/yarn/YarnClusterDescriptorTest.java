@@ -20,16 +20,20 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
 import org.apache.hadoop.fs.Path;
@@ -49,6 +53,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -57,6 +62,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.createDefaultJobManagerProcessSpec;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.hamcrest.Matchers.containsString;
@@ -73,6 +79,11 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	private static YarnConfiguration yarnConfiguration;
 
 	private static YarnClient yarnClient;
+
+	private final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+		.setSlotsPerTaskManager(Integer.MAX_VALUE)
+		.createClusterSpecification();
+	private final ApplicationConfiguration appConfig = new ApplicationConfiguration(new String[0], null);
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -105,10 +116,6 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(flinkConfiguration);
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
-
-		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setSlotsPerTaskManager(Integer.MAX_VALUE)
-			.createClusterSpecification();
 
 		try {
 			clusterDescriptor.deploySessionCluster(clusterSpecification);
@@ -515,6 +522,32 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		yarnClusterDescriptor.close();
 
 		assertTrue(closableYarnClient.isInState(Service.STATE.STOPPED));
+	}
+
+	@Test
+	public void testDeployApplicationClusterWithDeploymentTargetNotCorrectlySet() {
+		final Configuration flinkConfig = new Configuration();
+		flinkConfig.set(PipelineOptions.JARS, Collections.singletonList("file:///path/of/user.jar"));
+		flinkConfig.set(DeploymentOptions.TARGET, YarnDeploymentTarget.SESSION.getName());
+		try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(flinkConfig)) {
+			assertThrows(
+				"Expected deployment.target=yarn-application",
+				ClusterDeploymentException.class,
+				() -> yarnClusterDescriptor.deployApplicationCluster(clusterSpecification, appConfig));
+		}
+	}
+
+	@Test
+	public void testDeployApplicationClusterWithMultipleJarsSet() {
+		final Configuration flinkConfig = new Configuration();
+		flinkConfig.set(PipelineOptions.JARS, Arrays.asList("local:///path/of/user.jar", "local:///user2.jar"));
+		flinkConfig.set(DeploymentOptions.TARGET, YarnDeploymentTarget.APPLICATION.getName());
+		try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(flinkConfig)) {
+			assertThrows(
+				"Should only have one jar",
+				IllegalArgumentException.class,
+				() -> yarnClusterDescriptor.deployApplicationCluster(clusterSpecification, appConfig));
+		}
 	}
 
 	private YarnClusterDescriptor createYarnClusterDescriptor() {

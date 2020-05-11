@@ -44,7 +44,7 @@ cd "$TPCDS_TOOL_DIR"
 TPCDS_GENERATOR_RELATIVE_DIR="../target/generator"
 TPCDS_DATA_RELATIVE_DIR="../table"
 
-${TPCDS_TOOL_DIR}/data_generator.sh "$TPCDS_GENERATOR_RELATIVE_DIR" "$SCALE" "$TPCDS_DATA_RELATIVE_DIR"
+${TPCDS_TOOL_DIR}/data_generator.sh "$TPCDS_GENERATOR_RELATIVE_DIR" "$SCALE" "$TPCDS_DATA_RELATIVE_DIR" "$END_TO_END_DIR/test-scripts"
 
 cd "$END_TO_END_DIR"
 
@@ -57,6 +57,7 @@ echo "[INFO]Preparing Flink cluster..."
 set_config_key "taskmanager.memory.process.size" "4096m"
 set_config_key "taskmanager.numberOfTaskSlots" "4"
 set_config_key "parallelism.default" "4"
+set_config_key "akka.ask.timeout" "20 s"
 start_cluster
 
 

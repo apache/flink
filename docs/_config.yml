@@ -27,10 +27,10 @@
 # we change the version for the complete docs when forking of a release branch
 # etc.
 # The full version string as referenced in Maven (e.g. 1.2.1)
-version: "1.11-SNAPSHOT"
+version: "1.12-SNAPSHOT"
 # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
 # release this should be the same as the regular version
-version_title: "1.11-SNAPSHOT"
+version_title: "1.12-SNAPSHOT"
 # Branch on Github for this version
 github_branch: "master"
 

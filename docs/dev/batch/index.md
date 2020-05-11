@@ -1112,7 +1112,7 @@ DataSet<Long> numbers = env.generateSequence(1, 10000000);
 // Read data from a relational database using the JDBC input format
 DataSet<Tuple2<String, Integer> dbData =
     env.createInput(
-      JDBCInputFormat.buildJDBCInputFormat()
+      JdbcInputFormat.buildJdbcInputFormat()
                      .setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
                      .setDBUrl("jdbc:derby:memory:persons")
                      .setQuery("select name, age from persons")
@@ -1414,7 +1414,7 @@ DataSet<Tuple3<String, Integer, Double>> myResult = [...]
 // write Tuple DataSet to a relational database
 myResult.output(
     // build and configure OutputFormat
-    JDBCOutputFormat.buildJDBCOutputFormat()
+    JdbcOutputFormat.buildJdbcOutputFormat()
                     .setDrivername("org.apache.derby.jdbc.EmbeddedDriver")
                     .setDBUrl("jdbc:derby:memory:persons")
                     .setQuery("insert into persons (name, age, height) values (?,?,?)")

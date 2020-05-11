@@ -37,7 +37,7 @@ import java.util.List;
 public class SqlRichDescribeTable extends SqlCall {
 
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DESCRIBE TABLE", SqlKind.DESCRIBE_TABLE);
-	private final SqlIdentifier tableNameIdentifier;
+	protected final SqlIdentifier tableNameIdentifier;
 	private boolean isExtended = false;
 
 	public SqlRichDescribeTable(SqlParserPos pos, SqlIdentifier tableNameIdentifier, boolean isExtended) {

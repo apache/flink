@@ -27,15 +27,18 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  * General tests for the {@link ExternalServiceDecorator}.
@@ -44,9 +47,18 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
 	private ExternalServiceDecorator externalServiceDecorator;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	private Map<String, String> customizedAnnotations = new HashMap<String, String>() {
+		{
+			put("annotation1", "annotation-value1");
+			put("annotation2", "annotation-value2");
+		}
+	};
+
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
+
+		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS, customizedAnnotations);
 		this.externalServiceDecorator = new ExternalServiceDecorator(this.kubernetesJobManagerParameters);
 	}
 
@@ -77,6 +89,9 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 		expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
 		expectedLabels.putAll(userLabels);
 		assertEquals(expectedLabels, restService.getSpec().getSelector());
+
+		final Map<String, String> resultAnnotations = restService.getMetadata().getAnnotations();
+		assertThat(resultAnnotations, is(equalTo(customizedAnnotations)));
 	}
 
 	@Test

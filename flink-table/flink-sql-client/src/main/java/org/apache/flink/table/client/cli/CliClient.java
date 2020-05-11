@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
@@ -252,7 +253,7 @@ public class CliClient {
 	// --------------------------------------------------------------------------------------------
 
 	private Optional<SqlCommandCall> parseCommand(String line) {
-		final Optional<SqlCommandCall> parsedLine = SqlCommandParser.parse(line);
+		final Optional<SqlCommandCall> parsedLine = SqlCommandParser.parse(executor.getSqlParser(sessionId), line);
 		if (!parsedLine.isPresent()) {
 			printError(CliStrings.MESSAGE_UNKNOWN_SQL);
 		}
@@ -322,6 +323,15 @@ public class CliClient {
 				break;
 			case DROP_VIEW:
 				callDropView(cmdCall);
+				break;
+			case CREATE_FUNCTION:
+				callCreateFunction(cmdCall);
+				break;
+			case DROP_FUNCTION:
+				callDropFunction(cmdCall);
+				break;
+			case ALTER_FUNCTION:
+				callAlterFunction(cmdCall);
 				break;
 			case SOURCE:
 				callSource(cmdCall);
@@ -508,7 +518,8 @@ public class CliClient {
 	private void callExplain(SqlCommandCall cmdCall) {
 		final String explanation;
 		try {
-			explanation = executor.explainStatement(sessionId, cmdCall.operands[0]);
+			TableResult tableResult = executor.executeSql(sessionId, cmdCall.operands[0]);
+			explanation = tableResult.collect().next().getField(0).toString();
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -578,7 +589,6 @@ public class CliClient {
 			printInfo(CliStrings.MESSAGE_TABLE_CREATED);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
-			return;
 		}
 	}
 
@@ -628,6 +638,33 @@ public class CliClient {
 			// rollback change
 			executor.addView(sessionId, view.getName(), view.getQuery());
 			printExecutionException(CliStrings.MESSAGE_VIEW_NOT_REMOVED, e);
+		}
+	}
+
+	private void callCreateFunction(SqlCommandCall cmdCall) {
+		try {
+			executor.executeSql(sessionId, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_FUNCTION_CREATED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
+	}
+
+	private void callDropFunction(SqlCommandCall cmdCall) {
+		try {
+			executor.executeSql(sessionId, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_FUNCTION_REMOVED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
+	}
+
+	private void callAlterFunction(SqlCommandCall cmdCall) {
+		try {
+			executor.executeSql(sessionId, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_ALTER_FUNCTION_SUCCEEDED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(CliStrings.MESSAGE_ALTER_FUNCTION_FAILED, e);
 		}
 	}
 

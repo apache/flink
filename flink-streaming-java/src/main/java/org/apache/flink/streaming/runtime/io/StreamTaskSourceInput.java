@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.streaming.api.operators.SourceReaderOperator;
+import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.util.IOUtils;
 
 import java.util.concurrent.CompletableFuture;
@@ -28,16 +28,16 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Implementation of {@link StreamTaskInput} that reads data from the {@link SourceReaderOperator}
+ * Implementation of {@link StreamTaskInput} that reads data from the {@link SourceOperator}
  * and returns the {@link InputStatus} to indicate whether the source state is available,
  * unavailable or finished.
  */
 @Internal
 public final class StreamTaskSourceInput<T> implements StreamTaskInput<T> {
 
-	private final SourceReaderOperator<T> operator;
+	private final SourceOperator<T, ?> operator;
 
-	public StreamTaskSourceInput(SourceReaderOperator<T> operator) {
+	public StreamTaskSourceInput(SourceOperator<T, ?> operator) {
 		this.operator = checkNotNull(operator);
 	}
 

@@ -20,10 +20,11 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestNestedProjectableTableSource, TestProjectableTableSource}
+import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtils, TableTestBase, TestNestedProjectableTableSource}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
@@ -34,7 +35,7 @@ import org.junit.{Before, Test}
   */
 class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
 
-  private val util = batchTestUtil()
+  protected val util: BatchTableTestUtil = batchTestUtil()
 
   @Before
   def setup(): Unit = {
@@ -60,7 +61,7 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
          |  'is-bounded' = 'true'
          |)
        """.stripMargin
-    util.tableEnv.sqlUpdate(ddl1)
+    util.tableEnv.executeSql(ddl1)
 
     val ddl2 =
       s"""
@@ -74,7 +75,7 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
          |  'is-bounded' = 'true'
          |)
        """.stripMargin
-    util.tableEnv.sqlUpdate(ddl2)
+    util.tableEnv.executeSql(ddl2)
   }
 
   @Test
@@ -138,7 +139,7 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
       Array(Types.INT, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "deepNested", "nested", "name"))
 
-    util.tableEnv.registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestNestedProjectableTableSource(true, tableSchema, returnType, Seq()))
 

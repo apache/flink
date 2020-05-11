@@ -36,6 +36,7 @@ import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
+import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
@@ -61,6 +62,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
@@ -193,6 +195,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertShowViews((SqlShowViews) validated));
 		} else if (validated instanceof SqlExplain) {
 			return Optional.of(converter.convertExplain((SqlExplain) validated));
+		} else if (validated instanceof SqlRichDescribeTable) {
+			return Optional.of(converter.convertDescribeTable((SqlRichDescribeTable) validated));
 		} else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
 			return Optional.of(converter.convertSqlQuery(validated));
 		} else {
@@ -216,6 +220,11 @@ public class SqlToOperationConverter {
 				"Watermark statement is not supported in Old Planner, please use Blink Planner instead.");
 		}
 
+		if (sqlCreateTable.getTableLike().isPresent()) {
+			throw new SqlConversionException(
+				"CREATE TABLE ... LIKE statement is not supported in Old Planner, please use Blink Planner instead.");
+		}
+
 		// set with properties
 		Map<String, String> properties = new HashMap<>();
 		sqlCreateTable.getPropertyList().getList().forEach(p ->
@@ -231,6 +240,8 @@ public class SqlToOperationConverter {
 			.map(p -> ((SqlIdentifier) p).getSimple())
 			.collect(Collectors.toList());
 
+		verifyPartitioningColumnsExist(tableSchema, partitionKeys);
+
 		CatalogTable catalogTable = new CatalogTableImpl(tableSchema,
 			partitionKeys,
 			properties,
@@ -244,6 +255,19 @@ public class SqlToOperationConverter {
 			catalogTable,
 			sqlCreateTable.isIfNotExists(),
 			sqlCreateTable.isTemporary());
+	}
+
+	private void verifyPartitioningColumnsExist(TableSchema mergedSchema, List<String> partitionKeys) {
+		for (String partitionKey : partitionKeys) {
+			if (!mergedSchema.getTableColumn(partitionKey).isPresent()) {
+				throw new ValidationException(
+					String.format(
+						"Partition column '%s' not defined in the table schema. Available columns: [%s]",
+						partitionKey,
+						Arrays.stream(mergedSchema.getFieldNames()).collect(Collectors.joining("', '", "'", "'"))
+					));
+			}
+		}
 	}
 
 	/** Convert DROP TABLE statement. */
@@ -553,6 +577,14 @@ public class SqlToOperationConverter {
 		}
 
 		return new ExplainOperation(operation);
+	}
+
+	/** Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier. */
+	private Operation convertDescribeTable(SqlRichDescribeTable sqlRichDescribeTable) {
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlRichDescribeTable.fullTableName());
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+		return new DescribeTableOperation(identifier, sqlRichDescribeTable.isExtended());
 	}
 
 	/**

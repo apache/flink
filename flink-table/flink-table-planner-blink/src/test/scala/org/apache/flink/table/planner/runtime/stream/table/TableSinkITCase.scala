@@ -18,88 +18,42 @@
 
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Tumble, Types}
-import org.apache.flink.table.planner.runtime.utils.TestData.{smallTupleData3, tupleData3, tupleData5}
-import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
-import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestUtil}
-import org.apache.flink.table.sinks._
-import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
-import org.apache.flink.types.Row
-import org.junit.Assert._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
+import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
+import org.apache.flink.table.planner.runtime.utils.TestData.{nullData4, smallTupleData3, tupleData3, tupleData5}
+import org.apache.flink.util.ExceptionUtils
+
+import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.Test
-import java.io.File
-import java.util.TimeZone
 
-import scala.collection.JavaConverters._
+import java.lang.{Long => JLong}
+import java.math.{BigDecimal => JBigDecimal}
 
-class TableSinkITCase extends AbstractTestBase {
+import scala.collection.JavaConversions._
 
-  @Test
-  def testStreamTableSink(): Unit = {
-
-    val tmpFile = File.createTempFile("flink-table-sink-test", ".tmp")
-    tmpFile.deleteOnExit()
-    val path = tmpFile.toURI.toString
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    env.setParallelism(4)
-
-    tEnv.registerTableSink(
-      "csvSink",
-      new CsvTableSink(path).configure(
-        Array[String]("nullableCol", "c", "b"),
-        Array[TypeInformation[_]](Types.INT, Types.STRING, Types.SQL_TIMESTAMP)))
-
-    val input = env.fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._2)
-      .map(x => x).setParallelism(4) // increase DOP to 4
-
-    input.toTable(tEnv, 'a, 'b.rowtime, 'c)
-      .where('a < 5 || 'a > 17)
-      .select(ifThenElse('a < 4, nullOf(Types.INT()), 'a), 'c, 'b)
-      .insertInto("csvSink")
-
-    tEnv.execute("job name")
-
-    val expected = Seq(
-      ",Hello world,1970-01-01 00:00:00.002",
-      ",Hello,1970-01-01 00:00:00.002",
-      ",Hi,1970-01-01 00:00:00.001",
-      "18,Comment#12,1970-01-01 00:00:00.006",
-      "19,Comment#13,1970-01-01 00:00:00.006",
-      "20,Comment#14,1970-01-01 00:00:00.006",
-      "21,Comment#15,1970-01-01 00:00:00.006",
-      "4,Hello world, how are you?,1970-01-01 00:00:00.003").mkString("\n")
-
-    TestBaseUtils.compareResultsByLinesInMemory(expected, path)
-  }
+class TableSinkITCase extends StreamingTestBase {
 
   @Test
   def testAppendSinkOnAppendTable(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
     val t = env.fromCollection(tupleData3)
-        .assignAscendingTimestamps(_._1.toLong)
-        .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
+      .assignAscendingTimestamps(_._1.toLong)
+      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    val sink = new TestingAppendTableSink(TimeZone.getDefault)
-    tEnv.registerTableSink(
-      "appendSink",
-      sink.configure(
-        Array[String]("t", "icnt", "nsum"),
-        Array[TypeInformation[_]](Types.SQL_TIMESTAMP, Types.LONG, Types.LONG)))
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE appendSink (
+         |  `t` TIMESTAMP(3),
+         |  `icnt` BIGINT,
+         |  `nsum` BIGINT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
 
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
@@ -108,63 +62,58 @@ class TableSinkITCase extends AbstractTestBase {
 
     tEnv.execute("job name")
 
-    val result = sink.getAppendResults.sorted
+    val result = TestValuesTableFactory.getResults("appendSink")
     val expected = List(
-      "1970-01-01 00:00:00.005,4,8",
-      "1970-01-01 00:00:00.010,5,18",
-      "1970-01-01 00:00:00.015,5,24",
-      "1970-01-01 00:00:00.020,5,29",
-      "1970-01-01 00:00:00.025,2,12")
-      .sorted
-    assertEquals(expected, result)
+      "1970-01-01T00:00:00.005,4,8",
+      "1970-01-01T00:00:00.010,5,18",
+      "1970-01-01T00:00:00.015,5,24",
+      "1970-01-01T00:00:00.020,5,29",
+      "1970-01-01T00:00:00.025,2,12")
+    assertEquals(expected.sorted, result.sorted)
   }
-
 
   @Test
   def testAppendSinkWithNestedRow(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
     val t = env.fromCollection(smallTupleData3)
       .toTable(tEnv, 'id, 'num, 'text)
-    tEnv.registerTable("src", t)
+    tEnv.createTemporaryView("src", t)
 
-    val sink = new TestingAppendTableSink()
-    tEnv.registerTableSink(
-      "appendSink",
-      sink.configure(
-        Array[String]("t", "item"),
-        Array[TypeInformation[_]](Types.INT(), Types.ROW(Types.LONG, Types.STRING()))))
-
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE appendSink (
+         |  `t` INT,
+         |  `item` ROW<`num` BIGINT, `text` STRING>
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
     tEnv.sqlUpdate("INSERT INTO appendSink SELECT id, ROW(num, text) FROM src")
-
     tEnv.execute("job name")
 
-    val result = sink.getAppendResults.sorted
+    val result = TestValuesTableFactory.getResults("appendSink")
     val expected = List(
       "1,1,Hi",
       "2,2,Hello",
-      "3,2,Hello world").sorted
-    assertEquals(expected, result)
+      "3,2,Hello world")
+    assertEquals(expected.sorted, result.sorted)
   }
 
   @Test
   def testAppendSinkOnAppendTableForInnerJoin(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
     val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val sink = new TestingAppendTableSink
-    tEnv.registerTableSink(
-      "appendSink",
-      sink.configure(
-        Array[String]("c", "g"),
-        Array[TypeInformation[_]](Types.STRING, Types.STRING)))
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE appendSink (
+         |  `c` STRING,
+         |  `g` STRING
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
 
     ds1.join(ds2).where('b === 'e)
       .select('c, 'g)
@@ -172,28 +121,28 @@ class TableSinkITCase extends AbstractTestBase {
 
     tEnv.execute("job name")
 
-    val result = sink.getAppendResults.sorted
-    val expected = List("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt").sorted
-    assertEquals(expected, result)
+    val result = TestValuesTableFactory.getResults("appendSink")
+    val expected = List("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
+    assertEquals(expected.sorted, result.sorted)
   }
 
   @Test
   def testRetractSinkOnUpdatingTable(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
-    val sink = new TestingRetractTableSink()
-    tEnv.registerTableSink(
-      "retractSink",
-      sink.configure(
-        Array[String]("len", "icnt", "nsum"),
-        Array[TypeInformation[_]](Types.INT, Types.LONG, Types.DECIMAL())))
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE retractSink (
+         |  `len` INT,
+         |  `icnt` BIGINT,
+         |  `nsum` BIGINT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
 
     t.select('id, 'num, 'text.charLength() as 'len)
       .groupBy('len)
@@ -202,36 +151,31 @@ class TableSinkITCase extends AbstractTestBase {
 
     tEnv.execute("job name")
 
-    val retracted = sink.getRetractResults.sorted
+    val result = TestValuesTableFactory.getResults("retractSink")
     val expected = List(
-      "2,1,1.000000000000000000",
-      "5,1,2.000000000000000000",
-      "11,1,2.000000000000000000",
-      "25,1,3.000000000000000000",
-      "10,7,39.000000000000000000",
-      "14,1,3.000000000000000000",
-      "9,9,41.000000000000000000").sorted
-    assertEquals(expected, retracted)
+      "2,1,1", "5,1,2", "11,1,2",
+      "25,1,3", "10,7,39", "14,1,3", "9,9,41")
+    assertEquals(expected.sorted, result.sorted)
 
   }
 
   @Test
   def testRetractSinkOnAppendTable(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    val sink = new TestingRetractTableSink(TimeZone.getDefault)
-    tEnv.registerTableSink(
-      "retractSink",
-      sink.configure(
-        Array[String]("t", "icnt", "nsum"),
-        Array[TypeInformation[_]](Types.SQL_TIMESTAMP, Types.LONG, Types.LONG)))
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE retractSink (
+         |  `t` TIMESTAMP(3),
+         |  `icnt` BIGINT,
+         |  `nsum` BIGINT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
 
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
@@ -240,39 +184,39 @@ class TableSinkITCase extends AbstractTestBase {
 
     tEnv.execute("job name")
 
+    val rawResult = TestValuesTableFactory.getRawResults("retractSink")
     assertFalse(
       "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+      rawResult.exists(_.startsWith("-"))) // maybe -U or -D
 
-    val retracted = sink.getRetractResults.sorted
+    val result = TestValuesTableFactory.getResults("retractSink")
     val expected = List(
-      "1970-01-01 00:00:00.005,4,8",
-      "1970-01-01 00:00:00.010,5,18",
-      "1970-01-01 00:00:00.015,5,24",
-      "1970-01-01 00:00:00.020,5,29",
-      "1970-01-01 00:00:00.025,2,12")
-      .sorted
-    assertEquals(expected, retracted)
-
+      "1970-01-01T00:00:00.005,4,8",
+      "1970-01-01T00:00:00.010,5,18",
+      "1970-01-01T00:00:00.015,5,24",
+      "1970-01-01T00:00:00.020,5,29",
+      "1970-01-01T00:00:00.025,2,12")
+    assertEquals(expected.sorted, result.sorted)
   }
 
   @Test
-  def testUpsertSinkOnUpdatingTableWithFullKey(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
+  def testUpsertSinkOnNestedAggregation(): Unit = {
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
-    val sink = new TestingUpsertTableSink(Array(0, 2), TimeZone.getDefault).configure(
-      Array[String]("cnt", "lencnt", "cTrue"),
-      Array[TypeInformation[_]](Types.LONG, Types.DECIMAL(), Types.BOOLEAN))
-    sink.expectedKeys = Some(Array("cnt", "cTrue"))
-    sink.expectedIsAppendOnly = Some(false)
-    tEnv.registerTableSink("upsertSink", sink)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE upsertSink (
+         |  `cnt` BIGINT,
+         |  `lencnt` BIGINT,
+         |  `cTrue` BOOLEAN,
+         |  PRIMARY KEY (cnt, cTrue) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
 
     t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
       .groupBy('len, 'cTrue)
@@ -284,36 +228,34 @@ class TableSinkITCase extends AbstractTestBase {
 
     tEnv.execute("job name")
 
+    val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertTrue(
       "Results must include delete messages",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+      rawResult.exists(_.startsWith("-D(")))
 
-    val retracted = sink.getUpsertResults.sorted
-    val expected = List(
-      "1,5.000000000000000000,true",
-      "7,1.000000000000000000,true",
-      "9,1.000000000000000000,true").sorted
-    assertEquals(expected, retracted)
-
+    val result = TestValuesTableFactory.getResults("upsertSink")
+    val expected = List("1,5,true", "7,1,true", "9,1,true")
+    assertEquals(expected.sorted, result.sorted)
   }
 
   @Test
-  def testUpsertSinkOnAppendingTableWithFullKey1(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
+  def testUpsertSinkOnAppendingTable(): Unit = {
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    val sink = new TestingUpsertTableSink(Array(0, 1, 2), TimeZone.getDefault).configure(
-      Array[String]("num", "wend", "icnt"),
-      Array[TypeInformation[_]](Types.LONG, Types.SQL_TIMESTAMP, Types.LONG))
-    sink.expectedKeys = Some(Array("wend", "num"))
-    sink.expectedIsAppendOnly = Some(true)
-    tEnv.registerTableSink("upsertSink", sink)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE upsertSink (
+         |  `num` BIGINT,
+         |  `wend` TIMESTAMP(3),
+         |  `icnt` BIGINT,
+         |  PRIMARY KEY (num, wend, icnt) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
 
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
@@ -323,90 +265,43 @@ class TableSinkITCase extends AbstractTestBase {
 
     tEnv.execute("job name")
 
+    val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertFalse(
       "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+      rawResult.exists(_.startsWith("-"))) // maybe -D or -U
 
-    val retracted = sink.getUpsertResults.sorted
+    val result = TestValuesTableFactory.getResults("upsertSink")
     val expected = List(
-      "1,1970-01-01 00:00:00.005,1",
-      "2,1970-01-01 00:00:00.005,2",
-      "3,1970-01-01 00:00:00.005,1",
-      "3,1970-01-01 00:00:00.010,2",
-      "4,1970-01-01 00:00:00.010,3",
-      "4,1970-01-01 00:00:00.015,1",
-      "5,1970-01-01 00:00:00.015,4",
-      "5,1970-01-01 00:00:00.020,1",
-      "6,1970-01-01 00:00:00.020,4",
-      "6,1970-01-01 00:00:00.025,2").sorted
-    assertEquals(expected, retracted)
-  }
-
-  @Test
-  def testUpsertSinkOnAppendingTableWithFullKey2(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
-    val t = env.fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
-
-    val sink = new TestingUpsertTableSink(Array(0, 1, 2), TimeZone.getDefault)
-    sink.expectedKeys = Some(Array("wend", "num"))
-    sink.expectedIsAppendOnly = Some(true)
-    tEnv.registerTableSink(
-      "upsertSink",
-      sink.configure(
-        Array[String]("wstart", "wend", "num", "icnt"),
-        Array[TypeInformation[_]]
-          (Types.SQL_TIMESTAMP, Types.SQL_TIMESTAMP, Types.LONG, Types.LONG)))
-
-    t.window(Tumble over 5.millis on 'rowtime as 'w)
-      .groupBy('w, 'num)
-      .select('w.start as 'wstart, 'w.end as 'wend, 'num, 'id.count as 'icnt)
-      .insertInto("upsertSink")
-
-    tEnv.execute("job name")
-
-    assertFalse(
-      "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
-
-    val retracted = sink.getUpsertResults.sorted
-    val expected = List(
-      "1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,1,1",
-      "1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,2,2",
-      "1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,3,1",
-      "1970-01-01 00:00:00.005,1970-01-01 00:00:00.010,3,2",
-      "1970-01-01 00:00:00.005,1970-01-01 00:00:00.010,4,3",
-      "1970-01-01 00:00:00.010,1970-01-01 00:00:00.015,4,1",
-      "1970-01-01 00:00:00.010,1970-01-01 00:00:00.015,5,4",
-      "1970-01-01 00:00:00.015,1970-01-01 00:00:00.020,5,1",
-      "1970-01-01 00:00:00.015,1970-01-01 00:00:00.020,6,4",
-      "1970-01-01 00:00:00.020,1970-01-01 00:00:00.025,6,2").sorted
-    assertEquals(expected, retracted)
+      "1,1970-01-01T00:00:00.005,1",
+      "2,1970-01-01T00:00:00.005,2",
+      "3,1970-01-01T00:00:00.005,1",
+      "3,1970-01-01T00:00:00.010,2",
+      "4,1970-01-01T00:00:00.010,3",
+      "4,1970-01-01T00:00:00.015,1",
+      "5,1970-01-01T00:00:00.015,4",
+      "5,1970-01-01T00:00:00.020,1",
+      "6,1970-01-01T00:00:00.020,4",
+      "6,1970-01-01T00:00:00.025,2")
+    assertEquals(expected.sorted, result.sorted)
   }
 
   @Test
   def testUpsertSinkOnAppendingTableWithoutFullKey1(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    val sink = new TestingUpsertTableSink(Array(0), TimeZone.getDefault)
-    sink.expectedIsAppendOnly = Some(true)
-    tEnv.registerTableSink(
-      "upsertSink",
-      sink.configure(
-        Array[String]("wend", "cnt"),
-        Array[TypeInformation[_]](Types.SQL_TIMESTAMP, Types.LONG)))
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE upsertSink (
+         |  `wend` TIMESTAMP(3),
+         |  `icnt` BIGINT,
+         |  PRIMARY KEY (wend, icnt) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
 
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
@@ -415,43 +310,42 @@ class TableSinkITCase extends AbstractTestBase {
 
     tEnv.execute("job name")
 
+    val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertFalse(
       "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+      rawResult.exists(_.startsWith("-"))) // may -D or -U
 
-    val retracted = sink.getRawResults.sorted
-    val expected = List(
-      "(true,1970-01-01 00:00:00.005,1)",
-      "(true,1970-01-01 00:00:00.005,2)",
-      "(true,1970-01-01 00:00:00.005,1)",
-      "(true,1970-01-01 00:00:00.010,2)",
-      "(true,1970-01-01 00:00:00.010,3)",
-      "(true,1970-01-01 00:00:00.015,1)",
-      "(true,1970-01-01 00:00:00.015,4)",
-      "(true,1970-01-01 00:00:00.020,1)",
-      "(true,1970-01-01 00:00:00.020,4)",
-      "(true,1970-01-01 00:00:00.025,2)").sorted
-    assertEquals(expected, retracted)
+    val rawExpected = List(
+      "+I(1970-01-01T00:00:00.005,1)",
+      "+I(1970-01-01T00:00:00.005,2)",
+      "+I(1970-01-01T00:00:00.005,1)",
+      "+I(1970-01-01T00:00:00.010,2)",
+      "+I(1970-01-01T00:00:00.010,3)",
+      "+I(1970-01-01T00:00:00.015,1)",
+      "+I(1970-01-01T00:00:00.015,4)",
+      "+I(1970-01-01T00:00:00.020,1)",
+      "+I(1970-01-01T00:00:00.020,4)",
+      "+I(1970-01-01T00:00:00.025,2)")
+    assertEquals(rawExpected.sorted, rawResult.sorted)
   }
 
   @Test
   def testUpsertSinkOnAppendingTableWithoutFullKey2(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    val sink = new TestingUpsertTableSink(Array(0), TimeZone.getDefault)
-    sink.expectedIsAppendOnly = Some(true)
-    tEnv.registerTableSink(
-      "upsertSink",
-      sink.configure(
-        Array[String]("num", "cnt"),
-        Array[TypeInformation[_]](Types.LONG, Types.LONG)))
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE upsertSink (
+         |  `num` BIGINT,
+         |  `cnt` BIGINT,
+         |  PRIMARY KEY (num) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
 
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
@@ -460,45 +354,42 @@ class TableSinkITCase extends AbstractTestBase {
 
     tEnv.execute("job name")
 
+    val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
     assertFalse(
       "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+      rawResult.exists(_.startsWith("-"))) // may -D or -U
 
-    val retracted = sink.getRawResults.sorted
     val expected = List(
-      "(true,1,1)",
-      "(true,2,2)",
-      "(true,3,1)",
-      "(true,3,2)",
-      "(true,4,3)",
-      "(true,4,1)",
-      "(true,5,4)",
-      "(true,5,1)",
-      "(true,6,4)",
-      "(true,6,2)").sorted
-    assertEquals(expected, retracted)
+      "+I(1,1)",
+      "+I(2,2)",
+      "+I(3,1)",
+      "+I(3,2)",
+      "+I(4,3)",
+      "+I(4,1)",
+      "+I(5,4)",
+      "+I(5,1)",
+      "+I(6,4)",
+      "+I(6,2)")
+    assertEquals(expected.sorted, rawResult.sorted)
   }
 
   @Test
   def testUpsertSinkWithFilter(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    env.setParallelism(4)
-
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
-    val sink = new TestingUpsertTableSink(Array(0))
-    sink.expectedIsAppendOnly = Some(false)
-    tEnv.registerTableSink(
-      "upsertSink",
-      sink.configure(
-        Array[String]("num", "cnt"),
-        Array[TypeInformation[_]](Types.LONG, Types.LONG)))
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE upsertSink (
+         |  `num` BIGINT,
+         |  `cnt` BIGINT,
+         |  PRIMARY KEY (num) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
 
     // num, cnt
     //   1, 1
@@ -515,75 +406,246 @@ class TableSinkITCase extends AbstractTestBase {
 
     tEnv.execute("job name")
 
-    val expectedWithFilter = List("1,1", "2,2", "3,3")
-     assertEquals(expectedWithFilter.sorted, sink.getUpsertResults.sorted)
-  }
-
-  @Test(expected = classOf[TableException])
-  def testToAppendStreamMultiRowtime(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
-    val t = env.fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
-
-    val r = t
-      .window(Tumble over 5.milli on 'rowtime as 'w)
-      .groupBy('num, 'w)
-      .select('num, 'w.rowtime, 'w.rowtime as 'rowtime2)
-
-    r.toAppendStream[Row]
-  }
-
-  @Test(expected = classOf[TableException])
-  def testToRetractStreamMultiRowtime(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-
-    val t = env.fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
-      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
-
-    val r = t
-      .window(Tumble over 5.milli on 'rowtime as 'w)
-      .groupBy('num, 'w)
-      .select('num, 'w.rowtime, 'w.rowtime as 'rowtime2)
-
-    r.toRetractStream[Row]
+    val result = TestValuesTableFactory.getResults("upsertSink")
+    val expected = List("1,1", "2,2", "3,3")
+    assertEquals(expected.sorted, result.sorted)
   }
 
   @Test
-  def testDecimalAppendStreamTableSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+  def testMultiRowtime(): Unit = {
+    val t = env.fromCollection(tupleData3)
+      .assignAscendingTimestamps(_._1.toLong)
+      .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    MemoryTableSourceSinkUtil.clear()
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE sink (
+         |  `num` BIGINT,
+         |  `ts1` TIMESTAMP(3),
+         |  `ts2` TIMESTAMP(3)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
 
-    val schema = TableSchema.builder()
-        .field("c", DataTypes.VARCHAR(5))
-        .field("b", DataTypes.DECIMAL(10, 0))
-        .field("d", DataTypes.CHAR(5))
-        .build()
+    t.window(Tumble over 5.milli on 'rowtime as 'w)
+      .groupBy('num, 'w)
+      .select('num, 'w.rowtime as 'rowtime1, 'w.rowtime as 'rowtime2)
+      .insertInto("sink")
 
-    MemoryTableSourceSinkUtil.createDataTypeAppendStreamTable(
-      tEnv, schema, "testSink")
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Found more than one rowtime field: [rowtime1, rowtime2] " +
+      "in the query when insert into 'default_catalog.default_database.sink'")
+    tEnv.execute("job name")
+  }
+
+  @Test
+  def testDecimalOnSinkFunctionTableSink(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE sink (
+         |  `c` VARCHAR(5),
+         |  `b` DECIMAL(10, 0),
+         |  `d` CHAR(5)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
 
     env.fromCollection(tupleData3)
-        .toTable(tEnv, 'a, 'b, 'c)
-        .where('a > 20)
-        .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-        .insertInto("testSink")
+      .toTable(tEnv, 'a, 'b, 'c)
+      .where('a > 20)
+      .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
+      .insertInto("sink")
 
-    tEnv.execute("")
+    tEnv.execute("job name")
 
-    val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
-    val expected = Seq("12345,55,12345").mkString("\n")
+    val result = TestValuesTableFactory.getResults("sink")
+    val expected = Seq("12345,55,12345")
+    assertEquals(expected.sorted, result.sorted)
+  }
 
-    TestBaseUtils.compareResultAsText(results, expected)
+  @Test
+  def testDecimalOnOutputFormatTableSink(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE sink (
+         |  `c` VARCHAR(5),
+         |  `b` DECIMAL(10, 0),
+         |  `d` CHAR(5)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true',
+         |  'runtime-sink' = 'OutputFormat'
+         |)
+         |""".stripMargin)
+
+    env.fromCollection(tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .where('a > 20)
+      .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
+      .insertInto("sink")
+
+    tEnv.execute("job name")
+
+    val result = TestValuesTableFactory.getResults("sink")
+    val expected = Seq("12345,55,12345")
+    assertEquals(expected.sorted, result.sorted)
+  }
+
+  /**
+   * Writing changelog of an aggregation into a memory sink, and read it again as a
+   * changelog source, and apply another aggregation, then verify the result.
+   */
+  @Test
+  def testChangelogSourceAndChangelogSink(): Unit = {
+    val orderData = List(
+      rowOf(1L, "user1", new JBigDecimal("10.02")),
+      rowOf(1L, "user2", new JBigDecimal("71.2")),
+      rowOf(1L, "user1", new JBigDecimal("8.1")),
+      rowOf(2L, "user3", new JBigDecimal("11.3")),
+      rowOf(2L, "user4", new JBigDecimal("9.99")),
+      rowOf(2L, "user1", new JBigDecimal("10")),
+      rowOf(2L, "user3", new JBigDecimal("21.03")))
+    val dataId = TestValuesTableFactory.registerData(orderData)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE orders (
+         |  product_id BIGINT,
+         |  user_name STRING,
+         |  order_price DECIMAL(18, 2)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId'
+         |)
+         |""".stripMargin)
+    tEnv.executeSql(
+      """
+        |CREATE TABLE changelog_sink (
+        |  product_id BIGINT,
+        |  user_name STRING,
+        |  order_price DECIMAL(18, 2)
+        |) WITH (
+        |  'connector' = 'values',
+        |  'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+    tEnv.sqlUpdate(
+      """
+        |INSERT INTO changelog_sink
+        |SELECT product_id, user_name, SUM(order_price)
+        |FROM orders
+        |GROUP BY product_id, user_name
+        |""".stripMargin)
+    tEnv.execute("job name")
+
+    val rawResult = TestValuesTableFactory.getRawResults("changelog_sink")
+    val expected = List(
+      "+I(1,user2,71.20)",
+      "+I(1,user1,10.02)",
+      "-U(1,user1,10.02)",
+      "+U(1,user1,18.12)",
+      "+I(2,user4,9.99)",
+      "+I(2,user1,10.00)",
+      "+I(2,user3,11.30)",
+      "-U(2,user3,11.30)",
+      "+U(2,user3,32.33)")
+    assertEquals(expected.sorted, rawResult.sorted)
+
+    // register the changelog sink as a changelog source again
+    val changelogData = expected.map { s =>
+      val kindString = s.substring(0, 2)
+      val fields = s.substring(3, s.length - 1).split(",")
+      changelogRow(kindString, JLong.valueOf(fields(0)), fields(1), new JBigDecimal(fields(2)))
+    }
+    val dataId2 = TestValuesTableFactory.registerChangelogData(changelogData)
+    tEnv.executeSql(
+      s"""
+        |CREATE TABLE changelog_source (
+        |  product_id BIGINT,
+        |  user_name STRING,
+        |  price DECIMAL(18, 2)
+        |) WITH (
+        |  'connector' = 'values',
+        |  'data-id' = '$dataId2',
+        |  'changelog-mode' = 'I,UB,UA,D'
+        |)
+        |""".stripMargin)
+    tEnv.executeSql(
+      """
+        |CREATE TABLE final_sink (
+        |  user_name STRING,
+        |  total_pay DECIMAL(18, 2),
+        |  PRIMARY KEY (user_name) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+    tEnv.sqlUpdate(
+      """
+        |INSERT INTO final_sink
+        |SELECT user_name, SUM(price) as total_pay
+        |FROM changelog_source
+        |GROUP BY user_name
+        |""".stripMargin)
+    tEnv.execute("job name")
+    val finalResult = TestValuesTableFactory.getResults("final_sink")
+    val finalExpected = List(
+      "user1,28.12", "user2,71.20", "user3,32.33", "user4,9.99")
+    assertEquals(finalExpected.sorted, finalResult.sorted)
+  }
+
+  @Test
+  def testNotNullEnforcer(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(nullData4)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE nullable_src (
+         |  category STRING,
+         |  shopId INT,
+         |  num INT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId'
+         |)
+         |""".stripMargin)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE not_null_sink (
+         |  category STRING,
+         |  shopId INT,
+         |  num INT NOT NULL
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
+    tEnv.sqlUpdate("INSERT INTO not_null_sink SELECT * FROM nullable_src")
+
+    // default should fail, because there are null values in the source
+    try {
+      tEnv.execute("job name")
+      fail("Execution should fail.")
+    } catch {
+      case t: Throwable =>
+        val exception = ExceptionUtils.findThrowableWithMessage(
+          t,
+          "Column 'num' is NOT NULL, however, a null value is being written into it. " +
+            "You can set job configuration 'table.exec.sink.not-null-enforcer'='drop' " +
+            "to suppress this exception and drop such records silently.")
+        assertTrue(exception.isPresent)
+    }
+
+    // enable drop enforcer to make the query can run
+    tEnv.getConfig.getConfiguration.setString("table.exec.sink.not-null-enforcer", "drop")
+    tEnv.sqlUpdate("INSERT INTO not_null_sink SELECT * FROM nullable_src")
+    tEnv.execute("job name")
+
+    val result = TestValuesTableFactory.getResults("not_null_sink")
+    val expected = List("book,1,12", "book,4,11", "fruit,3,44")
+    assertEquals(expected.sorted, result.sorted)
   }
 }

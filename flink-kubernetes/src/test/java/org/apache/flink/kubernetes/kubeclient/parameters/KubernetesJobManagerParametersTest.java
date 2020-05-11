@@ -78,7 +78,7 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 	}
 
 	@Test
-	public void testGetAnnotations() {
+	public void testGetJobManagerAnnotations() {
 		final Map<String, String> expectedAnnotations = new HashMap<>();
 		expectedAnnotations.put("a1", "v1");
 		expectedAnnotations.put("a2", "v2");
@@ -86,6 +86,19 @@ public class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, expectedAnnotations);
 
 		final Map<String, String> resultAnnotations = kubernetesJobManagerParameters.getAnnotations();
+
+		assertThat(resultAnnotations, is(equalTo(expectedAnnotations)));
+	}
+
+	@Test
+	public void testGetServiceAnnotations() {
+		final Map<String, String> expectedAnnotations = new HashMap<>();
+		expectedAnnotations.put("a1", "v1");
+		expectedAnnotations.put("a2", "v2");
+
+		flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS, expectedAnnotations);
+
+		final Map<String, String> resultAnnotations = kubernetesJobManagerParameters.getRestServiceAnnotations();
 
 		assertThat(resultAnnotations, is(equalTo(expectedAnnotations)));
 	}

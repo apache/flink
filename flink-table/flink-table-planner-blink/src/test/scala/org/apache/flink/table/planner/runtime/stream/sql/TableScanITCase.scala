@@ -20,10 +20,11 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, TestTableSourceWithTime, WithoutTimeAttributesTableSource}
 import org.apache.flink.types.Row
@@ -60,7 +61,7 @@ class TableScanITCase extends StreamingTestBase {
     val returnType = Types.STRING
 
     val tableSource = new TestTableSourceWithTime(false, schema, returnType, data, null, "ptime")
-    tEnv.registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery = s"SELECT name FROM $tableName"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -95,7 +96,7 @@ class TableScanITCase extends StreamingTestBase {
       rowtime = "rowtime",
       mapping = mapping,
       existingTs = "ts")
-    tEnv.registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery =
       s"""
@@ -137,7 +138,7 @@ class TableScanITCase extends StreamingTestBase {
       fieldNames)
 
     val tableSource = new TestPreserveWMTableSource(schema, rowType, data, "rtime")
-    tEnv.registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
     val sqlQuery = s"SELECT id, name FROM $tableName"
     val sink = new TestingAppendSink
 

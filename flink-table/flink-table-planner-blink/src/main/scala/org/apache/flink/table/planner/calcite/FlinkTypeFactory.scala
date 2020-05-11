@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.calcite
 
 import java.nio.charset.Charset
 import java.util
-
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.RelNode
@@ -36,7 +35,7 @@ import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Valid
 import org.apache.flink.table.calcite.ExtendedRelTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -108,6 +107,10 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
           // fields are not expanded in "SELECT *"
           StructKind.PEEK_FIELDS_NO_EXPAND)
 
+      case LogicalTypeRoot.STRUCTURED_TYPE =>
+        val structuredType = t.asInstanceOf[StructuredType]
+        StructuredRelDataType.create(this, structuredType)
+
       case LogicalTypeRoot.ARRAY =>
         val arrayType = t.asInstanceOf[ArrayType]
         createArrayType(createFieldTypeFromLogicalType(arrayType.getElementType), -1)
@@ -128,6 +131,8 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
             new RawRelDataType(rawType)
           case genericType: TypeInformationRawType[_] =>
             new GenericRelDataType(genericType, true, getTypeSystem)
+          case legacyType: LegacyTypeInformationType[_] =>
+            createFieldTypeFromLogicalType(PlannerTypeUtils.removeLegacyTypes(legacyType))
         }
 
       case LogicalTypeRoot.SYMBOL =>
@@ -325,6 +330,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
       case raw: RawRelDataType =>
         raw.createWithNullability(isNullable)
 
+      case structured: StructuredRelDataType =>
+        structured.createWithNullability(isNullable)
+
       case generic: GenericRelDataType =>
         new GenericRelDataType(generic.genericType, isNullable, typeSystem)
 
@@ -519,6 +527,9 @@ object FlinkTypeFactory {
 
       case ROW if relDataType.isInstanceOf[RelRecordType] =>
         toLogicalRowType(relDataType)
+
+      case STRUCTURED if relDataType.isInstanceOf[StructuredRelDataType] =>
+        relDataType.asInstanceOf[StructuredRelDataType].getStructuredType
 
       case MULTISET => new MultisetType(toLogicalType(relDataType.getComponentType))
 

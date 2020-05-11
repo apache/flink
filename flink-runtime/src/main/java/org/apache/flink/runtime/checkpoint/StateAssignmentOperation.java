@@ -89,7 +89,7 @@ public class StateAssignmentOperation {
 			// find the states of all operators belonging to this task
 			List<OperatorIDPair> operatorIDPairs = executionJobVertex.getOperatorIDs();
 			List<OperatorState> operatorStates = new ArrayList<>(operatorIDPairs.size());
-			boolean statelessTask = true;
+			boolean statelessSubTasks = true;
 			for (OperatorIDPair operatorIDPair : operatorIDPairs) {
 				OperatorID operatorID = operatorIDPair.getUserDefinedOperatorID().orElse(operatorIDPair.getGeneratedOperatorID());
 
@@ -99,12 +99,12 @@ public class StateAssignmentOperation {
 						operatorID,
 						executionJobVertex.getParallelism(),
 						executionJobVertex.getMaxParallelism());
-				} else {
-					statelessTask = false;
+				} else if (operatorState.getNumberCollectedStates() > 0) {
+					statelessSubTasks = false;
 				}
 				operatorStates.add(operatorState);
 			}
-			if (!statelessTask) { // skip tasks where no operator has any state
+			if (!statelessSubTasks) { // skip tasks where no operator has any state
 				assignAttemptState(executionJobVertex, operatorStates);
 			}
 		}
