@@ -66,6 +66,8 @@ public enum CheckpointFailureReason {
 
 	TASK_CHECKPOINT_FAILURE(false, "Task local checkpoint failure."),
 
+	UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE(false, "Unknown task for the checkpoint to notify."),
+
 	FINALIZE_CHECKPOINT_FAILURE(false, "Failure to finalize checkpoint."),
 
 	TRIGGER_CHECKPOINT_FAILURE(false, "Trigger checkpoint failure.");
