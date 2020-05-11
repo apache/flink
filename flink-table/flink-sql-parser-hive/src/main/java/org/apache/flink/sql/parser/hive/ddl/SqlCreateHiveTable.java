@@ -48,6 +48,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 	public static final String TABLE_IS_EXTERNAL = "hive.is-external";
 	public static final String PK_CONSTRAINT_TRAIT = "hive.pk.constraint.trait";
 	public static final String NOT_NULL_CONSTRAINT_TRAITS = "hive.not.null.constraint.traits";
+	public static final String NOT_NULL_COLS = "hive.not.null.cols";
 
 	private final HiveTableCreationContext creationContext;
 	private final SqlNodeList originPropList;
@@ -97,13 +98,18 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 		}
 		// set NOT NULL
 		if (creationContext.notNullTraits != null) {
-			// NOT NULL cols are taken care of by super class, we need to set constraint traits here
+			// set traits
 			String notNullTraits = creationContext.notNullTraits.stream()
 					.map(HiveDDLUtils::encodeConstraintTrait)
 					.map(Object::toString)
 					.collect(Collectors.joining(HiveDDLUtils.COL_DELIMITER));
 			propertyList.add(HiveDDLUtils.toTableOption(
 					NOT_NULL_CONSTRAINT_TRAITS, notNullTraits, propertyList.getParserPosition()));
+			// set col names
+			String notNullCols = creationContext.notNullCols.stream()
+					.map(SqlIdentifier::getSimple)
+					.collect(Collectors.joining(HiveDDLUtils.COL_DELIMITER));
+			propertyList.add(HiveDDLUtils.toTableOption(NOT_NULL_COLS, notNullCols, propertyList.getParserPosition()));
 		}
 		// set row format
 		this.rowFormat = rowFormat;
@@ -309,6 +315,8 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 	public static class HiveTableCreationContext extends TableCreationContext {
 		public SqlHiveConstraintTrait pkTrait = null;
 		public List<SqlHiveConstraintTrait> notNullTraits = null;
+		// PK cols are also considered not null, so we need to remember explicit NN cols
+		public List<SqlIdentifier> notNullCols = null;
 	}
 
 	/**

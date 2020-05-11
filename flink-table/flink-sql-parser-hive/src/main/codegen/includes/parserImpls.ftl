@@ -489,10 +489,12 @@ void TableColumnWithConstraint(HiveTableCreationContext context) :
     {
         // we have NOT NULL column constraint here
         if (!type.getNullable()) {
-            if(context.notNullTraits == null) {
+            if (context.notNullTraits == null) {
                 context.notNullTraits = new ArrayList();
+                context.notNullCols = new ArrayList();
             }
             context.notNullTraits.add(ConstraintTrait());
+            context.notNullCols.add(name);
         }
         SqlTableColumn tableColumn = new SqlTableColumn(name, type, null, comment, getPos());
         context.columnList.add(tableColumn);

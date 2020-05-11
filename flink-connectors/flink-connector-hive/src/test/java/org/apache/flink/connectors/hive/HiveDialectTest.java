@@ -19,8 +19,11 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
+import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -38,6 +41,7 @@ import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -47,6 +51,7 @@ import java.net.URISyntaxException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test Hive syntax when Hive dialect is used.
@@ -158,6 +163,22 @@ public class HiveDialectTest {
 		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
 		assertEquals(";", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.COLLECTION_DELIM));
 		assertEquals(":", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.MAPKEY_DELIM));
+	}
+
+	@Test
+	public void testCreateTableWithConstraints() throws Exception {
+		Assume.assumeTrue(HiveVersionTestUtil.HIVE_310_OR_LATER);
+		tableEnv.sqlUpdate("create table tbl (x int,y int not null disable novalidate rely,z int not null disable novalidate norely," +
+				"constraint pk_name primary key (x) rely)");
+		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(new ObjectPath("default", "tbl"));
+		TableSchema tableSchema = catalogTable.getSchema();
+		assertTrue("PK not present", tableSchema.getPrimaryKey().isPresent());
+		assertEquals("pk_name", tableSchema.getPrimaryKey().get().getName());
+		assertFalse("PK cannot be null", tableSchema.getFieldDataTypes()[0].getLogicalType().isNullable());
+		assertFalse("RELY NOT NULL should be reflected in schema",
+				tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable());
+		assertTrue("NORELY NOT NULL shouldn't be reflected in schema",
+				tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable());
 	}
 
 	private static String locationPath(String locationURI) throws URISyntaxException {

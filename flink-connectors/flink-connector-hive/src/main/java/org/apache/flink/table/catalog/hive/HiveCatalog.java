@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connectors.hive.HiveTableFactory;
+import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
@@ -70,6 +71,7 @@ import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
@@ -103,6 +105,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +113,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_COLS;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_CONSTRAINT_TRAITS;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
 import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveIntStat;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveLongStat;
@@ -375,27 +381,44 @@ public class HiveCatalog extends AbstractCatalog {
 		boolean isGeneric = isGenericForCreate(table.getOptions());
 		if (!isGeneric) {
 			pkConstraint = table.getSchema().getPrimaryKey().orElse(null);
-			for (int i = 0; i < table.getSchema().getFieldDataTypes().length; i++) {
-				if (!table.getSchema().getFieldDataTypes()[i].getLogicalType().isNullable()) {
-					notNullCols.add(table.getSchema().getFieldNames()[i]);
+			String nnColStr = hiveTable.getParameters().remove(NOT_NULL_COLS);
+			if (nnColStr != null) {
+				notNullCols.addAll(Arrays.asList(nnColStr.split(HiveDDLUtils.COL_DELIMITER)));
+			} else {
+				for (int i = 0; i < table.getSchema().getFieldDataTypes().length; i++) {
+					if (!table.getSchema().getFieldDataTypes()[i].getLogicalType().isNullable()) {
+						notNullCols.add(table.getSchema().getFieldNames()[i]);
+					}
 				}
 			}
 		}
 
 		try {
 			if (pkConstraint != null || !notNullCols.isEmpty()) {
-				// for now we just create constraints that are DISABLE, NOVALIDATE, RELY
-				Byte[] pkTraits = new Byte[pkConstraint == null ? 0 : pkConstraint.getColumns().size()];
-				Arrays.fill(pkTraits, HiveTableUtil.relyConstraint((byte) 0));
-				Byte[] nnTraits = new Byte[notNullCols.size()];
-				Arrays.fill(nnTraits, HiveTableUtil.relyConstraint((byte) 0));
+				// extract constraint traits from table properties
+				String pkTraitStr = hiveTable.getParameters().remove(PK_CONSTRAINT_TRAIT);
+				byte pkTrait = pkTraitStr == null ? HiveDDLUtils.defaultTrait() : Byte.parseByte(pkTraitStr);
+				List<Byte> pkTraits =
+						Collections.nCopies(pkConstraint == null ? 0 : pkConstraint.getColumns().size(), pkTrait);
+
+				List<Byte> nnTraits;
+				String nnTraitsStr = hiveTable.getParameters().remove(NOT_NULL_CONSTRAINT_TRAITS);
+				if (nnTraitsStr != null) {
+					String[] traits = nnTraitsStr.split(HiveDDLUtils.COL_DELIMITER);
+					Preconditions.checkArgument(traits.length == notNullCols.size(),
+							"Number of NOT NULL columns and constraint traits mismatch");
+					nnTraits = Arrays.stream(traits).map(Byte::new).collect(Collectors.toList());
+				} else {
+					nnTraits = Collections.nCopies(notNullCols.size(), HiveDDLUtils.defaultTrait());
+				}
+
 				client.createTableWithConstraints(
 						hiveTable,
 						hiveConf,
 						pkConstraint,
-						Arrays.asList(pkTraits),
+						pkTraits,
 						notNullCols,
-						Arrays.asList(nnTraits));
+						nnTraits);
 			} else {
 				client.createTable(hiveTable);
 			}
