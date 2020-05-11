@@ -51,9 +51,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link StandaloneJobClusterConfigurationParserFactory}.
+ * Tests for the {@link StandaloneApplicationClusterConfigurationParserFactory}.
  */
-public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogger {
+public class StandaloneApplicationClusterConfigurationParserFactoryTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -68,7 +68,7 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 		confFile.createNewFile();
 	}
 
-	private static final CommandLineParser<StandaloneJobClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneJobClusterConfigurationParserFactory());
+	private static final CommandLineParser<StandaloneApplicationClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneApplicationClusterConfigurationParserFactory());
 	private static final String JOB_CLASS_NAME = "foobar";
 
 	@Test
@@ -90,11 +90,11 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 				String.format("-D%s=%s", key, value),
 				arg1, arg2};
 
-		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+		final StandaloneApplicationClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
 		assertThat(clusterConfiguration.getJobClassName(), is(equalTo(JOB_CLASS_NAME)));
 		assertThat(clusterConfiguration.getArgs(), arrayContaining(arg1, arg2));
 
-		final Configuration configuration = StandaloneJobClusterEntryPoint
+		final Configuration configuration = StandaloneApplicationClusterEntryPoint
 				.loadConfigurationFromClusterConfig(clusterConfiguration);
 
 		final String strJobId = configuration.get(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
@@ -113,8 +113,8 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 				"--job-id", jobID.toHexString()
 		};
 
-		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
-		final Configuration configuration = StandaloneJobClusterEntryPoint
+		final StandaloneApplicationClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+		final Configuration configuration = StandaloneApplicationClusterEntryPoint
 				.loadConfigurationFromClusterConfig(clusterConfiguration);
 
 		final String strJobId = configuration.get(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
@@ -131,7 +131,7 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 		final String arg2 = "arg2";
 		final String[] args = {"--configDir", confDirPath, "--webui-port", String.valueOf(restPort), "--job-classname", JOB_CLASS_NAME, String.format("-D%s=%s", key, value), arg1, arg2};
 
-		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+		final StandaloneApplicationClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
 
 		assertThat(clusterConfiguration.getConfigDir(), is(equalTo(confDirPath)));
 		assertThat(clusterConfiguration.getJobClassName(), is(equalTo(JOB_CLASS_NAME)));
@@ -151,7 +151,7 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 	public void testOnlyRequiredArguments() throws FlinkParseException {
 		final String[] args = {"--configDir", confDirPath};
 
-		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+		final StandaloneApplicationClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
 
 		assertThat(clusterConfiguration.getConfigDir(), is(equalTo(confDirPath)));
 		assertThat(clusterConfiguration.getDynamicProperties(), is(equalTo(new Properties())));
@@ -174,9 +174,9 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 	public void testSavepointRestoreSettingsParsing() throws FlinkParseException {
 		final String restorePath = "foobar";
 		final String[] args = {"-c", confDirPath, "-j", JOB_CLASS_NAME, "-s", restorePath, "-n"};
-		final StandaloneJobClusterConfiguration standaloneJobClusterConfiguration = commandLineParser.parse(args);
+		final StandaloneApplicationClusterConfiguration standaloneApplicationClusterConfiguration = commandLineParser.parse(args);
 
-		final SavepointRestoreSettings savepointRestoreSettings = standaloneJobClusterConfiguration.getSavepointRestoreSettings();
+		final SavepointRestoreSettings savepointRestoreSettings = standaloneApplicationClusterConfiguration.getSavepointRestoreSettings();
 
 		assertThat(savepointRestoreSettings.restoreSavepoint(), is(true));
 		assertThat(savepointRestoreSettings.getRestorePath(), is(equalTo(restorePath)));
@@ -188,9 +188,9 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 		final JobID jobId = new JobID();
 		final String[] args = {"--configDir", confDirPath, "--job-classname", "foobar", "--job-id", jobId.toString()};
 
-		final StandaloneJobClusterConfiguration standaloneJobClusterConfiguration = commandLineParser.parse(args);
+		final StandaloneApplicationClusterConfiguration standaloneApplicationClusterConfiguration = commandLineParser.parse(args);
 
-		assertThat(standaloneJobClusterConfiguration.getJobId(), is(equalTo(jobId)));
+		assertThat(standaloneApplicationClusterConfiguration.getJobId(), is(equalTo(jobId)));
 	}
 
 	@Test
@@ -221,7 +221,7 @@ public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogg
 			"-s", savepointRestorePath,
 			"-n"};
 
-		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+		final StandaloneApplicationClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
 
 		assertThat(clusterConfiguration.getConfigDir(), is(equalTo(confDirPath)));
 		assertThat(clusterConfiguration.getJobClassName(), is(equalTo(jobClassName)));

@@ -30,9 +30,9 @@ import java.util.Properties;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Configuration for the {@link StandaloneJobClusterEntryPoint}.
+ * Configuration for the {@link StandaloneApplicationClusterEntryPoint}.
  */
-final class StandaloneJobClusterConfiguration extends EntrypointClusterConfiguration {
+final class StandaloneApplicationClusterConfiguration extends EntrypointClusterConfiguration {
 
 	@Nonnull
 	private final SavepointRestoreSettings savepointRestoreSettings;
@@ -43,7 +43,7 @@ final class StandaloneJobClusterConfiguration extends EntrypointClusterConfigura
 	@Nullable
 	private final String jobClassName;
 
-	StandaloneJobClusterConfiguration(
+	StandaloneApplicationClusterConfiguration(
 			@Nonnull String configDir,
 			@Nonnull Properties dynamicProperties,
 			@Nonnull String[] args,

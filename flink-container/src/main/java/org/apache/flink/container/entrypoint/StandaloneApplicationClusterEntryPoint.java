@@ -52,9 +52,9 @@ import static org.apache.flink.runtime.util.ClusterEntrypointUtils.tryFindUserLi
  * location.
  */
 @Internal
-public final class StandaloneJobClusterEntryPoint extends ApplicationClusterEntryPoint {
+public final class StandaloneApplicationClusterEntryPoint extends ApplicationClusterEntryPoint {
 
-	private StandaloneJobClusterEntryPoint(
+	private StandaloneApplicationClusterEntryPoint(
 			final Configuration configuration,
 			final PackagedProgram program) {
 		super(configuration, program, StandaloneResourceManagerFactory.getInstance());
@@ -62,18 +62,18 @@ public final class StandaloneJobClusterEntryPoint extends ApplicationClusterEntr
 
 	public static void main(String[] args) {
 		// startup checks and logging
-		EnvironmentInformation.logEnvironmentInfo(LOG, StandaloneJobClusterEntryPoint.class.getSimpleName(), args);
+		EnvironmentInformation.logEnvironmentInfo(LOG, StandaloneApplicationClusterEntryPoint.class.getSimpleName(), args);
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		final CommandLineParser<StandaloneJobClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneJobClusterConfigurationParserFactory());
+		final CommandLineParser<StandaloneApplicationClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneApplicationClusterConfigurationParserFactory());
 
-		StandaloneJobClusterConfiguration clusterConfiguration = null;
+		StandaloneApplicationClusterConfiguration clusterConfiguration = null;
 		try {
 			clusterConfiguration = commandLineParser.parse(args);
 		} catch (Exception e) {
 			LOG.error("Could not parse command line arguments {}.", args, e);
-			commandLineParser.printHelp(StandaloneJobClusterEntryPoint.class.getSimpleName());
+			commandLineParser.printHelp(StandaloneApplicationClusterEntryPoint.class.getSimpleName());
 			System.exit(1);
 		}
 
@@ -90,13 +90,13 @@ public final class StandaloneJobClusterEntryPoint extends ApplicationClusterEntr
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, program.getClasspaths(), URL::toString);
 
-		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(configuration, program);
+		StandaloneApplicationClusterEntryPoint entrypoint = new StandaloneApplicationClusterEntryPoint(configuration, program);
 
 		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
 	}
 
 	@VisibleForTesting
-	static Configuration loadConfigurationFromClusterConfig(StandaloneJobClusterConfiguration clusterConfiguration) {
+	static Configuration loadConfigurationFromClusterConfig(StandaloneApplicationClusterConfiguration clusterConfiguration) {
 		Configuration configuration = loadConfiguration(clusterConfiguration);
 		setStaticJobId(clusterConfiguration, configuration);
 		SavepointRestoreSettings.toConfiguration(clusterConfiguration.getSavepointRestoreSettings(), configuration);
@@ -104,7 +104,7 @@ public final class StandaloneJobClusterEntryPoint extends ApplicationClusterEntr
 	}
 
 	private static PackagedProgram getPackagedProgram(
-			final StandaloneJobClusterConfiguration clusterConfiguration) throws IOException, FlinkException {
+			final StandaloneApplicationClusterConfiguration clusterConfiguration) throws IOException, FlinkException {
 		final PackagedProgramRetriever programRetriever = getPackagedProgramRetriever(
 				clusterConfiguration.getArgs(),
 				clusterConfiguration.getJobClassName());
@@ -122,7 +122,7 @@ public final class StandaloneJobClusterEntryPoint extends ApplicationClusterEntr
 		return retrieverBuilder.build();
 	}
 
-	private static void setStaticJobId(StandaloneJobClusterConfiguration clusterConfiguration, Configuration configuration) {
+	private static void setStaticJobId(StandaloneApplicationClusterConfiguration clusterConfiguration, Configuration configuration) {
 		final JobID jobId = clusterConfiguration.getJobId();
 		if (jobId != null) {
 			configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
