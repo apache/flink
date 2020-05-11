@@ -15,13 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util;
+package org.apache.flink.tests.util.ssh;
 
 import org.apache.flink.tests.util.activation.OperatingSystemRestriction;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -32,20 +33,22 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Tests for {@link TestUtils}.
+ * Tests for {@link SshTool}.
  */
-public class TestUtilsTest extends TestLogger {
+public class SshToolTest extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@BeforeClass
 	public static void setupClass() {
-		OperatingSystemRestriction.forbid("Symbolic links usually require special permissions on Windows.", OperatingSystem.WINDOWS);
+		OperatingSystemRestriction.forbid("Symbolic links usually require special permissions on Windows.",
+			OperatingSystem.WINDOWS);
 	}
 
 	@Test
-	public void copyDirectory() throws IOException {
+	public void copyDirectoryFrom() throws IOException {
+		SshTool sshTool = new SshTool();
 		Path[] files = {
 			Paths.get("file1"),
 			Paths.get("dir1", "file2"),
@@ -53,18 +56,43 @@ public class TestUtilsTest extends TestLogger {
 
 		Path source = temporaryFolder.newFolder("source").toPath();
 		for (Path file : files) {
-			Files.createDirectories(source.resolve(file).getParent());
+			Path newPath = source.resolve(file).getParent();
+			if (!newPath.toFile().exists()) {
+				Files.createDirectories(newPath);
+			}
 			Files.createFile(source.resolve(file));
 		}
 
-		Path symbolicLink = source.getParent().resolve("link");
-		Files.createSymbolicLink(symbolicLink, source);
-
 		Path target = source.getParent().resolve("target");
-		TestUtils.copyDirectory(symbolicLink, target);
+		sshTool.copyDirectoryFrom(source, target, "127.0.0.1");
 
-		for (Path file: files) {
+		for (Path file : files) {
 			Assert.assertTrue(Files.exists(target.resolve(file)));
 		}
 	}
+
+	@Test
+	public void copyDirectoryTo() throws IOException {
+		SshTool sshTool = new SshTool();
+		Path[] files = {
+			Paths.get("file1"),
+			Paths.get("dir1", "file2"),
+		};
+
+		Path source = temporaryFolder.newFolder("source").toPath();
+		for (Path file : files) {
+			Path newPath = source.resolve(file).getParent();
+			if (!newPath.toFile().exists()) {
+				Files.createDirectories(newPath);
+			}
+			Files.createFile(source.resolve(file));
+		}
+		Path target = source.getParent().resolve("target");
+		sshTool.copyDirectoryTo(source, target, "127.0.0.1");
+
+		for (Path file : files) {
+			Assert.assertTrue(Files.exists(target.resolve(file)));
+		}
+	}
+
 }

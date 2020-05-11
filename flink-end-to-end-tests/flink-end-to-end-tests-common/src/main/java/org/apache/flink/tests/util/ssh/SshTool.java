@@ -17,68 +17,110 @@
 
 package org.apache.flink.tests.util.ssh;
 
-import org.apache.flink.tests.util.parameters.ParameterProperty;
-
+import com.hierynomus.sshj.signature.SignatureEdDSA;
+import net.schmizz.sshj.Config;
+import net.schmizz.sshj.DefaultConfig;
 import net.schmizz.sshj.SSHClient;
+import net.schmizz.sshj.common.Factory;
 import net.schmizz.sshj.connection.channel.direct.Session;
+import net.schmizz.sshj.signature.Signature;
+import net.schmizz.sshj.signature.SignatureDSA;
+import net.schmizz.sshj.signature.SignatureECDSA;
+import net.schmizz.sshj.signature.SignatureRSA;
+import net.schmizz.sshj.transport.verification.PromiscuousVerifier;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * SSH test utilities.
  */
-// TODO: maybe introduce interface so we can test things locally, pretending to copy things over the network
+
 public class SshTool {
 
-	// TODO: check whether username/password are actually necessary; start-cluster.sh requires passwordless SSH to be setup
-	private static final ParameterProperty<String> SSH_USERNAME = new ParameterProperty<>("ssh_user", value -> value);
-	private static final ParameterProperty<String> SSH_PASSWORD = new ParameterProperty<>("ssh_pass", value -> value);
-	private static final ParameterProperty<Integer> SSH_PORT = new ParameterProperty<>("ssh_port", Integer::valueOf);
+	private String username;
+	private int port;
+	private String authorizedFile;
+	private String knownHosts;
+	public Config config = new DefaultConfig();
+	public SSHClient ssh = null;
 
-	private final String username;
-	private final String password;
-	private final int port;
+	public void setConfig() {
+		List<Factory.Named<Signature>> signatureFactories = new ArrayList<Factory.Named<Signature>>();
+		signatureFactories.add(new SignatureRSA.Factory());
+		signatureFactories.add(new SignatureEdDSA.Factory());
+		signatureFactories.add(new SignatureECDSA.Factory256());
+		signatureFactories.add(new SignatureECDSA.Factory384());
+		signatureFactories.add(new SignatureECDSA.Factory521());
+		signatureFactories.add(new SignatureDSA.Factory());
 
-	private SshTool(String username, String password, int port) {
-		this.username = username;
-		this.password = password;
-		this.port = port;
+		this.config.setSignatureFactories(signatureFactories);
+	}
+
+	public SshTool() {
+		this.username = System.getProperty("user.name");
+		this.port = 22;
+		this.authorizedFile = System.getProperty("user.home") + "/.ssh/id_rsa";
+		this.knownHosts = System.getProperty("user.home") + "/.ssh/known_hosts";
+		setConfig();
+	}
+
+	public void connect(String host) throws IOException {
+		try {
+			this.ssh = new SSHClient(this.config);
+			this.ssh.loadKnownHosts();
+			this.ssh.addHostKeyVerifier(new PromiscuousVerifier());
+			this.ssh.connect(host, this.port);
+			this.ssh.authPublickey(this.username, this.authorizedFile);
+		} catch (Exception e) {
+			System.out.println("login failed!");
+			e.printStackTrace();
+			throw e;
+		}
 	}
 
 	public void copyDirectoryTo(Path localDirectory, Path remoteDirectory, String host) throws IOException {
-		try (SSHClient ssh = new SSHClient()) {
-			ssh.connect(host, this.port);
-			ssh.authPassword(this.username, this.password);
+		this.connect(host);
+		if (this.ssh != null) {
 			ssh.newSCPFileTransfer()
 				.upload(localDirectory.toAbsolutePath().toString(), remoteDirectory.toAbsolutePath().toString());
+			ssh.close();
 		}
 	}
 
 	public void copyDirectoryFrom(Path remoteDirectory, Path localDirectory, String host) throws IOException {
-		try (SSHClient ssh = new SSHClient()) {
-			ssh.connect(host, this.port);
-			ssh.authPassword(this.username, this.password);
+		this.connect(host);
+		if (this.ssh != null) {
+			this.ssh.newSCPFileTransfer().download(remoteDirectory.toAbsolutePath().toString(),
+				localDirectory.toAbsolutePath().toString());
+			this.ssh.close();
+		}
+	}
+
+	public void copyDirectoryFrom1(Path remoteDirectory, Path localDirectory, String host) throws IOException {
+		this.connect(host);
+		if (this.ssh != null) {
 			ssh.newSCPFileTransfer()
 				.download(remoteDirectory.toAbsolutePath().toString(), localDirectory.toAbsolutePath().toString());
+			this.ssh.close();
 		}
 	}
 
 	public void runBlocking(String host, String... commands) throws IOException {
-		try (SSHClient ssh = new SSHClient()) {
-			ssh.connect(host, this.port);
-			ssh.authPassword(this.username, this.password);
+		this.connect(host);
+		if (this.ssh != null) {
 			try (Session session = ssh.startSession()) {
 				session.exec(String.join(" ", commands)).join();
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
+			this.ssh.close();
 		}
 	}
 
-	public static SshTool fromSystemProperties() {
-		String username = SSH_USERNAME.get().orElseThrow(() -> new IllegalStateException(SSH_USERNAME.getPropertyName() + " was not configured."));
-		String password = SSH_PASSWORD.get().orElseThrow(() -> new IllegalStateException(SSH_PASSWORD.getPropertyName() + " was not configured."));
-		int port = SSH_PORT.get(2020);
-
-		return new SshTool(username, password, port);
+	public static SshTool fromSystemProperties(){
+		return new SshTool();
 	}
 }
