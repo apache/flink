@@ -23,7 +23,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -44,6 +46,10 @@ import static org.mockito.Mockito.when;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class DeserializationSchemaWrapperTest {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
+
 	@Mock
 	private DeserializationSchema<String> deserializationSchema;
 
@@ -71,12 +77,9 @@ public class DeserializationSchemaWrapperTest {
 	@Test
 	public void testDeserialize() throws Exception {
 		String inputAsString = "some-input";
-		byte[] inputAsBytes = inputAsString.getBytes();
 
-		when(deserializationSchema.deserialize(any())).thenReturn(inputAsString);
-
-		assertThat(deserializationSchemaWrapper.deserialize(pubSubMessage(inputAsString)), is(inputAsString));
-		verify(deserializationSchema, times(1)).deserialize(inputAsBytes);
+		thrown.expect(UnsupportedOperationException.class);
+		deserializationSchemaWrapper.deserialize(pubSubMessage(inputAsString));
 	}
 
 	@Test
