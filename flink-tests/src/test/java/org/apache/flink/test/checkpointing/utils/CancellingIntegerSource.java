@@ -28,9 +28,8 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 
 import javax.annotation.Nullable;
 
-import java.util.Iterator;
-
 import static java.util.Collections.singletonList;
+import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -87,10 +86,7 @@ public class CancellingIntegerSource extends RichSourceFunction<Integer> impleme
 	public void initializeState(FunctionInitializationContext context) throws Exception {
 		lastSentStored = context.getOperatorStateStore().getListState(new ListStateDescriptor<>("counter", Integer.class));
 		if (context.isRestored()) {
-			Iterator<Integer> iterator = lastSentStored.get().iterator();
-			checkState(iterator.hasNext());
-			sentCount = iterator.next();
-			checkState(!iterator.hasNext());
+			sentCount = getOnlyElement(lastSentStored.get());
 		}
 		checkState(cancelAfter == null || sentCount < cancelAfter);
 	}
@@ -110,7 +106,7 @@ public class CancellingIntegerSource extends RichSourceFunction<Integer> impleme
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
-		if (cancelAfterCheckpointId != null && cancelAfterCheckpointId == checkpointId) {
+		if (cancelAfterCheckpointId != null && cancelAfterCheckpointId <= checkpointId) {
 			cancel();
 		}
 	}
@@ -120,8 +116,8 @@ public class CancellingIntegerSource extends RichSourceFunction<Integer> impleme
 		isCanceled = true;
 	}
 
-	public static CancellingIntegerSource upTo(int count, boolean continueAfterCount) {
-		return new CancellingIntegerSource(count, continueAfterCount ? null : count);
+	public static CancellingIntegerSource upTo(int max, boolean continueAfterCount) {
+		return new CancellingIntegerSource(max, continueAfterCount ? null : max);
 	}
 
 }

@@ -28,8 +28,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.checkpointing.utils.AccumulatingIntegerSink;
 import org.apache.flink.test.checkpointing.utils.CancellingIntegerSource;
 
-import org.junit.Before;
-import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -64,10 +63,10 @@ import static org.junit.Assert.assertEquals;
  * Tests recovery from a snapshot created in different UC mode (i.e. unaligned checkpoints enabled/disabled).
  */
 @RunWith(Parameterized.class)
-public class SnapshotCompatibilityITCase {
+public class UnalignedCheckpointCompatibilityITCase {
 
-	@ClassRule
-	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private static final int TOTAL_ELEMENTS = 20;
 	private static final int FIRST_RUN_EL_COUNT = TOTAL_ELEMENTS / 2;
@@ -76,7 +75,6 @@ public class SnapshotCompatibilityITCase {
 
 	private final boolean startAligned;
 	private final CheckpointType type;
-	private File folder;
 
 	@Parameterized.Parameters(name = "type: {0}, startAligned: {1}")
 	public static Object[][] parameters() {
@@ -88,14 +86,9 @@ public class SnapshotCompatibilityITCase {
 		};
 	}
 
-	public SnapshotCompatibilityITCase(CheckpointType type, boolean startAligned) {
+	public UnalignedCheckpointCompatibilityITCase(CheckpointType type, boolean startAligned) {
 		this.startAligned = startAligned;
 		this.type = type;
-	}
-
-	@Before
-	public void init() throws IOException {
-		folder = temporaryFolder.newFolder();
 	}
 
 	@Test
@@ -116,11 +109,12 @@ public class SnapshotCompatibilityITCase {
 		JobClient jobClient = submitJobInitially(env(startAligned, 0, emptyMap()));
 		Thread.sleep(FIRST_RUN_EL_COUNT * FIRST_RUN_BACKPRESSURE_MS); // wait for all tasks to run and some backpressure from sink
 		Future<Map<String, Object>> accFuture = jobClient.getAccumulators(getClass().getClassLoader());
-		Future<String> savepointFuture = jobClient.stopWithSavepoint(false, folder.toURI().toString());
+		Future<String> savepointFuture = jobClient.stopWithSavepoint(false, tempFolder().toURI().toString());
 		return new Tuple2<>(savepointFuture.get(), accFuture.get());
 	}
 
 	private Tuple2<String, Map<String, Object>> runAndTakeExternalCheckpoint() throws Exception {
+		File folder = tempFolder();
 		JobClient jobClient = submitJobInitially(externalCheckpointEnv(startAligned, folder, 100));
 		File metadata = waitForChild(waitForChild(waitForChild(folder))); // structure: root/attempt/checkpoint/_metadata
 		cancelJob(jobClient);
@@ -194,6 +188,10 @@ public class SnapshotCompatibilityITCase {
 			.peek(l -> checkState(!l.isEmpty()))
 			.flatMap(Collection::stream)
 			.collect(Collectors.toList());
+	}
+
+	private File tempFolder() throws IOException {
+		return temporaryFolder.newFolder();
 	}
 
 }
