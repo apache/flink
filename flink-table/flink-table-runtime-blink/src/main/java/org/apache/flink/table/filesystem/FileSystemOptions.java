@@ -60,8 +60,8 @@ public class FileSystemOptions {
 							" How to parse and compare offsets depends on your order." +
 							" For create-time and partition-time, should be a timestamp string.");
 
-	public static final ConfigOption<String> PARTITION_TIME_EXTRACTOR_TYPE =
-			key("partition.time-extractor.type")
+	public static final ConfigOption<String> PARTITION_TIME_EXTRACTOR_KIND =
+			key("partition.time-extractor.kind")
 					.stringType()
 					.defaultValue("default")
 					.withDescription("Time extractor to extract time from partition values. Only be" +

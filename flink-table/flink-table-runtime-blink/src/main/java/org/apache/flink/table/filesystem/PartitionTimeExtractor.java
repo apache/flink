@@ -40,10 +40,10 @@ public interface PartitionTimeExtractor extends Serializable {
 
 	static PartitionTimeExtractor create(
 			ClassLoader userClassLoader,
-			String extractorType,
+			String extractorKind,
 			String extractorClass,
 			String extractorPattern) {
-		switch (extractorType) {
+		switch (extractorKind) {
 			case DEFAULT:
 				return new DefaultPartTimeExtractor(extractorPattern);
 			case CUSTOM:
@@ -55,7 +55,7 @@ public interface PartitionTimeExtractor extends Serializable {
 				}
 			default:
 				throw new UnsupportedOperationException(
-						"Unsupported extractor type: " + extractorType);
+						"Unsupported extractor kind: " + extractorKind);
 		}
 	}
 }

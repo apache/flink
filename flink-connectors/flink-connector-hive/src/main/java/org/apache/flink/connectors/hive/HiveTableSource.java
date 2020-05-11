@@ -79,7 +79,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TYPE;
+import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
 import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_CONSUME_ORDER;
 import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
 import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_ENABLE;
@@ -226,9 +226,9 @@ public class HiveTableSource implements
 		String consumeOffset = properties.getOrDefault(
 				STREAMING_SOURCE_CONSUME_START_OFFSET.key(),
 				STREAMING_SOURCE_CONSUME_START_OFFSET.defaultValue());
-		String extractorType = properties.getOrDefault(
-				PARTITION_TIME_EXTRACTOR_TYPE.key(),
-				PARTITION_TIME_EXTRACTOR_TYPE.defaultValue());
+		String extractorKind = properties.getOrDefault(
+				PARTITION_TIME_EXTRACTOR_KIND.key(),
+				PARTITION_TIME_EXTRACTOR_KIND.defaultValue());
 		String extractorClass = properties.get(PARTITION_TIME_EXTRACTOR_CLASS.key());
 		String extractorPattern = properties.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key());
 
@@ -245,7 +245,7 @@ public class HiveTableSource implements
 				execEnv.getParallelism(),
 				consumeOrder,
 				consumeOffset,
-				extractorType,
+				extractorKind,
 				extractorClass,
 				extractorPattern,
 				monitorInterval.toMillis());

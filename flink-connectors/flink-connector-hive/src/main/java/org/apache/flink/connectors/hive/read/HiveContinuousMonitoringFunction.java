@@ -113,7 +113,7 @@ public class HiveContinuousMonitoringFunction
 	private final String consumeOffset;
 
 	// extractor variables
-	private final String extractorType;
+	private final String extractorKind;
 	private final String extractorClass;
 	private final String extractorPattern;
 
@@ -148,7 +148,7 @@ public class HiveContinuousMonitoringFunction
 			int readerParallelism,
 			String consumeOrder,
 			String consumeOffset,
-			String extractorType,
+			String extractorKind,
 			String extractorClass,
 			String extractorPattern,
 			long interval) {
@@ -159,7 +159,7 @@ public class HiveContinuousMonitoringFunction
 		this.fieldNames = catalogTable.getSchema().getFieldNames();
 		this.fieldTypes = catalogTable.getSchema().getFieldDataTypes();
 		this.consumeOrder = consumeOrder;
-		this.extractorType = extractorType;
+		this.extractorKind = extractorKind;
 		this.extractorClass = extractorClass;
 		this.extractorPattern = extractorPattern;
 		this.consumeOffset = consumeOffset;
@@ -193,7 +193,7 @@ public class HiveContinuousMonitoringFunction
 
 		PartitionTimeExtractor extractor = PartitionTimeExtractor.create(
 				getRuntimeContext().getUserCodeClassLoader(),
-				extractorType,
+				extractorKind,
 				extractorClass,
 				extractorPattern);
 
