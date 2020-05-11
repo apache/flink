@@ -531,6 +531,10 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		}
 
 		@Override
+		public void notifyCheckpointAborted(long checkpointId) {
+		}
+
+		@Override
 		public void snapshotState(FunctionSnapshotContext context) throws Exception {
 			if (!triggeredShutdown) {
 				lastSnapshotedElementBeforeShutdown = numElementsTotal;

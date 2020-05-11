@@ -83,6 +83,10 @@ public class AcknowledgeOnCheckpoint<ACKID extends Serializable> implements Chec
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
+	@Override
 	public List<AcknowledgeIdsForCheckpoint<ACKID>> snapshotState(long checkpointId, long timestamp) throws Exception {
 		acknowledgeIdsPerCheckpoint.add(new AcknowledgeIdsForCheckpoint<>(checkpointId, acknowledgeIdsForPendingCheckpoint));
 		acknowledgeIdsForPendingCheckpoint = new ArrayList<>();

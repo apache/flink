@@ -436,6 +436,10 @@ public class StreamingFileSink<IN>
 	}
 
 	@Override
+	public void notifyCheckpointAborted(long checkpointId) {
+	}
+
+	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		Preconditions.checkState(helper != null, "sink has not been initialized");
 		this.helper.snapshotState(context.getCheckpointId());
