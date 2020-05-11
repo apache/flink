@@ -156,6 +156,17 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
 	CompletableFuture<Acknowledge> confirmCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
 
 	/**
+	 * Abort a checkpoint for the given task. The checkpoint is identified by the checkpoint ID
+	 * and the checkpoint timestamp.
+	 *
+	 * @param executionAttemptID identifying the task
+	 * @param checkpointId unique id for the checkpoint
+	 * @param checkpointTimestamp is the timestamp when the checkpoint has been initiated
+	 * @return Future acknowledge if the checkpoint has been successfully confirmed
+	 */
+	CompletableFuture<Acknowledge> abortCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
+
+	/**
 	 * Cancel the given task.
 	 *
 	 * @param executionAttemptID identifying the task
