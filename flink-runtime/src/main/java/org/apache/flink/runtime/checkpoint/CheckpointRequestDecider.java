@@ -43,7 +43,7 @@ import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.TOO_MA
 @SuppressWarnings("ConstantConditions")
 class CheckpointRequestDecider {
 	private static final Logger LOG = LoggerFactory.getLogger(CheckpointRequestDecider.class);
-	private static final int LOG_TIME_IN_QUEUE_THRESHOLD_MS = 1;
+	private static final int LOG_TIME_IN_QUEUE_THRESHOLD_MS = 100;
 	private static final int DEFAULT_MAX_QUEUED_REQUESTS = 1000;
 
 	private final int maxConcurrentCheckpointAttempts;
@@ -199,10 +199,10 @@ class CheckpointRequestDecider {
 	}
 
 	private static void logInQueueTime(CheckpointTriggerRequest request) {
-		if (LOG.isDebugEnabled()) {
+		if (LOG.isInfoEnabled()) {
 			long timeInQueue = request.timestamp - currentTimeMillis();
 			if (timeInQueue > LOG_TIME_IN_QUEUE_THRESHOLD_MS) {
-				LOG.debug("checkpoint request time in queue: {}", timeInQueue);
+				LOG.info("checkpoint request time in queue: {}", timeInQueue);
 			}
 		}
 	}
