@@ -25,7 +25,7 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
 /**
- * An utility class that convert time attributes (proc time / event time) to regular timestamps.
+ * An utility class that provides abilities to change {@link TableSchema}.
  */
 class SelectTableSinkSchemaConverter {
 
@@ -33,7 +33,7 @@ class SelectTableSinkSchemaConverter {
 	 * Convert time attributes (proc time / event time) to normal timestamps,
 	 * and return a new {@link TableSchema}.
 	 */
-	static TableSchema convert(TableSchema tableSchema) {
+	static TableSchema convertTimeAttributeToRegularTimestamp(TableSchema tableSchema) {
 		DataType[] oldTypes = tableSchema.getFieldDataTypes();
 		String[] oldNames = tableSchema.getFieldNames();
 

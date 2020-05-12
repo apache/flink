@@ -56,7 +56,8 @@ public class BatchSelectTableSink implements StreamTableSink<Row>, SelectTableSi
 
 	@SuppressWarnings("unchecked")
 	public BatchSelectTableSink(TableSchema tableSchema) {
-		this.tableSchema = SelectTableSinkSchemaConverter.convert(tableSchema);
+		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
+				SelectTableSinkSchemaConverter.changeDefaultConversionClass(tableSchema));
 		this.accumulatorName = new AbstractID().toString();
 		this.typeSerializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
 				.fromDataTypeToTypeInfo(this.tableSchema.toRowDataType())

@@ -47,7 +47,7 @@ public class StreamSelectTableSink implements AppendStreamTableSink<Row>, Select
 	private final SocketStreamIterator<Row> iterator;
 
 	public StreamSelectTableSink(TableSchema tableSchema) {
-		this.tableSchema = SelectTableSinkSchemaConverter.convert(tableSchema);
+		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(tableSchema);
 		this.typeSerializer = this.tableSchema.toRowType().createSerializer(new ExecutionConfig());
 		try {
 			// socket server should be started before running the job

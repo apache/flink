@@ -26,25 +26,37 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
 /**
- * An utility class that changes to default conversion class
- * and converts time attributes (proc time / event time) to regular timestamps.
+ * An utility class that provides abilities to change {@link TableSchema}.
  */
 class SelectTableSinkSchemaConverter {
 
 	/**
-	 * Change to default conversion class and
-	 * convert time attributes (proc time / event time) to regular timestamps,
-	 * return a new {@link TableSchema}.
+	 * Change to default conversion class and build a new {@link TableSchema}.
 	 */
-	static TableSchema convert(TableSchema tableSchema) {
+	static TableSchema changeDefaultConversionClass(TableSchema tableSchema) {
 		DataType[] oldTypes = tableSchema.getFieldDataTypes();
+		String[] fieldNames = tableSchema.getFieldNames();
+
+		TableSchema.Builder builder = TableSchema.builder();
+		for (int i = 0; i < tableSchema.getFieldCount(); i++) {
+			DataType fieldType = LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
+					LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(oldTypes[i]));
+			builder.field(fieldNames[i], fieldType);
+		}
+		return builder.build();
+	}
+
+	/**
+	 * Convert time attributes (proc time / event time) to regular timestamp
+	 * and build a new {@link TableSchema}.
+	 */
+	static TableSchema convertTimeAttributeToRegularTimestamp(TableSchema tableSchema) {
+		DataType[] dataTypes = tableSchema.getFieldDataTypes();
 		String[] oldNames = tableSchema.getFieldNames();
 
 		TableSchema.Builder builder = TableSchema.builder();
 		for (int i = 0; i < tableSchema.getFieldCount(); i++) {
-			// change to default conversion class
-			DataType fieldType = LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
-					LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(oldTypes[i]));
+			DataType fieldType = dataTypes[i];
 			String fieldName = oldNames[i];
 			if (fieldType.getLogicalType() instanceof TimestampType) {
 				TimestampType timestampType = (TimestampType) fieldType.getLogicalType();
