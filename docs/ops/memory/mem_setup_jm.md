@@ -25,20 +25,20 @@ under the License.
 * toc
 {:toc}
 
-The Flink Master is the master of the Flink Cluster. 
+The Master is the controlling element of the Flink Cluster. 
 It consists of three distinct components: Flink Resource Manager, Flink Dispatcher and one Flink JobManager per running Flink Job.
-This guide walks you through high level and fine grained memory configurations for the Flink Master.
+This guide walks you through high level and fine-grained memory configurations for the Master.
 
 The further described memory configuration is applicable starting with the release version *1.11*. If you upgrade Flink
 from earlier versions, check the [migration guide](mem_migration.html) because many changes were introduced with the *1.11* release.
 
-<span class="label label-info">Note</span> This memory setup guide is relevant <strong>only for the Flink Master</strong>!
-The Flink Master memory components have a similar but simpler structure compared to the [TaskManagers' memory configuration](mem_setup_tm.html).
+<span class="label label-info">Note</span> This memory setup guide is relevant <strong>only for the Master</strong>!
+The Master memory components have a similar but simpler structure compared to the [TaskManagers' memory configuration](mem_setup_tm.html).
 
 ## Configure Total Memory
 
 The simplest way to set up the memory configuration is to configure the [total memory](mem_setup.html#configure-total-memory) for the process.
-If you run the Flink Master process using local [execution mode](#local-execution) you do not need to configure memory options, they will have no effect.
+If you run the Master process using local [execution mode](#local-execution) you do not need to configure memory options, they will have no effect.
 
 ## Detailed configuration
 
@@ -59,11 +59,11 @@ affect the size of the respective components:
 ### Configure JVM Heap
 
 As mentioned before in the [total memory description](mem_setup.html#configure-total-memory), another way to set up the memory
-for the Flink Master is to specify explicitly the *JVM Heap* size ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)).
+for the Master is to specify explicitly the *JVM Heap* size ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)).
 It gives more control over the available *JVM Heap* which contains:
 
 * Flink framework (e.g. *Job cache*)
-* User code running during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
+* User code executed during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
 
 The required size of *JVM Heap* is mostly driven by the number of running jobs, their structure, and requirements for
 the mentioned user code.
@@ -73,7 +73,7 @@ The *Job cache* resides in the *JVM Heap*. It can be configured by
 
 <span class="label label-info">Note</span> If you have configured the *JVM Heap* explicitly, it is recommended to set
 neither *total process memory* nor *total Flink memory*. Otherwise, it may easily lead to memory configuration conflicts.
-The *JVM Heap* size is set via the corresponding JVM parameters (*-Xms* and *-Xmx*) when the Flink scripts or CLI start the Flink Master process, see also [JVM parameters](mem_setup.html#jvm-parameters).
+The Flink scripts and CLI set the *JVM Heap* size via the JVM parameters *-Xms* and *-Xmx* when they start the Master process, see also [JVM parameters](mem_setup.html#jvm-parameters).
 
 ### Configure Off-heap Memory
 
@@ -81,7 +81,7 @@ The *Off-heap* memory component accounts for any type of *JVM direct memory* and
 is also set via the corresponding JVM argument: *-XX:MaxDirectMemorySize*, see also [JVM parameters](mem_setup.html#jvm-parameters).
 
 The size of this component can be configured by [`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size)
-option. This option can be tuned e.g. if the job manager process throws ‘OutOfMemoryError: Direct buffer memory’, see
+option. This option can be tuned e.g. if the Master process throws ‘OutOfMemoryError: Direct buffer memory’, see
 the [the troubleshooting guide](mem_trouble.html#outofmemoryerror-direct-buffer-memory) for more information.
 
 There can be the following possible sources of *Off-heap* memory consumption:
