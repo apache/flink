@@ -25,6 +25,9 @@ under the License.
 * toc
 {:toc}
 
+The TaskExecutor runs user code in Flink.
+Configuring memory usage for your needs can greatly reduce Flink's resource footprint and improve Job stability.
+
 The further described memory configuration is applicable starting with the release version *1.10*. If you upgrade Flink
 from earlier versions, check the [migration guide](mem_migration.html) because many changes were introduced with the *1.10* release.
 
