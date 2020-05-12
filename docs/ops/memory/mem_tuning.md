@@ -56,6 +56,8 @@ See also description of [container memory exceeded](mem_trouble.html#container-m
 
 ## Configure memory for state backends
 
+This is relevant only for TaskManagers.
+
 When deploying a Flink streaming application, the type of [state backend](../state/state_backends.html) used
 will dictate the optimal memory configurations of your cluster.
 
@@ -77,7 +79,7 @@ and [state.backend.rocksdb.memory.managed](../config.html#state-backend-rocksdb-
 
 ## Configure memory for batch jobs
 
-This is relevant only for task executors.
+This is relevant only for TaskManagers.
 
 Flink's batch operators leverage [managed memory](../memory/mem_setup_tm.html#managed-memory) to run more efficiently.
 In doing so, some operations can be performed directly on raw data without having to be deserialized into Java objects.
