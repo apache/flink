@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 
 import java.util.Objects;
@@ -40,9 +41,9 @@ class YarnLocalResourceDescriptor {
 
 	private final String resourceKey;
 	private final Path path;
-	private long size;
-	private long modificationTime;
-	private LocalResourceVisibility visibility;
+	private final long size;
+	private final long modificationTime;
+	private final LocalResourceVisibility visibility;
 
 	YarnLocalResourceDescriptor(
 			String resourceKey,
@@ -55,6 +56,10 @@ class YarnLocalResourceDescriptor {
 		this.size = resourceSize;
 		this.modificationTime = modificationTime;
 		this.visibility = visibility;
+	}
+
+	boolean alreadyRegisteredAsLocalResource() {
+		return this.visibility.equals(LocalResourceVisibility.PUBLIC);
 	}
 
 	String getResourceKey() {
@@ -120,5 +125,13 @@ class YarnLocalResourceDescriptor {
 				Objects.equals(visibility, that.visibility);
 		}
 		return false;
+	}
+
+	/**
+	 * Transforms this local resource descriptor to a {@link LocalResource}.
+	 * @return YARN resource
+	 */
+	public LocalResource toLocalResource() {
+		return Utils.registerLocalResource(path, size, modificationTime, visibility);
 	}
 }

@@ -21,16 +21,12 @@ package org.apache.flink.yarn;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.StringUtils;
-import org.apache.flink.util.function.FunctionUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.security.TokenCache;
@@ -51,8 +47,6 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -157,20 +151,6 @@ public final class Utils {
 			jarStat.getLen(),
 			jarStat.getModificationTime(),
 			LocalResourceVisibility.APPLICATION);
-	}
-
-	/**
-	 * Creates a YARN resource with the local resource descriptor.
-	 * @param localResourceDescriptor local resource descriptor
-	 * @return YARN resource
-	 */
-	private static LocalResource registerLocalResource(YarnLocalResourceDescriptor localResourceDescriptor) {
-		return registerLocalResource(
-			localResourceDescriptor.getPath(),
-			localResourceDescriptor.getSize(),
-			localResourceDescriptor.getModificationTime(),
-			localResourceDescriptor.getVisibility()
-		);
 	}
 
 	public static void setTokensFor(ContainerLaunchContext amContainer, List<Path> paths, Configuration conf) throws IOException {
@@ -406,13 +386,14 @@ public final class Utils {
 			hasKrb5 = true;
 		}
 
-		// register Flink Jar with remote HDFS
-		final YarnLocalResourceDescriptor localResourceDescFlinkJar = YarnLocalResourceDescriptor.fromString(remoteFlinkJarPath);
-		final LocalResource flinkJarResource = registerLocalResource(localResourceDescFlinkJar);
-
 		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
 
-		taskManagerLocalResources.put(localResourceDescFlinkJar.getResourceKey(), flinkJarResource);
+		// register Flink Jar with remote HDFS
+		final YarnLocalResourceDescriptor flinkDistLocalResourceDesc =
+				YarnLocalResourceDescriptor.fromString(remoteFlinkJarPath);
+		taskManagerLocalResources.put(
+				flinkDistLocalResourceDesc.getResourceKey(),
+				flinkDistLocalResourceDesc.toLocalResource());
 
 		//To support Yarn Secure Integration Test Scenario
 		if (yarnConfResource != null) {
@@ -427,7 +408,7 @@ public final class Utils {
 
 		// prepare additional files to be shipped
 		decodeYarnLocalResourceDescriptorListFromString(shipListString).forEach(
-			resourceDesc -> taskManagerLocalResources.put(resourceDesc.getResourceKey(), registerLocalResource(resourceDesc)));
+			resourceDesc -> taskManagerLocalResources.put(resourceDesc.getResourceKey(), resourceDesc.toLocalResource()));
 
 		// now that all resources are prepared, we can create the launch context
 
@@ -533,48 +514,5 @@ public final class Utils {
 		if (!condition) {
 			throw new RuntimeException(String.format(message, values));
 		}
-	}
-
-	/**
-	 * Get all files in the provided lib directories.
-	 * @param providedLibDirs provided lib directories
-	 * @param yarnConfiguration yarn configuration
-	 *
-	 * @return The all files map, key is file name, value is file status.
-	 */
-	static Map<String, FileStatus> getAllFilesInProvidedLibDirs(@Nullable List<String> providedLibDirs, Configuration yarnConfiguration) {
-		if (providedLibDirs == null || providedLibDirs.isEmpty()) {
-			return Collections.emptyMap();
-		}
-		final Map<String, FileStatus> allFiles = new HashMap<>();
-		try (final FileSystem fileSystem = FileSystem.get(yarnConfiguration)) {
-			providedLibDirs.forEach(
-				FunctionUtils.uncheckedConsumer(
-					dir -> {
-						final Path path = new Path(dir);
-						if (fileSystem.exists(path) && fileSystem.isDirectory(path)) {
-							final RemoteIterator<LocatedFileStatus> iterable = fileSystem.listFiles(path, true);
-							while (iterable.hasNext()) {
-								final LocatedFileStatus locatedFileStatus = iterable.next();
-								final String fileName = locatedFileStatus.getPath().getName();
-								if (allFiles.containsKey(fileName)) {
-									LOG.warn(
-										"A provided file {} with same name already exists. Ignoring {}",
-										allFiles.get(fileName).getPath(),
-										locatedFileStatus.getPath());
-								} else {
-									allFiles.put(fileName, locatedFileStatus);
-									LOG.debug("Found provided file {} under {}", fileName, path);
-								}
-							}
-						} else {
-							LOG.warn("Provided lib dir {} does not exist or is not directory. Ignoring.", path);
-						}
-					})
-			);
-		} catch (IOException ex) {
-			throw new FlinkRuntimeException("Could not get the hadoop file system.", ex);
-		}
-		return Collections.unmodifiableMap(allFiles);
 	}
 }

@@ -24,10 +24,8 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
@@ -54,11 +52,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.hasItems;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -156,19 +150,6 @@ public class UtilsTest extends TestLogger {
 		}
 		assertTrue(hasHdfsDelegationToken);
 		assertFalse(hasAmRmToken);
-	}
-
-	@Test
-	public void testGetProvidedLibDirs() {
-		final File dir = YarnTestBase.findFile("..", new YarnTestBase.RootDirFilenameFilter());
-		Preconditions.checkNotNull(dir);
-		final File flinkHomeDir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
-		final Map<String, FileStatus> allFilesInProvidedLibDirs = Utils.getAllFilesInProvidedLibDirs(
-			Collections.singletonList(flinkHomeDir.toURI().toString()),
-			new YarnConfiguration());
-		final String[] libJars = new File(flinkHomeDir, "lib").list();
-		assertThat(libJars, is(notNullValue()));
-		assertThat(allFilesInProvidedLibDirs.keySet(), hasItems(libJars));
 	}
 }
 

@@ -25,7 +25,12 @@ import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.Map;
 
 /**
  * Utility class for Yarn tests.
@@ -59,5 +64,19 @@ public class YarnTestUtils {
 
 	public static Configuration configureLogFile(Configuration flinkConfiguration, String flinkConfDir) {
 		return YarnLogConfigUtil.setLogConfigFileInConfig(flinkConfiguration, flinkConfDir);
+	}
+
+	public static void generateFilesInDirectory(
+		File directory,
+		Map<String /* (relative) path */, /* contents */ String> srcFiles) throws IOException {
+
+		for (Map.Entry<String, String> src : srcFiles.entrySet()) {
+			File file = new File(directory, src.getKey());
+			//noinspection ResultOfMethodCallIgnored
+			file.getParentFile().mkdirs();
+			try (DataOutputStream out = new DataOutputStream(new FileOutputStream(file))) {
+				out.writeUTF(src.getValue());
+			}
+		}
 	}
 }
