@@ -25,7 +25,6 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveContinuousMonitoringFunction;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
-import org.apache.flink.connectors.hive.read.HiveTableLookupFunction;
 import org.apache.flink.connectors.hive.read.TimestampedHiveInputSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -43,6 +42,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -288,19 +288,20 @@ public class HiveTableSource implements
 
 	@Override
 	public DataType getProducedDataType() {
+		return getProducedTableSchema().toRowDataType().bridgedTo(RowData.class);
+	}
+
+	private TableSchema getProducedTableSchema() {
 		TableSchema fullSchema = getTableSchema();
-		DataType type;
 		if (projectedFields == null) {
-			type = fullSchema.toRowDataType();
+			return fullSchema;
 		} else {
 			String[] fullNames = fullSchema.getFieldNames();
 			DataType[] fullTypes = fullSchema.getFieldDataTypes();
-			type = TableSchema.builder().fields(
+			return TableSchema.builder().fields(
 					Arrays.stream(projectedFields).mapToObj(i -> fullNames[i]).toArray(String[]::new),
-					Arrays.stream(projectedFields).mapToObj(i -> fullTypes[i]).toArray(DataType[]::new))
-					.build().toRowDataType();
+					Arrays.stream(projectedFields).mapToObj(i -> fullTypes[i]).toArray(DataType[]::new)).build();
 		}
-		return type.bridgedTo(RowData.class);
 	}
 
 	@Override
@@ -498,8 +499,13 @@ public class HiveTableSource implements
 
 	@Override
 	public TableFunction<RowData> getLookupFunction(String[] lookupKeys) {
-		// always use MR reader for the lookup function
-		return new HiveTableLookupFunction(getInputFormat(initAllPartitions(), true), lookupKeys, hiveTableCacheTTL);
+		List<HiveTablePartition> allPartitions = initAllPartitions();
+		TableSchema producedSchema = getProducedTableSchema();
+		FileSystemLookupFunction.LookupContext lookupContext = new FileSystemLookupFunction.LookupContext(
+				hiveTableCacheTTL, producedSchema.getFieldNames(), producedSchema.getFieldDataTypes());
+		return new FileSystemLookupFunction<>(
+				getInputFormat(allPartitions, flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER)),
+				lookupKeys, lookupContext);
 	}
 
 	@Override

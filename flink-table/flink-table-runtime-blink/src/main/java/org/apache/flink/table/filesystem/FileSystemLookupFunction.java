@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connectors.hive.read;
+package org.apache.flink.table.filesystem;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -33,9 +34,11 @@ import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,53 +49,45 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * Lookup table function for Hive tables.
+ * Lookup table function for filesystem connector tables.
  */
-public class HiveTableLookupFunction extends TableFunction<RowData> {
+public class FileSystemLookupFunction<T extends InputSplit> extends TableFunction<RowData> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final HiveTableInputFormat inputFormat;
+	private final InputFormat<RowData, T> inputFormat;
+	private final LookupContext context;
 	// indices of lookup columns in the record returned by input format
 	private final int[] lookupCols;
 	// use Row as key because we'll get external data in eval
 	private transient Map<Row, List<RowData>> cache;
 	// timestamp when cache expires
 	private transient long nextLoadTime;
-	private final Duration cacheTTL;
 	// serializer to copy RowData
 	private transient TypeSerializer<RowData> serializer;
 	// converters to convert data from internal to external in order to generate keys for the cache
 	private final DataFormatConverter[] converters;
 
-	public HiveTableLookupFunction(HiveTableInputFormat inputFormat, String[] lookupKeys, Duration cacheTTL) {
+	public FileSystemLookupFunction(InputFormat<RowData, T> inputFormat, String[] lookupKeys, LookupContext context) {
 		lookupCols = new int[lookupKeys.length];
 		converters = new DataFormatConverter[lookupKeys.length];
-		String[] allFields = inputFormat.getFieldNames();
-		Map<String, Integer> nameToIndex = IntStream.range(0, allFields.length).boxed().collect(
-				Collectors.toMap(i -> allFields[i], i -> i));
-		DataType[] allTypes = inputFormat.getFieldTypes();
-		List<Integer> selectedIndices = Arrays.stream(inputFormat.getSelectedFields()).boxed().collect(Collectors.toList());
+		Map<String, Integer> nameToIndex = IntStream.range(0, context.selectedNames.length).boxed().collect(
+				Collectors.toMap(i -> context.selectedNames[i], i -> i));
 		for (int i = 0; i < lookupKeys.length; i++) {
 			Integer index = nameToIndex.get(lookupKeys[i]);
-			Preconditions.checkArgument(index != null, "Lookup keys %s not found in table schema", Arrays.toString(lookupKeys));
-			converters[i] = DataFormatConverters.getConverterForDataType(allTypes[index]);
-			index = selectedIndices.indexOf(index);
-			Preconditions.checkArgument(index >= 0, "Lookup keys %s not selected", Arrays.toString(lookupKeys));
+			Preconditions.checkArgument(index != null, "Lookup keys %s not selected", Arrays.toString(lookupKeys));
+			converters[i] = DataFormatConverters.getConverterForDataType(context.selectedTypes[index]);
 			lookupCols[i] = index;
 		}
 		this.inputFormat = inputFormat;
-		this.cacheTTL = cacheTTL;
+		this.context = context;
 	}
 
 	@Override
 	public TypeInformation<RowData> getResultType() {
-		String[] allNames = inputFormat.getFieldNames();
-		DataType[] allTypes = inputFormat.getFieldTypes();
-		int[] selected = inputFormat.getSelectedFields();
 		return new RowDataTypeInfo(
-				Arrays.stream(selected).mapToObj(i -> allTypes[i].getLogicalType()).toArray(LogicalType[]::new),
-				Arrays.stream(selected).mapToObj(i -> allNames[i]).toArray(String[]::new));
+				Arrays.stream(context.selectedTypes).map(DataType::getLogicalType).toArray(LogicalType[]::new),
+				context.selectedNames);
 	}
 
 	@Override
@@ -118,7 +113,7 @@ public class HiveTableLookupFunction extends TableFunction<RowData> {
 
 	@VisibleForTesting
 	public Duration getCacheTTL() {
-		return cacheTTL;
+		return context.cacheTTL;
 	}
 
 	private void checkCacheReload() {
@@ -127,9 +122,9 @@ public class HiveTableLookupFunction extends TableFunction<RowData> {
 		}
 		cache.clear();
 		try {
-			HiveTableInputSplit[] inputSplits = inputFormat.createInputSplits(1);
-			GenericRowData reuse = new GenericRowData(inputFormat.getSelectedFields().length);
-			for (HiveTableInputSplit split : inputSplits) {
+			T[] inputSplits = inputFormat.createInputSplits(1);
+			GenericRowData reuse = new GenericRowData(context.selectedNames.length);
+			for (T split : inputSplits) {
 				inputFormat.open(split);
 				while (!inputFormat.reachedEnd()) {
 					RowData row = inputFormat.nextRecord(reuse);
@@ -139,9 +134,9 @@ public class HiveTableLookupFunction extends TableFunction<RowData> {
 				}
 				inputFormat.close();
 			}
-			nextLoadTime = System.currentTimeMillis() + cacheTTL.toMillis();
+			nextLoadTime = System.currentTimeMillis() + getCacheTTL().toMillis();
 		} catch (IOException e) {
-			throw new FlinkHiveException("Failed to load hive table into cache", e);
+			throw new FlinkRuntimeException("Failed to load table into cache", e);
 		}
 	}
 
@@ -151,5 +146,24 @@ public class HiveTableLookupFunction extends TableFunction<RowData> {
 			key.setField(i, converters[i].toExternal(row, lookupCols[i]));
 		}
 		return key;
+	}
+
+	/**
+	 * A class to store context information for the lookup function.
+	 */
+	public static class LookupContext implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		private final Duration cacheTTL;
+		// names and types of the records returned by the input format
+		private final String[] selectedNames;
+		private final DataType[] selectedTypes;
+
+		public LookupContext(Duration cacheTTL, String[] selectedNames, DataType[] selectedTypes) {
+			this.cacheTTL = cacheTTL;
+			this.selectedNames = selectedNames;
+			this.selectedTypes = selectedTypes;
+		}
 	}
 }

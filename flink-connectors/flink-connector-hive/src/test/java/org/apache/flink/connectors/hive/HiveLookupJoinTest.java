@@ -18,7 +18,6 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.connectors.hive.read.HiveTableLookupFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableImpl;
@@ -27,6 +26,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
+import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.types.Row;
@@ -69,7 +69,7 @@ public class HiveLookupJoinTest {
 		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
 		HiveTableSource hiveTableSource = (HiveTableSource) ((HiveTableFactory) hiveCatalog.getTableFactory().get()).createTableSource(
 				new TableSourceFactoryContextImpl(tableIdentifier, catalogTable, tableEnv.getConfig().getConfiguration()));
-		HiveTableLookupFunction lookupFunction = (HiveTableLookupFunction) hiveTableSource.getLookupFunction(new String[]{"x"});
+		FileSystemLookupFunction lookupFunction = (FileSystemLookupFunction) hiveTableSource.getLookupFunction(new String[]{"x"});
 		assertEquals(Duration.ofMinutes(5), lookupFunction.getCacheTTL());
 
 		try {
@@ -88,7 +88,7 @@ public class HiveLookupJoinTest {
 			TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select p.x,p.y from default_catalog.default_database.probe as p join " +
 					"build for system_time as of p.p as b on p.x=b.x and p.y=b.y");
 			List<Row> results = Lists.newArrayList(flinkTable.execute().collect());
-			assertEquals("[1,1, 1,0, 2,1, 2,1, 2,3, 2,3, 3,1]", results.toString());
+			assertEquals("[1,a, 2,b, 3,c]", results.toString());
 		} finally {
 			hiveShell.execute("drop table build");
 		}
