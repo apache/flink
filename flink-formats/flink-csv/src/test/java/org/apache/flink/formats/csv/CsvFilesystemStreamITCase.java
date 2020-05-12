@@ -24,9 +24,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * ITCase to test csv format for {@link CsvRowDataFileSystemFormatFactory} in stream mode.
+ * ITCase to test csv format for {@link CsvFileSystemFormatFactory} in stream mode.
  */
-public class CsvRowDataFilesystemStreamITCase extends FsStreamingSinkITCaseBase {
+public class CsvFilesystemStreamITCase extends FsStreamingSinkITCaseBase {
 	@Override
 	public String[] additionalProperties() {
 		List<String> ret = new ArrayList<>();

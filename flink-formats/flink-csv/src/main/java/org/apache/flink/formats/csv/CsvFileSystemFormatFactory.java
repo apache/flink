@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.io.InputFormat;
@@ -46,7 +64,7 @@ import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMA
 /**
  * CSV format factory for file system.
  */
-public class CsvRowDataFileSystemFormatFactory implements FileSystemFormatFactory {
+public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 
 	@Override
 	public InputFormat<RowData, ?> createReader(ReaderContext context) {
@@ -90,43 +108,33 @@ public class CsvRowDataFileSystemFormatFactory implements FileSystemFormatFactor
 
 	private CsvSchema buildCsvSchema(RowType rowType, DescriptorProperties properties) {
 		CsvSchema csvSchema = CsvRowSchemaConverter.convert(rowType);
+		CsvSchema.Builder csvBuilder = csvSchema.rebuild();
 		//format properties
-		if (properties.containsKey(FORMAT_FIELD_DELIMITER)) {
-			csvSchema = csvSchema.rebuild()
-				.setColumnSeparator(properties.getCharacter(FORMAT_FIELD_DELIMITER))
-				.build();
-		}
-		if (properties.containsKey(FORMAT_QUOTE_CHARACTER)) {
-			csvSchema = csvSchema.rebuild()
-				.setQuoteChar(properties.getCharacter(FORMAT_QUOTE_CHARACTER))
-				.build();
-		}
-		if (properties.containsKey(FORMAT_ALLOW_COMMENTS)) {
-			csvSchema = csvSchema.rebuild()
-				.setAllowComments(properties.getBoolean(FORMAT_ALLOW_COMMENTS))
-				.build();
-		}
-		if (properties.containsKey(FORMAT_ARRAY_ELEMENT_DELIMITER)) {
-			csvSchema = csvSchema.rebuild()
-				.setArrayElementSeparator(properties.getString(FORMAT_ARRAY_ELEMENT_DELIMITER))
-				.build();
-		}
-		if (properties.containsKey(FORMAT_ESCAPE_CHARACTER)) {
-			csvSchema = csvSchema.rebuild()
-				.setEscapeChar(properties.getCharacter(FORMAT_ESCAPE_CHARACTER))
-				.build();
-		}
-		if (properties.containsKey(FORMAT_NULL_LITERAL)) {
-			csvSchema = csvSchema.rebuild()
-				.setNullValue(properties.getString(FORMAT_NULL_LITERAL))
-				.build();
-		}
-		if (properties.containsKey(FORMAT_LINE_DELIMITER)) {
-			csvSchema = csvSchema.rebuild()
-				.setLineSeparator(properties.getString(FORMAT_LINE_DELIMITER))
-				.build();
-		}
-		return csvSchema;
+		properties.getOptionalCharacter(FORMAT_FIELD_DELIMITER)
+			.ifPresent(csvBuilder::setColumnSeparator);
+
+		properties.getOptionalCharacter(FORMAT_QUOTE_CHARACTER)
+			.ifPresent(csvBuilder::setQuoteChar);
+
+		properties.getOptionalBoolean(FORMAT_ALLOW_COMMENTS)
+			.ifPresent(csvBuilder::setAllowComments);
+
+		properties.getOptionalString(FORMAT_ARRAY_ELEMENT_DELIMITER)
+			.ifPresent(csvBuilder::setArrayElementSeparator);
+
+		properties.getOptionalString(FORMAT_ARRAY_ELEMENT_DELIMITER)
+			.ifPresent(csvBuilder::setArrayElementSeparator);
+
+		properties.getOptionalCharacter(FORMAT_ESCAPE_CHARACTER)
+			.ifPresent(csvBuilder::setEscapeChar);
+
+		properties.getOptionalString(FORMAT_NULL_LITERAL)
+			.ifPresent(csvBuilder::setNullValue);
+
+		properties.getOptionalString(FORMAT_LINE_DELIMITER)
+			.ifPresent(csvBuilder::setLineSeparator);
+
+		return csvBuilder.build();
 	}
 
 	@Override
