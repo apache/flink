@@ -108,9 +108,9 @@ Consequently, we encourage our users to enable [local recovery]({{site.baseurl}}
 Flink now properly supports `TaskManagers` with multiple slots.
 Consequently, `TaskManagers` can now be started with an arbitrary number of slots and it is no longer recommended to start them with a single slot.
 
-### StandaloneApplicationClusterEntryPoint generates JobGraph with fixed JobID
+### StandaloneJobClusterEntrypoint generates JobGraph with fixed JobID
 
-The `StandaloneApplicationClusterEntryPoint`, which is launched by the script `standalone-job.sh` and used for the job-mode container images, now starts all jobs with a fixed `JobID`.
+The `StandaloneJobClusterEntrypoint`, which is launched by the script `standalone-job.sh` and used for the job-mode container images, now starts all jobs with a fixed `JobID`.
 Thus, in order to run a cluster in HA mode, one needs to set a different [cluster id]({{site.baseurl}}/ops/config.html#high-availability-cluster-id) for each job/cluster. 
 
 <!-- Should be removed once FLINK-10911 is fixed -->
