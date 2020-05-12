@@ -62,7 +62,7 @@ affect the size of the respective components:
 
 As mentioned before in the [total memory description](mem_setup.html#configure-total-memory), another way to set up the memory
 for the Flink Master is to specify explicitly the *JVM Heap* size ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)).
-It gives more control over the available *JVM Heap* for the following purposes:
+It gives more control over the available *JVM Heap* which contains:
 
 * Flink framework (e.g. *Job cache*)
 * User code running during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
