@@ -25,21 +25,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-In this section you will learn about the APIs that Flink provides for writing
-stateful programs. Please take a look at [Stateful Stream
-Processing]({% link concepts/stateful-stream-processing.zh.md %})
-to learn about the concepts behind stateful stream processing.
-
+你将在本节中了解到 Flink 提供的用于编写有状态程序的 API，想了解更多有状态流处理的概念，请查看[有状态的流处理]({% link concepts/stateful-stream-processing.zh.md %})
 {% top %}
 
-Where to go next?
+接下来看什么?
 -----------------
 
-* [Working with State](state.html): Shows how to use state in a Flink application and explains the different kinds of state.
-* [The Broadcast State Pattern](broadcast_state.html): Explains how to connect a broadcast stream with a non-broadcast stream and use state to exchange information between them. 
-* [Checkpointing](checkpointing.html): Describes how to enable and configure checkpointing for fault tolerance.
-* [Queryable State](queryable_state.html): Explains how to access state from outside of Flink during runtime.
-* [State Schema Evolution](schema_evolution.html): Shows how schema of state types can be evolved.
-* [Custom Serialization for Managed State](custom_serialization.html): Discusses how to implement custom serializers, especially for schema evolution.
+* [Working with State](state.html): 描述了如何在 Flink 应用程序中使用状态，以及不同类型的状态。
+* [The Broadcast State 模式](broadcast_state.html): 描述了如何将广播流和非广播流进行连接从而交换数据。
+* [Checkpointing](checkpointing.html): 介绍了如何开启和配置 checkpoint，以实现状态容错。
+* [Queryable State](queryable_state.html): 介绍了如何从外围访问 Flink 的状态。
+* [状态数据结构升级](schema_evolution.html): 介绍了状态数据结构升级相关的内容。
+* [Managed State 的自定义序列化器](custom_serialization.html): 介绍了如何实现自定义的序列化器，尤其是如何支持状态数据结构升级。
 
 {% top %}
