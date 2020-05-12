@@ -70,8 +70,8 @@ It gives more control over the available *JVM Heap* for the following purposes:
 The required size of *JVM Heap* is mostly driven by the number of running jobs, their structure, and requirements for
 the mentioned user code.
 
-The *Job cache* resides in the *JVM Heap*. It already can be configured currently by
-[`jobstore.cache-size`](../config.html#jobstore-cache-size) which must be less than the configured or derived *JVM Heap*.
+The *Job cache* resides in the *JVM Heap*. It can be configured by
+[`jobstore.cache-size`](../config.html#jobstore-cache-size) which must be less than the configured or derived *JVM Heap* size.
 
 <span class="label label-info">Note</span> If you have configured the *JVM Heap* explicitly, it is recommended to set
 neither *total process memory* nor *total Flink memory*. Otherwise, it may easily lead to memory configuration conflicts.
