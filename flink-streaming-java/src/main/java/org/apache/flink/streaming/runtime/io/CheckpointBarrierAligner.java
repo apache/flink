@@ -134,7 +134,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 
 		// -- general code path for multiple input channels --
 
-		if (numBarriersReceived > 0) {
+		if (isCheckpointPending()) {
 			// this is only true if some alignment is already progress and was not canceled
 
 			if (barrierId == currentCheckpointId) {
@@ -243,7 +243,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 
 		// -- general code path for multiple input channels --
 
-		if (numBarriersReceived > 0) {
+		if (isCheckpointPending()) {
 			// this is only true if some alignment is in progress and nothing was canceled
 
 			if (barrierId == currentCheckpointId) {
@@ -303,7 +303,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	public void processEndOfPartition() throws Exception {
 		numClosedChannels++;
 
-		if (numBarriersReceived > 0) {
+		if (isCheckpointPending()) {
 			// let the task know we skip a checkpoint
 			notifyAbort(currentCheckpointId,
 				new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM));
