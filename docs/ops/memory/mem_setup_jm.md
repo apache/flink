@@ -67,7 +67,7 @@ It gives more control over the available *JVM Heap* for the following purposes:
 * Flink framework (e.g. *Job cache*)
 * User code running during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
 
-The required size of *JVM Heap* is mostly driven by the amount of running jobs, their structure and requirements for
+The required size of *JVM Heap* is mostly driven by the number of running jobs, their structure, and requirements for
 the mentioned user code.
 
 The *Job cache* resides in the *JVM Heap*. It already can be configured currently by
