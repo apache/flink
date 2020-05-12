@@ -32,8 +32,8 @@ This guide walks you through high level and fine grained memory configurations f
 The further described memory configuration is applicable starting with the release version *1.11*. If you upgrade Flink
 from earlier versions, check the [migration guide](mem_migration.html) because many changes were introduced with the *1.11* release.
 
-<span class="label label-info">Note</span> This memory setup guide is relevant <strong>only for job managers</strong>!
-The main job manager memory components have a similar but simpler structure compared to the [task executors'](mem_setup_tm.html).
+<span class="label label-info">Note</span> This memory setup guide is relevant <strong>only for the Flink Master</strong>!
+The Flink Master memory components have a similar but simpler structure compared to the [TaskManagers' memory configuration](mem_setup_tm.html).
 
 ## Configure Total Memory
 
