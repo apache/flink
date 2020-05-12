@@ -40,7 +40,6 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.TestingCheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
-import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
@@ -129,12 +128,23 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 	}
 
 	@Test
-	public void taskFailureNotifiesCoordinator() throws Exception {
+	public void deployingTaskFailureNotifiesCoordinator() throws Exception {
 		final DefaultScheduler scheduler = createAndStartScheduler();
 		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
 
 		failTask(scheduler, 1);
-		executor.triggerScheduledTasks();
+
+		assertEquals(1, coordinator.getFailedTasks().size());
+		assertThat(coordinator.getFailedTasks(), contains(1));
+		assertThat(coordinator.getFailedTasks(), not(contains(0)));
+	}
+
+	@Test
+	public void runningTaskFailureNotifiesCoordinator() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		failTask(scheduler, 1);
 
 		assertEquals(1, coordinator.getFailedTasks().size());
 		assertThat(coordinator.getFailedTasks(), contains(1));
@@ -146,10 +156,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
 		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
 
-		failTask(scheduler, 0);
-		executor.triggerScheduledTasks();
-		failTask(scheduler, 0);
-		executor.triggerScheduledTasks();
+		failAndRestartTask(scheduler, 0);
+		failAndRestartTask(scheduler, 0);
 
 		assertEquals(2, coordinator.getFailedTasks().size());
 		assertThat(coordinator.getFailedTasks(), contains(0, 0));
@@ -236,6 +244,11 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 	private DefaultScheduler createAndStartScheduler() throws Exception {
 		final DefaultScheduler scheduler = setupTestJobAndScheduler(new TestingOperatorCoordinator.Provider(testOperatorId));
 		scheduler.startScheduling();
+		executor.triggerAll();
+
+		// guard test assumptions: this brings tasks into DEPLOYING state
+		assertEquals(ExecutionState.DEPLOYING, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
+
 		return scheduler;
 	}
 
@@ -249,6 +262,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		executor.triggerAll();
 		executor.triggerScheduledTasks();
 		SchedulerTestingUtils.setAllExecutionsToRunning(scheduler);
+
+		// guard test assumptions: this brings tasks into RUNNING state
+		assertEquals(ExecutionState.RUNNING, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
+
 		return scheduler;
 	}
 
@@ -258,6 +275,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		executor.triggerAll();
 		executor.triggerScheduledTasks();
 		SchedulerTestingUtils.setAllExecutionsToRunning(scheduler);
+
+		// guard test assumptions: this brings tasks into RUNNING state
+		assertEquals(ExecutionState.RUNNING, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
+
 		return scheduler;
 	}
 
@@ -326,12 +347,27 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private void failTask(DefaultScheduler scheduler, int subtask) {
-		final ExecutionJobVertex ejv = getJobVertex(scheduler, testVertexId);
-		assert ejv != null;
-		final ExecutionAttemptID attemptID = ejv.getTaskVertices()[subtask].getCurrentExecutionAttempt().getAttemptId();
+		SchedulerTestingUtils.failExecution(scheduler, testVertexId, subtask);
+		executor.triggerAll();
 
-		scheduler.updateTaskExecutionState(new TaskExecutionState(
-				ejv.getJobId(), attemptID, ExecutionState.FAILED, new Exception("test task failure")));
+		// guard the test assumptions: This must not lead to a restart, but must keep the task in FAILED state
+		assertEquals(ExecutionState.FAILED, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask));
+	}
+
+	private void failAndRedeployTask(DefaultScheduler scheduler, int subtask) {
+		failTask(scheduler, subtask);
+		executor.triggerScheduledTasks();
+
+		// guard the test assumptions: This must lead to a restarting and redeploying
+		assertEquals(ExecutionState.DEPLOYING, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask));
+	}
+
+	private void failAndRestartTask(DefaultScheduler scheduler, int subtask) {
+		failAndRedeployTask(scheduler, subtask);
+		SchedulerTestingUtils.setExecutionToRunning(scheduler, testVertexId, subtask);
+
+		// guard the test assumptions: This must bring the task back to RUNNING
+		assertEquals(ExecutionState.RUNNING, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask));
 	}
 
 	// ------------------------------------------------------------------------

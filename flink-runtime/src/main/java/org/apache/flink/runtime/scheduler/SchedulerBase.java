@@ -405,6 +405,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 		return executionGraph.getAllVertices().get(executionVertexId.getJobVertexId()).getTaskVertices()[executionVertexId.getSubtaskIndex()];
 	}
 
+	public ExecutionJobVertex getExecutionJobVertex(final JobVertexID jobVertexId) {
+		return executionGraph.getAllVertices().get(jobVertexId);
+	}
+
 	protected JobGraph getJobGraph() {
 		return jobGraph;
 	}
