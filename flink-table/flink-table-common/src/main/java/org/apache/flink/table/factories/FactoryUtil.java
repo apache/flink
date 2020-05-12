@@ -71,9 +71,24 @@ public final class FactoryUtil {
 			"Uniquely identifies the connector of a dynamic table that is used for accessing data in " +
 			"an external system. Its value is used during table source and table sink discovery.");
 
-	public static final String FORMAT_KEY = "format";
+	public static final ConfigOption<String> KEY_FORMAT = ConfigOptions
+		.key("key.format")
+		.stringType()
+		.noDefaultValue();
 
-	public static final String FORMAT_SUFFIX = ".format";
+	public static final ConfigOption<String> VALUE_FORMAT = ConfigOptions
+		.key("value.format")
+		.stringType()
+		.noDefaultValue();
+
+	public static final ConfigOption<String> FORMAT = ConfigOptions
+		.key("format")
+		.stringType()
+		.noDefaultValue();
+
+	private static final String FORMAT_KEY = "format";
+
+	private static final String FORMAT_SUFFIX = ".format";
 
 	/**
 	 * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
@@ -160,11 +175,19 @@ public final class FactoryUtil {
 	 * <pre>{@code
 	 * // in createDynamicTableSource()
 	 * helper = FactoryUtil.createTableFactoryHelper(this, context);
-	 * keyFormat = helper.discoverScanFormat(classloader, MyFormatFactory.class, KEY_OPTION);
-	 * valueFormat = helper.discoverScanFormat(classloader, MyFormatFactory.class, VALUE_OPTION);
+	 * keyFormat = helper.discoverScanFormat(DeserializationFormatFactory.class, KEY_FORMAT);
+	 * valueFormat = helper.discoverScanFormat(DeserializationFormatFactory.class, VALUE_FORMAT);
 	 * helper.validate();
 	 * ... // construct connector with discovered formats
 	 * }</pre>
+	 *
+	 * <p>Note: The format option parameter of {@code helper.discoverScanFormat(formatFactoryClass, formatOption)}
+	 * and {@code helper.discoverSinkFormat(formatFactoryClass, formatOption)} must be 'format' or
+	 * with '.format' suffix (e.g. {@link #FORMAT}, {@link #KEY_FORMAT} and {@link #VALUE_FORMAT}).
+	 * The discovery logic will replace 'format' with the factory identifier value as the format
+	 * prefix. For example, assuming the identifier is 'json', if format option key is 'format',
+	 * then format prefix is 'json.'. If format option key is 'value.format', then format prefix
+	 * is 'value.json'. The format prefix is used to project the options for the format factory.
 	 *
 	 * <p>Note: This utility checks for left-over options in the final step.
 	 */
@@ -375,13 +398,6 @@ public final class FactoryUtil {
 
 		/**
 		 * Discovers a {@link ScanFormat} of the given type using the given option as factory identifier.
-		 *
-		 * <p>The format option key must be 'format' or with '.format' suffix. The discovery logic
-		 * will replace 'format' with the factory identifier value as the format prefix.
-		 * For example, assuming the identifier is 'json', if format option key is 'format',
-		 * then format prefix is 'json.'. If format option key is 'value.format', then format
-		 * prefix is 'value.json'. The format prefix is used to project the options for the
-		 * format factory.
 		 */
 		public <I, F extends ScanFormatFactory<I>> ScanFormat<I> discoverScanFormat(
 				Class<F> formatFactoryClass,
@@ -395,13 +411,6 @@ public final class FactoryUtil {
 		/**
 		 * Discovers a {@link ScanFormat} of the given type using the given option (if present) as factory
 		 * identifier.
-		 *
-		 * <p>The format option key must be 'format' or with '.format' suffix. The discovery logic
-		 * will replace 'format' with the factory identifier value as the format prefix.
-		 * For example, assuming the identifier is 'json', if format option key is 'format',
-		 * then format prefix is 'json.'. If format option key is 'value.format', then format
-		 * prefix is 'value.json'. The format prefix is used to project the options for the
-		 * format factory.
 		 */
 		public <I, F extends ScanFormatFactory<I>> Optional<ScanFormat<I>> discoverOptionalScanFormat(
 				Class<F> formatFactoryClass,
@@ -424,13 +433,6 @@ public final class FactoryUtil {
 
 		/**
 		 * Discovers a {@link SinkFormat} of the given type using the given option as factory identifier.
-		 *
-		 * <p>The format option key must be 'format' or with '.format' suffix. The discovery logic
-		 * will replace 'format' with the factory identifier value as the format prefix.
-		 * For example, assuming the identifier is 'json', if format option key is 'format',
-		 * then format prefix is 'json.'. If format option key is 'value.format', then format
-		 * prefix is 'value.json'. The format prefix is used to project the options for the
-		 * format factory.
 		 */
 		public <I, F extends SinkFormatFactory<I>> SinkFormat<I> discoverSinkFormat(
 				Class<F> formatFactoryClass,
@@ -444,13 +446,6 @@ public final class FactoryUtil {
 		/**
 		 * Discovers a {@link SinkFormat} of the given type using the given option (if present) as factory
 		 * identifier.
-		 *
-		 * <p>The format option key must be 'format' or with '.format' suffix. The discovery logic
-		 * will replace 'format' with the factory identifier value as the format prefix.
-		 * For example, assuming the identifier is 'json', if format option key is 'format',
-		 * then format prefix is 'json.'. If format option key is 'value.format', then format
-		 * prefix is 'value.json'. The format prefix is used to project the options for the
-		 * format factory.
 		 */
 		public <I, F extends SinkFormatFactory<I>> Optional<SinkFormat<I>> discoverOptionalSinkFormat(
 				Class<F> formatFactoryClass,
