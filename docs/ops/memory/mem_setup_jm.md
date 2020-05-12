@@ -37,10 +37,8 @@ The Flink Master memory components have a similar but simpler structure compared
 
 ## Configure Total Memory
 
-If you run the Flink Master process locally, you do not need to configure memory options, they will have no effect.
-See also [notes for the execution mode](#notes-for-the-execution-mode). Otherwise, the simplest way to set up the
-memory configuration is to configure the total memory.
-See [how to configure it for the Flink process](mem_setup.html#configure-total-memory).
+The simplest way to set up the memory configuration is to configure the [total memory](mem_setup.html#configure-total-memory) for the process.
+If you run the Flink Master process using local [execution mode](#notes-for-the-execution-mode) you do not need to configure memory options, they will have no effect.
 
 ## Detailed configuration
 
