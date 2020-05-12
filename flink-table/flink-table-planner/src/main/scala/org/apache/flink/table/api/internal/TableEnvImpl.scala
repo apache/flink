@@ -49,6 +49,8 @@ import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
 
+import org.apache.commons.lang3.StringUtils
+
 import _root_.java.lang.{Iterable => JIterable, Long => JLong}
 import _root_.java.util.function.{Function => JFunction, Supplier => JSupplier}
 import _root_.java.util.{Optional, Collections => JCollections, HashMap => JHashMap, List => JList, Map => JMap}
@@ -140,7 +142,7 @@ abstract class TableEnvImpl(
       "CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
       "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, USE CATALOG, USE [CATALOG.]DATABASE, " +
       "SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, " +
-      "SHOW VIEWS, INSERT."
+      "SHOW VIEWS, INSERT, DESCRIBE."
 
   private def isStreamingMode: Boolean = this match {
     case _: BatchTableEnvImpl => false
@@ -626,7 +628,7 @@ abstract class TableEnvImpl(
         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
         .tableSchema(tableSchema)
         .data(tableSink.getResultIterator)
-        .setPrintStyle(PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH))
+        .setPrintStyle(PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN))
         .build
     } catch {
       case e: Exception =>
@@ -809,6 +811,15 @@ abstract class TableEnvImpl(
           .data(JCollections.singletonList(Row.of(explanation)))
           .setPrintStyle(PrintStyle.rawContent())
           .build
+      case descOperation: DescribeTableOperation =>
+        val result = catalogManager.getTable(descOperation.getSqlIdentifier)
+        if (result.isPresent) {
+          buildDescribeResult(result.get.getTable.getSchema)
+        } else {
+          throw new ValidationException(String.format(
+            "Table or view with identifier '%s' doesn't exist",
+            descOperation.getSqlIdentifier.asSummaryString()))
+        }
       case queryOperation: QueryOperation =>
         executeInternal(queryOperation)
 
@@ -818,10 +829,51 @@ abstract class TableEnvImpl(
   }
 
   private def buildShowResult(objects: Array[String]): TableResult = {
+    val rows = Array.ofDim[Object](objects.length, 1)
+    objects.zipWithIndex.foreach {
+      case (obj, i) => rows(i)(0) = obj
+    }
+    buildResult(Array("result"), Array(DataTypes.STRING), rows)
+  }
+
+  private def buildDescribeResult(schema: TableSchema): TableResult = {
+    val fieldToWatermark =
+      schema
+        .getWatermarkSpecs
+        .map(w => (w.getRowtimeAttribute, w.getWatermarkExpr)).toMap
+    val fieldToPrimaryKey = new JHashMap[String, String]()
+    if (schema.getPrimaryKey.isPresent) {
+      val columns = schema.getPrimaryKey.get.getColumns.asScala
+      columns.foreach(c => fieldToPrimaryKey.put(c, s"PRI(${columns.mkString(", ")})"))
+    }
+    val data = Array.ofDim[Object](schema.getFieldCount, 6)
+    schema.getTableColumns.asScala.zipWithIndex.foreach {
+      case (c, i) => {
+        val logicalType = c.getType.getLogicalType
+        data(i)(0) = c.getName
+        data(i)(1) = StringUtils.removeEnd(logicalType.toString, " NOT NULL")
+        data(i)(2) = Boolean.box(logicalType.isNullable)
+        data(i)(3) = fieldToPrimaryKey.getOrDefault(c.getName, null)
+        data(i)(4) = c.getExpr.orElse(null)
+        data(i)(5) = fieldToWatermark.getOrDefault(c.getName, null)
+      }
+    }
+    buildResult(
+      Array("name", "type", "null", "key", "compute column", "watermark"),
+      Array(DataTypes.STRING, DataTypes.STRING, DataTypes.BOOLEAN, DataTypes.STRING,
+        DataTypes.STRING, DataTypes.STRING),
+      data)
+  }
+
+  private def buildResult(
+      headers: Array[String],
+      types: Array[DataType],
+      rows: Array[Array[Object]]): TableResult = {
     TableResultImpl.builder()
       .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-      .tableSchema(TableSchema.builder().field("result", DataTypes.STRING()).build())
-      .data(objects.map(Row.of(_)).toList)
+      .tableSchema(
+        TableSchema.builder().fields(headers, types).build())
+      .data(rows.map(Row.of(_:_*)).toList)
       .build()
   }
 
