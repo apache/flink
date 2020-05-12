@@ -143,6 +143,15 @@ public class InputChannelTestUtils {
 			.buildRemoteChannel(inputGate);
 	}
 
+	public static RemoteInputChannel createRemoteInputChannel(
+		SingleInputGate inputGate,
+		int numExclusiveSegments) {
+
+		return InputChannelBuilder.newBuilder()
+			.setNetworkBuffersPerChannel(numExclusiveSegments)
+			.buildRemoteChannel(inputGate);
+	}
+
 	public static ConnectionManager mockConnectionManagerWithPartitionRequestClient(PartitionRequestClient client) {
 		return new ConnectionManager() {
 			@Override

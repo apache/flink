@@ -49,6 +49,7 @@ public class InputChannelBuilder {
 	private ConnectionManager connectionManager = new TestingConnectionManager();
 	private int initialBackoff = 0;
 	private int maxBackoff = 0;
+	private int networkBuffersPerChannel = 2;
 	private InputChannelMetrics metrics = InputChannelTestUtils.newUnregisteredInputChannelMetrics();
 
 	public static InputChannelBuilder newBuilder() {
@@ -90,6 +91,11 @@ public class InputChannelBuilder {
 		return this;
 	}
 
+	public InputChannelBuilder setNetworkBuffersPerChannel(int networkBuffersPerChannel) {
+		this.networkBuffersPerChannel = networkBuffersPerChannel;
+		return this;
+	}
+
 	public InputChannelBuilder setMetrics(InputChannelMetrics metrics) {
 		this.metrics = metrics;
 		return this;
@@ -100,6 +106,7 @@ public class InputChannelBuilder {
 		this.connectionManager = network.getConnectionManager();
 		this.initialBackoff = network.getConfiguration().partitionRequestInitialBackoff();
 		this.maxBackoff = network.getConfiguration().partitionRequestMaxBackoff();
+		this.networkBuffersPerChannel = network.getConfiguration().networkBuffersPerChannel();
 		return this;
 	}
 
@@ -113,6 +120,7 @@ public class InputChannelBuilder {
 			connectionManager,
 			initialBackoff,
 			maxBackoff,
+			networkBuffersPerChannel,
 			metrics);
 	}
 
@@ -138,6 +146,7 @@ public class InputChannelBuilder {
 			connectionManager,
 			initialBackoff,
 			maxBackoff,
+			networkBuffersPerChannel,
 			metrics.getNumBytesInRemoteCounter(),
 			metrics.getNumBuffersInRemoteCounter());
 	}
@@ -163,6 +172,7 @@ public class InputChannelBuilder {
 			connectionManager,
 			initialBackoff,
 			maxBackoff,
+			networkBuffersPerChannel,
 			metrics);
 	}
 }

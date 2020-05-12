@@ -854,7 +854,7 @@ public class RemoteInputChannelTest {
 		final ExecutorService executor = Executors.newFixedThreadPool(3);
 
 		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		final RemoteInputChannel inputChannel = InputChannelTestUtils.createRemoteInputChannel(inputGate, numExclusiveSegments);
 		inputGate.setInputChannels(inputChannel);
 		Throwable thrown = null;
 		try {
@@ -1227,7 +1227,7 @@ public class RemoteInputChannelTest {
 		TestBufferReceivedListener listener = new TestBufferReceivedListener();
 		SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		inputGate.registerBufferReceivedListener(listener);
-		RemoteInputChannel channel = InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate);
+		RemoteInputChannel channel = InputChannelTestUtils.createRemoteInputChannel(inputGate, 0);
 		channel.onBuffer(toBuffer(new CheckpointBarrier(123L, 123L, new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault()))), 0, 0);
 		channel.checkError();
 		assertTrue(listener.notifiedOnBarriers.isEmpty());

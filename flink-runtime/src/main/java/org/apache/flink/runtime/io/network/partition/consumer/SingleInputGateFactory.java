@@ -72,7 +72,7 @@ public class SingleInputGateFactory {
 	@Nonnull
 	protected final NetworkBufferPool networkBufferPool;
 
-	private final int networkBuffersPerChannel;
+	protected final int networkBuffersPerChannel;
 
 	private final int floatingNetworkBuffersPerGate;
 
@@ -188,6 +188,7 @@ public class SingleInputGateFactory {
 					connectionManager,
 					partitionRequestInitialBackoff,
 					partitionRequestMaxBackoff,
+					networkBuffersPerChannel,
 					metrics);
 			},
 			nettyShuffleDescriptor ->
@@ -230,6 +231,7 @@ public class SingleInputGateFactory {
 				connectionManager,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
+				networkBuffersPerChannel,
 				metrics);
 		}
 	}
