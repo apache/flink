@@ -83,7 +83,7 @@ flink-formats/flink-json,\
 flink-formats/flink-csv,\
 flink-formats/flink-orc,\
 flink-formats/flink-orc-nohive,\
-flink-connectors/flink-hbase,\
+flink-connectors/flink-connector-hbase,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors,\

@@ -147,7 +147,7 @@ def construct_test_classpath():
         "flink-formats/flink-json/target/flink-json*.jar",
         "flink-connectors/flink-connector-elasticsearch-base/target/flink*.jar",
         "flink-connectors/flink-connector-kafka-base/target/flink*.jar",
-        "flink-connectors/flink-hbase/target/flink*.jar",
+        "flink-connectors/flink-connector-hbase/target/flink*.jar",
         "flink-ml-parent/flink-ml-api/target/flink-ml-api*.jar",
         "flink-ml-parent/flink-ml-lib/target/flink-ml-lib*.jar",
     ]

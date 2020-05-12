@@ -37,7 +37,6 @@ under the License.
 
 	<modules>
 		<module>flink-hadoop-compatibility</module>
-		<module>flink-hbase</module>
 		<module>flink-hcatalog</module>
 		<module>flink-connector-kafka-base</module>
 		<module>flink-connector-kafka-0.10</module>
@@ -46,6 +45,7 @@ under the License.
 		<module>flink-connector-elasticsearch5</module>
 		<module>flink-connector-elasticsearch6</module>
 		<module>flink-connector-elasticsearch7</module>
+		<module>flink-connector-hbase</module>
 		<module>flink-connector-hive</module>
 		<module>flink-connector-jdbc</module>
 		<module>flink-connector-rabbitmq</module>
