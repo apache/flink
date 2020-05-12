@@ -212,6 +212,31 @@ tableEnv.sqlQuery("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) 
 // LEFT JOIN a table function (等价于 in Table API 中的 "leftOuterJoin").
 tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE");
 {% endhighlight %}
+
+需要注意的是 POJO 类型没有确定的字段顺序。所以，你不可以用 `AS` 来重命名返回的 POJO 的字段。
+
+`TableFunction` 的返回类型默认是用 Flink 自动类型推导来决定的。对于基础类型和简单的 POJO 类型推导是没有问题的，但是对于更复杂的、自定义的、以及组合的类型可能会推导错误。如果有这种情况，可以通过重写（override） `TableFunction#getResultType()` 并且返回 `TypeInformation` 来指定返回类型。
+
+下面的例子展示了 `TableFunction` 返回了一个 `Row` 类型，需要显示指定返回类型。我们通过重写 `TableFunction#getResultType` 来指定 `RowTypeInfo(String, Integer)` 作为返回的表的类型。
+
+{% highlight java %}
+public class CustomTypeSplit extends TableFunction<Row> {
+    public void eval(String str) {
+        for (String s : str.split(" ")) {
+            Row row = new Row(2);
+            row.setField(0, s);
+            row.setField(1, s.length());
+            collect(row);
+        }
+    }
+
+    @Override
+    public TypeInformation<Row> getResultType() {
+        return Types.ROW(Types.STRING(), Types.INT());
+    }
+}
+{% endhighlight %}
+
 </div>
 
 <div data-lang="scala" markdown="1">
@@ -250,6 +275,29 @@ tableEnv.sqlQuery("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) 
 tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
 **重要：**不要把表值函数实现成一个 Scala object。Scala object 是一个单例，会有并发的问题。
+
+需要注意的是 POJO 类型没有确定的字段顺序。所以，你不可以用 `AS` 来重命名返回的 POJO 的字段。
+
+`TableFunction` 的返回类型默认是用 Flink 自动类型推导来决定的。对于基础类型和简单的 POJO 类型推导是没有问题的，但是对于更复杂的、自定义的、以及组合的类型可能会推导错误。如果有这种情况，可以通过重写（override） `TableFunction#getResultType()` 并且返回 `TypeInformation` 来指定返回类型。
+
+下面的例子展示了 `TableFunction` 返回了一个 `Row` 类型，需要显示指定返回类型。我们通过重写 `TableFunction#getResultType` 来返回 `RowTypeInfo` 作为返回类型。
+
+{% highlight scala %}
+class CustomTypeSplit extends TableFunction[Row] {
+  def eval(str: String): Unit = {
+    str.split(" ").foreach({ s =>
+      val row = new Row(2)
+      row.setField(0, s)
+      row.setField(1, s.length)
+      collect(row)
+    })
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    Types.ROW(Types.STRING, Types.INT)
+  }
+}
+{% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
@@ -285,59 +333,6 @@ table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE
 除了继承 `TableFunction`，还有很多其它方法可以定义 Python 表值函数。
 更多信息，参考 [Python 表值函数]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html#table-functions)文档。
 
-</div>
-</div>
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-需要注意的是 POJO 类型没有确定的字段顺序。所以，你不可以用 `AS` 来重命名返回的 POJO 的字段。
-
-`TableFunction` 的返回类型默认是用 Flink 自动类型推导来决定的。对于基础类型和简单的 POJO 类型推导是没有问题的，但是对于更复杂的、自定义的、以及组合的类型可能会推导错误。如果有这种情况，可以通过重写（override） `TableFunction#getResultType()` 并且返回 `TypeInformation` 来指定返回类型。
-
-下面的例子展示了 `TableFunction` 返回了一个 `Row` 类型，需要显示指定返回类型。我们通过重写 `TableFunction#getResultType` 来指定 `RowTypeInfo(String, Integer)` 作为返回的表的类型。
-
-{% highlight java %}
-public class CustomTypeSplit extends TableFunction<Row> {
-    public void eval(String str) {
-        for (String s : str.split(" ")) {
-            Row row = new Row(2);
-            row.setField(0, s);
-            row.setField(1, s.length());
-            collect(row);
-        }
-    }
-
-    @Override
-    public TypeInformation<Row> getResultType() {
-        return Types.ROW(Types.STRING(), Types.INT());
-    }
-}
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-需要注意的是 POJO 类型没有确定的字段顺序。所以，你不可以用 `AS` 来重命名返回的 POJO 的字段。
-
-`TableFunction` 的返回类型默认是用 Flink 自动类型推导来决定的。对于基础类型和简单的 POJO 类型推导是没有问题的，但是对于更复杂的、自定义的、以及组合的类型可能会推导错误。如果有这种情况，可以通过重写（override） `TableFunction#getResultType()` 并且返回 `TypeInformation` 来指定返回类型。
-
-下面的例子展示了 `TableFunction` 返回了一个 `Row` 类型，需要显示指定返回类型。我们通过重写 `TableFunction#getResultType` 来返回 `RowTypeInfo` 作为返回类型。
-
-{% highlight scala %}
-class CustomTypeSplit extends TableFunction[Row] {
-  def eval(str: String): Unit = {
-    str.split(" ").foreach({ s =>
-      val row = new Row(2)
-      row.setField(0, s)
-      row.setField(1, s.length)
-      collect(row)
-    })
-  }
-
-  override def getResultType: TypeInformation[Row] = {
-    Types.ROW(Types.STRING, Types.INT)
-  }
-}
-{% endhighlight %}
 </div>
 </div>
 
