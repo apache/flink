@@ -19,15 +19,20 @@
 package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
+import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -50,20 +55,28 @@ public class HiveTableLookupFunction extends TableFunction<RowData> {
 	private final HiveTableInputFormat inputFormat;
 	// indices of lookup columns in the record returned by input format
 	private final int[] lookupCols;
-	private transient Map<RowData, List<RowData>> cache;
+	// use Row as key because we'll get external data in eval
+	private transient Map<Row, List<RowData>> cache;
 	// timestamp when cache expires
-	private transient long cacheExpire;
+	private transient long nextLoadTime;
 	private final Duration cacheTTL;
+	// serializer to copy RowData
+	private transient TypeSerializer<RowData> serializer;
+	// converters to convert data from internal to external in order to generate keys for the cache
+	private final DataFormatConverter[] converters;
 
 	public HiveTableLookupFunction(HiveTableInputFormat inputFormat, String[] lookupKeys, Duration cacheTTL) {
 		lookupCols = new int[lookupKeys.length];
+		converters = new DataFormatConverter[lookupKeys.length];
 		String[] allFields = inputFormat.getFieldNames();
 		Map<String, Integer> nameToIndex = IntStream.range(0, allFields.length).boxed().collect(
 				Collectors.toMap(i -> allFields[i], i -> i));
+		DataType[] allTypes = inputFormat.getFieldTypes();
 		List<Integer> selectedIndices = Arrays.stream(inputFormat.getSelectedFields()).boxed().collect(Collectors.toList());
 		for (int i = 0; i < lookupKeys.length; i++) {
 			Integer index = nameToIndex.get(lookupKeys[i]);
 			Preconditions.checkArgument(index != null, "Lookup keys %s not found in table schema", Arrays.toString(lookupKeys));
+			converters[i] = DataFormatConverters.getConverterForDataType(allTypes[index]);
 			index = selectedIndices.indexOf(index);
 			Preconditions.checkArgument(index >= 0, "Lookup keys %s not selected", Arrays.toString(lookupKeys));
 			lookupCols[i] = index;
@@ -86,13 +99,15 @@ public class HiveTableLookupFunction extends TableFunction<RowData> {
 	public void open(FunctionContext context) throws Exception {
 		super.open(context);
 		cache = new HashMap<>();
-		cacheExpire = -1;
+		nextLoadTime = -1;
+		// TODO: get ExecutionConfig from context?
+		serializer = getResultType().createSerializer(new ExecutionConfig());
 	}
 
 	public void eval(Object... values) {
 		Preconditions.checkArgument(values.length == lookupCols.length, "Number of values and lookup keys mismatch");
-		reloadCache();
-		RowData probeKey = GenericRowData.of(values);
+		checkCacheReload();
+		Row probeKey = Row.of(values);
 		List<RowData> matchedRows = cache.get(probeKey);
 		if (matchedRows != null) {
 			for (RowData matchedRow : matchedRows) {
@@ -106,8 +121,8 @@ public class HiveTableLookupFunction extends TableFunction<RowData> {
 		return cacheTTL;
 	}
 
-	private void reloadCache() {
-		if (cacheExpire > System.currentTimeMillis()) {
+	private void checkCacheReload() {
+		if (nextLoadTime > System.currentTimeMillis()) {
 			return;
 		}
 		cache.clear();
@@ -117,33 +132,24 @@ public class HiveTableLookupFunction extends TableFunction<RowData> {
 			for (HiveTableInputSplit split : inputSplits) {
 				inputFormat.open(split);
 				while (!inputFormat.reachedEnd()) {
-					GenericRowData row = (GenericRowData) inputFormat.nextRecord(reuse);
-					GenericRowData key = extractKey(row);
+					RowData row = inputFormat.nextRecord(reuse);
+					Row key = extractKey(row);
 					List<RowData> rows = cache.computeIfAbsent(key, k -> new ArrayList<>());
-					rows.add(copyReference(row));
+					rows.add(serializer.copy(row));
 				}
 				inputFormat.close();
 			}
-			cacheExpire = System.currentTimeMillis() + cacheTTL.toMillis();
+			nextLoadTime = System.currentTimeMillis() + cacheTTL.toMillis();
 		} catch (IOException e) {
 			throw new FlinkHiveException("Failed to load hive table into cache", e);
 		}
 	}
 
-	private GenericRowData extractKey(GenericRowData row) {
-		GenericRowData key = new GenericRowData(lookupCols.length);
+	private Row extractKey(RowData row) {
+		Row key = new Row(lookupCols.length);
 		for (int i = 0; i < lookupCols.length; i++) {
-			key.setField(i, row.getField(lookupCols[i]));
+			key.setField(i, converters[i].toExternal(row, lookupCols[i]));
 		}
 		return key;
-	}
-
-	private static GenericRowData copyReference(GenericRowData rowData) {
-		GenericRowData res = new GenericRowData(rowData.getArity());
-		res.setRowKind(rowData.getRowKind());
-		for (int i = 0; i < rowData.getArity(); i++) {
-			res.setField(i, rowData.getField(i));
-		}
-		return res;
 	}
 }
