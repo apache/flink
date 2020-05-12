@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
@@ -186,8 +187,16 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private void handleTaskFailure(final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
 		setGlobalFailureCause(error);
+		notifyCoordinatorsAboutTaskFailure(executionVertexId, error);
 		final FailureHandlingResult failureHandlingResult = executionFailureHandler.getFailureHandlingResult(executionVertexId, error);
 		maybeRestartTasks(failureHandlingResult);
+	}
+
+	private void notifyCoordinatorsAboutTaskFailure(final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
+		final ExecutionJobVertex jobVertex = getExecutionJobVertex(executionVertexId.getJobVertexId());
+		final int subtaskIndex = executionVertexId.getSubtaskIndex();
+
+		jobVertex.getOperatorCoordinators().forEach(c -> c.subtaskFailed(subtaskIndex));
 	}
 
 	@Override
