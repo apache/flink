@@ -36,11 +36,14 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.SerializedValue;
 
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * Handler that receives the coordination requests from the client and returns the response from the coordinator.
@@ -70,7 +73,11 @@ public class ClientCoordinationHandler extends AbstractRestHandler<RestfulGatewa
 				try {
 					return new ClientCoordinationResponseBody(new SerializedValue<>(coordinationResponse));
 				} catch (IOException e) {
-					throw new RuntimeException("Failed to construct response body", e);
+					throw new CompletionException(
+						new RestHandlerException(
+							"Failed to serialize coordination response",
+							HttpResponseStatus.INTERNAL_SERVER_ERROR,
+							e));
 				}
 			});
 	}
