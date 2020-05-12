@@ -365,7 +365,7 @@ public class CliOptionsParser {
 				clazz.getMethod("parsePythonDependencyConfiguration", CommandLine.class);
 			return (Configuration) parsePythonDependencyConfiguration.invoke(null, line);
 		} catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new SqlClientException("Parse the Python command line options failed.", e);
+			throw new SqlClientException("Failed to parse the Python command line options.", e);
 		}
 	}
 }
