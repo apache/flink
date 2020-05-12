@@ -74,17 +74,23 @@ public final class FactoryUtil {
 	public static final ConfigOption<String> KEY_FORMAT = ConfigOptions
 		.key("key.format")
 		.stringType()
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("Defines the format identifier for encoding key data. " +
+			"The identifier is used to discover a suitable format factory.");
 
 	public static final ConfigOption<String> VALUE_FORMAT = ConfigOptions
 		.key("value.format")
 		.stringType()
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("Defines the format identifier for encoding value data. " +
+			"The identifier is used to discover a suitable format factory.");
 
 	public static final ConfigOption<String> FORMAT = ConfigOptions
 		.key("format")
 		.stringType()
-		.noDefaultValue();
+		.noDefaultValue()
+		.withDescription("Defines the format identifier for encoding data. " +
+			"The identifier is used to discover a suitable format factory.");
 
 	private static final String FORMAT_KEY = "format";
 
