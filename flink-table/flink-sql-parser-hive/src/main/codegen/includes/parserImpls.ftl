@@ -255,14 +255,20 @@ SqlRichDescribeTable SqlRichDescribeTable() :
 {
     SqlIdentifier tableName;
     SqlParserPos pos;
-    boolean isExtended = false;
+    boolean extended = false;
+    boolean formatted = false;
 }
 {
     <DESCRIBE> { pos = getPos();}
-    [ LOOKAHEAD(2) ( <EXTENDED> | <FORMATTED> ) { isExtended = true;} ]
+    [ LOOKAHEAD(2)
+      ( <EXTENDED> { extended = true; }
+        |
+        <FORMATTED> { formatted = true; }
+      )
+    ]
     tableName = CompoundIdentifier()
     {
-        return new SqlRichDescribeTable(pos, tableName, isExtended);
+        return new SqlDescribeHiveTable(pos, tableName, extended, formatted);
     }
 }
 

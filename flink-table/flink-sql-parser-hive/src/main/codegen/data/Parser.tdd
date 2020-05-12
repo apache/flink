@@ -32,6 +32,7 @@
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableCreationContext"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs"
+    "org.apache.flink.sql.parser.hive.ddl.SqlDescribeHiveTable"
     "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintEnable"
     "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintRely"
     "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintTrait"

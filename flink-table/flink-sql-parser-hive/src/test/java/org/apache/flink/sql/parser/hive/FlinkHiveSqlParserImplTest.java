@@ -110,7 +110,7 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 		// TODO: support describe partition and columns
 		sql("describe tbl").ok("DESCRIBE `TBL`");
 		sql("describe extended tbl").ok("DESCRIBE EXTENDED `TBL`");
-		sql("describe formatted tbl").ok("DESCRIBE EXTENDED `TBL`");
+		sql("describe formatted tbl").ok("DESCRIBE FORMATTED `TBL`");
 	}
 
 	@Test
