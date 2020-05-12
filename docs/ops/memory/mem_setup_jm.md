@@ -84,7 +84,7 @@ is also set via the corresponding JVM argument: *-XX:MaxDirectMemorySize*, see a
 
 The size of this component can be configured by [`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size)
 option. This option can be tuned e.g. if the job manager process throws ‘OutOfMemoryError: Direct buffer memory’, see
-also [the troubleshooting guide](mem_trouble.html#outofmemoryerror-direct-buffer-memory).
+the [the troubleshooting guide](mem_trouble.html#outofmemoryerror-direct-buffer-memory) for more information.
 
 There can be the following possible sources of the *Off-heap* memory consumption in JM:
 
