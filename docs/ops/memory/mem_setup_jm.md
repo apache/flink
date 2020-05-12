@@ -38,7 +38,7 @@ The Flink Master memory components have a similar but simpler structure compared
 ## Configure Total Memory
 
 The simplest way to set up the memory configuration is to configure the [total memory](mem_setup.html#configure-total-memory) for the process.
-If you run the Flink Master process using local [execution mode](#notes-for-the-execution-mode) you do not need to configure memory options, they will have no effect.
+If you run the Flink Master process using local [execution mode](#local-execution) you do not need to configure memory options, they will have no effect.
 
 ## Detailed configuration
 
@@ -89,8 +89,6 @@ There can be the following possible sources of *Off-heap* memory consumption:
 * Flink framework dependencies (e.g. Akka network communication)
 * User code executed during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
 
-## Notes for the execution mode
+## Local Execution
 
-The memory configuration options will be respected if you start Flink via the deployment scripts provided in */bin* or via Flink's CLI.
-
-If you run Flink locally (e.g. from your IDE) without creating a cluster, then the configuration options of the described components are not respected.
+If you run Flink locally (e.g. from your IDE) without creating a cluster, then the Master memory configuration options are ignored.

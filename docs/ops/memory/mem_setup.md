@@ -54,7 +54,7 @@ The simplest way to setup memory in Flink is to configure either of the two foll
 {:.table-bordered}
 <br/>
 
-<span class="label label-info">Note</span> For local execution, see notes for [TaskManager](mem_setup_tm.html#local-execution) and [Master](mem_setup_jm.html#notes-for-the-execution-mode) processes.
+<span class="label label-info">Note</span> For local execution, see detailed information for [TaskManager](mem_setup_tm.html#local-execution) and [Master](mem_setup_jm.html#local-execxution) processes.
 
 The rest of the memory components will be adjusted automatically, based on default values or additionally configured options.
 See also how to set up other components for [TaskManager](mem_setup_tm.html) and [Master](mem_setup_jm.html) memory.
