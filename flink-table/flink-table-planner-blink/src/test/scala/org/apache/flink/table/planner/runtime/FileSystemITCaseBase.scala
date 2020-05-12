@@ -226,6 +226,20 @@ trait FileSystemITCaseBase {
       "select x, y from nonPartitionedTable where a=10086",
       Seq())
   }
+
+  @Test
+  def testProjectPushDown(): Unit = {
+    tableEnv.sqlUpdate("insert into partitionedTable select x, y, a, b from originalT")
+    tableEnv.execute("test")
+
+    check(
+      "select y, b, x from partitionedTable where a=3",
+      Seq(
+        row(17, 1, "x17"),
+        row(18, 2, "x18"),
+        row(19, 3, "x19")
+      ))
+  }
 }
 
 object FileSystemITCaseBase {
