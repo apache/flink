@@ -67,12 +67,12 @@ final class NonSpanningWrapper implements DataInputView {
 	// -------------------------------------------------------------------------------------------------------------
 
 	@Override
-	public final void readFully(byte[] b) throws IOException {
+	public final void readFully(byte[] b) {
 		readFully(b, 0, b.length);
 	}
 
 	@Override
-	public final void readFully(byte[] b, int off, int len) throws IOException {
+	public final void readFully(byte[] b, int off, int len) {
 		if (off < 0 || len < 0 || off + len > b.length) {
 			throw new IndexOutOfBoundsException();
 		}
@@ -82,78 +82,75 @@ final class NonSpanningWrapper implements DataInputView {
 	}
 
 	@Override
-	public final boolean readBoolean() throws IOException {
+	public final boolean readBoolean() {
 		return readByte() == 1;
 	}
 
 	@Override
-	public final byte readByte() throws IOException {
+	public final byte readByte() {
 		return this.segment.get(this.position++);
 	}
 
 	@Override
-	public final int readUnsignedByte() throws IOException {
+	public final int readUnsignedByte() {
 		return readByte() & 0xff;
 	}
 
 	@Override
-	public final short readShort() throws IOException {
+	public final short readShort() {
 		final short v = this.segment.getShortBigEndian(this.position);
 		this.position += 2;
 		return v;
 	}
 
 	@Override
-	public final int readUnsignedShort() throws IOException {
+	public final int readUnsignedShort() {
 		final int v = this.segment.getShortBigEndian(this.position) & 0xffff;
 		this.position += 2;
 		return v;
 	}
 
 	@Override
-	public final char readChar() throws IOException  {
+	public final char readChar()  {
 		final char v = this.segment.getCharBigEndian(this.position);
 		this.position += 2;
 		return v;
 	}
 
 	@Override
-	public final int readInt() throws IOException {
+	public final int readInt() {
 		final int v = this.segment.getIntBigEndian(this.position);
 		this.position += 4;
 		return v;
 	}
 
 	@Override
-	public final long readLong() throws IOException {
+	public final long readLong() {
 		final long v = this.segment.getLongBigEndian(this.position);
 		this.position += 8;
 		return v;
 	}
 
 	@Override
-	public final float readFloat() throws IOException {
+	public final float readFloat() {
 		return Float.intBitsToFloat(readInt());
 	}
 
 	@Override
-	public final double readDouble() throws IOException {
+	public final double readDouble() {
 		return Double.longBitsToDouble(readLong());
 	}
 
 	@Override
-	public final String readLine() throws IOException {
+	public final String readLine() {
 		final StringBuilder bld = new StringBuilder(32);
 
-		try {
-			int b;
-			while ((b = readUnsignedByte()) != '\n') {
-				if (b != '\r') {
-					bld.append((char) b);
-				}
+		int b;
+		while ((b = readUnsignedByte()) != '\n') {
+			if (b != '\r') {
+				bld.append((char) b);
 			}
 		}
-		catch (EOFException ignored) {}
 
 		if (bld.length() == 0) {
 			return null;
@@ -168,7 +165,7 @@ final class NonSpanningWrapper implements DataInputView {
 	}
 
 	@Override
-	public final String readUTF() throws IOException {
+	public final String readUTF() throws UTFDataFormatException {
 		final int utflen = readUnsignedShort();
 
 		final byte[] bytearr;
@@ -222,7 +219,7 @@ final class NonSpanningWrapper implements DataInputView {
 				if (count > utflen) {
 					throw new UTFDataFormatException("malformed input: partial character at end");
 				}
-				char2 = (int) bytearr[count - 1];
+				char2 = bytearr[count - 1];
 				if ((char2 & 0xC0) != 0x80) {
 					throw new UTFDataFormatException("malformed input around byte " + count);
 				}
@@ -233,8 +230,8 @@ final class NonSpanningWrapper implements DataInputView {
 				if (count > utflen) {
 					throw new UTFDataFormatException("malformed input: partial character at end");
 				}
-				char2 = (int) bytearr[count - 2];
-				char3 = (int) bytearr[count - 1];
+				char2 = bytearr[count - 2];
+				char3 = bytearr[count - 1];
 				if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80)) {
 					throw new UTFDataFormatException("malformed input around byte " + (count - 1));
 				}
@@ -249,7 +246,7 @@ final class NonSpanningWrapper implements DataInputView {
 	}
 
 	@Override
-	public final int skipBytes(int n) throws IOException {
+	public final int skipBytes(int n) {
 		if (n < 0) {
 			throw new IllegalArgumentException();
 		}
@@ -260,7 +257,7 @@ final class NonSpanningWrapper implements DataInputView {
 	}
 
 	@Override
-	public void skipBytesToRead(int numBytes) throws IOException {
+	public void skipBytesToRead(int numBytes) throws EOFException {
 		int skippedBytes = skipBytes(numBytes);
 
 		if (skippedBytes < numBytes){
@@ -269,7 +266,7 @@ final class NonSpanningWrapper implements DataInputView {
 	}
 
 	@Override
-	public int read(byte[] b, int off, int len) throws IOException {
+	public int read(byte[] b, int off, int len) {
 		if (b == null){
 			throw new NullPointerException("Byte array b cannot be null.");
 		}
@@ -290,7 +287,7 @@ final class NonSpanningWrapper implements DataInputView {
 	}
 
 	@Override
-	public int read(byte[] b) throws IOException {
+	public int read(byte[] b) {
 		return read(b, 0, b.length);
 	}
 }
