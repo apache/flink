@@ -137,13 +137,28 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		this.logFailuresOnly = logFailuresOnly;
 	}
 
+	/**
+	 * Initializes the connection to RMQ with a default connection factory. The user may override
+	 * this method to setup and configure their own {@link ConnectionFactory}.
+	 */
+	protected ConnectionFactory setupConnectionFactory() throws Exception {
+		return rmqConnectionConfig.getConnectionFactory();
+	}
+
+	/**
+	 * Initializes the connection to RMQ using the default connection factory from {@link #setupConnectionFactory()}.
+	 * The user may override this method to setup and configure their own {@link Connection}.
+	 */
+	protected Connection setupConnection() throws Exception {
+		return setupConnectionFactory().newConnection();
+	}
+
 	@Override
 	public void open(Configuration config) throws Exception {
-		ConnectionFactory factory = rmqConnectionConfig.getConnectionFactory();
 		schema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 
 		try {
-			connection = factory.newConnection();
+			connection = setupConnection();
 			channel = connection.createChannel();
 			if (channel == null) {
 				throw new RuntimeException("None of RabbitMQ channels are available");
