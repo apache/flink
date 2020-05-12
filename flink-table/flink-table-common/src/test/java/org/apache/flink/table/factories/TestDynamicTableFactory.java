@@ -56,12 +56,17 @@ public final class TestDynamicTableFactory implements DynamicTableSourceFactory,
 		.defaultValue(100L);
 
 	public static final ConfigOption<String> KEY_FORMAT = ConfigOptions
-		.key("key.format.kind")
+		.key("key.format")
 		.stringType()
 		.noDefaultValue();
 
 	public static final ConfigOption<String> VALUE_FORMAT = ConfigOptions
-		.key("value.format.kind")
+		.key("value.format")
+		.stringType()
+		.noDefaultValue();
+
+	public static final ConfigOption<String> FORMAT = ConfigOptions
+		.key("format")
 		.stringType()
 		.noDefaultValue();
 
@@ -71,12 +76,13 @@ public final class TestDynamicTableFactory implements DynamicTableSourceFactory,
 
 		final Optional<ScanFormat<DeserializationSchema<RowData>>> keyFormat = helper.discoverOptionalScanFormat(
 			DeserializationFormatFactory.class,
-			KEY_FORMAT,
-			FactoryUtil.KEY_FORMAT_PREFIX);
-		final ScanFormat<DeserializationSchema<RowData>> valueFormat = helper.discoverScanFormat(
+			KEY_FORMAT);
+		final ScanFormat<DeserializationSchema<RowData>> valueFormat = helper.discoverOptionalScanFormat(
 			DeserializationFormatFactory.class,
-			VALUE_FORMAT,
-			FactoryUtil.VALUE_FORMAT_PREFIX);
+			FORMAT).orElseGet(
+				() -> helper.discoverScanFormat(
+					DeserializationFormatFactory.class,
+					VALUE_FORMAT));
 		helper.validate();
 
 		return new DynamicTableSourceMock(
@@ -91,12 +97,13 @@ public final class TestDynamicTableFactory implements DynamicTableSourceFactory,
 
 		final Optional<SinkFormat<SerializationSchema<RowData>>> keyFormat = helper.discoverOptionalSinkFormat(
 			SerializationFormatFactory.class,
-			KEY_FORMAT,
-			FactoryUtil.KEY_FORMAT_PREFIX);
-		final SinkFormat<SerializationSchema<RowData>> valueFormat = helper.discoverSinkFormat(
+			KEY_FORMAT);
+		final SinkFormat<SerializationSchema<RowData>> valueFormat = helper.discoverOptionalSinkFormat(
 			SerializationFormatFactory.class,
-			VALUE_FORMAT,
-			FactoryUtil.VALUE_FORMAT_PREFIX);
+			FORMAT).orElseGet(
+				() -> helper.discoverSinkFormat(
+					SerializationFormatFactory.class,
+					VALUE_FORMAT));
 		helper.validate();
 
 		return new DynamicTableSinkMock(
@@ -115,7 +122,6 @@ public final class TestDynamicTableFactory implements DynamicTableSourceFactory,
 	public Set<ConfigOption<?>> requiredOptions() {
 		final Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(TARGET);
-		options.add(VALUE_FORMAT);
 		return options;
 	}
 
@@ -124,6 +130,8 @@ public final class TestDynamicTableFactory implements DynamicTableSourceFactory,
 		final Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(BUFFER_SIZE);
 		options.add(KEY_FORMAT);
+		options.add(FORMAT);
+		options.add(VALUE_FORMAT);
 		return options;
 	}
 
