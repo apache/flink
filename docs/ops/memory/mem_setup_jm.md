@@ -86,10 +86,10 @@ The size of this component can be configured by [`jobmanager.memory.off-heap.siz
 option. This option can be tuned e.g. if the job manager process throws ‘OutOfMemoryError: Direct buffer memory’, see
 the [the troubleshooting guide](mem_trouble.html#outofmemoryerror-direct-buffer-memory) for more information.
 
-There can be the following possible sources of the *Off-heap* memory consumption in JM:
+There can be the following possible sources of *Off-heap* memory consumption by the Flink Master:
 
 * Flink framework dependencies (e.g. Akka network communication)
-* User code running during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
+* User code executed during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
 
 ## Notes for the execution mode
 
