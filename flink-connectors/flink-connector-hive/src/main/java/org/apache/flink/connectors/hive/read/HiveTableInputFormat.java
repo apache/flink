@@ -273,6 +273,13 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 	@Override
 	public HiveTableInputSplit[] createInputSplits(int minNumSplits)
 			throws IOException {
+		return createInputSplits(minNumSplits, partitions, jobConf);
+	}
+
+	public static HiveTableInputSplit[] createInputSplits(
+			int minNumSplits,
+			List<HiveTablePartition> partitions,
+			JobConf jobConf) throws IOException {
 		List<HiveTableInputSplit> hiveSplits = new ArrayList<>();
 		int splitNum = 0;
 		for (HiveTablePartition partition : partitions) {
@@ -280,7 +287,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 			InputFormat format;
 			try {
 				format = (InputFormat)
-					Class.forName(sd.getInputFormat(), true, Thread.currentThread().getContextClassLoader()).newInstance();
+						Class.forName(sd.getInputFormat(), true, Thread.currentThread().getContextClassLoader()).newInstance();
 			} catch (Exception e) {
 				throw new FlinkHiveException("Unable to instantiate the hadoop input format", e);
 			}

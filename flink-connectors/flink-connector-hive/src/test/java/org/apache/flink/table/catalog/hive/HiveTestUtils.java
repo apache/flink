@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
@@ -112,6 +114,14 @@ public class HiveTestUtils {
 	public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode() {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
 		TableEnvironment tableEnv = TableEnvironment.create(settings);
+		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+		return tableEnv;
+	}
+
+	public static StreamTableEnvironment createTableEnvWithBlinkPlannerStreamMode(
+			StreamExecutionEnvironment env) {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+		StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
 		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
 		return tableEnv;
 	}

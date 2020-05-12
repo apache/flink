@@ -22,10 +22,14 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connectors.hive.read.HiveContinuousMonitoringFunction;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
+import org.apache.flink.connectors.hive.read.TimestampedHiveInputSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -48,6 +52,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TimeUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -63,6 +68,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -70,6 +76,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
+import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
+import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
+import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_CONSUME_ORDER;
+import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
+import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
 
 /**
  * A TableSource implementation to read data from Hive tables.
@@ -135,7 +149,7 @@ public class HiveTableSource implements
 
 	@Override
 	public boolean isBounded() {
-		return true;
+		return !isStreamingSource();
 	}
 
 	@Override
@@ -150,6 +164,25 @@ public class HiveTableSource implements
 				allHivePartitions,
 				flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER));
 
+		if (isStreamingSource()) {
+			if (catalogTable.getPartitionKeys().isEmpty()) {
+				throw new UnsupportedOperationException(
+						"Non-partition table does not support streaming read now.");
+			}
+			return createStreamSource(execEnv, typeInfo, inputFormat);
+		} else {
+			return createBatchSource(execEnv, typeInfo, inputFormat);
+		}
+	}
+
+	private boolean isStreamingSource() {
+		return Boolean.parseBoolean(catalogTable.getOptions().getOrDefault(
+				STREAMING_SOURCE_ENABLE.key(),
+				STREAMING_SOURCE_ENABLE.defaultValue().toString()));
+	}
+
+	private DataStream<RowData> createBatchSource(StreamExecutionEnvironment execEnv,
+			TypeInformation<RowData> typeInfo, HiveTableInputFormat inputFormat) {
 		DataStreamSource<RowData> source = execEnv.createInput(inputFormat, typeInfo);
 
 		int parallelism = flinkConf.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM);
@@ -179,6 +212,53 @@ public class HiveTableSource implements
 		parallelism = Math.max(1, parallelism);
 		source.setParallelism(parallelism);
 		return source.name(explainSource());
+	}
+
+	private DataStream<RowData> createStreamSource(
+			StreamExecutionEnvironment execEnv,
+			TypeInformation<RowData> typeInfo,
+			HiveTableInputFormat inputFormat) {
+		final Map<String, String> properties = catalogTable.getOptions();
+
+		String consumeOrder = properties.getOrDefault(
+				STREAMING_SOURCE_CONSUME_ORDER.key(),
+				STREAMING_SOURCE_CONSUME_ORDER.defaultValue());
+		String consumeOffset = properties.getOrDefault(
+				STREAMING_SOURCE_CONSUME_START_OFFSET.key(),
+				STREAMING_SOURCE_CONSUME_START_OFFSET.defaultValue());
+		String extractorKind = properties.getOrDefault(
+				PARTITION_TIME_EXTRACTOR_KIND.key(),
+				PARTITION_TIME_EXTRACTOR_KIND.defaultValue());
+		String extractorClass = properties.get(PARTITION_TIME_EXTRACTOR_CLASS.key());
+		String extractorPattern = properties.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key());
+
+		String monitorIntervalStr = properties.get(STREAMING_SOURCE_MONITOR_INTERVAL.key());
+		Duration monitorInterval = monitorIntervalStr != null ?
+				TimeUtils.parseDuration(monitorIntervalStr) :
+				STREAMING_SOURCE_MONITOR_INTERVAL.defaultValue();
+
+		HiveContinuousMonitoringFunction monitoringFunction = new HiveContinuousMonitoringFunction(
+				hiveShim,
+				jobConf,
+				tablePath,
+				catalogTable,
+				execEnv.getParallelism(),
+				consumeOrder,
+				consumeOffset,
+				extractorKind,
+				extractorClass,
+				extractorPattern,
+				monitorInterval.toMillis());
+
+		ContinuousFileReaderOperatorFactory<RowData, TimestampedHiveInputSplit> factory =
+				new ContinuousFileReaderOperatorFactory<>(inputFormat);
+
+		String sourceName = "HiveMonitoringFunction";
+		SingleOutputStreamOperator<RowData> source = execEnv
+				.addSource(monitoringFunction, sourceName)
+				.transform("Split Reader: " + sourceName, typeInfo, factory);
+
+		return new DataStreamSource<>(source);
 	}
 
 	@VisibleForTesting
@@ -298,23 +378,14 @@ public class HiveTableSource implements
 					partitions.addAll(client.listPartitions(dbName, tableName, (short) -1));
 				}
 				for (Partition partition : partitions) {
-					StorageDescriptor sd = partition.getSd();
-					Map<String, Object> partitionColValues = new HashMap<>();
-					for (int i = 0; i < partitionColNames.size(); i++) {
-						String partitionColName = partitionColNames.get(i);
-						String partitionValue = partition.getValues().get(i);
-						DataType type = catalogTable.getSchema().getFieldDataType(partitionColName).get();
-						Object partitionObject;
-						if (defaultPartitionName.equals(partitionValue)) {
-							LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
-							// while this is inline with Hive, seems it should be null for string columns as well
-							partitionObject = typeRoot == LogicalTypeRoot.CHAR || typeRoot == LogicalTypeRoot.VARCHAR ? defaultPartitionName : null;
-						} else {
-							partitionObject = restorePartitionValueFromFromType(partitionValue, type);
-						}
-						partitionColValues.put(partitionColName, partitionObject);
-					}
-					HiveTablePartition hiveTablePartition = new HiveTablePartition(sd, partitionColValues, tableProps);
+					HiveTablePartition hiveTablePartition = toHiveTablePartition(
+							catalogTable.getPartitionKeys(),
+							catalogTable.getSchema().getFieldNames(),
+							catalogTable.getSchema().getFieldDataTypes(),
+							hiveShim,
+							tableProps,
+							defaultPartitionName,
+							partition);
 					allHivePartitions.add(hiveTablePartition);
 				}
 			} else {
@@ -326,13 +397,41 @@ public class HiveTableSource implements
 		return allHivePartitions;
 	}
 
+	public static HiveTablePartition toHiveTablePartition(
+			List<String> partitionKeys,
+			String[] fieldNames,
+			DataType[] fieldTypes,
+			HiveShim shim,
+			Properties tableProps,
+			String defaultPartitionName,
+			Partition partition) {
+		StorageDescriptor sd = partition.getSd();
+		Map<String, Object> partitionColValues = new HashMap<>();
+		List<String> nameList = Arrays.asList(fieldNames);
+		for (int i = 0; i < partitionKeys.size(); i++) {
+			String partitionColName = partitionKeys.get(i);
+			String partitionValue = partition.getValues().get(i);
+			DataType type = fieldTypes[nameList.indexOf(partitionColName)];
+			Object partitionObject;
+			if (defaultPartitionName.equals(partitionValue)) {
+				LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
+				// while this is inline with Hive, seems it should be null for string columns as well
+				partitionObject = typeRoot == LogicalTypeRoot.CHAR || typeRoot == LogicalTypeRoot.VARCHAR ? defaultPartitionName : null;
+			} else {
+				partitionObject = restorePartitionValueFromFromType(shim, partitionValue, type);
+			}
+			partitionColValues.put(partitionColName, partitionObject);
+		}
+		return new HiveTablePartition(sd, partitionColValues, tableProps);
+	}
+
 	private static List<String> partitionSpecToValues(Map<String, String> spec, List<String> partitionColNames) {
 		Preconditions.checkArgument(spec.size() == partitionColNames.size() && spec.keySet().containsAll(partitionColNames),
 				"Partition spec (%s) and partition column names (%s) doesn't match", spec, partitionColNames);
 		return partitionColNames.stream().map(spec::get).collect(Collectors.toList());
 	}
 
-	private Object restorePartitionValueFromFromType(String valStr, DataType type) {
+	private static Object restorePartitionValueFromFromType(HiveShim shim, String valStr, DataType type) {
 		LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
 		//note: it's not a complete list ofr partition key types that Hive support, we may need add more later.
 		switch (typeRoot) {
@@ -356,13 +455,13 @@ public class HiveTableSource implements
 			case DATE:
 				return HiveInspectors.toFlinkObject(
 						HiveInspectors.getObjectInspector(type),
-						hiveShim.toHiveDate(Date.valueOf(valStr)),
-						hiveShim);
+						shim.toHiveDate(Date.valueOf(valStr)),
+						shim);
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return HiveInspectors.toFlinkObject(
 						HiveInspectors.getObjectInspector(type),
-						hiveShim.toHiveTimestamp(Timestamp.valueOf(valStr)),
-						hiveShim);
+						shim.toHiveTimestamp(Timestamp.valueOf(valStr)),
+						shim);
 			default:
 				break;
 		}

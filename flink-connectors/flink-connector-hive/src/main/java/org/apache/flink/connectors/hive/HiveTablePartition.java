@@ -23,6 +23,7 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -64,5 +65,33 @@ public class HiveTablePartition implements Serializable {
 
 	public Properties getTableProps() {
 		return tableProps;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		HiveTablePartition that = (HiveTablePartition) o;
+		return Objects.equals(storageDescriptor, that.storageDescriptor) &&
+				Objects.equals(partitionSpec, that.partitionSpec) &&
+				Objects.equals(tableProps, that.tableProps);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(storageDescriptor, partitionSpec, tableProps);
+	}
+
+	@Override
+	public String toString() {
+		return "HiveTablePartition{" +
+				"storageDescriptor=" + storageDescriptor +
+				", partitionSpec=" + partitionSpec +
+				", tableProps=" + tableProps +
+				'}';
 	}
 }

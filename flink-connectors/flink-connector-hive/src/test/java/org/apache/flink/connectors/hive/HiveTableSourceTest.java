@@ -21,16 +21,19 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.table.HiveVersionTestUtil;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -43,7 +46,9 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.runtime.utils.TestingAppendRowDataSink;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 
@@ -65,6 +70,7 @@ import org.junit.runner.RunWith;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -459,6 +465,70 @@ public class HiveTableSourceTest {
 			TestBaseUtils.setEnv(env);
 			hiveShell.execute("drop database db1 cascade");
 		}
+	}
+
+	@Test(timeout = 120000)
+	public void testStreamPartitionRead() throws Exception {
+		final String catalogName = "hive";
+		final String dbName = "source_db";
+		final String tblName = "stream_test";
+		hiveShell.execute("CREATE TABLE source_db.stream_test (" +
+				" a INT," +
+				" b STRING" +
+				") PARTITIONED BY (ts STRING) TBLPROPERTIES (" +
+				"'streaming-source.enable'='true'," +
+				"'streaming-source.monitor-interval'='100ms'," +
+				"'streaming-source.consume-order'='partition-time'" +
+				")");
+
+		HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+				.addRow(new Object[]{0, "0"})
+				.commit("ts='2020-05-06 00:00:00'");
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
+		tEnv.registerCatalog(catalogName, hiveCatalog);
+		Table src = tEnv.from("hive.source_db.stream_test");
+
+		TestingAppendRowDataSink sink = new TestingAppendRowDataSink(new RowDataTypeInfo(
+				DataTypes.INT().getLogicalType(),
+				DataTypes.STRING().getLogicalType(),
+				DataTypes.STRING().getLogicalType()));
+		DataStream<RowData> out = tEnv.toAppendStream(src, RowData.class);
+		out.print(); // add print to see streaming reading
+		out.addSink(sink);
+		JobClient job = env.executeAsync("job");
+
+		Runnable runnable = () -> {
+			for (int i = 1; i < 6; i++) {
+				try {
+					Thread.sleep(5_000);
+				} catch (InterruptedException e) {
+					throw new RuntimeException(e);
+				}
+				HiveTestUtils.createTextTableInserter(hiveShell, dbName, tblName)
+						.addRow(new Object[]{i, String.valueOf(i)})
+						.commit("ts='2020-05-06 00:" + i + "0:00'");
+			}
+		};
+		Thread thread = new Thread(runnable);
+		thread.setDaemon(true);
+		thread.start();
+		thread.join();
+		Thread.sleep(5_000);
+
+		List<String> expected = Arrays.asList(
+				"+I(0,0,2020-05-06 00:00:00)",
+				"+I(1,1,2020-05-06 00:10:00)",
+				"+I(2,2,2020-05-06 00:20:00)",
+				"+I(3,3,2020-05-06 00:30:00)",
+				"+I(4,4,2020-05-06 00:40:00)",
+				"+I(5,5,2020-05-06 00:50:00)"
+		);
+		List<String> results = sink.getJavaAppendResults();
+		results.sort(String::compareTo);
+		assertEquals(expected, results);
+		job.cancel();
 	}
 
 	private void testSourceConfig(boolean fallbackMR, boolean inferParallelism) throws Exception {
