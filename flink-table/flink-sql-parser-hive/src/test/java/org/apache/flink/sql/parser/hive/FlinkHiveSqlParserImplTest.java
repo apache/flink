@@ -121,8 +121,13 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 				.ok("CREATE TABLE `TBL` (\n" +
 						"  `X`  INTEGER\n" +
 						")\n" +
-						"ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' ESCAPED BY '\\' COLLECTION ITEMS TERMINATED BY ',' MAP KEYS TERMINATED BY ':' LINES TERMINATED BY '\n" +
-						"' NULL DEFINED AS 'null'\n" +
+						"ROW FORMAT DELIMITED\n" +
+						"  FIELDS TERMINATED BY ',' ESCAPED BY '\\'\n" +
+						"  COLLECTION ITEMS TERMINATED BY ','\n" +
+						"  MAP KEYS TERMINATED BY ':'\n" +
+						"  LINES TERMINATED BY '\n" +
+						"'\n" +
+						"  NULL DEFINED AS 'null'\n" +
 						"LOCATION '/path/to/table'");
 		sql("create table tbl (x double) stored as orc tblproperties ('k1'='v1')")
 				.ok("CREATE TABLE `TBL` (\n" +
@@ -144,7 +149,8 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 				.ok("CREATE TABLE `TBL` (\n" +
 						"  `X`  DATE\n" +
 						")\n" +
-						"ROW FORMAT DELIMITED FIELDS TERMINATED BY u&'\\0001'\n" +
+						"ROW FORMAT DELIMITED\n" +
+						"  FIELDS TERMINATED BY u&'\\0001'\n" +
 						"STORED AS INPUTFORMAT 'input.format.class' OUTPUTFORMAT 'output.format.class'");
 		sql("create table tbl (x struct<f1:timestamp,f2:int>) partitioned by (p1 string,p2 bigint) stored as rcfile")
 				.ok("CREATE TABLE `TBL` (\n" +

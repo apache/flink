@@ -235,6 +235,8 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 			SqlCharStringLiteral fieldDelim = rowFormat.delimitPropToValue.get(HiveTableRowFormat.FIELD_DELIM);
 			SqlCharStringLiteral escape = rowFormat.delimitPropToValue.get(HiveTableRowFormat.ESCAPE_CHAR);
 			if (fieldDelim != null) {
+				writer.newlineAndIndent();
+				writer.print("  ");
 				writer.keyword("FIELDS TERMINATED BY");
 				fieldDelim.unparse(writer, leftPrec, rightPrec);
 				if (escape != null) {
@@ -244,21 +246,29 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 			}
 			SqlCharStringLiteral collectionDelim = rowFormat.delimitPropToValue.get(HiveTableRowFormat.COLLECTION_DELIM);
 			if (collectionDelim != null) {
+				writer.newlineAndIndent();
+				writer.print("  ");
 				writer.keyword("COLLECTION ITEMS TERMINATED BY");
 				collectionDelim.unparse(writer, leftPrec, rightPrec);
 			}
 			SqlCharStringLiteral mapKeyDelim = rowFormat.delimitPropToValue.get(HiveTableRowFormat.MAPKEY_DELIM);
 			if (mapKeyDelim != null) {
+				writer.newlineAndIndent();
+				writer.print("  ");
 				writer.keyword("MAP KEYS TERMINATED BY");
 				mapKeyDelim.unparse(writer, leftPrec, rightPrec);
 			}
 			SqlCharStringLiteral lineDelim = rowFormat.delimitPropToValue.get(HiveTableRowFormat.LINE_DELIM);
 			if (lineDelim != null) {
+				writer.newlineAndIndent();
+				writer.print("  ");
 				writer.keyword("LINES TERMINATED BY");
 				lineDelim.unparse(writer, leftPrec, rightPrec);
 			}
 			SqlCharStringLiteral nullAs = rowFormat.delimitPropToValue.get(HiveTableRowFormat.SERIALIZATION_NULL_FORMAT);
 			if (nullAs != null) {
+				writer.newlineAndIndent();
+				writer.print("  ");
 				writer.keyword("NULL DEFINED AS");
 				nullAs.unparse(writer, leftPrec, rightPrec);
 			}
