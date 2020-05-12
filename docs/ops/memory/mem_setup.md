@@ -108,8 +108,7 @@ Check also the detailed memory model for [task executor](mem_setup_tm.html#detai
 
 ## Capped Fractionated Components
 
-This section describes the configuration details of the following options which can be a fraction of a certain
-[total memory](mem_setup.html#configure-total-memory):
+This section describes the configuration details of the following options which can be a fraction of the [total memory](mem_setup.html#configure-total-memory) while being constrained by a min-max range:
 
 * *JVM Overhead* can be a fraction of the *total process memory*
 * *Network memory* can be a fraction of the *total Flink memory* (only for task executor)
