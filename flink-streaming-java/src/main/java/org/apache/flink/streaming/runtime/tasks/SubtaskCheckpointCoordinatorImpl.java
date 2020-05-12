@@ -164,7 +164,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			takeSnapshotSync(snapshotFutures, metadata, metrics, options, operatorChain, isCanceled);
 			finishAndReportAsync(snapshotFutures, metadata, metrics, options);
 		} catch (Exception ex) {
-			cleanup(snapshotFutures, metadata, metrics, options, ex);
+			cleanup(snapshotFutures, metadata, metrics);
+			throw ex;
 		}
 	}
 
@@ -185,8 +186,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	private void cleanup(
 			Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
 			CheckpointMetaData metadata,
-			CheckpointMetrics metrics, CheckpointOptions options,
-			Exception ex) throws Exception {
+			CheckpointMetrics metrics) throws Exception {
 
 		channelStateWriter.abort(metadata.getCheckpointId(), ex);
 		for (OperatorSnapshotFutures operatorSnapshotResult : operatorSnapshotsInProgress.values()) {
@@ -205,16 +205,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 				taskName, metadata.getCheckpointId(),
 				metrics.getAlignmentDurationNanos() / 1_000_000,
 				metrics.getSyncDurationMillis());
-		}
-
-		if (options.getCheckpointType().isSynchronous()) {
-			// in the case of a synchronous checkpoint, we always rethrow the exception,
-			// so that the task fails.
-			// this is because the intention is always to stop the job after this checkpointing
-			// operation, and without the failure, the task would go back to normal execution.
-			throw ex;
-		} else {
-			env.declineCheckpoint(metadata.getCheckpointId(), ex);
 		}
 	}
 
