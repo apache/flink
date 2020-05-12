@@ -30,8 +30,8 @@ Flink allows both high level and fine-grained tuning of memory allocation within
 * toc
 {:toc}
 
-The further described memory configuration is applicable starting with the release version *1.10* for task executors and
-*1.11* for job executors. If you upgrade Flink from earlier versions, check the [migration guide](mem_migration.html)
+The further described memory configuration is applicable starting with the release version *1.10* for TaskManager and
+*1.11* for Flink Master processes. If you upgrade Flink from earlier versions, check the [migration guide](mem_migration.html)
 because many changes were introduced with the *1.10* and *1.11* releases.
 
 ## Configure Total Memory
