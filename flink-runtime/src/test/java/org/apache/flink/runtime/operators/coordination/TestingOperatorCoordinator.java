@@ -21,6 +21,8 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.util.SerializableFunction;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -57,7 +59,7 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 	public void handleEventFromOperator(int subtask, OperatorEvent event) {}
 
 	@Override
-	public void subtaskFailed(int subtask) {
+	public void subtaskFailed(int subtask, @Nullable Throwable reason) {
 		failedTasks.add(subtask);
 	}
 

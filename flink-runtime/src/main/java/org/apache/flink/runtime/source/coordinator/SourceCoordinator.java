@@ -35,6 +35,8 @@ import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -145,7 +147,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT> implements 
 	}
 
 	@Override
-	public void subtaskFailed(int subtaskId) {
+	public void subtaskFailed(int subtaskId, @Nullable Throwable reason) {
 		ensureStarted();
 		coordinatorExecutor.execute(() -> {
 			try {

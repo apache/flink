@@ -196,7 +196,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final ExecutionJobVertex jobVertex = getExecutionJobVertex(executionVertexId.getJobVertexId());
 		final int subtaskIndex = executionVertexId.getSubtaskIndex();
 
-		jobVertex.getOperatorCoordinators().forEach(c -> c.subtaskFailed(subtaskIndex));
+		jobVertex.getOperatorCoordinators().forEach(c -> c.subtaskFailed(subtaskIndex, error));
 	}
 
 	@Override

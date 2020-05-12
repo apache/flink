@@ -53,7 +53,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 				failureMessage, "The coordinator has not started yet.");
 		verifyException(() -> sourceCoordinator.handleEventFromOperator(0, null),
 				failureMessage, "The coordinator has not started yet.");
-		verifyException(() -> sourceCoordinator.subtaskFailed(0),
+		verifyException(() -> sourceCoordinator.subtaskFailed(0, null),
 				failureMessage, "The coordinator has not started yet.");
 		verifyException(() -> sourceCoordinator.checkpointCoordinator(100L),
 				failureMessage, "The coordinator has not started yet.");
@@ -160,7 +160,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 		});
 
 		// Fail reader 0.
-		sourceCoordinator.subtaskFailed(0);
+		sourceCoordinator.subtaskFailed(0, null);
 
 		// check the state again.
 		check(() -> {
@@ -190,7 +190,7 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 		sourceCoordinator.checkpointComplete(100L);
 
 		// Fail reader 0.
-		sourceCoordinator.subtaskFailed(0);
+		sourceCoordinator.subtaskFailed(0, null);
 
 		check(() -> {
 			// Reader 0 hase been unregistered.
