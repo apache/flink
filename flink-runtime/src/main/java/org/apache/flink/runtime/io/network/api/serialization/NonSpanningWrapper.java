@@ -17,27 +17,43 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.NextRecordResponse;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
+import java.nio.ByteBuffer;
 import java.util.Optional;
+
+import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
+import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER;
+import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.PARTIAL_RECORD;
+import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
 
 final class NonSpanningWrapper implements DataInputView {
 
-	MemorySegment segment;
+	private static final String BROKEN_SERIALIZATION_ERROR_MESSAGE =
+			"Serializer consumed more bytes than the record had. " +
+					"This indicates broken serialization. If you are using custom serialization types " +
+					"(Value or Writable), check their serialization methods. If you are using a " +
+					"Kryo-serialized type, check the corresponding Kryo serializer.";
+
+	private MemorySegment segment;
 
 	private int limit;
 
-	int position;
+	private int position;
 
 	private byte[] utfByteBuffer; // reusable byte buffer for utf-8 decoding
 	private char[] utfCharBuffer; // reusable char buffer for utf-8 decoding
 
-	int remaining() {
+	private final NextRecordResponse reusedNextRecordResponse = new NextRecordResponse(null, 0); // performance impact of immutable objects not benchmarked
+
+	private int remaining() {
 		return this.limit - this.position;
 	}
 
@@ -47,19 +63,23 @@ final class NonSpanningWrapper implements DataInputView {
 		this.position = 0;
 	}
 
-	void initializeFromMemorySegment(MemorySegment seg, int position, int leftOverLimit) {
+	void initializeFromMemorySegment(MemorySegment seg, int position, int limit) {
 		this.segment = seg;
 		this.position = position;
-		this.limit = leftOverLimit;
+		this.limit = limit;
 	}
 
 	Optional<MemorySegment> getUnconsumedSegment() {
-		if (remaining() == 0) {
+		if (!hasRemaining()) {
 			return Optional.empty();
 		}
 		MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(remaining());
 		segment.copyTo(position, target, 0, remaining());
 		return Optional.of(target);
+	}
+
+	boolean hasRemaining() {
+		return remaining() > 0;
 	}
 
 	// -------------------------------------------------------------------------------------------------------------
@@ -290,4 +310,53 @@ final class NonSpanningWrapper implements DataInputView {
 	public int read(byte[] b) {
 		return read(b, 0, b.length);
 	}
+
+	ByteBuffer wrapIntoByteBuffer() {
+		return segment.wrap(position, remaining());
+	}
+
+	int copyContentTo(byte[] dst) {
+		final int numBytesChunk = remaining();
+		segment.get(position, dst, 0, numBytesChunk);
+		return numBytesChunk;
+	}
+
+	/**
+	 * Copies the data and transfers the "ownership" (i.e. clears current wrapper).
+	 */
+	void transferTo(ByteBuffer dst) {
+		segment.get(position, dst, remaining());
+		clear();
+	}
+
+	NextRecordResponse getNextRecord(IOReadableWritable target) throws IOException {
+		int recordLen = readInt();
+		if (canReadRecord(recordLen)) {
+			return readInto(target);
+		} else {
+			return reusedNextRecordResponse.updated(PARTIAL_RECORD, recordLen);
+		}
+	}
+
+	private NextRecordResponse readInto(IOReadableWritable target) throws IOException {
+		try {
+			target.read(this);
+		} catch (IndexOutOfBoundsException e) {
+			throw new IOException(BROKEN_SERIALIZATION_ERROR_MESSAGE, e);
+		}
+		int remaining = remaining();
+		if (remaining < 0) {
+			throw new IOException(BROKEN_SERIALIZATION_ERROR_MESSAGE, new IndexOutOfBoundsException("Remaining = " + remaining));
+		}
+		return reusedNextRecordResponse.updated(remaining == 0 ? LAST_RECORD_FROM_BUFFER : INTERMEDIATE_RECORD_FROM_BUFFER, remaining);
+	}
+
+	boolean hasCompleteLength() {
+		return remaining() >= LENGTH_BYTES;
+	}
+
+	private boolean canReadRecord(int recordLength) {
+		return recordLength <= remaining();
+	}
+
 }

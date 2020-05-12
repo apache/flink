@@ -24,19 +24,22 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import java.io.IOException;
 import java.util.Optional;
+
+import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
+import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER;
+import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.PARTIAL_RECORD;
+import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
 
 /**
  * @param <T> The type of the record to be deserialized.
  */
 public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> implements RecordDeserializer<T> {
 
-	private static final String BROKEN_SERIALIZATION_ERROR_MESSAGE =
-					"Serializer consumed more bytes than the record had. " +
-					"This indicates broken serialization. If you are using custom serialization types " +
-					"(Value or Writable), check their serialization methods. If you are using a " +
-					"Kryo-serialized type, check the corresponding Kryo serializer.";
+	static final int LENGTH_BYTES = Integer.BYTES;
 
 	private final NonSpanningWrapper nonSpanningWrapper;
 
@@ -58,11 +61,10 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 		int numBytes = buffer.getSize();
 
 		// check if some spanning record deserialization is pending
-		if (this.spanningWrapper.getNumGatheredBytes() > 0) {
-			this.spanningWrapper.addNextChunkFromMemorySegment(segment, offset, numBytes);
-		}
-		else {
-			this.nonSpanningWrapper.initializeFromMemorySegment(segment, offset, numBytes + offset);
+		if (spanningWrapper.getNumGatheredBytes() > 0) {
+			spanningWrapper.addNextChunkFromMemorySegment(segment, offset, numBytes);
+		} else {
+			nonSpanningWrapper.initializeFromMemorySegment(segment, offset, numBytes + offset);
 		}
 	}
 
@@ -75,14 +77,13 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 
 	@Override
 	public Optional<Buffer> getUnconsumedBuffer() throws IOException {
-		Optional<MemorySegment> target;
-		if (nonSpanningWrapper.remaining() > 0) {
-			target = nonSpanningWrapper.getUnconsumedSegment();
+		final Optional<MemorySegment> unconsumedSegment;
+		if (nonSpanningWrapper.hasRemaining()) {
+			unconsumedSegment = nonSpanningWrapper.getUnconsumedSegment();
 		} else {
-			target = spanningWrapper.getUnconsumedSegment();
+			unconsumedSegment = spanningWrapper.getUnconsumedSegment();
 		}
-		return target.map(memorySegment -> new NetworkBuffer(
-			memorySegment, FreeingBufferRecycler.INSTANCE, Buffer.DataType.DATA_BUFFER, memorySegment.size()));
+		return unconsumedSegment.map(segment -> new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, DATA_BUFFER, segment.size()));
 	}
 
 	@Override
@@ -91,63 +92,29 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 		// this should be the majority of the cases for small records
 		// for large records, this portion of the work is very small in comparison anyways
 
-		int nonSpanningRemaining = this.nonSpanningWrapper.remaining();
+		if (nonSpanningWrapper.hasCompleteLength()) {
+			return readNonSpanningRecord(target);
 
-		// check if we can get a full length;
-		if (nonSpanningRemaining >= 4) {
-			int len = this.nonSpanningWrapper.readInt();
+		} else if (nonSpanningWrapper.hasRemaining()) {
+			nonSpanningWrapper.transferTo(spanningWrapper.lengthBuffer);
+			return PARTIAL_RECORD;
 
-			if (len <= nonSpanningRemaining - 4) {
-				// we can get a full record from here
-				try {
-					target.read(this.nonSpanningWrapper);
+		} else if (spanningWrapper.hasFullRecord()) {
+			target.read(spanningWrapper.getInputView());
+			spanningWrapper.transferLeftOverTo(nonSpanningWrapper);
+			return nonSpanningWrapper.hasRemaining() ? INTERMEDIATE_RECORD_FROM_BUFFER : LAST_RECORD_FROM_BUFFER;
 
-					int remaining = this.nonSpanningWrapper.remaining();
-					if (remaining > 0) {
-						return DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
-					}
-					else if (remaining == 0) {
-						return DeserializationResult.LAST_RECORD_FROM_BUFFER;
-					}
-					else {
-						throw new IndexOutOfBoundsException("Remaining = " + remaining);
-					}
-				}
-				catch (IndexOutOfBoundsException e) {
-					throw new IOException(BROKEN_SERIALIZATION_ERROR_MESSAGE, e);
-				}
-			}
-			else {
-				// we got the length, but we need the rest from the spanning deserializer
-				// and need to wait for more buffers
-				this.spanningWrapper.initializeWithPartialRecord(this.nonSpanningWrapper, len);
-				this.nonSpanningWrapper.clear();
-				return DeserializationResult.PARTIAL_RECORD;
-			}
-		} else if (nonSpanningRemaining > 0) {
-			// we have an incomplete length
-			// add our part of the length to the length buffer
-			this.spanningWrapper.initializeWithPartialLength(this.nonSpanningWrapper);
-			this.nonSpanningWrapper.clear();
-			return DeserializationResult.PARTIAL_RECORD;
-		}
-
-		// spanning record case
-		if (this.spanningWrapper.hasFullRecord()) {
-			// get the full record
-			target.read(this.spanningWrapper.getInputView());
-
-			// move the remainder to the non-spanning wrapper
-			// this does not copy it, only sets the memory segment
-			this.spanningWrapper.moveRemainderToNonSpanningDeserializer(this.nonSpanningWrapper);
-			this.spanningWrapper.clear();
-
-			return (this.nonSpanningWrapper.remaining() == 0) ?
-				DeserializationResult.LAST_RECORD_FROM_BUFFER :
-				DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
 		} else {
-			return DeserializationResult.PARTIAL_RECORD;
+			return PARTIAL_RECORD;
 		}
+	}
+
+	private DeserializationResult readNonSpanningRecord(T target) throws IOException {
+		NextRecordResponse response = nonSpanningWrapper.getNextRecord(target);
+		if (response.result == PARTIAL_RECORD) {
+			spanningWrapper.transferFrom(nonSpanningWrapper, response.bytesLeft);
+		}
+		return response.result;
 	}
 
 	@Override
@@ -158,7 +125,23 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 
 	@Override
 	public boolean hasUnfinishedData() {
-		return this.nonSpanningWrapper.remaining() > 0 || this.spanningWrapper.getNumGatheredBytes() > 0;
+		return this.nonSpanningWrapper.hasRemaining() || this.spanningWrapper.getNumGatheredBytes() > 0;
 	}
 
+	@NotThreadSafe
+	static class NextRecordResponse {
+		DeserializationResult result;
+		int bytesLeft;
+
+		NextRecordResponse(DeserializationResult result, int bytesLeft) {
+			this.result = result;
+			this.bytesLeft = bytesLeft;
+		}
+
+		public NextRecordResponse updated(DeserializationResult result, int bytesLeft) {
+			this.result = result;
+			this.bytesLeft = bytesLeft;
+			return this;
+		}
+	}
 }

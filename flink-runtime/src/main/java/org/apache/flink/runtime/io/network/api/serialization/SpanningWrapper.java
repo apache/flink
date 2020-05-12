@@ -23,7 +23,6 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.StringUtils;
 
 import java.io.BufferedInputStream;
@@ -38,9 +37,16 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.Random;
 
+import static java.lang.Math.max;
+import static java.lang.Math.min;
+import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
+import static org.apache.flink.util.FileUtils.writeCompletely;
+import static org.apache.flink.util.IOUtils.closeAllQuietly;
+
 final class SpanningWrapper {
 
 	private static final int THRESHOLD_FOR_SPILLING = 5 * 1024 * 1024; // 5 MiBytes
+	private static final int FILE_BUFFER_SIZE = 2 * 1024 * 1024;
 
 	private final byte[] initialBuffer = new byte[1024];
 
@@ -50,7 +56,7 @@ final class SpanningWrapper {
 
 	private final DataInputDeserializer serializationReadBuffer;
 
-	private final ByteBuffer lengthBuffer;
+	final ByteBuffer lengthBuffer;
 
 	private FileChannel spillingChannel;
 
@@ -70,10 +76,10 @@ final class SpanningWrapper {
 
 	private DataInputViewStreamWrapper spillFileReader;
 
-	public SpanningWrapper(String[] tempDirs) {
+	SpanningWrapper(String[] tempDirs) {
 		this.tempDirs = tempDirs;
 
-		this.lengthBuffer = ByteBuffer.allocate(4);
+		this.lengthBuffer = ByteBuffer.allocate(LENGTH_BYTES);
 		this.lengthBuffer.order(ByteOrder.BIG_ENDIAN);
 
 		this.recordLength = -1;
@@ -82,187 +88,161 @@ final class SpanningWrapper {
 		this.buffer = initialBuffer;
 	}
 
-	void initializeWithPartialRecord(NonSpanningWrapper partial, int nextRecordLength) throws IOException {
-		// set the length and copy what is available to the buffer
-		this.recordLength = nextRecordLength;
-
-		final int numBytesChunk = partial.remaining();
-
-		if (nextRecordLength > THRESHOLD_FOR_SPILLING) {
-			// create a spilling channel and put the data there
-			this.spillingChannel = createSpillingChannel();
-
-			ByteBuffer toWrite = partial.segment.wrap(partial.position, numBytesChunk);
-			FileUtils.writeCompletely(this.spillingChannel, toWrite);
-		}
-		else {
-			// collect in memory
-			ensureBufferCapacity(nextRecordLength);
-			partial.segment.get(partial.position, buffer, 0, numBytesChunk);
-		}
-
-		this.accumulatedRecordBytes = numBytesChunk;
+	/**
+	 * Copies the data and transfers the "ownership" (i.e. clears the passed wrapper).
+	 */
+	void transferFrom(NonSpanningWrapper partial, int nextRecordLength) throws IOException {
+		updateLength(nextRecordLength);
+		accumulatedRecordBytes = isAboveSpillingThreshold() ? spill(partial) : partial.copyContentTo(buffer);
+		partial.clear();
 	}
 
-	void initializeWithPartialLength(NonSpanningWrapper partial) throws IOException {
-		// copy what we have to the length buffer
-		partial.segment.get(partial.position, this.lengthBuffer, partial.remaining());
+	private boolean isAboveSpillingThreshold() {
+		return recordLength > THRESHOLD_FOR_SPILLING;
 	}
 
 	void addNextChunkFromMemorySegment(MemorySegment segment, int offset, int numBytes) throws IOException {
-		int segmentPosition = offset;
-		int segmentRemaining = numBytes;
-		// check where to go. if we have a partial length, we need to complete it first
-		if (this.lengthBuffer.position() > 0) {
-			int toPut = Math.min(this.lengthBuffer.remaining(), segmentRemaining);
-			segment.get(segmentPosition, this.lengthBuffer, toPut);
-			// did we complete the length?
-			if (this.lengthBuffer.hasRemaining()) {
-				return;
-			} else {
-				this.recordLength = this.lengthBuffer.getInt(0);
-
-				this.lengthBuffer.clear();
-				segmentPosition += toPut;
-				segmentRemaining -= toPut;
-				if (this.recordLength > THRESHOLD_FOR_SPILLING) {
-					this.spillingChannel = createSpillingChannel();
-				} else {
-					ensureBufferCapacity(this.recordLength);
-				}
-			}
+		int limit = offset + numBytes;
+		int numBytesRead = isReadingLength() ? readLength(segment, offset, numBytes) : 0;
+		offset += numBytesRead;
+		numBytes -= numBytesRead;
+		if (numBytes == 0) {
+			return;
 		}
 
-		// copy as much as we need or can for this next spanning record
-		int needed = this.recordLength - this.accumulatedRecordBytes;
-		int toCopy = Math.min(needed, segmentRemaining);
+		int toCopy = min(recordLength - accumulatedRecordBytes, numBytes);
+		if (toCopy > 0) {
+			copyFromSegment(segment, offset, toCopy);
+		}
+		if (numBytes > toCopy) {
+			leftOverData = segment;
+			leftOverStart = offset + toCopy;
+			leftOverLimit = limit;
+		}
+	}
 
-		if (spillingChannel != null) {
-			// spill to file
-			ByteBuffer toWrite = segment.wrap(segmentPosition, toCopy);
-			FileUtils.writeCompletely(this.spillingChannel, toWrite);
+	private void copyFromSegment(MemorySegment segment, int offset, int length) throws IOException {
+		if (spillingChannel == null) {
+			copyIntoBuffer(segment, offset, length);
 		} else {
-			segment.get(segmentPosition, buffer, this.accumulatedRecordBytes, toCopy);
+			copyIntoFile(segment, offset, length);
 		}
+	}
 
-		this.accumulatedRecordBytes += toCopy;
-
-		if (toCopy < segmentRemaining) {
-			// there is more data in the segment
-			this.leftOverData = segment;
-			this.leftOverStart = segmentPosition + toCopy;
-			this.leftOverLimit = numBytes + offset;
+	private void copyIntoFile(MemorySegment segment, int offset, int length) throws IOException {
+		writeCompletely(spillingChannel, segment.wrap(offset, length));
+		accumulatedRecordBytes += length;
+		if (hasFullRecord()) {
+			spillingChannel.close();
+			spillFileReader = new DataInputViewStreamWrapper(new BufferedInputStream(new FileInputStream(spillFile), FILE_BUFFER_SIZE));
 		}
+	}
 
-		if (accumulatedRecordBytes == recordLength) {
-			// we have the full record
-			if (spillingChannel == null) {
-				this.serializationReadBuffer.setBuffer(buffer, 0, recordLength);
-			}
-			else {
-				spillingChannel.close();
+	private void copyIntoBuffer(MemorySegment segment, int offset, int length) {
+		segment.get(offset, buffer, accumulatedRecordBytes, length);
+		accumulatedRecordBytes += length;
+		if (hasFullRecord()) {
+			serializationReadBuffer.setBuffer(buffer, 0, recordLength);
+		}
+	}
 
-				BufferedInputStream inStream = new BufferedInputStream(new FileInputStream(spillFile), 2 * 1024 * 1024);
-				this.spillFileReader = new DataInputViewStreamWrapper(inStream);
-			}
+	private int readLength(MemorySegment segment, int segmentPosition, int segmentRemaining) throws IOException {
+		int bytesToRead = min(lengthBuffer.remaining(), segmentRemaining);
+		segment.get(segmentPosition, lengthBuffer, bytesToRead);
+		if (!lengthBuffer.hasRemaining()) {
+			updateLength(lengthBuffer.getInt(0));
+		}
+		return bytesToRead;
+	}
+
+	private void updateLength(int length) throws IOException {
+		lengthBuffer.clear();
+		recordLength = length;
+		if (isAboveSpillingThreshold()) {
+			spillingChannel = createSpillingChannel();
+		} else {
+			ensureBufferCapacity(length);
 		}
 	}
 
 	Optional<MemorySegment> getUnconsumedSegment() throws IOException {
-		// for the case of only partial length, no data
-		final int position = lengthBuffer.position();
-		if (position > 0) {
-			MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(position);
-			lengthBuffer.position(0);
-			segment.put(0, lengthBuffer, position);
-			return Optional.of(segment);
+		if (isReadingLength()) {
+			return Optional.of(copyLengthBuffer());
+		} else if (isAboveSpillingThreshold()) {
+			throw new UnsupportedOperationException("Unaligned checkpoint currently do not support spilled records.");
+		} else if (recordLength == -1) {
+			return Optional.empty(); // no remaining partial length or data
+		} else {
+			return Optional.of(copyDataBuffer());
 		}
-
-		// for the case of full length, partial data in buffer
-		if (recordLength > THRESHOLD_FOR_SPILLING) {
-			throw new UnsupportedOperationException("Unaligned checkpoint currently do not support spilled " +
-				"records.");
-		} else if (recordLength != -1) {
-			int leftOverSize = leftOverLimit - leftOverStart;
-			int unconsumedSize = Integer.BYTES + accumulatedRecordBytes + leftOverSize;
-			DataOutputSerializer serializer = new DataOutputSerializer(unconsumedSize);
-			serializer.writeInt(recordLength);
-			serializer.write(buffer, 0, accumulatedRecordBytes);
-			if (leftOverData != null) {
-				serializer.write(leftOverData, leftOverStart, leftOverSize);
-			}
-			MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(unconsumedSize);
-			segment.put(0, serializer.getSharedBuffer(), 0, segment.size());
-			return Optional.of(segment);
-		}
-
-		// for the case of no remaining partial length or data
-		return Optional.empty();
 	}
 
-	void moveRemainderToNonSpanningDeserializer(NonSpanningWrapper deserializer) {
-		deserializer.clear();
+	private MemorySegment copyLengthBuffer() {
+		int position = lengthBuffer.position();
+		MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(position);
+		lengthBuffer.position(0);
+		segment.put(0, lengthBuffer, position);
+		return segment;
+	}
 
+	private MemorySegment copyDataBuffer() throws IOException {
+		int leftOverSize = leftOverLimit - leftOverStart;
+		int unconsumedSize = LENGTH_BYTES + accumulatedRecordBytes + leftOverSize;
+		DataOutputSerializer serializer = new DataOutputSerializer(unconsumedSize);
+		serializer.writeInt(recordLength);
+		serializer.write(buffer, 0, accumulatedRecordBytes);
 		if (leftOverData != null) {
-			deserializer.initializeFromMemorySegment(leftOverData, leftOverStart, leftOverLimit);
+			serializer.write(leftOverData, leftOverStart, leftOverSize);
 		}
+		MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(unconsumedSize);
+		segment.put(0, serializer.getSharedBuffer(), 0, segment.size());
+		return segment;
+	}
+
+	/**
+	 * Copies the leftover data and transfers the "ownership" (i.e. clears this wrapper).
+	 */
+	void transferLeftOverTo(NonSpanningWrapper nonSpanningWrapper) {
+		nonSpanningWrapper.clear();
+		if (leftOverData != null) {
+			nonSpanningWrapper.initializeFromMemorySegment(leftOverData, leftOverStart, leftOverLimit);
+		}
+		clear();
 	}
 
 	boolean hasFullRecord() {
-		return this.recordLength >= 0 && this.accumulatedRecordBytes >= this.recordLength;
+		return recordLength >= 0 && accumulatedRecordBytes >= recordLength;
 	}
 
 	int getNumGatheredBytes() {
-		return this.accumulatedRecordBytes + (this.recordLength >= 0 ? 4 : lengthBuffer.position());
+		return accumulatedRecordBytes + (recordLength >= 0 ? LENGTH_BYTES : lengthBuffer.position());
 	}
 
+	@SuppressWarnings("ResultOfMethodCallIgnored")
 	public void clear() {
-		this.buffer = initialBuffer;
-		this.serializationReadBuffer.releaseArrays();
+		buffer = initialBuffer;
+		serializationReadBuffer.releaseArrays();
 
-		this.recordLength = -1;
-		this.lengthBuffer.clear();
-		this.leftOverData = null;
-		this.leftOverStart = 0;
-		this.leftOverLimit = 0;
-		this.accumulatedRecordBytes = 0;
+		recordLength = -1;
+		lengthBuffer.clear();
+		leftOverData = null;
+		leftOverStart = 0;
+		leftOverLimit = 0;
+		accumulatedRecordBytes = 0;
 
-		if (spillingChannel != null) {
-			try {
-				spillingChannel.close();
-			}
-			catch (Throwable t) {
-				// ignore
-			}
-			spillingChannel = null;
-		}
-		if (spillFileReader != null) {
-			try {
-				spillFileReader.close();
-			}
-			catch (Throwable t) {
-				// ignore
-			}
-			spillFileReader = null;
-		}
-		if (spillFile != null) {
-			spillFile.delete();
-			spillFile = null;
-		}
+		closeAllQuietly(spillingChannel, spillFileReader, () -> spillFile.delete());
+		spillingChannel = null;
+		spillFileReader = null;
+		spillFile = null;
 	}
 
 	public DataInputView getInputView() {
-		if (spillFileReader == null) {
-			return serializationReadBuffer;
-		}
-		else {
-			return spillFileReader;
-		}
+		return spillFileReader == null ? serializationReadBuffer : spillFileReader;
 	}
 
 	private void ensureBufferCapacity(int minLength) {
 		if (buffer.length < minLength) {
-			byte[] newBuffer = new byte[Math.max(minLength, buffer.length * 2)];
+			byte[] newBuffer = new byte[max(minLength, buffer.length * 2)];
 			System.arraycopy(buffer, 0, newBuffer, 0, accumulatedRecordBytes);
 			buffer = newBuffer;
 		}
@@ -294,4 +274,16 @@ final class SpanningWrapper {
 		random.nextBytes(bytes);
 		return StringUtils.byteToHexString(bytes);
 	}
+
+	private int spill(NonSpanningWrapper partial) throws IOException {
+		ByteBuffer buffer = partial.wrapIntoByteBuffer();
+		int length = buffer.remaining();
+		writeCompletely(spillingChannel, buffer);
+		return length;
+	}
+
+	private boolean isReadingLength() {
+		return lengthBuffer.position() > 0;
+	}
+
 }

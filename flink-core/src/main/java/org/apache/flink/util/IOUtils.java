@@ -26,6 +26,8 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.Socket;
 
+import static java.util.Arrays.asList;
+
 /**
  * An utility class for I/O related functionality.
  */
@@ -239,6 +241,13 @@ public final class IOUtils {
 				throw collectedExceptions;
 			}
 		}
+	}
+
+	/**
+	 * Closes all elements in the iterable with closeQuietly().
+	 */
+	public static void closeAllQuietly(AutoCloseable... closeables) {
+		closeAllQuietly(asList(closeables));
 	}
 
 	/**
