@@ -20,8 +20,6 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.ConfigOption;
 
-import java.time.Duration;
-
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
@@ -47,10 +45,4 @@ public class HiveOptions {
 			key("table.exec.hive.infer-source-parallelism.max")
 					.defaultValue(1000)
 					.withDescription("Sets max infer parallelism for source operator.");
-
-	public static final ConfigOption<Duration> LOOKUP_JOIN_CACHE_TTL =
-			key("lookup.join.cache.ttl")
-					.durationType()
-					.defaultValue(Duration.ofMinutes(60))
-					.withDescription("The cache TTL (in minutes) for the build table in lookup join.");
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.connectors.hive.read.HiveTableLookupFunction;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableImpl;
@@ -28,8 +27,11 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
+import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.types.Row;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -60,7 +62,7 @@ public class HiveLookupJoinTest {
 		tableEnv.useCatalog(hiveCatalog.getName());
 
 		hiveShell.execute(String.format("create table build (x int,y string,z int) tblproperties ('%s'='5min')",
-				HiveOptions.LOOKUP_JOIN_CACHE_TTL.key()));
+				FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.key()));
 
 		// verify we properly configured the cache TTL
 		ObjectIdentifier tableIdentifier = ObjectIdentifier.of(hiveCatalog.getName(), "default", "build");
@@ -78,11 +80,13 @@ public class HiveLookupJoinTest {
 					.addRow(new Object[]{3, "c", 33})
 					.commit();
 
-			TestCollectionTableFactory.initData(Arrays.asList(Row.of(1, 1), Row.of(1, 0), Row.of(2, 1), Row.of(2, 3), Row.of(3, 1), Row.of(4, 4)));
-			tableEnv.sqlUpdate("create table default_catalog.default_database.probe (x int,y int,p as proctime()) with ('connector'='COLLECTION','is-bounded' = 'false')");
+			TestCollectionTableFactory.initData(
+					Arrays.asList(Row.of(1, "a"), Row.of(1, "c"), Row.of(2, "b"), Row.of(2, "c"), Row.of(3, "c"), Row.of(4, "d")));
+			tableEnv.sqlUpdate("create table default_catalog.default_database.probe (x int,y string,p as proctime()) " +
+					"with ('connector'='COLLECTION','is-bounded' = 'false')");
 
 			TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select p.x,p.y from default_catalog.default_database.probe as p join " +
-					"build for system_time as of p.p as b on p.x=b.x");
+					"build for system_time as of p.p as b on p.x=b.x and p.y=b.y");
 			List<Row> results = Lists.newArrayList(flinkTable.execute().collect());
 			assertEquals("[1,1, 1,0, 2,1, 2,1, 2,3, 2,3, 3,1]", results.toString());
 		} finally {

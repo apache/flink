@@ -43,6 +43,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
@@ -373,12 +374,12 @@ public class HiveTableSource implements
 			List<String> partitionColNames = catalogTable.getPartitionKeys();
 			Table hiveTable = client.getTable(dbName, tableName);
 			Properties tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable);
-			String ttlStr = tableProps.getProperty(HiveOptions.LOOKUP_JOIN_CACHE_TTL.key());
+			String ttlStr = tableProps.getProperty(FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.key());
 			Configuration configuration = new Configuration();
 			if (ttlStr != null) {
-				configuration.setString(HiveOptions.LOOKUP_JOIN_CACHE_TTL.key(), ttlStr);
+				configuration.setString(FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.key(), ttlStr);
 			}
-			hiveTableCacheTTL = configuration.get(HiveOptions.LOOKUP_JOIN_CACHE_TTL);
+			hiveTableCacheTTL = configuration.get(FileSystemOptions.LOOKUP_JOIN_CACHE_TTL);
 			if (partitionColNames != null && partitionColNames.size() > 0) {
 				final String defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
 						HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
