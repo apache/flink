@@ -298,4 +298,18 @@ public class HiveDDLUtils {
 		}
 		return res;
 	}
+
+	public static SqlNodeList deepCopyColList(SqlNodeList colList) {
+		SqlNodeList res = new SqlNodeList(colList.getParserPosition());
+		for (SqlNode node : colList) {
+			SqlTableColumn col = (SqlTableColumn) node;
+			res.add(new SqlTableColumn(
+					col.getName(),
+					col.getType(),
+					col.getConstraint().orElse(null),
+					col.getComment().orElse(null),
+					col.getParserPosition()));
+		}
+		return res;
+	}
 }

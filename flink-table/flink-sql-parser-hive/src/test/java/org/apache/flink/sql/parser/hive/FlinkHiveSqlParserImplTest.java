@@ -154,7 +154,7 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"STORED AS INPUTFORMAT 'input.format.class' OUTPUTFORMAT 'output.format.class'");
 		sql("create table tbl (x struct<f1:timestamp,f2:int>) partitioned by (p1 string,p2 bigint) stored as rcfile")
 				.ok("CREATE TABLE `TBL` (\n" +
-						"  `X`  ROW< `F1` TIMESTAMP(9), `F2` INTEGER >\n" +
+						"  `X`  STRUCT< `F1` TIMESTAMP, `F2` INTEGER >\n" +
 						")\n" +
 						"PARTITIONED BY (\n" +
 						"  `P1`  STRING,\n" +
@@ -163,7 +163,7 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"STORED AS `RCFILE`");
 		sql("create external table tbl (x map<timestamp,array<timestamp>>) location '/table/path'")
 				.ok("CREATE EXTERNAL TABLE `TBL` (\n" +
-						"  `X`  MAP< TIMESTAMP(9), ARRAY< TIMESTAMP(9) > >\n" +
+						"  `X`  MAP< TIMESTAMP, ARRAY< TIMESTAMP > >\n" +
 						")\n" +
 						"LOCATION '/table/path'");
 		sql("create temporary table tbl (x varchar(50)) partitioned by (p timestamp)")
@@ -171,7 +171,7 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"  `X`  VARCHAR(50)\n" +
 						")\n" +
 						"PARTITIONED BY (\n" +
-						"  `P`  TIMESTAMP(9)\n" +
+						"  `P`  TIMESTAMP\n" +
 						")");
 		sql("create table tbl (v varchar)").fails("VARCHAR precision is mandatory");
 		// TODO: support CLUSTERED BY, SKEWED BY, STORED BY, col constraints
@@ -187,13 +187,13 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 		sql("create table tbl (x int,y timestamp not null,z string,primary key (x,z) disable novalidate rely)")
 				.ok("CREATE TABLE `TBL` (\n" +
 						"  `X`  INTEGER,\n" +
-						"  `Y`  TIMESTAMP(9) NOT NULL ENABLE NOVALIDATE RELY,\n" +
+						"  `Y`  TIMESTAMP NOT NULL ENABLE NOVALIDATE RELY,\n" +
 						"  `Z`  STRING,\n" +
 						"  PRIMARY KEY (`X`, `Z`) DISABLE NOVALIDATE RELY\n" +
 						")");
 		sql("create table tbl (x binary,y date,z string,constraint pk_cons primary key(x))")
 				.ok("CREATE TABLE `TBL` (\n" +
-						"  `X`  VARBINARY(2147483647),\n" +
+						"  `X`  BINARY,\n" +
 						"  `Y`  DATE,\n" +
 						"  `Z`  STRING,\n" +
 						"  CONSTRAINT `PK_CONS` PRIMARY KEY (`X`) ENABLE NOVALIDATE RELY\n" +

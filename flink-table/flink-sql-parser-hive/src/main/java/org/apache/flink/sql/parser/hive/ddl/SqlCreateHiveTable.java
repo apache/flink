@@ -56,6 +56,8 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 	private final HiveTableRowFormat rowFormat;
 	private final HiveTableStoredAs storedAs;
 	private final SqlCharStringLiteral location;
+	private final SqlNodeList origColList;
+	private final SqlNodeList origPartColList;
 
 	public SqlCreateHiveTable(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList columnList,
 			HiveTableCreationContext creationContext, SqlNodeList propertyList,
@@ -65,6 +67,11 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 		super(pos, tableName, columnList, creationContext.constraints,
 				HiveDDLUtils.checkReservedTableProperties(propertyList), extractPartColIdentifiers(partColList), null,
 				comment, null, isTemporary);
+
+		this.origColList = HiveDDLUtils.deepCopyColList(columnList);
+		this.origPartColList = partColList != null ?
+				HiveDDLUtils.deepCopyColList(partColList) :
+				SqlNodeList.EMPTY;
 
 		HiveDDLUtils.convertDataTypes(columnList);
 		HiveDDLUtils.convertDataTypes(partColList);
@@ -147,11 +154,9 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 		}
 		getTableName().unparse(writer, leftPrec, rightPrec);
 		// columns
-		int numPartCol = getPartitionKeyList() == null ? 0 : getPartitionKeyList().size();
 		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
-		SqlNodeList allCols = getColumnList();
 		unparseColumns(creationContext,
-				new SqlNodeList(allCols.getList().subList(0, allCols.size() - numPartCol), allCols.getParserPosition()),
+				origColList,
 				writer, leftPrec, rightPrec);
 		for (SqlTableConstraint tableConstraint : creationContext.constraints) {
 			printIndent(writer);
@@ -173,12 +178,12 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 			c.unparse(writer, leftPrec, rightPrec);
 		});
 		// partitions
-		if (numPartCol > 0) {
+		if (origPartColList.size() > 0) {
 			writer.newlineAndIndent();
 			writer.keyword("PARTITIONED BY");
 			SqlWriter.Frame partitionedByFrame = writer.startList("(", ")");
 			unparseColumns(creationContext,
-					new SqlNodeList(allCols.getList().subList(allCols.size() - numPartCol, allCols.size()), allCols.getParserPosition()),
+					origPartColList,
 					writer, leftPrec, rightPrec);
 			writer.newlineAndIndent();
 			writer.endList(partitionedByFrame);

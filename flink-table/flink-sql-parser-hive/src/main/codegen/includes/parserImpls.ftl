@@ -756,11 +756,10 @@ SqlTypeNameSpec ExtendedSqlRowTypeName() :
 {
     <STRUCT> <LT> ExtendedFieldNameTypeCommaList(fieldNames, fieldTypes, comments) <GT>
     {
-        return new ExtendedSqlRowTypeNameSpec(
+        return new ExtendedHiveStructTypeNameSpec(
             getPos(),
             fieldNames,
             fieldTypes,
-            comments,
-            false);
+            comments);
     }
 }
