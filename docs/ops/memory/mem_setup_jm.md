@@ -75,8 +75,7 @@ The *Job cache* resides in the *JVM Heap*. It can be configured by
 
 <span class="label label-info">Note</span> If you have configured the *JVM Heap* explicitly, it is recommended to set
 neither *total process memory* nor *total Flink memory*. Otherwise, it may easily lead to memory configuration conflicts.
-The *JVM Heap* size is set as the corresponding JVM parameters (*-Xms* and *-Xmx*) when the job manager process is started
-by Flink’s scripts or CLI, see also [JVM parameters](mem_setup.html#jvm-parameters).
+The *JVM Heap* size is set via the corresponding JVM parameters (*-Xms* and *-Xmx*) when the Flink scripts or CLI start the Flink Master process, see also [JVM parameters](mem_setup.html#jvm-parameters).
 
 ### Configure Off-heap Memory
 
