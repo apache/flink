@@ -37,6 +37,20 @@ The Flink runtime consists of two types of processes: a _Flink Master_ and one o
 
 <img src="{{ site.baseurl }}/fig/processes.svg" alt="The processes involved in executing a Flink dataflow" class="offset" width="70%" />
 
+The *client* is not part of the runtime and program execution, but is used to
+prepare and send a dataflow to the Flink Master.  After that, the client can
+disconnect (_detached mode_), or stay connected to receive progress reports (_attached mode_). The client runs
+either as part of the Java/Scala program that triggers the execution, or in the
+command line process `./bin/flink run ...`.
+
+The Flink Master and TaskManagers can be started in various ways: directly on
+the machines as a [standalone cluster]({{ site.baseurl }}{% link
+ops/deployment/cluster_setup.md %}), in containers, or managed by resource
+frameworks like [YARN]({{ site.baseurl }}{% link ops/deployment/yarn_setup.md
+%}) or [Mesos]({{ site.baseurl }}{% link ops/deployment/mesos.md %}).
+TaskManagers connect to Flink Masters, announcing themselves as available, and
+are assigned work.
+
 ### Flink Master
 
 The _Flink Master_ coordinates the distributed execution of Flink Applications: it decides when to schedule the next task (or set of tasks), reacts to finished tasks or execution failures, coordinates checkpoints, coordinates recovery on failures, among others. This process consists of three different components:
@@ -60,20 +74,6 @@ There is always at least one Flink Master. A high-availability setup might have 
 The *TaskManagers* (also called *workers*) execute the tasks (or more specifically, the subtasks) of a dataflow, and buffer and exchange the data streams.
 
 There must always be at least one TaskManager. The smallest resource processing unit in a TaskManager is a task _slot_. The number of task slots in a TaskManager indicates the number of concurrent processing tasks. Note that multiple operators may execute in a task slot (see [Tasks and Operator Chains](#tasks-and-operator-chains)).
-
-The Flink Master and TaskManagers can be started in various ways: directly on
-the machines as a [standalone cluster]({{ site.baseurl }}{% link
-ops/deployment/cluster_setup.md %}), in containers, or managed by resource
-frameworks like [YARN]({{ site.baseurl }}{% link ops/deployment/yarn_setup.md
-%}) or [Mesos]({{ site.baseurl }}{% link ops/deployment/mesos.md %}).
-TaskManagers connect to Flink Masters, announcing themselves as available, and
-are assigned work.
-
-The *client* is not part of the runtime and program execution, but is used to
-prepare and send a dataflow to the Flink Master.  After that, the client can
-disconnect (_detached mode_), or stay connected to receive progress reports (_attached mode_). The client runs
-either as part of the Java/Scala program that triggers the execution, or in the
-command line process `./bin/flink run ...`.
 
 {% top %}
 
