@@ -80,7 +80,7 @@ The *JVM Heap* size is set via the corresponding JVM parameters (*-Xms* and *-Xm
 ### Configure Off-heap Memory
 
 The *Off-heap* memory component accounts for any type of *JVM direct memory* and *native memory* usage. Therefore, it
-is also set as the corresponding JVM argument: *-XX:MaxDirectMemorySize*, see also [JVM parameters](mem_setup.html#jvm-parameters).
+is also set via the corresponding JVM argument: *-XX:MaxDirectMemorySize*, see also [JVM parameters](mem_setup.html#jvm-parameters).
 
 The size of this component can be configured by [`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size)
 option. This option can be tuned e.g. if the job manager process throws ‘OutOfMemoryError: Direct buffer memory’, see
