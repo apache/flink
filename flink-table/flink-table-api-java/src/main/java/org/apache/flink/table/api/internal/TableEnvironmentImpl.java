@@ -718,7 +718,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
 					.tableSchema(tableSchema)
 					.data(tableSink.getResultIterator())
-					.setPrintStyle(TableResultImpl.PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH))
+					.setPrintStyle(TableResultImpl.PrintStyle.tableau(
+							PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN))
 					.build();
 		} catch (Exception e) {
 			throw new TableException("Failed to execute sql", e);
@@ -1006,7 +1007,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		Map<String, String> fieldToPrimaryKey = new HashMap<>();
 		schema.getPrimaryKey().ifPresent((p) -> {
 			List<String> columns = p.getColumns();
-			columns.forEach((c) -> fieldToPrimaryKey.put(c, String.format("PRI(%s)", String.join(",", columns))));
+			columns.forEach((c) -> fieldToPrimaryKey.put(c, String.format("PRI(%s)", String.join(", ", columns))));
 		});
 
 		Object[][] rows =

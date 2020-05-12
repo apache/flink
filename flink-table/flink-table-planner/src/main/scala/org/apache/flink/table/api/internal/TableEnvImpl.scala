@@ -628,7 +628,7 @@ abstract class TableEnvImpl(
         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
         .tableSchema(tableSchema)
         .data(tableSink.getResultIterator)
-        .setPrintStyle(PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH))
+        .setPrintStyle(PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN))
         .build
     } catch {
       case e: Exception =>
@@ -844,7 +844,7 @@ abstract class TableEnvImpl(
     val fieldToPrimaryKey = new JHashMap[String, String]()
     if (schema.getPrimaryKey.isPresent) {
       val columns = schema.getPrimaryKey.get.getColumns.asScala
-      columns.foreach(c => fieldToPrimaryKey.put(c, s"PRI(${columns.mkString(",")})"))
+      columns.foreach(c => fieldToPrimaryKey.put(c, s"PRI(${columns.mkString(", ")})"))
     }
     val data = Array.ofDim[Object](schema.getFieldCount, 6)
     schema.getTableColumns.asScala.zipWithIndex.foreach {
