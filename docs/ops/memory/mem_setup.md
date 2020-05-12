@@ -30,8 +30,8 @@ Flink allows both high level and fine-grained tuning of memory allocation within
 * toc
 {:toc}
 
-The further described memory configuration is applicable starting with the release version *1.10* for Flink TaskManager and
-*1.11* for Flink Master processes. If you upgrade Flink from earlier versions, check the [migration guide](mem_migration.html)
+The further described memory configuration is applicable starting with the release version *1.10* for TaskManager and
+*1.11* for Master processes. If you upgrade Flink from earlier versions, check the [migration guide](mem_migration.html)
 because many changes were introduced with the *1.10* and *1.11* releases.
 
 ## Configure Total Memory
@@ -70,14 +70,14 @@ For the containerized deployments it corresponds to the size of the requested co
 ([Kubernetes](../deployment/kubernetes.html), [Yarn](../deployment/yarn_setup.html) or [Mesos](../deployment/mesos.html)).
 
 Another way to set up the memory is to configure the required internal components of the *total Flink memory* which are
-specific to the concrete Flink process. Check how to configure them for TaskManager [here](mem_setup_tm.html#configure-heap-and-managed-memory)
-and for Master [here](mem_setup_jm.html#configure-jvm-heap).
+specific to the concrete Flink process. Check how to configure them for [TaskManager](mem_setup_tm.html#configure-heap-and-managed-memory)
+and for [Master](mem_setup_jm.html#configure-jvm-heap).
 
 <span class="label label-info">Note</span> One of the three mentioned ways has to be used to configure Flink’s memory
 (except for local execution), or the Flink startup will fail. This means that one of the following option subsets,
 which do not have default values, have to be configured explicitly:
 
-| &nbsp;&nbsp;**for task executor:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**for job manager:**&nbsp;&nbsp;                                      |
+| &nbsp;&nbsp;**for TaskManager:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**for Master:**&nbsp;&nbsp;                                      |
 | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------- |
 | [`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)                                                                                                       | [`jobmanager.memory.flink.size`](../config.html#jobmanager-memory-flink-size)     |
 | [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)                                                                                                   | [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size) |
@@ -86,15 +86,15 @@ which do not have default values, have to be configured explicitly:
 <br/>
 
 <span class="label label-info">Note</span> Explicitly configuring both *total process memory* and *total Flink memory*
-is not recommended. It may lead to deployment failures due to potential memory configuration conflicts. Additional
-configuration of other memory components also requires caution as it can produce further configuration conflicts.
+is not recommended. It may lead to deployment failures due to potential memory configuration conflicts. 
+Configuring other memory components also requires caution as it can produce further configuration conflicts.
 
 ## JVM Parameters
 
-Flink explicitly adds the following memory related JVM arguments while starting its process, based on the configured
+Flink explicitly adds the following memory related JVM arguments while starting its processes, based on the configured
 or derived memory component sizes:
 
-| &nbsp;&nbsp;**JVM Arguments**&nbsp;&nbsp; | &nbsp;&nbsp;**Value for task executor**&nbsp;&nbsp; | &nbsp;&nbsp;**Value for job executor**&nbsp;&nbsp; |
+| &nbsp;&nbsp;**JVM Arguments**&nbsp;&nbsp; | &nbsp;&nbsp;**Value for TaskManager**&nbsp;&nbsp; | &nbsp;&nbsp;**Value for Master**&nbsp;&nbsp; |
 | :---------------------------------------- | :------------------------------------------------- | :------------------------------------------------ |
 | *-Xmx* and *-Xms*                         | Framework + Task Heap Memory                       | JVM Heap Memory                                   |
 | *-XX:MaxDirectMemorySize*                 | Framework + Task Off-heap (*) + Network Memory     | Off-heap Memory (*)                               |
@@ -103,22 +103,22 @@ or derived memory component sizes:
 (*) Notice, that the native non-direct usage of memory in user code can be also accounted for as a part of the off-heap memory.
 <br/><br/>
 
-Check also the detailed memory model for [task executor](mem_setup_tm.html#detailed-memory-model) and
-[job executor](mem_setup_jm.html#detailed-configuration) to understand how to configure the relevant components.
+Check also the detailed memory model for [TaskManager](mem_setup_tm.html#detailed-memory-model) and
+[Master](mem_setup_jm.html#detailed-configuration) to understand how to configure the relevant components.
 
 ## Capped Fractionated Components
 
-This section describes the configuration details of the following options which can be a fraction of the [total memory](mem_setup.html#configure-total-memory) while being constrained by a min-max range:
+This section describes the configuration details of options which can be a fraction of some other memory size while being constrained by a min-max range:
 
 * *JVM Overhead* can be a fraction of the *total process memory*
-* *Network memory* can be a fraction of the *total Flink memory* (only for task executor)
+* *Network memory* can be a fraction of the *total Flink memory* (only for TaskManager)
 
-Check also the detailed memory model for [task executor](mem_setup_tm.html#detailed-memory-model) and
-[job executor](mem_setup_jm.html#detailed-configuration) to understand how to configure the relevant components.
+Check also the detailed memory model for [TaskManager](mem_setup_tm.html#detailed-memory-model) and
+[Master](mem_setup_jm.html#detailed-configuration) to understand how to configure the relevant components.
 
 The size of those components always has to be between its maximum and minimum value, otherwise Flink startup will fail.
 The maximum and minimum values have defaults or can be explicitly set by corresponding configuration options.
-For example, if only the following memory options are set:
+For example, if you only set the following memory options:
 - *total Process memory* = 1000Mb,
 - *JVM Overhead min* = 64Mb,
 - *JVM Overhead max* = 128Mb,
@@ -126,9 +126,9 @@ For example, if only the following memory options are set:
 
 then the *JVM Overhead* will be 1000Mb x 0.1 = 100Mb which is within the range 64-128Mb.
 
-Notice if you configure the same maximum and minimum value it effectively means that its size is fixed to that value.
+Notice if you configure the same maximum and minimum value it effectively fixes the size to that value.
 
-If the component memory is not explicitly configured, then Flink will use the fraction to calculate the memory size
+If you do not explicitly configure the component memory, then Flink will use the fraction to calculate the memory size
 based on the total memory. The calculated value is capped by its corresponding min/max options.
 For example, if only the following memory options are set:
 - *total Process memory* = 1000Mb,
@@ -136,7 +136,7 @@ For example, if only the following memory options are set:
 - *JVM Overhead max* = 256Mb,
 - *JVM Overhead fraction* = 0.1
 
-then the *JVM Overhead* will be 128Mb because the size derived from fraction is 100Mb and it is less than the minimum.
+then the *JVM Overhead* will be 128Mb because the size derived from fraction is 100Mb, and it is less than the minimum.
 
 It can also happen that the fraction is ignored if the sizes of the total memory and its other components are defined.
 In this case, the *JVM Overhead* is the rest of the total memory. The derived value still has to be within its min/max
@@ -148,5 +148,5 @@ range otherwise the configuration fails. For example, suppose only the following
 - *JVM Overhead fraction* = 0.1
 
 All other components of the *total Process memory* have default values, including the default *Managed Memory* fraction
-(or *Off-heap* memory in job executor). Then the *JVM Overhead* is not the fraction (1000Mb x 0.1 = 100Mb) but the rest
+(or *Off-heap* memory in job executor). Then the *JVM Overhead* is not the fraction (1000Mb x 0.1 = 100Mb), but the rest
 of the *total Process memory* which will either be within the range 64-256Mb or fail.
