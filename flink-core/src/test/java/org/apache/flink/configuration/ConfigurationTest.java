@@ -51,6 +51,7 @@ public class ConfigurationTest extends TestLogger {
 	public void testConfigurationSerializationAndGetters() {
 		try {
 			final Configuration orig = new Configuration();
+			orig.setCharacter("myChar", 'c');
 			orig.setString("mykey", "myvalue");
 			orig.setInteger("mynumber", 100);
 			orig.setLong("longvalue", 478236947162389746L);
@@ -61,6 +62,7 @@ public class ConfigurationTest extends TestLogger {
 			orig.setClass("myclass", this.getClass());
 
 			final Configuration copy = InstantiationUtil.createCopyWritable(orig);
+			assertEquals('c', copy.getCharacter("myChar", 'b'));
 			assertEquals("myvalue", copy.getString("mykey", "null"));
 			assertEquals(100, copy.getInteger("mynumber", 0));
 			assertEquals(478236947162389746L, copy.getLong("longvalue", 0L));

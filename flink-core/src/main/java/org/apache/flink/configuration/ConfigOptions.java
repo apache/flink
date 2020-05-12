@@ -142,6 +142,13 @@ public class ConfigOptions {
 		}
 
 		/**
+		 * Defines that the value of the option should be of {@link Character} type.
+		 */
+		public TypedConfigOptionBuilder<Character> charType() {
+			return new TypedConfigOptionBuilder<>(key, Character.class);
+		}
+
+		/**
 		 * Defines that the value of the option should be of {@link Duration} type.
 		 */
 		public TypedConfigOptionBuilder<Duration> durationType() {

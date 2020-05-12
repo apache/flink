@@ -62,6 +62,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	private static final byte TYPE_FLOAT = 4;
 	private static final byte TYPE_DOUBLE = 5;
 	private static final byte TYPE_BYTES = 6;
+	private static final byte TYPE_CHARACTER = 7;
 
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(Configuration.class);
@@ -197,6 +198,75 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 */
 	@PublicEvolving
 	public void setString(ConfigOption<String> key, String value) {
+		setValueInternal(key.key(), value);
+	}
+
+	/**
+	 * Returns the value associated with the given key as a character.
+	 *
+	 * @param key
+	 *        the key pointing to the associated value
+	 * @param defaultValue
+	 *        the default value which is returned in case there is no value associated with the given key
+	 * @return the (default) value associated with the given key
+	 * @deprecated use {@link #getCharacter(ConfigOption, char)} or {@link #getOptional(ConfigOption)}
+	 */
+	@Deprecated
+	public char getCharacter(String key, char defaultValue) {
+		return getRawValue(key)
+				.map(this::convertToCharacter)
+				.orElse(defaultValue);
+	}
+
+	/**
+	 * Returns the value associated with the given config option as a character.
+	 *
+	 * @param configOption The configuration option
+	 * @return the (default) value associated with the given config option
+	 */
+	@PublicEvolving
+	public char getCharacter(ConfigOption<Character> configOption) {
+		return getOptional(configOption)
+				.orElseGet(configOption::defaultValue);
+	}
+
+	/**
+	 * Returns the value associated with the given config option as a character.
+	 * If no value is mapped under any key of the option, it returns the specified
+	 * default instead of the option's default value.
+	 *
+	 * @param configOption The configuration option
+	 * @return the (default) value associated with the given config option
+	 */
+	@PublicEvolving
+	public char getCharacter(ConfigOption<Character> configOption, char overrideDefault) {
+		return getOptional(configOption)
+				.orElse(overrideDefault);
+	}
+
+	/**
+	 * Adds the given key/value pair to the configuration object.
+	 *
+	 * @param key
+	 *        the key of the key/value pair to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	public void setCharacter(String key, char value) {
+		setValueInternal(key, value);
+	}
+
+	/**
+	 * Adds the given value to the configuration object.
+	 * The main key of the config option will be used to map the value.
+	 *
+	 * @param key
+	 *        the option specifying the key to be added
+	 * @param value
+	 *        the value of the key/value pair to be added
+	 */
+	@PublicEvolving
+	public void setCharacter(ConfigOption<Character> key, String value) {
 		setValueInternal(key.key(), value);
 	}
 
@@ -877,6 +947,8 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			return (T) convertToDouble(rawValue);
 		} else if (String.class.equals(clazz)) {
 			return (T) convertToString(rawValue);
+		} else if (Character.class.equals(clazz)) {
+			return (T) convertToCharacter(rawValue);
 		} else if (clazz.isEnum()) {
 			return (T) convertToEnum(rawValue, clazz);
 		} else if (clazz == Duration.class) {
@@ -975,6 +1047,21 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		}
 
 		return o.toString();
+	}
+
+	private Character convertToCharacter(Object o) {
+		if (o.getClass() == Character.class) {
+			return (Character) o;
+		} else {
+			String value = o.toString();
+			if (value.length() == 1) {
+				return value.charAt(0);
+			} else {
+				throw new IllegalArgumentException(String.format(
+						"Configuration value %s should be a single char.",
+						value));
+			}
+		}
 	}
 
 	private Integer convertToInt(Object o) {
@@ -1088,6 +1175,12 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 						in.readFully(bytes);
 						value = bytes;
 						break;
+					case TYPE_CHARACTER:
+						value = StringValue.readString(in);
+						if (value != null) {
+							value = ((String) value).charAt(0);
+						}
+						break;
 					default:
 						throw new IOException(String.format("Unrecognized type: %s. This method is deprecated and" +
 							" might not work for all supported types.", type));
@@ -1110,7 +1203,10 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 				StringValue.writeString(key, out);
 				Class<?> clazz = val.getClass();
 
-				if (clazz == String.class) {
+				if (clazz == Character.class) {
+					out.write(TYPE_CHARACTER);
+					StringValue.writeString(val.toString(), out);
+				} else if (clazz == String.class) {
 					out.write(TYPE_STRING);
 					StringValue.writeString((String) val, out);
 				}
