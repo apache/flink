@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionTest;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -75,6 +76,7 @@ public class RecoveredInputChannelTest {
 		testConcurrentReadStateAndRelease(isRemote);
 	}
 
+	@Ignore("https://issues.apache.org/jira/browse/FLINK-17640")
 	@Test
 	public void testConcurrentReadStateAndProcessAndRelease() throws Exception {
 		testConcurrentReadStateAndProcessAndRelease(isRemote);
@@ -251,7 +253,9 @@ public class RecoveredInputChannelTest {
 						numProcessedStates++;
 					}
 				} catch (IllegalStateException e) {
-					assertTrue(e.getMessage().contains("Queried for a buffer after channel has been closed"));
+					if (!e.getMessage().contains("Queried for a buffer after channel has been closed")) {
+						throw e;
+					}
 				}
 			}
 
