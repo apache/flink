@@ -114,9 +114,9 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
 
 import org.apache.commons.lang3.StringUtils;
@@ -1024,7 +1024,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 				}).toArray(Object[][]::new);
 
 		return buildResult(
-			new String[]{"name", "type", "null", "key", "compute column", "watermark"},
+			new String[]{"name", "type", "null", "key", "computed column", "watermark"},
 			new DataType[]{DataTypes.STRING(), DataTypes.STRING(), DataTypes.BOOLEAN(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()},
 			rows);
 	}
