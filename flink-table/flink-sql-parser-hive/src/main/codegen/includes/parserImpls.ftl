@@ -488,10 +488,12 @@ void TableColumnWithConstraint(HiveTableCreationContext context) :
     SqlIdentifier name;
     SqlDataTypeSpec type;
     SqlCharStringLiteral comment = null;
+    SqlHiveConstraintTrait constraintTrait;
 }
 {
     name = SimpleIdentifier()
     type = ExtendedDataType()
+    constraintTrait = ConstraintTrait()
     {
         // we have NOT NULL column constraint here
         if (!type.getNullable()) {
@@ -499,7 +501,7 @@ void TableColumnWithConstraint(HiveTableCreationContext context) :
                 context.notNullTraits = new ArrayList();
                 context.notNullCols = new ArrayList();
             }
-            context.notNullTraits.add(ConstraintTrait());
+            context.notNullTraits.add(constraintTrait);
             context.notNullCols.add(name);
         }
         SqlTableColumn tableColumn = new SqlTableColumn(name, type, null, comment, getPos());

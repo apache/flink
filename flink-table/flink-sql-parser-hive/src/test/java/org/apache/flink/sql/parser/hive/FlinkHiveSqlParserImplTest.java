@@ -125,8 +125,7 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"  FIELDS TERMINATED BY ',' ESCAPED BY '\\'\n" +
 						"  COLLECTION ITEMS TERMINATED BY ','\n" +
 						"  MAP KEYS TERMINATED BY ':'\n" +
-						"  LINES TERMINATED BY '\n" +
-						"'\n" +
+						"  LINES TERMINATED BY '\n'\n" +
 						"  NULL DEFINED AS 'null'\n" +
 						"LOCATION '/path/to/table'");
 		sql("create table tbl (x double) stored as orc tblproperties ('k1'='v1')")
