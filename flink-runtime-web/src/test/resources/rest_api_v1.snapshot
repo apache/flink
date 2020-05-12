@@ -318,7 +318,7 @@
     }
   }, {
     "url" : "/jars/:jarid/plan",
-    "method" : "GET",
+    "method" : "POST",
     "status-code" : "200 OK",
     "file-upload" : false,
     "path-parameters" : {
