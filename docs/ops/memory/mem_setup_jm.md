@@ -91,8 +91,6 @@ There can be the following possible sources of *Off-heap* memory consumption:
 
 ## Notes for the execution mode
 
-The configuration options of the described components are relevant only if Flink is either started using the provided
-*bin* scripts for [standalone](../deployment/cluster_setup.html) and [Mesos](../deployment/mesos.html) deployments or
-via Flink’s CLI for other containerised deployments ([Kubernetes](../deployment/kubernetes.html) and [Yarn](../deployment/yarn_setup.html)).
+The memory configuration options will be respected if you start Flink via the deployment scripts provided in */bin* or via Flink's CLI.
 
-If you run Flink locally (e.g. from your IDE) without creating a cluster, then the configuration options of the described components are not applicable.
+If you run Flink locally (e.g. from your IDE) without creating a cluster, then the configuration options of the described components are not respected.
