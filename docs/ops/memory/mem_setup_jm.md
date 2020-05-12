@@ -37,7 +37,7 @@ The Flink Master memory components have a similar but simpler structure compared
 
 ## Configure Total Memory
 
-If you run the job manager process locally, you do not need to configure memory options, they will have no effect.
+If you run the Flink Master process locally, you do not need to configure memory options, they will have no effect.
 See also [notes for the execution mode](#notes-for-the-execution-mode). Otherwise, the simplest way to set up the
 memory configuration is to configure the total memory.
 See [how to configure it for the Flink process](mem_setup.html#configure-total-memory).
@@ -60,9 +60,9 @@ affect the size of the respective components:
 
 ### Configure JVM Heap
 
-As mentioned before in the [total memory description](mem_setup.html#configure-total-memory), another way to setup memory
-for job manager is to specify explicitly *JVM Heap* size ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)).
-It gives more control over the available *JVM Heap* to the following purposes:
+As mentioned before in the [total memory description](mem_setup.html#configure-total-memory), another way to set up the memory
+for the Flink Master is to specify explicitly the *JVM Heap* size ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)).
+It gives more control over the available *JVM Heap* for the following purposes:
 
 * Flink framework (e.g. *Job cache*)
 * User code running during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
