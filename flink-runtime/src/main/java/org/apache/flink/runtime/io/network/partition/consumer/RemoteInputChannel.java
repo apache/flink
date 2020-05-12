@@ -84,7 +84,7 @@ public class RemoteInputChannel extends InputChannel {
 	private int expectedSequenceNumber = 0;
 
 	/** The initial number of exclusive buffers assigned to this channel. */
-	private int initialCredit;
+	private final int initialCredit;
 
 	/** The number of available buffers that have not been announced to the producer yet. */
 	private final AtomicInteger unannouncedCredit = new AtomicInteger(0);
@@ -109,11 +109,13 @@ public class RemoteInputChannel extends InputChannel {
 		ConnectionManager connectionManager,
 		int initialBackOff,
 		int maxBackoff,
+		int networkBuffersPerChannel,
 		Counter numBytesIn,
 		Counter numBuffersIn) {
 
 		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, numBytesIn, numBuffersIn);
 
+		this.initialCredit = networkBuffersPerChannel;
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
 		this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
@@ -124,10 +126,10 @@ public class RemoteInputChannel extends InputChannel {
 	 * after this input channel is created.
 	 */
 	void assignExclusiveSegments() throws IOException {
-		checkState(initialCredit == 0, "Bug in input channel setup logic: exclusive buffers have " +
-			"already been set for this input channel.");
+		checkState(bufferManager.unsynchronizedGetAvailableExclusiveBuffers() == 0,
+			"Bug in input channel setup logic: exclusive buffers have already been set for this input channel.");
 
-		initialCredit = bufferManager.requestExclusiveBuffers();
+		bufferManager.requestExclusiveBuffers();
 	}
 
 	// ------------------------------------------------------------------------

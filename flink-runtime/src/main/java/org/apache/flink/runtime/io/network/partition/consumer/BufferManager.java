@@ -125,9 +125,9 @@ public class BufferManager implements BufferListener, BufferRecycler {
 	}
 
 	/**
-	 * Requests exclusive buffers from the provider and returns the number of requested amount.
+	 * Requests exclusive buffers from the provider.
 	 */
-	int requestExclusiveBuffers() throws IOException {
+	void requestExclusiveBuffers() throws IOException {
 		Collection<MemorySegment> segments = globalPool.requestMemorySegments();
 		checkArgument(!segments.isEmpty(), "The number of exclusive buffers per channel should be larger than 0.");
 
@@ -136,7 +136,6 @@ public class BufferManager implements BufferListener, BufferRecycler {
 				bufferQueue.addExclusiveBuffer(new NetworkBuffer(segment, this), numRequiredBuffers);
 			}
 		}
-		return segments.size();
 	}
 
 	/**
