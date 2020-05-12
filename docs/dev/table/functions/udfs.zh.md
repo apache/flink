@@ -44,7 +44,7 @@ under the License.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法。 标量函数的行为取决于你写的求值方法。求值方法并须是 `public` 的，而且名字必须是 `eval`。求值方法的参数类型以及返回值类型就决定了标量函数的参数类型和返回值类型。可以通过实现多个名为 `eval` 的方法对求值方法进行重载。求值方法也支持可变参数，例如 `eval(String... strs)`。
+想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法。标量函数的行为取决于你写的求值方法。求值方法并须是 `public` 的，而且名字必须是 `eval`。求值方法的参数类型以及返回值类型就决定了标量函数的参数类型和返回值类型。可以通过实现多个名为 `eval` 的方法对求值方法进行重载。求值方法也支持可变参数，例如 `eval(String... strs)`。
 
 下面的示例展示了如何实现一个求哈希值的函数。先把它注册到 `TableEnvironment` 里，然后在查询的时候就可以直接使用了。需要注意的是，你可以在注册之前通过构造方法来配置你的标量函数：
 
