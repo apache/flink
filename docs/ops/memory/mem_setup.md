@@ -30,7 +30,7 @@ Flink allows both high level and fine-grained tuning of memory allocation within
 * toc
 {:toc}
 
-The further described memory configuration is applicable starting with the release version *1.10* for TaskManager and
+The further described memory configuration is applicable starting with the release version *1.10* for Flink TaskManager and
 *1.11* for Flink Master processes. If you upgrade Flink from earlier versions, check the [migration guide](mem_migration.html)
 because many changes were introduced with the *1.10* and *1.11* releases.
 
@@ -47,18 +47,17 @@ and by the JVM to run the process. The *total Flink memory* consumption includes
 
 The simplest way to setup memory in Flink is to configure either of the two following options:
 
-| &nbsp;&nbsp;**Component**&nbsp;&nbsp; | &nbsp;&nbsp;**Option for task executor**&nbsp;&nbsp;                                 | &nbsp;&nbsp;**Option for job executor**&nbsp;&nbsp;                                |
+| &nbsp;&nbsp;**Component**&nbsp;&nbsp; | &nbsp;&nbsp;**Option for TaskManager**&nbsp;&nbsp;                                 | &nbsp;&nbsp;**Option for Master**&nbsp;&nbsp;                                |
 | :------------------------------------ | :---------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------- |
 | Total Flink memory                    | [`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)     | [`jobmanager.memory.flink.size`](../config.html#jobmanager-memory-flink-size)     |
 | Total process memory                  | [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size) | [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size) |
 {:.table-bordered}
 <br/>
 
-See also notes for the execution mode of [task executor](mem_setup_tm.html#local-execution) and
-[job executor](mem_setup_jm.html#notes-for-the-execution-mode).
+<span class="label label-info">Note</span> For local execution, see notes for [TaskManager](mem_setup_tm.html#local-execution) and [Master](mem_setup_jm.html#notes-for-the-execution-mode) processes.
 
 The rest of the memory components will be adjusted automatically, based on default values or additionally configured options.
-See also how to set up other components for [task executor](mem_setup_tm.html) and [job executor](mem_setup_jm.html) memory.
+See also how to set up other components for [TaskManager](mem_setup_tm.html) and [Master](mem_setup_jm.html) memory.
 
 Configuring *total Flink memory* is better suited for [standalone deployments](../deployment/cluster_setup.html)
 where you want to declare how much memory is given to Flink itself. The *total Flink memory* splits up into *JVM Heap*
