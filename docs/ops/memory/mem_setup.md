@@ -70,8 +70,8 @@ For the containerized deployments it corresponds to the size of the requested co
 ([Kubernetes](../deployment/kubernetes.html), [Yarn](../deployment/yarn_setup.html) or [Mesos](../deployment/mesos.html)).
 
 Another way to set up the memory is to configure the required internal components of the *total Flink memory* which are
-specific to the concrete Flink process. Check how to configure them for task executor [here](mem_setup_tm.html#configure-heap-and-managed-memory)
-and for job executor [here](mem_setup_jm.html#configure-jvm-heap).
+specific to the concrete Flink process. Check how to configure them for TaskManager [here](mem_setup_tm.html#configure-heap-and-managed-memory)
+and for Master [here](mem_setup_jm.html#configure-jvm-heap).
 
 <span class="label label-info">Note</span> One of the three mentioned ways has to be used to configure Flink’s memory
 (except for local execution), or the Flink startup will fail. This means that one of the following option subsets,
@@ -88,8 +88,6 @@ which do not have default values, have to be configured explicitly:
 <span class="label label-info">Note</span> Explicitly configuring both *total process memory* and *total Flink memory*
 is not recommended. It may lead to deployment failures due to potential memory configuration conflicts. Additional
 configuration of other memory components also requires caution as it can produce further configuration conflicts.
-
-See also [here](#capped-fractionated-components) how to configure the *JVM Overhead*.
 
 ## JVM Parameters
 
