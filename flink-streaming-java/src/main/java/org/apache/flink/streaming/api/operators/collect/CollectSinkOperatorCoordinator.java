@@ -32,6 +32,8 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -168,7 +170,7 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 	}
 
 	@Override
-	public void subtaskFailed(int subtask) {
+	public void subtaskFailed(int subtask, @Nullable Throwable reason) {
 		// subtask failed, the socket server does not exist anymore
 		address = null;
 	}

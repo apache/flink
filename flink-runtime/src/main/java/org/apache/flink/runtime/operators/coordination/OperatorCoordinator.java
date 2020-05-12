@@ -21,6 +21,8 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.concurrent.CompletableFuture;
 
@@ -61,7 +63,7 @@ public interface OperatorCoordinator extends AutoCloseable {
 	/**
 	 * Called when one of the subtasks of the task running the coordinated operator failed.
 	 */
-	void subtaskFailed(int subtask);
+	void subtaskFailed(int subtask, @Nullable Throwable reason);
 
 	// ------------------------------------------------------------------------
 

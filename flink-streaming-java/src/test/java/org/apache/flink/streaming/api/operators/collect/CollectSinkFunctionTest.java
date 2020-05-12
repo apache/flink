@@ -370,7 +370,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 	private void closeFuntionAbnormally() throws Exception {
 		// this is an exceptional shutdown
 		function.close();
-		coordinator.subtaskFailed(0);
+		coordinator.subtaskFailed(0, null);
 	}
 
 	private void finishJob() throws Exception {

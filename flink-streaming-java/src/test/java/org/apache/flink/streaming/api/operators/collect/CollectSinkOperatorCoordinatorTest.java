@@ -89,7 +89,7 @@ public class CollectSinkOperatorCoordinatorTest {
 		// server closes here
 		request = new CollectCoordinationRequest("version3", 789);
 		CompletableFuture<CoordinationResponse> responseFuture = coordinator.handleCoordinationRequest(request);
-		coordinator.subtaskFailed(0);
+		coordinator.subtaskFailed(0, null);
 
 		// new server comes
 		expected = Collections.singletonList(Arrays.asList(Row.of(6, "fff"), Row.of(7, "ggg")));
