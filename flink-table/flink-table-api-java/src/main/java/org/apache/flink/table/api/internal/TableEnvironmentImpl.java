@@ -1018,9 +1018,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 						c.getName(),
 						StringUtils.removeEnd(logicalType.toString(), " NOT NULL"),
 						logicalType.isNullable(),
-						fieldToPrimaryKey.getOrDefault(c.getName(), ""),
-						c.getExpr().orElse(""),
-						fieldToWatermark.getOrDefault(c.getName(), "")};
+						fieldToPrimaryKey.getOrDefault(c.getName(), null),
+						c.getExpr().orElse(null),
+						fieldToWatermark.getOrDefault(c.getName(), null)};
 				}).toArray(Object[][]::new);
 
 		return buildResult(
