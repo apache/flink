@@ -84,7 +84,7 @@ The size of this component can be configured by [`jobmanager.memory.off-heap.siz
 option. This option can be tuned e.g. if the job manager process throws ‘OutOfMemoryError: Direct buffer memory’, see
 the [the troubleshooting guide](mem_trouble.html#outofmemoryerror-direct-buffer-memory) for more information.
 
-There can be the following possible sources of *Off-heap* memory consumption by the Flink Master:
+There can be the following possible sources of *Off-heap* memory consumption:
 
 * Flink framework dependencies (e.g. Akka network communication)
 * User code executed during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
@@ -95,5 +95,4 @@ The configuration options of the described components are relevant only if Flink
 *bin* scripts for [standalone](../deployment/cluster_setup.html) and [Mesos](../deployment/mesos.html) deployments or
 via Flink’s CLI for other containerised deployments ([Kubernetes](../deployment/kubernetes.html) and [Yarn](../deployment/yarn_setup.html)).
 
-If you run Flink locally (e.g. from your IDE) without creating a cluster, then Flink’s JVM process is started manually
-and the configuration options of the described components are not applicable.
+If you run Flink locally (e.g. from your IDE) without creating a cluster, then the configuration options of the described components are not applicable.
