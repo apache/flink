@@ -515,7 +515,7 @@ public class StreamTaskTest extends TestLogger {
 		OperatorSnapshotFutures operatorSnapshotResult1 = mock(OperatorSnapshotFutures.class);
 		OperatorSnapshotFutures operatorSnapshotResult2 = mock(OperatorSnapshotFutures.class);
 
-		final Exception testException = new Exception("Test exception");
+		final Exception testException = new ExpectedTestException();
 
 		RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
 			declineDummyEnvironment,
@@ -531,16 +531,19 @@ public class StreamTaskTest extends TestLogger {
 		streamTask.triggerCheckpointAsync(
 			new CheckpointMetaData(42L, 1L),
 			CheckpointOptions.forCheckpointWithDefaultLocation(),
-			false)
-			.get();
+			false);
 
-		assertEquals(testException, declineDummyEnvironment.getLastDeclinedCheckpointCause());
+		try {
+			task.waitForTaskCompletion(false);
+		}
+		catch (Exception ex) {
+			if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
+				throw ex;
+			}
+		}
 
 		verify(operatorSnapshotResult1).cancel();
 		verify(operatorSnapshotResult2).cancel();
-
-		task.streamTask.finishInput();
-		task.waitForTaskCompletion(false);
 	}
 
 	/**
