@@ -38,7 +38,7 @@ public class FileSystemOptions {
 	public static final ConfigOption<Duration> STREAMING_SOURCE_MONITOR_INTERVAL =
 			key("streaming-source.monitor-interval")
 					.durationType()
-					.defaultValue(Duration.ofMillis(1))
+					.defaultValue(Duration.ofMinutes(1))
 					.withDescription("Time interval for consecutively monitoring partition/file.");
 
 	public static final ConfigOption<String> STREAMING_SOURCE_CONSUME_ORDER =
