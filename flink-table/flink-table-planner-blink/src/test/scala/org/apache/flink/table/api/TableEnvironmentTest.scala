@@ -1025,7 +1025,6 @@ class TableEnvironmentTest {
     tableEnv.executeSql(viewDDL)
 
     val tableResult1 = tableEnv.executeSql("describe T1")
-    tableResult1.print()
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
     checkData(
       util.Arrays.asList(
