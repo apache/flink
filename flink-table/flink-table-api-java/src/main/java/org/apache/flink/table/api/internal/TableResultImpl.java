@@ -92,7 +92,9 @@ class TableResultImpl implements TableResult {
 		Iterator<Row> it = collect();
 		if (printStyle instanceof TableauStyle) {
 			int maxColumnWidth = ((TableauStyle) printStyle).getMaxColumnWidth();
-			PrintUtils.printAsTableauForm(getTableSchema(), it, new PrintWriter(System.out), maxColumnWidth);
+			String nullColumnStype = ((TableauStyle) printStyle).getNullColumnStyle();
+			PrintUtils.printAsTableauForm(
+					getTableSchema(), it, new PrintWriter(System.out), maxColumnWidth, nullColumnStype);
 		} else if (printStyle instanceof RawContentStyle) {
 			while (it.hasNext()) {
 				System.out.println(String.join(",", PrintUtils.rowToString(it.next())));
@@ -204,6 +206,25 @@ class TableResultImpl implements TableResult {
 		}
 
 		/**
+		 * Create a tableau print style with given null column style,
+		 * which prints the result schema and content as tableau form.
+		 */
+		static PrintStyle tableau(String nullColumnStyle) {
+			Preconditions.checkNotNull(nullColumnStyle, "nullColumnStyle should not be null");
+			return new TableauStyle(nullColumnStyle);
+		}
+
+		/**
+		 * Create a tableau print style with given max column width and null column style,
+		 * which prints the result schema and content as tableau form.
+		 */
+		static PrintStyle tableau(int maxColumnWidth, String nullColumnStyle) {
+			Preconditions.checkArgument(maxColumnWidth > 0, "maxColumnWidth should be greater than 0");
+			Preconditions.checkNotNull(nullColumnStyle, "nullColumnStyle should not be null");
+			return new TableauStyle(maxColumnWidth, nullColumnStyle);
+		}
+
+		/**
 		 * Create a raw content print style,
 		 * which only print the result content as raw form.
 		 * column delimiter is ",", row delimiter is "\n".
@@ -217,14 +238,29 @@ class TableResultImpl implements TableResult {
 	 * print the result schema and content as tableau form.
 	 */
 	private static final class TableauStyle implements PrintStyle {
+
 		private final int maxColumnWidth;
+		private final String nullColumnStyle;
 
 		private TableauStyle(int maxColumnWidth) {
+			this(maxColumnWidth, PrintUtils.NULL_COLUMN);
+		}
+
+		private TableauStyle(String nullColumn) {
+			this(PrintUtils.MAX_COLUMN_WIDTH, nullColumn);
+		}
+
+		private TableauStyle(int maxColumnWidth, String nullColumnStyle) {
 			this.maxColumnWidth = maxColumnWidth;
+			this.nullColumnStyle = nullColumnStyle;
 		}
 
 		int getMaxColumnWidth() {
 			return maxColumnWidth;
+		}
+
+		String getNullColumnStyle() {
+			return nullColumnStyle;
 		}
 	}
 

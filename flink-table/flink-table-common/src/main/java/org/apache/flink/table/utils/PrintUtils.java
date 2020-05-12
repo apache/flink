@@ -40,7 +40,7 @@ public class PrintUtils {
 
 	// constants for printing
 	public static final int MAX_COLUMN_WIDTH = 30;
-	private static final String NULL_COLUMN = "(NULL)";
+	public static final String NULL_COLUMN = "(NULL)";
 	private static final String COLUMN_TRUNCATED_FLAG = "...";
 
 	private PrintUtils() {
@@ -65,7 +65,7 @@ public class PrintUtils {
 			TableSchema tableSchema,
 			Iterator<Row> it,
 			PrintWriter printWriter) {
-		printAsTableauForm(tableSchema, it, printWriter, MAX_COLUMN_WIDTH);
+		printAsTableauForm(tableSchema, it, printWriter, MAX_COLUMN_WIDTH, NULL_COLUMN);
 	}
 
 	/**
@@ -87,14 +87,15 @@ public class PrintUtils {
 			TableSchema tableSchema,
 			Iterator<Row> it,
 			PrintWriter printWriter,
-			int maxColumnWidth) {
+			int maxColumnWidth,
+			String nullColumn) {
 		List<String[]> rows = new ArrayList<>();
 
 		// fill field names first
 		List<TableColumn> columns = tableSchema.getTableColumns();
 		rows.add(columns.stream().map(TableColumn::getName).toArray(String[]::new));
 		while (it.hasNext()) {
-			rows.add(rowToString(it.next()));
+			rows.add(rowToString(it.next(), nullColumn));
 		}
 
 		int[] colWidths = columnWidthsByContent(columns, rows, maxColumnWidth);
@@ -123,11 +124,15 @@ public class PrintUtils {
 	}
 
 	public static String[] rowToString(Row row) {
+		return rowToString(row, NULL_COLUMN);
+	}
+
+	public static String[] rowToString(Row row, String nullColumn) {
 		final String[] fields = new String[row.getArity()];
 		for (int i = 0; i < row.getArity(); i++) {
 			final Object field = row.getField(i);
 			if (field == null) {
-				fields[i] = NULL_COLUMN;
+				fields[i] = nullColumn;
 			} else {
 				fields[i] = StringUtils.arrayAwareToString(field);
 			}

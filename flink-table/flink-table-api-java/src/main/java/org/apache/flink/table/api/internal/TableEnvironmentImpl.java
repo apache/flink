@@ -1037,6 +1037,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 						headers,
 						types).build())
 				.data(Arrays.stream(rows).map(Row::of).collect(Collectors.toList()))
+				.setPrintStyle(TableResultImpl.PrintStyle.tableau(Integer.MAX_VALUE, ""))
 				.build();
 	}
 
