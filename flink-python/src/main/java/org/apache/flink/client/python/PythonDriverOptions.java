@@ -31,7 +31,7 @@ import static java.util.Objects.requireNonNull;
  */
 final class PythonDriverOptions {
 
-	@Nonnull
+	@Nullable
 	private String entryPointModule;
 
 	@Nullable
@@ -40,7 +40,7 @@ final class PythonDriverOptions {
 	@Nonnull
 	private List<String> programArgs;
 
-	@Nonnull
+	@Nullable
 	String getEntryPointModule() {
 		return entryPointModule;
 	}
@@ -55,10 +55,10 @@ final class PythonDriverOptions {
 	}
 
 	PythonDriverOptions(
-		String entryPointModule,
+		@Nullable String entryPointModule,
 		@Nullable String entryPointScript,
 		List<String> programArgs) {
-		this.entryPointModule = requireNonNull(entryPointModule, "entryPointModule");
+		this.entryPointModule = entryPointModule;
 		this.entryPointScript = entryPointScript;
 		this.programArgs = requireNonNull(programArgs, "programArgs");
 	}
