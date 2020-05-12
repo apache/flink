@@ -520,6 +520,37 @@ class TableEnvironmentITCase(
   }
 
   @Test
+  def testStatementSetWithSameSinkTableNames(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+    MemoryTableSourceSinkUtil.clear()
+
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val sinkPath = _tempFolder.newFile().getAbsolutePath
+    val configuredSink = new TestingOverwritableTableSink(sinkPath)
+      .configure(Array("d", "e", "f"), Array(INT, LONG, STRING))
+    tEnv.registerTableSink("MySink", configuredSink)
+    assertTrue(FileUtils.readFileUtf8(new File(sinkPath)).isEmpty)
+
+    val stmtSet = tEnv.createStatementSet()
+    stmtSet.addInsert("MySink", tEnv.sqlQuery("select * from MyTable where a > 2"), true)
+      .addInsertSql("INSERT OVERWRITE MySink SELECT a, b, c FROM MyTable where a <= 2")
+
+    val tableResult = stmtSet.execute()
+    // wait job finished
+    tableResult.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    // only check the schema
+    checkInsertTableResult(
+      tableResult,
+      "default_catalog.default_database.MySink_1",
+      "default_catalog.default_database.MySink_2")
+  }
+
+  @Test
   def testExecuteSelect(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)

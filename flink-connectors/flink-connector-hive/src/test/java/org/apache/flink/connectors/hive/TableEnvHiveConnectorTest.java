@@ -21,6 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.api.internal.TableImpl;
@@ -526,7 +527,9 @@ public class TableEnvHiveConnectorTest {
 			StatementSet stmtSet = tableEnv.createStatementSet();
 			stmtSet.addInsertSql("insert into db1.dest select 1,'  '");
 			stmtSet.addInsertSql("insert into db1.dest select 2,'a \t'");
-			stmtSet.execute();
+			TableResult tableResult = stmtSet.execute();
+			// wait job finished
+			tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 			assertEquals("[p=  , p=a %09]", hiveShell.executeQuery("show partitions db1.dest").toString());
 		} finally {
 			hiveShell.execute("drop database db1 cascade");

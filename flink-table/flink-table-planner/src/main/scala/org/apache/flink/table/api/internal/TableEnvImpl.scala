@@ -592,7 +592,7 @@ abstract class TableEnvImpl(
     }
 
     val sinkIdentifierNames = extractSinkIdentifierNames(operations)
-    val jobName = "insert_into_" + String.join(",", sinkIdentifierNames)
+    val jobName = "insert-into_" + String.join(",", sinkIdentifierNames)
     try {
       val jobClient = execute(dataSinks, jobName)
       val builder = TableSchema.builder()
@@ -851,13 +851,29 @@ abstract class TableEnvImpl(
 
   /**
     * extract sink identifier names from [[ModifyOperation]]s.
+    *
+    * <p>If there are multiple ModifyOperations have same name,
+    * an index suffix will be added at the end of the name to ensure each name is unique.
     */
   private def extractSinkIdentifierNames(operations: JList[ModifyOperation]): JList[String] = {
-    operations.map {
+    val tableNameToCount = new JHashMap[String, Int]()
+    val tableNames = operations.map {
       case catalogSinkModifyOperation: CatalogSinkModifyOperation =>
-        catalogSinkModifyOperation.getTableIdentifier.asSummaryString()
+        val fullName = catalogSinkModifyOperation.getTableIdentifier.asSummaryString()
+        tableNameToCount.put(fullName, tableNameToCount.getOrDefault(fullName, 0) + 1)
+        fullName
       case o =>
         throw new UnsupportedOperationException("Unsupported operation: " + o)
+    }
+    val tableNameToIndex = new JHashMap[String, Int]()
+    tableNames.map { tableName =>
+      if (tableNameToCount.get(tableName) == 1) {
+        tableName
+      } else {
+        val index = tableNameToIndex.getOrDefault(tableName, 0) + 1
+        tableNameToIndex.put(tableName, index)
+        tableName + "_" + index
+      }
     }
   }
 

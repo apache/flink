@@ -614,7 +614,7 @@ public class LocalExecutor implements Executor {
 	private <C> ResultDescriptor executeQueryInternal(String sessionId, ExecutionContext<C> context, String query) {
 		// create table
 		final Table table = createTable(context, context.getTableEnvironment(), query);
-
+		// TODO refactor this after Table#execute support all kinds of changes
 		// initialize result
 		final DynamicResult<C> result = resultStore.createResult(
 				context.getEnvironment(),
@@ -696,7 +696,10 @@ public class LocalExecutor implements Executor {
 	private <C> void applyUpdate(ExecutionContext<C> context, String updateStatement) {
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 		try {
-			context.wrapClassLoader(() -> tableEnv.executeSql(updateStatement));
+			// TODO replace sqlUpdate with executeSql
+			// This needs we do more refactor, because we can't set the flinkConfig in ExecutionContext
+			// into StreamExecutionEnvironment
+			context.wrapClassLoader(() -> tableEnv.sqlUpdate(updateStatement));
 		} catch (Throwable t) {
 			// catch everything such that the statement does not crash the executor
 			throw new SqlExecutionException("Invalid SQL update statement.", t);

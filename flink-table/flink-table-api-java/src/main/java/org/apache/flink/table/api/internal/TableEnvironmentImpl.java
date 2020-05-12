@@ -119,6 +119,7 @@ import org.apache.flink.types.Row;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -671,7 +672,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	public TableResult executeInternal(List<ModifyOperation> operations) {
 		List<Transformation<?>> transformations = translate(operations);
 		List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
-		String jobName = "insert_into_" + String.join(",", sinkIdentifierNames);
+		String jobName = "insert-into_" + String.join(",", sinkIdentifierNames);
 		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
 		try {
 			JobClient jobClient = execEnv.executeAsync(pipeline);
@@ -983,18 +984,34 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
 	/**
 	 * extract sink identifier names from {@link ModifyOperation}s.
+	 *
+	 * <p>If there are multiple ModifyOperations have same name,
+	 * an index suffix will be added at the end of the name to ensure each name is unique.
 	 */
 	private List<String> extractSinkIdentifierNames(List<ModifyOperation> operations) {
 		List<String> tableNames = new ArrayList<>(operations.size());
+		Map<String, Integer> tableNameToCount = new HashMap<>();
 		for (ModifyOperation operation : operations) {
 			if (operation instanceof CatalogSinkModifyOperation) {
 				ObjectIdentifier identifier = ((CatalogSinkModifyOperation) operation).getTableIdentifier();
-				tableNames.add(identifier.asSummaryString());
+				String fullName = identifier.asSummaryString();
+				tableNames.add(fullName);
+				tableNameToCount.put(fullName, tableNameToCount.getOrDefault(fullName, 0) + 1);
 			} else {
 				throw new UnsupportedOperationException("Unsupported operation: " + operation);
 			}
 		}
-		return tableNames;
+		Map<String, Integer> tableNameToIndex = new HashMap<>();
+		return tableNames.stream().map(tableName -> {
+					if (tableNameToCount.get(tableName) == 1) {
+						return tableName;
+					} else {
+						Integer index = tableNameToIndex.getOrDefault(tableName, 0) + 1;
+						tableNameToIndex.put(tableName, index);
+						return tableName + "_" + index;
+					}
+				}
+		).collect(Collectors.toList());
 	}
 
 	/** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */

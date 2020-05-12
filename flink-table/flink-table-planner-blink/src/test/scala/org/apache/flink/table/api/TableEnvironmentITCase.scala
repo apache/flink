@@ -536,6 +536,41 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
   }
 
   @Test
+  def testStatementSetWithSameSinkTableNames(): Unit = {
+    if(isStreaming) {
+      // Streaming mode not support overwrite for FileSystemTableSink.
+      return
+    }
+    val sinkPath = _tempFolder.newFolder().toString
+    tEnv.executeSql(
+      s"""
+         |create table MySink (
+         |  first string
+         |) with (
+         |  'connector' = 'filesystem',
+         |  'path' = '$sinkPath',
+         |  'format' = 'testcsv'
+         |)
+       """.stripMargin
+    )
+
+    val stmtSet = tEnv.createStatementSet()
+    stmtSet.addInsert("MySink", tEnv.sqlQuery("select first from MyTable"), true)
+    stmtSet.addInsertSql("insert overwrite MySink select last from MyTable")
+
+    val tableResult = stmtSet.execute()
+    // wait job finished
+    tableResult.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
+    // only check the schema
+    checkInsertTableResult(
+      tableResult,
+      "default_catalog.default_database.MySink_1",
+      "default_catalog.default_database.MySink_2")
+  }
+
+  @Test
   def testExecuteSelect(): Unit = {
     val query =
       """
