@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 
 import javax.annotation.concurrent.NotThreadSafe;
@@ -40,24 +41,23 @@ public class BufferBuilder {
 
 	private final SettablePositionMarker positionMarker = new SettablePositionMarker();
 
-	private boolean bufferConsumerCreated = false;
-
 	public BufferBuilder(MemorySegment memorySegment, BufferRecycler recycler) {
 		this.memorySegment = checkNotNull(memorySegment);
 		this.recycler = checkNotNull(recycler);
 	}
 
 	/**
-	 * @return created matching instance of {@link BufferConsumer} to this {@link BufferBuilder}. There can exist only
-	 * one {@link BufferConsumer} per each {@link BufferBuilder} and vice versa.
+	 * This method always creates a {@link BufferConsumer} starting from the current writer offset. Data written to
+	 * {@link BufferBuilder} before creation of {@link BufferConsumer} won't be visible for that {@link BufferConsumer}.
+	 *
+	 * @return created matching instance of {@link BufferConsumer} to this {@link BufferBuilder}.
 	 */
 	public BufferConsumer createBufferConsumer() {
-		checkState(!bufferConsumerCreated, "There can not exists two BufferConsumer for one BufferBuilder");
-		bufferConsumerCreated = true;
 		return new BufferConsumer(
 			memorySegment,
 			recycler,
-			positionMarker);
+			positionMarker,
+			positionMarker.cachedPosition);
 	}
 
 	/**
@@ -118,8 +118,23 @@ public class BufferBuilder {
 		return positionMarker.getCached() == getMaxCapacity();
 	}
 
+	public int getWritableBytes() {
+		checkState(positionMarker.getCached() <= getMaxCapacity());
+		return getMaxCapacity() - positionMarker.getCached();
+	}
+
 	public int getMaxCapacity() {
 		return memorySegment.size();
+	}
+
+	@VisibleForTesting
+	public BufferRecycler getRecycler() {
+		return recycler;
+	}
+
+	@VisibleForTesting
+	public MemorySegment getMemorySegment() {
+		return memorySegment;
 	}
 
 	/**

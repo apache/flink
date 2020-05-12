@@ -55,7 +55,7 @@ object BatchTableEnvUtil {
     sink.init(typeSerializer.asInstanceOf[TypeSerializer[T]], id)
     val sinkName = UUID.randomUUID().toString
     tEnv.registerTableSink(sinkName, sink)
-    tEnv.insertInto(table, sinkName)
+    tEnv.insertInto(s"`$sinkName`", table)
 
     val res = tEnv.execute("test")
     val accResult: JArrayList[Array[Byte]] = res.getAccumulatorResult(id)
@@ -248,7 +248,7 @@ object BatchTableEnvUtil {
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
     val fields = fieldNames.map((f: Array[String]) => f.map(ExpressionParser.parseExpression))
-    TableTestUtil.registerDataStream(
+    TableTestUtil.createTemporaryView(
       tEnv,
       name,
       boundedStream,

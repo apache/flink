@@ -50,4 +50,5 @@ export interface VertexTaskManagerDetailInterface {
     RUNNING: number;
     SCHEDULED: number;
   };
+  'taskmanager-id': string;
 }

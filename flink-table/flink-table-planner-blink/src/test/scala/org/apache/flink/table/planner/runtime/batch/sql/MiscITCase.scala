@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.runtime.batch.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.config.ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM
+import org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.SortMergeJoin
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.{buildInData, buildInType}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -117,7 +117,7 @@ class MiscITCase extends BatchTestBase {
     checkQuery(
       testData,
       "select sum(f0), avg(f0), count(1) from Table1",
-      Seq((5050, 50.5, 100L))
+      Seq((5050, 50, 100L))
     )
     val testData2 = Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2))
     checkQuery(
@@ -317,7 +317,6 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO support lazy from source
   @Test
   def testExcept(): Unit = {
     checkQuery2(
@@ -376,7 +375,6 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO support lazy from source
   @Test
   def testIntersect(): Unit = {
     checkQuery(
@@ -417,7 +415,7 @@ class MiscITCase extends BatchTestBase {
 
   @Test
   def testOrderByAgg(): Unit = {
-    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     env.setParallelism(1)
     checkQuery(
       Seq((1, 10), (1, 20), (10, 1), (10, 2)),
@@ -479,16 +477,6 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO: allows 123L="123"
-  @Test
-  def testCompareLongAndString(): Unit = {
-    checkQuery(
-      Seq((123L, "123"), (19157170390056973L, "19157170390056971")),
-      "select f0=f1 from Table1",
-      Seq(Tuple1(true), Tuple1(false))
-    )
-  }
-
   @Test
   def testOrderByOrdinal(): Unit = {
     env.setParallelism(1)
@@ -512,7 +500,6 @@ class MiscITCase extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO support lazy from source
   @Test
   def testCompareFunctionWithSubquery(): Unit = {
     checkResult("SELECT " +

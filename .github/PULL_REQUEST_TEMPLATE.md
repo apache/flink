@@ -63,7 +63,7 @@ This change added tests and can be verified as follows:
   - The public API, i.e., is any changed class annotated with `@Public(Evolving)`: (yes / no)
   - The serializers: (yes / no / don't know)
   - The runtime per-record code paths (performance sensitive): (yes / no / don't know)
-  - Anything that affects deployment or recovery: JobManager (and its components), Checkpointing, Yarn/Mesos, ZooKeeper: (yes / no / don't know)
+  - Anything that affects deployment or recovery: JobManager (and its components), Checkpointing, Kubernetes/Yarn/Mesos, ZooKeeper: (yes / no / don't know)
   - The S3 file system connector: (yes / no / don't know)
 
 ## Documentation

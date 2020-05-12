@@ -28,7 +28,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
  */
 public final class DashboardConfigurationHeaders implements MessageHeaders<EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> {
 
-	private static final DashboardConfigurationHeaders INSTANCE = new DashboardConfigurationHeaders();
+	public static final DashboardConfigurationHeaders INSTANCE = new DashboardConfigurationHeaders();
 
 	// make the constructor private since we want it to be a singleton
 	private DashboardConfigurationHeaders() {}

@@ -35,12 +35,9 @@ public class NettyProtocol {
 	private final ResultPartitionProvider partitionProvider;
 	private final TaskEventPublisher taskEventPublisher;
 
-	private final boolean creditBasedEnabled;
-
-	NettyProtocol(ResultPartitionProvider partitionProvider, TaskEventPublisher taskEventPublisher, boolean creditBasedEnabled) {
+	NettyProtocol(ResultPartitionProvider partitionProvider, TaskEventPublisher taskEventPublisher) {
 		this.partitionProvider = partitionProvider;
 		this.taskEventPublisher = taskEventPublisher;
-		this.creditBasedEnabled = creditBasedEnabled;
 	}
 
 	/**
@@ -79,11 +76,13 @@ public class NettyProtocol {
 	public ChannelHandler[] getServerChannelHandlers() {
 		PartitionRequestQueue queueOfPartitionQueues = new PartitionRequestQueue();
 		PartitionRequestServerHandler serverHandler = new PartitionRequestServerHandler(
-			partitionProvider, taskEventPublisher, queueOfPartitionQueues, creditBasedEnabled);
+			partitionProvider,
+			taskEventPublisher,
+			queueOfPartitionQueues);
 
 		return new ChannelHandler[] {
 			messageEncoder,
-			new NettyMessage.NettyMessageDecoder(!creditBasedEnabled),
+			new NettyMessage.NettyMessageDecoder(),
 			serverHandler,
 			queueOfPartitionQueues
 		};
@@ -122,12 +121,11 @@ public class NettyProtocol {
 	 * @return channel handlers
 	 */
 	public ChannelHandler[] getClientChannelHandlers() {
-		NetworkClientHandler networkClientHandler =
-			creditBasedEnabled ? new CreditBasedPartitionRequestClientHandler() :
-				new PartitionRequestClientHandler();
-		return new ChannelHandler[] {
+		NetworkClientHandler networkClientHandler = new CreditBasedPartitionRequestClientHandler();
+
+		return new ChannelHandler[]{
 			messageEncoder,
-			new NettyMessage.NettyMessageDecoder(!creditBasedEnabled),
+			new NettyMessageClientDecoderDelegate(networkClientHandler),
 			networkClientHandler};
 	}
 

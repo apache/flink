@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.ELEMENT
@@ -59,26 +59,13 @@ class StreamExecDataStreamScan(
     outputRowType: RelDataType)
   extends TableScan(cluster, traitSet, table)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow]{
+  with StreamExecNode[RowData]{
 
   val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
-
-  def isAccRetract: Boolean = getTable.unwrap(classOf[DataStreamTable[Any]]).isAccRetract
-
-  override def producesUpdates: Boolean = dataStreamTable.producesUpdates
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = producesUpdates && isAccRetract
 
   override def requireWatermark: Boolean = false
 
   override def deriveRowType(): RelDataType = outputRowType
-
-  def getSourceTransformation: Transformation[_] =
-    dataStreamTable.dataStream.getTransformation
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new StreamExecDataStreamScan(cluster, traitSet, getTable, getRowType)
@@ -106,16 +93,15 @@ class StreamExecDataStreamScan(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
     val transform = inputDataStream.getTransformation
-    transform.setParallelism(getResource.getParallelism)
 
     val rowtimeExpr = getRowtimeExpression(planner.getRelBuilder)
 
     // when there is row time extraction expression, we need internal conversion
-    // when the physical type of the input date stream is not BaseRow, we need internal conversion.
+    // when the physical type of the input date stream is not RowData, we need internal conversion.
     if (rowtimeExpr.isDefined || ScanUtil.needsConversion(dataStreamTable.dataType)) {
 
       // extract time if the index is -1 or -2.
@@ -126,8 +112,8 @@ class StreamExecDataStreamScan(
           ("", "")
         }
       val ctx = CodeGeneratorContext(config).setOperatorBaseClass(
-        classOf[AbstractProcessStreamOperator[BaseRow]])
-      val ret = ScanUtil.convertToInternalRow(
+        classOf[AbstractProcessStreamOperator[RowData]])
+      ScanUtil.convertToInternalRow(
         ctx,
         transform,
         dataStreamTable.fieldIndexes,
@@ -138,10 +124,8 @@ class StreamExecDataStreamScan(
         rowtimeExpr,
         beforeConvert = extractElement,
         afterConvert = resetElement)
-      ret.setParallelism(getResource.getParallelism)
-      ret
     } else {
-      transform.asInstanceOf[Transformation[BaseRow]]
+      transform.asInstanceOf[Transformation[RowData]]
     }
   }
 

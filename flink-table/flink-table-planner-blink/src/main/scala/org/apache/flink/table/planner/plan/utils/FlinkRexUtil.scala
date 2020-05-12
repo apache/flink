@@ -44,8 +44,8 @@ object FlinkRexUtil {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  private[flink] val SQL_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[Integer] =
-    key("sql.optimizer.cnf.nodes.limit")
+  private[flink] val TABLE_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[Integer] =
+    key("table.optimizer.cnf-nodes-limit")
       .defaultValue(Integer.valueOf(-1))
       .withDescription("When converting to conjunctive normal form (CNF, like '(a AND b) OR" +
         " c' will be converted to '(a OR c) AND (b OR c)'), fail if the expression  exceeds " +

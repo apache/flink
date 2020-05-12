@@ -23,9 +23,8 @@ import sys
 
 
 def _is_flink_home(path):
-    pyflink_file = path + "/bin/pyflink-gateway-server.sh"
     flink_dist_jar_file = path + "/lib/flink-dist*.jar"
-    if os.path.isfile(pyflink_file) and len(glob.glob(flink_dist_jar_file)) > 0:
+    if len(glob.glob(flink_dist_jar_file)) > 0:
         return True
     else:
         return False
@@ -42,17 +41,13 @@ def _find_flink_home():
         try:
             current_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
             flink_root_dir = os.path.abspath(current_dir + "/../../")
-            build_target = flink_root_dir + "/build-target"
-            if _is_flink_home(build_target):
-                os.environ['FLINK_HOME'] = build_target
-                return build_target
+            build_target = glob.glob(flink_root_dir + "/flink-dist/target/flink-*-bin/flink-*")
+            if len(build_target) > 0 and _is_flink_home(build_target[0]):
+                os.environ['FLINK_HOME'] = build_target[0]
+                return build_target[0]
 
-            if sys.version < "3":
-                import imp
-                module_home = imp.find_module("pyflink")[1]
-            else:
-                from importlib.util import find_spec
-                module_home = os.path.dirname(find_spec("pyflink").origin)
+            from importlib.util import find_spec
+            module_home = os.path.dirname(find_spec("pyflink").origin)
 
             if _is_flink_home(module_home):
                 os.environ['FLINK_HOME'] = module_home

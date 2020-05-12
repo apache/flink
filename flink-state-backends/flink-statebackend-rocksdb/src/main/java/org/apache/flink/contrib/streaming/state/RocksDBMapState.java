@@ -138,7 +138,7 @@ class RocksDBMapState<K, N, UK, UV>
 			return;
 		}
 
-		try (RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(backend.db, writeOptions)) {
+		try (RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(backend.db, writeOptions, backend.getWriteBatchSize())) {
 			for (Map.Entry<UK, UV> entry : map.entrySet()) {
 				byte[] rawKeyBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(entry.getKey(), userKeySerializer);
 				byte[] rawValueBytes = serializeValueNullSensitive(entry.getValue(), userValueSerializer);
@@ -240,10 +240,22 @@ class RocksDBMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public boolean isEmpty() {
+		final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
+
+		try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(backend.db, columnFamily)) {
+
+			iterator.seek(prefixBytes);
+
+			return !iterator.isValid() || !startWithKeyPrefix(prefixBytes, iterator.key());
+		}
+	}
+
+	@Override
 	public void clear() {
 		try {
 			try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(backend.db, columnFamily);
-				RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper = new RocksDBWriteBatchWrapper(backend.db, backend.getWriteOptions())) {
+				RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper = new RocksDBWriteBatchWrapper(backend.db, backend.getWriteOptions(), backend.getWriteBatchSize())) {
 
 				final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 				iterator.seek(keyPrefixBytes);

@@ -71,7 +71,7 @@ object RankUtil {
 
     // Converts the condition to conjunctive normal form (CNF)
     val cnfNodeCount = config.getConfiguration.getInteger(
-      FlinkRexUtil.SQL_OPTIMIZER_CNF_NODES_LIMIT)
+      FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
     val cnfCondition = FlinkRexUtil.toCnf(rexBuilder, cnfNodeCount, predicate)
 
     // split the condition into sort limit condition and other condition

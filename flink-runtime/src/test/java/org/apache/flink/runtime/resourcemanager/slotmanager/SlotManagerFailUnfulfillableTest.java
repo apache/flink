@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -26,11 +27,15 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.resourcemanager.exceptions.UnfulfillableSlotRequestException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -40,6 +45,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -47,13 +53,22 @@ import static org.junit.Assert.fail;
  */
 public class SlotManagerFailUnfulfillableTest extends TestLogger {
 
+	private static final WorkerResourceSpec WORKER_RESOURCE_SPEC = new WorkerResourceSpec.Builder()
+		.setCpuCores(100.0)
+		.setTaskHeapMemoryMB(10000)
+		.setTaskOffHeapMemoryMB(10000)
+		.setNetworkMemoryMB(10000)
+		.setManagedMemoryMB(10000)
+		.build();
+
 	@Test
 	public void testTurnOnKeepsPendingFulfillableRequests() throws Exception {
 		// setup
-		final ResourceProfile availableProfile = new ResourceProfile(2.0, 100);
-		final ResourceProfile fulfillableProfile = new ResourceProfile(1.0, 100);
+		final ResourceProfile availableProfile = ResourceProfile.fromResources(2.0, 100);
+		final ResourceProfile fulfillableProfile = ResourceProfile.fromResources(1.0, 100);
 
 		final SlotManager slotManager = createSlotManagerNotStartingNewTMs();
+		slotManager.setFailUnfulfillableRequest(false);
 		registerFreeSlot(slotManager, availableProfile);
 
 		slotManager.registerSlotRequest(slotRequest(fulfillableProfile));
@@ -69,11 +84,12 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 	@Test
 	public void testTurnOnCancelsPendingUnFulfillableRequests() throws Exception {
 		// setup
-		final ResourceProfile availableProfile = new ResourceProfile(2.0, 100);
-		final ResourceProfile unfulfillableProfile = new ResourceProfile(1.0, 200);
+		final ResourceProfile availableProfile = ResourceProfile.fromResources(2.0, 100);
+		final ResourceProfile unfulfillableProfile = ResourceProfile.fromResources(1.0, 200);
 
-		final List<AllocationID> allocationFailures = new ArrayList<>();
+		final List<Tuple3<JobID, AllocationID, Exception>> allocationFailures = new ArrayList<>();
 		final SlotManager slotManager = createSlotManagerNotStartingNewTMs(allocationFailures);
+		slotManager.setFailUnfulfillableRequest(false);
 		registerFreeSlot(slotManager, availableProfile);
 
 		// test
@@ -83,17 +99,19 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 
 		// assert
 		assertEquals(1, allocationFailures.size());
-		assertEquals(request.getAllocationId(), allocationFailures.get(0));
+		assertEquals(request.getAllocationId(), allocationFailures.get(0).f1);
+		assertTrue(ExceptionUtils.findThrowable(allocationFailures.get(0).f2, UnfulfillableSlotRequestException.class).isPresent());
 		assertEquals(0, slotManager.getNumberPendingSlotRequests());
 	}
 
 	@Test
 	public void testTurnOnKeepsRequestsWithStartingTMs() throws Exception {
 		// setup
-		final ResourceProfile availableProfile = new ResourceProfile(2.0, 100);
-		final ResourceProfile newTmProfile = new ResourceProfile(2.0, 200);
+		final ResourceProfile availableProfile = ResourceProfile.fromResources(2.0, 100);
+		final ResourceProfile newTmProfile = ResourceProfile.fromResources(2.0, 200);
 
 		final SlotManager slotManager = createSlotManagerStartingNewTMs();
+		slotManager.setFailUnfulfillableRequest(false);
 		registerFreeSlot(slotManager, availableProfile);
 
 		// test
@@ -107,11 +125,10 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 	@Test
 	public void testFulfillableRequestsKeepPendingWhenOn() throws Exception {
 		// setup
-		final ResourceProfile availableProfile = new ResourceProfile(2.0, 100);
+		final ResourceProfile availableProfile = ResourceProfile.fromResources(2.0, 100);
 
 		final SlotManager slotManager = createSlotManagerNotStartingNewTMs();
 		registerFreeSlot(slotManager, availableProfile);
-		slotManager.setFailUnfulfillableRequest(true);
 
 		// test
 		slotManager.registerSlotRequest(slotRequest(availableProfile));
@@ -122,22 +139,22 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 	}
 
 	@Test
-	public void testUnfulfillableRequestsFailWhenOn() throws Exception {
+	public void testUnfulfillableRequestsFailWhenOn() {
 		// setup
-		final ResourceProfile availableProfile = new ResourceProfile(2.0, 100);
-		final ResourceProfile unfulfillableProfile = new ResourceProfile(2.0, 200);
+		final ResourceProfile availableProfile = ResourceProfile.fromResources(2.0, 100);
+		final ResourceProfile unfulfillableProfile = ResourceProfile.fromResources(2.0, 200);
 
-		final List<AllocationID> notifiedAllocationFailures = new ArrayList<>();
+		final List<Tuple3<JobID, AllocationID, Exception>> notifiedAllocationFailures = new ArrayList<>();
 		final SlotManager slotManager = createSlotManagerNotStartingNewTMs(notifiedAllocationFailures);
 		registerFreeSlot(slotManager, availableProfile);
-		slotManager.setFailUnfulfillableRequest(true);
 
 		// test
 		try {
 			slotManager.registerSlotRequest(slotRequest(unfulfillableProfile));
 			fail("this should cause an exception");
+		} catch (ResourceManagerException exception) {
+			assertTrue(ExceptionUtils.findThrowable(exception, UnfulfillableSlotRequestException.class).isPresent());
 		}
-		catch (SlotManagerException ignored) {}
 
 		// assert
 		assertEquals(0, notifiedAllocationFailures.size());
@@ -147,12 +164,11 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 	@Test
 	public void testStartingTmKeepsSlotPendingWhenOn() throws Exception {
 		// setup
-		final ResourceProfile availableProfile = new ResourceProfile(2.0, 100);
-		final ResourceProfile newTmProfile = new ResourceProfile(2.0, 200);
+		final ResourceProfile availableProfile = ResourceProfile.fromResources(2.0, 100);
+		final ResourceProfile newTmProfile = ResourceProfile.fromResources(2.0, 200);
 
 		final SlotManager slotManager = createSlotManagerStartingNewTMs();
 		registerFreeSlot(slotManager, availableProfile);
-		slotManager.setFailUnfulfillableRequest(true);
 
 		// test
 		slotManager.registerSlotRequest(slotRequest(newTmProfile));
@@ -169,7 +185,7 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 		return createSlotManager(new ArrayList<>(), false);
 	}
 
-	private static SlotManager createSlotManagerNotStartingNewTMs(List<AllocationID> notifiedAllocationFailures) {
+	private static SlotManager createSlotManagerNotStartingNewTMs(List<Tuple3<JobID, AllocationID, Exception>> notifiedAllocationFailures) {
 		return createSlotManager(notifiedAllocationFailures, false);
 	}
 
@@ -178,17 +194,17 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 	}
 
 	private static SlotManager createSlotManager(
-			List<AllocationID> notifiedAllocationFailures,
+			List<Tuple3<JobID, AllocationID, Exception>> notifiedAllocationFailures,
 			boolean startNewTMs) {
 
 		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setAllocateResourceFunction((resourceProfile) -> startNewTMs ?
-							Collections.singleton(resourceProfile) :
-							Collections.emptyList())
-			.setNotifyAllocationFailureConsumer(tuple3 -> notifiedAllocationFailures.add(tuple3.f1))
+			.setAllocateResourceFunction(ignored -> startNewTMs)
+			.setNotifyAllocationFailureConsumer(tuple3 -> notifiedAllocationFailures.add(tuple3))
 			.build();
 
-		SlotManager slotManager = SlotManagerBuilder.newBuilder().build();
+		SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setDefaultWorkerResourceSpec(WORKER_RESOURCE_SPEC)
+			.build();
 		slotManager.start(ResourceManagerId.generate(), Executors.directExecutor(), resourceManagerActions);
 
 		return slotManager;

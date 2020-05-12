@@ -21,9 +21,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -34,7 +31,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
@@ -58,10 +55,11 @@ import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Rule;
@@ -70,15 +68,14 @@ import org.junit.rules.Timeout;
 
 import java.util.Collections;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests that the cached thread pool used by the {@link Task} allows
@@ -133,36 +130,47 @@ public class SynchronousCheckpointITCase {
 		// Flag to emit the first event only once.
 		private boolean isRunning;
 
-		public SynchronousCheckpointTestingTask(Environment environment) {
+		public SynchronousCheckpointTestingTask(Environment environment) throws Exception {
 			super(environment);
 		}
 
 		@Override
-		protected void performDefaultAction(DefaultActionContext context) throws Exception {
+		protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 			if (!isRunning) {
 				isRunning = true;
 				eventQueue.put(Event.TASK_IS_RUNNING);
 			}
 			if (isCanceled()) {
-				context.allActionsCompleted();
+				controller.allActionsCompleted();
 			} else {
-				context.suspendDefaultAction();
+				controller.suspendDefaultAction();
 			}
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
-			eventQueue.put(Event.PRE_TRIGGER_CHECKPOINT);
-			boolean result = super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
-			eventQueue.put(Event.POST_TRIGGER_CHECKPOINT);
-			return result;
+		public Future<Boolean> triggerCheckpointAsync(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
+			try {
+				eventQueue.put(Event.PRE_TRIGGER_CHECKPOINT);
+				Future<Boolean> result = super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+				eventQueue.put(Event.POST_TRIGGER_CHECKPOINT);
+				return result;
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new RuntimeException(e);
+			}
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
-			eventQueue.put(Event.PRE_NOTIFY_CHECKPOINT_COMPLETE);
-			super.notifyCheckpointComplete(checkpointId);
-			eventQueue.put(Event.POST_NOTIFY_CHECKPOINT_COMPLETE);
+		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
+			try {
+				eventQueue.put(Event.PRE_NOTIFY_CHECKPOINT_COMPLETE);
+				Future<Void> result = super.notifyCheckpointCompleteAsync(checkpointId);
+				eventQueue.put(Event.POST_NOTIFY_CHECKPOINT_COMPLETE);
+				return result;
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new RuntimeException(e);
+			}
 		}
 
 		@Override
@@ -199,11 +207,6 @@ public class SynchronousCheckpointITCase {
 	// --------------------------		Boilerplate tools copied from the TaskAsyncCallTest		--------------------------
 
 	private Task createTask(Class<? extends AbstractInvokable> invokableClass) throws Exception {
-		BlobCacheService blobService =
-				new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
-
-		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
-		when(libCache.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
 
 		ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
 		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
@@ -248,9 +251,9 @@ public class SynchronousCheckpointITCase {
 				mock(TaskManagerActions.class),
 				mock(InputSplitProvider.class),
 				mock(CheckpointResponder.class),
+				new NoOpTaskOperatorEventGateway(),
 				new TestGlobalAggregateManager(),
-				blobService,
-				libCache,
+				TestingClassLoaderLease.newBuilder().build(),
 				mock(FileCache.class),
 				new TestingTaskManagerRuntimeInfo(),
 				taskMetricGroup,

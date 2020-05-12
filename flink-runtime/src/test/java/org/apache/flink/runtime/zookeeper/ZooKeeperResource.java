@@ -69,4 +69,9 @@ public class ZooKeeperResource extends ExternalResource {
 			LOG.warn("Could not properly terminate the {}.", getClass().getSimpleName(), e);
 		}
 	}
+
+	public void restart() throws Exception {
+		Preconditions.checkNotNull(zooKeeperServer);
+		zooKeeperServer.restart();
+	}
 }

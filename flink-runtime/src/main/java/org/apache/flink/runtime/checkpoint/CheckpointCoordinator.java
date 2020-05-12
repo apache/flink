@@ -20,16 +20,16 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -41,7 +41,9 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
+import org.apache.flink.runtime.util.clock.Clock;
+import org.apache.flink.runtime.util.clock.SystemClock;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -50,21 +52,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -87,13 +96,6 @@ public class CheckpointCoordinator {
 	/** Coordinator-wide lock to safeguard the checkpoint updates. */
 	private final Object lock = new Object();
 
-	/** Lock specially to make sure that trigger requests do not overtake each other.
-	 * This is not done with the coordinator-wide lock, because as part of triggering,
-	 * blocking operations may happen (distributed atomic counters).
-	 * Using a dedicated lock, we avoid blocking the processing of 'acknowledge/decline'
-	 * messages during that phase. */
-	private final Object triggerLock = new Object();
-
 	/** The job whose checkpoint this coordinator coordinates. */
 	private final JobID job;
 
@@ -112,7 +114,11 @@ public class CheckpointCoordinator {
 	/** Tasks who need to be sent a message when a checkpoint is confirmed. */
 	private final ExecutionVertex[] tasksToCommitTo;
 
+	/** The operator coordinators that need to be checkpointed. */
+	private final Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint;
+
 	/** Map from checkpoint ID to the pending checkpoint. */
+	@GuardedBy("lock")
 	private final Map<Long, PendingCheckpoint> pendingCheckpoints;
 
 	/** Completed checkpoints. Implementations can be blocking. Make sure calls to methods
@@ -137,18 +143,18 @@ public class CheckpointCoordinator {
 	/** The max time (in ms) that a checkpoint may take. */
 	private final long checkpointTimeout;
 
-	/** The min time(in ns) to delay after a checkpoint could be triggered. Allows to
+	/** The min time(in ms) to delay after a checkpoint could be triggered. Allows to
 	 * enforce minimum processing time between checkpoint attempts */
-	private final long minPauseBetweenCheckpointsNanos;
+	private final long minPauseBetweenCheckpoints;
 
-	/** The maximum number of checkpoints that may be in progress at the same time. */
-	private final int maxConcurrentCheckpointAttempts;
-
-	/** The timer that handles the checkpoint timeouts and triggers periodic checkpoints. */
-	private final ScheduledThreadPoolExecutor timer;
+	/** The timer that handles the checkpoint timeouts and triggers periodic checkpoints.
+	 * It must be single-threaded. Eventually it will be replaced by main thread executor. */
+	private final ScheduledExecutor timer;
 
 	/** The master checkpoint hooks executed by this checkpoint coordinator. */
 	private final HashMap<String, MasterTriggerRestoreHook<?>> masterHooks;
+
+	private final boolean unalignedCheckpointsEnabled;
 
 	/** Actor that receives status updates from the execution graph this coordinator works for. */
 	private JobStatusListener jobStatusListener;
@@ -159,16 +165,13 @@ public class CheckpointCoordinator {
 	/** A handle to the current periodic trigger, to cancel it when necessary. */
 	private ScheduledFuture<?> currentPeriodicTrigger;
 
-	/** The timestamp (via {@link System#nanoTime()}) when the last checkpoint completed. */
-	private long lastCheckpointCompletionNanos;
+	/** The timestamp (via {@link Clock#relativeTimeMillis()}) when the last checkpoint
+	 * completed. */
+	private long lastCheckpointCompletionRelativeTime;
 
 	/** Flag whether a triggered checkpoint should immediately schedule the next checkpoint.
 	 * Non-volatile, because only accessed in synchronized scope */
 	private boolean periodicScheduling;
-
-	/** Flag whether a trigger request could not be handled immediately. Non-volatile, because only
-	 * accessed in synchronized scope */
-	private boolean triggerRequestQueued;
 
 	/** Flag marking the coordinator as shut down (not accepting any messages any more). */
 	private volatile boolean shutdown;
@@ -187,20 +190,65 @@ public class CheckpointCoordinator {
 
 	private final CheckpointFailureManager failureManager;
 
+	private final Clock clock;
+
+	private final boolean isExactlyOnceMode;
+
+	/** Flag represents there is an in-flight trigger request. */
+	private boolean isTriggering = false;
+
+	private final CheckpointRequestDecider requestDecider;
+
 	// --------------------------------------------------------------------------------------------
 
+	public CheckpointCoordinator(
+		JobID job,
+		CheckpointCoordinatorConfiguration chkConfig,
+		ExecutionVertex[] tasksToTrigger,
+		ExecutionVertex[] tasksToWaitFor,
+		ExecutionVertex[] tasksToCommitTo,
+		Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
+		CheckpointIDCounter checkpointIDCounter,
+		CompletedCheckpointStore completedCheckpointStore,
+		StateBackend checkpointStateBackend,
+		Executor executor,
+		ScheduledExecutor timer,
+		SharedStateRegistryFactory sharedStateRegistryFactory,
+		CheckpointFailureManager failureManager) {
+
+		this(
+			job,
+			chkConfig,
+			tasksToTrigger,
+			tasksToWaitFor,
+			tasksToCommitTo,
+			coordinatorsToCheckpoint,
+			checkpointIDCounter,
+			completedCheckpointStore,
+			checkpointStateBackend,
+			executor,
+			timer,
+			sharedStateRegistryFactory,
+			failureManager,
+			SystemClock.getInstance());
+	}
+
+	@VisibleForTesting
 	public CheckpointCoordinator(
 			JobID job,
 			CheckpointCoordinatorConfiguration chkConfig,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
 			ExecutionVertex[] tasksToCommitTo,
+			Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
 			StateBackend checkpointStateBackend,
 			Executor executor,
+			ScheduledExecutor timer,
 			SharedStateRegistryFactory sharedStateRegistryFactory,
-			CheckpointFailureManager failureManager) {
+			CheckpointFailureManager failureManager,
+			Clock clock) {
 
 		// sanity checks
 		checkNotNull(checkpointStateBackend);
@@ -221,11 +269,11 @@ public class CheckpointCoordinator {
 		this.job = checkNotNull(job);
 		this.baseInterval = baseInterval;
 		this.checkpointTimeout = chkConfig.getCheckpointTimeout();
-		this.minPauseBetweenCheckpointsNanos = minPauseBetweenCheckpoints * 1_000_000;
-		this.maxConcurrentCheckpointAttempts = chkConfig.getMaxConcurrentCheckpoints();
+		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
 		this.tasksToTrigger = checkNotNull(tasksToTrigger);
 		this.tasksToWaitFor = checkNotNull(tasksToWaitFor);
 		this.tasksToCommitTo = checkNotNull(tasksToCommitTo);
+		this.coordinatorsToCheckpoint = Collections.unmodifiableCollection(coordinatorsToCheckpoint);
 		this.pendingCheckpoints = new LinkedHashMap<>();
 		this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
@@ -234,22 +282,20 @@ public class CheckpointCoordinator {
 		this.sharedStateRegistry = sharedStateRegistryFactory.create(executor);
 		this.isPreferCheckpointForRecovery = chkConfig.isPreferCheckpointForRecovery();
 		this.failureManager = checkNotNull(failureManager);
+		this.clock = checkNotNull(clock);
+		this.isExactlyOnceMode = chkConfig.isExactlyOnce();
+		this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
 
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.masterHooks = new HashMap<>();
 
-		this.timer = new ScheduledThreadPoolExecutor(1,
-				new DispatcherThreadFactory(Thread.currentThread().getThreadGroup(), "Checkpoint Timer"));
-
-		// make sure the timer internally cleans up and does not hold onto stale scheduled tasks
-		this.timer.setRemoveOnCancelPolicy(true);
-		this.timer.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
-		this.timer.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+		this.timer = timer;
 
 		this.checkpointProperties = CheckpointProperties.forCheckpoint(chkConfig.getCheckpointRetentionPolicy());
 
 		try {
 			this.checkpointStorage = checkpointStateBackend.createCheckpointStorage(job);
+			checkpointStorage.initializeBaseLocations();
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Failed to create checkpoint storage at checkpoint coordinator side.", e);
 		}
@@ -261,6 +307,13 @@ public class CheckpointCoordinator {
 		} catch (Throwable t) {
 			throw new RuntimeException("Failed to start checkpoint ID counter: " + t.getMessage(), t);
 		}
+		this.requestDecider = new CheckpointRequestDecider(
+			chkConfig.getMaxConcurrentCheckpoints(),
+			this::rescheduleTrigger,
+			this.clock,
+			this.minPauseBetweenCheckpoints,
+			this.pendingCheckpoints::size,
+			this.lock);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -328,20 +381,15 @@ public class CheckpointCoordinator {
 				LOG.info("Stopping checkpoint coordinator for job {}.", job);
 
 				periodicScheduling = false;
-				triggerRequestQueued = false;
 
 				// shut down the hooks
 				MasterHooks.close(masterHooks.values(), LOG);
 				masterHooks.clear();
 
-				// shut down the thread that handles the timeouts and pending triggers
-				timer.shutdownNow();
-
-				// clear and discard all pending checkpoints
-				for (PendingCheckpoint pending : pendingCheckpoints.values()) {
-					failPendingCheckpoint(pending, CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
-				}
-				pendingCheckpoints.clear();
+				final CheckpointException reason = new CheckpointException(
+					CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
+				// clear queued requests and in-flight checkpoints
+				abortPendingAndQueuedCheckpoints(reason);
 
 				completedCheckpointStore.shutdown(jobStatus);
 				checkpointIdCounter.shutdown(jobStatus);
@@ -360,7 +408,6 @@ public class CheckpointCoordinator {
 	/**
 	 * Triggers a savepoint with the given savepoint directory as a target.
 	 *
-	 * @param timestamp The timestamp for the savepoint.
 	 * @param targetLocation Target location for the savepoint, optional. If null, the
 	 *                       state backend's configured default will be used.
 	 * @return A future to the completed checkpoint
@@ -368,18 +415,14 @@ public class CheckpointCoordinator {
 	 *                               specified and no default savepoint directory has been
 	 *                               configured
 	 */
-	public CompletableFuture<CompletedCheckpoint> triggerSavepoint(
-			final long timestamp,
-			@Nullable final String targetLocation) {
-
-		final CheckpointProperties properties = CheckpointProperties.forSavepoint();
-		return triggerSavepointInternal(timestamp, properties, false, targetLocation);
+	public CompletableFuture<CompletedCheckpoint> triggerSavepoint(@Nullable final String targetLocation) {
+		final CheckpointProperties properties = CheckpointProperties.forSavepoint(!unalignedCheckpointsEnabled);
+		return triggerSavepointInternal(properties, false, targetLocation);
 	}
 
 	/**
 	 * Triggers a synchronous savepoint with the given savepoint directory as a target.
 	 *
-	 * @param timestamp The timestamp for the savepoint.
 	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
 	 *                              to fire any registered event-time timers.
 	 * @param targetLocation Target location for the savepoint, optional. If null, the
@@ -390,284 +433,368 @@ public class CheckpointCoordinator {
 	 *                               configured
 	 */
 	public CompletableFuture<CompletedCheckpoint> triggerSynchronousSavepoint(
-			final long timestamp,
 			final boolean advanceToEndOfEventTime,
 			@Nullable final String targetLocation) {
 
-		final CheckpointProperties properties = CheckpointProperties.forSyncSavepoint();
-		return triggerSavepointInternal(timestamp, properties, advanceToEndOfEventTime, targetLocation);
+		final CheckpointProperties properties = CheckpointProperties.forSyncSavepoint(!unalignedCheckpointsEnabled);
+
+		return triggerSavepointInternal(properties, advanceToEndOfEventTime, targetLocation);
 	}
 
 	private CompletableFuture<CompletedCheckpoint> triggerSavepointInternal(
-			final long timestamp,
 			final CheckpointProperties checkpointProperties,
 			final boolean advanceToEndOfEventTime,
 			@Nullable final String targetLocation) {
 
 		checkNotNull(checkpointProperties);
 
-		try {
-			PendingCheckpoint pendingCheckpoint = triggerCheckpoint(
-					timestamp,
-					checkpointProperties,
-					targetLocation,
-					false,
-					advanceToEndOfEventTime);
-
-			return pendingCheckpoint.getCompletionFuture();
-		} catch (CheckpointException e) {
-			Throwable cause = new CheckpointException("Failed to trigger savepoint.", e.getCheckpointFailureReason());
-			return FutureUtils.completedExceptionally(cause);
-		}
+		// TODO, call triggerCheckpoint directly after removing timer thread
+		// for now, execute the trigger in timer thread to avoid competition
+		final CompletableFuture<CompletedCheckpoint> resultFuture = new CompletableFuture<>();
+		timer.execute(() -> triggerCheckpoint(
+			checkpointProperties,
+			targetLocation,
+			false,
+			advanceToEndOfEventTime)
+		.whenComplete((completedCheckpoint, throwable) -> {
+			if (throwable == null) {
+				resultFuture.complete(completedCheckpoint);
+			} else {
+				resultFuture.completeExceptionally(throwable);
+			}
+		}));
+		return resultFuture;
 	}
 
 	/**
 	 * Triggers a new standard checkpoint and uses the given timestamp as the checkpoint
-	 * timestamp.
+	 * timestamp. The return value is a future. It completes when the checkpoint triggered finishes
+	 * or an error occurred.
 	 *
-	 * @param timestamp The timestamp for the checkpoint.
 	 * @param isPeriodic Flag indicating whether this triggered checkpoint is
 	 * periodic. If this flag is true, but the periodic scheduler is disabled,
 	 * the checkpoint will be declined.
-	 * @return <code>true</code> if triggering the checkpoint succeeded.
+	 * @return a future to the completed checkpoint.
 	 */
-	public boolean triggerCheckpoint(long timestamp, boolean isPeriodic) {
-		try {
-			triggerCheckpoint(timestamp, checkpointProperties, null, isPeriodic, false);
-			return true;
-		} catch (CheckpointException e) {
-			long latestGeneratedCheckpointId = getCheckpointIdCounter().get();
-			// here we can not get the failed pending checkpoint's id,
-			// so we pass the negative latest generated checkpoint id as a special flag
-			failureManager.handleCheckpointException(e, -1 * latestGeneratedCheckpointId);
-			return false;
-		}
+	public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(boolean isPeriodic) {
+		return triggerCheckpoint(checkpointProperties, null, isPeriodic, false);
 	}
 
 	@VisibleForTesting
-	public PendingCheckpoint triggerCheckpoint(
-			long timestamp,
+	public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
 			CheckpointProperties props,
 			@Nullable String externalSavepointLocation,
 			boolean isPeriodic,
-			boolean advanceToEndOfTime) throws CheckpointException {
+			boolean advanceToEndOfTime) {
 
 		if (advanceToEndOfTime && !(props.isSynchronous() && props.isSavepoint())) {
-			throw new IllegalArgumentException("Only synchronous savepoints are allowed to advance the watermark to MAX.");
+			return FutureUtils.completedExceptionally(new IllegalArgumentException(
+				"Only synchronous savepoints are allowed to advance the watermark to MAX."));
 		}
 
-		// make some eager pre-checks
-		synchronized (lock) {
-			// abort if the coordinator has been shutdown in the meantime
-			if (shutdown) {
-				throw new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
+		CheckpointTriggerRequest request = new CheckpointTriggerRequest(props, externalSavepointLocation, isPeriodic, advanceToEndOfTime);
+		requestDecider
+			.chooseRequestToExecute(request, isTriggering, lastCheckpointCompletionRelativeTime)
+			.ifPresent(this::startTriggeringCheckpoint);
+		return request.onCompletionPromise;
+	}
+
+	private void startTriggeringCheckpoint(CheckpointTriggerRequest request) {
+		try {
+			synchronized (lock) {
+				preCheckGlobalState(request.isPeriodic);
 			}
 
-			// Don't allow periodic checkpoint if scheduling has been disabled
-			if (isPeriodic && !periodicScheduling) {
-				throw new CheckpointException(CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN);
-			}
+			final Execution[] executions = getTriggerExecutions();
+			final Map<ExecutionAttemptID, ExecutionVertex> ackTasks = getAckTasks();
 
-			// validate whether the checkpoint can be triggered, with respect to the limit of
-			// concurrent checkpoints, and the minimum time between checkpoints.
-			// these checks are not relevant for savepoints
-			if (!props.forceCheckpoint()) {
-				// sanity check: there should never be more than one trigger request queued
-				if (triggerRequestQueued) {
-					LOG.warn("Trying to trigger another checkpoint for job {} while one was queued already.", job);
-					throw new CheckpointException(CheckpointFailureReason.ALREADY_QUEUED);
-				}
+			// we will actually trigger this checkpoint!
+			Preconditions.checkState(!isTriggering);
+			isTriggering = true;
 
-				checkConcurrentCheckpoints();
+			final long timestamp = System.currentTimeMillis();
+			final CompletableFuture<PendingCheckpoint> pendingCheckpointCompletableFuture =
+				initializeCheckpoint(request.props, request.externalSavepointLocation)
+					.thenApplyAsync(
+						(checkpointIdAndStorageLocation) -> createPendingCheckpoint(
+							timestamp,
+							request.props,
+							ackTasks,
+							request.isPeriodic,
+							checkpointIdAndStorageLocation.checkpointId,
+							checkpointIdAndStorageLocation.checkpointStorageLocation,
+							request.getOnCompletionFuture()),
+						timer);
 
-				checkMinPauseBetweenCheckpoints();
-			}
+			final CompletableFuture<?> masterStatesComplete = pendingCheckpointCompletableFuture
+					.thenCompose(this::snapshotMasterState);
+
+			final CompletableFuture<?> coordinatorCheckpointsComplete = pendingCheckpointCompletableFuture
+					.thenComposeAsync((pendingCheckpoint) ->
+							OperatorCoordinatorCheckpoints.triggerAndAcknowledgeAllCoordinatorCheckpointsWithCompletion(
+									coordinatorsToCheckpoint, pendingCheckpoint, timer),
+							timer);
+
+			CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete)
+				.whenCompleteAsync(
+					(ignored, throwable) -> {
+						final PendingCheckpoint checkpoint =
+							FutureUtils.getWithoutException(pendingCheckpointCompletableFuture);
+
+						if (throwable == null && checkpoint != null && !checkpoint.isDiscarded()) {
+							// no exception, no discarding, everything is OK
+							snapshotTaskState(
+								timestamp,
+								checkpoint.getCheckpointId(),
+								checkpoint.getCheckpointStorageLocation(),
+								request.props,
+								executions,
+								request.advanceToEndOfTime);
+							onTriggerSuccess();
+						} else {
+								// the initialization might not be finished yet
+								if (checkpoint == null) {
+									onTriggerFailure(request, throwable);
+								} else {
+									onTriggerFailure(checkpoint, throwable);
+								}
+						}
+					},
+					timer);
+		} catch (Throwable throwable) {
+			onTriggerFailure(request, throwable);
 		}
+	}
 
-		// check if all tasks that we need to trigger are running.
-		// if not, abort the checkpoint
-		Execution[] executions = new Execution[tasksToTrigger.length];
-		for (int i = 0; i < tasksToTrigger.length; i++) {
-			Execution ee = tasksToTrigger[i].getCurrentExecutionAttempt();
-			if (ee == null) {
-				LOG.info("Checkpoint triggering task {} of job {} is not being executed at the moment. Aborting checkpoint.",
-						tasksToTrigger[i].getTaskNameWithSubtaskIndex(),
-						job);
-				throw new CheckpointException(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
-			} else if (ee.getState() == ExecutionState.RUNNING) {
-				executions[i] = ee;
-			} else {
-				LOG.info("Checkpoint triggering task {} of job {} is not in state {} but {} instead. Aborting checkpoint.",
-						tasksToTrigger[i].getTaskNameWithSubtaskIndex(),
-						job,
-						ExecutionState.RUNNING,
-						ee.getState());
-				throw new CheckpointException(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
-			}
-		}
+	/**
+	 * Initialize the checkpoint trigger asynchronously. It will be executed in io thread due to
+	 * it might be time-consuming.
+	 *
+	 * @param props checkpoint properties
+	 * @param externalSavepointLocation the external savepoint location, it might be null
+	 * @return the future of initialized result, checkpoint id and checkpoint location
+	 */
+	private CompletableFuture<CheckpointIdAndStorageLocation> initializeCheckpoint(
+		CheckpointProperties props,
+		@Nullable String externalSavepointLocation) {
 
-		// next, check if all tasks that need to acknowledge the checkpoint are running.
-		// if not, abort the checkpoint
-		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(tasksToWaitFor.length);
-
-		for (ExecutionVertex ev : tasksToWaitFor) {
-			Execution ee = ev.getCurrentExecutionAttempt();
-			if (ee != null) {
-				ackTasks.put(ee.getAttemptId(), ev);
-			} else {
-				LOG.info("Checkpoint acknowledging task {} of job {} is not being executed at the moment. Aborting checkpoint.",
-						ev.getTaskNameWithSubtaskIndex(),
-						job);
-				throw new CheckpointException(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
-			}
-		}
-
-		// we will actually trigger this checkpoint!
-
-		// we lock with a special lock to make sure that trigger requests do not overtake each other.
-		// this is not done with the coordinator-wide lock, because the 'checkpointIdCounter'
-		// may issue blocking operations. Using a different lock than the coordinator-wide lock,
-		// we avoid blocking the processing of 'acknowledge/decline' messages during that time.
-		synchronized (triggerLock) {
-
-			final CheckpointStorageLocation checkpointStorageLocation;
-			final long checkpointID;
-
+		return CompletableFuture.supplyAsync(() -> {
 			try {
 				// this must happen outside the coordinator-wide lock, because it communicates
 				// with external services (in HA mode) and may block for a while.
-				checkpointID = checkpointIdCounter.getAndIncrement();
+				long checkpointID = checkpointIdCounter.getAndIncrement();
 
-				checkpointStorageLocation = props.isSavepoint() ?
-						checkpointStorage.initializeLocationForSavepoint(checkpointID, externalSavepointLocation) :
-						checkpointStorage.initializeLocationForCheckpoint(checkpointID);
-			}
-			catch (Throwable t) {
-				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
-				LOG.warn("Failed to trigger checkpoint for job {} ({} consecutive failed attempts so far).",
-						job,
-						numUnsuccessful,
-						t);
-				throw new CheckpointException(CheckpointFailureReason.EXCEPTION, t);
-			}
+				CheckpointStorageLocation checkpointStorageLocation = props.isSavepoint() ?
+					checkpointStorage
+						.initializeLocationForSavepoint(checkpointID, externalSavepointLocation) :
+					checkpointStorage.initializeLocationForCheckpoint(checkpointID);
 
-			final PendingCheckpoint checkpoint = new PendingCheckpoint(
-				job,
+				return new CheckpointIdAndStorageLocation(checkpointID, checkpointStorageLocation);
+			} catch (Throwable throwable) {
+				throw new CompletionException(throwable);
+			}
+		}, executor);
+	}
+
+	private PendingCheckpoint createPendingCheckpoint(
+		long timestamp,
+		CheckpointProperties props,
+		Map<ExecutionAttemptID, ExecutionVertex> ackTasks,
+		boolean isPeriodic,
+		long checkpointID,
+		CheckpointStorageLocation checkpointStorageLocation,
+		CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
+
+		synchronized (lock) {
+			try {
+				// since we haven't created the PendingCheckpoint yet, we need to check the
+				// global state here.
+				preCheckGlobalState(isPeriodic);
+			} catch (Throwable t) {
+				throw new CompletionException(t);
+			}
+		}
+
+		final PendingCheckpoint checkpoint = new PendingCheckpoint(
+			job,
+			checkpointID,
+			timestamp,
+			ackTasks,
+			OperatorCoordinatorCheckpointContext.getIds(coordinatorsToCheckpoint),
+			masterHooks.keySet(),
+			props,
+			checkpointStorageLocation,
+			executor,
+			onCompletionPromise);
+
+		if (statsTracker != null) {
+			PendingCheckpointStats callback = statsTracker.reportPendingCheckpoint(
 				checkpointID,
 				timestamp,
-				ackTasks,
-				props,
-				checkpointStorageLocation,
-				executor);
+				props);
 
-			if (statsTracker != null) {
-				PendingCheckpointStats callback = statsTracker.reportPendingCheckpoint(
-					checkpointID,
-					timestamp,
-					props);
+			checkpoint.setStatsCallback(callback);
+		}
 
-				checkpoint.setStatsCallback(callback);
+		synchronized (lock) {
+
+			pendingCheckpoints.put(checkpointID, checkpoint);
+
+			ScheduledFuture<?> cancellerHandle = timer.schedule(
+				new CheckpointCanceller(checkpoint),
+				checkpointTimeout, TimeUnit.MILLISECONDS);
+
+			if (!checkpoint.setCancellerHandle(cancellerHandle)) {
+				// checkpoint is already disposed!
+				cancellerHandle.cancel(false);
 			}
+		}
 
-			// schedule the timer that will clean up the expired checkpoints
-			final Runnable canceller = () -> {
-				synchronized (lock) {
-					// only do the work if the checkpoint is not discarded anyways
-					// note that checkpoint completion discards the pending checkpoint object
-					if (!checkpoint.isDiscarded()) {
-						LOG.info("Checkpoint {} of job {} expired before completing.", checkpointID, job);
+		LOG.info("Triggering checkpoint {} @ {} for job {}.", checkpointID, timestamp, job);
+		return checkpoint;
+	}
 
-						failPendingCheckpoint(checkpoint, CheckpointFailureReason.CHECKPOINT_EXPIRED);
-						pendingCheckpoints.remove(checkpointID);
-						rememberRecentCheckpointId(checkpointID);
+	/**
+	 * Snapshot master hook states asynchronously.
+	 *
+	 * @param checkpoint the pending checkpoint
+	 * @return the future represents master hook states are finished or not
+	 */
+	private CompletableFuture<Void> snapshotMasterState(PendingCheckpoint checkpoint) {
+		if (masterHooks.isEmpty()) {
+			return CompletableFuture.completedFuture(null);
+		}
 
-						triggerQueuedRequests();
-					}
-				}
-			};
+		final long checkpointID = checkpoint.getCheckpointId();
+		final long timestamp = checkpoint.getCheckpointTimestamp();
 
-			try {
-				// re-acquire the coordinator-wide lock
-				synchronized (lock) {
-					// since we released the lock in the meantime, we need to re-check
-					// that the conditions still hold.
-					if (shutdown) {
-						throw new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
-					}
-					else if (!props.forceCheckpoint()) {
-						if (triggerRequestQueued) {
-							LOG.warn("Trying to trigger another checkpoint for job {} while one was queued already.", job);
-							throw new CheckpointException(CheckpointFailureReason.ALREADY_QUEUED);
+		final CompletableFuture<Void> masterStateCompletableFuture = new CompletableFuture<>();
+		for (MasterTriggerRestoreHook<?> masterHook : masterHooks.values()) {
+			MasterHooks
+				.triggerHook(masterHook, checkpointID, timestamp, executor)
+				.whenCompleteAsync(
+					(masterState, throwable) -> {
+						try {
+							synchronized (lock) {
+								if (masterStateCompletableFuture.isDone()) {
+									return;
+								}
+								if (checkpoint.isDiscarded()) {
+									throw new IllegalStateException(
+										"Checkpoint " + checkpointID + " has been discarded");
+								}
+								if (throwable == null) {
+									checkpoint.acknowledgeMasterState(
+										masterHook.getIdentifier(), masterState);
+									if (checkpoint.areMasterStatesFullyAcknowledged()) {
+										masterStateCompletableFuture.complete(null);
+									}
+								} else {
+									masterStateCompletableFuture.completeExceptionally(throwable);
+								}
+							}
+						} catch (Throwable t) {
+							masterStateCompletableFuture.completeExceptionally(t);
 						}
+					},
+					timer);
+		}
+		return masterStateCompletableFuture;
+	}
 
-						checkConcurrentCheckpoints();
+	/**
+	 * Snapshot task state.
+	 *
+	 * @param timestamp the timestamp of this checkpoint reques
+	 * @param checkpointID the checkpoint id
+	 * @param checkpointStorageLocation the checkpoint location
+	 * @param props the checkpoint properties
+	 * @param executions the executions which should be triggered
+	 * @param advanceToEndOfTime Flag indicating if the source should inject a {@code MAX_WATERMARK}
+	 *                               in the pipeline to fire any registered event-time timers.
+	 */
+	private void snapshotTaskState(
+		long timestamp,
+		long checkpointID,
+		CheckpointStorageLocation checkpointStorageLocation,
+		CheckpointProperties props,
+		Execution[] executions,
+		boolean advanceToEndOfTime) {
 
-						checkMinPauseBetweenCheckpoints();
-					}
+		final CheckpointOptions checkpointOptions = new CheckpointOptions(
+			props.getCheckpointType(),
+			checkpointStorageLocation.getLocationReference(),
+			isExactlyOnceMode,
+			unalignedCheckpointsEnabled);
 
-					LOG.info("Triggering checkpoint {} @ {} for job {}.", checkpointID, timestamp, job);
-
-					pendingCheckpoints.put(checkpointID, checkpoint);
-
-					ScheduledFuture<?> cancellerHandle = timer.schedule(
-							canceller,
-							checkpointTimeout, TimeUnit.MILLISECONDS);
-
-					if (!checkpoint.setCancellerHandle(cancellerHandle)) {
-						// checkpoint is already disposed!
-						cancellerHandle.cancel(false);
-					}
-
-					// trigger the master hooks for the checkpoint
-					final List<MasterState> masterStates = MasterHooks.triggerMasterHooks(masterHooks.values(),
-							checkpointID, timestamp, executor, Time.milliseconds(checkpointTimeout));
-					for (MasterState s : masterStates) {
-						checkpoint.addMasterState(s);
-					}
-				}
-				// end of lock scope
-
-				final CheckpointOptions checkpointOptions = new CheckpointOptions(
-						props.getCheckpointType(),
-						checkpointStorageLocation.getLocationReference());
-
-				// send the messages to the tasks that trigger their checkpoint
-				for (Execution execution: executions) {
-					if (props.isSynchronous()) {
-						execution.triggerSynchronousSavepoint(checkpointID, timestamp, checkpointOptions, advanceToEndOfTime);
-					} else {
-						execution.triggerCheckpoint(checkpointID, timestamp, checkpointOptions);
-					}
-				}
-
-				numUnsuccessfulCheckpointsTriggers.set(0);
-				return checkpoint;
+		// send the messages to the tasks that trigger their checkpoint
+		for (Execution execution: executions) {
+			if (props.isSynchronous()) {
+				execution.triggerSynchronousSavepoint(checkpointID, timestamp, checkpointOptions, advanceToEndOfTime);
+			} else {
+				execution.triggerCheckpoint(checkpointID, timestamp, checkpointOptions);
 			}
-			catch (Throwable t) {
-				// guard the map against concurrent modifications
-				synchronized (lock) {
-					pendingCheckpoints.remove(checkpointID);
-				}
+		}
+	}
 
+	/**
+	 * Trigger request is successful.
+	 * NOTE, it must be invoked if trigger request is successful.
+	 */
+	private void onTriggerSuccess() {
+		isTriggering = false;
+		numUnsuccessfulCheckpointsTriggers.set(0);
+		executeQueuedRequest();
+	}
+
+	/**
+	 * The trigger request is failed prematurely without a proper initialization.
+	 * There is no resource to release, but the completion promise needs to fail manually here.
+	 *
+	 * @param onCompletionPromise the completion promise of the checkpoint/savepoint
+	 * @param throwable the reason of trigger failure
+	 */
+	private void onTriggerFailure(
+		CheckpointTriggerRequest onCompletionPromise, Throwable throwable) {
+		final CheckpointException checkpointException =
+			getCheckpointException(CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, throwable);
+		onCompletionPromise.completeExceptionally(checkpointException);
+		onTriggerFailure((PendingCheckpoint) null, checkpointException);
+	}
+
+	/**
+	 * The trigger request is failed.
+	 * NOTE, it must be invoked if trigger request is failed.
+	 *
+	 * @param checkpoint the pending checkpoint which is failed. It could be null if it's failed
+	 *                   prematurely without a proper initialization.
+	 * @param throwable the reason of trigger failure
+	 */
+	private void onTriggerFailure(@Nullable PendingCheckpoint checkpoint, Throwable throwable) {
+		try {
+			if (checkpoint != null && !checkpoint.isDiscarded()) {
 				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
-				LOG.warn("Failed to trigger checkpoint {} for job {}. ({} consecutive failed attempts so far)",
-						checkpointID, job, numUnsuccessful, t);
-
-				if (!checkpoint.isDiscarded()) {
-					failPendingCheckpoint(checkpoint, CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, t);
+				LOG.warn(
+					"Failed to trigger checkpoint {} for job {}. ({} consecutive failed attempts so far)",
+					checkpoint.getCheckpointId(),
+					job,
+					numUnsuccessful,
+					throwable);
+				final CheckpointException cause =
+					getCheckpointException(
+						CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, throwable);
+				synchronized (lock) {
+					abortPendingCheckpoint(checkpoint, cause);
 				}
-
-				try {
-					checkpointStorageLocation.disposeOnFailure();
-				}
-				catch (Throwable t2) {
-					LOG.warn("Cannot dispose failed checkpoint storage location {}", checkpointStorageLocation, t2);
-				}
-
-				throw new CheckpointException(CheckpointFailureReason.EXCEPTION, t);
 			}
+		} finally {
+			isTriggering = false;
+			executeQueuedRequest();
+		}
+	}
 
-		} // end trigger lock
+	private void executeQueuedRequest() {
+		requestDecider.chooseQueuedRequestToExecute(isTriggering, lastCheckpointCompletionRelativeTime).ifPresent(this::startTriggeringCheckpoint);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -702,22 +829,30 @@ public class CheckpointCoordinator {
 				return;
 			}
 
-			checkpoint = pendingCheckpoints.remove(checkpointId);
+			checkpoint = pendingCheckpoints.get(checkpointId);
 
-			if (checkpoint != null && !checkpoint.isDiscarded()) {
+			if (checkpoint != null) {
+				Preconditions.checkState(
+					!checkpoint.isDiscarded(),
+					"Received message for discarded but non-removed checkpoint " + checkpointId);
 				LOG.info("Decline checkpoint {} by task {} of job {} at {}.",
 					checkpointId,
 					message.getTaskExecutionId(),
 					job,
 					taskManagerLocationInfo);
-				discardCheckpoint(checkpoint, message.getReason());
-			}
-			else if (checkpoint != null) {
-				// this should not happen
-				throw new IllegalStateException(
-						"Received message for discarded but non-removed checkpoint " + checkpointId);
-			}
-			else if (LOG.isDebugEnabled()) {
+				final CheckpointException checkpointException;
+				if (message.getReason() == null) {
+					checkpointException =
+						new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED);
+				} else {
+					checkpointException = getCheckpointException(
+						CheckpointFailureReason.JOB_FAILURE, message.getReason());
+				}
+				abortPendingCheckpoint(
+					checkpoint,
+					checkpointException,
+					message.getTaskExecutionId());
+			} else if (LOG.isDebugEnabled()) {
 				if (recentPendingCheckpoints.contains(checkpointId)) {
 					// message is for an unknown checkpoint, or comes too late (checkpoint disposed)
 					LOG.debug("Received another decline message for now expired checkpoint attempt {} from task {} of job {} at {} : {}",
@@ -771,7 +906,7 @@ public class CheckpointCoordinator {
 						LOG.debug("Received acknowledge message for checkpoint {} from task {} of job {} at {}.",
 							checkpointId, message.getTaskExecutionId(), message.getJob(), taskManagerLocationInfo);
 
-						if (checkpoint.isFullyAcknowledged()) {
+						if (checkpoint.areTasksFullyAcknowledged()) {
 							completePendingCheckpoint(checkpoint);
 						}
 						break;
@@ -851,7 +986,10 @@ public class CheckpointCoordinator {
 			catch (Exception e1) {
 				// abort the current pending checkpoint if we fails to finalize the pending checkpoint.
 				if (!pendingCheckpoint.isDiscarded()) {
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, e1);
+					abortPendingCheckpoint(
+						pendingCheckpoint,
+						new CheckpointException(
+							CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, e1));
 				}
 
 				throw new CheckpointException("Could not finalize the pending checkpoint " + checkpointId + '.',
@@ -881,8 +1019,7 @@ public class CheckpointCoordinator {
 			}
 		} finally {
 			pendingCheckpoints.remove(checkpointId);
-
-			triggerQueuedRequests();
+			timer.execute(this::executeQueuedRequest);
 		}
 
 		rememberRecentCheckpointId(checkpointId);
@@ -892,7 +1029,7 @@ public class CheckpointCoordinator {
 
 		// record the time when this was completed, to calculate
 		// the 'min delay between checkpoints'
-		lastCheckpointCompletionNanos = System.nanoTime();
+		lastCheckpointCompletionRelativeTime = clock.relativeTimeMillis();
 
 		LOG.info("Completed checkpoint {} for job {} ({} bytes in {} ms).", checkpointId, job,
 			completedCheckpoint.getStateSize(), completedCheckpoint.getDuration());
@@ -910,14 +1047,22 @@ public class CheckpointCoordinator {
 			LOG.debug(builder.toString());
 		}
 
-		// send the "notify complete" call to all vertices
-		final long timestamp = completedCheckpoint.getTimestamp();
+		// send the "notify complete" call to all vertices, coordinators, etc.
+		sendAcknowledgeMessages(checkpointId, completedCheckpoint.getTimestamp());
+	}
 
+	private void sendAcknowledgeMessages(long checkpointId, long timestamp) {
+		// commit tasks
 		for (ExecutionVertex ev : tasksToCommitTo) {
 			Execution ee = ev.getCurrentExecutionAttempt();
 			if (ee != null) {
 				ee.notifyCheckpointComplete(checkpointId, timestamp);
 			}
+		}
+
+		// commit coordinators
+		for (OperatorCoordinatorCheckpointContext coordinatorContext : coordinatorsToCheckpoint) {
+			coordinatorContext.coordinator().checkpointComplete(checkpointId);
 		}
 	}
 
@@ -930,16 +1075,9 @@ public class CheckpointCoordinator {
 	 */
 	public void failUnacknowledgedPendingCheckpointsFor(ExecutionAttemptID executionAttemptId, Throwable cause) {
 		synchronized (lock) {
-			Iterator<PendingCheckpoint> pendingCheckpointIterator = pendingCheckpoints.values().iterator();
-
-			while (pendingCheckpointIterator.hasNext()) {
-				final PendingCheckpoint pendingCheckpoint = pendingCheckpointIterator.next();
-
-				if (!pendingCheckpoint.isAcknowledgedBy(executionAttemptId)) {
-					pendingCheckpointIterator.remove();
-					discardCheckpoint(pendingCheckpoint, cause);
-				}
-			}
+			abortPendingCheckpoints(
+				checkpoint -> !checkpoint.isAcknowledgedBy(executionAttemptId),
+				new CheckpointException(CheckpointFailureReason.TASK_FAILURE, cause));
 		}
 	}
 
@@ -951,45 +1089,9 @@ public class CheckpointCoordinator {
 	}
 
 	private void dropSubsumedCheckpoints(long checkpointId) {
-		Iterator<Map.Entry<Long, PendingCheckpoint>> entries = pendingCheckpoints.entrySet().iterator();
-
-		while (entries.hasNext()) {
-			PendingCheckpoint p = entries.next().getValue();
-			// remove all pending checkpoints that are lesser than the current completed checkpoint
-			if (p.getCheckpointId() < checkpointId && p.canBeSubsumed()) {
-				rememberRecentCheckpointId(p.getCheckpointId());
-				failPendingCheckpoint(p, CheckpointFailureReason.CHECKPOINT_SUBSUMED);
-				entries.remove();
-			}
-		}
-	}
-
-	/**
-	 * Triggers the queued request, if there is one.
-	 *
-	 * <p>NOTE: The caller of this method must hold the lock when invoking the method!
-	 */
-	private void triggerQueuedRequests() {
-		if (triggerRequestQueued) {
-			triggerRequestQueued = false;
-
-			// trigger the checkpoint from the trigger timer, to finish the work of this thread before
-			// starting with the next checkpoint
-			if (periodicScheduling) {
-				if (currentPeriodicTrigger != null) {
-					currentPeriodicTrigger.cancel(false);
-				}
-				currentPeriodicTrigger = scheduleTriggerWithDelay(0L);
-			}
-			else {
-				timer.execute(new ScheduledTrigger());
-			}
-		}
-	}
-
-	@VisibleForTesting
-	int getNumScheduledTasks() {
-		return timer.getQueue().size();
+		abortPendingCheckpoints(
+			checkpoint -> checkpoint.getCheckpointId() < checkpointId && checkpoint.canBeSubsumed(),
+			new CheckpointException(CheckpointFailureReason.CHECKPOINT_SUBSUMED));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1018,10 +1120,41 @@ public class CheckpointCoordinator {
 	 *                               that restores <i>non-partitioned</i> state from this
 	 *                               checkpoint.
 	 */
+	@Deprecated
 	public boolean restoreLatestCheckpointedState(
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			boolean errorIfNoCheckpoint,
 			boolean allowNonRestoredState) throws Exception {
+
+		return restoreLatestCheckpointedState(new HashSet<>(tasks.values()), errorIfNoCheckpoint, allowNonRestoredState);
+	}
+
+	/**
+	 * Restores the latest checkpointed state.
+	 *
+	 * @param tasks Set of job vertices to restore. State for these vertices is
+	 * restored via {@link Execution#setInitialState(JobManagerTaskRestore)}.
+	 * @param errorIfNoCheckpoint Fail if no completed checkpoint is available to
+	 * restore from.
+	 * @param allowNonRestoredState Allow checkpoint state that cannot be mapped
+	 * to any job vertex in tasks.
+	 * @return <code>true</code> if state was restored, <code>false</code> otherwise.
+	 * @throws IllegalStateException If the CheckpointCoordinator is shut down.
+	 * @throws IllegalStateException If no completed checkpoint is available and
+	 *                               the <code>failIfNoCheckpoint</code> flag has been set.
+	 * @throws IllegalStateException If the checkpoint contains state that cannot be
+	 *                               mapped to any job vertex in <code>tasks</code> and the
+	 *                               <code>allowNonRestoredState</code> flag has not been set.
+	 * @throws IllegalStateException If the max parallelism changed for an operator
+	 *                               that restores state from this checkpoint.
+	 * @throws IllegalStateException If the parallelism changed for an operator
+	 *                               that restores <i>non-partitioned</i> state from this
+	 *                               checkpoint.
+	 */
+	public boolean restoreLatestCheckpointedState(
+			final Set<ExecutionJobVertex> tasks,
+			final boolean errorIfNoCheckpoint,
+			final boolean allowNonRestoredState) throws Exception {
 
 		synchronized (lock) {
 			if (shutdown) {
@@ -1131,7 +1264,7 @@ public class CheckpointCoordinator {
 
 		LOG.info("Reset the checkpoint ID of job {} to {}.", job, nextCheckpointId);
 
-		return restoreLatestCheckpointedState(tasks, true, allowNonRestored);
+		return restoreLatestCheckpointedState(new HashSet<>(tasks.values()), true, allowNonRestored);
 	}
 
 	// ------------------------------------------------------------------------
@@ -1139,7 +1272,9 @@ public class CheckpointCoordinator {
 	// ------------------------------------------------------------------------
 
 	public int getNumberOfPendingCheckpoints() {
-		return this.pendingCheckpoints.size();
+		synchronized (lock) {
+			return this.pendingCheckpoints.size();
+		}
 	}
 
 	public int getNumberOfRetainedSuccessfulCheckpoints() {
@@ -1168,12 +1303,21 @@ public class CheckpointCoordinator {
 		return completedCheckpointStore;
 	}
 
-	public CheckpointIDCounter getCheckpointIdCounter() {
-		return checkpointIdCounter;
-	}
-
 	public long getCheckpointTimeout() {
 		return checkpointTimeout;
+	}
+
+	/**
+	 * @deprecated use {@link #getNumQueuedRequests()}
+	 */
+	@Deprecated
+	@VisibleForTesting
+	PriorityQueue<CheckpointTriggerRequest> getTriggerRequestQueue() {
+		return requestDecider.getTriggerRequestQueue();
+	}
+
+	public boolean isTriggering() {
+		return isTriggering;
 	}
 
 	@VisibleForTesting
@@ -1210,15 +1354,13 @@ public class CheckpointCoordinator {
 
 	public void stopCheckpointScheduler() {
 		synchronized (lock) {
-			triggerRequestQueued = false;
 			periodicScheduling = false;
 
-			if (currentPeriodicTrigger != null) {
-				currentPeriodicTrigger.cancel(false);
-				currentPeriodicTrigger = null;
-			}
+			cancelPeriodicTrigger();
 
-			abortPendingCheckpoints(new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SUSPEND));
+			final CheckpointException reason =
+				new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SUSPEND);
+			abortPendingAndQueuedCheckpoints(reason);
 
 			numUnsuccessfulCheckpointsTriggers.set(0);
 		}
@@ -1230,54 +1372,42 @@ public class CheckpointCoordinator {
 	 */
 	public void abortPendingCheckpoints(CheckpointException exception) {
 		synchronized (lock) {
-			for (PendingCheckpoint p : pendingCheckpoints.values()) {
-				failPendingCheckpoint(p, exception.getCheckpointFailureReason());
-			}
-
-			pendingCheckpoints.clear();
+			abortPendingCheckpoints(ignored -> true, exception);
 		}
 	}
 
-	/**
-	 * If too many checkpoints are currently in progress, we need to mark that a request is queued
-	 *
-	 * @throws CheckpointException If too many checkpoints are currently in progress.
-	 */
-	private void checkConcurrentCheckpoints() throws CheckpointException {
-		if (pendingCheckpoints.size() >= maxConcurrentCheckpointAttempts) {
-			triggerRequestQueued = true;
-			if (currentPeriodicTrigger != null) {
-				currentPeriodicTrigger.cancel(false);
-				currentPeriodicTrigger = null;
-			}
-			throw new CheckpointException(CheckpointFailureReason.TOO_MANY_CONCURRENT_CHECKPOINTS);
+	private void abortPendingCheckpoints(
+		Predicate<PendingCheckpoint> checkpointToFailPredicate,
+		CheckpointException exception) {
+
+		assert Thread.holdsLock(lock);
+
+		final PendingCheckpoint[] pendingCheckpointsToFail = pendingCheckpoints
+			.values()
+			.stream()
+			.filter(checkpointToFailPredicate)
+			.toArray(PendingCheckpoint[]::new);
+
+		// do not traverse pendingCheckpoints directly, because it might be changed during traversing
+		for (PendingCheckpoint pendingCheckpoint : pendingCheckpointsToFail) {
+			abortPendingCheckpoint(pendingCheckpoint, exception);
 		}
 	}
 
-	/**
-	 * Make sure the minimum interval between checkpoints has passed
-	 *
-	 * @throws CheckpointException If the minimum interval between checkpoints has not passed.
-	 */
-	private void checkMinPauseBetweenCheckpoints() throws CheckpointException {
-		final long earliestNext = lastCheckpointCompletionNanos + minPauseBetweenCheckpointsNanos;
-		final long durationTillNextMillis = (earliestNext - System.nanoTime()) / 1_000_000;
+	private void rescheduleTrigger(long tillNextMillis) {
+		cancelPeriodicTrigger();
+		currentPeriodicTrigger = scheduleTriggerWithDelay(tillNextMillis);
+	}
 
-		if (durationTillNextMillis > 0) {
-			if (currentPeriodicTrigger != null) {
-				currentPeriodicTrigger.cancel(false);
-				currentPeriodicTrigger = null;
-			}
-			// Reassign the new trigger to the currentPeriodicTrigger
-			currentPeriodicTrigger = scheduleTriggerWithDelay(durationTillNextMillis);
-
-			throw new CheckpointException(CheckpointFailureReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
+	private void cancelPeriodicTrigger() {
+		if (currentPeriodicTrigger != null) {
+			currentPeriodicTrigger.cancel(false);
+			currentPeriodicTrigger = null;
 		}
 	}
 
 	private long getRandomInitDelay() {
-		return ThreadLocalRandom.current().nextLong(
-			minPauseBetweenCheckpointsNanos / 1_000_000L, baseInterval + 1L);
+		return ThreadLocalRandom.current().nextLong(minPauseBetweenCheckpoints, baseInterval + 1L);
 	}
 
 	private ScheduledFuture<?> scheduleTriggerWithDelay(long initDelay) {
@@ -1304,6 +1434,10 @@ public class CheckpointCoordinator {
 		}
 	}
 
+	int getNumQueuedRequests() {
+		return requestDecider.getNumQueuedRequests();
+	}
+
 	// ------------------------------------------------------------------------
 
 	private final class ScheduledTrigger implements Runnable {
@@ -1311,53 +1445,11 @@ public class CheckpointCoordinator {
 		@Override
 		public void run() {
 			try {
-				triggerCheckpoint(System.currentTimeMillis(), true);
+				triggerCheckpoint(true);
 			}
 			catch (Exception e) {
 				LOG.error("Exception while triggering checkpoint for job {}.", job, e);
 			}
-		}
-	}
-
-	/**
-	 * Discards the given pending checkpoint because of the given cause.
-	 *
-	 * @param pendingCheckpoint to discard
-	 * @param cause for discarding the checkpoint
-	 */
-	private void discardCheckpoint(PendingCheckpoint pendingCheckpoint, @Nullable Throwable cause) {
-		assert(Thread.holdsLock(lock));
-		Preconditions.checkNotNull(pendingCheckpoint);
-
-		final long checkpointId = pendingCheckpoint.getCheckpointId();
-
-		LOG.info("Discarding checkpoint {} of job {}.", checkpointId, job, cause);
-
-		if (cause == null) {
-			failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED);
-		} else if (cause instanceof CheckpointException) {
-			CheckpointException exception = (CheckpointException) cause;
-			failPendingCheckpoint(pendingCheckpoint, exception.getCheckpointFailureReason(), cause);
-		} else {
-			failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.JOB_FAILURE, cause);
-		}
-
-		rememberRecentCheckpointId(checkpointId);
-
-		// we don't have to schedule another "dissolving" checkpoint any more because the
-		// cancellation barriers take care of breaking downstream alignments
-		// we only need to make sure that suspended queued requests are resumed
-
-		boolean haveMoreRecentPending = false;
-		for (PendingCheckpoint p : pendingCheckpoints.values()) {
-			if (!p.isDiscarded() && p.getCheckpointId() >= pendingCheckpoint.getCheckpointId()) {
-				haveMoreRecentPending = true;
-				break;
-			}
-		}
-
-		if (!haveMoreRecentPending) {
-			triggerQueuedRequests();
 		}
 	}
 
@@ -1392,33 +1484,203 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	private void failPendingCheckpoint(
-		final PendingCheckpoint pendingCheckpoint,
-		final CheckpointFailureReason reason) {
+	private void abortPendingCheckpoint(
+		PendingCheckpoint pendingCheckpoint,
+		CheckpointException exception) {
 
-		failPendingCheckpoint(pendingCheckpoint, reason, null);
+		abortPendingCheckpoint(pendingCheckpoint, exception, null);
 	}
 
-	private void failPendingCheckpoint(
-			final PendingCheckpoint pendingCheckpoint,
-			final CheckpointFailureReason reason,
-			final Throwable cause) {
+	private void abortPendingCheckpoint(
+		PendingCheckpoint pendingCheckpoint,
+		CheckpointException exception,
+		@Nullable final ExecutionAttemptID executionAttemptID) {
 
-		CheckpointException exception = new CheckpointException(reason, cause);
-		pendingCheckpoint.abort(reason, cause);
-		failureManager.handleCheckpointException(exception, pendingCheckpoint.getCheckpointId());
+		assert(Thread.holdsLock(lock));
 
-		if (!shutdown && periodicScheduling && currentPeriodicTrigger == null) {
+		if (!pendingCheckpoint.isDiscarded()) {
+			try {
+				// release resource here
+				pendingCheckpoint.abort(
+					exception.getCheckpointFailureReason(), exception.getCause());
+
+				if (pendingCheckpoint.getProps().isSavepoint() &&
+					pendingCheckpoint.getProps().isSynchronous()) {
+					failureManager.handleSynchronousSavepointFailure(exception);
+				} else if (executionAttemptID != null) {
+					failureManager.handleTaskLevelCheckpointException(
+						exception, pendingCheckpoint.getCheckpointId(), executionAttemptID);
+				} else {
+					failureManager.handleJobLevelCheckpointException(
+						exception, pendingCheckpoint.getCheckpointId());
+				}
+			} finally {
+				pendingCheckpoints.remove(pendingCheckpoint.getCheckpointId());
+				rememberRecentCheckpointId(pendingCheckpoint.getCheckpointId());
+				timer.execute(this::executeQueuedRequest);
+			}
+		}
+	}
+
+	private void preCheckGlobalState(boolean isPeriodic) throws CheckpointException {
+		// abort if the coordinator has been shutdown in the meantime
+		if (shutdown) {
+			throw new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
+		}
+
+		// Don't allow periodic checkpoint if scheduling has been disabled
+		if (isPeriodic && !periodicScheduling) {
+			throw new CheckpointException(CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN);
+		}
+	}
+
+	/**
+	 * Check if all tasks that we need to trigger are running. If not, abort the checkpoint.
+	 *
+	 * @return the executions need to be triggered.
+	 * @throws CheckpointException the exception fails checking
+	 */
+	private Execution[] getTriggerExecutions() throws CheckpointException {
+		Execution[] executions = new Execution[tasksToTrigger.length];
+		for (int i = 0; i < tasksToTrigger.length; i++) {
+			Execution ee = tasksToTrigger[i].getCurrentExecutionAttempt();
+			if (ee == null) {
+				LOG.info(
+					"Checkpoint triggering task {} of job {} is not being executed at the moment. Aborting checkpoint.",
+					tasksToTrigger[i].getTaskNameWithSubtaskIndex(),
+					job);
+				throw new CheckpointException(
+					CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+			} else if (ee.getState() == ExecutionState.RUNNING) {
+				executions[i] = ee;
+			} else {
+				LOG.info(
+					"Checkpoint triggering task {} of job {} is not in state {} but {} instead. Aborting checkpoint.",
+					tasksToTrigger[i].getTaskNameWithSubtaskIndex(),
+					job,
+					ExecutionState.RUNNING,
+					ee.getState());
+				throw new CheckpointException(
+					CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+			}
+		}
+		return executions;
+	}
+
+	/**
+	 * Check if all tasks that need to acknowledge the checkpoint are running.
+	 * If not, abort the checkpoint
+	 *
+	 * @return the execution vertices which should give an ack response
+	 * @throws CheckpointException the exception fails checking
+	 */
+	private Map<ExecutionAttemptID, ExecutionVertex> getAckTasks() throws CheckpointException {
+		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(tasksToWaitFor.length);
+
+		for (ExecutionVertex ev : tasksToWaitFor) {
+			Execution ee = ev.getCurrentExecutionAttempt();
+			if (ee != null) {
+				ackTasks.put(ee.getAttemptId(), ev);
+			} else {
+				LOG.info(
+					"Checkpoint acknowledging task {} of job {} is not being executed at the moment. Aborting checkpoint.",
+					ev.getTaskNameWithSubtaskIndex(),
+					job);
+				throw new CheckpointException(
+					CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+			}
+		}
+		return ackTasks;
+	}
+
+	private void abortPendingAndQueuedCheckpoints(CheckpointException exception) {
+		assert(Thread.holdsLock(lock));
+		requestDecider.abortAll(exception);
+		abortPendingCheckpoints(exception);
+	}
+
+	/**
+	 * The canceller of checkpoint. The checkpoint might be cancelled if it doesn't finish in a
+	 * configured period.
+	 */
+	private class CheckpointCanceller implements Runnable {
+
+		private final PendingCheckpoint pendingCheckpoint;
+
+		private CheckpointCanceller(PendingCheckpoint pendingCheckpoint) {
+			this.pendingCheckpoint = checkNotNull(pendingCheckpoint);
+		}
+
+		@Override
+		public void run() {
 			synchronized (lock) {
-				if (pendingCheckpoints.isEmpty() || allPendingCheckpointsDiscarded()) {
-					triggerRequestQueued = false;
-					currentPeriodicTrigger = scheduleTriggerWithDelay(getRandomInitDelay());
+				// only do the work if the checkpoint is not discarded anyways
+				// note that checkpoint completion discards the pending checkpoint object
+				if (!pendingCheckpoint.isDiscarded()) {
+					LOG.info("Checkpoint {} of job {} expired before completing.",
+						pendingCheckpoint.getCheckpointId(), job);
+
+					abortPendingCheckpoint(
+						pendingCheckpoint,
+						new CheckpointException(CheckpointFailureReason.CHECKPOINT_EXPIRED));
 				}
 			}
 		}
 	}
 
-	private boolean allPendingCheckpointsDiscarded() {
-		return pendingCheckpoints.values().stream().allMatch(PendingCheckpoint::isDiscarded);
+	private static CheckpointException getCheckpointException(
+		CheckpointFailureReason defaultReason, Throwable throwable) {
+
+		final Optional<CheckpointException> checkpointExceptionOptional =
+			ExceptionUtils.findThrowable(throwable, CheckpointException.class);
+		return checkpointExceptionOptional
+			.orElseGet(() -> new CheckpointException(defaultReason, throwable));
+	}
+
+	private static class CheckpointIdAndStorageLocation {
+		private final long checkpointId;
+		private final CheckpointStorageLocation checkpointStorageLocation;
+
+		CheckpointIdAndStorageLocation(
+			long checkpointId,
+			CheckpointStorageLocation checkpointStorageLocation) {
+
+			this.checkpointId = checkpointId;
+			this.checkpointStorageLocation = checkNotNull(checkpointStorageLocation);
+		}
+	}
+
+	static class CheckpointTriggerRequest {
+		final long timestamp;
+		final CheckpointProperties props;
+		final @Nullable String externalSavepointLocation;
+		final boolean isPeriodic;
+		final boolean advanceToEndOfTime;
+		private final CompletableFuture<CompletedCheckpoint> onCompletionPromise = new CompletableFuture<>();
+
+		CheckpointTriggerRequest(
+				CheckpointProperties props,
+				@Nullable String externalSavepointLocation,
+				boolean isPeriodic,
+				boolean advanceToEndOfTime) {
+
+			this.timestamp = System.currentTimeMillis();
+			this.props = checkNotNull(props);
+			this.externalSavepointLocation = externalSavepointLocation;
+			this.isPeriodic = isPeriodic;
+			this.advanceToEndOfTime = advanceToEndOfTime;
+		}
+
+		CompletableFuture<CompletedCheckpoint> getOnCompletionFuture() {
+			return onCompletionPromise;
+		}
+
+		public void completeExceptionally(CheckpointException exception) {
+			onCompletionPromise.completeExceptionally(exception);
+		}
+
+		public boolean isForce() {
+			return props.forceCheckpoint();
+		}
 	}
 }

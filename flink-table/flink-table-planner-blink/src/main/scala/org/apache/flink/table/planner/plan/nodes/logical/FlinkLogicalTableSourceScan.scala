@@ -18,44 +18,44 @@
 
 package org.apache.flink.table.planner.plan.nodes.logical
 
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.connector.source.DynamicTableSource
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan.isTableSourceScan
-import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
-import org.apache.flink.table.sources._
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode, RelWriter}
-import org.apache.calcite.schema.Table
 
 import java.util
+import java.util.Collections
 import java.util.function.Supplier
+
+import scala.collection.JavaConversions._
 
 /**
   * Sub-class of [[TableScan]] that is a relational operator
-  * which returns the contents of a [[TableSource]] in Flink.
+  * which returns the contents of a [[DynamicTableSource]] in Flink.
   */
 class FlinkLogicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: FlinkRelOptTable)
-  extends TableScan(cluster, traitSet, relOptTable)
+    relOptTable: TableSourceTable)
+  extends TableScan(cluster, traitSet, Collections.emptyList[RelHint](), relOptTable)
   with FlinkLogicalRel {
 
-  lazy val tableSource: TableSource[_] = tableSourceTable.tableSource
-
-  private lazy val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
+  lazy val tableSource: DynamicTableSource = relOptTable.tableSource
 
   def copy(
       traitSet: RelTraitSet,
-      relOptTable: FlinkRelOptTable): FlinkLogicalTableSourceScan = {
-    new FlinkLogicalTableSourceScan(cluster, traitSet, relOptTable)
+      tableSourceTable: TableSourceTable): FlinkLogicalTableSourceScan = {
+    new FlinkLogicalTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
@@ -63,8 +63,9 @@ class FlinkLogicalTableSourceScan(
   }
 
   override def deriveRowType(): RelDataType = {
-    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    tableSourceTable.getRowType(flinkTypeFactory)
+    // TableScan row type should always keep same with its
+    // internal RelOptTable's row type.
+    relOptTable.getRowType
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -75,7 +76,7 @@ class FlinkLogicalTableSourceScan(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .item("fields", tableSource.getTableSchema.getFieldNames.mkString(", "))
+      .item("fields", getRowType.getFieldNames.mkString(", "))
   }
 
 }
@@ -94,7 +95,7 @@ class FlinkLogicalTableSourceScanConverter
 
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[TableScan]
-    val table = scan.getTable.asInstanceOf[FlinkRelOptTable]
+    val table = scan.getTable.unwrap(classOf[TableSourceTable])
     FlinkLogicalTableSourceScan.create(rel.getCluster, table)
   }
 }
@@ -103,12 +104,11 @@ object FlinkLogicalTableSourceScan {
   val CONVERTER = new FlinkLogicalTableSourceScanConverter
 
   def isTableSourceScan(scan: TableScan): Boolean = {
-    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable])
     tableSourceTable != null
   }
 
-  def create(cluster: RelOptCluster, relOptTable: FlinkRelOptTable): FlinkLogicalTableSourceScan = {
-    val table = relOptTable.unwrap(classOf[Table])
+  def create(cluster: RelOptCluster, table: TableSourceTable): FlinkLogicalTableSourceScan = {
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).replaceIfs(
       RelCollationTraitDef.INSTANCE, new Supplier[util.List[RelCollation]]() {
         def get: util.List[RelCollation] = {
@@ -119,6 +119,6 @@ object FlinkLogicalTableSourceScan {
           }
         }
       }).simplify()
-    new FlinkLogicalTableSourceScan(cluster, traitSet, relOptTable)
+    new FlinkLogicalTableSourceScan(cluster, traitSet, table)
   }
 }

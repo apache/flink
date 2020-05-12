@@ -38,11 +38,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.isFunctionOfKind;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_PROPERTIES;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
@@ -180,11 +180,11 @@ public class OperationExpressionsUtils {
 				return unresolvedRef(properties.get(unresolvedCall));
 			}
 
-			final Expression[] args = unresolvedCall.getChildren()
+			final List<Expression> args = unresolvedCall.getChildren()
 				.stream()
 				.map(c -> c.accept(this))
-				.toArray(Expression[]::new);
-			return unresolvedCall(unresolvedCall.getFunctionDefinition(), args);
+				.collect(Collectors.toList());
+			return unresolvedCall.replaceArgs(args);
 		}
 
 		@Override

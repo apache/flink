@@ -17,11 +17,11 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -33,18 +33,18 @@ import java.io.IOException;
  */
 public class SortMergeFullOuterJoinIterator implements Closeable {
 
-	private final Projection<BaseRow, BinaryRow> projection1;
-	private final Projection<BaseRow, BinaryRow> projection2;
+	private final Projection<RowData, BinaryRowData> projection1;
+	private final Projection<RowData, BinaryRowData> projection2;
 	private final RecordComparator keyComparator;
-	private final MutableObjectIterator<BinaryRow> iterator1;
-	private final MutableObjectIterator<BinaryRow> iterator2;
+	private final MutableObjectIterator<BinaryRowData> iterator1;
+	private final MutableObjectIterator<BinaryRowData> iterator2;
 
-	private BinaryRow row1;
-	private BinaryRow key1;
-	private BinaryRow row2;
-	private BinaryRow key2;
+	private BinaryRowData row1;
+	private BinaryRowData key1;
+	private BinaryRowData row2;
+	private BinaryRowData key2;
 
-	private BinaryRow matchKey;
+	private BinaryRowData matchKey;
 
 	private ResettableExternalBuffer buffer1;
 	private ResettableExternalBuffer buffer2;
@@ -54,12 +54,12 @@ public class SortMergeFullOuterJoinIterator implements Closeable {
 	private final boolean filterAllNulls;
 
 	public SortMergeFullOuterJoinIterator(
-			BinaryRowSerializer serializer1, BinaryRowSerializer serializer2,
-			Projection<BaseRow, BinaryRow> projection1,
-			Projection<BaseRow, BinaryRow> projection2,
+			BinaryRowDataSerializer serializer1, BinaryRowDataSerializer serializer2,
+			Projection<RowData, BinaryRowData> projection1,
+			Projection<RowData, BinaryRowData> projection2,
 			RecordComparator keyComparator,
-			MutableObjectIterator<BinaryRow> iterator1,
-			MutableObjectIterator<BinaryRow> iterator2,
+			MutableObjectIterator<BinaryRowData> iterator1,
+			MutableObjectIterator<BinaryRowData> iterator2,
 			ResettableExternalBuffer buffer1,
 			ResettableExternalBuffer buffer2,
 			boolean[] filterNulls) throws IOException {
@@ -81,7 +81,7 @@ public class SortMergeFullOuterJoinIterator implements Closeable {
 		nextRow2();
 	}
 
-	private boolean shouldFilter(BinaryRow key) {
+	private boolean shouldFilter(BinaryRowData key) {
 		return NullAwareJoinHelper.shouldFilter(nullSafe, filterAllNulls, nullFilterKeys, key);
 	}
 
@@ -125,7 +125,7 @@ public class SortMergeFullOuterJoinIterator implements Closeable {
 	 * Buffer rows from iterator1 with same key.
 	 */
 	private void bufferRows1() throws IOException {
-		BinaryRow copy = key1.copy();
+		BinaryRowData copy = key1.copy();
 		buffer1.reset();
 		do {
 			buffer1.add(row1);
@@ -137,7 +137,7 @@ public class SortMergeFullOuterJoinIterator implements Closeable {
 	 * Buffer rows from iterator2 with same key.
 	 */
 	private void bufferRows2() throws IOException {
-		BinaryRow copy = key2.copy();
+		BinaryRowData copy = key2.copy();
 		buffer2.reset();
 		do {
 			buffer2.add(row2);
@@ -167,7 +167,7 @@ public class SortMergeFullOuterJoinIterator implements Closeable {
 		}
 	}
 
-	public BinaryRow getMatchKey() {
+	public BinaryRowData getMatchKey() {
 		return matchKey;
 	}
 

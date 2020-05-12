@@ -19,57 +19,69 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 /**
-  * Tests that can only be checked manually as they are non-deterministic.
+  * Tests that check all non-deterministic functions can be executed.
   */
-@Ignore
 class NonDeterministicTests extends ExpressionTestBase {
 
   @Test
   def testCurrentDate(): Unit = {
-    testSqlApi(
-      "CURRENT_DATE",
-      "PLEASE CHECK MANUALLY")
+    testAllApis(
+      currentDate().isGreater("1970-01-01".toDate),
+      "currentDate() > '1970-01-01'.toDate",
+      "CURRENT_DATE > DATE '1970-01-01'",
+      "true")
   }
 
   @Test
   def testCurrentTime(): Unit = {
-    testSqlApi(
-      "CURRENT_TIME",
-      "PLEASE CHECK MANUALLY")
+    testAllApis(
+      currentTime().isGreaterOrEqual("00:00:00".toTime),
+      "currentTime() >= '00:00:00'.toTime",
+      "CURRENT_TIME >= TIME '00:00:00'",
+      "true")
   }
 
   @Test
   def testCurrentTimestamp(): Unit = {
-    testSqlApi(
-      "CURRENT_TIMESTAMP",
-      "PLEASE CHECK MANUALLY")
+    testAllApis(
+      currentTimestamp().isGreater("1970-01-01 00:00:00".toTimestamp),
+      "currentTimestamp() > '1970-01-01 00:00:00'.toTimestamp",
+      "CURRENT_TIMESTAMP > TIMESTAMP '1970-01-01 00:00:00'",
+      "true")
   }
 
   @Test
   def testLocalTimestamp(): Unit = {
-    testSqlApi(
-      "LOCALTIMESTAMP",
-      "PLEASE CHECK MANUALLY")
+    testAllApis(
+      localTimestamp().isGreater("1970-01-01 00:00:00".toTimestamp),
+      "localTimestamp() > '1970-01-01 00:00:00'.toTimestamp",
+      "LOCALTIMESTAMP > TIMESTAMP '1970-01-01 00:00:00'",
+      "true")
   }
 
   @Test
   def testLocalTime(): Unit = {
-    testSqlApi(
-      "LOCALTIME",
-      "PLEASE CHECK MANUALLY")
+    testAllApis(
+      localTime().isGreaterOrEqual("00:00:00".toTime),
+      "localTime() >= '00:00:00'.toTime",
+      "LOCALTIME >= TIME '00:00:00'",
+      "true")
   }
 
   @Test
   def testUUID(): Unit = {
-    testSqlApi(
-      "UUID()",
-      "PLEASE CHECK MANUALLY")
+    testAllApis(
+      uuid().charLength(),
+      "uuid().charLength",
+      "CHARACTER_LENGTH(UUID())",
+      "36")
   }
 
   // ----------------------------------------------------------------------------------------------

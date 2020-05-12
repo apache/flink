@@ -18,22 +18,23 @@
 
 package org.apache.flink.table.plan.util
 
-import java.sql.{Date, Time, Timestamp}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.catalog.{FunctionCatalog, UnresolvedIdentifier}
+import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.util.JavaScalaConversionUtil
+import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.catalog.FunctionCatalog
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.util.JavaScalaConversionUtil
-import org.apache.flink.util.Preconditions
 import org.slf4j.{Logger, LoggerFactory}
+
+import java.sql.{Date, Time, Timestamp}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -277,9 +278,8 @@ class RexNodeToExpressionConverter(
   private def lookupFunction(name: String, operands: Seq[Expression]): Option[Expression] = {
     // TODO we assume only planner expression as a temporary solution to keep the old interfaces
     val expressionBridge = new ExpressionBridge[PlannerExpression](
-      functionCatalog,
       PlannerExpressionConverter.INSTANCE)
-    JavaScalaConversionUtil.toScala(functionCatalog.lookupFunction(name))
+    JavaScalaConversionUtil.toScala(functionCatalog.lookupFunction(UnresolvedIdentifier.of(name)))
       .flatMap(result =>
         Try(expressionBridge.bridge(
           unresolvedCall(result.getFunctionDefinition, operands: _*))).toOption

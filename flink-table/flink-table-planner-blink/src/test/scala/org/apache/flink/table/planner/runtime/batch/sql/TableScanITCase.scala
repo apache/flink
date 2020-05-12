@@ -21,50 +21,22 @@ package org.apache.flink.table.planner.runtime.batch.sql
 import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.utils.TestTableSourceWithTime
+import org.apache.flink.table.planner.utils.{TestTableSourceWithTime, WithoutTimeAttributesTableSource}
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
-import org.apache.flink.table.sources.StreamTableSource
-import org.apache.flink.types.Row
 
 import org.junit.Test
 
-import java.lang.{Integer => JInt, Long => JLong}
-
-import scala.collection.JavaConversions._
+import java.lang.{Integer => JInt}
 
 class TableScanITCase extends BatchTestBase {
 
   @Test
   def testTableSourceWithoutTimeAttribute(): Unit = {
     val tableName = "MyTable"
-
-    val tableSource = new StreamTableSource[Row]() {
-      private val fieldNames: Array[String] = Array("name", "id", "value")
-      private val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.LONG, Types.INT)
-
-      override def isBounded: Boolean = true
-
-      override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-        val data = Seq(
-          row("Mary", new JLong(1L), new JInt(1)),
-          row("Bob", new JLong(2L), new JInt(3))
-        )
-        val dataStream = execEnv.fromCollection(data).returns(getReturnType)
-        dataStream.getTransformation.setMaxParallelism(1)
-        dataStream
-      }
-
-      override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
-
-      override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
-    }
-    tEnv.registerTableSource(tableName, tableSource)
-
+    WithoutTimeAttributesTableSource.createTemporaryTable(tEnv, tableName)
     checkResult(
       s"SELECT * from $tableName",
       Seq(

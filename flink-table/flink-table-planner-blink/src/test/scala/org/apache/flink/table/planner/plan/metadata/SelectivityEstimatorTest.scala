@@ -19,18 +19,23 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.catalog.FunctionCatalog
+import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkContextImpl, FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.planner.plan.schema._
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.delegation.PlannerContext
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.{JDouble, JLong}
+import org.apache.flink.table.utils.CatalogManagerMocks
 import org.apache.flink.util.Preconditions
 
-import org.apache.calcite.plan.{AbstractRelOptPlanner, RelOptCluster}
+import org.apache.calcite.jdbc.CalciteSchema
+import org.apache.calcite.plan.ConventionTraitDef
+import org.apache.calcite.rel.RelCollationTraitDef
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery}
+import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQueryBase}
 import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexLiteral, RexNode}
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
@@ -38,23 +43,17 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.junit.Assert._
-import org.junit.runner.RunWith
 import org.junit.{Before, BeforeClass, Test}
-import org.powermock.api.mockito.PowerMockito._
-import org.powermock.core.classloader.annotations.PrepareForTest
-import org.powermock.modules.junit4.PowerMockRunner
 
 import java.math.BigDecimal
+import java.sql.{Date, Time, Timestamp}
+import java.util
 
 import scala.collection.JavaConverters._
 
 /**
   * Tests for [[SelectivityEstimator]].
-  *
-  * We use PowerMockito instead of Mockito here, because [[TableScan#getRowType]] is a final method.
   */
-@RunWith(classOf[PowerMockRunner])
-@PrepareForTest(Array(classOf[TableScan]))
 class SelectivityEstimatorTest {
   private val allFieldNames = Seq("name", "amount", "price", "flag", "partition",
     "date_col", "time_col", "timestamp_col")
@@ -79,32 +78,27 @@ class SelectivityEstimatorTest {
 
   private def mockScan(
       statistic: FlinkStatistic = FlinkStatistic.UNKNOWN,
-      isFilterPushedDown: Boolean = false,
       tableConfig: TableConfig = TableConfig.getDefault): TableScan = {
-    val tableScan = mock(classOf[TableScan])
-    val cluster = mock(classOf[RelOptCluster])
-    val planner = mock(classOf[AbstractRelOptPlanner])
-    val catalogManager = mock(classOf[CatalogManager])
-    val functionCatalog = new FunctionCatalog(catalogManager)
-    val context: FlinkContext = new FlinkContextImpl(tableConfig, functionCatalog)
-    when(tableScan, "getCluster").thenReturn(cluster)
-    when(cluster, "getRexBuilder").thenReturn(rexBuilder)
-    when(cluster, "getPlanner").thenReturn(planner)
-    when(planner, "getContext").thenReturn(context)
-    when(tableScan, "getRowType").thenReturn(relDataType)
-    val innerTable = mock(classOf[TableSourceTable[_]])
-    val flinkTable = mock(classOf[FlinkRelOptTable])
-    when(flinkTable, "unwrap", classOf[TableSourceTable[_]]).thenReturn(innerTable)
-    when(flinkTable, "getFlinkStatistic").thenReturn(statistic)
-    when(flinkTable, "getRowType").thenReturn(relDataType)
-    when(tableScan, "getTable").thenReturn(flinkTable)
-    val rowCount: JDouble = if (statistic != null && statistic.getRowCount != null) {
-      statistic.getRowCount
-    } else {
-      100D
-    }
-    when(tableScan, "estimateRowCount", mq).thenReturn(rowCount)
-    tableScan
+    val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
+    val rootSchema = CalciteSchema.createRootSchema(true, false).plus()
+    val table = new MockMetaTable(relDataType, statistic)
+    rootSchema.add("test", table)
+    val plannerContext: PlannerContext =
+      new PlannerContext(
+        tableConfig,
+        new FunctionCatalog(tableConfig, catalogManager, new ModuleManager),
+        catalogManager,
+        CalciteSchema.from(rootSchema),
+        util.Arrays.asList(
+          ConventionTraitDef.INSTANCE,
+          FlinkRelDistributionTraitDef.INSTANCE,
+          RelCollationTraitDef.INSTANCE
+        )
+      )
+
+    val relBuilder = plannerContext.createRelBuilder("default_catalog", "default_database")
+    relBuilder.clear()
+    relBuilder.scan(util.Arrays.asList("test")).build().asInstanceOf[TableScan]
   }
 
   private def createNumericLiteral(num: Long): RexLiteral = {
@@ -164,15 +158,17 @@ class SelectivityEstimatorTest {
       nullCount: Option[JLong] = None,
       avgLen: Option[JDouble] = None,
       maxLen: Option[Integer] = None,
-      min: Option[Number] = None,
-      max: Option[Number] = None): ColumnStats = {
-    new ColumnStats(
-      ndv.getOrElse(null.asInstanceOf[JLong]),
-      nullCount.getOrElse(null.asInstanceOf[JLong]),
-      avgLen.getOrElse(null.asInstanceOf[JDouble]),
-      maxLen.getOrElse(null.asInstanceOf[Integer]),
-      max.orNull,
-      min.orNull)
+      min: Option[Comparable[_]] = None,
+      max: Option[Comparable[_]] = None): ColumnStats = {
+    ColumnStats.Builder
+      .builder()
+      .setNdv(ndv.getOrElse(null.asInstanceOf[JLong]))
+      .setNullCount(nullCount.getOrElse(null.asInstanceOf[JLong]))
+      .setAvgLen(avgLen.getOrElse(null.asInstanceOf[JDouble]))
+      .setMaxLen(maxLen.getOrElse(null.asInstanceOf[Integer]))
+      .setMax(max.orNull)
+      .setMin(min.orNull)
+      .build()
   }
 
   private def createFlinkStatistic(
@@ -244,13 +240,16 @@ class SelectivityEstimatorTest {
 
     // test with statistics
     val statistic = createFlinkStatistic(Some(1000L), Some(Map("name" ->
-      createColumnStats(Some(800L), Some(0L), Some(16.0), Some(32), None, None))))
+      createColumnStats(Some(800L), Some(0L), Some(16.0), Some(32), Some("aaa"), Some("max")))))
+
     val estimator2 = new SelectivityEstimator(mockScan(statistic), mq)
-    assertEquals(estimator1.defaultEqualsSelectivity, estimator2.evaluate(predicate1))
+    // ["aaa", "max"] contains "abc"
+    assertEquals(Some(0.00125), estimator2.evaluate(predicate1))
 
     // name = "xyz"
     val predicate2 = createCall(EQUALS, createInputRef(name_idx), createStringLiteral("xyz"))
-    assertEquals(estimator1.defaultEqualsSelectivity, estimator2.evaluate(predicate2))
+    // ["aaa", "max"] contains "xyz"
+    assertEquals(Some(0.0), estimator2.evaluate(predicate2))
   }
 
   @Test
@@ -272,9 +271,15 @@ class SelectivityEstimatorTest {
 
     // test with statistics
     val statistic = createFlinkStatistic(Some(1000L), Some(Map("flag" ->
-      createColumnStats(Some(2L), Some(0L), Some(1.0), Some(1), None, None))))
+      createColumnStats(Some(2L), Some(0L), Some(1.0), Some(1), Some(false), Some(true)))))
     val estimator2 = new SelectivityEstimator(mockScan(statistic), mq)
-    assertEquals(estimator1.defaultEqualsSelectivity, estimator2.evaluate(predicate1))
+    // [false, true] contains true
+    assertEquals(Some(0.5), estimator2.evaluate(predicate1))
+
+    // flag = false
+    val predicate5 = createCall(EQUALS, createInputRef(flag_idx), createBooleanLiteral(false))
+    // [false, true] contains false
+    assertEquals(Some(0.5), estimator2.evaluate(predicate5))
   }
 
   @Test
@@ -290,10 +295,22 @@ class SelectivityEstimatorTest {
         None,
         None,
         None,
-        None,
-        None))))
+        Some(Date.valueOf("2017-10-01")),
+        Some(Date.valueOf("2018-10-01"))))))
+
     val estimator = new SelectivityEstimator(mockScan(statistic), mq)
-    assertEquals(estimator.defaultEqualsSelectivity, estimator.evaluate(predicate))
+    // ["2017-10-01", "2018-10-01"] contains "2017-10-11"
+    assertEquals(Some(1.0 / 80.0), estimator.evaluate(predicate))
+
+    // date_col = "2018-10-02"
+    val predicate2 = createCall(
+      EQUALS,
+      createInputRef(date_idx),
+      createDateLiteral("2018-10-02")
+    )
+
+    // ["2017-10-01", "2018-10-01"] does not contain "2018-10-02"
+    assertEquals(Some(0.0), estimator.evaluate(predicate2))
   }
 
   @Test
@@ -309,10 +326,21 @@ class SelectivityEstimatorTest {
         None,
         None,
         None,
-        None,
-        None))))
+        Some(Time.valueOf("10:00:00")),
+        Some(Time.valueOf("12:00:00"))))))
+
     val estimator = new SelectivityEstimator(mockScan(statistic), mq)
-    assertEquals(estimator.defaultEqualsSelectivity, estimator.evaluate(predicate))
+    // ["10:00:00", "12:00:00"] contains "11:00:00"
+    assertEquals(Some(1.0 / 80.0), estimator.evaluate(predicate))
+
+    // time_col = "13:00:00"
+    val predicate2 = createCall(
+      EQUALS,
+      createInputRef(time_idx),
+      createTimeLiteral("13:00:00"))
+
+    // ["10:00:00", "12:00:00"] does not contain "13:00:00"
+    assertEquals(Some(0.0), estimator.evaluate(predicate2))
   }
 
   @Test
@@ -327,10 +355,19 @@ class SelectivityEstimatorTest {
         None,
         None,
         None,
-        None,
-        None))))
+        Some(new Timestamp(0L)),
+        Some(new Timestamp(2000L))))))
+
     val estimator = new SelectivityEstimator(mockScan(statistic), mq)
-    assertEquals(estimator.defaultEqualsSelectivity, estimator.evaluate(predicate))
+    assertEquals(Some(1.0 / 80.0), estimator.evaluate(predicate))
+
+    val predicate2 = createCall(
+      EQUALS,
+      createInputRef(timestamp_idx),
+      createTimeStampLiteral(3000L))
+
+    // ["2017-10-01 10:00:00", "2018-10-01 10:00:00"] does not contain "2018-10-01 10:00:01"
+    assertEquals(Some(0.0), estimator.evaluate(predicate2))
   }
 
   @Test
@@ -409,7 +446,7 @@ class SelectivityEstimatorTest {
 
     // test with statistics
     val statistic = createFlinkStatistic(Some(1000L), Some(Map("name" ->
-      createColumnStats(Some(800L), Some(0L), Some(16.0), Some(32), None, None))))
+      createColumnStats(Some(800L), Some(0L), Some(16.0), Some(32), Some("aaa"), Some("max")))))
     val estimator2 = new SelectivityEstimator(mockScan(statistic), mq)
     assertEquals(estimator2.defaultComparisonSelectivity, estimator2.evaluate(predicate))
   }
@@ -1050,8 +1087,7 @@ class SelectivityEstimatorTest {
 
     // test with statistics
     val statistic = createFlinkStatistic(Some(1000L), Some(Map("name" ->
-      createColumnStats(Some(800L), Some(0L), Some(16.0), Some(32), None, None))))
-    // TODO
+      createColumnStats(Some(800L), Some(0L), Some(16.0), Some(32), Some("aaa"), Some("max")))))
     assertEquals(Some(selectivity * selectivity),
       new SelectivityEstimator(mockScan(statistic), mq).evaluate(predicate1))
   }
@@ -1062,10 +1098,8 @@ object SelectivityEstimatorTest {
 
   @BeforeClass
   def beforeAll(): Unit = {
-    RelMetadataQuery
+    RelMetadataQueryBase
       .THREAD_PROVIDERS
       .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE))
   }
-
 }
-

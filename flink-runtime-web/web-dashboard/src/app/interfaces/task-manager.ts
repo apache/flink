@@ -31,6 +31,10 @@ export interface TaskManagerDetailInterface {
   metrics: Metrics;
 }
 
+export interface TaskManagerLogInterface {
+  logs: { name: string; size: number }[];
+}
+
 export interface TaskmanagersItemInterface {
   id: string;
   path: string;
@@ -70,4 +74,13 @@ interface GarbageCollectorsItem {
   name: string;
   count: number;
   time: number;
+}
+
+export interface TaskManagerThreadDumpInterface {
+  threadInfos: TaskManagerThreadInfoInterface[];
+}
+
+interface TaskManagerThreadInfoInterface {
+    threadName: string;
+    stringifiedThreadInfo: string;
 }

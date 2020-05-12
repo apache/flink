@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.logical
 
-import org.apache.flink.table.api.config.ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT
+import org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT
 import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED
+import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule.TABLE_EXEC_SORT_RANGE_ENABLED
 import org.apache.flink.table.planner.plan.utils.SortUtil
 
 import org.apache.calcite.plan._
@@ -104,9 +104,9 @@ class FlinkLogicalSortBatchConverter extends ConverterRule(
   override def convert(rel: RelNode): RelNode = {
     val sort = rel.asInstanceOf[LogicalSort]
     val newInput = RelOptRule.convert(sort.getInput, FlinkConventions.LOGICAL)
-    val config = sort.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-    val enableRangeSort = config.getConfiguration.getBoolean(SQL_EXEC_SORT_RANGE_ENABLED)
-    val limitValue = config.getConfiguration.getInteger(SQL_EXEC_SORT_DEFAULT_LIMIT)
+    val config = sort.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val enableRangeSort = config.getConfiguration.getBoolean(TABLE_EXEC_SORT_RANGE_ENABLED)
+    val limitValue = config.getConfiguration.getInteger(TABLE_EXEC_SORT_DEFAULT_LIMIT)
     val (offset, fetch) = if (sort.fetch == null && sort.offset == null
       && !enableRangeSort && limitValue > 0) {
       //force the sort add limit

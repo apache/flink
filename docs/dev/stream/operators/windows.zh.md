@@ -759,7 +759,7 @@ input
 
 class MyProcessWindowFunction extends ProcessWindowFunction[(String, Long), String, String, TimeWindow] {
 
-  def process(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]): () = {
+  def process(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]) = {
     var count = 0L
     for (in <- input) {
       count = count + 1
@@ -938,7 +938,7 @@ class AverageAggregate extends AggregateFunction[(String, Long), (Long, Long), D
 
 class MyProcessWindowFunction extends ProcessWindowFunction[Double, (String, Double), String, TimeWindow] {
 
-  def process(key: String, context: Context, averages: Iterable[Double], out: Collector[(String, Double)]): () = {
+  def process(key: String, context: Context, averages: Iterable[Double], out: Collector[(String, Double)]) = {
     val average = averages.iterator.next()
     out.collect((key, average))
   }

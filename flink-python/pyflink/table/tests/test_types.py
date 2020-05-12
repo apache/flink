@@ -21,7 +21,11 @@ import ctypes
 import datetime
 import pickle
 import sys
+import tempfile
 import unittest
+
+from pyflink.pyflink_gateway_server import on_windows
+from pyflink.serializers import BatchedSerializer, PickleSerializer
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import (_infer_schema_from_data, _infer_type,
@@ -30,7 +34,8 @@ from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  _array_type_mappings, _merge_type,
                                  _create_type_verifier, UserDefinedType, DataTypes, Row, RowField,
                                  RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
-                                 _to_java_type, _from_java_type, ZonedTimestampType)
+                                 _to_java_type, _from_java_type, ZonedTimestampType,
+                                 LocalZonedTimestampType)
 
 
 class ExamplePointUDT(UserDefinedType):
@@ -441,10 +446,6 @@ class TypesTests(unittest.TestCase):
             supported_string_types += ['u']
             # test unicode
             assert_collect_success('u', u'a', 'CHAR')
-        if sys.version_info[0] < 3:
-            supported_string_types += ['c']
-            # test string
-            assert_collect_success('c', 'a', 'CHAR')
 
         # supported float and double
         #
@@ -508,11 +509,7 @@ class TypesTests(unittest.TestCase):
         #
         # Keys in _array_type_mappings is a complete list of all supported types,
         # and types not in _array_type_mappings are considered unsupported.
-        # `array.typecodes` are not supported in python 2.
-        if sys.version_info[0] < 3:
-            all_types = {'c', 'b', 'B', 'u', 'h', 'H', 'i', 'I', 'l', 'L', 'f', 'd'}
-        else:
-            all_types = set(array.typecodes)
+        all_types = set(array.typecodes)
         unsupported_types = all_types - set(supported_types)
         # test unsupported types
         for t in unsupported_types:
@@ -534,17 +531,35 @@ class TypesTests(unittest.TestCase):
         dt = DataTypes.DATE()
         self.assertEqual(dt.from_sql_type(0), datetime.date(1970, 1, 1))
 
+    @unittest.skipIf(on_windows(), "Windows x64 system only support the datetime not larger "
+                                   "than time.ctime(32536799999), so this test can't run "
+                                   "under Windows platform")
     def test_timestamp_microsecond(self):
         tst = DataTypes.TIMESTAMP()
         self.assertEqual(tst.to_sql_type(datetime.datetime.max) % 1000000, 999999)
 
+    @unittest.skipIf(on_windows(), "Windows x64 system only support the datetime not larger "
+                                   "than time.ctime(32536799999), so this test can't run "
+                                   "under Windows platform")
     def test_local_zoned_timestamp_type(self):
         lztst = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
-        ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000, tzinfo=UTCOffsetTimezone(1))
-        self.assertEqual(-3600000000, lztst.to_sql_type(ts))
+        ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000)
+        self.assertEqual(0, lztst.to_sql_type(ts))
+
+        import pytz
+        # suppose the timezone of the data is +9:00
+        timezone = pytz.timezone("Asia/Tokyo")
+        orig_epoch = LocalZonedTimestampType.EPOCH_ORDINAL
+        try:
+            # suppose the local timezone is +8:00
+            LocalZonedTimestampType.EPOCH_ORDINAL = 28800000000
+            ts_tokyo = timezone.localize(ts)
+            self.assertEqual(-3600000000, lztst.to_sql_type(ts_tokyo))
+        finally:
+            LocalZonedTimestampType.EPOCH_ORDINAL = orig_epoch
 
         if sys.version_info >= (3, 6):
-            ts2 = lztst.from_sql_type(-3600000000)
+            ts2 = lztst.from_sql_type(0)
             self.assertEqual(ts.astimezone(), ts2.astimezone())
 
     def test_zoned_timestamp_type(self):
@@ -795,7 +810,7 @@ class DataTypeConvertTests(unittest.TestCase):
                       DataTypes.DOUBLE(),
                       DataTypes.DATE(),
                       DataTypes.TIME(),
-                      DataTypes.TIMESTAMP()]
+                      DataTypes.TIMESTAMP(3)]
 
         java_types = [_to_java_type(item) for item in test_types]
 
@@ -807,7 +822,7 @@ class DataTypeConvertTests(unittest.TestCase):
         gateway = get_gateway()
         JDataTypes = gateway.jvm.DataTypes
         java_types = [JDataTypes.TIME(3).notNull(),
-                      JDataTypes.TIMESTAMP().notNull(),
+                      JDataTypes.TIMESTAMP(3).notNull(),
                       JDataTypes.VARBINARY(100).notNull(),
                       JDataTypes.BINARY(2).notNull(),
                       JDataTypes.VARCHAR(30).notNull(),
@@ -817,7 +832,7 @@ class DataTypeConvertTests(unittest.TestCase):
         converted_python_types = [_from_java_type(item) for item in java_types]
 
         expected = [DataTypes.TIME(3, False),
-                    DataTypes.TIMESTAMP().not_null(),
+                    DataTypes.TIMESTAMP(3).not_null(),
                     DataTypes.VARBINARY(100, False),
                     DataTypes.BINARY(2, False),
                     DataTypes.VARCHAR(30, False),
@@ -825,10 +840,26 @@ class DataTypeConvertTests(unittest.TestCase):
                     DataTypes.DECIMAL(20, 10, False)]
         self.assertEqual(converted_python_types, expected)
 
+        # Legacy type tests
+        Types = gateway.jvm.org.apache.flink.table.api.Types
+        BlinkBigDecimalTypeInfo = \
+            gateway.jvm.org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
+
+        java_types = [Types.STRING(),
+                      Types.DECIMAL(),
+                      BlinkBigDecimalTypeInfo(12, 5)]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        expected = [DataTypes.VARCHAR(2147483647),
+                    DataTypes.DECIMAL(38, 18),
+                    DataTypes.DECIMAL(12, 5)]
+        self.assertEqual(converted_python_types, expected)
+
     def test_array_type(self):
+        # nullable/not_null flag will be lost during the conversion.
         test_types = [DataTypes.ARRAY(DataTypes.BIGINT()),
-                      # array type with not null basic data type means primitive array
-                      DataTypes.ARRAY(DataTypes.BIGINT().not_null()),
+                      DataTypes.ARRAY(DataTypes.BIGINT()),
                       DataTypes.ARRAY(DataTypes.STRING()),
                       DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BIGINT())),
                       DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))]
@@ -877,6 +908,41 @@ class DataTypeConvertTests(unittest.TestCase):
         converted_python_types = [_from_java_type(item) for item in java_types]
 
         self.assertEqual(test_types, converted_python_types)
+
+
+class DataSerializerTests(unittest.TestCase):
+
+    def test_java_pickle_deserializer(self):
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
+        serializer = PickleSerializer()
+        data = [(1, 2), (3, 4), (5, 6), (7, 8)]
+
+        try:
+            serializer.dump_to_stream(data, temp_file)
+        finally:
+            temp_file.close()
+
+        gateway = get_gateway()
+        result = [tuple(int_pair) for int_pair in
+                  list(gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, False))]
+
+        self.assertEqual(result, [(1, 2), (3, 4), (5, 6), (7, 8)])
+
+    def test_java_batch_deserializer(self):
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
+        serializer = BatchedSerializer(PickleSerializer(), 2)
+        data = [(1, 2), (3, 4), (5, 6), (7, 8)]
+
+        try:
+            serializer.dump_to_stream(data, temp_file)
+        finally:
+            temp_file.close()
+
+        gateway = get_gateway()
+        result = [tuple(int_pair) for int_pair in
+                  list(gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True))]
+
+        self.assertEqual(result, [(1, 2), (3, 4), (5, 6), (7, 8)])
 
 
 if __name__ == "__main__":

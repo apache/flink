@@ -17,4 +17,4 @@
   -->
 
 <flink-monaco-editor [value]="stdout"></flink-monaco-editor>
-<flink-refresh-download [downloadHref]="'taskmanagers/'+taskManagerDetail?.id+'/stdout'" [downloadName]="'taskmanager_'+taskManagerDetail?.id+'_stdout'" (reload)="reload()"></flink-refresh-download>
+<flink-refresh-download [compactMode]="true" [downloadHref]="'taskmanagers/'+taskManagerDetail?.id+'/stdout'" [downloadName]="'taskmanager_'+taskManagerDetail?.id+'_stdout'" (reload)="reload()"></flink-refresh-download>

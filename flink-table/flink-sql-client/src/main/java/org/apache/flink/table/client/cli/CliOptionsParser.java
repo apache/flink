@@ -117,6 +117,17 @@ public class CliOptionsParser {
 				"the target sink table.")
 			.build();
 
+	public static final Option OPTION_HISTORY = Option
+			.builder("hist")
+			.required(false)
+			.longOpt("history")
+			.numberOfArgs(1)
+			.argName("History file path")
+			.desc(
+					"The file which you want to save the command history into. If not specified, we will " +
+							"auto-generate one under your user's home directory.")
+			.build();
+
 	private static final Options EMBEDDED_MODE_CLIENT_OPTIONS = getEmbeddedModeClientOptions(new Options());
 	private static final Options GATEWAY_MODE_CLIENT_OPTIONS = getGatewayModeClientOptions(new Options());
 	private static final Options GATEWAY_MODE_GATEWAY_OPTIONS = getGatewayModeGatewayOptions(new Options());
@@ -133,6 +144,7 @@ public class CliOptionsParser {
 		options.addOption(OPTION_JAR);
 		options.addOption(OPTION_LIBRARY);
 		options.addOption(OPTION_UPDATE);
+		options.addOption(OPTION_HISTORY);
 		return options;
 	}
 
@@ -141,6 +153,7 @@ public class CliOptionsParser {
 		options.addOption(OPTION_SESSION);
 		options.addOption(OPTION_ENVIRONMENT);
 		options.addOption(OPTION_UPDATE);
+		options.addOption(OPTION_HISTORY);
 		return options;
 	}
 
@@ -235,7 +248,8 @@ public class CliOptionsParser {
 				checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
 				checkUrls(line, CliOptionsParser.OPTION_JAR),
 				checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
-				line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt())
+				line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
+				line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt())
 			);
 		}
 		catch (ParseException e) {
@@ -254,7 +268,8 @@ public class CliOptionsParser {
 				null,
 				checkUrls(line, CliOptionsParser.OPTION_JAR),
 				checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
-				line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt())
+				line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
+				line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt())
 			);
 		}
 		catch (ParseException e) {
@@ -273,6 +288,7 @@ public class CliOptionsParser {
 				checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
 				checkUrls(line, CliOptionsParser.OPTION_JAR),
 				checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
+				null,
 				null
 			);
 		}

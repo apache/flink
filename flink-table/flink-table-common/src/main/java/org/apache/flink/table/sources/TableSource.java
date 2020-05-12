@@ -73,7 +73,10 @@ public interface TableSource<T> {
 	 * Returns the schema of the produced table.
 	 *
 	 * @return The {@link TableSchema} of the produced table.
+	 * @deprecated Table schema is a logical description of a table and should not be part of the physical TableSource.
+	 *             Define schema when registering a Table either in DDL or in {@code TableEnvironment#connect(...)}.
 	 */
+	@Deprecated
 	TableSchema getTableSchema();
 
 	/**

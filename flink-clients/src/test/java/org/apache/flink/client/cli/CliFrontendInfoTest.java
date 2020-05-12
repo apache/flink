@@ -63,13 +63,13 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
 		replaceStdOut();
 		try {
 
-			String[] parameters = new String[]{CliFrontendTestUtils.getTestJarPath(), "-f", "true"};
+			String[] parameters = new String[]{CliFrontendTestUtils.getTestJarPath(), "-f", "true", "--arg", "suffix"};
 			Configuration configuration = getConfiguration();
 			CliFrontend testFrontend = new CliFrontend(
 				configuration,
 				Collections.singletonList(getCli(configuration)));
 			testFrontend.info(parameters);
-			assertTrue(buffer.toString().contains("\"parallelism\": \"1\""));
+			assertTrue(buffer.toString().contains("\"parallelism\" : 4"));
 		}
 		finally {
 			restoreStdOut();
@@ -80,13 +80,13 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
 	public void testShowExecutionPlanWithParallelism() {
 		replaceStdOut();
 		try {
-			String[] parameters = {"-p", "17", CliFrontendTestUtils.getTestJarPath()};
+			String[] parameters = {"-p", "17", CliFrontendTestUtils.getTestJarPath(), "--arg", "suffix"};
 			Configuration configuration = getConfiguration();
 			CliFrontend testFrontend = new CliFrontend(
 				configuration,
 				Collections.singletonList(getCli(configuration)));
 			testFrontend.info(parameters);
-			assertTrue(buffer.toString().contains("\"parallelism\": \"17\""));
+			assertTrue(buffer.toString().contains("\"parallelism\" : 17"));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

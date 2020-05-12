@@ -51,6 +51,13 @@ public interface PartitionRequestClient {
 	void notifyCreditAvailable(RemoteInputChannel inputChannel);
 
 	/**
+	 * Requests to resume data consumption from one remote input channel.
+	 *
+	 * @param inputChannel The remote input channel who is ready to resume data consumption.
+	 */
+	void resumeConsumption(RemoteInputChannel inputChannel);
+
+	/**
 	 * Sends a task event backwards to an intermediate result partition.
 	 *
 	 * @param partitionId The identifier of result partition.

@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, FlinkRexUtil, RankUtil}
 import org.apache.flink.table.planner.{JArrayList, JDouble}
 
@@ -56,7 +56,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
         return 1D
       }
     }
-    val statistic = rel.getTable.asInstanceOf[FlinkRelOptTable].getFlinkStatistic
+    val statistic = rel.getTable.asInstanceOf[FlinkPreparingTableBase].getStatistic
     val fields = rel.getRowType.getFieldList
     val isKey = mq.areColumnsUnique(rel, groupKey)
     val isUnique = isKey != null && isKey
@@ -205,7 +205,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       val rexBuilder = rel.getCluster.getRexBuilder
       val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
       val maxCnfNodeCount = tableConfig.getConfiguration.getInteger(
-        FlinkRexUtil.SQL_OPTIMIZER_CNF_NODES_LIMIT)
+        FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
       val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, predicate)
       val conjunctions = RelOptUtil.conjunctions(cnf)
       val conjunctionsWithoutExpandId = conjunctions.filterNot { c =>

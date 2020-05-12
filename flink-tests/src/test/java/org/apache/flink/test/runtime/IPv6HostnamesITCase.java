@@ -24,12 +24,14 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
@@ -38,6 +40,7 @@ import akka.actor.ActorSystem;
 import org.junit.AssumptionViolatedException;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.net.Inet6Address;
@@ -56,6 +59,7 @@ import static org.junit.Assert.fail;
  * Test proper handling of IPv6 address literals in URLs.
  */
 @SuppressWarnings("serial")
+@Category(AlsoRunWithLegacyScheduler.class)
 public class IPv6HostnamesITCase extends TestLogger {
 
 	@Rule
@@ -77,7 +81,7 @@ public class IPv6HostnamesITCase extends TestLogger {
 		Configuration config = new Configuration();
 		config.setString(JobManagerOptions.ADDRESS, addressString);
 		config.setString(TaskManagerOptions.HOST, addressString);
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
 		return config;
 	}
 
@@ -87,7 +91,6 @@ public class IPv6HostnamesITCase extends TestLogger {
 
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(4);
-			env.getConfig().disableSysoutLogging();
 
 			// get input data
 			DataSet<String> text = env.fromElements(WordCountData.TEXT.split("\n"));

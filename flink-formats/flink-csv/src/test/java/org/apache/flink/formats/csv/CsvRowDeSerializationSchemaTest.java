@@ -72,6 +72,12 @@ public class CsvRowDeSerializationSchemaTest {
 			Types.SQL_TIMESTAMP,
 			"\"2018-10-12 12:12:12.0\"",
 			Timestamp.valueOf("2018-10-12 12:12:12"));
+		testNullableField(Types.LOCAL_DATE, "2018-10-12", Date.valueOf("2018-10-12").toLocalDate());
+		testNullableField(Types.LOCAL_TIME, "12:12:12", Time.valueOf("12:12:12").toLocalTime());
+		testNullableField(
+			Types.LOCAL_DATE_TIME,
+			"\"2018-10-12 12:12:12\"",
+			Timestamp.valueOf("2018-10-12 12:12:12").toLocalDateTime());
 		testNullableField(
 			Types.ROW(Types.STRING, Types.INT, Types.BOOLEAN),
 			"Hello;42;false",
@@ -166,6 +172,29 @@ public class CsvRowDeSerializationSchemaTest {
 		assertArrayEquals(
 			"Test,12,Hello\r".getBytes(),
 			serialize(serSchemaBuilder, Row.of("Test", 12, "Hello")));
+
+		serSchemaBuilder.setQuoteCharacter('#');
+
+		assertArrayEquals(
+			"Test,12,#2019-12-26 12:12:12#\r".getBytes(),
+			serialize(serSchemaBuilder, Row.of("Test", 12, "2019-12-26 12:12:12")));
+
+		serSchemaBuilder.disableQuoteCharacter();
+
+		assertArrayEquals(
+			"Test,12,2019-12-26 12:12:12\r".getBytes(),
+			serialize(serSchemaBuilder, Row.of("Test", 12, "2019-12-26 12:12:12")));
+	}
+
+	@Test
+	public void testEmptyLineDelimiter() throws Exception {
+		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, Types.INT, Types.STRING);
+		final CsvRowSerializationSchema.Builder serSchemaBuilder = new CsvRowSerializationSchema.Builder(rowInfo)
+				.setLineDelimiter("");
+
+		assertArrayEquals(
+				"Test,12,Hello".getBytes(),
+				serialize(serSchemaBuilder, Row.of("Test", 12, "Hello")));
 	}
 
 	@Test(expected = IllegalArgumentException.class)

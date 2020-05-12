@@ -25,8 +25,8 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
-import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
@@ -69,11 +69,11 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
 	}
 
 	@Override
-	public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
+	public JobGraphStore getJobGraphStore() throws Exception {
 		synchronized (lock) {
 			checkNotShutdown();
 
-			return new StandaloneSubmittedJobGraphStore();
+			return new StandaloneJobGraphStore();
 		}
 	}
 

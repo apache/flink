@@ -19,19 +19,20 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.operators.sort.IndexedSorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
 import org.apache.flink.util.MutableObjectIterator;
@@ -61,8 +62,8 @@ public class BufferedKVExternalSorter {
 
 	private final NormalizedKeyComputer nKeyComputer;
 	private final RecordComparator comparator;
-	private final BinaryRowSerializer keySerializer;
-	private final BinaryRowSerializer valueSerializer;
+	private final BinaryRowDataSerializer keySerializer;
+	private final BinaryRowDataSerializer valueSerializer;
 	private final IndexedSorter sorter;
 
 	private final BinaryKVExternalMerger merger;
@@ -86,8 +87,8 @@ public class BufferedKVExternalSorter {
 
 	public BufferedKVExternalSorter(
 			IOManager ioManager,
-			BinaryRowSerializer keySerializer,
-			BinaryRowSerializer valueSerializer,
+			BinaryRowDataSerializer keySerializer,
+			BinaryRowDataSerializer valueSerializer,
 			NormalizedKeyComputer nKeyComputer,
 			RecordComparator comparator,
 			int pageSize,
@@ -98,13 +99,14 @@ public class BufferedKVExternalSorter {
 		this.comparator = comparator;
 		this.pageSize = pageSize;
 		this.sorter = new QuickSort();
-		this.maxNumFileHandles = conf.getInteger(ExecutionConfigOptions.SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM);
-		this.compressionEnable = conf.getBoolean(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED);
+		this.maxNumFileHandles = conf.getInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES);
+		this.compressionEnable = conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
 		this.compressionCodecFactory = this.compressionEnable
 			? BlockCompressionFactory.createBlockCompressionFactory(
-					conf.getString(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_CODEC))
+				BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
 			: null;
-		this.compressionBlockSize = conf.getInteger(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_BLOCK_SIZE);
+		this.compressionBlockSize = (int) MemorySize.parse(
+			conf.getString(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)).getBytes();
 		this.ioManager = ioManager;
 		this.enumerator = this.ioManager.createChannelEnumerator();
 		this.channelManager = new SpillChannelManager();
@@ -117,7 +119,7 @@ public class BufferedKVExternalSorter {
 				compressionBlockSize);
 	}
 
-	public MutableObjectIterator<Tuple2<BinaryRow, BinaryRow>> getKVIterator() throws IOException {
+	public MutableObjectIterator<Tuple2<BinaryRowData, BinaryRowData>> getKVIterator() throws IOException {
 		// 1. merge if more than maxNumFile
 		// merge channels until sufficient file handles are available
 		List<ChannelWithMeta> channelIDs = this.channelIDs;
@@ -127,7 +129,7 @@ public class BufferedKVExternalSorter {
 
 		// 2. final merge
 		List<FileIOChannel> openChannels = new ArrayList<>();
-		BinaryMergeIterator<Tuple2<BinaryRow, BinaryRow>> iterator =
+		BinaryMergeIterator<Tuple2<BinaryRowData, BinaryRowData>> iterator =
 				merger.getMergingIterator(channelIDs, openChannels);
 		channelManager.addOpenChannels(openChannels);
 

@@ -32,42 +32,34 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * An implementation of the {@link HighAvailabilityServices} for the non-high-availability case.
  * This implementation can be used for testing, and for cluster setups that do not
  * tolerate failures of the master processes (JobManager, ResourceManager).
- * 
+ *
  * <p>This implementation has no dependencies on any external services. It returns a fix
  * pre-configured ResourceManager and JobManager, and stores checkpoints and metadata simply on the
  * heap or on a local file system and therefore in a storage without guarantees.
  */
 public class StandaloneHaServices extends AbstractNonHaServices {
 
-	/** The constant name of the ResourceManager RPC endpoint */
-	private static final String RESOURCE_MANAGER_RPC_ENDPOINT_NAME = "resource_manager";
-
-	/** The fix address of the ResourceManager */
+	/** The fix address of the ResourceManager. */
 	private final String resourceManagerAddress;
 
-	/** The fix address of the Dispatcher */
+	/** The fix address of the Dispatcher. */
 	private final String dispatcherAddress;
 
-	/** The fix address of the JobManager */
-	private final String jobManagerAddress;
-
-	private final String webMonitorAddress;
+	private final String clusterRestEndpointAddress;
 
 	/**
 	 * Creates a new services class for the fix pre-defined leaders.
 	 *
 	 * @param resourceManagerAddress    The fix address of the ResourceManager
-	 * @param webMonitorAddress
+	 * @param clusterRestEndpointAddress
 	 */
 	public StandaloneHaServices(
 			String resourceManagerAddress,
 			String dispatcherAddress,
-			String jobManagerAddress,
-			String webMonitorAddress) {
+			String clusterRestEndpointAddress) {
 		this.resourceManagerAddress = checkNotNull(resourceManagerAddress, "resourceManagerAddress");
 		this.dispatcherAddress = checkNotNull(dispatcherAddress, "dispatcherAddress");
-		this.jobManagerAddress = checkNotNull(jobManagerAddress, "jobManagerAddress");
-		this.webMonitorAddress = checkNotNull(webMonitorAddress, webMonitorAddress);
+		this.clusterRestEndpointAddress = checkNotNull(clusterRestEndpointAddress, clusterRestEndpointAddress);
 	}
 
 	// ------------------------------------------------------------------------
@@ -116,7 +108,7 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 		synchronized (lock) {
 			checkNotShutdown();
 
-			return new StandaloneLeaderRetrievalService(jobManagerAddress, DEFAULT_LEADER_ID);
+			return new StandaloneLeaderRetrievalService("UNKNOWN", DEFAULT_LEADER_ID);
 		}
 	}
 
@@ -139,16 +131,16 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 	}
 
 	@Override
-	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
 		synchronized (lock) {
 			checkNotShutdown();
 
-			return new StandaloneLeaderRetrievalService(webMonitorAddress, DEFAULT_LEADER_ID);
+			return new StandaloneLeaderRetrievalService(clusterRestEndpointAddress, DEFAULT_LEADER_ID);
 		}
 	}
 
 	@Override
-	public LeaderElectionService getWebMonitorLeaderElectionService() {
+	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
 		synchronized (lock) {
 			checkNotShutdown();
 

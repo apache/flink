@@ -133,14 +133,14 @@ object FlinkStreamProgram {
         .build())
 
     // join reorder
-    if (config.getBoolean(OptimizerConfigOptions.SQL_OPTIMIZER_JOIN_REORDER_ENABLED)) {
+    if (config.getBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED)) {
       chainedProgram.addLast(
         JOIN_REORDER,
         FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
           .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkStreamRuleSets.JOIN_REORDER_PERPARE_RULES)
+            .add(FlinkStreamRuleSets.JOIN_REORDER_PREPARE_RULES)
             .build(), "merge join into MultiJoin")
           .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
@@ -179,14 +179,8 @@ object FlinkStreamProgram {
     chainedProgram.addLast(
       PHYSICAL_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
-        .addProgram(new FlinkUpdateAsRetractionTraitInitProgram,
-          "init for retraction")
-        .addProgram(
-          FlinkHepRuleSetProgramBuilder.newBuilder
-            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
-            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkStreamRuleSets.RETRACTION_RULES)
-            .build(), "retraction rules")
+        .addProgram(new FlinkChangelogModeInferenceProgram,
+          "Changelog mode inference")
         .addProgram(new FlinkMiniBatchIntervalTraitInitProgram,
           "Initialization for mini-batch interval inference")
         .addProgram(

@@ -51,11 +51,9 @@ abstract class FlinkTableFunction(
     * Returns the Type for usage, i.e. code generation.
     */
   def getExternalResultType(
+      tableFunction: functions.TableFunction[_],
       arguments: Array[AnyRef],
       argTypes: Array[Class[_]]): DataType
 
-  def getRowType(
-      typeFactory: RelDataTypeFactory,
-      arguments: Array[AnyRef],
-      argTypes: Array[Class[_]]): RelDataType
+  def getRowType(typeFactory: RelDataTypeFactory): RelDataType
 }

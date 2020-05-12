@@ -22,9 +22,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
 import org.junit.After;
@@ -43,7 +44,7 @@ public class HashAggTest {
 	private static final int MEMORY_SIZE = 1024 * 1024 * 32;
 
 	private Map<Integer, Long> outputMap = new HashMap<>();
-	private MemoryManager memoryManager = new MemoryManager(MEMORY_SIZE, 1);
+	private MemoryManager memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 	private IOManager ioManager;
 	private SumHashAggTestOperator operator;
 
@@ -63,11 +64,11 @@ public class HashAggTest {
 			}
 
 			@Override
-			Collector<StreamRecord<BaseRow>> getOutput() {
-				return new Collector<StreamRecord<BaseRow>>() {
+			Collector<StreamRecord<RowData>> getOutput() {
+				return new Collector<StreamRecord<RowData>>() {
 					@Override
-					public void collect(StreamRecord<BaseRow> record) {
-						BaseRow row = record.getValue();
+					public void collect(StreamRecord<RowData> record) {
+						RowData row = record.getValue();
 						outputMap.put(
 								row.isNullAt(0) ? null : row.getInt(0),
 								row.isNullAt(1) ? null : row.getLong(1));
@@ -105,24 +106,24 @@ public class HashAggTest {
 		}
 	}
 
-	private void addRow(BaseRow row) throws Exception {
+	private void addRow(RowData row) throws Exception {
 		operator.processElement(new StreamRecord<>(row));
 	}
 
 	@Test
 	public void testNormal() throws Exception {
-		addRow(GenericRow.of(1, 1L));
-		addRow(GenericRow.of(5, 2L));
-		addRow(GenericRow.of(2, 3L));
-		addRow(GenericRow.of(2, null));
-		addRow(GenericRow.of(1, 4L));
-		addRow(GenericRow.of(4, 5L));
-		addRow(GenericRow.of(1, 6L));
-		addRow(GenericRow.of(1, null));
-		addRow(GenericRow.of(2, 8L));
-		addRow(GenericRow.of(5, 9L));
-		addRow(GenericRow.of(10, null));
-		addRow(GenericRow.of(null, 5L));
+		addRow(GenericRowData.of(1, 1L));
+		addRow(GenericRowData.of(5, 2L));
+		addRow(GenericRowData.of(2, 3L));
+		addRow(GenericRowData.of(2, null));
+		addRow(GenericRowData.of(1, 4L));
+		addRow(GenericRowData.of(4, 5L));
+		addRow(GenericRowData.of(1, 6L));
+		addRow(GenericRowData.of(1, null));
+		addRow(GenericRowData.of(2, 8L));
+		addRow(GenericRowData.of(5, 9L));
+		addRow(GenericRowData.of(10, null));
+		addRow(GenericRowData.of(null, 5L));
 
 		operator.endInput();
 		operator.close();
@@ -140,11 +141,11 @@ public class HashAggTest {
 	@Test
 	public void testSpill() throws Exception {
 		for (int i = 0; i < 30000; i++) {
-			addRow(GenericRow.of(i, (long) i));
-			addRow(GenericRow.of(i + 1, (long) i));
+			addRow(GenericRowData.of(i, (long) i));
+			addRow(GenericRowData.of(i + 1, (long) i));
 		}
-		addRow(GenericRow.of(1, null));
-		addRow(GenericRow.of(null, 5L));
+		addRow(GenericRowData.of(1, null));
+		addRow(GenericRowData.of(null, 5L));
 		operator.endInput();
 		operator.close();
 		Assert.assertEquals(30002, outputMap.size());

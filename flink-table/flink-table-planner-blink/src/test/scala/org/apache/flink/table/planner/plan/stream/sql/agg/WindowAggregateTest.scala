@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
@@ -33,6 +35,16 @@ class WindowAggregateTest extends TableTestBase {
   util.addDataStream[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
   util.addFunction("weightedAvg", new WeightedAvgWithMerge)
+  util.tableEnv.sqlUpdate(
+    s"""
+       |create table MyTable1 (
+       |  a int,
+       |  b bigint,
+       |  c as proctime()
+       |) with (
+       |  'connector' = 'COLLECTION'
+       |)
+       |""".stripMargin)
 
   @Test(expected = classOf[TableException])
   def testTumbleWindowNoOffset(): Unit = {
@@ -86,6 +98,39 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
+  def testWindowWrongWindowParameter1(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      "Window aggregate only support SECOND, MINUTE, HOUR, DAY as the time unit. " +
+        "MONTH and YEAR time unit are not supported yet.")
+
+    val sqlQuery =
+      "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '1' MONTH)"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testWindowWrongWindowParameter2(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      "Window aggregate only support SECOND, MINUTE, HOUR, DAY as the time unit. " +
+        "MONTH and YEAR time unit are not supported yet.")
+
+    val sqlQuery =
+      "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '2-10' YEAR TO MONTH)"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testIntervalDay(): Unit = {
+    val sqlQuery =
+      "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '35' DAY)"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
   def testTumbleFunction(): Unit = {
     val sql =
       """
@@ -96,6 +141,12 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
       """.stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testTumblingWindowWithProctime(): Unit = {
+    val sql = "select sum(a), max(b) from MyTable1 group by TUMBLE(c, INTERVAL '1' SECOND)"
     util.verifyPlan(sql)
   }
 
@@ -162,6 +213,17 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
+  def testHopWindowWithProctime(): Unit = {
+    val sql =
+      s"""
+         |select sum(a), max(b)
+         |from MyTable1
+         |group by HOP(c, INTERVAL '1' SECOND, INTERVAL '1' MINUTE)
+         |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
   def testSessionFunction(): Unit = {
     val sql =
       """
@@ -172,6 +234,17 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |    GROUP BY SESSION(proctime, INTERVAL '15' MINUTE)
       """.stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testSessionWindowWithProctime(): Unit = {
+    val sql =
+      s"""
+         |select sum(a), max(b)
+         |from MyTable1
+         |group by SESSION(c, INTERVAL '1' MINUTE)
+         |""".stripMargin
     util.verifyPlan(sql)
   }
 
@@ -295,4 +368,78 @@ class WindowAggregateTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
+  @Test
+  def testReturnTypeInferenceForWindowAgg(): Unit = {
+
+    val sql =
+      """
+        |SELECT
+        |  SUM(correct) AS s,
+        |  AVG(correct) AS a,
+        |  TUMBLE_START(rowtime, INTERVAL '15' MINUTE) AS wStart
+        |FROM (
+        |  SELECT CASE a
+        |      WHEN 1 THEN 1
+        |      ELSE 99
+        |    END AS correct, rowtime
+        |  FROM MyTable
+        |)
+        |GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
+      """.stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testWindowAggregateWithDifferentWindows(): Unit = {
+    // This test ensures that the LogicalWindowAggregate node' digest contains the window specs.
+    // This allows the planner to make the distinction between similar aggregations using different
+    // windows (see FLINK-15577).
+    val sql =
+    """
+      |WITH window_1h AS (
+      |    SELECT 1
+      |    FROM MyTable
+      |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '1' HOUR)
+      |),
+      |
+      |window_2h AS (
+      |    SELECT 1
+      |    FROM MyTable
+      |    GROUP BY HOP(`rowtime`, INTERVAL '1' HOUR, INTERVAL '2' HOUR)
+      |)
+      |
+      |(SELECT * FROM window_1h)
+      |UNION ALL
+      |(SELECT * FROM window_2h)
+      |""".stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testWindowAggregateWithLateFire(): Unit = {
+    util.conf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
+    util.conf.getConfiguration.setString(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, "5s")
+    util.conf.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    val sql =
+      """
+        |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
+        |FROM MyTable
+        |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
+        |""".stripMargin
+    util.verifyPlanWithTrait(sql)
+  }
+
+  @Test
+  def testWindowAggregateWithAllowLatenessOnly(): Unit = {
+    util.conf.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    val sql =
+      """
+        |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
+        |FROM MyTable
+        |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
+        |""".stripMargin
+    util.verifyPlanWithTrait(sql)
+  }
 }

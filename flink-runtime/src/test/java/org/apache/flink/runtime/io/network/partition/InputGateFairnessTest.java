@@ -47,7 +47,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
@@ -68,7 +68,7 @@ public class InputGateFairnessTest {
 		final int buffersPerChannel = 27;
 
 		final ResultPartition resultPartition = mock(ResultPartition.class);
-		final BufferConsumer bufferConsumer = createFilledBufferConsumer(42);
+		final BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(42);
 
 		// ----- create some source channels and fill them with buffers -----
 
@@ -90,12 +90,13 @@ public class InputGateFairnessTest {
 		ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
 
 		final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
+		final InputChannel[] inputChannels = new InputChannel[numberOfChannels];
 
 		for (int i = 0; i < numberOfChannels; i++) {
-			createLocalInputChannel(gate, i, resultPartitionManager);
+			inputChannels[i] = createLocalInputChannel(gate, i, resultPartitionManager);
 		}
 
-		gate.setup();
+		setupInputGate(gate, inputChannels);
 
 		// read all the buffers and the EOF event
 		for (int i = numberOfChannels * (buffersPerChannel + 1); i > 0; --i) {
@@ -122,7 +123,7 @@ public class InputGateFairnessTest {
 		final int buffersPerChannel = 27;
 
 		final ResultPartition resultPartition = mock(ResultPartition.class);
-		try (BufferConsumer bufferConsumer = createFilledBufferConsumer(42)) {
+		try (BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(42)) {
 
 			// ----- create some source channels and fill them with one buffer each -----
 
@@ -137,15 +138,16 @@ public class InputGateFairnessTest {
 			ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
 
 			final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
+			final InputChannel[] inputChannels = new InputChannel[numberOfChannels];
 
 			for (int i = 0; i < numberOfChannels; i++) {
-				createLocalInputChannel(gate, i, resultPartitionManager);
+				inputChannels[i] = createLocalInputChannel(gate, i, resultPartitionManager);
 			}
 
 			// seed one initial buffer
 			sources[12].add(bufferConsumer.copy());
 
-			gate.setup();
+			setupInputGate(gate, inputChannels);
 
 			// read all the buffers and the EOF event
 			for (int i = 0; i < numberOfChannels * buffersPerChannel; i++) {
@@ -196,7 +198,9 @@ public class InputGateFairnessTest {
 			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), buffersPerChannel, -1);
 		}
 
+		gate.setInputChannels(channels);
 		gate.setup();
+		gate.requestPartitions();
 
 		// read all the buffers and the EOF event
 		for (int i = numberOfChannels * (buffersPerChannel + 1); i > 0; --i) {
@@ -241,7 +245,7 @@ public class InputGateFairnessTest {
 		channels[11].onBuffer(mockBuffer, 0, -1);
 		channelSequenceNums[11]++;
 
-		gate.setup();
+		setupInputGate(gate, channels);
 
 		// read all the buffers and the EOF event
 		for (int i = 0; i < numberOfChannels * buffersPerChannel; i++) {
@@ -274,8 +278,7 @@ public class InputGateFairnessTest {
 			"Test Task Name",
 			new IntermediateDataSetID(),
 			0,
-			numberOfChannels,
-			true);
+			numberOfChannels);
 	}
 
 	private void fillRandom(PipelinedSubpartition[] partitions, int numPerPartition, BufferConsumer buffer) throws Exception {
@@ -330,17 +333,19 @@ public class InputGateFairnessTest {
 				String owningTaskName,
 				IntermediateDataSetID consumedResultId,
 				int consumedSubpartitionIndex,
-				int numberOfInputChannels,
-				boolean isCreditBased) {
+				int numberOfInputChannels) {
 
-			super(owningTaskName,
+			super(
+				owningTaskName,
+				0,
 				consumedResultId,
 				ResultPartitionType.PIPELINED,
 				consumedSubpartitionIndex,
 				numberOfInputChannels,
 				SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-				isCreditBased,
-				STUB_BUFFER_POOL_FACTORY);
+				STUB_BUFFER_POOL_FACTORY,
+				null,
+				new UnpooledMemorySegmentProvider(32 * 1024));
 
 			try {
 				Field f = SingleInputGate.class.getDeclaredField("inputChannelsWithData");
@@ -386,7 +391,12 @@ public class InputGateFairnessTest {
 		return InputChannelBuilder.newBuilder()
 			.setChannelIndex(channelIndex)
 			.setConnectionManager(connectionManager)
-			.setMemorySegmentProvider(new UnpooledMemorySegmentProvider(32 * 1024))
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
+	}
+
+	public static void setupInputGate(SingleInputGate gate, InputChannel... channels) throws IOException {
+		gate.setInputChannels(channels);
+		gate.setup();
+		gate.requestPartitions();
 	}
 }

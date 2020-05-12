@@ -365,4 +365,25 @@ class CorrelateTest extends TableTestBase {
 
     util.verifyTable(resultTable, expected)
   }
+
+  @Test
+  def testCorrelatePythonTableFunction(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    val func = new MockPythonTableFunction
+
+    val resultTable = table.joinLateral(func('a, 'b) as('x, 'y))
+
+    val expected = unaryNode(
+      "DataStreamPythonCorrelate",
+      streamTableNode(table),
+      term("invocation", s"${func.functionIdentifier}($$0, $$1)"),
+      term("correlate", s"table(${func.getClass.getSimpleName}(a, b))"),
+      term("select", "a, b, c, x, y"),
+      term("rowType",
+           "RecordType(INTEGER a, INTEGER b, INTEGER c, INTEGER x, INTEGER y)"),
+      term("joinType", "INNER")
+      )
+    util.verifyTable(resultTable, expected)
+  }
 }

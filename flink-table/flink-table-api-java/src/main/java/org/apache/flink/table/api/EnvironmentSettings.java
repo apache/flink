@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.sinks.TableSink;
 
 import javax.annotation.Nullable;
 
@@ -35,7 +37,7 @@ import java.util.Map;
  * <p>Example:
  * <pre>{@code
  *    EnvironmentSettings.newInstance()
- *      .useOldPlanner()
+ *      .useBlinkPlanner()
  *      .inStreamingMode()
  *      .withBuiltInCatalogName("default_catalog")
  *      .withBuiltInDatabaseName("default_database")
@@ -44,8 +46,11 @@ import java.util.Map;
  */
 @PublicEvolving
 public class EnvironmentSettings {
+
 	public static final String STREAMING_MODE = "streaming-mode";
 	public static final String CLASS_NAME = "class-name";
+	public static final String DEFAULT_BUILTIN_CATALOG = "default_catalog";
+	public static final String DEFAULT_BUILTIN_DATABASE = "default_database";
 
 	/**
 	 * Canonical name of the {@link Planner} class to use.
@@ -154,16 +159,15 @@ public class EnvironmentSettings {
 		private static final String BLINK_PLANNER_FACTORY = "org.apache.flink.table.planner.delegation.BlinkPlannerFactory";
 		private static final String BLINK_EXECUTOR_FACTORY = "org.apache.flink.table.planner.delegation.BlinkExecutorFactory";
 
-		private String plannerClass = OLD_PLANNER_FACTORY;
-		private String executorClass = OLD_EXECUTOR_FACTORY;
-		private String builtInCatalogName = "default_catalog";
-		private String builtInDatabaseName = "default_database";
+		private String plannerClass = BLINK_PLANNER_FACTORY;
+		private String executorClass = BLINK_EXECUTOR_FACTORY;
+		private String builtInCatalogName = DEFAULT_BUILTIN_CATALOG;
+		private String builtInDatabaseName = DEFAULT_BUILTIN_DATABASE;
 		private boolean isStreamingMode = true;
 
 		/**
-		 * Sets the old Flink planner as the required module.
-		 *
-		 * <p>This is the default behavior.
+		 * Sets the old Flink planner as the required module. By default, {@link #useBlinkPlanner()}
+		 * is enabled.
 		 */
 		public Builder useOldPlanner() {
 			this.plannerClass = OLD_PLANNER_FACTORY;
@@ -172,8 +176,9 @@ public class EnvironmentSettings {
 		}
 
 		/**
-		 * Sets the Blink planner as the required module. By default, {@link #useOldPlanner()} is
-		 * enabled.
+		 * Sets the Blink planner as the required module.
+		 *
+		 * <p>This is the default behavior.
 		 */
 		public Builder useBlinkPlanner() {
 			this.plannerClass = BLINK_PLANNER_FACTORY;
@@ -186,7 +191,7 @@ public class EnvironmentSettings {
 		 *
 		 * <p>A planner will be discovered automatically, if there is only one planner available.
 		 *
-		 * <p>By default, {@link #useOldPlanner()} is enabled.
+		 * <p>By default, {@link #useBlinkPlanner()} is enabled.
 		 */
 		public Builder useAnyPlanner() {
 			this.plannerClass = null;
@@ -212,7 +217,14 @@ public class EnvironmentSettings {
 
 		/**
 		 * Specifies the name of the initial catalog to be created when instantiating
-		 * a {@link TableEnvironment}. Default: "default_catalog".
+		 * a {@link TableEnvironment}. This catalog will be used to store all
+		 * non-serializable objects such as tables and functions registered via e.g.
+		 * {@link TableEnvironment#registerTableSink(String, TableSink)} or
+		 * {@link TableEnvironment#registerFunction(String, ScalarFunction)}. It will
+		 * also be the initial value for the current catalog which can be altered via
+		 * {@link TableEnvironment#useCatalog(String)}.
+		 *
+		 * <p>Default: "default_catalog".
 		 */
 		public Builder withBuiltInCatalogName(String builtInCatalogName) {
 			this.builtInCatalogName = builtInCatalogName;
@@ -220,8 +232,15 @@ public class EnvironmentSettings {
 		}
 
 		/**
-		 * Specifies the name of the default database in the initial catalog to be created when instantiating
-		 * a {@link TableEnvironment}. Default: "default_database".
+		 * Specifies the name of the default database in the initial catalog to be
+		 * created when instantiating a {@link TableEnvironment}. The database will be
+		 * used to store all non-serializable objects such as tables and functions registered
+		 * via e.g. {@link TableEnvironment#registerTableSink(String, TableSink)} or
+		 * {@link TableEnvironment#registerFunction(String, ScalarFunction)}. It will
+		 * also be the initial value for the current database which can be altered via
+		 * {@link TableEnvironment#useDatabase(String)}.
+		 *
+		 * <p>Default: "default_database".
 		 */
 		public Builder withBuiltInDatabaseName(String builtInDatabaseName) {
 			this.builtInDatabaseName = builtInDatabaseName;

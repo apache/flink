@@ -94,7 +94,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 			assertTrue(buffer.toString().contains(savepointPath));
 		}
 		finally {
-			clusterClient.shutdown();
+			clusterClient.close();
 			restoreStdOutAndStdErr();
 		}
 	}
@@ -124,7 +124,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 			}
 		}
 		finally {
-			clusterClient.shutdown();
+			clusterClient.close();
 			restoreStdOutAndStdErr();
 		}
 	}
@@ -175,7 +175,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 			assertTrue(buffer.toString().contains(savepointDirectory));
 		}
 		finally {
-			clusterClient.shutdown();
+			clusterClient.close();
 
 			restoreStdOutAndStdErr();
 		}
@@ -206,7 +206,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 			assertTrue(outMsg.contains("disposed"));
 		}
 		finally {
-			clusterClient.shutdown();
+			clusterClient.close();
 			restoreStdOutAndStdErr();
 		}
 	}
@@ -243,7 +243,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 
 			assertEquals(disposePath, actualSavepointPath);
 		} finally {
-			clusterClient.shutdown();
+			clusterClient.close();
 			restoreStdOutAndStdErr();
 		}
 	}
@@ -272,7 +272,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 			}
 		}
 		finally {
-			clusterClient.shutdown();
+			clusterClient.close();
 			restoreStdOutAndStdErr();
 		}
 	}

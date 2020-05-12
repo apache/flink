@@ -144,9 +144,9 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 
 	private transient int limit;
 
-	private transient byte[] currBuffer;		// buffer in which current record byte sequence is found
-	private transient int currOffset;			// offset in above buffer
-	private transient int currLen;				// length of current byte sequence
+	protected transient byte[] currBuffer;		// buffer in which current record byte sequence is found
+	protected transient int currOffset;			// offset in above buffer
+	protected transient int currLen;				// length of current byte sequence
 
 	private transient boolean overLimit;
 
@@ -671,7 +671,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 				return false;
 			} else {
 				this.readPos = offset;
-				this.limit = read;
+				this.limit = read + offset;
 				return true;
 			}
 		}

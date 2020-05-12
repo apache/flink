@@ -63,6 +63,11 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 	}
 
 	protected boolean getNextRecord(T target) throws IOException, InterruptedException {
+		// The action of partition request was removed from InputGate#setup since FLINK-16536, and this is the only
+		// unified way for launching partition request for batch jobs. In order to avoid potential performance concern,
+		// we might consider migrating this action back to the setup based on some condition judgement future.
+		inputGate.requestPartitions();
+
 		if (isFinished) {
 			return false;
 		}

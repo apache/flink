@@ -82,7 +82,7 @@ class GroupWindowITCase(mode: StateBackendMode)
     windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(s"Hello world,2,${6.0/2},12,3,2", s"Hello,2,${4.0/2},3,2,2")
+    val expected = Seq(s"Hello world,2,3,12,3,2", s"Hello,2,2,3,2,2")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -119,9 +119,9 @@ class GroupWindowITCase(mode: StateBackendMode)
     env.execute()
 
     val expected = Seq(
-      "Hello World,1970-01-01T00:00:00.014,1,9.0,9,9,1",
-      "Hello,1970-01-01T00:00:00.021,1,16.0,16,16,1",
-      s"Hello,1970-01-01T00:00:00.013,4,${15.0/4},5,5,4")
+      "Hello World,1970-01-01T00:00:00.014,1,9,9,9,1",
+      "Hello,1970-01-01T00:00:00.021,1,16,16,16,1",
+      s"Hello,1970-01-01T00:00:00.013,4,3,5,5,4")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -146,7 +146,7 @@ class GroupWindowITCase(mode: StateBackendMode)
     windowedTable.toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val expected = Seq(s"2,${3.0/2},1,1,2", s"2,${5.0/2},6,2,2")
+    val expected = Seq(s"2,1,1,1,2", s"2,2,6,2,2")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

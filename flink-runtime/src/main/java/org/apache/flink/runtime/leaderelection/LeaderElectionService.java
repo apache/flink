@@ -25,14 +25,14 @@ import java.util.UUID;
 /**
  * Interface for a service which allows to elect a leader among a group of contenders.
  *
- * Prior to using this service, it has to be started calling the start method. The start method
+ * <p>Prior to using this service, it has to be started calling the start method. The start method
  * takes the contender as a parameter. If there are multiple contenders, then each contender has
  * to instantiate its own leader election service.
  *
- * Once a contender has been granted leadership he has to confirm the received leader session ID
- * by calling the method confirmLeaderSessionID. This will notify the leader election service, that
- * the contender has received the new leader session ID and that it can now be published for
- * leader retrieval services.
+ * <p>Once a contender has been granted leadership he has to confirm the received leader session ID
+ * by calling the method {@link #confirmLeadership(UUID, String)}. This will notify the leader election
+ * service, that the contender has accepted the leadership specified and that the leader session id as
+ * well as the leader address can now be published for leader retrieval services.
  */
 public interface LeaderElectionService {
 
@@ -51,16 +51,18 @@ public interface LeaderElectionService {
 	void stop() throws Exception;
 
 	/**
-	 * Confirms that the new leader session ID has been successfully received by the new leader.
-	 * This method is usually called by the newly appointed {@link LeaderContender}.
+	 * Confirms that the {@link LeaderContender} has accepted the leadership identified by the
+	 * given leader session id. It also publishes the leader address under which the leader is
+	 * reachable.
 	 *
-	 * The rational behind this method is to establish an order between setting the new leader
-	 * session ID in the {@link LeaderContender} and publishing the new leader session ID to the
-	 * leader retrieval services.
+	 * <p>The rational behind this method is to establish an order between setting the new leader
+	 * session ID in the {@link LeaderContender} and publishing the new leader session ID as well
+	 * as the leader address to the leader retrieval services.
 	 *
 	 * @param leaderSessionID The new leader session ID
+	 * @param leaderAddress The address of the new leader
 	 */
-	void confirmLeaderSessionID(UUID leaderSessionID);
+	void confirmLeadership(UUID leaderSessionID, String leaderAddress);
 
 	/**
 	 * Returns true if the {@link LeaderContender} with which the service has been started owns

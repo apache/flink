@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.FileUtils;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * This state handle represents a directory. This class is, for example, used to represent the directory of RocksDB's
@@ -34,18 +35,21 @@ public class DirectoryStateHandle implements StateObject {
 	/** Serial version. */
 	private static final long serialVersionUID = 1L;
 
-	/** The path that describes the directory. */
-	@Nonnull
-	private final Path directory;
+	/** The path that describes the directory, as a string, to be serializable. */
+	private final String directoryString;
+
+	/** Transient path cache, to avoid re-parsing the string. */
+	private transient Path directory;
 
 	public DirectoryStateHandle(@Nonnull Path directory) {
 		this.directory = directory;
+		this.directoryString = directory.toString();
 	}
 
 	@Override
 	public void discardState() throws IOException {
-		FileSystem fileSystem = directory.getFileSystem();
-		fileSystem.delete(directory, true);
+		ensurePath();
+		FileUtils.deleteDirectory(directory.toFile());
 	}
 
 	@Override
@@ -56,7 +60,14 @@ public class DirectoryStateHandle implements StateObject {
 
 	@Nonnull
 	public Path getDirectory() {
+		ensurePath();
 		return directory;
+	}
+
+	private void ensurePath() {
+		if (directory == null) {
+			directory = Paths.get(directoryString);
+		}
 	}
 
 	@Override
@@ -70,18 +81,18 @@ public class DirectoryStateHandle implements StateObject {
 
 		DirectoryStateHandle that = (DirectoryStateHandle) o;
 
-		return directory.equals(that.directory);
+		return directoryString.equals(that.directoryString);
 	}
 
 	@Override
 	public int hashCode() {
-		return directory.hashCode();
+		return directoryString.hashCode();
 	}
 
 	@Override
 	public String toString() {
 		return "DirectoryStateHandle{" +
-			"directory=" + directory +
+			"directory=" + directoryString +
 			'}';
 	}
 }

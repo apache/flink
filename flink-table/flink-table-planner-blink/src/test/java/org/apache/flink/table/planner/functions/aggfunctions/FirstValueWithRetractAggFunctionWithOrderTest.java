@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.BooleanFirstValueWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.ByteFirstValueWithRetractAggFunction;
@@ -31,7 +32,10 @@ import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetra
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.LongFirstValueWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.ShortFirstValueWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction.StringFirstValueWithRetractAggFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
+
+import org.junit.experimental.runners.Enclosed;
+import org.junit.runner.RunWith;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -41,92 +45,22 @@ import java.util.List;
  * Test case for built-in FirstValue with retract aggregate function.
  * This class tests `accumulate` method with order argument.
  */
-public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
-		extends FirstLastValueAggFunctionWithOrderTestBase<T> {
+@RunWith(Enclosed.class)
+public final class FirstValueWithRetractAggFunctionWithOrderTest {
 
-	@Override
-	protected Method getRetractFunc() throws NoSuchMethodException {
-		return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class, Long.class);
-	}
-
-	/**
-	 * Test FirstValueWithRetractAggFunction for number type.
-	 */
-	public abstract static class NumberFirstValueWithRetractAggFunctionWithOrderTest<T>
-			extends FirstValueWithRetractAggFunctionWithOrderTest<T> {
-		protected abstract T getValue(String v);
-
-		@Override
-		protected List<List<T>> getInputValueSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							getValue("1"),
-							null,
-							getValue("-99"),
-							getValue("3"),
-							null,
-							getValue("3"),
-							getValue("2"),
-							getValue("-99")
-					),
-					Arrays.asList(
-							null,
-							null,
-							null,
-							null
-					),
-					Arrays.asList(
-							null,
-							getValue("10"),
-							null,
-							getValue("5")
-					)
-			);
-		}
-
-		@Override
-		protected List<List<Long>> getInputOrderSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							10L,
-							2L,
-							5L,
-							6L,
-							11L,
-							3L,
-							7L,
-							5L
-					),
-					Arrays.asList(
-							8L,
-							6L,
-							9L,
-							5L
-					),
-					Arrays.asList(
-							null,
-							6L,
-							4L,
-							3L
-					)
-			);
-		}
-
-		@Override
-		protected List<T> getExpectedResults() {
-			return Arrays.asList(
-					getValue("3"),
-					null,
-					getValue("5")
-			);
-		}
-	}
+	// --------------------------------------------------------------------------------------------
+	// Test sets for a particular type being aggregated
+	//
+	// Actual tests are implemented in:
+	//  - FirstLastValueAggFunctionWithOrderTestBase -> tests specific for FirstValue and LastValue
+	//  - AggFunctionTestBase -> tests that apply to all aggregate functions
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Test for ByteFirstValueWithRetractAggFunction.
 	 */
-	public static class ByteFirstValueWithRetractAggFunctionWithOrderTest
-			extends NumberFirstValueWithRetractAggFunctionWithOrderTest<Byte> {
+	public static final class ByteFirstValueWithRetractAggFunctionWithOrderTest
+			extends NumberFirstValueWithRetractAggFunctionWithOrderTestBase<Byte> {
 
 		@Override
 		protected Byte getValue(String v) {
@@ -134,7 +68,7 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 		}
 
 		@Override
-		protected AggregateFunction<Byte, GenericRow> getAggregator() {
+		protected AggregateFunction<Byte, GenericRowData> getAggregator() {
 			return new ByteFirstValueWithRetractAggFunction();
 		}
 	}
@@ -142,8 +76,8 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 	/**
 	 * Test for ShortFirstValueWithRetractAggFunction.
 	 */
-	public static class ShortFirstValueWithRetractAggFunctionWithOrderTest
-			extends NumberFirstValueWithRetractAggFunctionWithOrderTest<Short> {
+	public static final class ShortFirstValueWithRetractAggFunctionWithOrderTest
+			extends NumberFirstValueWithRetractAggFunctionWithOrderTestBase<Short> {
 
 		@Override
 		protected Short getValue(String v) {
@@ -151,7 +85,7 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 		}
 
 		@Override
-		protected AggregateFunction<Short, GenericRow> getAggregator() {
+		protected AggregateFunction<Short, GenericRowData> getAggregator() {
 			return new ShortFirstValueWithRetractAggFunction();
 		}
 	}
@@ -159,8 +93,8 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 	/**
 	 * Test for IntFirstValueWithRetractAggFunction.
 	 */
-	public static class IntFirstValueWithRetractAggFunctionWithOrderTest
-			extends NumberFirstValueWithRetractAggFunctionWithOrderTest<Integer> {
+	public static final class IntFirstValueWithRetractAggFunctionWithOrderTest
+			extends NumberFirstValueWithRetractAggFunctionWithOrderTestBase<Integer> {
 
 		@Override
 		protected Integer getValue(String v) {
@@ -168,7 +102,7 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 		}
 
 		@Override
-		protected AggregateFunction<Integer, GenericRow> getAggregator() {
+		protected AggregateFunction<Integer, GenericRowData> getAggregator() {
 			return new IntFirstValueWithRetractAggFunction();
 		}
 	}
@@ -176,8 +110,8 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 	/**
 	 * Test for LongFirstValueWithRetractAggFunction.
 	 */
-	public static class LongFirstValueWithRetractAggFunctionWithOrderTest
-			extends NumberFirstValueWithRetractAggFunctionWithOrderTest<Long> {
+	public static final class LongFirstValueWithRetractAggFunctionWithOrderTest
+			extends NumberFirstValueWithRetractAggFunctionWithOrderTestBase<Long> {
 
 		@Override
 		protected Long getValue(String v) {
@@ -185,7 +119,7 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 		}
 
 		@Override
-		protected AggregateFunction<Long, GenericRow> getAggregator() {
+		protected AggregateFunction<Long, GenericRowData> getAggregator() {
 			return new LongFirstValueWithRetractAggFunction();
 		}
 	}
@@ -193,8 +127,8 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 	/**
 	 * Test for FloatFirstValueWithRetractAggFunction.
 	 */
-	public static class FloatFirstValueWithRetractAggFunctionWithOrderTest
-			extends NumberFirstValueWithRetractAggFunctionWithOrderTest<Float> {
+	public static final class FloatFirstValueWithRetractAggFunctionWithOrderTest
+			extends NumberFirstValueWithRetractAggFunctionWithOrderTestBase<Float> {
 
 		@Override
 		protected Float getValue(String v) {
@@ -202,7 +136,7 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 		}
 
 		@Override
-		protected AggregateFunction<Float, GenericRow> getAggregator() {
+		protected AggregateFunction<Float, GenericRowData> getAggregator() {
 			return new FloatFirstValueWithRetractAggFunction();
 		}
 	}
@@ -210,8 +144,8 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 	/**
 	 * Test for DoubleFirstValueWithRetractAggFunction.
 	 */
-	public static class DoubleFirstValueWithRetractAggFunctionWithOrderTest
-			extends NumberFirstValueWithRetractAggFunctionWithOrderTest<Double> {
+	public static final class DoubleFirstValueWithRetractAggFunctionWithOrderTest
+			extends NumberFirstValueWithRetractAggFunctionWithOrderTestBase<Double> {
 
 		@Override
 		protected Double getValue(String v) {
@@ -219,7 +153,7 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 		}
 
 		@Override
-		protected AggregateFunction<Double, GenericRow> getAggregator() {
+		protected AggregateFunction<Double, GenericRowData> getAggregator() {
 			return new DoubleFirstValueWithRetractAggFunction();
 		}
 	}
@@ -227,8 +161,8 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 	/**
 	 * Test for BooleanFirstValueWithRetractAggFunction.
 	 */
-	public static class BooleanFirstValueWithRetractAggFunctionWithOrderTest
-			extends FirstValueWithRetractAggFunctionWithOrderTest<Boolean> {
+	public static final class BooleanFirstValueWithRetractAggFunctionWithOrderTest
+			extends FirstValueWithRetractAggFunctionWithOrderTestBase<Boolean> {
 
 		@Override
 		protected List<List<Boolean>> getInputValueSets() {
@@ -309,7 +243,7 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 		}
 
 		@Override
-		protected AggregateFunction<Boolean, GenericRow> getAggregator() {
+		protected AggregateFunction<Boolean, GenericRowData> getAggregator() {
 			return new BooleanFirstValueWithRetractAggFunction();
 		}
 	}
@@ -317,25 +251,25 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 	/**
 	 * Test for DecimalFirstValueWithRetractAggFunction.
 	 */
-	public static class DecimalFirstValueWithRetractAggFunctionWithOrderTest
-			extends FirstValueWithRetractAggFunctionWithOrderTest<Decimal> {
+	public static final class DecimalFirstValueWithRetractAggFunctionWithOrderTest
+			extends FirstValueWithRetractAggFunctionWithOrderTestBase<DecimalData> {
 
 		private int precision = 20;
 		private int scale = 6;
 
 		@Override
-		protected List<List<Decimal>> getInputValueSets() {
+		protected List<List<DecimalData>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							Decimal.castFrom("1", precision, scale),
-							Decimal.castFrom("1000.000001", precision, scale),
-							Decimal.castFrom("-1", precision, scale),
-							Decimal.castFrom("-999.998999", precision, scale),
+							DecimalDataUtils.castFrom("1", precision, scale),
+							DecimalDataUtils.castFrom("1000.000001", precision, scale),
+							DecimalDataUtils.castFrom("-1", precision, scale),
+							DecimalDataUtils.castFrom("-999.998999", precision, scale),
 							null,
-							Decimal.castFrom("0", precision, scale),
-							Decimal.castFrom("-999.999", precision, scale),
+							DecimalDataUtils.castFrom("0", precision, scale),
+							DecimalDataUtils.castFrom("-999.999", precision, scale),
 							null,
-							Decimal.castFrom("999.999", precision, scale)
+							DecimalDataUtils.castFrom("999.999", precision, scale)
 					),
 					Arrays.asList(
 							null,
@@ -346,7 +280,7 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 					),
 					Arrays.asList(
 							null,
-							Decimal.castFrom("0", precision, scale)
+							DecimalDataUtils.castFrom("0", precision, scale)
 					)
 			);
 		}
@@ -380,37 +314,37 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 		}
 
 		@Override
-		protected List<Decimal> getExpectedResults() {
+		protected List<DecimalData> getExpectedResults() {
 			return Arrays.asList(
-					Decimal.castFrom("-1", precision, scale),
+					DecimalDataUtils.castFrom("-1", precision, scale),
 					null,
-					Decimal.castFrom("0", precision, scale)
+					DecimalDataUtils.castFrom("0", precision, scale)
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Decimal, GenericRow> getAggregator() {
-			return new DecimalFirstValueWithRetractAggFunction(DecimalTypeInfo.of(precision, scale));
+		protected AggregateFunction<DecimalData, GenericRowData> getAggregator() {
+			return new DecimalFirstValueWithRetractAggFunction(DecimalDataTypeInfo.of(precision, scale));
 		}
 	}
 
 	/**
 	 * Test for StringFirstValueWithRetractAggFunction.
 	 */
-	public static class StringFirstValueWithRetractAggFunctionWithOrderTest
-			extends FirstValueWithRetractAggFunctionWithOrderTest<BinaryString> {
+	public static final class StringFirstValueWithRetractAggFunctionWithOrderTest
+			extends FirstValueWithRetractAggFunctionWithOrderTestBase<StringData> {
 
 		@Override
-		protected List<List<BinaryString>> getInputValueSets() {
+		protected List<List<StringData>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							BinaryString.fromString("abc"),
-							BinaryString.fromString("def"),
-							BinaryString.fromString("ghi"),
+							StringData.fromString("abc"),
+							StringData.fromString("def"),
+							StringData.fromString("ghi"),
 							null,
-							BinaryString.fromString("jkl"),
+							StringData.fromString("jkl"),
 							null,
-							BinaryString.fromString("zzz")
+							StringData.fromString("zzz")
 					),
 					Arrays.asList(
 							null,
@@ -418,12 +352,12 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 					),
 					Arrays.asList(
 							null,
-							BinaryString.fromString("a")
+							StringData.fromString("a")
 					),
 					Arrays.asList(
-							BinaryString.fromString("x"),
+							StringData.fromString("x"),
 							null,
-							BinaryString.fromString("e")
+							StringData.fromString("e")
 					)
 			);
 		}
@@ -457,18 +391,108 @@ public abstract class FirstValueWithRetractAggFunctionWithOrderTest<T>
 		}
 
 		@Override
-		protected List<BinaryString> getExpectedResults() {
+		protected List<StringData> getExpectedResults() {
 			return Arrays.asList(
-					BinaryString.fromString("def"),
+					StringData.fromString("def"),
 					null,
-					BinaryString.fromString("a"),
-					BinaryString.fromString("e")
+					StringData.fromString("a"),
+					StringData.fromString("e")
 			);
 		}
 
 		@Override
-		protected AggregateFunction<BinaryString, GenericRow> getAggregator() {
+		protected AggregateFunction<StringData, GenericRowData> getAggregator() {
 			return new StringFirstValueWithRetractAggFunction();
 		}
 	}
+
+	/**
+	 * The base test class for FirstValueWithRetractAggFunction with order.
+	 */
+	public abstract static class FirstValueWithRetractAggFunctionWithOrderTestBase<T>
+		extends FirstLastValueAggFunctionWithOrderTestBase<T> {
+
+		@Override
+		protected Method getRetractFunc() throws NoSuchMethodException {
+			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class, Long.class);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// This section contain base classes that provide common inputs for tests declared above.
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Test FirstValueWithRetractAggFunction for number type.
+	 */
+	public abstract static class NumberFirstValueWithRetractAggFunctionWithOrderTestBase<T>
+		extends FirstValueWithRetractAggFunctionWithOrderTestBase<T> {
+		protected abstract T getValue(String v);
+
+		@Override
+		protected List<List<T>> getInputValueSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					getValue("1"),
+					null,
+					getValue("-99"),
+					getValue("3"),
+					null,
+					getValue("3"),
+					getValue("2"),
+					getValue("-99")
+				),
+				Arrays.asList(
+					null,
+					null,
+					null,
+					null
+				),
+				Arrays.asList(
+					null,
+					getValue("10"),
+					null,
+					getValue("5")
+				)
+			);
+		}
+
+		@Override
+		protected List<List<Long>> getInputOrderSets() {
+			return Arrays.asList(
+				Arrays.asList(
+					10L,
+					2L,
+					5L,
+					6L,
+					11L,
+					3L,
+					7L,
+					5L
+				),
+				Arrays.asList(
+					8L,
+					6L,
+					9L,
+					5L
+				),
+				Arrays.asList(
+					null,
+					6L,
+					4L,
+					3L
+				)
+			);
+		}
+
+		@Override
+		protected List<T> getExpectedResults() {
+			return Arrays.asList(
+				getValue("3"),
+				null,
+				getValue("5")
+			);
+		}
+	}
+
 }

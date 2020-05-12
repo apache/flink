@@ -24,7 +24,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -32,15 +31,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A simple implementation of {@link SchedulingResultPartition} for testing.
  */
 public class TestingSchedulingResultPartition implements SchedulingResultPartition {
+
 	private final IntermediateDataSetID intermediateDataSetID;
 
 	private final IntermediateResultPartitionID intermediateResultPartitionID;
 
 	private final ResultPartitionType partitionType;
 
-	private SchedulingExecutionVertex producer;
+	private TestingSchedulingExecutionVertex producer;
 
-	private Collection<SchedulingExecutionVertex> consumers;
+	private Collection<TestingSchedulingExecutionVertex> consumers;
 
 	private ResultPartitionState state;
 
@@ -63,7 +63,7 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
 	}
 
 	@Override
-	public ResultPartitionType getPartitionType() {
+	public ResultPartitionType getResultType() {
 		return partitionType;
 	}
 
@@ -73,21 +73,25 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
 	}
 
 	@Override
-	public SchedulingExecutionVertex getProducer() {
+	public TestingSchedulingExecutionVertex getProducer() {
 		return producer;
 	}
 
 	@Override
-	public Collection<SchedulingExecutionVertex> getConsumers() {
-		return Collections.unmodifiableCollection(consumers);
+	public Iterable<TestingSchedulingExecutionVertex> getConsumers() {
+		return consumers;
 	}
 
-	void addConsumer(SchedulingExecutionVertex consumer) {
+	void addConsumer(TestingSchedulingExecutionVertex consumer) {
 		this.consumers.add(consumer);
 	}
 
 	void setProducer(TestingSchedulingExecutionVertex producer) {
 		this.producer = checkNotNull(producer);
+	}
+
+	void setState(ResultPartitionState state) {
+		this.state = state;
 	}
 
 	/**
@@ -96,7 +100,7 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
 	public static final class Builder {
 		private IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
 		private ResultPartitionType resultPartitionType = ResultPartitionType.BLOCKING;
-		private ResultPartitionState resultPartitionState = ResultPartitionState.DONE;
+		private ResultPartitionState resultPartitionState = ResultPartitionState.CONSUMABLE;
 
 		Builder withIntermediateDataSetID(IntermediateDataSetID intermediateDataSetId) {
 			this.intermediateDataSetId = intermediateDataSetId;

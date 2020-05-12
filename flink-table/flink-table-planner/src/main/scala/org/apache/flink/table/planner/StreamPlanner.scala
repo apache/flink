@@ -18,43 +18,39 @@
 
 package org.apache.flink.table.planner
 import org.apache.flink.annotation.VisibleForTesting
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.sql.parser.dml.RichSqlInsert
-import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
-import org.apache.flink.table.calcite.{CalciteConfig, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, PreValidateReWriter}
+import org.apache.flink.table.api.internal.SelectTableSink
+import org.apache.flink.table.calcite._
 import org.apache.flink.table.catalog.{CatalogManager, CatalogManagerCalciteSchema, CatalogTable, ConnectorCatalogTable, _}
-import org.apache.flink.table.delegation.{Executor, Planner}
+import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{ExpressionBridge, PlannerExpression, PlannerExpressionConverter, PlannerTypeInferenceUtilImpl}
-import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
+import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.plan.StreamOptimizer
+import org.apache.flink.table.plan.nodes.LogicalSink
 import org.apache.flink.table.plan.nodes.datastream.DataStreamRel
-import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.types.utils.TypeConversions
-import org.apache.flink.table.util.JavaScalaConversionUtil
+import org.apache.flink.table.util.{DummyStreamExecutionEnvironment, JavaScalaConversionUtil}
 
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.rel.logical.LogicalTableModify
 
-import _root_.java.lang.{Boolean => JBool}
 import _root_.java.util
-import _root_.java.util.{Objects, List => JList}
+import _root_.java.util.Objects
+import _root_.java.util.function.{Supplier => JSupplier}
 
 import _root_.scala.collection.JavaConverters._
-import _root_.scala.collection.JavaConversions._
 
 /**
   * Implementation of [[Planner]] for legacy Flink planner. It supports only streaming use cases.
@@ -79,11 +75,11 @@ class StreamPlanner(
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
   private val internalSchema: CalciteSchema =
-    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, true))
+    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, config, true))
 
   // temporary bridge between API and planner
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](functionCatalog, PlannerExpressionConverter.INSTANCE)
+    new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
 
   private val planningConfigurationBuilder: PlanningConfigurationBuilder =
     new PlanningConfigurationBuilder(
@@ -99,41 +95,88 @@ class StreamPlanner(
       .orElse(CalciteConfig.DEFAULT),
     planningConfigurationBuilder)
 
-  override def parse(stmt: String): JList[Operation] = {
-    val planner = getFlinkPlanner
-    // parse the sql query
-    val parsed = planner.parse(stmt)
-
-    parsed match {
-      case insert: RichSqlInsert =>
-        val targetColumnList = insert.getTargetColumnList
-        if (targetColumnList != null && insert.getTargetColumnList.size() != 0) {
-          throw new ValidationException("Partial inserts are not supported")
-        }
-        List(SqlToOperationConverter.convert(planner, insert))
-      case node if node.getKind.belongsTo(SqlKind.QUERY) || node.getKind.belongsTo(SqlKind.DDL) =>
-        List(SqlToOperationConverter.convert(planner, parsed)).asJava
-      case _ =>
-        throw new TableException(
-          "Unsupported SQL query! parse() only accepts SQL queries of type " +
-            "SELECT, UNION, INTERSECT, EXCEPT, VALUES, ORDER_BY or INSERT;" +
-            "and SQL DDLs of type " +
-            "CREATE TABLE")
+  private val parser: Parser = new ParserImpl(
+    catalogManager,
+    // we do not cache the parser in order to use the most up to
+    // date configuration. Users might change parser configuration in TableConfig in between
+    // parsing statements
+    new JSupplier[FlinkPlannerImpl] {
+      override def get(): FlinkPlannerImpl = getFlinkPlanner
+    },
+    new JSupplier[CalciteParser] {
+      override def get(): CalciteParser = planningConfigurationBuilder.createCalciteParser()
     }
+  )
+
+  override def getParser: Parser = parser
+
+  override def translate(
+      tableOperations: util.List[ModifyOperation]): util.List[Transformation[_]] = {
+    val planner = createDummyPlanner()
+    tableOperations.asScala.map { operation =>
+      val (ast, updatesAsRetraction) = translateToRel(operation)
+      val optimizedPlan = optimizer.optimize(ast, updatesAsRetraction, getRelBuilder)
+      val dataStream = translateToCRow(planner, optimizedPlan)
+      dataStream.getTransformation.asInstanceOf[Transformation[_]]
+    }.filter(Objects.nonNull).asJava
   }
 
-  override def translate(tableOperations: util.List[ModifyOperation])
-    : util.List[Transformation[_]] = {
-    tableOperations.asScala.map(translate).filter(Objects.nonNull).asJava
+  override def createSelectTableSink(tableSchema: TableSchema): SelectTableSink = {
+    new StreamSelectTableSink(tableSchema)
   }
 
-  override def explain(operations: util.List[Operation], extended: Boolean): String = {
-    operations.asScala.map {
+  override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
+    require(operations.asScala.nonEmpty, "operations should not be empty")
+    val astWithUpdatesAsRetractionTuples = operations.asScala.map {
       case queryOperation: QueryOperation =>
-        explain(queryOperation, unwrapQueryConfig)
-      case operation =>
-        throw new TableException(s"${operation.getClass.getCanonicalName} is not supported")
-    }.mkString(s"${System.lineSeparator}${System.lineSeparator}")
+        val relNode = getRelBuilder.tableOperation(queryOperation).build()
+        relNode match {
+          // SQL: explain plan for insert into xx
+          case modify: LogicalTableModify =>
+            // convert LogicalTableModify to CatalogSinkModifyOperation
+            val qualifiedName = modify.getTable.getQualifiedName
+            require(qualifiedName.size() == 3, "the length of qualified name should be 3.")
+            val modifyOperation = new CatalogSinkModifyOperation(
+              ObjectIdentifier.of(qualifiedName.get(0), qualifiedName.get(1), qualifiedName.get(2)),
+              new PlannerQueryOperation(modify.getInput)
+            )
+            translateToRel(modifyOperation)
+          case _ =>
+            (relNode, false)
+        }
+      case modifyOperation: ModifyOperation =>
+        translateToRel(modifyOperation)
+      case o => throw new TableException(s"Unsupported operation: ${o.getClass.getCanonicalName}")
+    }
+
+    val optimizedNodes = astWithUpdatesAsRetractionTuples.map {
+      case (ast, updatesAsRetraction) =>
+        optimizer.optimize(ast, updatesAsRetraction, getRelBuilder)
+    }
+
+    val planner = createDummyPlanner()
+    val dataStreams = optimizedNodes.map(p => translateToCRow(planner, p))
+
+    val astPlan = astWithUpdatesAsRetractionTuples.map {
+      p => RelOptUtil.toString(p._1)
+    }.mkString(System.lineSeparator)
+    val optimizedPlan = optimizedNodes.map(RelOptUtil.toString).mkString(System.lineSeparator)
+
+    val env = dataStreams.head.getExecutionEnvironment
+    val jsonSqlPlan = env.getExecutionPlan
+    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jsonSqlPlan, false)
+
+    s"== Abstract Syntax Tree ==" +
+      System.lineSeparator +
+      s"$astPlan" +
+      System.lineSeparator +
+      s"== Optimized Logical Plan ==" +
+      System.lineSeparator +
+      s"$optimizedPlan" +
+      System.lineSeparator +
+      s"== Physical Execution Plan ==" +
+      System.lineSeparator +
+      s"$sqlPlan"
   }
 
   override def getCompletionHints(
@@ -144,32 +187,42 @@ class StreamPlanner(
     planner.getCompletionHints(statement, position)
   }
 
-  private def translate(tableOperation: ModifyOperation)
-    : Transformation[_] = {
-    tableOperation match {
-      case s : UnregisteredSinkModifyOperation[_] =>
-        writeToSink(s.getChild, s.getSink, unwrapQueryConfig)
+  private def translateToRel(modifyOperation: ModifyOperation): (RelNode, Boolean) = {
+    modifyOperation match {
+      case s: UnregisteredSinkModifyOperation[_] =>
+        writeToSink(s.getChild, s.getSink, "UnregisteredSink")
 
       case catalogSink: CatalogSinkModifyOperation =>
-        getTableSink(catalogSink.getTablePath)
+        getTableSink(catalogSink.getTableIdentifier)
           .map(sink => {
             TableSinkUtils.validateSink(
               catalogSink.getStaticPartitions,
               catalogSink.getChild,
-              catalogSink.getTablePath,
+              catalogSink.getTableIdentifier,
               sink)
             // set static partitions if it is a partitioned sink
             sink match {
-              case partitionableSink: PartitionableTableSink
-                if partitionableSink.getPartitionFieldNames != null
-                  && partitionableSink.getPartitionFieldNames.nonEmpty =>
+              case partitionableSink: PartitionableTableSink =>
                 partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
               case _ =>
             }
-            writeToSink(catalogSink.getChild, sink, unwrapQueryConfig)
+            // set whether to overwrite if it's an OverwritableTableSink
+            sink match {
+              case overwritableTableSink: OverwritableTableSink =>
+                overwritableTableSink.setOverwrite(catalogSink.isOverwrite)
+              case _ =>
+                assert(!catalogSink.isOverwrite, "INSERT OVERWRITE requires " +
+                  s"${classOf[OverwritableTableSink].getSimpleName} but actually got " +
+                  sink.getClass.getName)
+            }
+            writeToSink(
+              catalogSink.getChild,
+              sink,
+              catalogSink.getTableIdentifier.asSummaryString())
           }) match {
           case Some(t) => t
-          case None => throw new TableException(s"Sink ${catalogSink.getTablePath} does not exists")
+          case None =>
+            throw new TableException(s"Sink ${catalogSink.getTableIdentifier} does not exists")
         }
 
       case outputConversion: OutputConversionModifyOperation =>
@@ -179,47 +232,17 @@ class StreamPlanner(
           case UpdateMode.UPSERT => (false, true)
         }
 
-        translateToType(
-          tableOperation.getChild,
-          unwrapQueryConfig,
-          isRetract,
-          withChangeFlag,
-          TypeConversions.fromDataTypeToLegacyInfo(outputConversion.getType)).getTransformation
+        val tableSink = new DataStreamTableSink(
+          outputConversion.getChild.getTableSchema,
+          TypeConversions.fromDataTypeToLegacyInfo(outputConversion.getType),
+          withChangeFlag)
+        val input = getRelBuilder.tableOperation(modifyOperation.getChild).build()
+        val sink = LogicalSink.create(input, tableSink, "DataStreamTableSink")
+        (sink, isRetract)
 
       case _ =>
-        throw new TableException(s"Unsupported ModifyOperation: $tableOperation")
+        throw new TableException(s"Unsupported ModifyOperation: $modifyOperation")
     }
-  }
-
-  private def unwrapQueryConfig = {
-    new StreamQueryConfig(
-      config.getMinIdleStateRetentionTime,
-      config.getMaxIdleStateRetentionTime
-    )
-  }
-
-  private def explain(tableOperation: QueryOperation, queryConfig: StreamQueryConfig) = {
-    val ast = getRelBuilder.tableOperation(tableOperation).build()
-    val optimizedPlan = optimizer
-      .optimize(ast, updatesAsRetraction = false, getRelBuilder)
-    val dataStream = translateToCRow(optimizedPlan, queryConfig)
-
-    val env = dataStream.getExecutionEnvironment
-    val jsonSqlPlan = env.getExecutionPlan
-
-    val sqlPlan = PlanJsonParser.getSqlExecutionPlan(jsonSqlPlan, false)
-
-    s"== Abstract Syntax Tree ==" +
-      System.lineSeparator +
-      s"${RelOptUtil.toString(ast)}" +
-      System.lineSeparator +
-      s"== Optimized Logical Plan ==" +
-      System.lineSeparator +
-      s"${RelOptUtil.toString(optimizedPlan)}" +
-      System.lineSeparator +
-      s"== Physical Execution Plan ==" +
-      System.lineSeparator +
-      s"$sqlPlan"
   }
 
   private def getFlinkPlanner: FlinkPlannerImpl = {
@@ -241,13 +264,13 @@ class StreamPlanner(
   private[flink] def getExecutionEnvironment: StreamExecutionEnvironment =
     executor.asInstanceOf[StreamExecutor].getExecutionEnvironment
 
-  private def translateToCRow(
-    logicalPlan: RelNode,
-    queryConfig: StreamQueryConfig): DataStream[CRow] = {
-
+  private def translateToCRow(planner: StreamPlanner, logicalPlan: RelNode): DataStream[CRow] = {
     logicalPlan match {
       case node: DataStreamRel =>
-        node.translateToPlan(this, queryConfig)
+        getExecutionEnvironment.configure(
+          config.getConfiguration,
+          Thread.currentThread().getContextClassLoader)
+        node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
@@ -257,224 +280,65 @@ class StreamPlanner(
   private def writeToSink[T](
       tableOperation: QueryOperation,
       sink: TableSink[T],
-      queryConfig: StreamQueryConfig)
-    : Transformation[_] = {
+      sinkName: String): (RelNode, Boolean) = {
 
-    val resultSink = sink match {
+    val updatesAsRetraction = sink match {
       case retractSink: RetractStreamTableSink[T] =>
         retractSink match {
-          case partitionableSink: PartitionableTableSink
-            if partitionableSink.getPartitionFieldNames.nonEmpty =>
+          case _: PartitionableTableSink =>
             throw new TableException("Partitionable sink in retract stream mode " +
               "is not supported yet!")
-          case _ =>
+          case _ => // do nothing
         }
-        writeToRetractSink(retractSink, tableOperation, queryConfig)
+        true
 
       case upsertSink: UpsertStreamTableSink[T] =>
         upsertSink match {
-          case partitionableSink: PartitionableTableSink
-            if partitionableSink.getPartitionFieldNames.nonEmpty =>
+          case _: PartitionableTableSink =>
             throw new TableException("Partitionable sink in upsert stream mode " +
               "is not supported yet!")
-          case _ =>
+          case _ => // do nothing
         }
-        writeToUpsertSink(upsertSink, tableOperation, queryConfig)
+        false
 
-      case appendSink: AppendStreamTableSink[T] =>
-        writeToAppendSink(appendSink, tableOperation, queryConfig)
+      case _: AppendStreamTableSink[T] =>
+        false
 
       case _ =>
         throw new ValidationException("Stream Tables can only be emitted by AppendStreamTableSink, "
           + "RetractStreamTableSink, or UpsertStreamTableSink.")
     }
 
-    if (resultSink != null) {
-      resultSink.getTransformation
-    } else {
-      null
-    }
+    val input = getRelBuilder.tableOperation(tableOperation).build()
+    (LogicalSink.create(input, sink, sinkName), updatesAsRetraction)
   }
 
-  private def writeToRetractSink[T](
-      sink: RetractStreamTableSink[T],
-      tableOperation: QueryOperation,
-      streamQueryConfig: StreamQueryConfig)
-    : DataStreamSink[_]= {
-    // retraction sink can always be used
-    val outputType = TypeConversions.fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-      .asInstanceOf[TypeInformation[JTuple2[JBool, T]]]
-    // translate the Table into a DataStream and provide the type that the TableSink expects.
-    val result: DataStream[JTuple2[JBool, T]] =
-      translateToType(
-        tableOperation,
-        streamQueryConfig,
-        updatesAsRetraction = true,
-        withChangeFlag = true,
-        outputType)
-    // Give the DataStream to the TableSink to emit it.
-    sink.consumeDataStream(result)
-  }
+  private def getTableSink(objectIdentifier: ObjectIdentifier): Option[TableSink[_]] = {
+    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+      .map(_.getTable) match {
+      case Some(s) if s.isInstanceOf[ConnectorCatalogTable[_, _]] =>
+        JavaScalaConversionUtil.toScala(s.asInstanceOf[ConnectorCatalogTable[_, _]].getTableSink)
 
-  private def writeToAppendSink[T](
-      sink: AppendStreamTableSink[T],
-      tableOperation: QueryOperation,
-      streamQueryConfig: StreamQueryConfig)
-    : DataStreamSink[_]= {
-    // optimize plan
-    val relNode = getRelBuilder.tableOperation(tableOperation).build()
-    val optimizedPlan = optimizer.optimize(relNode, updatesAsRetraction = false, getRelBuilder)
-    // verify table is an insert-only (append-only) table
-    if (!UpdatingPlanChecker.isAppendOnly(optimizedPlan)) {
-      throw new TableException(
-        "AppendStreamTableSink requires that Table has only insert changes.")
-    }
-    val outputType = TypeConversions.fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-      .asInstanceOf[TypeInformation[T]]
-    val resultType = getTableSchema(tableOperation.getTableSchema.getFieldNames, optimizedPlan)
-    // translate the Table into a DataStream and provide the type that the TableSink expects.
-    val result: DataStream[T] =
-      translateOptimized(
-        optimizedPlan,
-        resultType,
-        outputType,
-        streamQueryConfig,
-        withChangeFlag = false)
-    // Give the DataStream to the TableSink to emit it.
-    sink.consumeDataStream(shuffleByPartitionFieldsIfNeeded(sink, result))
-  }
-
-  private def writeToUpsertSink[T](
-      sink: UpsertStreamTableSink[T],
-      tableOperation: QueryOperation,
-      streamQueryConfig: StreamQueryConfig)
-    : DataStreamSink[_] = {
-    // optimize plan
-    val relNode = getRelBuilder.tableOperation(tableOperation).build()
-    val optimizedPlan = optimizer.optimize(relNode, updatesAsRetraction = false, getRelBuilder)
-    // check for append only table
-    val isAppendOnlyTable = UpdatingPlanChecker.isAppendOnly(optimizedPlan)
-    sink.setIsAppendOnly(isAppendOnlyTable)
-    // extract unique key fields
-    val tableKeys: Option[Array[String]] = UpdatingPlanChecker.getUniqueKeyFields(optimizedPlan)
-    // check that we have keys if the table has changes (is not append-only)
-    tableKeys match {
-      case Some(keys) => sink.setKeyFields(keys)
-      case None if isAppendOnlyTable => sink.setKeyFields(null)
-      case None if !isAppendOnlyTable => throw new TableException(
-        "UpsertStreamTableSink requires that Table has full primary keys if it is updated.")
-    }
-    val outputType = TypeConversions.fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-      .asInstanceOf[TypeInformation[JTuple2[JBool, T]]]
-    val resultType = getTableSchema(tableOperation.getTableSchema.getFieldNames, optimizedPlan)
-    // translate the Table into a DataStream and provide the type that the TableSink expects.
-    val result: DataStream[JTuple2[JBool, T]] =
-      translateOptimized(
-        optimizedPlan,
-        resultType,
-        outputType,
-        streamQueryConfig,
-        withChangeFlag = true)
-    // Give the DataStream to the TableSink to emit it.
-    sink.consumeDataStream(result)
-  }
-
-  /**
-    * Key by the partition fields if the sink is a [[PartitionableTableSink]].
-    * @param sink       the table sink
-    * @param dataStream the data stream
-    * @tparam R         the data stream record type
-    * @return a data stream that maybe keyed by.
-    */
-  private def shuffleByPartitionFieldsIfNeeded[R](
-      sink: TableSink[_],
-      dataStream: DataStream[R]): DataStream[R] = {
-    sink match {
-      case partitionableSink: PartitionableTableSink
-        if partitionableSink.getPartitionFieldNames.nonEmpty =>
-        val fieldNames = sink.getTableSchema.getFieldNames
-        val indices = partitionableSink.getPartitionFieldNames.map(fieldNames.indexOf(_))
-        dataStream.keyBy(indices:_*)
-      case _ => dataStream
-    }
-  }
-
-  private def translateToType[A](
-      table: QueryOperation,
-      queryConfig: StreamQueryConfig,
-      updatesAsRetraction: Boolean,
-      withChangeFlag: Boolean,
-      tpe: TypeInformation[A])
-    : DataStream[A] = {
-    val relNode = getRelBuilder.tableOperation(table).build()
-    val dataStreamPlan = optimizer.optimize(relNode, updatesAsRetraction, getRelBuilder)
-    val rowType = getTableSchema(table.getTableSchema.getFieldNames, dataStreamPlan)
-
-    // if no change flags are requested, verify table is an insert-only (append-only) table.
-    if (!withChangeFlag && !UpdatingPlanChecker.isAppendOnly(dataStreamPlan)) {
-      throw new ValidationException(
-        "Table is not an append-only table. " +
-          "Use the toRetractStream() in order to handle add and retract messages.")
-    }
-
-    // get CRow plan
-    translateOptimized(dataStreamPlan, rowType, tpe, queryConfig, withChangeFlag)
-  }
-
-  private def translateOptimized[A](
-      optimizedPlan: RelNode,
-      logicalSchema: TableSchema,
-      tpe: TypeInformation[A],
-      queryConfig: StreamQueryConfig,
-      withChangeFlag: Boolean)
-    : DataStream[A] = {
-    val dataStream = translateToCRow(optimizedPlan, queryConfig)
-    DataStreamConversions.convert(dataStream, logicalSchema, withChangeFlag, tpe, config)
-  }
-
-  /**
-    * Returns the record type of the optimized plan with field names of the logical plan.
-    */
-  private def getTableSchema(originalNames: Array[String], optimizedPlan: RelNode): TableSchema = {
-    val fieldTypes = optimizedPlan.getRowType.getFieldList.asScala.map(_.getType)
-      .map(FlinkTypeFactory.toTypeInfo)
-      .map(TypeConversions.fromLegacyInfoToDataType)
-      .toArray
-
-    TableSchema.builder().fields(originalNames, fieldTypes).build()
-  }
-
-  private def getTableSink(tablePath: JList[String]): Option[TableSink[_]] = {
-    JavaScalaConversionUtil.toScala(catalogManager.resolveTable(tablePath.asScala: _*)) match {
-      case Some(s) if s.getExternalCatalogTable.isPresent =>
-
-        Option(TableFactoryUtil.findAndCreateTableSink(s.getExternalCatalogTable.get()))
-
-      case Some(s) if JavaScalaConversionUtil.toScala(s.getCatalogTable)
-        .exists(_.isInstanceOf[ConnectorCatalogTable[_, _]]) =>
-
-        JavaScalaConversionUtil
-          .toScala(s.getCatalogTable.get().asInstanceOf[ConnectorCatalogTable[_, _]].getTableSink)
-
-      case Some(s) if JavaScalaConversionUtil.toScala(s.getCatalogTable)
-        .exists(_.isInstanceOf[CatalogTable]) =>
-
-        val catalog = catalogManager.getCatalog(s.getTablePath.get(0))
-        val catalogTable = s.getCatalogTable.get().asInstanceOf[CatalogTable]
+      case Some(s) if s.isInstanceOf[CatalogTable] =>
+        val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
+        val catalogTable = s.asInstanceOf[CatalogTable]
+        val context = new TableSinkFactoryContextImpl(
+          objectIdentifier, catalogTable, config.getConfiguration, false)
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
-          val dbName = s.getTablePath.get(1)
-          val tableName = s.getTablePath.get(2)
-          val sink = TableFactoryUtil.createTableSinkForCatalogTable(
-            catalog.get(), catalogTable, new ObjectPath(dbName, tableName))
+          val sink = TableFactoryUtil.createTableSinkForCatalogTable(catalog.get(), context)
           if (sink.isPresent) {
             return Option(sink.get())
           }
         }
-        val sinkProperties = catalogTable.toProperties
-        Option(TableFactoryService.find(classOf[TableSinkFactory[_]], sinkProperties)
-          .createTableSink(sinkProperties))
+        Option(TableFactoryUtil.findAndCreateTableSink(context))
 
       case _ => None
     }
+  }
+
+  private def createDummyPlanner(): StreamPlanner = {
+    val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecutionEnvironment)
+    val executor = new StreamExecutor(dummyExecEnv)
+    new StreamPlanner(executor, config, functionCatalog, catalogManager)
   }
 }

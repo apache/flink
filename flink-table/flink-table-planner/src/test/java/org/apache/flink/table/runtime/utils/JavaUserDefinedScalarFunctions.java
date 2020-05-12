@@ -18,7 +18,12 @@
 
 package org.apache.flink.table.runtime.utils;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.table.functions.python.PythonFunction;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
 
 import java.util.Arrays;
 
@@ -80,4 +85,100 @@ public class JavaUserDefinedScalarFunctions {
 		}
 	}
 
+	/**
+	 * Test for Python Scalar Function.
+	 */
+	public static class PythonScalarFunction extends ScalarFunction implements PythonFunction {
+		private final String name;
+
+		public PythonScalarFunction(String name) {
+			this.name = name;
+		}
+
+		public int eval(int i, int j) {
+			return i + j;
+		}
+
+		public String eval(String s) {
+			return s;
+		}
+
+		@Override
+		public String toString() {
+			return name;
+		}
+
+		@Override
+		public byte[] getSerializedPythonFunction() {
+			return new byte[0];
+		}
+
+		@Override
+		public PythonEnv getPythonEnv() {
+			return null;
+		}
+	}
+
+	/**
+	 * Test for Python Scalar Function.
+	 */
+	public static class BooleanPythonScalarFunction extends ScalarFunction implements PythonFunction {
+		private final String name;
+
+		public BooleanPythonScalarFunction(String name) {
+			this.name = name;
+		}
+
+		public boolean eval(int i, int j) {
+			return i + j > 1;
+		}
+
+		@Override
+		public TypeInformation<?> getResultType(Class<?>[] signature) {
+			return BasicTypeInfo.BOOLEAN_TYPE_INFO;
+		}
+
+		@Override
+		public String toString() {
+			return name;
+		}
+
+		@Override
+		public byte[] getSerializedPythonFunction() {
+			return new byte[0];
+		}
+
+		@Override
+		public PythonEnv getPythonEnv() {
+			return null;
+		}
+	}
+
+	/**
+	 * Test for Pandas Python Scalar Function.
+	 */
+	public static class PandasScalarFunction extends PythonScalarFunction {
+		public PandasScalarFunction(String name) {
+			super(name);
+		}
+
+		@Override
+		public PythonFunctionKind getPythonFunctionKind() {
+			return PythonFunctionKind.PANDAS;
+		}
+	}
+
+	/**
+	 * Test for Pandas Python Scalar Function.
+	 */
+	public static class BooleanPandasScalarFunction extends BooleanPythonScalarFunction {
+		public BooleanPandasScalarFunction(String name) {
+			super(name);
+		}
+
+		@Override
+		public PythonFunctionKind getPythonFunctionKind() {
+			return PythonFunctionKind.PANDAS;
+		}
+	}
 }

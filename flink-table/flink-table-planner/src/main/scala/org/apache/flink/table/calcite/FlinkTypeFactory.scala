@@ -48,49 +48,44 @@ import scala.collection.mutable
   * Flink specific type factory that represents the interface between Flink's [[TypeInformation]]
   * and Calcite's [[RelDataType]].
   */
-class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImpl(typeSystem) {
+class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
+  extends JavaTypeFactoryImpl(typeSystem)
+  with ExtendedRelTypeFactory {
 
   // NOTE: for future data types it might be necessary to
   // override more methods of RelDataTypeFactoryImpl
-
-  private val seenTypes = mutable.HashMap[(TypeInformation[_], Boolean), RelDataType]()
 
   def createTypeFromTypeInfo(
       typeInfo: TypeInformation[_],
       isNullable: Boolean)
     : RelDataType = {
 
-      // we cannot use seenTypes for simple types,
-      // because time indicators and timestamps would be the same
+    val relType = if (isSimple(typeInfo)) {
+      // simple types can be converted to SQL types and vice versa
+      val sqlType = typeInfoToSqlTypeName(typeInfo)
+      sqlType match {
 
-      val relType = if (isSimple(typeInfo)) {
-        // simple types can be converted to SQL types and vice versa
-        val sqlType = typeInfoToSqlTypeName(typeInfo)
-        sqlType match {
+        case INTERVAL_YEAR_MONTH =>
+          createSqlIntervalType(
+            new SqlIntervalQualifier(TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO))
 
-          case INTERVAL_YEAR_MONTH =>
-            createSqlIntervalType(
-              new SqlIntervalQualifier(TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO))
+        case INTERVAL_DAY_SECOND =>
+          createSqlIntervalType(
+            new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO))
 
-          case INTERVAL_DAY_SECOND =>
-            createSqlIntervalType(
-              new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO))
+        case TIMESTAMP if typeInfo.isInstanceOf[TimeIndicatorTypeInfo] =>
+          if (typeInfo.asInstanceOf[TimeIndicatorTypeInfo].isEventTime) {
+            createRowtimeIndicatorType()
+          } else {
+            createProctimeIndicatorType()
+          }
 
-          case TIMESTAMP if typeInfo.isInstanceOf[TimeIndicatorTypeInfo] =>
-            if (typeInfo.asInstanceOf[TimeIndicatorTypeInfo].isEventTime) {
-              createRowtimeIndicatorType()
-            } else {
-              createProctimeIndicatorType()
-            }
-
-          case _ =>
-            createSqlType(sqlType)
-        }
-      } else {
-        // advanced types require specific RelDataType
-        // for storing the original TypeInformation
-        seenTypes.getOrElseUpdate((typeInfo, isNullable), createAdvancedType(typeInfo, isNullable))
+        case _ =>
+          createSqlType(sqlType)
       }
+    } else {
+      createAdvancedType(typeInfo, isNullable)
+    }
 
     createTypeWithNullability(relType, isNullable)
   }
@@ -251,6 +246,10 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     canonize(relType)
   }
 
+  override def createRawType(className: String, serializerString: String): RelDataType = {
+    throw new TableException("RAW types are only supported in the Blink planner.")
+  }
+
   override def createTypeWithNullability(
       relDataType: RelDataType,
       isNullable: Boolean): RelDataType = {
@@ -315,9 +314,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     } else {
       // types are not all the same
       if (allTypes.exists(_.getSqlTypeName == SqlTypeName.ANY)) {
-        // one of the type was ANY.
+        // one of the type was RAW.
         // we cannot generate a common type if it differs from other types.
-        throw new TableException("Generic ANY types must have a common type information.")
+        throw new TableException("Generic RAW types must have a common type information.")
       } else {
         // cannot resolve a common type for different input types
         None

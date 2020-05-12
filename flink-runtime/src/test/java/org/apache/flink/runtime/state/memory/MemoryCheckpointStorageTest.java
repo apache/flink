@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCh
 
 import org.junit.Test;
 
+import java.io.File;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
@@ -184,5 +185,22 @@ public class MemoryCheckpointStorageTest extends AbstractFileCheckpointStorageTe
 		try (ObjectInputStream in = new ObjectInputStream(stateHandle.openInputStream())) {
 			assertEquals(state, in.readObject());
 		}
+	}
+
+	/**
+	 * This test checks that the expected mkdirs action for checkpoint storage,
+	 * only called when initializeLocationForCheckpoint.
+	 */
+	@Test
+	public void testStorageLocationMkdirs() throws Exception {
+		MemoryBackendCheckpointStorage storage = new MemoryBackendCheckpointStorage(
+			new JobID(), randomTempPath(), null, DEFAULT_MAX_STATE_SIZE);
+
+		File baseDir = new File(storage.getCheckpointsDirectory().getPath());
+		assertFalse(baseDir.exists());
+
+		// mkdirs only be called when initializeLocationForCheckpoint
+		storage.initializeLocationForCheckpoint(177L);
+		assertTrue(baseDir.exists());
 	}
 }

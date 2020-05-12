@@ -16,12 +16,16 @@
 # limitations under the License.
 ################################################################################
 
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flink-task-manager
 spec:
   replicas: ${FLINK_JOB_PARALLELISM}
+  selector:
+    matchLabels:
+      app: flink
+      component: task-manager
   template:
     metadata:
       labels:

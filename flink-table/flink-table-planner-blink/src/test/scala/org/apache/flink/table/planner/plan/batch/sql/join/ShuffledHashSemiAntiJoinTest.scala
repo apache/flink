@@ -28,7 +28,7 @@ class ShuffledHashSemiAntiJoinTest extends SemiAntiJoinTestBase {
   @Before
   def before(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS,
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
       "SortMergeJoin, NestedLoopJoin, BroadcastHashJoin")
     // the result plan may contains NestedLoopJoin (singleRowJoin)
     // which is converted by BatchExecSingleRowJoinRule
@@ -160,27 +160,6 @@ class ShuffledHashSemiAntiJoinTest extends SemiAntiJoinTestBase {
     thrown.expect(classOf[TableException])
     thrown.expectMessage("Cannot generate a valid execution plan for the given query")
     super.testNotInWithUncorrelated_SimpleCondition3()
-  }
-
-  @Test
-  override def testExistsWithCorrelated_LateralTableInSubQuery(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testExistsWithCorrelated_LateralTableInSubQuery()
-  }
-
-  @Test
-  override def testInWithUncorrelated_LateralTableInSubQuery(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testInWithUncorrelated_LateralTableInSubQuery()
-  }
-
-  @Test
-  override def testInWithCorrelated_LateralTableInSubQuery(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    super.testInWithCorrelated_LateralTableInSubQuery()
   }
 
 }

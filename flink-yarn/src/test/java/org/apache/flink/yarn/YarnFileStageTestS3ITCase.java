@@ -20,9 +20,12 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.testutils.junit.RetryOnFailure;
+import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 import org.apache.flink.util.TestLogger;
 
@@ -60,6 +63,9 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Rule
+	public final RetryRule retryRule = new RetryRule();
 
 	/**
 	 * Number of tests executed.
@@ -132,6 +138,7 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 
 		final Configuration conf = new Configuration();
 		conf.setString(ConfigConstants.HDFS_SITE_CONFIG, hadoopConfig.getAbsolutePath());
+		conf.set(CoreOptions.ALLOWED_FALLBACK_FILESYSTEMS, "s3;s3a;s3n");
 
 		FileSystem.initialize(conf);
 	}
@@ -157,7 +164,7 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 			final Path directory = new Path(basePath, pathSuffix);
 
 			YarnFileStageTest.testCopyFromLocalRecursive(fs.getHadoopFileSystem(),
-				new org.apache.hadoop.fs.Path(directory.toUri()), tempFolder, true);
+				new org.apache.hadoop.fs.Path(directory.toUri()), Path.CUR_DIR, tempFolder, false);
 		} finally {
 			// clean up
 			fs.delete(basePath, true);
@@ -165,6 +172,7 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 	}
 
 	@Test
+	@RetryOnFailure(times = 3)
 	public void testRecursiveUploadForYarnS3n() throws Exception {
 		try {
 			Class.forName("org.apache.hadoop.fs.s3native.NativeS3FileSystem");
@@ -178,6 +186,7 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 	}
 
 	@Test
+	@RetryOnFailure(times = 3)
 	public void testRecursiveUploadForYarnS3a() throws Exception {
 		try {
 			Class.forName("org.apache.hadoop.fs.s3a.S3AFileSystem");

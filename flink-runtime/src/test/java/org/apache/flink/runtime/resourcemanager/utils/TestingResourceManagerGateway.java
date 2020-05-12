@@ -22,16 +22,17 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.DataSetMetaInfo;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -40,14 +41,21 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
+import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
+import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.QuadFunction;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -74,21 +82,27 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private volatile Consumer<SlotRequest> requestSlotConsumer;
 
-	private volatile Consumer<Tuple4<JobMasterId, ResourceID, String, JobID>> registerJobManagerConsumer;
+	private volatile QuadFunction<JobMasterId, ResourceID, String, JobID, CompletableFuture<RegistrationResponse>> registerJobManagerFunction;
 
 	private volatile Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer;
 
-	private volatile Function<Tuple4<String, ResourceID, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction;
+	private volatile Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction;
 
-	private volatile Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction;
+	private volatile Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadByTypeFunction;
+
+	private volatile Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadByNameFunction;
 
 	private volatile Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer;
 
 	private volatile Function<Tuple3<ResourceID, InstanceID, SlotReport>, CompletableFuture<Acknowledge>> sendSlotReportFunction;
 
-	private volatile BiConsumer<ResourceID, SlotReport> taskExecutorHeartbeatConsumer;
+	private volatile BiConsumer<ResourceID, TaskExecutorHeartbeatPayload> taskExecutorHeartbeatConsumer;
 
 	private volatile Consumer<Tuple3<InstanceID, SlotID, AllocationID>> notifySlotAvailableConsumer;
+
+	private volatile Function<ResourceID, CompletableFuture<Collection<LogInfo>>> requestTaskManagerLogListFunction;
+
+	private volatile Function<ResourceID, CompletableFuture<ThreadDumpInfo>> requestThreadDumpFunction;
 
 	public TestingResourceManagerGateway() {
 		this(
@@ -128,20 +142,28 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.requestSlotConsumer = slotRequestConsumer;
 	}
 
-	public void setRegisterJobManagerConsumer(Consumer<Tuple4<JobMasterId, ResourceID, String, JobID>> registerJobManagerConsumer) {
-		this.registerJobManagerConsumer = registerJobManagerConsumer;
+	public void setRegisterJobManagerFunction(QuadFunction<JobMasterId, ResourceID, String, JobID, CompletableFuture<RegistrationResponse>> registerJobManagerFunction) {
+		this.registerJobManagerFunction = registerJobManagerFunction;
 	}
 
 	public void setDisconnectJobManagerConsumer(Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer) {
 		this.disconnectJobManagerConsumer = disconnectJobManagerConsumer;
 	}
 
-	public void setRegisterTaskExecutorFunction(Function<Tuple4<String, ResourceID, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction) {
+	public void setRegisterTaskExecutorFunction(Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction) {
 		this.registerTaskExecutorFunction = registerTaskExecutorFunction;
 	}
 
-	public void setRequestTaskManagerFileUploadFunction(Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction) {
-		this.requestTaskManagerFileUploadFunction = requestTaskManagerFileUploadFunction;
+	public void setRequestTaskManagerFileUploadByTypeFunction(Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadByTypeFunction) {
+		this.requestTaskManagerFileUploadByTypeFunction = requestTaskManagerFileUploadByTypeFunction;
+	}
+
+	public void setRequestTaskManagerFileUploadByNameFunction(Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadByNameFunction) {
+		this.requestTaskManagerFileUploadByNameFunction = requestTaskManagerFileUploadByNameFunction;
+	}
+
+	public void setRequestTaskManagerLogListFunction(Function<ResourceID, CompletableFuture<Collection<LogInfo>>> requestTaskManagerLogListFunction) {
+		this.requestTaskManagerLogListFunction = requestTaskManagerLogListFunction;
 	}
 
 	public void setDisconnectTaskExecutorConsumer(Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer) {
@@ -152,7 +174,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.sendSlotReportFunction = sendSlotReportFunction;
 	}
 
-	public void setTaskExecutorHeartbeatConsumer(BiConsumer<ResourceID, SlotReport> taskExecutorHeartbeatConsumer) {
+	public void setTaskExecutorHeartbeatConsumer(BiConsumer<ResourceID, TaskExecutorHeartbeatPayload> taskExecutorHeartbeatConsumer) {
 		this.taskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
 	}
 
@@ -160,18 +182,25 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.notifySlotAvailableConsumer = notifySlotAvailableConsumer;
 	}
 
+	public void setRequestThreadDumpFunction(Function<ResourceID, CompletableFuture<ThreadDumpInfo>> requestThreadDumpFunction) {
+		this.requestThreadDumpFunction = requestThreadDumpFunction;
+	}
+
 	@Override
 	public CompletableFuture<RegistrationResponse> registerJobManager(JobMasterId jobMasterId, ResourceID jobMasterResourceId, String jobMasterAddress, JobID jobId, Time timeout) {
-		final Consumer<Tuple4<JobMasterId, ResourceID, String, JobID>> currentConsumer = registerJobManagerConsumer;
+		final QuadFunction<JobMasterId, ResourceID, String, JobID, CompletableFuture<RegistrationResponse>> currentConsumer = registerJobManagerFunction;
 
 		if (currentConsumer != null) {
-			currentConsumer.accept(Tuple4.of(jobMasterId, jobMasterResourceId, jobMasterAddress, jobId));
+			return currentConsumer.apply(jobMasterId, jobMasterResourceId, jobMasterAddress, jobId);
 		}
 
-		return CompletableFuture.completedFuture(
-			new JobMasterRegistrationSuccess(
-				resourceManagerId,
-				ownResourceId));
+		return CompletableFuture.completedFuture(getJobMasterRegistrationSuccess());
+	}
+
+	public JobMasterRegistrationSuccess getJobMasterRegistrationSuccess() {
+		return new JobMasterRegistrationSuccess(
+			resourceManagerId,
+			ownResourceId);
 	}
 
 	@Override
@@ -212,11 +241,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<RegistrationResponse> registerTaskExecutor(String taskExecutorAddress, ResourceID resourceId, int dataPort, HardwareDescription hardwareDescription, Time timeout) {
-		final Function<Tuple4<String, ResourceID, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> currentFunction = registerTaskExecutorFunction;
+	public CompletableFuture<RegistrationResponse> registerTaskExecutor(TaskExecutorRegistration taskExecutorRegistration, Time timeout) {
+		final Function<TaskExecutorRegistration, CompletableFuture<RegistrationResponse>> currentFunction = registerTaskExecutorFunction;
 
 		if (currentFunction != null) {
-			return currentFunction.apply(Tuple4.of(taskExecutorAddress, resourceId, dataPort, hardwareDescription));
+			return currentFunction.apply(taskExecutorRegistration);
 		} else {
 			return CompletableFuture.completedFuture(
 				new TaskExecutorRegistrationSuccess(
@@ -246,11 +275,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public void heartbeatFromTaskManager(ResourceID heartbeatOrigin, SlotReport slotReport) {
-		final BiConsumer<ResourceID, SlotReport> currentTaskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
+	public void heartbeatFromTaskManager(ResourceID heartbeatOrigin, TaskExecutorHeartbeatPayload heartbeatPayload) {
+		final BiConsumer<ResourceID, TaskExecutorHeartbeatPayload> currentTaskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
 
 		if (currentTaskExecutorHeartbeatConsumer != null) {
-			currentTaskExecutorHeartbeatConsumer.accept(heartbeatOrigin, slotReport);
+			currentTaskExecutorHeartbeatConsumer.accept(heartbeatOrigin, heartbeatPayload);
 		}
 	}
 
@@ -289,7 +318,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
-		return CompletableFuture.completedFuture(new ResourceOverview(1, 1, 1));
+		return CompletableFuture.completedFuture(new ResourceOverview(1, 1, 1, ResourceProfile.ZERO, ResourceProfile.ZERO));
 	}
 
 	@Override
@@ -298,13 +327,45 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, Time timeout) {
-		final Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> function = requestTaskManagerFileUploadFunction;
+	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByType(ResourceID taskManagerId, FileType fileType, Time timeout) {
+		final Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> function = requestTaskManagerFileUploadByTypeFunction;
 
 		if (function != null) {
 			return function.apply(Tuple2.of(taskManagerId, fileType));
 		} else {
 			return CompletableFuture.completedFuture(new TransientBlobKey());
+		}
+	}
+
+	@Override
+	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(ResourceID taskManagerId, String fileName, Time timeout) {
+		final Function<Tuple2<ResourceID, String>, CompletableFuture<TransientBlobKey>> function = requestTaskManagerFileUploadByNameFunction;
+
+		if (function != null) {
+			return function.apply(Tuple2.of(taskManagerId, fileName));
+		} else {
+			return CompletableFuture.completedFuture(new TransientBlobKey());
+		}
+	}
+
+	@Override
+	public CompletableFuture<Collection<LogInfo>> requestTaskManagerLogList(ResourceID taskManagerId, Time timeout) {
+		final Function<ResourceID, CompletableFuture<Collection<LogInfo>>> function = this.requestTaskManagerLogListFunction;
+		if (function != null) {
+			return function.apply(taskManagerId);
+		} else {
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
+		}
+	}
+
+	@Override
+	public CompletableFuture<ThreadDumpInfo> requestThreadDump(ResourceID taskManagerId, Time timeout) {
+		final Function<ResourceID, CompletableFuture<ThreadDumpInfo>> function = this.requestThreadDumpFunction;
+
+		if (function != null) {
+			return function.apply(taskManagerId);
+		} else {
+			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		}
 	}
 
@@ -321,5 +382,15 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	@Override
 	public String getHostname() {
 		return hostname;
+	}
+
+	@Override
+	public CompletableFuture<Map<IntermediateDataSetID, DataSetMetaInfo>> listDataSets() {
+		return CompletableFuture.completedFuture(Collections.emptyMap());
+	}
+
+	@Override
+	public CompletableFuture<Void> releaseClusterPartitions(IntermediateDataSetID dataSetToRelease) {
+		return CompletableFuture.completedFuture(null);
 	}
 }

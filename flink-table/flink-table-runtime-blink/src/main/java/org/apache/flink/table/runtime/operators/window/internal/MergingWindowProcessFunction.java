@@ -21,8 +21,8 @@ package org.apache.flink.table.runtime.operators.window.internal;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.MergingWindowAssigner;
 
@@ -48,7 +48,7 @@ public class MergingWindowProcessFunction<K, W extends Window>
 
 	public MergingWindowProcessFunction(
 			MergingWindowAssigner<W> windowAssigner,
-			NamespaceAggsHandleFunction<W> windowAggregator,
+			NamespaceAggsHandleFunctionBase<W> windowAggregator,
 			TypeSerializer<W> windowSerializer,
 			long allowedLateness) {
 		super(windowAssigner, windowAggregator, allowedLateness);
@@ -69,7 +69,7 @@ public class MergingWindowProcessFunction<K, W extends Window>
 	}
 
 	@Override
-	public Collection<W> assignStateNamespace(BaseRow inputRow, long timestamp) throws Exception {
+	public Collection<W> assignStateNamespace(RowData inputRow, long timestamp) throws Exception {
 		Collection<W> elementWindows = windowAssigner.assignWindows(inputRow, timestamp);
 		mergingWindows.initializeCache(ctx.currentKey());
 		reuseActualWindows = new ArrayList<>(1);
@@ -94,20 +94,19 @@ public class MergingWindowProcessFunction<K, W extends Window>
 	}
 
 	@Override
-	public Collection<W> assignActualWindows(BaseRow inputRow, long timestamp) throws Exception {
+	public Collection<W> assignActualWindows(RowData inputRow, long timestamp) throws Exception {
 		// the actual windows is calculated in assignStateNamespace
 		return reuseActualWindows;
 	}
 
 	@Override
-	public BaseRow getWindowAggregationResult(W window) throws Exception {
+	public void prepareAggregateAccumulatorForEmit(W window) throws Exception {
 		W stateWindow = mergingWindows.getStateWindow(window);
-		BaseRow acc = ctx.getWindowAccumulators(stateWindow);
+		RowData acc = ctx.getWindowAccumulators(stateWindow);
 		if (acc == null) {
 			acc = windowAggregator.createAccumulators();
 		}
 		windowAggregator.setAccumulators(stateWindow, acc);
-		return windowAggregator.getValue(window);
 	}
 
 	@Override
@@ -154,13 +153,13 @@ public class MergingWindowProcessFunction<K, W extends Window>
 
 			// merge the merged state windows into the newly resulting state window
 			if (!stateWindowsToBeMerged.isEmpty()) {
-				BaseRow targetAcc = ctx.getWindowAccumulators(stateWindowResult);
+				RowData targetAcc = ctx.getWindowAccumulators(stateWindowResult);
 				if (targetAcc == null) {
 					targetAcc = windowAggregator.createAccumulators();
 				}
 				windowAggregator.setAccumulators(stateWindowResult, targetAcc);
 				for (W w : stateWindowsToBeMerged) {
-					BaseRow acc = ctx.getWindowAccumulators(w);
+					RowData acc = ctx.getWindowAccumulators(w);
 					if (acc != null) {
 						windowAggregator.merge(w, acc);
 					}

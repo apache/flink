@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
@@ -43,6 +43,7 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Similar to {@link org.apache.flink.api.common.JobExecutionResult} but with an optional
@@ -232,12 +233,11 @@ public class JobResult implements Serializable {
 		builder.netRuntime(guardedNetRuntime);
 		builder.accumulatorResults(accessExecutionGraph.getAccumulatorsSerialized());
 
-		if (jobStatus != JobStatus.FINISHED) {
+		if (jobStatus == JobStatus.FAILED) {
 			final ErrorInfo errorInfo = accessExecutionGraph.getFailureInfo();
+			checkNotNull(errorInfo, "No root cause is found for the job failure.");
 
-			if (errorInfo != null) {
-				builder.serializedThrowable(errorInfo.getException());
-			}
+			builder.serializedThrowable(errorInfo.getException());
 		}
 
 		return builder.build();

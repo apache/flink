@@ -103,7 +103,7 @@ public class StreamNetworkThroughputBenchmarkTest {
 		int writers = 2;
 		int channels = 2;
 
-		env.setUp(writers, channels, 100, false, writers * channels, writers * channels *
+		env.setUp(writers, channels, 100, false, writers * channels + writers, writers + writers * channels *
 			NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue());
 		env.executeBenchmark(10_000);
 		env.tearDown();

@@ -18,19 +18,21 @@
 
 package org.apache.flink.table.api.batch
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Table
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.internal.BatchTableEnvironmentImpl
-import org.apache.flink.table.utils.TableTestUtil.batchTableNode
+import org.apache.flink.table.api.{Table, Types}
+import org.apache.flink.table.runtime.utils.CommonTestData
+import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
+import org.apache.flink.table.utils.TableTestUtil.{batchTableNode, readFromResource, replaceStageId}
 import org.apache.flink.test.util.MultipleProgramsTestBase
+
 import org.junit.Assert.assertEquals
 import org.junit._
 
 class ExplainTest
   extends MultipleProgramsTestBase(MultipleProgramsTestBase.TestExecutionMode.CLUSTER) {
-
-  private val testFilePath = ExplainTest.this.getClass.getResource("/").getFile
 
   @Test
   def testFilterWithoutExtended(): Unit = {
@@ -38,11 +40,10 @@ class ExplainTest
     val tEnv = BatchTableEnvironment.create(env)
 
     val scan = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
-    val table = scan.filter("a % 2 = 0")
+    val table = scan.filter($"a" % 2 === 0)
 
     val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testFilter0.out").mkString
+    val source = readFromResource("testFilter0.out")
 
     val expected = replaceString(source, scan)
     assertEquals(expected, result)
@@ -54,12 +55,11 @@ class ExplainTest
     val tEnv = BatchTableEnvironment.create(env)
 
     val scan = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
-    val table = scan.filter("a % 2 = 0")
+    val table = scan.filter($"a" % 2 === 0)
 
     val result = tEnv.asInstanceOf[BatchTableEnvironmentImpl]
       .explain(table, extended = true).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testFilter1.out").mkString
+    val source = readFromResource("testFilter1.out")
 
     val expected = replaceString(source, scan)
     assertEquals(expected, result)
@@ -72,11 +72,10 @@ class ExplainTest
 
     val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
     val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'c, 'd)
-    val table = table1.join(table2).where("b = d").select("a, c")
+    val table = table1.join(table2).where($"b" === $"d").select($"a", $"c")
 
     val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testJoin0.out").mkString
+    val source = readFromResource("testJoin0.out")
 
     val expected = replaceString(source, table1, table2)
     assertEquals(expected, result)
@@ -89,12 +88,11 @@ class ExplainTest
 
     val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'a, 'b)
     val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'c, 'd)
-    val table = table1.join(table2).where("b = d").select("a, c")
+    val table = table1.join(table2).where($"b" === $"d").select($"a", $"c")
 
     val result = tEnv.asInstanceOf[BatchTableEnvironmentImpl]
       .explain(table, extended = true).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testJoin1.out").mkString
+    val source = readFromResource("testJoin1.out")
 
     val expected = replaceString(source, table1, table2)
     assertEquals(expected, result)
@@ -110,8 +108,7 @@ class ExplainTest
     val table = table1.unionAll(table2)
 
     val result = tEnv.explain(table).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testUnion0.out").mkString
+    val source = readFromResource("testUnion0.out")
 
     val expected = replaceString(source, table1, table2)
     assertEquals(expected, result)
@@ -128,13 +125,51 @@ class ExplainTest
 
     val result = tEnv.asInstanceOf[BatchTableEnvironmentImpl]
       .explain(table, extended = true).replaceAll("\\r\\n", "\n")
-    val source = scala.io.Source.fromFile(testFilePath +
-      "../../src/test/scala/resources/testUnion1.out").mkString
+    val source = readFromResource("testUnion1.out")
 
     val expected = replaceString(source, table1, table2)
     assertEquals(expected, result)
   }
 
+  @Test
+  def testInsert(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+
+    tEnv.registerTableSource("sourceTable", CommonTestData.getCsvTableSource)
+
+    val fieldNames = Array("d", "e")
+    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
+    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
+
+    tEnv.sqlUpdate("insert into targetTable select first, id from sourceTable")
+
+    val result = tEnv.explain(false)
+    val expected = readFromResource("testInsert1.out")
+    assertEquals(replaceStageId(expected), replaceStageId(result))
+  }
+
+  @Test
+  def testMultipleInserts(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
+
+    tEnv.registerTableSource("sourceTable", CommonTestData.getCsvTableSource)
+
+    val fieldNames = Array("d", "e")
+    val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
+    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.registerTableSink("targetTable1", sink.configure(fieldNames, fieldTypes))
+    tEnv.registerTableSink("targetTable2", sink.configure(fieldNames, fieldTypes))
+
+    tEnv.sqlUpdate("insert into targetTable1 select first, id from sourceTable")
+    tEnv.sqlUpdate("insert into targetTable2 select last, id from sourceTable")
+
+    val result = tEnv.explain(false)
+    val expected = readFromResource("testMultipleInserts1.out")
+    assertEquals(replaceStageId(expected), replaceStageId(result))
+  }
 
   def replaceString(s: String, t1: Table, t2: Table): String = {
     replaceSourceNode(replaceSourceNode(replaceString(s), t1, 0), t2, 1)
@@ -144,14 +179,14 @@ class ExplainTest
     replaceSourceNode(replaceString(s), t, 0)
   }
 
-  private def replaceSourceNode(s: String, t: Table, idx: Int) = {
+  private def replaceSourceNode(s: String, t: Table, idx: Int): String = {
     s.replace(
       s"%logicalSourceNode$idx%", batchTableNode(t)
         .replace("DataSetScan", "FlinkLogicalDataSetScan"))
       .replace(s"%sourceNode$idx%", batchTableNode(t))
   }
 
-  def replaceString(s: String) = {
+  def replaceString(s: String): String = {
     s.replaceAll("\\r\\n", "\n")
   }
 }

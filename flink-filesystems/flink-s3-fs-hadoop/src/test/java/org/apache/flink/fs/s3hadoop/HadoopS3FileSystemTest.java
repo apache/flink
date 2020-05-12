@@ -39,7 +39,7 @@ public class HadoopS3FileSystemTest {
 		configLoader.setFlinkConfig(conf);
 
 		org.apache.hadoop.conf.Configuration hadoopConfig = configLoader.getOrLoadHadoopConfig();
-		assertEquals("org.apache.flink.fs.s3hadoop.shaded.com.amazonaws.auth.ContainerCredentialsProvider",
+		assertEquals("com.amazonaws.auth.ContainerCredentialsProvider",
 			hadoopConfig.get("fs.s3a.aws.credentials.provider"));
 	}
 

@@ -19,10 +19,10 @@
 package org.apache.flink.table.runtime.operators.deduplicate;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.runtime.util.BinaryRowKeySelector;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -33,16 +33,14 @@ import org.apache.flink.table.types.logical.VarCharType;
 abstract class DeduplicateFunctionTestBase {
 
 	Time minTime = Time.milliseconds(10);
-	Time maxTime = Time.milliseconds(20);
-
-	BaseRowTypeInfo inputRowType = new BaseRowTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(),
+	RowDataTypeInfo inputRowType = new RowDataTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(),
 			new IntType());
 
 	int rowKeyIdx = 1;
-	BinaryRowKeySelector rowKeySelector = new BinaryRowKeySelector(new int[] { rowKeyIdx },
+	BinaryRowDataKeySelector rowKeySelector = new BinaryRowDataKeySelector(new int[] { rowKeyIdx },
 			inputRowType.getLogicalTypes());
 
-	BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(
+	RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(
 			inputRowType.getFieldTypes(),
 			new GenericRowRecordSortComparator(rowKeyIdx, inputRowType.getLogicalTypes()[rowKeyIdx]));
 

@@ -28,8 +28,8 @@ import { NodesItemCorrectInterface } from 'interfaces';
 })
 export class JobOverviewListComponent {
   innerNodes: NodesItemCorrectInterface[] = [];
-  sortName = 'detail.topology-id';
-  sortValue = 'ascend';
+  sortName: string;
+  sortValue: string;
   left = 390;
   @Output() nodeClick = new EventEmitter();
   @Input() selectedNode: NodesItemCorrectInterface;

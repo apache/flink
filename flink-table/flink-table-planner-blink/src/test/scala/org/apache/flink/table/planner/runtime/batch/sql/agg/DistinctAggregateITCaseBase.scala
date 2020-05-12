@@ -18,14 +18,11 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.types.Row
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -54,7 +51,7 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
       row(r.getField(0), r.getField(1), v2)
     }
 
-    registerCollection("NullTable3", nullData3, type3, "a, b, c", Array(false, false, true))
+    registerCollection("NullTable3", nullData3, type3, "a, b, c", Array(true, true, true))
 
     prepareAggOp()
   }
@@ -282,31 +279,61 @@ abstract class DistinctAggregateITCaseBase extends BatchTestBase {
     )
   }
 
-  // TODO remove Ignore after supporting generated code cloud be splitted into
-  //  small classes or methods due to code is too large
-  @Ignore
   @Test
-  def testMaxDistinctAggOnDifferentColumn(): Unit = {
-    // the max groupCount must be less than 64.
-    // so the max number of distinct aggregate on different column without group by column is 63.
-    val fields = (0 until 63).map(i => s"f$i")
-    val types = new RowTypeInfo(Seq.fill(fields.size)(Types.INT): _*)
-    val nullablesOfData = Array.fill(fields.size)(false)
-    val data = new Row(fields.length)
-    fields.indices.foreach(i => data.setField(i, i))
-
-    registerCollection("MyTable", Seq(data), types, fields.mkString(","), nullablesOfData)
-
-    val expected = new Row(fields.length * 2)
-    fields.indices.foreach(i => expected.setField(i, 1))
-    fields.indices.foreach(i => expected.setField(i + fields.length, i))
-
-    val distinctList = fields.map(f => s"COUNT(DISTINCT $f)").mkString(", ")
-    val maxList = fields.map(f => s"MAX($f)").mkString(", ")
-    checkResult(
-      s"SELECT $distinctList, $maxList FROM MyTable",
-      Seq(expected)
+  def testSingleDistinctWithFilter(): Unit = {
+    checkResult("SELECT e, COUNT(DISTINCT a) FILTER (WHERE c > 0) FROM Table5 GROUP BY e",
+      Seq(row(1, 3), row(2, 4), row(3, 2))
     )
   }
 
+  @Test
+  def testMultiDistinctOnSameColumnWithFilter(): Unit = {
+    checkResult("SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
+      "COUNT(DISTINCT a) FILTER (WHERE c < 10) FROM Table5 GROUP BY e",
+      Seq(row(1, 4, 3, 3), row(2, 4, 4, 3), row(3, 2, 2, 1)))
+  }
+
+  @Test
+  def TestMultiDistinctOnDifferentColumnWithFilter(): Unit = {
+    checkResult("SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
+      "COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM Table5 GROUP BY e",
+      Seq(row(1, 4, 3, 4), row(2, 4, 4, 7), row(3, 2, 2, 3)))
+  }
+
+  @Test
+  def TestMultiDistinctWithFilterAndNonDistinctAgg(): Unit = {
+    checkResult("SELECT e, COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0), " +
+      "MAX(c), MIN(c) FROM Table5 GROUP BY e",
+      Seq(row(1, 4, 3, 10, 0), row(2, 4, 4, 14, 1), row (3, 2, 2, 12, 5)))
+  }
+
+  @Test
+  def testMultiDistinctAndNonDistinctAggWithFilter(): Unit = {
+    checkResult("SELECT e, MAX(c), MAX(c) FILTER (WHERE b < 10), COUNT(DISTINCT a), " +
+      "COUNT(DISTINCT a) FILTER (WHERE c > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3)\n" +
+      "FROM Table5 GROUP BY e",
+      Seq(row(1, 10, 8, 4, 2, 3), row(2, 14, 6, 4, 2, 6), row (3, 12, 5, 2, 1, 3)))
+  }
+
+  @Test
+  def TestDistinctWithFilterWithoutGroupBy(): Unit = {
+    // single distinct agg with filter.
+    checkResult("SELECT COUNT(DISTINCT a) FILTER (WHERE c > 0) FROM Table5",
+      Seq(row(4)))
+
+    // multi distinct aggs on same column with filter.
+    checkResult("SELECT COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 10),\n" +
+      "COUNT(DISTINCT a) FILTER (WHERE c < 10) FROM Table5",
+      Seq(row(5, 1, 4)))
+
+    // multi distinct aggs on different columns with filter.
+    checkResult("SELECT COUNT(DISTINCT a), COUNT(DISTINCT a) FILTER (WHERE c > 0),\n" +
+      "COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM Table5",
+      Seq(row(5, 4, 14)))
+
+    // multi distinct aggs with non-distinct agg with filter.
+    checkResult("SELECT MAX(e), MAX(e) FILTER (WHERE c < 10), COUNT(DISTINCT a),\n" +
+      "COUNT(DISTINCT a) FILTER (WHERE c > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3) FROM Table5",
+      Seq(row(3, 3, 5, 2, 12)))
+  }
 }

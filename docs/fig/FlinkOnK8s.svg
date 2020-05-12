@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xl="http://www.w3.org/1999/xlink" version="1.1" viewBox="98 248 887 430" width="887pt" height="430pt" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs>
+    <font-face font-family="sans-serife" font-size="16" panose-1="2 0 5 3 0 0 0 2 0 4" units-per-em="1000" underline-position="-100" underline-thickness="50" slope="0" x-height="517" cap-height="714" ascent="951.9958" descent="-212.99744" font-weight="500">
+      <font-face-src>
+        <font-face-name name="HelveticaNeue"/>
+      </font-face-src>
+    </font-face>
+    <font-face font-family="PingFang SC" font-size="16" panose-1="2 11 4 0 0 0 0 0 0 0" units-per-em="1000" underline-position="-150" underline-thickness="58" slope="0" x-height="600" cap-height="860" ascent="1060.0021" descent="-340.0007" font-weight="500">
+      <font-face-src>
+        <font-face-name name="PingFangSC-Regular"/>
+      </font-face-src>
+    </font-face>
+    <marker orient="auto" overflow="visible" markerUnits="strokeWidth" id="FilledArrow_Marker" viewBox="-1 -4 10 8" markerWidth="10" markerHeight="8" color="black">
+      <g>
+        <path d="M 8 0 L 0 -3 L 0 3 Z" fill="currentColor" stroke="currentColor" stroke-width="1"/>
+      </g>
+    </marker>
+    <marker orient="auto" overflow="visible" markerUnits="strokeWidth" id="FilledArrow_Marker_2" viewBox="-9 -4 10 8" markerWidth="10" markerHeight="8" color="black">
+      <g>
+        <path d="M -8 0 L 0 3 L 0 -3 Z" fill="currentColor" stroke="currentColor" stroke-width="1"/>
+      </g>
+    </marker>
+  </defs>
+  <g stroke="none" stroke-opacity="1" stroke-dasharray="none" fill="none" fill-opacity="1">
+    <title>Canvas 5</title>
+    <rect fill="white" width="1612" height="1072"/>
+    <g>
+      <title>Layer 1</title>
+      <path d="M 496.22834 385.5118 L 734.0079 385.5118 C 735.6647 385.5118 737.0079 386.85495 737.0079 388.5118 L 737.0079 580.937 C 737.0079 582.59386 735.6647 583.937 734.0079 583.937 L 496.22834 583.937 C 494.5715 583.937 493.22834 582.59386 493.22834 580.937 L 493.22834 388.5118 C 493.22834 386.85495 494.5715 385.5118 496.22834 385.5118 Z" fill="#abe6e6"/>
+      <path d="M 496.22834 385.5118 L 734.0079 385.5118 C 735.6647 385.5118 737.0079 386.85495 737.0079 388.5118 L 737.0079 580.937 C 737.0079 582.59386 735.6647 583.937 734.0079 583.937 L 496.22834 583.937 C 494.5715 583.937 493.22834 582.59386 493.22834 580.937 L 493.22834 388.5118 C 493.22834 386.85495 494.5715 385.5118 496.22834 385.5118 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(498.22834 390.5118)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="0" y="15" textLength="122.72"> K8s Deployment</tspan>
+      </text>
+      <path d="M 808.0394 411.0236 L 980.622 411.0236 C 982.2789 411.0236 983.622 412.36677 983.622 414.0236 L 983.622 487.3937 C 983.622 489.05055 982.2789 490.3937 980.622 490.3937 L 808.0394 490.3937 C 806.3825 490.3937 805.0394 489.05055 805.0394 487.3937 L 805.0394 414.0236 C 805.0394 412.36677 806.3825 411.0236 808.0394 411.0236 Z" fill="#abe6e6"/>
+      <path d="M 808.0394 411.0236 L 980.622 411.0236 C 982.2789 411.0236 983.622 412.36677 983.622 414.0236 L 983.622 487.3937 C 983.622 489.05055 982.2789 490.3937 980.622 490.3937 L 808.0394 490.3937 C 806.3825 490.3937 805.0394 489.05055 805.0394 487.3937 L 805.0394 414.0236 C 805.0394 412.36677 806.3825 411.0236 808.0394 411.0236 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(810.0394 416.0236)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="0" y="15" textLength="61.056">K8s Pod</tspan>
+      </text>
+      <path d="M 813.7087 439.3701 L 972.1181 439.3701 C 973.775 439.3701 975.1181 440.7132 975.1181 442.3701 L 975.1181 476.0551 C 975.1181 477.71197 973.775 479.0551 972.1181 479.0551 L 813.7087 479.0551 C 812.0518 479.0551 810.7087 477.71197 810.7087 476.0551 L 810.7087 442.3701 C 810.7087 440.7132 812.0518 439.3701 813.7087 439.3701 Z" fill="#ffffc0"/>
+      <path d="M 813.7087 439.3701 L 972.1181 439.3701 C 973.775 439.3701 975.1181 440.7132 975.1181 442.3701 L 975.1181 476.0551 C 975.1181 477.71197 973.775 479.0551 972.1181 479.0551 L 813.7087 479.0551 C 812.0518 479.0551 810.7087 477.71197 810.7087 476.0551 L 810.7087 442.3701 C 810.7087 440.7132 812.0518 439.3701 813.7087 439.3701 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(815.7087 449.9886)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="10.524724" y="15" textLength="47.12">Flink</tspan>
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="55.868724" y="15" textLength="88.016">TaskManager</tspan>
+      </text>
+      <path d="M 507.5669 422.3622 L 725.5039 422.3622 C 727.1608 422.3622 728.5039 423.70535 728.5039 425.3622 L 728.5039 572.4331 C 728.5039 574.0899 727.1608 575.4331 725.5039 575.4331 L 507.5669 575.4331 C 505.9101 575.4331 504.5669 574.0899 504.5669 572.4331 L 504.5669 425.3622 C 504.5669 423.70535 505.9101 422.3622 507.5669 422.3622 Z" fill="#ffffc0"/>
+      <path d="M 507.5669 422.3622 L 725.5039 422.3622 C 727.1608 422.3622 728.5039 423.70535 728.5039 425.3622 L 728.5039 572.4331 C 728.5039 574.0899 727.1608 575.4331 725.5039 575.4331 L 507.5669 575.4331 C 505.9101 575.4331 504.5669 574.0899 504.5669 572.4331 L 504.5669 425.3622 C 504.5669 423.70535 505.9101 422.3622 507.5669 422.3622 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(509.5669 427.3622)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="0" y="15" textLength="100.768">   Flink Master</tspan>
+      </text>
+      <path d="M 345.99212 252.28346 L 770.8583 252.28346 C 772.5151 252.28346 773.8583 253.6266 773.8583 255.28346 L 773.8583 320.1496 C 773.8583 321.80646 772.5151 323.1496 770.8583 323.1496 L 345.99212 323.1496 C 344.33527 323.1496 342.99212 321.80646 342.99212 320.1496 L 342.99212 255.28346 C 342.99212 253.6266 344.33527 252.28346 345.99212 252.28346 Z" fill="#abe6e6"/>
+      <path d="M 345.99212 252.28346 L 770.8583 252.28346 C 772.5151 252.28346 773.8583 253.6266 773.8583 255.28346 L 773.8583 320.1496 C 773.8583 321.80646 772.5151 323.1496 770.8583 323.1496 L 345.99212 323.1496 C 344.33527 323.1496 342.99212 321.80646 342.99212 320.1496 L 342.99212 255.28346 C 342.99212 253.6266 344.33527 252.28346 345.99212 252.28346 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(347.99212 267.49253)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="169.68107" y="15" textLength="81.504">K8s Master</tspan>
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="93.80107" y="35.448" textLength="74.064">Api Server</tspan>
+        <tspan font-family="PingFang SC" font-size="16" font-weight="500" fill="black" x="167.86507" y="35.448" textLength="9.552">, </tspan>
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="177.41707" y="35.448" textLength="70">Controller</tspan>
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="245.86507" y="35.448" textLength="81.2">, Scheduler</tspan>
+      </text>
+      <path d="M 102.2126 425.19685 L 232.2756 425.19685 C 233.93244 425.19685 235.2756 426.54 235.2756 428.19685 L 235.2756 566.7638 C 235.2756 568.4206 233.93244 569.7638 232.2756 569.7638 L 102.2126 569.7638 C 100.55574 569.7638 99.2126 568.4206 99.2126 566.7638 L 99.2126 428.19685 C 99.2126 426.54 100.55574 425.19685 102.2126 425.19685 Z" fill="#ffffc0"/>
+      <path d="M 102.2126 425.19685 L 232.2756 425.19685 C 233.93244 425.19685 235.2756 426.54 235.2756 428.19685 L 235.2756 566.7638 C 235.2756 568.4206 233.93244 569.7638 232.2756 569.7638 L 102.2126 569.7638 C 100.55574 569.7638 99.2126 568.4206 99.2126 566.7638 L 99.2126 428.19685 C 99.2126 426.54 100.55574 425.19685 102.2126 425.19685 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(104.2126 430.19685)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="0" y="15" textLength="79.12">Flink Client</tspan>
+      </text>
+      <path d="M 311.97638 419.52756 L 450.5433 419.52756 C 452.20016 419.52756 453.5433 420.8707 453.5433 422.52756 L 453.5433 566.7638 C 453.5433 568.4206 452.20016 569.7638 450.5433 569.7638 L 311.97638 569.7638 C 310.31952 569.7638 308.97638 568.4206 308.97638 566.7638 L 308.97638 422.52756 C 308.97638 420.8707 310.31952 419.52756 311.97638 419.52756 Z" fill="#abe6e6"/>
+      <path d="M 311.97638 419.52756 L 450.5433 419.52756 C 452.20016 419.52756 453.5433 420.8707 453.5433 422.52756 L 453.5433 566.7638 C 453.5433 568.4206 452.20016 569.7638 450.5433 569.7638 L 311.97638 569.7638 C 310.31952 569.7638 308.97638 568.4206 308.97638 566.7638 L 308.97638 422.52756 C 308.97638 420.8707 310.31952 419.52756 311.97638 419.52756 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(313.97638 424.52756)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="0" y="15" textLength="85.04">K8s Service</tspan>
+      </text>
+      <path d="M 317.64567 456.37795 L 436.3701 456.37795 C 438.02693 456.37795 439.3701 457.7211 439.3701 459.37795 L 439.3701 527.07874 C 439.3701 528.7356 438.02693 530.07874 436.3701 530.07874 L 317.64567 530.07874 C 315.9888 530.07874 314.64567 528.7356 314.64567 527.07874 L 314.64567 459.37795 C 314.64567 457.7211 315.9888 456.37795 317.64567 456.37795 Z" fill="#abe6e6"/>
+      <path d="M 317.64567 456.37795 L 436.3701 456.37795 C 438.02693 456.37795 439.3701 457.7211 439.3701 459.37795 L 439.3701 527.07874 C 439.3701 528.7356 438.02693 530.07874 436.3701 530.07874 L 317.64567 530.07874 C 315.9888 530.07874 314.64567 528.7356 314.64567 527.07874 L 314.64567 459.37795 C 314.64567 457.7211 315.9888 456.37795 317.64567 456.37795 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(319.64567 461.37795)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="0" y="15" textLength="63.696">Selector:</tspan>
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="0" y="33.448" textLength="38.24">- app</tspan>
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="0" y="51.895996" textLength="92.192">- component</tspan>
+      </text>
+      <line x1="167.2441" y1="425.19685" x2="335.1945" y2="293.8163" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <line x1="558.4252" y1="323.1496" x2="389.9563" y2="414.79667" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <line x1="558.4252" y1="323.1496" x2="558.4252" y2="375.6118" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <path d="M 113.55118 456.37795 L 215.26772 456.37795 C 216.92457 456.37795 218.26772 457.7211 218.26772 459.37795 L 218.26772 512.9055 C 218.26772 514.56236 216.92457 515.9055 215.26772 515.9055 L 113.55118 515.9055 C 111.89433 515.9055 110.55118 514.56236 110.55118 512.9055 L 110.55118 459.37795 C 110.55118 457.7211 111.89433 456.37795 113.55118 456.37795 Z" fill="#abe6e6"/>
+      <path d="M 113.55118 456.37795 L 215.26772 456.37795 C 216.92457 456.37795 218.26772 457.7211 218.26772 459.37795 L 218.26772 512.9055 C 218.26772 514.56236 216.92457 515.9055 215.26772 515.9055 L 113.55118 515.9055 C 111.89433 515.9055 110.55118 514.56236 110.55118 512.9055 L 110.55118 459.37795 C 110.55118 457.7211 111.89433 456.37795 113.55118 456.37795 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(115.55118 476.91773)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="12.258267" y="15" textLength="73.2">K8s Client</tspan>
+      </text>
+      <rect x="249.15835" y="338.6873" width="19" height="30" fill="white"/>
+      <text transform="translate(254.15835 344.4633)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">1</tspan>
+      </text>
+      <rect x="479.1616" y="346.101" width="19" height="30" fill="white"/>
+      <text transform="translate(484.1616 351.877)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">2</tspan>
+      </text>
+      <rect x="546.09055" y="335.0265" width="19" height="30" fill="white"/>
+      <text transform="translate(551.09055 340.8025)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">2</tspan>
+      </text>
+      <path d="M 516.07086 453.5433 L 603.6142 453.5433 C 605.271 453.5433 606.6142 454.88645 606.6142 456.5433 L 606.6142 487.3937 C 606.6142 489.05055 605.271 490.3937 603.6142 490.3937 L 516.07086 490.3937 C 514.414 490.3937 513.07086 489.05055 513.07086 487.3937 L 513.07086 456.5433 C 513.07086 454.88645 514.414 453.5433 516.07086 453.5433 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(518.07086 462.7445)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="3.0996533" y="15" textLength="77.344">Dispatcher</tspan>
+      </text>
+      <path d="M 569.9291 524.40945 L 657.4724 524.40945 C 659.1293 524.40945 660.4724 525.7526 660.4724 527.40945 L 660.4724 544.25197 L 660.4724 561.0945 C 660.4724 562.75134 659.1293 564.0945 657.4724 564.0945 L 569.9291 564.0945 C 568.2723 564.0945 566.9291 562.75134 566.9291 561.0945 L 566.9291 527.40945 C 566.9291 525.7526 568.2723 524.40945 569.9291 524.40945 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(571.9291 535.02797)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="3.5396533" y="15" textLength="76.464">JobMaster</tspan>
+      </text>
+      <path d="M 620.95275 450.70866 L 719.8346 450.70866 C 721.4915 450.70866 722.8346 452.0518 722.8346 453.70866 L 722.8346 487.3937 C 722.8346 489.05055 721.4915 490.3937 719.8346 490.3937 L 620.95275 490.3937 C 619.2959 490.3937 617.95275 489.05055 617.95275 487.3937 L 617.95275 453.70866 C 617.95275 452.0518 619.2959 450.70866 620.95275 450.70866 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(622.95275 461.3272)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="1.2089446" y="15" textLength="92.464">K8sResMngr</tspan>
+      </text>
+      <line x1="235.2756" y1="470.5512" x2="296.24173" y2="470.5512" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <line x1="459.2126" y1="471.5512" x2="503.17116" y2="471.8918" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <line x1="559.8425" y1="490.3937" x2="605.33044" y2="519.1229" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <line x1="613.7008" y1="524.40945" x2="661.9045" y2="495.4872" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <path d="M 808.0394 504.5669 L 980.622 504.5669 C 982.2789 504.5669 983.622 505.9101 983.622 507.5669 L 983.622 580.937 C 983.622 582.59386 982.2789 583.937 980.622 583.937 L 808.0394 583.937 C 806.3825 583.937 805.0394 582.59386 805.0394 580.937 L 805.0394 507.5669 C 805.0394 505.9101 806.3825 504.5669 808.0394 504.5669 Z" fill="#abe6e6"/>
+      <path d="M 808.0394 504.5669 L 980.622 504.5669 C 982.2789 504.5669 983.622 505.9101 983.622 507.5669 L 983.622 580.937 C 983.622 582.59386 982.2789 583.937 980.622 583.937 L 808.0394 583.937 C 806.3825 583.937 805.0394 582.59386 805.0394 580.937 L 805.0394 507.5669 C 805.0394 505.9101 806.3825 504.5669 808.0394 504.5669 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(810.0394 509.5669)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="0" y="15" textLength="61.056">K8s Pod</tspan>
+      </text>
+      <path d="M 813.7087 532.9134 L 972.1181 532.9134 C 973.775 532.9134 975.1181 534.2565 975.1181 535.9134 L 975.1181 569.5984 C 975.1181 571.2553 973.775 572.5984 972.1181 572.5984 L 813.7087 572.5984 C 812.0518 572.5984 810.7087 571.2553 810.7087 569.5984 L 810.7087 535.9134 C 810.7087 534.2565 812.0518 532.9134 813.7087 532.9134 Z" fill="#ffffc0"/>
+      <path d="M 813.7087 532.9134 L 972.1181 532.9134 C 973.775 532.9134 975.1181 534.2565 975.1181 535.9134 L 975.1181 569.5984 C 975.1181 571.2553 973.775 572.5984 972.1181 572.5984 L 813.7087 572.5984 C 812.0518 572.5984 810.7087 571.2553 810.7087 569.5984 L 810.7087 535.9134 C 810.7087 534.2565 812.0518 532.9134 813.7087 532.9134 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(815.7087 543.5319)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="10.524724" y="15" textLength="47.12">Flink T</tspan>
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="55.868724" y="15" textLength="88.016">askManager</tspan>
+      </text>
+      <rect x="254.76234" y="455.5512" width="19" height="30" fill="white"/>
+      <text transform="translate(259.76234 461.3272)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">3</tspan>
+      </text>
+      <rect x="467.79247" y="456.69127" width="19" height="30" fill="white"/>
+      <text transform="translate(472.79247 462.46727)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">3</tspan>
+      </text>
+      <text transform="translate(579.8809 496.6676)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">4</tspan>
+      </text>
+      <text transform="translate(637.3753 498.28075)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">5</tspan>
+      </text>
+      <path d="M 411.18897 623.62204 L 819.0472 623.62204 C 820.7041 623.62204 822.0472 624.9652 822.0472 626.62204 L 822.0472 674.4803 C 822.0472 676.1372 820.7041 677.4803 819.0472 677.4803 L 411.18897 677.4803 C 409.5321 677.4803 408.18897 676.1372 408.18897 674.4803 L 408.18897 626.62204 C 408.18897 624.9652 409.5321 623.62204 411.18897 623.62204 Z" fill="#abe6e6"/>
+      <path d="M 411.18897 623.62204 L 819.0472 623.62204 C 820.7041 623.62204 822.0472 624.9652 822.0472 626.62204 L 822.0472 674.4803 C 822.0472 676.1372 820.7041 677.4803 819.0472 677.4803 L 411.18897 677.4803 C 409.5321 677.4803 408.18897 676.1372 408.18897 674.4803 L 408.18897 626.62204 C 408.18897 624.9652 409.5321 623.62204 411.18897 623.62204 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(413.18897 641.3272)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="144.74513" y="15" textLength="114.368">Docker Registry</tspan>
+      </text>
+      <line x1="670.06385" y1="450.3329" x2="564.9561" y2="330.58986" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <line x1="558.8653" y1="323.38695" x2="801.9951" y2="454.51317" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <rect x="573.5945" y="344.8478" width="19" height="30" fill="white"/>
+      <text transform="translate(578.5945 350.6238)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">6</tspan>
+      </text>
+      <rect x="605.2144" y="338.50784" width="19" height="30" fill="white"/>
+      <text transform="translate(610.2144 344.28384)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">7</tspan>
+      </text>
+      <path d="M 801.3495 462.4399 L 728.5039 487.55905 L 723.3015 487.81283" marker-start="url(#FilledArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <rect x="760.27025" y="458.3293" width="19" height="30" fill="white"/>
+      <text transform="translate(765.27025 464.1053)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">9</tspan>
+      </text>
+      <line x1="733.2156" y1="454.51605" x2="810.7087" y2="459.2126" marker-start="url(#FilledArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <rect x="746.32655" y="440.8864" width="19" height="30" fill="white"/>
+      <text transform="translate(751.32655 446.6624)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">8</tspan>
+      </text>
+      <line x1="615.1181" y1="623.62204" x2="615.1181" y2="593.837" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <line x1="615.1181" y1="623.62204" x2="885.9323" y2="588.0606" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <path d="M 833.5512 249.44882 L 972.1181 249.44882 C 973.775 249.44882 975.1181 250.79196 975.1181 252.44882 L 975.1181 317.31496 C 975.1181 318.9718 973.775 320.31496 972.1181 320.31496 L 833.5512 320.31496 C 831.8943 320.31496 830.5512 318.9718 830.5512 317.31496 L 830.5512 252.44882 C 830.5512 250.79196 831.8943 249.44882 833.5512 249.44882 Z" fill="#abe6e6"/>
+      <path d="M 833.5512 249.44882 L 972.1181 249.44882 C 973.775 249.44882 975.1181 250.79196 975.1181 252.44882 L 975.1181 317.31496 C 975.1181 318.9718 973.775 320.31496 972.1181 320.31496 L 833.5512 320.31496 C 831.8943 320.31496 830.5512 318.9718 830.5512 317.31496 L 830.5512 252.44882 C 830.5512 250.79196 831.8943 249.44882 833.5512 249.44882 Z" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(835.5512 275.6579)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" fill="black" x="25.499464" y="15" textLength="70">ConfigMap</tspan>
+      </text>
+      <line x1="779.27025" y1="286.2992" x2="820.1551" y2="285.16922" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <rect x="791.2064" y="270.70675" width="19" height="30" fill="white"/>
+      <text transform="translate(796.2064 276.48275)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".052" y="15" textLength="8.896">2</tspan>
+      </text>
+      <line x1="810.7087" y1="552.7559" x2="623.4999" y2="525.8194" marker-end="url(#FilledArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      <text transform="translate(699.5064 528.82655)" fill="black">
+        <tspan font-family="sans-serife" font-size="16" font-weight="500" x=".104" y="15" textLength="17.792">10</tspan>
+      </text>
+    </g>
+  </g>
+</svg>

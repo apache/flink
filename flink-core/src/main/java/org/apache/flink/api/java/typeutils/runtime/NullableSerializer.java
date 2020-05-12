@@ -218,7 +218,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		boolean isNull = source.readBoolean();
+		boolean isNull = deserializeNull(source);
 		target.writeBoolean(isNull);
 		if (isNull) {
 			target.write(padding);

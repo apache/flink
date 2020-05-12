@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_HOSTS;
+
 /**
  * Tests for the {@link Elasticsearch} descriptor.
  */
@@ -48,10 +50,30 @@ public class ElasticsearchTest extends DescriptorTestBase {
 		addPropertyAndVerify(descriptors().get(1), "connector.bulk-flush.max-size", "12 bytes");
 	}
 
+	@Test(expected = ValidationException.class)
+	public void testInvalidProtocolInHosts() {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putString(CONNECTOR_HOSTS, "localhost:90");
+		ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+	}
+
+	@Test(expected = ValidationException.class)
+	public void testInvalidHostNameInHosts() {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putString(CONNECTOR_HOSTS, "http://:90");
+		ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+	}
+
+	@Test(expected = ValidationException.class)
+	public void testInvalidHostPortInHosts() {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putString(CONNECTOR_HOSTS, "http://localhost");
+		ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+	}
+
 	@Override
 	public List<Descriptor> descriptors() {
-		final Descriptor minimumDesc =
-			new Elasticsearch()
+		final Descriptor minimumDesc = new Elasticsearch()
 				.version("6")
 				.host("localhost", 1234, "http")
 				.index("MyIndex")
@@ -94,9 +116,7 @@ public class ElasticsearchTest extends DescriptorTestBase {
 		minimumDesc.put("connector.property-version", "1");
 		minimumDesc.put("connector.type", "elasticsearch");
 		minimumDesc.put("connector.version", "6");
-		minimumDesc.put("connector.hosts.0.hostname", "localhost");
-		minimumDesc.put("connector.hosts.0.port", "1234");
-		minimumDesc.put("connector.hosts.0.protocol", "http");
+		minimumDesc.put("connector.hosts", "http://localhost:1234");
 		minimumDesc.put("connector.index", "MyIndex");
 		minimumDesc.put("connector.document-type", "MyType");
 
@@ -104,12 +124,7 @@ public class ElasticsearchTest extends DescriptorTestBase {
 		maximumDesc.put("connector.property-version", "1");
 		maximumDesc.put("connector.type", "elasticsearch");
 		maximumDesc.put("connector.version", "6");
-		maximumDesc.put("connector.hosts.0.hostname", "host1");
-		maximumDesc.put("connector.hosts.0.port", "1234");
-		maximumDesc.put("connector.hosts.0.protocol", "https");
-		maximumDesc.put("connector.hosts.1.hostname", "host2");
-		maximumDesc.put("connector.hosts.1.port", "1234");
-		maximumDesc.put("connector.hosts.1.protocol", "https");
+		maximumDesc.put("connector.hosts", "https://host1:1234;https://host2:1234");
 		maximumDesc.put("connector.index", "MyIndex");
 		maximumDesc.put("connector.document-type", "MyType");
 		maximumDesc.put("connector.key-delimiter", "#");
@@ -119,7 +134,7 @@ public class ElasticsearchTest extends DescriptorTestBase {
 		maximumDesc.put("connector.bulk-flush.backoff.max-retries", "3");
 		maximumDesc.put("connector.bulk-flush.interval", "100");
 		maximumDesc.put("connector.bulk-flush.max-actions", "1000");
-		maximumDesc.put("connector.bulk-flush.max-size", "12582912 bytes");
+		maximumDesc.put("connector.bulk-flush.max-size", "12 mb");
 		maximumDesc.put("connector.failure-handler", "retry-rejected");
 		maximumDesc.put("connector.connection-max-retry-timeout", "100");
 		maximumDesc.put("connector.connection-path-prefix", "/myapp");
@@ -128,9 +143,7 @@ public class ElasticsearchTest extends DescriptorTestBase {
 		customDesc.put("connector.property-version", "1");
 		customDesc.put("connector.type", "elasticsearch");
 		customDesc.put("connector.version", "6");
-		customDesc.put("connector.hosts.0.hostname", "localhost");
-		customDesc.put("connector.hosts.0.port", "1234");
-		customDesc.put("connector.hosts.0.protocol", "http");
+		customDesc.put("connector.hosts", "http://localhost:1234");
 		customDesc.put("connector.index", "MyIndex");
 		customDesc.put("connector.document-type", "MyType");
 		customDesc.put("connector.flush-on-checkpoint", "false");

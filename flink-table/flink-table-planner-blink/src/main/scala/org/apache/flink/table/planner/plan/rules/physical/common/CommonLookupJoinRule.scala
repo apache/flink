@@ -18,17 +18,23 @@
 package org.apache.flink.table.planner.plan.rules.physical.common
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
+import org.apache.flink.table.connector.source.LookupTableSource
+import org.apache.flink.table.planner.plan.nodes.common.{CommonLookupJoin, CommonPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.sources.{LookupableTableSource, TableSource}
+import org.apache.flink.table.planner.plan.utils.JoinUtil
+import org.apache.flink.table.sources.LookupableTableSource
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptTable}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.{RexCorrelVariable, RexFieldAccess, RexProgram}
+
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Base implementation for both
@@ -42,9 +48,9 @@ trait CommonLookupJoinRule {
       snapshot: FlinkLogicalSnapshot,
       tableScan: TableScan): Boolean = {
     // TODO: shouldn't match temporal UDTF join
-    if (findTableSource(tableScan).isEmpty) {
+    if (!isTableSourceScan(tableScan)) {
       throw new TableException(
-        "Temporal table join only support join on a LookupableTableSource " +
+        "Temporal table join only support join on a LookupTableSource, " +
           "not on a DataStream or an intermediate query")
     }
     // period specification check
@@ -62,34 +68,54 @@ trait CommonLookupJoinRule {
         throw new TableException("Temporal table join currently only supports " +
           "'FOR SYSTEM_TIME AS OF' left table's proctime field, doesn't support 'PROCTIME()'")
     }
-    // currently temporal table join only support LookupableTableSource
-    isLookupableTableSource(tableScan)
+    // currently temporal table join only support LookupTableSource
+    isLookupTableSource(tableScan)
   }
 
-  protected def findTableSource(relNode: RelNode): Option[TableSource[_]] = {
+  protected def isTableSourceScan(relNode: RelNode): Boolean = {
     relNode match {
-      case logicalScan: FlinkLogicalTableSourceScan => Some(logicalScan.tableSource)
-      case physicalScan: PhysicalTableSourceScan => Some(physicalScan.tableSource)
-      // TODO: find TableSource in FlinkLogicalIntermediateTableScan
-      case _ => None
+      case _: FlinkLogicalLegacyTableSourceScan | _: PhysicalLegacyTableSourceScan |
+           _: FlinkLogicalTableSourceScan | _: CommonPhysicalTableSourceScan => true
+      case _ => false
     }
   }
 
-  protected def isLookupableTableSource(relNode: RelNode): Boolean = {
+  protected def isLookupTableSource(relNode: RelNode): Boolean = {
     relNode match {
-      case logicalScan: FlinkLogicalTableSourceScan =>
-        logicalScan.tableSource.isInstanceOf[LookupableTableSource[_]]
-      case physicalScan: PhysicalTableSourceScan =>
-        physicalScan.tableSource.isInstanceOf[LookupableTableSource[_]]
+      case scan: FlinkLogicalLegacyTableSourceScan =>
+        scan.tableSource.isInstanceOf[LookupableTableSource[_]]
+      case scan: PhysicalLegacyTableSourceScan =>
+        scan.tableSource.isInstanceOf[LookupableTableSource[_]]
+      case scan: FlinkLogicalTableSourceScan =>
+        scan.tableSource.isInstanceOf[LookupTableSource]
+      case scan: CommonPhysicalTableSourceScan =>
+        scan.tableSource.isInstanceOf[LookupTableSource]
       // TODO: find TableSource in FlinkLogicalIntermediateTableScan
       case _ => false
+    }
+  }
+
+  // TODO Support `IS NOT DISTINCT FROM` in the future: FLINK-13509
+  protected def validateJoin(join: FlinkLogicalJoin): Unit = {
+
+    val filterNulls: Array[Boolean] = {
+      val filterNulls = new util.ArrayList[java.lang.Boolean]
+      JoinUtil.createJoinInfo(join.getLeft, join.getRight, join.getCondition, filterNulls)
+      filterNulls.map(_.booleanValue()).toArray
+    }
+
+    if (filterNulls.contains(false)) {
+      throw new TableException(
+        s"LookupJoin doesn't support join condition contains 'a IS NOT DISTINCT FROM b' (or " +
+          s"alternative '(a = b) or (a IS NULL AND b IS NULL)'), the join condition is " +
+          s"'${join.getCondition}'")
     }
   }
 
   protected def transform(
     join: FlinkLogicalJoin,
     input: FlinkLogicalRel,
-    tableSource: TableSource[_],
+    temporalTable: RelOptTable,
     calcProgram: Option[RexProgram]): CommonLookupJoin
 }
 
@@ -113,9 +139,9 @@ abstract class BaseSnapshotOnTableScanRule(description: String)
     val join = call.rel[FlinkLogicalJoin](0)
     val input = call.rel[FlinkLogicalRel](1)
     val tableScan = call.rel[RelNode](3)
-    val tableSource = findTableSource(tableScan).orNull
 
-    val temporalJoin = transform(join, input, tableSource, None)
+    validateJoin(join)
+    val temporalJoin = transform(join, input, tableScan.getTable, None)
     call.transformTo(temporalJoin)
   }
 
@@ -143,10 +169,10 @@ abstract class BaseSnapshotOnCalcTableScanRule(description: String)
     val input = call.rel[FlinkLogicalRel](1)
     val calc = call.rel[FlinkLogicalCalc](3)
     val tableScan = call.rel[RelNode](4)
-    val tableSource = findTableSource(tableScan).orNull
 
+    validateJoin(join)
     val temporalJoin = transform(
-      join, input, tableSource, Some(calc.getProgram))
+      join, input, tableScan.getTable, Some(calc.getProgram))
     call.transformTo(temporalJoin)
   }
 

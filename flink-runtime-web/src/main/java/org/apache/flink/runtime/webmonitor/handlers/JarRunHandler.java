@@ -19,29 +19,29 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.deployment.application.ApplicationRunner;
+import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
+import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.client.ClientUtils;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.utils.JarHandlerUtils.JarHandlerContext;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nonnull;
 
-import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
@@ -58,6 +58,8 @@ public class JarRunHandler extends
 
 	private final Configuration configuration;
 
+	private final ApplicationRunner applicationRunner;
+
 	private final Executor executor;
 
 	public JarRunHandler(
@@ -67,45 +69,40 @@ public class JarRunHandler extends
 			final MessageHeaders<JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters> messageHeaders,
 			final Path jarDir,
 			final Configuration configuration,
-			final Executor executor) {
+			final Executor executor,
+			final Supplier<ApplicationRunner> applicationRunnerSupplier) {
 		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.jarDir = requireNonNull(jarDir);
 		this.configuration = requireNonNull(configuration);
 		this.executor = requireNonNull(executor);
+
+		this.applicationRunner = applicationRunnerSupplier.get();
 	}
 
 	@Override
 	protected CompletableFuture<JarRunResponseBody> handleRequest(
 			@Nonnull final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request,
 			@Nonnull final DispatcherGateway gateway) throws RestHandlerException {
+
+		final Configuration effectiveConfiguration = new Configuration(configuration);
+		effectiveConfiguration.set(DeploymentOptions.ATTACHED, false);
+		effectiveConfiguration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
+
 		final JarHandlerContext context = JarHandlerContext.fromRequest(request, jarDir, log);
+		context.applyToConfiguration(effectiveConfiguration);
+		SavepointRestoreSettings.toConfiguration(getSavepointRestoreSettings(request), effectiveConfiguration);
 
-		final SavepointRestoreSettings savepointRestoreSettings = getSavepointRestoreSettings(request);
+		final PackagedProgram program = context.toPackagedProgram(effectiveConfiguration);
 
-		final CompletableFuture<JobGraph> jobGraphFuture = getJobGraphAsync(context, savepointRestoreSettings);
-
-		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
-
-		CompletableFuture<JobGraph> jarUploadFuture = jobGraphFuture.thenCombine(blobServerPortFuture, (jobGraph, blobServerPort) -> {
-			final InetSocketAddress address = new InetSocketAddress(gateway.getHostname(), blobServerPort);
-			try {
-				ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> new BlobClient(address, configuration));
-			} catch (FlinkException e) {
-				throw new CompletionException(e);
-			}
-
-			return jobGraph;
-		});
-
-		CompletableFuture<Acknowledge> jobSubmissionFuture = jarUploadFuture.thenCompose(jobGraph -> {
-			// we have to enable queued scheduling because slots will be allocated lazily
-			jobGraph.setAllowQueuedScheduling(true);
-			return gateway.submitJob(jobGraph, timeout);
-		});
-
-		return jobSubmissionFuture
-			.thenCombine(jarUploadFuture, (ack, jobGraph) -> new JarRunResponseBody(jobGraph.getJobID()));
+		return CompletableFuture
+				.supplyAsync(() -> applicationRunner.run(gateway, program, effectiveConfiguration), executor)
+				.thenApply(jobIds -> {
+					if (jobIds.isEmpty()) {
+						throw new CompletionException(new ProgramInvocationException("No jobs submitted."));
+					}
+					return new JarRunResponseBody(jobIds.get(0));
+				});
 	}
 
 	private SavepointRestoreSettings getSavepointRestoreSettings(
@@ -133,15 +130,5 @@ public class JarRunHandler extends
 			savepointRestoreSettings = SavepointRestoreSettings.none();
 		}
 		return savepointRestoreSettings;
-	}
-
-	private CompletableFuture<JobGraph> getJobGraphAsync(
-			JarHandlerContext context,
-			final SavepointRestoreSettings savepointRestoreSettings) {
-		return CompletableFuture.supplyAsync(() -> {
-			final JobGraph jobGraph = context.toJobGraph(configuration);
-			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
-			return jobGraph;
-		}, executor);
 	}
 }

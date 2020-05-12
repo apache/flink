@@ -32,7 +32,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSomeBuffer;
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -143,7 +143,7 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
 		assertNotNull(buffer2);
 
 		// the next buffer is null in view because FileBufferReader has no available buffers for reading ahead
-		assertFalse(subpartitionView.isAvailable());
+		assertFalse(subpartitionView.isAvailable(Integer.MAX_VALUE));
 		// recycle a buffer to trigger notification of data available
 		buffer1.buffer().recycleBuffer();
 		assertTrue(listener.isAvailable);
@@ -173,7 +173,7 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
 
 	private static void writeBuffers(ResultSubpartition subpartition, int numberOfBuffers) throws IOException {
 		for (int i = 0; i < numberOfBuffers; i++) {
-			subpartition.add(createFilledBufferConsumer(BUFFER_SIZE, BUFFER_SIZE));
+			subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
 		}
 		subpartition.finish();
 	}

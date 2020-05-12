@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.ValuesCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
@@ -46,7 +46,7 @@ class BatchExecValues(
     outputRowType: RelDataType)
   extends Values(cluster, outputRowType, tuples, traitSet)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   override def deriveRowType(): RelDataType = outputRowType
 
@@ -72,7 +72,7 @@ class BatchExecValues(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val inputFormat = ValuesCodeGenerator.generatorInputFormat(
       planner.getTableConfig,
       getRowType,
@@ -80,8 +80,9 @@ class BatchExecValues(
       getRelTypeName)
     val transformation = planner.getExecEnv.createInput(inputFormat,
       inputFormat.getProducedType).getTransformation
-    transformation.setParallelism(getResource.getParallelism)
-    transformation
+    transformation.setName(getRelDetailedDescription)
+    transformation.setParallelism(1)
+    ExecNode.setManagedMemoryWeight(transformation)
   }
 
 }

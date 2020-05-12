@@ -20,11 +20,15 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
+import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 
 import org.hamcrest.Matchers;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,6 +44,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests that read the BoundedBlockingSubpartition with multiple threads in parallel.
  */
+@RunWith(Parameterized.class)
 public abstract class BoundedDataTestBase {
 
 	@ClassRule
@@ -48,6 +53,20 @@ public abstract class BoundedDataTestBase {
 	/** Max buffer sized used by the tests that write data. For implementations that need
 	 * to instantiate buffers in the read side. */
 	protected static final int BUFFER_SIZE = 1024 * 1024; // 1 MiByte
+
+	private static final String COMPRESSION_CODEC = "LZ4";
+
+	private static final BufferCompressor COMPRESSOR = new BufferCompressor(BUFFER_SIZE, COMPRESSION_CODEC);
+
+	private static final BufferDecompressor DECOMPRESSOR = new BufferDecompressor(BUFFER_SIZE, COMPRESSION_CODEC);
+
+	@Parameterized.Parameter
+	public static boolean compressionEnabled;
+
+	@Parameterized.Parameters(name = "compressionEnabled = {0}")
+	public static Boolean[] compressionEnabled() {
+		return new Boolean[] {false, true};
+	}
 
 	// ------------------------------------------------------------------------
 	//  BoundedData Instantiation
@@ -125,7 +144,7 @@ public abstract class BoundedDataTestBase {
 	@Test
 	public void testGetSizeSingleRegion() throws Exception {
 		try (BoundedData bd = createBoundedData()) {
-			testGetSize(bd);
+			testGetSize(bd, 60_787, 76_687);
 		}
 	}
 
@@ -135,14 +154,13 @@ public abstract class BoundedDataTestBase {
 			return;
 		}
 
-		try (BoundedData bd = createBoundedDataWithRegion(100_000)) {
-			testGetSize(bd);
+		int pageSize = PageSizeUtil.getSystemPageSizeOrConservativeMultiple();
+		try (BoundedData bd = createBoundedDataWithRegion(pageSize)) {
+			testGetSize(bd, pageSize / 3, pageSize - BufferReaderWriterUtil.HEADER_LENGTH);
 		}
 	}
 
-	private static void testGetSize(BoundedData bd) throws Exception {
-		final int bufferSize1 = 60_787;
-		final int bufferSize2 = 76_687;
+	private static void testGetSize(BoundedData bd, int bufferSize1, int bufferSize2) throws Exception {
 		final int expectedSize1 = bufferSize1 + BufferReaderWriterUtil.HEADER_LENGTH;
 		final int expectedSizeFinal = bufferSize1 + bufferSize2 + 2 * BufferReaderWriterUtil.HEADER_LENGTH;
 
@@ -166,7 +184,11 @@ public abstract class BoundedDataTestBase {
 
 		for (int nextValue = 0; nextValue < numInts; nextValue += numIntsInBuffer) {
 			Buffer buffer = BufferBuilderTestUtils.buildBufferWithAscendingInts(BUFFER_SIZE, numIntsInBuffer, nextValue);
-			bd.writeBuffer(buffer);
+			if (compressionEnabled) {
+				bd.writeBuffer(COMPRESSOR.compressToIntermediateBuffer(buffer));
+			} else {
+				bd.writeBuffer(buffer);
+			}
 			numBuffers++;
 		}
 
@@ -180,7 +202,12 @@ public abstract class BoundedDataTestBase {
 
 		while ((b = reader.nextBuffer()) != null) {
 			final int numIntsInBuffer = b.getSize() / 4;
-			BufferBuilderTestUtils.validateBufferWithAscendingInts(b, numIntsInBuffer, nextValue);
+			if (compressionEnabled && b.isCompressed()) {
+				Buffer decompressedBuffer = DECOMPRESSOR.decompressToIntermediateBuffer(b);
+				BufferBuilderTestUtils.validateBufferWithAscendingInts(decompressedBuffer, numIntsInBuffer, nextValue);
+			} else {
+				BufferBuilderTestUtils.validateBufferWithAscendingInts(b, numIntsInBuffer, nextValue);
+			}
 			nextValue += numIntsInBuffer;
 			numBuffers++;
 

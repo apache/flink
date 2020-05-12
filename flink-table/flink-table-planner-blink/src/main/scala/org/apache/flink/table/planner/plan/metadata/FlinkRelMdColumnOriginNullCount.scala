@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnOriginNullCount
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.JoinUtil
 import org.apache.flink.table.planner.{JArrayList, JBoolean, JDouble}
 import org.apache.flink.util.Preconditions
@@ -45,11 +45,11 @@ class FlinkRelMdColumnOriginNullCount private extends MetadataHandler[ColumnOrig
 
   def getColumnOriginNullCount(rel: TableScan, mq: RelMetadataQuery, index: Int): JDouble = {
     Preconditions.checkArgument(mq.isInstanceOf[FlinkRelMetadataQuery])
-    val relOptTable = rel.getTable.asInstanceOf[FlinkRelOptTable]
+    val relOptTable = rel.getTable.asInstanceOf[FlinkPreparingTableBase]
     val fieldNames = relOptTable.getRowType.getFieldNames
     Preconditions.checkArgument(index >= 0 && index < fieldNames.size())
     val fieldName = fieldNames.get(index)
-    val statistic = relOptTable.getFlinkStatistic
+    val statistic = relOptTable.getStatistic
     val colStats = statistic.getColumnStats(fieldName)
     if (colStats != null && colStats.getNullCount != null) {
       colStats.getNullCount.toDouble

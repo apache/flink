@@ -18,7 +18,9 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.util.Collector;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
@@ -32,6 +34,18 @@ import java.io.Serializable;
  */
 @PublicEvolving
 public interface KafkaDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+
+	/**
+	 * Initialization method for the schema. It is called before the actual working methods
+	 * {@link #deserialize} and thus suitable for one time setup work.
+	 *
+	 * <p>The provided {@link DeserializationSchema.InitializationContext} can be used to access additional features such as e.g.
+	 * registering user metrics.
+	 *
+	 * @param context Contextual information that can be used during initialization.
+	 */
+	default void open(DeserializationSchema.InitializationContext context) throws Exception {
+	}
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
@@ -51,4 +65,21 @@ public interface KafkaDeserializationSchema<T> extends Serializable, ResultTypeQ
 	 * @return The deserialized message as an object (null if the message cannot be deserialized).
 	 */
 	T deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception;
+
+	/**
+	 * Deserializes the Kafka record.
+	 *
+	 * <p>Can output multiple records through the {@link Collector}. Note that number and size of the
+	 * produced records should be relatively small. Depending on the source implementation records
+	 * can be buffered in memory or collecting records might delay emitting checkpoint barrier.
+	 *
+	 * @param message The message, as a byte array.
+	 * @param out The collector to put the resulting messages.
+	 */
+	default void deserialize(ConsumerRecord<byte[], byte[]> message, Collector<T> out) throws Exception {
+		T deserialized = deserialize(message);
+		if (deserialized != null) {
+			out.collect(deserialized);
+		}
+	}
 }

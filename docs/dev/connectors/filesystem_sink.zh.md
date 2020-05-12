@@ -23,6 +23,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<div class="alert alert-info" markdown="span">
+`BucketingSink` 从 **Flink 1.9** 开始已经被废弃，并会在后续的版本中删除。请使用
+[__StreamingFileSink__]({{site.baseurl}}/zh/dev/connectors/streamfile_sink.html)。
+</div>
+
 这个连接器可以向所有 [Hadoop FileSystem](http://hadoop.apache.org) 支持的文件系统写入分区文件。
 使用前，需要在工程里添加下面的依赖：
 

@@ -36,11 +36,14 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -51,8 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import scala.concurrent.Await;
-
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -64,6 +66,8 @@ import static org.junit.Assert.fail;
  * Tests for the {@link AkkaRpcActor}.
  */
 public class AkkaRpcActorTest extends TestLogger {
+
+	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcActorTest.class);
 
 	// ------------------------------------------------------------------------
 	//  shared test members
@@ -272,7 +276,7 @@ public class AkkaRpcActorTest extends TestLogger {
 			terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		} finally {
 			rpcActorSystem.terminate();
-			Await.ready(rpcActorSystem.whenTerminated(), FutureUtils.toFiniteDuration(timeout));
+			FutureUtils.toJava(rpcActorSystem.whenTerminated()).get(timeout.getSize(), timeout.getUnit());
 		}
 	}
 
@@ -395,6 +399,92 @@ public class AkkaRpcActorTest extends TestLogger {
 		} catch (ExecutionException ee) {
 			assertThat(ExceptionUtils.findThrowable(ee, exception -> exception.equals(testException)).isPresent(), is(true));
 		}
+	}
+
+	/**
+	 * Tests that multiple termination calls won't trigger the onStop action multiple times.
+	 * Note that this test is a probabilistic test which only fails sometimes without the fix.
+	 * See FLINK-16703.
+	 */
+	@Test
+	public void callsOnStopOnlyOnce() throws Exception {
+		final CompletableFuture<Void> onStopFuture = new CompletableFuture<>();
+		final OnStopCountingRpcEndpoint endpoint = new OnStopCountingRpcEndpoint(akkaRpcService, onStopFuture);
+
+		try {
+			endpoint.start();
+
+			final AkkaBasedEndpoint selfGateway = endpoint.getSelfGateway(AkkaBasedEndpoint.class);
+
+			// try to terminate the actor twice
+			selfGateway.getActorRef().tell(ControlMessages.TERMINATE, ActorRef.noSender());
+			selfGateway.getActorRef().tell(ControlMessages.TERMINATE, ActorRef.noSender());
+
+			endpoint.waitUntilOnStopHasBeenCalled();
+
+			onStopFuture.complete(null);
+
+			endpoint.getTerminationFuture().get();
+
+			assertThat(endpoint.getNumOnStopCalls(), is(1));
+		} finally {
+			onStopFuture.complete(null);
+			RpcUtils.terminateRpcEndpoint(endpoint, timeout);
+		}
+	}
+
+	@Test
+	public void canReuseEndpointNameAfterTermination() throws Exception {
+		final String endpointName = "not_unique";
+		try (SimpleRpcEndpoint simpleRpcEndpoint1 = new SimpleRpcEndpoint(akkaRpcService, endpointName)) {
+
+			simpleRpcEndpoint1.start();
+
+			simpleRpcEndpoint1.closeAsync().join();
+
+			try (SimpleRpcEndpoint simpleRpcEndpoint2 = new SimpleRpcEndpoint(akkaRpcService, endpointName)) {
+				simpleRpcEndpoint2.start();
+
+				assertThat(simpleRpcEndpoint2.getAddress(), is(equalTo(simpleRpcEndpoint1.getAddress())));
+			}
+		}
+	}
+
+	@Test
+	public void terminationFutureDoesNotBlockRpcEndpointCreation() throws Exception {
+		try (final SimpleRpcEndpoint simpleRpcEndpoint = new SimpleRpcEndpoint(akkaRpcService, "foobar")) {
+			final CompletableFuture<Void> terminationFuture = simpleRpcEndpoint.getTerminationFuture();
+
+			// Creating a new RpcEndpoint within the termination future ensures that
+			// completing the termination future won't block the RpcService
+			final CompletableFuture<SimpleRpcEndpoint> foobar2 = terminationFuture.thenApply(ignored -> new SimpleRpcEndpoint(akkaRpcService, "foobar2"));
+
+			simpleRpcEndpoint.closeAsync();
+
+			final SimpleRpcEndpoint simpleRpcEndpoint2 = foobar2.join();
+			simpleRpcEndpoint2.close();
+		}
+	}
+
+	@Test
+	public void resolvesRunningAkkaRpcActor() throws Exception {
+		final String endpointName = "foobar";
+
+		try (RpcEndpoint simpleRpcEndpoint1 = createRpcEndpointWithRandomNameSuffix(endpointName);
+			RpcEndpoint simpleRpcEndpoint2 = createRpcEndpointWithRandomNameSuffix(endpointName)) {
+
+			simpleRpcEndpoint1.closeAsync().join();
+
+			final String wildcardName = AkkaRpcServiceUtils.createWildcardName(endpointName);
+			final String wildcardAddress = AkkaRpcServiceUtils.getLocalRpcUrl(wildcardName);
+			final RpcGateway rpcGateway = akkaRpcService.connect(wildcardAddress, RpcGateway.class).join();
+
+			assertThat(rpcGateway.getAddress(), is(equalTo(simpleRpcEndpoint2.getAddress())));
+		}
+	}
+
+	private RpcEndpoint createRpcEndpointWithRandomNameSuffix(String prefix) {
+		return new SimpleRpcEndpoint(akkaRpcService, AkkaRpcServiceUtils.createRandomName(prefix));
 	}
 
 	// ------------------------------------------------------------------------
@@ -609,6 +699,37 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		public void awaitUntilOnStartCalled() throws InterruptedException {
 			countDownLatch.await();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static final class OnStopCountingRpcEndpoint extends RpcEndpoint {
+
+		private final AtomicInteger numOnStopCalls = new AtomicInteger(0);
+
+		private final OneShotLatch onStopHasBeenCalled = new OneShotLatch();
+
+		private final CompletableFuture<Void> onStopFuture;
+
+		private OnStopCountingRpcEndpoint(RpcService rpcService, CompletableFuture<Void> onStopFuture) {
+			super(rpcService);
+			this.onStopFuture = onStopFuture;
+		}
+
+		@Override
+		protected CompletableFuture<Void> onStop() {
+			onStopHasBeenCalled.trigger();
+			numOnStopCalls.incrementAndGet();
+			return onStopFuture;
+		}
+
+		private int getNumOnStopCalls() {
+			return numOnStopCalls.get();
+		}
+
+		private void waitUntilOnStopHasBeenCalled() throws InterruptedException {
+			onStopHasBeenCalled.await();
 		}
 	}
 }

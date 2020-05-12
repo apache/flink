@@ -27,19 +27,22 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.ClusterPartitionManager;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 
 import javax.annotation.Nullable;
 
@@ -49,7 +52,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * The {@link ResourceManager}'s RPC gateway interface.
  */
-public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManagerId> {
+public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManagerId>, ClusterPartitionManager {
 
 	/**
 	 * Register a {@link JobMaster} at the resource manager.
@@ -90,19 +93,13 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	/**
 	 * Register a {@link TaskExecutor} at the resource manager.
 	 *
-	 * @param taskExecutorAddress The address of the TaskExecutor that registers
-	 * @param resourceId The resource ID of the TaskExecutor that registers
-	 * @param dataPort port used for data communication between TaskExecutors
-	 * @param hardwareDescription of the registering TaskExecutor
+	 * @param taskExecutorRegistration the task executor registration.
 	 * @param timeout The timeout for the response.
 	 *
 	 * @return The future to the response by the ResourceManager.
 	 */
 	CompletableFuture<RegistrationResponse> registerTaskExecutor(
-		String taskExecutorAddress,
-		ResourceID resourceId,
-		int dataPort,
-		HardwareDescription hardwareDescription,
+		TaskExecutorRegistration taskExecutorRegistration,
 		@RpcTimeout Time timeout);
 
 	/**
@@ -150,9 +147,9 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * Sends the heartbeat to resource manager from task manager
 	 *
 	 * @param heartbeatOrigin unique id of the task manager
-	 * @param slotReport Current slot allocation on the originating TaskManager
+	 * @param heartbeatPayload payload from the originating TaskManager
 	 */
-	void heartbeatFromTaskManager(final ResourceID heartbeatOrigin, final SlotReport slotReport);
+	void heartbeatFromTaskManager(final ResourceID heartbeatOrigin, final TaskExecutorHeartbeatPayload heartbeatPayload);
 
 	/**
 	 * Sends the heartbeat to resource manager from job manager
@@ -221,5 +218,34 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * @return Future which is completed with the {@link TransientBlobKey} after uploading the file to the
 	 * {@link BlobServer}.
 	 */
-	CompletableFuture<TransientBlobKey> requestTaskManagerFileUpload(ResourceID taskManagerId, FileType fileType, @RpcTimeout Time timeout);
+	CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByType(ResourceID taskManagerId, FileType fileType, @RpcTimeout Time timeout);
+
+	/**
+	 * Request the file upload from the given {@link TaskExecutor} to the cluster's {@link BlobServer}. The
+	 * corresponding {@link TransientBlobKey} is returned.
+	 *
+	 * @param taskManagerId identifying the {@link TaskExecutor} to upload the specified file
+	 * @param fileName name of the file to upload
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the {@link TransientBlobKey} after uploading the file to the
+	 * {@link BlobServer}.
+	 */
+	CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(ResourceID taskManagerId, String fileName, @RpcTimeout Time timeout);
+
+	/**
+	 * Request log list from the given {@link TaskExecutor}.
+	 * @param taskManagerId identifying the {@link TaskExecutor} to get log list from
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the historical log list
+	 */
+	CompletableFuture<Collection<LogInfo>> requestTaskManagerLogList(ResourceID taskManagerId, @RpcTimeout Time timeout);
+
+	/**
+	 * Requests the thread dump from the given {@link TaskExecutor}.
+	 *
+	 * @param taskManagerId taskManagerId identifying the {@link TaskExecutor} to get the thread dump from
+	 * @param timeout timeout of the asynchronous operation
+	 * @return Future containing the thread dump information
+	 */
+	CompletableFuture<ThreadDumpInfo> requestThreadDump(ResourceID taskManagerId, @RpcTimeout Time timeout);
 }

@@ -124,4 +124,13 @@ public interface MapState<UK, UV> extends State {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	Iterator<Map.Entry<UK, UV>> iterator() throws Exception;
+
+	/**
+	 * Returns true if this state contains no key-value mappings, otherwise false.
+	 *
+	 * @return True if this state contains no key-value mappings, otherwise false.
+	 *
+	 * @throws Exception Thrown if the system cannot access the state.
+	 */
+	boolean isEmpty() throws Exception;
 }

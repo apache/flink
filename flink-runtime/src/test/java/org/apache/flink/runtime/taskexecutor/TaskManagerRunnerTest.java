@@ -21,9 +21,12 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TimeUtils;
 
 import org.junit.After;
 import org.junit.Before;
@@ -64,7 +67,7 @@ public class TaskManagerRunnerTest extends TestLogger {
 	public void testShouldShutdownOnFatalError() throws Exception {
 		Configuration configuration = createConfiguration();
 		// very high timeout, to ensure that we don't fail because of registration timeouts
-		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "42 h");
+		configuration.set(TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("42 h"));
 		taskManagerRunner = createTaskManagerRunner(configuration);
 
 		taskManagerRunner.onFatalError(new RuntimeException());
@@ -76,7 +79,7 @@ public class TaskManagerRunnerTest extends TestLogger {
 	@Test
 	public void testShouldShutdownIfRegistrationWithJobManagerFails() throws Exception {
 		Configuration configuration = createConfiguration();
-		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "10 ms");
+		configuration.set(TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("10 ms"));
 		taskManagerRunner = createTaskManagerRunner(configuration);
 
 		Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
@@ -87,11 +90,12 @@ public class TaskManagerRunnerTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
 		configuration.setString(TaskManagerOptions.HOST, "localhost");
-		return configuration;
+		return TaskExecutorResourceUtils.adjustForLocalExecution(configuration);
 	}
 
 	private static TaskManagerRunner createTaskManagerRunner(final Configuration configuration) throws Exception {
-		TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, ResourceID.generate());
+		final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
+		TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, ResourceID.generate(), pluginManager);
 		taskManagerRunner.start();
 		return taskManagerRunner;
 	}

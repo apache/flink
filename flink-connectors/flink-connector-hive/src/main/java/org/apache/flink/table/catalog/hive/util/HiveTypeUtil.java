@@ -21,16 +21,25 @@ package org.apache.flink.table.catalog.hive.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.types.AtomicDataType;
-import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
-import org.apache.flink.table.types.KeyValueDataType;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
@@ -48,7 +57,6 @@ import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -62,126 +70,18 @@ public class HiveTypeUtil {
 	}
 
 	/**
-	 * Convert Flink data type to Hive data type name.
+	 * Convert Flink DataType to Hive TypeInfo. For types with a precision parameter, e.g. timestamp, the supported
+	 * precisions in Hive and Flink can be different. Therefore the conversion will fail for those types if the precision
+	 * is not supported by Hive and checkPrecision is true.
 	 *
-	 * @param type a Flink data type
-	 * @return the corresponding Hive data type name
-	 */
-	public static String toHiveTypeName(DataType type) {
-		checkNotNull(type, "type cannot be null");
-
-		return toHiveTypeInfo(type).getTypeName();
-	}
-
-	/**
-	 * Convert Flink data type to Hive data type.
-	 *
-	 * @param dataType a Flink data type
+	 * @param dataType a Flink DataType
+	 * @param checkPrecision whether to fail the conversion if the precision of the DataType is not supported by Hive
 	 * @return the corresponding Hive data type
 	 */
-	public static TypeInfo toHiveTypeInfo(DataType dataType) {
+	public static TypeInfo toHiveTypeInfo(DataType dataType, boolean checkPrecision) {
 		checkNotNull(dataType, "type cannot be null");
-
-		LogicalTypeRoot type = dataType.getLogicalType().getTypeRoot();
-
-		if (dataType instanceof AtomicDataType) {
-			if (type.equals(LogicalTypeRoot.BOOLEAN)) {
-				return TypeInfoFactory.booleanTypeInfo;
-			} else if (type.equals(LogicalTypeRoot.TINYINT)) {
-				return TypeInfoFactory.byteTypeInfo;
-			} else if (type.equals(LogicalTypeRoot.SMALLINT)) {
-				return TypeInfoFactory.shortTypeInfo;
-			} else if (type.equals(LogicalTypeRoot.INTEGER)) {
-				return TypeInfoFactory.intTypeInfo;
-			} else if (type.equals(LogicalTypeRoot.BIGINT)) {
-				return TypeInfoFactory.longTypeInfo;
-			} else if (type.equals(LogicalTypeRoot.FLOAT)) {
-				return TypeInfoFactory.floatTypeInfo;
-			} else if (type.equals(LogicalTypeRoot.DOUBLE)) {
-				return TypeInfoFactory.doubleTypeInfo;
-			} else if (type.equals(LogicalTypeRoot.DATE)) {
-				return TypeInfoFactory.dateTypeInfo;
-			} else if (type.equals(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
-				return TypeInfoFactory.timestampTypeInfo;
-			} else if (type.equals(LogicalTypeRoot.BINARY) || type.equals(LogicalTypeRoot.VARBINARY)) {
-				// Hive doesn't support variable-length binary string
-				return TypeInfoFactory.binaryTypeInfo;
-			} else if (type.equals(LogicalTypeRoot.CHAR)) {
-				CharType charType = (CharType) dataType.getLogicalType();
-
-				if (charType.getLength() > HiveChar.MAX_CHAR_LENGTH) {
-					throw new CatalogException(
-						String.format("HiveCatalog doesn't support char type with length of '%d'. " +
-								"The maximum length is %d",
-							charType.getLength(), HiveChar.MAX_CHAR_LENGTH));
-				}
-
-				return TypeInfoFactory.getCharTypeInfo(charType.getLength());
-			} else if (type.equals(LogicalTypeRoot.VARCHAR)) {
-				VarCharType varCharType = (VarCharType) dataType.getLogicalType();
-
-				// Flink's StringType is defined as VARCHAR(Integer.MAX_VALUE)
-				// We don't have more information in LogicalTypeRoot to distringuish StringType and a VARCHAR(Integer.MAX_VALUE) instance
-				// Thus always treat VARCHAR(Integer.MAX_VALUE) as StringType
-				if (varCharType.getLength() == Integer.MAX_VALUE) {
-					return TypeInfoFactory.stringTypeInfo;
-				}
-
-				if (varCharType.getLength() > HiveVarchar.MAX_VARCHAR_LENGTH) {
-					throw new CatalogException(
-						String.format("HiveCatalog doesn't support varchar type with length of '%d'. " +
-								"The maximum length is %d",
-							varCharType.getLength(), HiveVarchar.MAX_VARCHAR_LENGTH));
-				}
-
-				return TypeInfoFactory.getVarcharTypeInfo(varCharType.getLength());
-			} else if (type.equals(LogicalTypeRoot.DECIMAL)) {
-				DecimalType decimalType = (DecimalType) dataType.getLogicalType();
-
-				// Flink and Hive share the same precision and scale range
-				// Flink already validates the type so we don't need to validate again here
-				return TypeInfoFactory.getDecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale());
-			}
-
-			// Flink's primitive types that Hive 2.3.4 doesn't support: Time, TIMESTAMP_WITH_LOCAL_TIME_ZONE
-		}
-
-		if (dataType instanceof CollectionDataType) {
-
-			if (type.equals(LogicalTypeRoot.ARRAY)) {
-				DataType elementType = ((CollectionDataType) dataType).getElementDataType();
-
-				return TypeInfoFactory.getListTypeInfo(toHiveTypeInfo(elementType));
-			}
-
-			// Flink's collection types that Hive 2.3.4 doesn't support: multiset
-		}
-
-		if (dataType instanceof KeyValueDataType) {
-			KeyValueDataType keyValueDataType = (KeyValueDataType) dataType;
-			DataType keyType = keyValueDataType.getKeyDataType();
-			DataType valueType = keyValueDataType.getValueDataType();
-
-			return TypeInfoFactory.getMapTypeInfo(toHiveTypeInfo(keyType), toHiveTypeInfo(valueType));
-		}
-
-		if (dataType instanceof FieldsDataType) {
-			FieldsDataType fieldsDataType = (FieldsDataType) dataType;
-			// need to retrieve field names in order
-			List<String> names = ((RowType) fieldsDataType.getLogicalType()).getFieldNames();
-
-			Map<String, DataType> nameToType = fieldsDataType.getFieldDataTypes();
-			List<TypeInfo> typeInfos = new ArrayList<>(names.size());
-
-			for (String name : names) {
-				typeInfos.add(toHiveTypeInfo(nameToType.get(name)));
-			}
-
-			return TypeInfoFactory.getStructTypeInfo(names, typeInfos);
-		}
-
-		throw new UnsupportedOperationException(
-			String.format("Flink doesn't support converting type %s to Hive type yet.", dataType.toString()));
+		LogicalType logicalType = dataType.getLogicalType();
+		return logicalType.accept(new TypeInfoLogicalTypeVisitor(dataType, checkPrecision));
 	}
 
 	/**
@@ -258,7 +158,7 @@ public class HiveTypeUtil {
 			case DATE:
 				return DataTypes.DATE();
 			case TIMESTAMP:
-				return DataTypes.TIMESTAMP();
+				return DataTypes.TIMESTAMP(9);
 			case BINARY:
 				return DataTypes.BYTES();
 			case DECIMAL:
@@ -268,5 +168,165 @@ public class HiveTypeUtil {
 				throw new UnsupportedOperationException(
 					String.format("Flink doesn't support Hive primitive type %s yet", hiveType));
 		}
+	}
+
+	private static class TypeInfoLogicalTypeVisitor extends LogicalTypeDefaultVisitor<TypeInfo> {
+		private final DataType dataType;
+		// whether to check type precision
+		private final boolean checkPrecision;
+
+		TypeInfoLogicalTypeVisitor(DataType dataType, boolean checkPrecision) {
+			this.dataType = dataType;
+			this.checkPrecision = checkPrecision;
+		}
+
+		@Override
+		public TypeInfo visit(CharType charType) {
+			if (charType.getLength() > HiveChar.MAX_CHAR_LENGTH) {
+				throw new CatalogException(
+						String.format("HiveCatalog doesn't support char type with length of '%d'. " +
+									"The maximum length is %d",
+									charType.getLength(), HiveChar.MAX_CHAR_LENGTH));
+			}
+			return TypeInfoFactory.getCharTypeInfo(charType.getLength());
+		}
+
+		@Override
+		public TypeInfo visit(VarCharType varCharType) {
+			// Flink's StringType is defined as VARCHAR(Integer.MAX_VALUE)
+			// We don't have more information in LogicalTypeRoot to distinguish StringType and a VARCHAR(Integer.MAX_VALUE) instance
+			// Thus always treat VARCHAR(Integer.MAX_VALUE) as StringType
+			if (varCharType.getLength() == Integer.MAX_VALUE) {
+				return TypeInfoFactory.stringTypeInfo;
+			}
+			if (varCharType.getLength() > HiveVarchar.MAX_VARCHAR_LENGTH) {
+				throw new CatalogException(
+						String.format("HiveCatalog doesn't support varchar type with length of '%d'. " +
+									"The maximum length is %d",
+									varCharType.getLength(), HiveVarchar.MAX_VARCHAR_LENGTH));
+			}
+			return TypeInfoFactory.getVarcharTypeInfo(varCharType.getLength());
+		}
+
+		@Override
+		public TypeInfo visit(BooleanType booleanType) {
+			return TypeInfoFactory.booleanTypeInfo;
+		}
+
+		@Override
+		public TypeInfo visit(VarBinaryType varBinaryType) {
+			// Flink's BytesType is defined as VARBINARY(Integer.MAX_VALUE)
+			// We don't have more information in LogicalTypeRoot to distinguish BytesType and a VARBINARY(Integer.MAX_VALUE) instance
+			// Thus always treat VARBINARY(Integer.MAX_VALUE) as BytesType
+			if (varBinaryType.getLength() == VarBinaryType.MAX_LENGTH) {
+				return TypeInfoFactory.binaryTypeInfo;
+			}
+			return defaultMethod(varBinaryType);
+		}
+
+		@Override
+		public TypeInfo visit(DecimalType decimalType) {
+			// Flink and Hive share the same precision and scale range
+			// Flink already validates the type so we don't need to validate again here
+			return TypeInfoFactory.getDecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale());
+		}
+
+		@Override
+		public TypeInfo visit(TinyIntType tinyIntType) {
+			return TypeInfoFactory.byteTypeInfo;
+		}
+
+		@Override
+		public TypeInfo visit(SmallIntType smallIntType) {
+			return TypeInfoFactory.shortTypeInfo;
+		}
+
+		@Override
+		public TypeInfo visit(IntType intType) {
+			return TypeInfoFactory.intTypeInfo;
+		}
+
+		@Override
+		public TypeInfo visit(BigIntType bigIntType) {
+			return TypeInfoFactory.longTypeInfo;
+		}
+
+		@Override
+		public TypeInfo visit(FloatType floatType) {
+			return TypeInfoFactory.floatTypeInfo;
+		}
+
+		@Override
+		public TypeInfo visit(DoubleType doubleType) {
+			return TypeInfoFactory.doubleTypeInfo;
+		}
+
+		@Override
+		public TypeInfo visit(DateType dateType) {
+			return TypeInfoFactory.dateTypeInfo;
+		}
+
+		@Override
+		public TypeInfo visit(TimestampType timestampType) {
+			if (checkPrecision && timestampType.getPrecision() != 9) {
+				throw new CatalogException("HiveCatalog currently only supports timestamp of precision 9");
+			}
+			return TypeInfoFactory.timestampTypeInfo;
+		}
+
+		@Override
+		public TypeInfo visit(ArrayType arrayType) {
+			LogicalType elementType = arrayType.getElementType();
+			TypeInfo elementTypeInfo = elementType.accept(this);
+			if (null != elementTypeInfo) {
+				return TypeInfoFactory.getListTypeInfo(elementTypeInfo);
+			} else {
+				return defaultMethod(arrayType);
+			}
+		}
+
+		@Override
+		public TypeInfo visit(MapType mapType) {
+			LogicalType keyType  = mapType.getKeyType();
+			LogicalType valueType = mapType.getValueType();
+			TypeInfo keyTypeInfo = keyType.accept(this);
+			TypeInfo valueTypeInfo = valueType.accept(this);
+			if (null == keyTypeInfo || null == valueTypeInfo) {
+				return defaultMethod(mapType);
+			} else {
+				return TypeInfoFactory.getMapTypeInfo(keyTypeInfo, valueTypeInfo);
+			}
+		}
+
+		@Override
+		public TypeInfo visit(RowType rowType) {
+			List<String> names = rowType.getFieldNames();
+			List<TypeInfo> typeInfos = new ArrayList<>(names.size());
+			for (String name : names) {
+				TypeInfo typeInfo =
+						rowType.getTypeAt(rowType.getFieldIndex(name)).accept(this);
+				if (null != typeInfo) {
+					typeInfos.add(typeInfo);
+				} else {
+					return defaultMethod(rowType);
+				}
+			}
+			return TypeInfoFactory.getStructTypeInfo(names, typeInfos);
+		}
+
+		@Override
+		protected TypeInfo defaultMethod(LogicalType logicalType) {
+			throw new UnsupportedOperationException(
+					String.format("Flink doesn't support converting type %s to Hive type yet.", dataType.toString()));
+		}
+	}
+
+	/**
+	 * INTERVAL are not available in older versions. So better to have our own enum for primitive categories.
+	 */
+	public enum HivePrimitiveCategory {
+		VOID, BOOLEAN, BYTE, SHORT, INT, LONG, FLOAT, DOUBLE, STRING,
+		DATE, TIMESTAMP, BINARY, DECIMAL, VARCHAR, CHAR, INTERVAL_YEAR_MONTH, INTERVAL_DAY_TIME,
+		UNKNOWN
 	}
 }

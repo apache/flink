@@ -18,16 +18,22 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.operators.DataSourceTask;
+import org.apache.flink.runtime.operators.DataSourceTaskTest;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.FlatMapDriver;
@@ -42,10 +48,15 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 public class ChainTaskTest extends TaskTestBase {
-	
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
 	private static final int MEMORY_MANAGER_SIZE = 1024 * 1024 * 3;
 
 	private static final int NETWORK_BUFFER_SIZE = 1024;
@@ -55,7 +66,7 @@ public class ChainTaskTest extends TaskTestBase {
 	@SuppressWarnings("unchecked")
 	private final RecordComparatorFactory compFact = new RecordComparatorFactory(new int[]{0}, new Class[]{IntValue.class}, new boolean[] {true});
 	private final RecordSerializerFactory serFact = RecordSerializerFactory.get();
-	
+
 	@Test
 	public void testMapTask() {
 		final int keyCnt = 100;
@@ -98,7 +109,7 @@ public class ChainTaskTest extends TaskTestBase {
 			{
 				registerTask(FlatMapDriver.class, MockMapStub.class);
 				BatchTask<FlatMapFunction<Record, Record>, Record> testTask = new BatchTask<>(this.mockEnv);
-				
+
 				try {
 					testTask.invoke();
 				} catch (Exception e) {
@@ -174,7 +185,68 @@ public class ChainTaskTest extends TaskTestBase {
 			Assert.fail(e.getMessage());
 		}
 	}
-	
+
+	@Test
+	public void testBatchTaskOutputInCloseMethod() {
+		final int numChainedTasks = 10;
+		final int keyCnt = 100;
+		final int valCnt = 10;
+		try {
+			initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
+			addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
+			addOutput(outList);
+			registerTask(FlatMapDriver.class, MockMapStub.class);
+			for (int i = 0; i < numChainedTasks; i++) {
+				final TaskConfig taskConfig = new TaskConfig(new Configuration());
+				taskConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+				taskConfig.setOutputSerializer(serFact);
+				taskConfig.setStubWrapper(
+					new UserCodeClassWrapper<>(MockDuplicateLastValueMapFunction.class));
+				getTaskConfig().addChainedTask(
+					ChainedFlatMapDriver.class, taskConfig, "chained-" + i);
+			}
+			final BatchTask<FlatMapFunction<Record, Record>, Record> testTask =
+				new BatchTask<>(mockEnv);
+			testTask.invoke();
+			Assert.assertEquals(keyCnt * valCnt + numChainedTasks, outList.size());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testDataSourceTaskOutputInCloseMethod() throws IOException {
+		final int numChainedTasks = 10;
+		final int keyCnt = 100;
+		final int valCnt = 10;
+		final File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		DataSourceTaskTest.InputFilePreparator.prepareInputFile(
+			new UniformRecordGenerator(keyCnt, valCnt, false), tempTestFile, true);
+		initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
+		addOutput(outList);
+		final DataSourceTask<Record> testTask = new DataSourceTask<>(mockEnv);
+		registerFileInputTask(
+			testTask, DataSourceTaskTest.MockInputFormat.class, tempTestFile.toURI().toString(), "\n");
+		for (int i = 0; i < numChainedTasks; i++) {
+			final TaskConfig taskConfig = new TaskConfig(new Configuration());
+			taskConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
+			taskConfig.setOutputSerializer(serFact);
+			taskConfig.setStubWrapper(
+				new UserCodeClassWrapper<>(ChainTaskTest.MockDuplicateLastValueMapFunction.class));
+			getTaskConfig().addChainedTask(
+				ChainedFlatMapDriver.class, taskConfig, "chained-" + i);
+		}
+		try {
+			testTask.invoke();
+			Assert.assertEquals(keyCnt * valCnt + numChainedTasks, outList.size());
+		} catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail("Invoke method caused exception.");
+		}
+	}
+
 	public static final class MockFailingCombineStub implements
 		GroupReduceFunction<Record, Record>,
 		GroupCombineFunction<Record, Record> {
@@ -196,6 +268,36 @@ public class ChainTaskTest extends TaskTestBase {
 		@Override
 		public void combine(Iterable<Record> values, Collector<Record> out) throws Exception {
 			reduce(values, out);
+		}
+	}
+
+	/**
+	 * FlatMap function that outputs the last emitted element when closing.
+	 *
+	 * @param <T> Input and output type.
+	 */
+	public static class MockDuplicateLastValueMapFunction<T> extends RichFlatMapFunction<T, T> {
+
+		private boolean closed = false;
+
+		private transient T value;
+		private transient Collector<T> out;
+
+		@Override
+		public void flatMap(T value, Collector<T> out) throws Exception {
+			if (closed) {
+				// Make sure we close chained task in proper order.
+				throw new IllegalStateException("Task is already closed.");
+			}
+			this.value = value;
+			this.out = out;
+			out.collect(value);
+		}
+
+		@Override
+		public void close() throws Exception {
+			closed = true;
+			out.collect(value);
 		}
 	}
 }

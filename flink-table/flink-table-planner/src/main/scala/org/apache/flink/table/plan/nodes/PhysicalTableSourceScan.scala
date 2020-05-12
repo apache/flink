@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.plan.nodes
 
+import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.sources.TableSource
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelWriter
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
 
 import scala.collection.JavaConverters._
 
@@ -31,17 +31,10 @@ abstract class PhysicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
+    tableSchema: TableSchema,
     tableSource: TableSource[_],
     val selectedFields: Option[Array[Int]])
   extends TableScan(cluster, traitSet, table) {
-
-  override def deriveRowType(): RelDataType = {
-    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val streamingTable = tableSource.isInstanceOf[StreamTableSource[_]]
-
-    TableSourceUtil
-      .getRelDataType(tableSource, selectedFields, streamingTable, flinkTypeFactory)
-  }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val terms = super.explainTerms(pw)

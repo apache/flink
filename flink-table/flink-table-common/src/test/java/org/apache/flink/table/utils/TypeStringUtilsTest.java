@@ -47,6 +47,9 @@ public class TypeStringUtilsTest {
 		testReadAndWrite("DATE", Types.SQL_DATE);
 		testReadAndWrite("TIME", Types.SQL_TIME);
 		testReadAndWrite("TIMESTAMP", Types.SQL_TIMESTAMP);
+		testWrite("DATE", Types.LOCAL_DATE);
+		testWrite("TIME", Types.LOCAL_TIME);
+		testWrite("TIMESTAMP", Types.LOCAL_DATE_TIME);
 
 		// unsupported type information
 		testReadAndWrite(
@@ -129,6 +132,11 @@ public class TypeStringUtilsTest {
 				Types.ROW_NAMED(
 					new String[] {"Field 1", "Field`s 2"},
 					Types.ROW(Types.BIG_DEC), Types.STRING)));
+
+		testWrite("ROW<f0 DECIMAL, f1 TIMESTAMP, f2 TIME, f3 DATE>",
+			Types.ROW_NAMED(
+				new String[] {"f0", "f1", "f2", "f3"},
+				Types.BIG_DEC, Types.LOCAL_DATE_TIME, Types.LOCAL_TIME, Types.LOCAL_DATE));
 	}
 
 	@Test(expected = ValidationException.class)
@@ -150,6 +158,11 @@ public class TypeStringUtilsTest {
 		// test read from string
 		assertEquals(type, TypeStringUtils.readTypeInfo(expected));
 
+		// test write to string
+		assertEquals(expected, TypeStringUtils.writeTypeInfo(type));
+	}
+
+	private void testWrite(String expected, TypeInformation<?> type) {
 		// test write to string
 		assertEquals(expected, TypeStringUtils.writeTypeInfo(type));
 	}

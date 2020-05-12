@@ -20,44 +20,66 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.InputGateUtil;
+import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
+import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
 import java.util.Collection;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
- * A {@link StreamTask} that executes a {@link TwoInputStreamOperator} but does not support
+ * A {@link StreamTask} for executing a {@link TwoInputStreamOperator} and supporting
  * the {@link TwoInputStreamOperator} to select input for reading.
  */
 @Internal
 public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
 
-	public TwoInputStreamTask(Environment env) {
+	public TwoInputStreamTask(Environment env) throws Exception {
 		super(env);
 	}
 
 	@Override
 	protected void createInputProcessor(
-		Collection<InputGate> inputGates1,
-		Collection<InputGate> inputGates2,
+		Collection<IndexedInputGate> inputGates1,
+		Collection<IndexedInputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,
-		TypeSerializer<IN2> inputDeserializer2) throws Exception {
+		TypeSerializer<IN2> inputDeserializer2) {
 
-		this.inputProcessor = new StreamTwoInputProcessor<>(
-			inputGates1, inputGates2,
-			inputDeserializer1, inputDeserializer2,
+		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
+			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null);
+
+		InputGate unionedInputGate1 = InputGateUtil.createInputGate(inputGates1.toArray(new IndexedInputGate[0]));
+		InputGate unionedInputGate2 = InputGateUtil.createInputGate(inputGates2.toArray(new IndexedInputGate[0]));
+
+		// create an input instance for each input
+		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedInputGatePair(
 			this,
-			getConfiguration().getCheckpointMode(),
-			getCheckpointLock(),
-			getEnvironment().getIOManager(),
-			getEnvironment().getTaskManagerInfo().getConfiguration(),
-			getStreamStatusMaintainer(),
-			this.headOperator,
+			getConfiguration(),
+			getChannelStateWriter(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
+			getTaskNameWithSubtaskAndId(),
+			unionedInputGate1,
+			unionedInputGate2);
+		checkState(checkpointedInputGates.length == 2);
+
+		inputProcessor = new StreamTwoInputProcessor<>(
+			checkpointedInputGates,
+			inputDeserializer1,
+			inputDeserializer2,
+			getEnvironment().getIOManager(),
+			getStreamStatusMaintainer(),
+			headOperator,
+			twoInputSelectionHandler,
 			input1WatermarkGauge,
 			input2WatermarkGauge,
-			getTaskNameWithSubtaskAndId(),
-			operatorChain);
+			operatorChain,
+			setupNumRecordsInCounter(headOperator));
 	}
 }

@@ -20,8 +20,10 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.api.common.typeutils.base.NormalizedKeyUtil;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryStringData;
 
 import java.nio.ByteOrder;
 
@@ -72,11 +74,12 @@ public class SortUtil {
 	 * UTF-8 supports bytes comparison.
 	 */
 	public static void putStringNormalizedKey(
-			BinaryString value, MemorySegment target, int offset, int numBytes) {
+			StringData value, MemorySegment target, int offset, int numBytes) {
+		BinaryStringData binaryString = (BinaryStringData) value;
 		final int limit = offset + numBytes;
-		final int end = value.getSizeInBytes();
+		final int end = binaryString.getSizeInBytes();
 		for (int i = 0; i < end && offset < limit; i++) {
-			target.put(offset++, value.byteAt(i));
+			target.put(offset++, binaryString.byteAt(i));
 		}
 
 		for (int i = offset; i < limit; i++) {
@@ -88,8 +91,8 @@ public class SortUtil {
 	 * Just support the compact precision decimal.
 	 */
 	public static void putDecimalNormalizedKey(
-			Decimal record, MemorySegment target, int offset, int len) {
-		assert record.getPrecision() <= Decimal.MAX_COMPACT_PRECISION;
+			DecimalData record, MemorySegment target, int offset, int len) {
+		assert record.isCompact();
 		putLongNormalizedKey(record.toUnscaledLong(), target, offset, len);
 	}
 
@@ -133,6 +136,15 @@ public class SortUtil {
 		for (int i = offset; i < limit; i++) {
 			target.put(i, (byte) 0);
 		}
+	}
+
+	/**
+	 * Support the compact precision TimestampData.
+	 */
+	public static void putTimestampNormalizedKey(
+			TimestampData value, MemorySegment target, int offset, int numBytes) {
+		assert value.getNanoOfMillisecond() == 0;
+		putLongNormalizedKey(value.getMillisecond(), target, offset, numBytes);
 	}
 
 	public static int compareBinary(byte[] a, byte[] b) {

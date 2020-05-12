@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.codegen;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.join.HashJoinType;
@@ -47,7 +47,7 @@ public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
 				RowType.of(new IntType(), new IntType()),
 				new int[]{0},
 				new int[]{0},
-				memorySize, memorySize, 0, 20, 10000,
+				20, 10000,
 				reverseJoinFunction,
 				new GeneratedJoinCondition(MyJoinCondition.class.getCanonicalName(), "", new Object[0])
 		);
@@ -85,7 +85,7 @@ public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
 		public MyJoinCondition(Object[] reference) {}
 
 		@Override
-		public boolean apply(BaseRow in1, BaseRow in2) {
+		public boolean apply(RowData in1, RowData in2) {
 			return true;
 		}
 	}

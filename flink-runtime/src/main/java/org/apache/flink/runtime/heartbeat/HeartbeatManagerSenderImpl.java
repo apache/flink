@@ -43,12 +43,31 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
 			HeartbeatListener<I, O> heartbeatListener,
 			ScheduledExecutor mainThreadExecutor,
 			Logger log) {
+		this(
+			heartbeatPeriod,
+			heartbeatTimeout,
+			ownResourceID,
+			heartbeatListener,
+			mainThreadExecutor,
+			log,
+			new HeartbeatMonitorImpl.Factory<>());
+	}
+
+	HeartbeatManagerSenderImpl(
+			long heartbeatPeriod,
+			long heartbeatTimeout,
+			ResourceID ownResourceID,
+			HeartbeatListener<I, O> heartbeatListener,
+			ScheduledExecutor mainThreadExecutor,
+			Logger log,
+			HeartbeatMonitor.Factory<O> heartbeatMonitorFactory) {
 		super(
 			heartbeatTimeout,
 			ownResourceID,
 			heartbeatListener,
 			mainThreadExecutor,
-			log);
+			log,
+			heartbeatMonitorFactory);
 
 		this.heartbeatPeriod = heartbeatPeriod;
 		mainThreadExecutor.schedule(this, 0L, TimeUnit.MILLISECONDS);
@@ -58,7 +77,7 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
 	public void run() {
 		if (!stopped) {
 			log.debug("Trigger heartbeat request.");
-			for (HeartbeatMonitor<O> heartbeatMonitor : getHeartbeatTargets()) {
+			for (HeartbeatMonitor<O> heartbeatMonitor : getHeartbeatTargets().values()) {
 				requestHeartbeat(heartbeatMonitor);
 			}
 

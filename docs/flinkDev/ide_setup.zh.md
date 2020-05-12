@@ -72,7 +72,7 @@ to enable support for Scala projects and files:
 4. Leave the default options and successively click "Next" until you reach the SDK section.
 5. If there is no SDK listed, create one using the "+" sign on the top left.
    Select "JDK", choose the JDK home directory and click "OK".
-   Select the most suiting JDK version. NOTE: A good rule of thumb is to select 
+   Select the most suiting JDK version. NOTE: A good rule of thumb is to select
    the JDK version matching the active Maven profile.
 6. Continue by clicking "Next" until finishing the import.
 7. Right-click on the imported Flink project -> Maven -> Generate Sources and Update Folders.
@@ -88,7 +88,7 @@ IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
 2. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
 3. Set the "Scan Scope" to "Only Java sources (including tests)".
-4. Select _8.12_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
+4. Select _8.14_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
    don't skip it!**
 5. In the "Configuration File" pane, add a new configuration using the plus icon:
     1. Set the "Description" to "Flink".
@@ -115,7 +115,32 @@ Nevertheless please make sure that code you add/modify in these modules still co
 
 ### Checkstyle For Scala
 
-Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle_config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
+Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle-config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
+
+### FAQ
+
+This section lists issues that developers have run into in the past when working with IntelliJ:
+
+- Compilation fails with `invalid flag: --add-expots=java.base/sun.net.util=ALL-UNNAMED`
+
+This means that IntelliJ activated the `java11` profile despite an older JDK being used.
+Open the Maven tool window (View -> Tool Windows -> Maven), uncheck the `java11` profile and reimport the project.
+
+- Compilation fails with `cannot find symbol: symbol: method defineClass(...) location: class sun.misc.Unsafe`
+
+This means that IntelliJ is using JDK 11 for the project, but you are working on a Flink version which doesn't
+support Java 11.
+This commonly happens when you have setup IntelliJ to use JDK 11 and checkout older versions of Flink (<= 1.9).
+Open the project settings window (File -> Project Structure -> Project Settings: Project) and select JDK 8 as the project
+SDK.
+You may have to revert this after switching back to the new Flink version if you want to use JDK 11.
+
+- Examples fail with a `NoClassDefFoundError` for Flink classes.
+
+This is likely due to Flink dependencies being set to provided, resulting in them not being put automatically on the 
+classpath.
+You can either tick the "Include dependencies with 'Provided' scope" box in the run configuration, or create a test
+that calls the `main()` method of the example (`provided` dependencies are available on the test classpath).
 
 ## Eclipse
 

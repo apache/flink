@@ -44,7 +44,7 @@ public final class GlobalConfiguration {
 	public static final String FLINK_CONF_FILENAME = "flink-conf.yaml";
 
 	// the keys whose values should be hidden
-	private static final String[] SENSITIVE_KEYS = new String[] {"password", "secret"};
+	private static final String[] SENSITIVE_KEYS = new String[] {"password", "secret", "fs.azure.account.key"};
 
 	// the hidden content to be displayed
 	public static final String HIDDEN_CONTENT = "******";
@@ -130,32 +130,7 @@ public final class GlobalConfiguration {
 			configuration.addAll(dynamicProperties);
 		}
 
-		return enrichWithEnvironmentVariables(configuration);
-	}
-
-	private static Configuration enrichWithEnvironmentVariables(Configuration configuration) {
-		enrichWithEnvironmentVariable(ConfigConstants.ENV_FLINK_PLUGINS_DIR, configuration);
 		return configuration;
-	}
-
-	private static void enrichWithEnvironmentVariable(String environmentVariable, Configuration configuration) {
-		String pluginsDirFromEnv = System.getenv(environmentVariable);
-
-		if (pluginsDirFromEnv == null) {
-			return;
-		}
-
-		String pluginsDirFromConfig = configuration.getString(environmentVariable, pluginsDirFromEnv);
-
-		if (!pluginsDirFromEnv.equals(pluginsDirFromConfig)) {
-			throw new IllegalConfigurationException(
-				"The given configuration file already contains a value (" + pluginsDirFromEnv +
-					") for the key (" + environmentVariable +
-					") that would have been overwritten with (" + pluginsDirFromConfig +
-					") by an environment with the same name.");
-		}
-
-		configuration.setString(environmentVariable, pluginsDirFromEnv);
 	}
 
 	/**

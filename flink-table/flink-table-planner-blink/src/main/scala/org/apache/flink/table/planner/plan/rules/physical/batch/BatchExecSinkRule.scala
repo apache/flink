@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.filesystem.FileSystemTableFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
@@ -31,8 +32,6 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollations, RelNode}
 
 import scala.collection.JavaConversions._
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
 
 class BatchExecSinkRule extends ConverterRule(
     classOf[FlinkLogicalSink],
@@ -44,32 +43,39 @@ class BatchExecSinkRule extends ConverterRule(
     val sinkNode = rel.asInstanceOf[FlinkLogicalSink]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     var requiredTraitSet = sinkNode.getInput.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    sinkNode.sink match {
-      case partitionSink: PartitionableTableSink
-        if partitionSink.getPartitionFieldNames != null &&
-          partitionSink.getPartitionFieldNames.nonEmpty =>
-        val partitionFields = partitionSink.getPartitionFieldNames
-        val partitionIndices = partitionFields
-          .map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
-        // validate
-        partitionIndices.foreach { idx =>
-          if (idx < 0) {
-            throw new TableException(s"Partitionable sink ${sinkNode.sinkName} field " +
-              s"${partitionFields.get(idx)} must be in the schema.")
+    if (sinkNode.catalogTable != null && sinkNode.catalogTable.isPartitioned) {
+      sinkNode.sink match {
+        case partitionSink: PartitionableTableSink =>
+          partitionSink.setStaticPartition(sinkNode.staticPartitions)
+          val dynamicPartFields = sinkNode.catalogTable.getPartitionKeys
+              .filter(!sinkNode.staticPartitions.contains(_))
+
+          if (dynamicPartFields.nonEmpty) {
+            val dynamicPartIndices =
+              dynamicPartFields.map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
+
+            val shuffleEnable = sinkNode
+                .catalogTable
+                .getProperties
+                .get(FileSystemTableFactory.SINK_SHUFFLE_BY_PARTITION.key())
+
+            if (shuffleEnable != null && shuffleEnable.toBoolean) {
+              requiredTraitSet = requiredTraitSet.plus(
+                FlinkRelDistribution.hash(dynamicPartIndices
+                    .map(Integer.valueOf), requireStrict = false))
+            }
+
+            if (partitionSink.configurePartitionGrouping(true)) {
+              // default to asc.
+              val fieldCollations = dynamicPartIndices.map(FlinkRelOptUtil.ofRelFieldCollation)
+              requiredTraitSet = requiredTraitSet.plus(RelCollations.of(fieldCollations: _*))
+            }
           }
-        }
-
-        requiredTraitSet = requiredTraitSet.plus(
-          FlinkRelDistribution.hash(partitionIndices
-            .map(Integer.valueOf), requireStrict = false))
-
-        if (partitionSink.configurePartitionGrouping(true)) {
-          // default to asc.
-          val fieldCollations = partitionIndices.map(FlinkRelOptUtil.ofRelFieldCollation)
-          requiredTraitSet = requiredTraitSet.plus(RelCollations.of(fieldCollations: _*))
-        }
-      case _ =>
+        case _ => throw new TableException("We need PartitionableTableSink to write data to" +
+            s" partitioned table: ${sinkNode.sinkName}")
+      }
     }
+
     val newInput = RelOptRule.convert(sinkNode.getInput, requiredTraitSet)
 
     new BatchExecSink(

@@ -25,7 +25,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink's [Table API](../tableApi.html) and [SQL support](../sql.html) are unified APIs for batch and stream processing.
+Flink's [Table API]({{ site.baseurl }}/dev/table/tableApi.html) and [SQL support]({{ site.baseurl }}/dev/table/sql/index.html) are unified APIs for batch and stream processing.
 This means that Table API and SQL queries have the same semantics regardless whether their input is bounded batch input or unbounded stream input.
 Because the relational algebra and SQL were originally designed for batch processing,
 relational queries on unbounded streaming input are not as well understood as relational queries on bounded batch input.

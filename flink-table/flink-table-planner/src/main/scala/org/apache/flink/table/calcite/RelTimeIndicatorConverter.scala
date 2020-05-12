@@ -32,7 +32,10 @@ import org.apache.flink.table.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, 
 import org.apache.flink.table.catalog.BasicOperatorTable
 import org.apache.flink.table.functions.sql.ProctimeSqlFunction
 import org.apache.flink.table.plan.logical.rel._
+import org.apache.flink.table.plan.nodes.LogicalSink
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
+
+import java.util.{Collections => JCollections}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -109,9 +112,6 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     val measures = matchRel.getMeasures
       .mapValues(_.accept(materializer))
 
-    val partitionKeys = matchRel.getPartitionKeys
-      .map(_.accept(materializer))
-      .map(materializerUtils.materialize)
     val interval = if (matchRel.getInterval != null) {
       matchRel.getInterval.accept(materializer)
     } else {
@@ -137,7 +137,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       matchRel.getAfter,
       matchRel.getSubsets.asInstanceOf[java.util.Map[String, java.util.TreeSet[String]]],
       matchRel.isAllRows,
-      partitionKeys,
+      matchRel.getPartitionKeys,
       matchRel.getOrderKeys,
       interval)
   }
@@ -173,6 +173,30 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
     case temporalTableJoin: LogicalTemporalTableJoin =>
       visit(temporalTableJoin)
+
+    case sink: LogicalSink =>
+      var newInput = sink.getInput.accept(this)
+      var needsConversion = false
+
+      val projects = newInput.getRowType.getFieldList.map { field =>
+        if (isProctimeIndicatorType(field.getType)) {
+          needsConversion = true
+          rexBuilder.makeCall(ProctimeSqlFunction, new RexInputRef(field.getIndex, field.getType))
+        } else {
+          new RexInputRef(field.getIndex, field.getType)
+        }
+      }
+
+      // add final conversion if necessary
+      if (needsConversion) {
+        newInput = LogicalProject.create(newInput, projects, newInput.getRowType.getFieldNames)
+      }
+      new LogicalSink(
+        sink.getCluster,
+        sink.getTraitSet,
+        newInput,
+        sink.sink,
+        sink.sinkName)
 
     case _ =>
       throw new TableException(s"Unsupported logical operator: ${other.getClass.getSimpleName}")
@@ -380,6 +404,11 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       rexBuilder,
       inputs.flatMap(_.getRowType.getFieldList.map(_.getType)))
   }
+
+  override def visit(modify: LogicalTableModify): RelNode = {
+    val input = modify.getInput.accept(this)
+    modify.copy(modify.getTraitSet, JCollections.singletonList(input))
+  }
 }
 
 object RelTimeIndicatorConverter {
@@ -387,6 +416,11 @@ object RelTimeIndicatorConverter {
   def convert(rootRel: RelNode, rexBuilder: RexBuilder): RelNode = {
     val converter = new RelTimeIndicatorConverter(rexBuilder)
     val convertedRoot = rootRel.accept(converter)
+
+    // the LogicalSink is converted in RelTimeIndicatorConverter before
+    if (rootRel.isInstanceOf[LogicalSink]) {
+      return convertedRoot
+    }
 
     var needsConversion = false
 

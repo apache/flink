@@ -20,23 +20,21 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.transformations.TwoInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, NestedLoopJoinCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
-import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
+import org.apache.flink.table.runtime.typeutils.{RowDataTypeInfo, BinaryRowDataSerializer}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -93,7 +91,7 @@ class BatchExecNestedLoopJoin(
     val buildRows = mq.getRowCount(buildRel)
     val buildRowSize = mq.getAverageRowSize(buildRel)
     val memoryCost = buildRows *
-      (buildRowSize + BinaryRowSerializer.LENGTH_SIZE_IN_BYTES) * shuffleBuildCount(mq)
+      (buildRowSize + BinaryRowDataSerializer.LENGTH_SIZE_IN_BYTES) * shuffleBuildCount(mq)
     val cpuCost = leftRowCnt * rightRowCnt
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
     costFactory.makeCost(mq.getRowCount(this), cpuCost, 0, 0, memoryCost)
@@ -130,15 +128,15 @@ class BatchExecNestedLoopJoin(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val lInput = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
     val rInput = getInputNodes.get(1).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
 
     // get type
-    val lType = lInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
-    val rType = rInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+    val lType = lInput.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType
+    val rType = rInput.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
     val op = new NestedLoopJoinCodeGenerator(
@@ -152,33 +150,18 @@ class BatchExecNestedLoopJoin(
       condition
     ).gen()
 
-    val externalBufferMemoryInMb: Int = if (singleRowJoin) {
-      0
-    } else {
-      planner.getTableConfig.getConfiguration.getInteger(
-        ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM)
+    val parallelism = if (leftIsBuild) rInput.getParallelism else lInput.getParallelism
+    val manageMem = if (singleRowJoin) 0 else {
+      MemorySize.parse(planner.getTableConfig.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
     }
-    val resourceSpec = NodeResourceUtil.fromManagedMem(externalBufferMemoryInMb)
-
-    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    ExecNode.createTwoInputTransformation(
       lInput,
       rInput,
-      getOperatorName,
+      getRelDetailedDescription,
       op,
-      BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
-    ret.setResources(resourceSpec, resourceSpec)
-    ret
+      RowDataTypeInfo.of(outputType),
+      parallelism,
+      manageMem)
   }
-
-  private def getOperatorName: String = {
-    val joinExpressionStr = if (getCondition != null) {
-      val inFields = inputRowType.getFieldNames.toList
-      s"where: ${getExpressionString(getCondition, inFields, None, ExpressionFormat.Infix)}, "
-    } else {
-      ""
-    }
-    s"NestedLoopJoin($joinExpressionStr${if (leftIsBuild) "buildLeft" else "buildRight"})"
-  }
-
 }

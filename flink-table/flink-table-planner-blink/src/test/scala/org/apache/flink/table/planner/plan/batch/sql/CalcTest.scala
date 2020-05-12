@@ -158,4 +158,8 @@ class CalcTest extends TableTestBase {
       "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24')")
   }
 
+  @Test
+  def testCollationDeriveOnCalc(): Unit = {
+    util.verifyPlan("SELECT CAST(a AS INT), CAST(b AS VARCHAR) FROM (VALUES (3, 'c')) T(a,b)")
+  }
 }

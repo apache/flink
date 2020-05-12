@@ -19,9 +19,9 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 
 /**
  * The function to execute row(event) time bounded stream inner-join.
@@ -38,9 +38,9 @@ public final class RowTimeBoundedStreamJoin extends TimeBoundedStreamJoin {
 			long leftLowerBound,
 			long leftUpperBound,
 			long allowedLateness,
-			BaseRowTypeInfo leftType,
-			BaseRowTypeInfo rightType,
-			GeneratedFunction<FlatJoinFunction<BaseRow, BaseRow, BaseRow>> genJoinFunc,
+			RowDataTypeInfo leftType,
+			RowDataTypeInfo rightType,
+			GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc,
 			int leftTimeIdx,
 			int rightTimeIdx) {
 		super(joinType, leftLowerBound, leftUpperBound, allowedLateness, leftType, rightType, genJoinFunc);
@@ -66,12 +66,12 @@ public final class RowTimeBoundedStreamJoin extends TimeBoundedStreamJoin {
 	}
 
 	@Override
-	long getTimeForLeftStream(Context ctx, BaseRow row) {
+	long getTimeForLeftStream(Context ctx, RowData row) {
 		return row.getLong(leftTimeIdx);
 	}
 
 	@Override
-	long getTimeForRightStream(Context ctx, BaseRow row) {
+	long getTimeForRightStream(Context ctx, RowData row) {
 		return row.getLong(rightTimeIdx);
 	}
 

@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.common.CommonIntermediateTableScan
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
-import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -38,18 +37,6 @@ class StreamExecIntermediateTableScan(
     outputRowType: RelDataType)
   extends CommonIntermediateTableScan(cluster, traitSet, table)
   with StreamPhysicalRel {
-
-  def isAccRetract: Boolean = intermediateTable.isAccRetract
-
-  override def producesUpdates: Boolean = {
-    !UpdatingPlanChecker.isAppendOnly(intermediateTable.relNode)
-  }
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = producesUpdates && isAccRetract
 
   override def requireWatermark: Boolean = false
 

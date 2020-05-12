@@ -1,0 +1,48 @@
+flink-sql-connector-elasticsearch7
+Copyright 2014-2020 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.carrotsearch:hppc:0.8.1
+- com.fasterxml.jackson.core:jackson-core:2.10.1
+- com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.10.1
+- com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.10.1
+- com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.10.1
+- com.github.spullara.mustache.java:compiler:0.9.6
+- commons-codec:commons-codec:1.10
+- commons-logging:commons-logging:1.1.3
+- org.apache.httpcomponents:httpasyncclient:4.1.4
+- org.apache.httpcomponents:httpclient:4.5.3
+- org.apache.httpcomponents:httpcore:4.4.6
+- org.apache.httpcomponents:httpcore-nio:4.4.12
+- org.apache.lucene:lucene-analyzers-common:8.3.0
+- org.apache.lucene:lucene-backward-codecs:8.3.0
+- org.apache.lucene:lucene-core:8.3.0
+- org.apache.lucene:lucene-grouping:8.3.0
+- org.apache.lucene:lucene-highlighter:8.3.0
+- org.apache.lucene:lucene-join:8.3.0
+- org.apache.lucene:lucene-memory:8.3.0
+- org.apache.lucene:lucene-misc:8.3.0
+- org.apache.lucene:lucene-queries:8.3.0
+- org.apache.lucene:lucene-queryparser:8.3.0
+- org.apache.lucene:lucene-sandbox:8.3.0
+- org.apache.lucene:lucene-spatial:8.3.0
+- org.apache.lucene:lucene-spatial-extras:8.3.0
+- org.apache.lucene:lucene-spatial3d:8.3.0
+- org.apache.lucene:lucene-suggest:8.3.0
+- org.elasticsearch:elasticsearch:7.5.1
+- org.elasticsearch:elasticsearch-cli:7.5.1
+- org.elasticsearch:elasticsearch-core:7.5.1
+- org.elasticsearch:elasticsearch-geo:7.5.1
+- org.elasticsearch:elasticsearch-secure-sm:7.5.1
+- org.elasticsearch:elasticsearch-x-content:7.5.1
+- org.elasticsearch.client:elasticsearch-rest-client:7.5.1
+- org.elasticsearch.client:elasticsearch-rest-high-level-client:7.5.1
+- org.elasticsearch.plugin:aggs-matrix-stats-client:7.5.1
+- org.elasticsearch.plugin:lang-mustache-client:7.5.1
+- org.elasticsearch.plugin:mapper-extras-client:7.5.1
+- org.elasticsearch.plugin:parent-join-client:7.5.1
+- org.elasticsearch.plugin:rank-eval-client:7.5.1

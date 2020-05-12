@@ -19,12 +19,13 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 
 /**
  * Covers all sort of Table operations such as queries(DQL), modifications(DML), definitions(DDL),
  * or control actions(DCL). This is the output of
- * {@link Planner#parse(String)}.
+ * {@link Planner#getParser()} and {@link Parser#parse(String)}.
  *
  * @see QueryOperation
  * @see ModifyOperation

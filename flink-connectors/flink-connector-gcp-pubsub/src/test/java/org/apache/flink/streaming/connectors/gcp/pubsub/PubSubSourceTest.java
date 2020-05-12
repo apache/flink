@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
+import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -31,6 +33,8 @@ import com.google.auth.Credentials;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.ReceivedMessage;
+import org.hamcrest.Matchers;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,6 +51,7 @@ import static org.hamcrest.core.Is.is;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.refEq;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -78,6 +83,8 @@ public class PubSubSourceTest {
 	private Credentials credentials;
 	@Mock
 	private PubSubSubscriber pubsubSubscriber;
+	@Mock
+	private FlinkConnectorRateLimiter rateLimiter;
 
 	private PubSubSource<String> pubSubSource;
 
@@ -86,13 +93,15 @@ public class PubSubSourceTest {
 		when(pubSubSubscriberFactory.getSubscriber(eq(credentials))).thenReturn(pubsubSubscriber);
 		when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
 		when(streamingRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
+		when(metricGroup.addGroup(any(String.class))).thenReturn(metricGroup);
 		when(acknowledgeOnCheckpointFactory.create(any())).thenReturn(acknowledgeOnCheckpoint);
 
 		pubSubSource = new PubSubSource<>(deserializationSchema,
 			pubSubSubscriberFactory,
 			credentials,
-			100,
-			acknowledgeOnCheckpointFactory);
+			acknowledgeOnCheckpointFactory,
+			rateLimiter,
+			1024);
 		pubSubSource.setRuntimeContext(streamingRuntimeContext);
 	}
 
@@ -120,10 +129,15 @@ public class PubSubSourceTest {
 		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
 
 		pubSubSource.open(null);
-		pubSubSource.processMessage(sourceContext, asList(receivedMessage("firstAckId", pubSubMessage(FIRST_MESSAGE)),
-															receivedMessage("secondAckId", pubSubMessage(SECOND_MESSAGE))));
+		List<ReceivedMessage> receivedMessages = asList(
+			receivedMessage("firstAckId", pubSubMessage(FIRST_MESSAGE)),
+			receivedMessage("secondAckId", pubSubMessage(SECOND_MESSAGE))
+		);
+		pubSubSource.processMessage(sourceContext, receivedMessages);
 
 		//verify handling messages
+		verify(rateLimiter, times(1)).acquire(2);
+
 		verify(sourceContext, times(1)).getCheckpointLock();
 		verify(deserializationSchema, times(1)).isEndOfStream(FIRST_MESSAGE);
 		verify(deserializationSchema, times(1)).deserialize(pubSubMessage(FIRST_MESSAGE));
@@ -188,6 +202,18 @@ public class PubSubSourceTest {
 		pubSubSource.snapshotState(1337L, 15000L);
 
 		verify(acknowledgeOnCheckpoint, times(1)).snapshotState(1337L, 15000L);
+	}
+
+	@Test
+	public void testOpen() throws Exception {
+		doAnswer((args) -> {
+			DeserializationSchema.InitializationContext context = args.getArgument(0);
+			Assert.assertThat(context.getMetricGroup(), Matchers.equalTo(metricGroup));
+			return null;
+		}).when(deserializationSchema).open(any(DeserializationSchema.InitializationContext.class));
+		pubSubSource.open(null);
+
+		verify(deserializationSchema, times(1)).open(any(DeserializationSchema.InitializationContext.class));
 	}
 
 	private ReceivedMessage receivedMessage(String ackId, PubsubMessage pubsubMessage) {

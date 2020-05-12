@@ -18,8 +18,13 @@
 
 package org.apache.flink.table.plan
 
-import java.math.BigDecimal
-import java.sql.{Date, Time, Timestamp}
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.catalog.FunctionCatalog
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.plan.util.{RexNodeToExpressionConverter, RexProgramExtractor}
+import org.apache.flink.table.utils.CatalogManagerMocks
+import org.apache.flink.table.utils.InputTypeBuilder.inputOf
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
@@ -28,13 +33,12 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.plan.util.{RexNodeToExpressionConverter, RexProgramExtractor}
-import org.apache.flink.table.utils.InputTypeBuilder.inputOf
 import org.hamcrest.CoreMatchers.is
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat}
 import org.junit.Test
+
+import java.math.BigDecimal
+import java.sql.{Date, Time, Timestamp}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -42,11 +46,12 @@ import scala.collection.mutable
 class RexProgramExtractorTest extends RexProgramTestBase {
 
   private val functionCatalog: FunctionCatalog = new FunctionCatalog(
-    new CatalogManager("default_catalog", new GenericInMemoryCatalog("default_catalog")))
+    TableConfig.getDefault,
+    CatalogManagerMocks.createEmptyCatalogManager(),
+    new ModuleManager
+  )
   private val expressionBridge: ExpressionBridge[PlannerExpression] =
-    new ExpressionBridge[PlannerExpression](
-      functionCatalog,
-      PlannerExpressionConverter.INSTANCE)
+    new ExpressionBridge[PlannerExpression](PlannerExpressionConverter.INSTANCE)
 
   @Test
   def testExtractRefInputFields(): Unit = {
@@ -418,8 +423,8 @@ class RexProgramExtractorTest extends RexProgramTestBase {
     )
     assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(2, unconvertedRexNodes.length)
-    assertEquals(">(CAST($2):BIGINT NOT NULL, 100)", unconvertedRexNodes(0).toString)
-    assertEquals("OR(>(CAST($2):BIGINT NOT NULL, 100), <=($2, $1))",
+    assertEquals("<(100, CAST($2):BIGINT NOT NULL)", unconvertedRexNodes(0).toString)
+    assertEquals("OR(>=($1, $2), <(100, CAST($2):BIGINT NOT NULL))",
       unconvertedRexNodes(1).toString)
   }
 

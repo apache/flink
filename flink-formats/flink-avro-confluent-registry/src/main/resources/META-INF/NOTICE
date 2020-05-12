@@ -1,5 +1,5 @@
 flink-avro-confluent-registry
-Copyright 2014-2019 The Apache Software Foundation
+Copyright 2014-2020 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -7,9 +7,9 @@ The Apache Software Foundation (http://www.apache.org/).
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt) 
 
 - com.101tec:zkclient:0.10
-- com.fasterxml.jackson.core:jackson-databind:2.8.4
-- com.fasterxml.jackson.core:jackson-annotations:2.8.0
-- com.fasterxml.jackson.core:jackson-core:2.8.4
-- io.confluent:common-utils:3.3.1
-- io.confluent:kafka-schema-registry-client:3.3.1
+- com.fasterxml.jackson.core:jackson-databind:2.10.1
+- com.fasterxml.jackson.core:jackson-annotations:2.10.1
+- com.fasterxml.jackson.core:jackson-core:2.10.1
+- io.confluent:common-utils:4.1.0
+- io.confluent:kafka-schema-registry-client:4.1.0
 - org.apache.zookeeper:zookeeper:3.4.10

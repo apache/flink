@@ -36,13 +36,13 @@ class TwoStageAggregateTest extends TableTestBase {
     util.tableEnv.getConfig
       .setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     util.tableEnv.getConfig.getConfiguration
-      .setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+      .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
     util.tableEnv.getConfig.getConfiguration
-        .setBoolean(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+        .setBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration
-      .setLong(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 3)
+      .setLong(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 3)
     util.tableEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY,
+      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
       AggregatePhaseStrategy.TWO_PHASE.toString)
   }
 

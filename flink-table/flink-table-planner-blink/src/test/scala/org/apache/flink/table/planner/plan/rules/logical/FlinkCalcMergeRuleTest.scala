@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalLegacyTableSourceScan}
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
@@ -55,7 +55,7 @@ class FlinkCalcMergeRuleTest extends TableTestBase {
           ProjectToCalcRule.INSTANCE,
           FlinkCalcMergeRule.INSTANCE,
           FlinkLogicalCalc.CONVERTER,
-          FlinkLogicalTableSourceScan.CONVERTER
+          FlinkLogicalLegacyTableSourceScan.CONVERTER
         ))
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
         .build())

@@ -18,43 +18,40 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
-import org.apache.flink.table.planner.plan.utils.ScanUtil
-import org.apache.flink.table.planner.sources.TableSourceUtil
-import org.apache.flink.table.sources.StreamTableSource
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rex.RexNode
 
-import java.{lang, util}
+import java.util
 
 import scala.collection.JavaConversions._
 
 /**
   * Batch physical RelNode to read data from an external source defined by a
-  * bounded [[StreamTableSource]].
+  * bounded [[org.apache.flink.table.connector.source.ScanTableSource]].
   */
 class BatchExecTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    relOptTable: FlinkRelOptTable)
-  extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
+    tableSourceTable: TableSourceTable)
+  extends CommonPhysicalTableSourceScan(cluster, traitSet, tableSourceTable)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow]{
+  with BatchExecNode[RowData]{
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecTableSourceScan(cluster, traitSet, relOptTable)
+    new BatchExecTableSourceScan(cluster, traitSet, tableSourceTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -80,63 +77,21 @@ class BatchExecTableSourceScan(
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
+  override protected def createInputFormatTransformation(
+      env: StreamExecutionEnvironment,
+      inputFormat: InputFormat[RowData, _],
+      name: String,
+      outTypeInfo: RowDataTypeInfo): Transformation[RowData] = {
+    // env.createInput will use ContinuousFileReaderOperator, but it do not support multiple
+    // paths. If read partitioned source, after partition pruning, we need let InputFormat
+    // to read multiple partitions which are multiple paths.
+    // We can use InputFormatSourceFunction directly to support InputFormat.
+    val func = new InputFormatSourceFunction[RowData](inputFormat, outTypeInfo)
+    ExecNode.setManagedMemoryWeight(env.addSource(func, name, outTypeInfo).getTransformation)
+  }
+
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
-    val config = planner.getTableConfig
-    val inputTransform = getSourceTransformation(planner.getExecEnv)
-    inputTransform.setParallelism(getResource.getParallelism)
-
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
-      tableSource,
-      isStreamTable = false,
-      tableSourceTable.selectedFields)
-
-    val inputDataType = fromLegacyInfoToDataType(inputTransform.getOutputType)
-    val producedDataType = tableSource.getProducedDataType
-
-    // check that declared and actual type of table source DataStream are identical
-    if (inputDataType != producedDataType) {
-      throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
-        s"returned a DataStream of data type $producedDataType that does not match with the " +
-        s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
-        s"Please validate the implementation of the TableSource.")
-    }
-
-    // get expression to extract rowtime attribute
-    val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
-      tableSource,
-      tableSourceTable.selectedFields,
-      cluster,
-      planner.getRelBuilder
-    )
-    if (needInternalConversion) {
-      val conversionTransform = ScanUtil.convertToInternalRow(
-        CodeGeneratorContext(config),
-        inputTransform.asInstanceOf[Transformation[Any]],
-        fieldIndexes,
-        producedDataType,
-        getRowType,
-        getTable.getQualifiedName,
-        config,
-        rowtimeExpression)
-      conversionTransform.setParallelism(getResource.getParallelism)
-      conversionTransform
-    } else {
-      inputTransform.asInstanceOf[Transformation[BaseRow]]
-    }
-
-  }
-
-  def needInternalConversion: Boolean = {
-    val fieldIndexes = TableSourceUtil.computeIndexMapping(
-      tableSource,
-      isStreamTable = false,
-      tableSourceTable.selectedFields)
-    ScanUtil.hasTimeAttributeField(fieldIndexes) ||
-      ScanUtil.needsConversion(tableSource.getProducedDataType)
-  }
-
-  def getEstimatedRowCount: lang.Double = {
-    getCluster.getMetadataQuery.getRowCount(this)
+      planner: BatchPlanner): Transformation[RowData] = {
+    createSourceTransformation(planner.getExecEnv, getRelDetailedDescription)
   }
 }

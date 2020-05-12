@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.planner.plan.optimize
 
-import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, IntermediateRelTable}
+import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.{RelNode, RelShuttleImpl}
 
 import java.util
-import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConversions._
@@ -99,9 +98,7 @@ abstract class CommonSubGraphBasedOptimizer extends Optimizer {
       relTable: IntermediateRelTable,
       name: String): TableScan = {
     val cluster = relTable.relNode.getCluster
-    val table = FlinkRelOptTable.create(
-      null, relTable.getRowType(cluster.getTypeFactory), Collections.singletonList(name), relTable)
-    new LogicalTableScan(cluster, cluster.traitSet, table)
+    new LogicalTableScan(cluster, cluster.traitSet, relTable)
   }
 
   /**

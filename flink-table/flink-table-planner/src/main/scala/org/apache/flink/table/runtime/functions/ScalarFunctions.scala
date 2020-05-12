@@ -23,6 +23,10 @@ import java.util.regex.{Matcher, Pattern}
 
 import org.apache.flink.table.utils.EncodingUtils
 
+import org.apache.calcite.avatica.util.DateTimeUtils.{EPOCH_JULIAN, ymdToUnixDate}
+import org.apache.calcite.avatica.util.TimeUnitRange
+import org.apache.calcite.avatica.util.TimeUnitRange.{YEAR, MONTH}
+
 import scala.annotation.varargs
 
 /**
@@ -39,7 +43,7 @@ class ScalarFunctions {}
 object ScalarFunctions {
 
   def power(a: Double, b: JBigDecimal): Double = {
-    Math.pow(a, b.doubleValue())
+    StrictMath.pow(a, b.doubleValue())
   }
 
   /**
@@ -107,7 +111,18 @@ object ScalarFunctions {
     if (x <= 0.0) {
       throw new IllegalArgumentException(s"x of 'log(x)' must be > 0, but x = $x")
     } else {
-      Math.log(x)
+      StrictMath.log(x)
+    }
+  }
+
+  /**
+   * Returns exp(x).
+   */
+  def exp(x: Double): Double = {
+    if (x <= 0.0) {
+      throw new IllegalArgumentException(s"x of 'exp(x)' must be > 0, but x = $x")
+    } else {
+      StrictMath.exp(x)
     }
   }
 
@@ -135,7 +150,7 @@ object ScalarFunctions {
     if (base <= 1.0) {
       throw new IllegalArgumentException(s"base of 'log(base, x)' must be > 1, but base = $base")
     } else {
-      Math.log(x) / Math.log(base)
+      StrictMath.log(x) / StrictMath.log(base)
     }
   }
 
@@ -146,7 +161,7 @@ object ScalarFunctions {
     if (x <= 0.0) {
       throw new IllegalArgumentException(s"x of 'log2(x)' must be > 0, but x = $x")
     } else {
-      Math.log(x) / Math.log(2)
+      StrictMath.log(x) / StrictMath.log(2)
     }
   }
 
@@ -295,5 +310,48 @@ object ScalarFunctions {
     * Returns a string that repeats the base string n times.
     */
   def repeat(base: String, n: Int): String = EncodingUtils.repeat(base, n)
+
+  // TODO: remove if CALCITE-3199 fixed
+  //  https://issues.apache.org/jira/browse/CALCITE-3199
+  def unixDateCeil(range: TimeUnitRange, date: Int): Long =
+    julianDateFloor(range, date + EPOCH_JULIAN, false)
+
+  private def julianDateFloor(range: TimeUnitRange, julian: Int, floor: Boolean): Int = {
+    // this shifts the epoch back to astronomical year -4800 instead of the
+    // start of the Christian era in year AD 1 of the proleptic Gregorian
+    // calendar.
+    val j: Int = julian + 32044
+    val g: Int = j / 146097
+    val dg: Int = j % 146097
+    val c: Int = (dg / 36524 + 1) * 3 / 4
+    val dc: Int = dg - c * 36524
+    val b: Int = dc / 1461
+    val db: Int = dc % 1461
+    val a: Int = (db / 365 + 1) * 3 / 4
+    val da: Int = db - a * 365
+    // integer number of full years elapsed since March 1, 4801 BC
+    val y: Int = g * 400 + c * 100 + b * 4 + a
+    // integer number of full months elapsed since the last March 1
+    val m: Int = (da * 5 + 308) / 153 - 2
+    // number of days elapsed since day 1 of the month
+    val d: Int = da - (m + 4) * 153 / 5 + 122
+    var year: Int = y - 4800 + (m + 2) / 12
+    var month: Int = (m + 2) % 12 + 1
+    val day: Int = d + 1
+    range match {
+      case YEAR =>
+        if (!(floor) && (month > 1 || day > 1)) {
+          year += 1
+        }
+        return ymdToUnixDate(year, 1, 1)
+      case MONTH =>
+        if (!(floor) && day > 1) {
+          month += 1
+        }
+        return ymdToUnixDate(year, month, 1)
+      case _ =>
+        throw new AssertionError(range)
+    }
+  }
 
 }

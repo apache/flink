@@ -45,7 +45,8 @@ class UserDefinedFunctionValidationTest extends TableTestBase {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
       "Given parameters of function do not match any signature. \n" +
-        "Actual: (java.lang.String, java.lang.Integer) \n" +
+        "Actual: (org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions" +
+        ".Accumulator0, java.lang.String, java.lang.Integer) \n" +
         "Expected: (org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions" +
         ".Accumulator0, long, int)")
 

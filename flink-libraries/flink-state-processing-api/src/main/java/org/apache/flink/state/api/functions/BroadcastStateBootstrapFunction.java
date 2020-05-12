@@ -43,7 +43,7 @@ public abstract class BroadcastStateBootstrapFunction<IN> extends AbstractRichFu
 	public abstract void processElement(IN value, Context ctx) throws Exception;
 
 	/**
-	 * Context that {@link StateBootstrapFunction}'s can use for getting additional data about an input
+	 * Context that {@link BroadcastStateBootstrapFunction}'s can use for getting additional data about an input
 	 * record.
 	 *
 	 * <p>The context is only valid for the duration of a {@link

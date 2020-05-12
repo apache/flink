@@ -221,7 +221,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	public ReduceOperator<T> minBy(int... fields)  {
 
 		// Check for using a tuple
-		if (!this.inputDataSet.getType().isTupleType()) {
+		if (!this.inputDataSet.getType().isTupleType() || !(this.inputDataSet.getType() instanceof TupleTypeInfo)) {
 			throw new InvalidProgramException("Method minBy(int) only works on tuples.");
 		}
 
@@ -243,7 +243,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	public ReduceOperator<T> maxBy(int... fields)  {
 
 		// Check for using a tuple
-		if (!this.inputDataSet.getType().isTupleType()) {
+		if (!this.inputDataSet.getType().isTupleType() || !(this.inputDataSet.getType() instanceof TupleTypeInfo)) {
 			throw new InvalidProgramException("Method maxBy(int) only works on tuples.");
 		}
 

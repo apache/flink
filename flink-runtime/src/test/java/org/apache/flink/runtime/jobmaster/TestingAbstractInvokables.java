@@ -47,7 +47,7 @@ public class TestingAbstractInvokables {
 
 		@Override
 		public void invoke() throws Exception {
-			final RecordWriter<IntValue> writer = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
+			final RecordWriter<IntValue> writer = new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(0));
 
 			try {
 				writer.emit(new IntValue(42));
@@ -97,7 +97,7 @@ public class TestingAbstractInvokables {
 		@Override
 		public void invoke() throws Exception {
 			final Object o = new Object();
-			RecordWriter<IntValue> recordWriter = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
+			RecordWriter<IntValue> recordWriter = new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(0));
 			for (int i = 0; i < 1024; i++) {
 				recordWriter.emit(new IntValue(42));
 			}

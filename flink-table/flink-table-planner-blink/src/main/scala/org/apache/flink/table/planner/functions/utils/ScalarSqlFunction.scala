@@ -19,14 +19,14 @@
 package org.apache.flink.table.planner.functions.utils
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.{FunctionIdentifier, ScalarFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction._
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{getOperandType, _}
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getDefaultExternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
@@ -38,25 +38,31 @@ import scala.collection.JavaConverters._
 /**
   * Calcite wrapper for user-defined scalar functions.
   *
-  * @param name           function name (used by SQL parser)
+  * @param identifier     function identifier to uniquely identify this function
   * @param displayName    name to be displayed in operator name
   * @param scalarFunction scalar function to be called
   * @param typeFactory    type factory for converting Flink's between Calcite's types
   */
 class ScalarSqlFunction(
-    name: String,
+    identifier: FunctionIdentifier,
     displayName: String,
-    scalarFunction: ScalarFunction,
-    typeFactory: FlinkTypeFactory)
+    val scalarFunction: ScalarFunction,
+    typeFactory: FlinkTypeFactory,
+    returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlFunction(
-    new SqlIdentifier(name, SqlParserPos.ZERO),
-    createReturnTypeInference(name, scalarFunction, typeFactory),
-    createOperandTypeInference(name, scalarFunction, typeFactory),
-    createOperandTypeChecker(name, scalarFunction),
+    new SqlIdentifier(identifier.toList, SqlParserPos.ZERO),
+    returnTypeInfer.getOrElse(createReturnTypeInference(displayName, scalarFunction, typeFactory)),
+    createOperandTypeInference(displayName, scalarFunction, typeFactory),
+    createOperandTypeChecker(displayName, scalarFunction),
     null,
     SqlFunctionCategory.USER_DEFINED_FUNCTION) {
 
-  def getScalarFunction: ScalarFunction = scalarFunction
+  /**
+    * This is temporary solution for hive udf and should be removed once FLIP-65 is finished,
+    * please pass the non-null input arguments.
+    */
+  def makeFunction(constants: Array[AnyRef], argTypes: Array[LogicalType]): ScalarFunction =
+    scalarFunction
 
   override def isDeterministic: Boolean = scalarFunction.isDeterministic
 
@@ -74,20 +80,8 @@ object ScalarSqlFunction {
       */
     new SqlReturnTypeInference {
       override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
-        val sqlTypes = opBinding.collectOperandTypes().asScala.toArray
         val parameters = getOperandType(opBinding).toArray
-
-        val arguments = sqlTypes.indices.map(i =>
-          if (opBinding.isOperandNull(i, false)) {
-            null
-          } else if (opBinding.isOperandLiteral(i, false)) {
-            opBinding.getOperandLiteralValue(
-              i, getDefaultExternalClassForType(parameters(i))).asInstanceOf[AnyRef]
-          } else {
-            null
-          }
-        ).toArray
-        val resultType = getResultTypeOfScalarFunction(scalarFunction, arguments, parameters)
+        val resultType = getResultTypeOfScalarFunction(scalarFunction, parameters)
         typeFactory.createFieldTypeFromLogicalType(
           fromDataTypeToLogicalType(resultType))
       }

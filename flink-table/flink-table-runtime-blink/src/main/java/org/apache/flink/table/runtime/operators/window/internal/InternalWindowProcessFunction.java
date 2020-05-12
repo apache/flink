@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.operators.window.internal;
 
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
@@ -39,13 +39,13 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
 	private static final long serialVersionUID = 5191040787066951059L;
 
 	protected final WindowAssigner<W> windowAssigner;
-	protected final NamespaceAggsHandleFunction<W> windowAggregator;
+	protected final NamespaceAggsHandleFunctionBase<W> windowAggregator;
 	protected final long allowedLateness;
 	protected Context<K, W> ctx;
 
 	protected InternalWindowProcessFunction(
 			WindowAssigner<W> windowAssigner,
-			NamespaceAggsHandleFunction<W> windowAggregator,
+			NamespaceAggsHandleFunctionBase<W> windowAggregator,
 			long allowedLateness) {
 		this.windowAssigner = windowAssigner;
 		this.windowAggregator = windowAggregator;
@@ -69,7 +69,7 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
 	 *                  assigner)
 	 * @return the state namespace
 	 */
-	public abstract Collection<W> assignStateNamespace(BaseRow inputRow,
+	public abstract Collection<W> assignStateNamespace(RowData inputRow,
 			long timestamp) throws Exception;
 
 	/**
@@ -81,16 +81,16 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
 	 *                  assigner)
 	 * @return the actual windows
 	 */
-	public abstract Collection<W> assignActualWindows(BaseRow inputRow,
+	public abstract Collection<W> assignActualWindows(RowData inputRow,
 			long timestamp) throws Exception;
 
 	/**
-	 * Gets the aggregation result and window properties of the given window.
+	 * Prepares the accumulator of the given window before emit the final result. The accumulator
+	 * is stored in the state or will be created if there is no corresponding accumulator in state.
 	 *
 	 * @param window the window
-	 * @return the aggregation result and window properties
 	 */
-	public abstract BaseRow getWindowAggregationResult(W window) throws Exception;
+	public abstract void prepareAggregateAccumulatorForEmit(W window) throws Exception;
 
 	/**
 	 * Cleans the given window if needed.
@@ -141,7 +141,6 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
 		}
 	}
 
-
 	/**
 	 * Information available in an invocation of methods of {@link InternalWindowProcessFunction}.
 	 * @param <W>
@@ -174,12 +173,12 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
 		/**
 		 * Gets the accumulators of the given window.
 		 */
-		BaseRow getWindowAccumulators(W window) throws Exception;
+		RowData getWindowAccumulators(W window) throws Exception;
 
 		/**
 		 * Sets the accumulators of the given window.
 		 */
-		void setWindowAccumulators(W window, BaseRow acc) throws Exception;
+		void setWindowAccumulators(W window, RowData acc) throws Exception;
 
 		/**
 		 * Clear window state of the given window.

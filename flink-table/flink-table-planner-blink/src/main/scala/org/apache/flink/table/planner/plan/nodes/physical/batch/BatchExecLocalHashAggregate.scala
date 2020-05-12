@@ -127,6 +127,4 @@ class BatchExecLocalHashAggregate(
   override def getDamBehavior: DamBehavior = {
     if (grouping.length == 0) DamBehavior.FULL_DAM else DamBehavior.MATERIALIZING
   }
-
-  override def getOperatorName: String = aggOperatorName("LocalHashAggregate")
 }

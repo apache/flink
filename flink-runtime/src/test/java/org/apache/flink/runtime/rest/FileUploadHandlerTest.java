@@ -38,8 +38,12 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.lang.reflect.Field;
+import java.util.LinkedHashSet;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link FileUploadHandler}. Ensures that multipart http messages containing files and/or json are properly
@@ -136,6 +140,8 @@ public class FileUploadHandlerTest extends TestLogger {
 		try (Response response = client.newCall(fileRequest).execute()) {
 			assertEquals(fileHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
 		}
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
 	}
 
 	@Test
@@ -162,6 +168,8 @@ public class FileUploadHandlerTest extends TestLogger {
 			assertEquals(mixedHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
 			assertEquals(json, mixedHandler.lastReceivedRequest);
 		}
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
 	}
 
 	@Test
@@ -188,6 +196,8 @@ public class FileUploadHandlerTest extends TestLogger {
 			// FileUploads are outright forbidden
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
 	}
 
 	@Test
@@ -212,6 +222,8 @@ public class FileUploadHandlerTest extends TestLogger {
 			// JSON payload did not match expected format
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
 	}
 
 	@Test
@@ -223,6 +235,8 @@ public class FileUploadHandlerTest extends TestLogger {
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
 		MULTIPART_UPLOAD_RESOURCE.assertUploadDirectoryIsEmpty();
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
 	}
 
 	/**
@@ -238,5 +252,25 @@ public class FileUploadHandlerTest extends TestLogger {
 			assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.code(), response.code());
 		}
 		MULTIPART_UPLOAD_RESOURCE.assertUploadDirectoryIsEmpty();
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
+	}
+
+	/**
+	 * DiskAttribute and DiskFileUpload class of netty store post chunks and file chunks as temp files on local disk.
+	 * By default, netty will register these temp files to java.io.DeleteOnExitHook which may lead to memory leak.
+	 * {@link FileUploadHandler} disables the shutdown hook registration so no file should be registered. Note that
+	 * clean up of temp files is handed over to {@link org.apache.flink.runtime.entrypoint.ClusterEntrypoint}.
+	 */
+	private void verifyNoFileIsRegisteredToDeleteOnExitHook() {
+		try {
+			Class<?> clazz = Class.forName("java.io.DeleteOnExitHook");
+			Field field = clazz.getDeclaredField("files");
+			field.setAccessible(true);
+			LinkedHashSet files = (LinkedHashSet) field.get(null);
+			assertTrue(files.isEmpty());
+		} catch (ClassNotFoundException | IllegalAccessException | NoSuchFieldException e) {
+			fail("This should never happen.");
+		}
 	}
 }

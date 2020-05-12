@@ -1,0 +1,33 @@
+== Abstract Syntax Tree ==
+LogicalSink(name=[default_catalog.default_database.MySink1], fields=[first])
+  LogicalProject(first=[$0])
+    LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Logical Plan ==
+DataStreamSink(name=[default_catalog.default_database.MySink1], fields=[first])
+  StreamTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[first], source=[CsvTableSource(read fields: first)])
+
+== Physical Execution Plan ==
+ : Data Source
+	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : CsvTableSource(read fields: first)
+		ship_strategy : REBALANCE
+
+		 : Operator
+			content : Map
+			ship_strategy : FORWARD
+
+			 : Operator
+				content : to: Row
+				ship_strategy : FORWARD
+
+				 : Operator
+					content : Map
+					ship_strategy : REBALANCE
+
+					 : Data Sink
+						content : Sink: CsvTableSink(first)
+						ship_strategy : FORWARD
+

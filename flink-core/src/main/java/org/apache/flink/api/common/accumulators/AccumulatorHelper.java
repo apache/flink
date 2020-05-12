@@ -178,8 +178,6 @@ public class AccumulatorHelper {
 	 * @param serializedAccumulators The serialized accumulator results.
 	 * @param loader The class loader to use.
 	 * @return The deserialized accumulator results.
-	 * @throws IOException
-	 * @throws ClassNotFoundException
 	 */
 	public static Map<String, OptionalFailure<Object>> deserializeAccumulators(
 			Map<String, SerializedValue<OptionalFailure<Object>>> serializedAccumulators,
@@ -199,6 +197,32 @@ public class AccumulatorHelper {
 			}
 
 			accumulators.put(entry.getKey(), value);
+		}
+
+		return accumulators;
+	}
+
+	/**
+	 * Takes the serialized accumulator results and tries to deserialize them using the provided
+	 * class loader, and then try to unwrap the value unchecked.
+	 * @param serializedAccumulators The serialized accumulator results.
+	 * @param loader The class loader to use.
+	 * @return The deserialized and unwrapped accumulator results.
+	 */
+	public static Map<String, Object> deserializeAndUnwrapAccumulators(
+		Map<String, SerializedValue<OptionalFailure<Object>>> serializedAccumulators,
+		ClassLoader loader) throws IOException, ClassNotFoundException {
+
+		Map<String, OptionalFailure<Object>> deserializedAccumulators = deserializeAccumulators(serializedAccumulators, loader);
+
+		if (deserializedAccumulators.isEmpty()) {
+			return Collections.emptyMap();
+		}
+
+		Map<String, Object> accumulators = new HashMap<>(serializedAccumulators.size());
+
+		for (Map.Entry<String, OptionalFailure<Object>> entry : deserializedAccumulators.entrySet()) {
+			accumulators.put(entry.getKey(), entry.getValue().getUnchecked());
 		}
 
 		return accumulators;

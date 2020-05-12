@@ -414,22 +414,13 @@ public class AsyncCallsTest extends TestLogger {
 				UUID initialFencingToken,
 				OneShotLatch enteringSetNewFencingToken,
 				OneShotLatch triggerSetNewFencingToken) {
-			super(rpcService);
+			super(rpcService, initialFencingToken);
 
 			this.lock = lock;
 			this.concurrentAccess = concurrentAccess;
 
 			this.enteringSetNewFencingToken = enteringSetNewFencingToken;
 			this.triggerSetNewFencingToken = triggerSetNewFencingToken;
-
-			// make it look as if we are running in the main thread
-			currentMainThread.set(Thread.currentThread());
-
-			try {
-				setFencingToken(initialFencingToken);
-			} finally {
-				currentMainThread.set(null);
-			}
 		}
 
 		@Override

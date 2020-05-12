@@ -42,7 +42,7 @@ class CorrelateTests(PyFlinkStreamTableTestCase):
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('INNER', query_operation.getJoinType().toString())
         self.assertTrue(query_operation.isCorrelated())
-        self.assertEqual('`default_catalog`.`default_database`.`equals`(id, word)',
+        self.assertEqual('equals(id, word)',
                          query_operation.getCondition().toString())
 
     def test_left_outer_join_lateral(self):

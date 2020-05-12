@@ -25,6 +25,7 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
 
@@ -35,6 +36,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -65,7 +68,7 @@ public class ReporterSetupTest extends TestLogger {
 
 		configureReporter1(config);
 
-		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
 		Assert.assertEquals(1, reporterSetups.size());
 
@@ -83,7 +86,7 @@ public class ReporterSetupTest extends TestLogger {
 		configureReporter1(config);
 		configureReporter2(config);
 
-		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
 		Assert.assertEquals(2, reporterSetups.size());
 
@@ -114,7 +117,7 @@ public class ReporterSetupTest extends TestLogger {
 
 		config.setString(MetricOptions.REPORTERS_LIST, "reporter2");
 
-		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
 		Assert.assertEquals(1, reporterSetups.size());
 
@@ -128,7 +131,7 @@ public class ReporterSetupTest extends TestLogger {
 
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 
-		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
 		Assert.assertEquals(1, reporterSetups.size());
 
@@ -148,7 +151,7 @@ public class ReporterSetupTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter12.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test3." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter13.class.getName());
 
-		List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+		List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
 		assertEquals(3, reporterSetups.size());
 
@@ -219,6 +222,23 @@ public class ReporterSetupTest extends TestLogger {
 		Assert.assertEquals(TestReporter2.class.getName(), setup.getConfiguration().getString("class", null));
 	}
 
+	@Test
+	public void testVariableExclusionParsing() throws Exception {
+		final String excludedVariable1 = "foo";
+		final String excludedVariable2 = "foo";
+		final Configuration config = new Configuration();
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX, TestReporterFactory.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_EXCLUDED_VARIABLES, excludedVariable1 + ";" + excludedVariable2);
+
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+
+		assertEquals(1, reporterSetups.size());
+
+		final ReporterSetup reporterSetup = reporterSetups.get(0);
+
+		assertThat(reporterSetup.getExcludedVariables(), hasItems(ScopeFormat.asVariable(excludedVariable1), ScopeFormat.asVariable(excludedVariable2)));
+	}
+
 	/**
 	 * Verifies that a factory configuration is correctly parsed.
 	 */
@@ -227,7 +247,7 @@ public class ReporterSetupTest extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX, TestReporterFactory.class.getName());
 
-		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
 		assertEquals(1, reporterSetups.size());
 
@@ -245,7 +265,7 @@ public class ReporterSetupTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX, InstantiationTypeTrackingTestReporterFactory.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, InstantiationTypeTrackingTestReporter.class.getName());
 
-		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
 		assertEquals(1, reporterSetups.size());
 
@@ -264,7 +284,7 @@ public class ReporterSetupTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX, TestReporterFactory.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "fail." + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX, FailingFactory.class.getName());
 
-		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
 		assertEquals(1, reporterSetups.size());
 	}
@@ -278,7 +298,7 @@ public class ReporterSetupTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX, InstantiationTypeTrackingTestReporterFactory.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, InstantiationTypeTrackingTestReporter.class.getName());
 
-		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
 		assertEquals(2, reporterSetups.size());
 
@@ -297,7 +317,7 @@ public class ReporterSetupTest extends TestLogger {
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX, ConfigExposingReporterFactory.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg", "hello");
 
-		ReporterSetup.fromConfiguration(config);
+		ReporterSetup.fromConfiguration(config, null);
 
 		Properties passedConfig = ConfigExposingReporterFactory.lastConfig;
 		assertEquals("hello", passedConfig.getProperty("arg"));
@@ -311,7 +331,7 @@ public class ReporterSetupTest extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, InstantiationTypeTrackingTestReporter2.class.getName());
 
-		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config);
+		final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
 		assertEquals(1, reporterSetups.size());
 

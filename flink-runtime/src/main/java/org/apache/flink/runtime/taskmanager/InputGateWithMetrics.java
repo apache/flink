@@ -19,14 +19,19 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -34,20 +39,25 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * This class wraps {@link InputGate} provided by shuffle service and it is mainly
  * used for increasing general input metrics from {@link TaskIOMetricGroup}.
  */
-public class InputGateWithMetrics extends InputGate {
+public class InputGateWithMetrics extends IndexedInputGate {
 
-	private final InputGate inputGate;
+	private final IndexedInputGate inputGate;
 
 	private final Counter numBytesIn;
 
-	public InputGateWithMetrics(InputGate inputGate, Counter numBytesIn) {
+	public InputGateWithMetrics(IndexedInputGate inputGate, Counter numBytesIn) {
 		this.inputGate = checkNotNull(inputGate);
 		this.numBytesIn = checkNotNull(numBytesIn);
 	}
 
 	@Override
-	public CompletableFuture<?> isAvailable() {
-		return inputGate.isAvailable();
+	public CompletableFuture<?> getAvailableFuture() {
+		return inputGate.getAvailableFuture();
+	}
+
+	@Override
+	public void resumeConsumption(int channelIndex) {
+		inputGate.resumeConsumption(channelIndex);
 	}
 
 	@Override
@@ -56,23 +66,43 @@ public class InputGateWithMetrics extends InputGate {
 	}
 
 	@Override
+	public InputChannel getChannel(int channelIndex) {
+		return inputGate.getChannel(channelIndex);
+	}
+
+	@Override
+	public int getGateIndex() {
+		return inputGate.getGateIndex();
+	}
+
+	@Override
 	public boolean isFinished() {
 		return inputGate.isFinished();
 	}
 
 	@Override
-	public void setup() throws IOException, InterruptedException {
+	public void setup() throws IOException {
 		inputGate.setup();
 	}
 
 	@Override
+	public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) throws IOException {
+		return inputGate.readRecoveredState(executor, reader);
+	}
+
+	@Override
+	public void requestPartitions() throws IOException {
+		inputGate.requestPartitions();
+	}
+
+	@Override
 	public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
-		return updateMetrics(inputGate.getNext());
+		return inputGate.getNext().map(this::updateMetrics);
 	}
 
 	@Override
 	public Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException {
-		return updateMetrics(inputGate.pollNext());
+		return inputGate.pollNext().map(this::updateMetrics);
 	}
 
 	@Override
@@ -85,8 +115,13 @@ public class InputGateWithMetrics extends InputGate {
 		inputGate.close();
 	}
 
-	private Optional<BufferOrEvent> updateMetrics(Optional<BufferOrEvent> bufferOrEvent) {
-		bufferOrEvent.ifPresent(b -> numBytesIn.inc(b.getSize()));
+	@Override
+	public void registerBufferReceivedListener(BufferReceivedListener listener) {
+		inputGate.registerBufferReceivedListener(listener);
+	}
+
+	private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {
+		numBytesIn.inc(bufferOrEvent.getSize());
 		return bufferOrEvent;
 	}
 }

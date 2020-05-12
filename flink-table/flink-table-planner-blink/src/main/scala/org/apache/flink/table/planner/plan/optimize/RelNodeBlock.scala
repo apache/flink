@@ -53,7 +53,7 @@ import scala.collection.mutable
   * RelNode, the RelNode is the output node of a new block (or named break-point).
   * There are several special cases that a RelNode can not be a break-point.
   * (1). UnionAll is not a break-point
-  * when [[RelNodeBlockPlanBuilder.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED]] is true
+  * when [[RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED]] is true
   * (2). [[TableFunctionScan]], [[Snapshot]] or window aggregate ([[Aggregate]] on a [[Project]]
   * with window attribute) are not a break-point because their physical RelNodes are a composite
   * RelNode, each of them cannot be optimized individually. e.g. FlinkLogicalTableFunctionScan and
@@ -126,7 +126,8 @@ class RelNodeBlock(val outputNode: RelNode) {
 
   private var optimizedPlan: Option[RelNode] = None
 
-  private var updateAsRetract: Boolean = false
+  // whether any parent block requires UPDATE_BEFORE messages
+  private var updateBeforeRequired: Boolean = false
 
   private var miniBatchInterval: MiniBatchInterval = MiniBatchInterval.NONE
 
@@ -146,14 +147,19 @@ class RelNodeBlock(val outputNode: RelNode) {
 
   def getOptimizedPlan: RelNode = optimizedPlan.orNull
 
-  def setUpdateAsRetraction(updateAsRetract: Boolean): Unit = {
-    // set child block updateAsRetract, a child may have multi father.
-    if (updateAsRetract) {
-      this.updateAsRetract = true
+  def setUpdateBeforeRequired(requireUpdateBefore: Boolean): Unit = {
+    // set the child block whether need to produce update before messages for updates,
+    // a child block may have multiple parents (outputs), if one of the parents require
+    // update before message, then this child block has to produce update before for updates.
+    if (requireUpdateBefore) {
+      this.updateBeforeRequired = true
     }
   }
 
-  def isUpdateAsRetraction: Boolean = updateAsRetract
+  /**
+   * Returns true if any parent block requires UPDATE_BEFORE messages for updates.
+   */
+  def isUpdateBeforeRequired: Boolean = updateBeforeRequired
 
   def setMiniBatchInterval(miniBatchInterval: MiniBatchInterval): Unit = {
     this.miniBatchInterval = miniBatchInterval
@@ -258,7 +264,7 @@ class RelNodeBlockPlanBuilder private(config: TableConfig) {
   private val node2Block = new util.IdentityHashMap[RelNode, RelNodeBlock]()
 
   private val isUnionAllAsBreakPointDisabled = config.getConfiguration.getBoolean(
-    RelNodeBlockPlanBuilder.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED)
+    RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED)
 
   /**
     * Decompose the [[RelNode]] plan into many [[RelNodeBlock]]s,
@@ -381,15 +387,15 @@ object RelNodeBlockPlanBuilder {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED: ConfigOption[JBoolean] =
-    key("sql.optimizer.unionall-as-breakpoint.disabled")
+  val TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED: ConfigOption[JBoolean] =
+    key("table.optimizer.union-all-as-breakpoint-disabled")
         .defaultValue(JBoolean.valueOf(false))
         .withDescription("Disable union-all node as breakpoint when constructing common sub-graph.")
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED: ConfigOption[JBoolean] =
-    key("sql.optimizer.reuse.optimize-block.with-digest.enabled")
+  val TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED: ConfigOption[JBoolean] =
+    key("table.optimizer.reuse-optimize-block-with-digest-enabled")
         .defaultValue(JBoolean.valueOf(false))
         .withDescription("When true, the optimizer will try to find out duplicated sub-plan by " +
             "digest to build optimize block(a.k.a. common sub-graph). " +
@@ -430,7 +436,7 @@ object RelNodeBlockPlanBuilder {
     */
   private def reuseRelNodes(relNodes: Seq[RelNode], tableConfig: TableConfig): Seq[RelNode] = {
     val findOpBlockWithDigest = tableConfig.getConfiguration.getBoolean(
-      RelNodeBlockPlanBuilder.SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
     if (!findOpBlockWithDigest) {
       return relNodes
     }

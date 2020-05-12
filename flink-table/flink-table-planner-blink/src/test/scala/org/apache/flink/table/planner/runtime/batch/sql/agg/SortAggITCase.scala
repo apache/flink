@@ -22,14 +22,14 @@ import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, PrimitiveArrayT
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.config.ExecutionConfigOptions.{SQL_EXEC_DISABLED_OPERATORS, SQL_RESOURCE_DEFAULT_PARALLELISM}
+import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_DISABLED_OPERATORS, TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyToPojoFunc}
 import org.apache.flink.table.planner.utils.{CountAccumulator, CountAggFunction, IntSumAggFunction}
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import java.lang
 import java.lang.{Iterable => JIterable}
@@ -45,7 +45,7 @@ class SortAggITCase
     extends AggregateITCaseBase("SortAggregate") {
   override def prepareAggOp(): Unit = {
     tEnv.getConfig.getConfiguration.setString(
-      SQL_EXEC_DISABLED_OPERATORS, "HashAgg")
+      TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
 
     registerFunction("countFun", new CountAggFunction())
     registerFunction("intSumFun", new IntSumAggFunction())
@@ -63,7 +63,7 @@ class SortAggITCase
 
   @Test
   def testBigDataSimpleArrayUDAF(): Unit = {
-    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     registerFunction("simplePrimitiveArrayUdaf", new SimplePrimitiveArrayUdaf())
     registerRange("RangeT", 1000000)
     env.setParallelism(1)
@@ -71,8 +71,7 @@ class SortAggITCase
       "SELECT simplePrimitiveArrayUdaf(id) FROM RangeT",
       Seq(row(499999500000L)))
   }
-
-  @Ignore
+  
   @Test
   def testMultiSetAggBufferGroupBy(): Unit = {
     checkResult(
@@ -138,27 +137,26 @@ class SortAggITCase
   }
 
   // NOTE: Spark has agg functions collect_list(), collect_set().
-  //       instead, we'll test concat_agg() here
-  @Ignore
+  //       instead, we'll test LISTAGG() here
   @Test
-  def testConcatAgg(): Unit = {
+  def testListAgg(): Unit = {
     checkResult(
-      "SELECT concat_agg('-', c), concat_agg(c) FROM SmallTable3",
+      "SELECT LISTAGG(c, '-'), LISTAGG(c) FROM SmallTable3",
       Seq(
-        row("Hi-Hello-Hello world", "Hi\nHello\nHello world")
+        row("Hi-Hello-Hello world", "Hi,Hello,Hello world")
       )
     )
 
     // EmptyTable5
     checkResult(
-      "SELECT concat_agg('-', g), concat_agg(g) FROM EmptyTable5",
+      "SELECT LISTAGG(g, '-'), LISTAGG(g) FROM EmptyTable5",
       Seq(
         row(null, null)
       )
     )
 
     checkResult(
-      "SELECT concat_agg('-', c), concat_agg(c) FROM AllNullTable3",
+      "SELECT LISTAGG(c, '-'), LISTAGG(c) FROM AllNullTable3",
       Seq(
         row(null, null)
       )
@@ -250,7 +248,6 @@ class SortAggITCase
     )
   }
 
-  @Ignore
   @Test
   def testFirstValueOnString(): Unit = {
     checkResult(
@@ -267,7 +264,7 @@ class SortAggITCase
 
   @Test
   def testArrayUdaf(): Unit = {
-    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     env.setParallelism(1)
     checkResult(
       "SELECT myPrimitiveArrayUdaf(a, b) FROM Table3",

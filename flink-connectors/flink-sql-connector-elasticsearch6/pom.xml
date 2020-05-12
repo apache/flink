@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.10-SNAPSHOT</version>
+		<version>1.11-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -131,10 +131,6 @@ under the License.
 								<relocation>
 									<pattern>org.elasticsearch</pattern>
 									<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.elasticsearch</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.apache.logging</pattern>
-									<shadedPattern>org.apache.flink.elasticsearch6.shaded.org.apache.logging</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>

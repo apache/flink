@@ -18,210 +18,214 @@
 
 package org.apache.flink.table.planner.plan.stream.table.stringexpr
 
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.api.scala._
+import org.apache.flink.table.api.{Session, Slide, Tumble}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.planner.utils.{TableTestBase, Top3}
+import org.junit.Test
 
 class GroupWindowTableAggregateStringExpressionTest extends TableTestBase {
-//
-//  @Test
-//  def testRowTimeSlide(): Unit = {
-//    val util = streamTestUtil()
-//    val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'rowtime)
-//
-//    val top3 = new Top3
-//    util.tableEnv.registerFunction("top3", top3)
-//
-//    // Expression / Scala API
-//    val resScala = t
-//      .window(Slide over 4.hours every 2.hours on 'rowtime as 'w)
-//      .groupBy('w, 'string)
-//      .flatAggregate(top3('int) as ('x, 'y))
-//      .select(
-//        'string,
-//        'x,
-//        'y + 1,
-//        'w.start,
-//        'w.end)
-//
-//    // String / Java API
-//    val resJava = t
-//      .window(Slide.over("4.hours").every("2.hours").on("rowtime").as("w"))
-//      .groupBy("w, string")
-//      .flatAggregate("top3(int) as (x, y)")
-//      .select(
-//        "string, " +
-//        "x, " +
-//        "y + 1, " +
-//        "start(w)," +
-//        "end(w)")
-//
-//    verifyTableEquals(resJava, resScala)
-//  }
-//
-//  @Test
-//  def testRowTimeTumble(): Unit = {
-//    val util = streamTestUtil()
-//    val t = util.addTableSource[(Int, Long, Long, String)]('int, 'long, 'rowtime, 'string)
-//
-//    val top3 = new Top3
-//    util.tableEnv.registerFunction("top3", top3)
-//
-//    // Expression / Scala API
-//    val resScala = t
-//      .window(Tumble over 4.hours on 'rowtime as 'w)
-//      .groupBy('w, 'string)
-//      .flatAggregate(top3('int) as ('x, 'y))
-//      .select(
-//        'string,
-//        'x,
-//        'y + 1,
-//        'w.start,
-//        'w.end)
-//
-//    // String / Java API
-//    val resJava = t
-//      .window(Tumble.over("4.hours").on("rowtime").as("w"))
-//      .groupBy("w, string")
-//      .flatAggregate("top3(int) as (x, y)")
-//      .select(
-//        "string, " +
-//          "x, " +
-//          "y + 1, " +
-//          "start(w)," +
-//          "end(w)")
-//
-//    verifyTableEquals(resJava, resScala)
-//  }
-//
-//  @Test
-//  def testRowTimeSession(): Unit = {
-//    val util = streamTestUtil()
-//    val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'rowtime)
-//
-//    val top3 = new Top3
-//    util.tableEnv.registerFunction("top3", top3)
-//
-//    // Expression / Scala API
-//    val resScala = t
-//      .window(Session withGap 4.hours on 'rowtime as 'w)
-//      .groupBy('w, 'string)
-//      .flatAggregate(top3('int) as ('x, 'y))
-//      .select(
-//        'string,
-//        'x,
-//        'y + 1,
-//        'w.start,
-//        'w.end)
-//
-//    // String / Java API
-//    val resJava = t
-//      .window(Session.withGap("4.hours").on("rowtime").as("w"))
-//      .groupBy("w, string")
-//      .flatAggregate("top3(int) as (x, y)")
-//      .select(
-//        "string, " +
-//          "x, " +
-//          "y + 1, " +
-//          "start(w)," +
-//          "end(w)")
-//
-//    verifyTableEquals(resJava, resScala)
-//  }
-//  @Test
-//  def testProcTimeSlide(): Unit = {
-//    val util = streamTestUtil()
-//    val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'proctime)
-//
-//    val top3 = new Top3
-//    util.tableEnv.registerFunction("top3", top3)
-//
-//    // Expression / Scala API
-//    val resScala = t
-//      .window(Slide over 4.hours every 2.hours on 'proctime as 'w)
-//      .groupBy('w)
-//      .flatAggregate(top3('int) as ('x, 'y))
-//      .select(
-//        'x,
-//        'y + 1,
-//        'w.start,
-//        'w.end)
-//
-//    // String / Java API
-//    val resJava = t
-//      .window(Slide.over("4.hours").every("2.hours").on("proctime").as("w"))
-//      .groupBy("w")
-//      .flatAggregate("top3(int) as (x, y)")
-//      .select(
-//          "x, " +
-//          "y + 1, " +
-//          "start(w)," +
-//          "end(w)")
-//
-//    verifyTableEquals(resJava, resScala)
-//  }
-//
-//  @Test
-//  def testProcTimeTumble(): Unit = {
-//    val util = streamTestUtil()
-//    val t = util.addTableSource[(Int, Long, String)]('int, 'long,'string, 'proctime)
-//
-//    val top3 = new Top3
-//    util.tableEnv.registerFunction("top3", top3)
-//
-//    // Expression / Scala API
-//    val resScala = t
-//      .window(Tumble over 4.hours on 'proctime as 'w)
-//      .groupBy('w)
-//      .flatAggregate(top3('int) as ('x, 'y))
-//      .select(
-//        'x,
-//        'y + 1,
-//        'w.start,
-//        'w.end)
-//
-//    // String / Java API
-//    val resJava = t
-//      .window(Tumble.over("4.hours").on("proctime").as("w"))
-//      .groupBy("w")
-//      .flatAggregate("top3(int) as (x, y)")
-//      .select(
-//        "x, " +
-//          "y + 1, " +
-//          "start(w)," +
-//          "end(w)")
-//
-//    verifyTableEquals(resJava, resScala)
-//  }
-//
-//  @Test
-//  def testProcTimeSession(): Unit = {
-//    val util = streamTestUtil()
-//    val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'proctime)
-//
-//    val top3 = new Top3
-//    util.tableEnv.registerFunction("top3", top3)
-//
-//    // Expression / Scala API
-//    val resScala = t
-//      .window(Session withGap 4.hours on 'proctime as 'w)
-//      .groupBy('w)
-//      .flatAggregate(top3('int) as ('x, 'y))
-//      .select(
-//        'x,
-//        'y + 1,
-//        'w.start,
-//        'w.end)
-//
-//    // String / Java API
-//    val resJava = t
-//      .window(Session.withGap("4.hours").on("proctime").as("w"))
-//      .groupBy("w")
-//      .flatAggregate("top3(int) as (x, y)")
-//      .select(
-//        "x, " +
-//          "y + 1, " +
-//          "start(w)," +
-//          "end(w)")
-//
-//    verifyTableEquals(resJava, resScala)
-//  }
+
+  @Test
+  def testRowTimeSlide(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'rowtime.rowtime)
+
+    val top3 = new Top3
+    util.addFunction("top3", top3)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Slide over 4.hours every 2.hours on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .flatAggregate(top3('int) as ('x, 'y))
+      .select(
+        'string,
+        'x,
+        'y + 1,
+        'w.start,
+        'w.end)
+
+    // String / Java API
+    val resJava = t
+      .window(Slide.over("4.hours").every("2.hours").on("rowtime").as("w"))
+      .groupBy("w, string")
+      .flatAggregate("top3(int) as (x, y)")
+      .select(
+        "string, " +
+        "x, " +
+        "y + 1, " +
+        "start(w)," +
+        "end(w)")
+
+    verifyTableEquals(resJava, resScala)
+  }
+
+  @Test
+  def testRowTimeTumble(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTableSource[(Int, Long, Long, String)]('int, 'long, 'rowtime.rowtime, 'string)
+
+    val top3 = new Top3
+    util.addFunction("top3", top3)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Tumble over 4.hours on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .flatAggregate(top3('int) as ('x, 'y))
+      .select(
+        'string,
+        'x,
+        'y + 1,
+        'w.start,
+        'w.end)
+
+    // String / Java API
+    val resJava = t
+      .window(Tumble.over("4.hours").on("rowtime").as("w"))
+      .groupBy("w, string")
+      .flatAggregate("top3(int) as (x, y)")
+      .select(
+        "string, " +
+          "x, " +
+          "y + 1, " +
+          "start(w)," +
+          "end(w)")
+
+    verifyTableEquals(resJava, resScala)
+  }
+
+  @Test
+  def testRowTimeSession(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'rowtime.rowtime)
+
+    val top3 = new Top3
+    util.addFunction("top3", top3)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Session withGap 4.hours on 'rowtime as 'w)
+      .groupBy('w, 'string)
+      .flatAggregate(top3('int) as ('x, 'y))
+      .select(
+        'string,
+        'x,
+        'y + 1,
+        'w.start,
+        'w.end)
+
+    // String / Java API
+    val resJava = t
+      .window(Session.withGap("4.hours").on("rowtime").as("w"))
+      .groupBy("w, string")
+      .flatAggregate("top3(int) as (x, y)")
+      .select(
+        "string, " +
+          "x, " +
+          "y + 1, " +
+          "start(w)," +
+          "end(w)")
+
+    verifyTableEquals(resJava, resScala)
+  }
+  @Test
+  def testProcTimeSlide(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'proctime.proctime)
+
+    val top3 = new Top3
+    util.addFunction("top3", top3)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Slide over 4.hours every 2.hours on 'proctime as 'w)
+      .groupBy('w)
+      .flatAggregate(top3('int) as ('x, 'y))
+      .select(
+        'x,
+        'y + 1,
+        'w.start,
+        'w.end)
+
+    // String / Java API
+    val resJava = t
+      .window(Slide.over("4.hours").every("2.hours").on("proctime").as("w"))
+      .groupBy("w")
+      .flatAggregate("top3(int) as (x, y)")
+      .select(
+          "x, " +
+          "y + 1, " +
+          "start(w)," +
+          "end(w)")
+
+    verifyTableEquals(resJava, resScala)
+  }
+
+  @Test
+  def testProcTimeTumble(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTableSource[(Int, Long, String)]('int, 'long,'string, 'proctime.proctime)
+
+    val top3 = new Top3
+    util.addFunction("top3", top3)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Tumble over 4.hours on 'proctime as 'w)
+      .groupBy('w)
+      .flatAggregate(top3('int) as ('x, 'y))
+      .select(
+        'x,
+        'y + 1,
+        'w.start,
+        'w.end)
+
+    // String / Java API
+    val resJava = t
+      .window(Tumble.over("4.hours").on("proctime").as("w"))
+      .groupBy("w")
+      .flatAggregate("top3(int) as (x, y)")
+      .select(
+        "x, " +
+          "y + 1, " +
+          "start(w)," +
+          "end(w)")
+
+    verifyTableEquals(resJava, resScala)
+  }
+
+  @Test
+  def testProcTimeSession(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'proctime.proctime)
+
+    val top3 = new Top3
+    util.addFunction("top3", top3)
+
+    // Expression / Scala API
+    val resScala = t
+      .window(Session withGap 4.hours on 'proctime as 'w)
+      .groupBy('w)
+      .flatAggregate(top3('int) as ('x, 'y))
+      .select(
+        'x,
+        'y + 1,
+        'w.start,
+        'w.end)
+
+    // String / Java API
+    val resJava = t
+      .window(Session.withGap("4.hours").on("proctime").as("w"))
+      .groupBy("w")
+      .flatAggregate("top3(int) as (x, y)")
+      .select(
+        "x, " +
+          "y + 1, " +
+          "start(w)," +
+          "end(w)")
+
+    verifyTableEquals(resJava, resScala)
+  }
 }

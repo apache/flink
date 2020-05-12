@@ -18,12 +18,20 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, TwoInputTransformation}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.delegation.Planner
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResource
+
+import org.apache.calcite.rel.RelDistribution
+import org.apache.calcite.rel.core.Exchange
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * The representation of execution information for a [[FlinkPhysicalRel]].
@@ -34,19 +42,9 @@ import java.util
 trait ExecNode[E <: Planner, T] {
 
   /**
-    * Defines how much resource the node will take.
-    */
-  private val resource: NodeResource = new NodeResource
-
-  /**
     * The [[Transformation]] translated from this node.
     */
   private var transformation: Transformation[T] = _
-
-  /**
-    * Get node resource.
-    */
-  def getResource: NodeResource = resource
 
   /**
     * Translates this node into a Flink operator.
@@ -93,5 +91,69 @@ trait ExecNode[E <: Planner, T] {
     */
   def accept(visitor: ExecNodeVisitor): Unit = {
     visitor.visit(this)
+  }
+
+  /**
+    *  Whether there is singleton exchange node as input.
+    */
+  protected def inputsContainSingleton(): Boolean = {
+    getInputNodes.exists { node =>
+      node.isInstanceOf[Exchange] &&
+          node.asInstanceOf[Exchange].getDistribution.getType == RelDistribution.Type.SINGLETON
+    }
+  }
+}
+
+object ExecNode {
+
+  /**
+    * Set memoryBytes to Transformation.setManagedMemoryWeight.
+    */
+  def setManagedMemoryWeight[T](
+      transformation: Transformation[T],
+      memoryBytes: Long = 0): Transformation[T] = {
+    if (transformation.getManagedMemoryWeight != Transformation.DEFAULT_MANAGED_MEMORY_WEIGHT) {
+      throw new TableException("Managed memory weight has been set, this should not happen.")
+    }
+
+    // Using Bytes can easily overflow
+    // Using KibiBytes to cast to int
+    // Careful about zero
+    val memoryKibiBytes = if (memoryBytes == 0) 0 else Math.max(1, (memoryBytes >> 10).toInt)
+    transformation.setManagedMemoryWeight(memoryKibiBytes)
+    transformation
+  }
+
+  /**
+    * Create a [[OneInputTransformation]] with memoryBytes.
+    */
+  def createOneInputTransformation[T](
+      input: Transformation[T],
+      name: String,
+      operatorFactory: StreamOperatorFactory[T],
+      outputType: TypeInformation[T],
+      parallelism: Int,
+      memoryBytes: Long = 0): OneInputTransformation[T, T] = {
+    val ret = new OneInputTransformation[T, T](
+      input, name, operatorFactory, outputType, parallelism)
+    setManagedMemoryWeight(ret, memoryBytes)
+    ret
+  }
+
+  /**
+    * Create a [[TwoInputTransformation]] with memoryBytes.
+    */
+  def createTwoInputTransformation[T](
+      input1: Transformation[T],
+      input2: Transformation[T],
+      name: String,
+      operatorFactory: StreamOperatorFactory[T],
+      outputType: TypeInformation[T],
+      parallelism: Int,
+      memoryBytes: Long = 0): TwoInputTransformation[T, T, T] = {
+    val ret = new TwoInputTransformation[T, T, T](
+      input1, input2, name, operatorFactory, outputType, parallelism)
+    setManagedMemoryWeight(ret, memoryBytes)
+    ret
   }
 }

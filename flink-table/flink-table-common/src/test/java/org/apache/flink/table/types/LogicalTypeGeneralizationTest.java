@@ -86,6 +86,12 @@ public class LogicalTypeGeneralizationTest {
 					null
 				},
 
+				// incompatible types
+				{
+					Arrays.asList(new BinaryType(), new VarCharType(23)),
+					null
+				},
+
 				// NOT NULL types
 				{
 					Arrays.asList(new IntType(false), new IntType(false)),
@@ -101,7 +107,7 @@ public class LogicalTypeGeneralizationTest {
 				// NULL only
 				{
 					Arrays.asList(new NullType(), new NullType()),
-					new NullType()
+					null
 				},
 
 				// NULL with other types
@@ -144,10 +150,16 @@ public class LogicalTypeGeneralizationTest {
 					RowType.of(new BigIntType(), new IntType(), new BigIntType())
 				},
 
+				// CHAR types of same length
+				{
+					Arrays.asList(new CharType(2), new CharType(2)),
+					new CharType(2)
+				},
+
 				// CHAR types of different length
 				{
 					Arrays.asList(new CharType(2), new CharType(4)),
-					new CharType(4)
+					new VarCharType(4)
 				},
 
 				// VARCHAR types of different length
@@ -166,6 +178,12 @@ public class LogicalTypeGeneralizationTest {
 				{
 					Arrays.asList(new CharType(5), new VarCharType(2), new VarCharType(7)),
 					new VarCharType(7)
+				},
+
+				// BINARY types of different length
+				{
+					Arrays.asList(new BinaryType(2), new BinaryType(4)),
+					new VarBinaryType(4)
 				},
 
 				// mixed BINARY and VARBINARY types
@@ -188,8 +206,8 @@ public class LogicalTypeGeneralizationTest {
 
 				// one APPROXIMATE_NUMERIC and one EXACT_NUMERIC type
 				{
-					Arrays.asList(new DoubleType(), new IntType()),
-					new DoubleType()
+					Arrays.asList(new IntType(), new FloatType()),
+					new FloatType()
 				},
 
 				// two APPROXIMATE_NUMERIC and one DECIMAL type

@@ -25,16 +25,16 @@ import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.JoinedRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.hashtable.BinaryHashTable;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.table.types.logical.RowType;
@@ -55,8 +55,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * hybrid-hash-join internally to match the records with equal key. The build side of the hash
  * is the first input of the match. It support all join type in {@link HashJoinType}.
  */
-public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
-		implements TwoInputStreamOperator<BaseRow, BaseRow, BaseRow>,
+public abstract class HashJoinOperator extends TableStreamOperator<RowData>
+		implements TwoInputStreamOperator<RowData, RowData, RowData>,
 		BoundedMultiInput, InputSelectable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HashJoinOperator.class);
@@ -66,11 +66,11 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	private final HashJoinType type;
 
 	private transient BinaryHashTable table;
-	transient Collector<BaseRow> collector;
+	transient Collector<RowData> collector;
 
-	transient BaseRow buildSideNullRow;
-	private transient BaseRow probeSideNullRow;
-	private transient JoinedRow joinedRow;
+	transient RowData buildSideNullRow;
+	private transient RowData probeSideNullRow;
+	private transient JoinedRowData joinedRow;
 	private transient boolean buildEnd;
 	private transient JoinCondition condition;
 
@@ -86,9 +86,9 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 		ClassLoader cl = getContainingTask().getUserCodeClassLoader();
 
-		final AbstractRowSerializer buildSerializer = (AbstractRowSerializer) getOperatorConfig()
+		final AbstractRowDataSerializer buildSerializer = (AbstractRowDataSerializer) getOperatorConfig()
 			.getTypeSerializerIn1(getUserCodeClassloader());
-		final AbstractRowSerializer probeSerializer = (AbstractRowSerializer) getOperatorConfig()
+		final AbstractRowDataSerializer probeSerializer = (AbstractRowDataSerializer) getOperatorConfig()
 			.getTypeSerializerIn2(getUserCodeClassloader());
 
 		boolean hashJoinUseBitMaps = getContainingTask().getEnvironment().getTaskConfiguration()
@@ -107,9 +107,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 				parameter.buildProjectionCode.newInstance(cl),
 				parameter.probeProjectionCode.newInstance(cl),
 				getContainingTask().getEnvironment().getMemoryManager(),
-				parameter.reservedMemorySize,
-				parameter.maxMemorySize,
-				parameter.perRequestMemorySize,
+				computeMemorySize(),
 				getContainingTask().getEnvironment().getIOManager(),
 				parameter.buildRowSize,
 				parameter.buildRowCount / parallel,
@@ -122,9 +120,9 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 		this.collector = new StreamRecordCollector<>(output);
 
-		this.buildSideNullRow = new GenericRow(buildSerializer.getArity());
-		this.probeSideNullRow = new GenericRow(probeSerializer.getArity());
-		this.joinedRow = new JoinedRow();
+		this.buildSideNullRow = new GenericRowData(buildSerializer.getArity());
+		this.probeSideNullRow = new GenericRowData(probeSerializer.getArity());
+		this.joinedRow = new JoinedRowData();
 		this.buildEnd = false;
 
 		getMetricGroup().gauge("memoryUsedSizeInBytes", table::getUsedMemoryInBytes);
@@ -137,13 +135,13 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	}
 
 	@Override
-	public void processElement1(StreamRecord<BaseRow> element) throws Exception {
+	public void processElement1(StreamRecord<RowData> element) throws Exception {
 		checkState(!buildEnd, "Should not build ended.");
 		this.table.putBuildRow(element.getValue());
 	}
 
 	@Override
-	public void processElement2(StreamRecord<BaseRow> element) throws Exception {
+	public void processElement2(StreamRecord<RowData> element) throws Exception {
 		checkState(buildEnd, "Should build ended.");
 		if (this.table.tryProbe(element.getValue())) {
 			joinWithNextKey();
@@ -180,23 +178,23 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		join(table.getBuildSideIterator(), table.getCurrentProbeRow());
 	}
 
-	public abstract void join(RowIterator<BinaryRow> buildIter, BaseRow probeRow) throws Exception;
+	public abstract void join(RowIterator<BinaryRowData> buildIter, RowData probeRow) throws Exception;
 
-	void innerJoin(RowIterator<BinaryRow> buildIter, BaseRow probeRow) throws Exception {
+	void innerJoin(RowIterator<BinaryRowData> buildIter, RowData probeRow) throws Exception {
 		collect(buildIter.getRow(), probeRow);
 		while (buildIter.advanceNext()) {
 			collect(buildIter.getRow(), probeRow);
 		}
 	}
 
-	void buildOuterJoin(RowIterator<BinaryRow> buildIter) throws Exception {
+	void buildOuterJoin(RowIterator<BinaryRowData> buildIter) throws Exception {
 		collect(buildIter.getRow(), probeSideNullRow);
 		while (buildIter.advanceNext()) {
 			collect(buildIter.getRow(), probeSideNullRow);
 		}
 	}
 
-	void collect(BaseRow row1, BaseRow row2) throws Exception {
+	void collect(RowData row1, RowData row2) throws Exception {
 		if (reverseJoinFunction) {
 			collector.collect(joinedRow.replace(row2, row1));
 		} else {
@@ -216,9 +214,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	}
 
 	public static HashJoinOperator newHashJoinOperator(
-			long minMemorySize,
-			long maxMemorySize,
-			long eachRequestMemorySize,
 			HashJoinType type,
 			GeneratedJoinCondition condFuncCode,
 			boolean reverseJoinFunction,
@@ -230,9 +225,18 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 			long buildRowCount,
 			long probeRowCount,
 			RowType keyType) {
-		HashJoinParameter parameter = new HashJoinParameter(minMemorySize, maxMemorySize, eachRequestMemorySize,
-				type, condFuncCode, reverseJoinFunction, filterNullKeys, buildProjectionCode, probeProjectionCode,
-				tryDistinctBuildRow, buildRowSize, buildRowCount, probeRowCount, keyType);
+		HashJoinParameter parameter = new HashJoinParameter(
+				type,
+				condFuncCode,
+				reverseJoinFunction,
+				filterNullKeys,
+				buildProjectionCode,
+				probeProjectionCode,
+				tryDistinctBuildRow,
+				buildRowSize,
+				buildRowCount,
+				probeRowCount,
+				keyType);
 		switch (type) {
 			case INNER:
 				return new InnerHashJoinOperator(parameter);
@@ -255,9 +259,6 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 	}
 
 	static class HashJoinParameter implements Serializable {
-		long reservedMemorySize;
-		long maxMemorySize;
-		long perRequestMemorySize;
 		HashJoinType type;
 		GeneratedJoinCondition condFuncCode;
 		boolean reverseJoinFunction;
@@ -271,15 +272,12 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		RowType keyType;
 
 		HashJoinParameter(
-				long reservedMemorySize, long maxMemorySize, long perRequestMemorySize, HashJoinType type,
+				HashJoinType type,
 				GeneratedJoinCondition condFuncCode, boolean reverseJoinFunction,
 				boolean[] filterNullKeys,
 				GeneratedProjection buildProjectionCode,
 				GeneratedProjection probeProjectionCode, boolean tryDistinctBuildRow,
 				int buildRowSize, long buildRowCount, long probeRowCount, RowType keyType) {
-			this.reservedMemorySize = reservedMemorySize;
-			this.maxMemorySize = maxMemorySize;
-			this.perRequestMemorySize = perRequestMemorySize;
 			this.type = type;
 			this.condFuncCode = condFuncCode;
 			this.reverseJoinFunction = reverseJoinFunction;
@@ -296,7 +294,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 	/**
 	 * Inner join.
-	 * Output assembled {@link JoinedRow} when build side row matched probe side row.
+	 * Output assembled {@link JoinedRowData} when build side row matched probe side row.
 	 */
 	private static class InnerHashJoinOperator extends HashJoinOperator {
 
@@ -305,7 +303,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		}
 
 		@Override
-		public void join(RowIterator<BinaryRow> buildIter, BaseRow probeRow) throws Exception {
+		public void join(RowIterator<BinaryRowData> buildIter, RowData probeRow) throws Exception {
 			if (buildIter.advanceNext()) {
 				if (probeRow != null) {
 					innerJoin(buildIter, probeRow);
@@ -316,8 +314,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 	/**
 	 * BuildOuter join.
-	 * Output assembled {@link JoinedRow} when build side row matched probe side row.
-	 * And if there is no match in the probe table, output {@link JoinedRow} assembled by
+	 * Output assembled {@link JoinedRowData} when build side row matched probe side row.
+	 * And if there is no match in the probe table, output {@link JoinedRowData} assembled by
 	 * build side row and nulls.
 	 */
 	private static class BuildOuterHashJoinOperator extends HashJoinOperator {
@@ -327,7 +325,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		}
 
 		@Override
-		public void join(RowIterator<BinaryRow> buildIter, BaseRow probeRow) throws Exception {
+		public void join(RowIterator<BinaryRowData> buildIter, RowData probeRow) throws Exception {
 			if (buildIter.advanceNext()) {
 				if (probeRow != null) {
 					innerJoin(buildIter, probeRow);
@@ -340,8 +338,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 	/**
 	 * ProbeOuter join.
-	 * Output assembled {@link JoinedRow} when probe side row matched build side row.
-	 * And if there is no match in the build table, output {@link JoinedRow} assembled by
+	 * Output assembled {@link JoinedRowData} when probe side row matched build side row.
+	 * And if there is no match in the build table, output {@link JoinedRowData} assembled by
 	 * nulls and probe side row.
 	 */
 	private static class ProbeOuterHashJoinOperator extends HashJoinOperator {
@@ -351,7 +349,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		}
 
 		@Override
-		public void join(RowIterator<BinaryRow> buildIter, BaseRow probeRow) throws Exception {
+		public void join(RowIterator<BinaryRowData> buildIter, RowData probeRow) throws Exception {
 			if (buildIter.advanceNext()) {
 				if (probeRow != null) {
 					innerJoin(buildIter, probeRow);
@@ -364,8 +362,8 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 
 	/**
 	 * BuildOuter join.
-	 * Output assembled {@link JoinedRow} when build side row matched probe side row.
-	 * And if there is no match, output {@link JoinedRow} assembled by build side row and nulls or
+	 * Output assembled {@link JoinedRowData} when build side row matched probe side row.
+	 * And if there is no match, output {@link JoinedRowData} assembled by build side row and nulls or
 	 * nulls and probe side row.
 	 */
 	private static class FullOuterHashJoinOperator extends HashJoinOperator {
@@ -375,7 +373,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		}
 
 		@Override
-		public void join(RowIterator<BinaryRow> buildIter, BaseRow probeRow) throws Exception {
+		public void join(RowIterator<BinaryRowData> buildIter, RowData probeRow) throws Exception {
 			if (buildIter.advanceNext()) {
 				if (probeRow != null) {
 					innerJoin(buildIter, probeRow);
@@ -399,7 +397,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		}
 
 		@Override
-		public void join(RowIterator<BinaryRow> buildIter, BaseRow probeRow) throws Exception {
+		public void join(RowIterator<BinaryRowData> buildIter, RowData probeRow) throws Exception {
 			checkNotNull(probeRow);
 			if (buildIter.advanceNext()) {
 				collector.collect(probeRow);
@@ -418,7 +416,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		}
 
 		@Override
-		public void join(RowIterator<BinaryRow> buildIter, BaseRow probeRow) throws Exception {
+		public void join(RowIterator<BinaryRowData> buildIter, RowData probeRow) throws Exception {
 			checkNotNull(probeRow);
 			if (!buildIter.advanceNext()) {
 				collector.collect(probeRow);
@@ -438,10 +436,11 @@ public abstract class HashJoinOperator extends TableStreamOperator<BaseRow>
 		}
 
 		@Override
-		public void join(RowIterator<BinaryRow> buildIter, BaseRow probeRow) throws Exception {
+		public void join(RowIterator<BinaryRowData> buildIter, RowData probeRow) throws Exception {
 			if (buildIter.advanceNext()) {
 				if (probeRow != null) { //Probe phase
 					// we must iterator to set probedSet.
+					//noinspection StatementWithEmptyBody
 					while (buildIter.advanceNext()) {}
 				} else { //End Probe phase, iterator build side elements.
 					collector.collect(buildIter.getRow());

@@ -27,6 +27,7 @@ import java.io.IOException;
 /**
  * Base class for {@link Writer Writers} that write to a {@link FSDataOutputStream}.
  */
+@Deprecated
 public abstract class StreamWriterBase<T> implements Writer<T> {
 
 	private static final long serialVersionUID = 2L;

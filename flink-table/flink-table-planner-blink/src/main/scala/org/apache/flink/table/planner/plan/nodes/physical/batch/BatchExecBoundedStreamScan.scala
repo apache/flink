@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
@@ -50,7 +50,7 @@ class BatchExecBoundedStreamScan(
     outputRowType: RelDataType)
   extends TableScan(cluster, traitSet, table)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with BatchExecNode[RowData] {
 
   val boundedStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
@@ -84,12 +84,11 @@ class BatchExecBoundedStreamScan(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val config = planner.getTableConfig
     val batchTransform = boundedStreamTable.dataStream.getTransformation
-    batchTransform.setParallelism(getResource.getParallelism)
     if (needInternalConversion) {
-      val conversionTransform = ScanUtil.convertToInternalRow(
+      ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
         batchTransform,
         boundedStreamTable.fieldIndexes,
@@ -98,15 +97,10 @@ class BatchExecBoundedStreamScan(
         getTable.getQualifiedName,
         config,
         None)
-      conversionTransform.setParallelism(getResource.getParallelism)
-      conversionTransform
     } else {
-      batchTransform.asInstanceOf[Transformation[BaseRow]]
+      batchTransform.asInstanceOf[Transformation[RowData]]
     }
   }
-
-  def getSourceTransformation: Transformation[_] =
-    boundedStreamTable.dataStream.getTransformation
 
   def needInternalConversion: Boolean = {
     ScanUtil.hasTimeAttributeField(boundedStreamTable.fieldIndexes) ||

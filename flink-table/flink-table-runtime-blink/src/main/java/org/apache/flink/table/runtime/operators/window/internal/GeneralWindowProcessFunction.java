@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.window.internal;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 
@@ -41,13 +41,13 @@ public class GeneralWindowProcessFunction<K, W extends Window>
 
 	public GeneralWindowProcessFunction(
 			WindowAssigner<W> windowAssigner,
-			NamespaceAggsHandleFunction<W> windowAggregator,
+			NamespaceAggsHandleFunctionBase<W> windowAggregator,
 			long allowedLateness) {
 		super(windowAssigner, windowAggregator, allowedLateness);
 	}
 
 	@Override
-	public Collection<W> assignStateNamespace(BaseRow inputRow, long timestamp) throws Exception {
+	public Collection<W> assignStateNamespace(RowData inputRow, long timestamp) throws Exception {
 		Collection<W> elementWindows = windowAssigner.assignWindows(inputRow, timestamp);
 		reuseAffectedWindows = new ArrayList<>(elementWindows.size());
 		for (W window : elementWindows) {
@@ -59,19 +59,18 @@ public class GeneralWindowProcessFunction<K, W extends Window>
 	}
 
 	@Override
-	public Collection<W> assignActualWindows(BaseRow inputRow, long timestamp) throws Exception {
+	public Collection<W> assignActualWindows(RowData inputRow, long timestamp) throws Exception {
 		// actual windows is equal to affected window, reuse it
 		return reuseAffectedWindows;
 	}
 
 	@Override
-	public BaseRow getWindowAggregationResult(W window) throws Exception {
-		BaseRow acc = ctx.getWindowAccumulators(window);
+	public void prepareAggregateAccumulatorForEmit(W window) throws Exception {
+		RowData acc = ctx.getWindowAccumulators(window);
 		if (acc == null) {
 			acc = windowAggregator.createAccumulators();
 		}
 		windowAggregator.setAccumulators(window, acc);
-		return windowAggregator.getValue(window);
 	}
 
 	@Override

@@ -19,14 +19,15 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -52,12 +53,14 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 	static final int DEFAULT_BLOB_SERVER_PORT = 1234;
 	static final DispatcherId DEFAULT_FENCING_TOKEN = DispatcherId.generate();
 	static final Function<JobID, CompletableFuture<ArchivedExecutionGraph>> DEFAULT_REQUEST_ARCHIVED_JOB_FUNCTION = jobID -> CompletableFuture.completedFuture(null);
+	static final Function<ApplicationStatus, CompletableFuture<Acknowledge>> DEFAULT_SHUTDOWN_WITH_STATUS_FUNCTION = status -> CompletableFuture.completedFuture(Acknowledge.get());
 
 	private Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
 	private Supplier<CompletableFuture<Collection<JobID>>> listFunction;
 	private int blobServerPort;
 	private DispatcherId fencingToken;
 	private Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction;
+	private Function<ApplicationStatus, CompletableFuture<Acknowledge>> clusterShutdownWithStatusFunction;
 
 	public TestingDispatcherGateway() {
 		super();
@@ -66,6 +69,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 		blobServerPort = DEFAULT_BLOB_SERVER_PORT;
 		fencingToken = DEFAULT_FENCING_TOKEN;
 		requestArchivedJobFunction = DEFAULT_REQUEST_ARCHIVED_JOB_FUNCTION;
+		clusterShutdownWithStatusFunction = DEFAULT_SHUTDOWN_WITH_STATUS_FUNCTION;
 	}
 
 	public TestingDispatcherGateway(
@@ -86,7 +90,9 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			Supplier<CompletableFuture<Collection<JobID>>> listFunction,
 			int blobServerPort,
 			DispatcherId fencingToken,
-			Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction) {
+			Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction,
+			Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier,
+			Function<ApplicationStatus, CompletableFuture<Acknowledge>> clusterShutdownWithStatusFunction) {
 		super(
 			address,
 			hostname,
@@ -100,12 +106,14 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			requestTaskManagerMetricQueryServiceGatewaysSupplier,
 			requestOperatorBackPressureStatsFunction,
 			triggerSavepointFunction,
-			stopWithSavepointFunction);
+			stopWithSavepointFunction,
+			clusterShutdownSupplier);
 		this.submitFunction = submitFunction;
 		this.listFunction = listFunction;
 		this.blobServerPort = blobServerPort;
 		this.fencingToken = fencingToken;
 		this.requestArchivedJobFunction = requestArchivedJobFunction;
+		this.clusterShutdownWithStatusFunction = clusterShutdownWithStatusFunction;
 	}
 
 	@Override
@@ -132,16 +140,22 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 		return requestArchivedJobFunction.apply(jobId);
 	}
 
+	@Override
+	public CompletableFuture<Acknowledge> shutDownCluster(ApplicationStatus applicationStatus) {
+		return clusterShutdownWithStatusFunction.apply(applicationStatus);
+	}
+
 	/**
 	 * Builder for the {@link TestingDispatcherGateway}.
 	 */
-	public static final class Builder extends TestingRestfulGateway.Builder {
+	public static final class Builder extends TestingRestfulGateway.AbstractBuilder<Builder> {
 
 		private Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
 		private Supplier<CompletableFuture<Collection<JobID>>> listFunction;
 		private int blobServerPort;
 		private DispatcherId fencingToken;
 		private Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction;
+		private Function<ApplicationStatus, CompletableFuture<Acknowledge>> clusterShutdownWithStatusFunction = DEFAULT_SHUTDOWN_WITH_STATUS_FUNCTION;
 
 		public Builder setSubmitFunction(Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction) {
 			this.submitFunction = submitFunction;
@@ -158,10 +172,20 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			return this;
 		}
 
+		public Builder setClusterShutdownFunction(Function<ApplicationStatus, CompletableFuture<Acknowledge>> clusterShutdownFunction) {
+			this.clusterShutdownWithStatusFunction = clusterShutdownFunction;
+			return this;
+		}
+
 		@Override
-		public TestingRestfulGateway.Builder setRequestJobFunction(Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
+		public Builder setRequestJobFunction(Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
 			// signature clash
 			throw new UnsupportedOperationException("Use setRequestArchivedJobFunction() instead.");
+		}
+
+		@Override
+		protected Builder self() {
+			return this;
 		}
 
 		public Builder setBlobServerPort(int blobServerPort) {
@@ -193,7 +217,9 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 				listFunction,
 				blobServerPort,
 				fencingToken,
-				requestArchivedJobFunction);
+				requestArchivedJobFunction,
+				clusterShutdownSupplier,
+				clusterShutdownWithStatusFunction);
 		}
 	}
 }

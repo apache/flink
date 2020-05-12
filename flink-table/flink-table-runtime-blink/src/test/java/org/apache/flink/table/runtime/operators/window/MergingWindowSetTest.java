@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.window;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.assigners.MergingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.internal.MergingWindowSet;
@@ -418,6 +418,11 @@ public class MergingWindowSetTest {
 		}
 
 		@Override
+		public boolean isEmpty() throws Exception {
+			return map.isEmpty();
+		}
+
+		@Override
 		public void clear() {
 			map.clear();
 		}
@@ -488,7 +493,7 @@ public class MergingWindowSetTest {
 		}
 
 		@Override
-		public Collection<TimeWindow> assignWindows(BaseRow element, long timestamp) {
+		public Collection<TimeWindow> assignWindows(RowData element, long timestamp) {
 			return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
 		}
 
@@ -586,6 +591,11 @@ public class MergingWindowSetTest {
 		@Override
 		public Iterator<Map.Entry<UK, UV>> iterator() throws Exception {
 			return internalMap.entrySet().iterator();
+		}
+
+		@Override
+		public boolean isEmpty() {
+			return internalMap.isEmpty();
 		}
 
 		@Override

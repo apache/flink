@@ -123,7 +123,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			this.fields[i].setAccessible(true);
 		}
 
-		cl = Thread.currentThread().getContextClassLoader();
+		this.cl = Thread.currentThread().getContextClassLoader();
 
 		// We only want those classes that are not our own class and are actually sub-classes.
 		LinkedHashSet<Class<?>> registeredSubclasses =
@@ -156,6 +156,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		this.registeredSerializers = checkNotNull(registeredSerializers);
 		this.subclassSerializerCache = checkNotNull(subclassSerializerCache);
 		this.executionConfig = checkNotNull(executionConfig);
+		this.cl = Thread.currentThread().getContextClassLoader();
 	}
 	
 	@Override

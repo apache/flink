@@ -47,7 +47,7 @@ ORIGINAL_DOP=$1
 NEW_DOP=$2
 STATE_BACKEND_TYPE=${3:-file}
 STATE_BACKEND_FILE_ASYNC=${4:-true}
-STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE=${5:-heap}
+STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE=${5:-rocks}
 
 if (( $ORIGINAL_DOP >= $NEW_DOP )); then
   NUM_SLOTS=$ORIGINAL_DOP
@@ -57,8 +57,8 @@ fi
 
 set_config_key "taskmanager.numberOfTaskSlots" "${NUM_SLOTS}"
 
-if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'rocks' ]; then
-  set_config_key "state.backend.rocksdb.timer-service.factory" "rocksdb"
+if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'heap' ]; then
+  set_config_key "state.backend.rocksdb.timer-service.factory" "heap"
 fi
 set_config_key "metrics.fetcher.update-interval" "2000"
 
@@ -85,10 +85,21 @@ wait_job_running $DATASTREAM_JOB
 wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
 
 # take a savepoint of the state machine job
-SAVEPOINT_PATH=$(take_savepoint $DATASTREAM_JOB $TEST_DATA_DIR \
+SAVEPOINT_PATH=$(stop_with_savepoint $DATASTREAM_JOB $TEST_DATA_DIR \
   | grep "Savepoint completed. Path:" | sed 's/.* //g')
 
-cancel_job $DATASTREAM_JOB
+wait_job_terminal_state "${DATASTREAM_JOB}" "FINISHED"
+
+# isolate the path without the scheme ("file:") and do the necessary checks
+SAVEPOINT_DIR=${SAVEPOINT_PATH#"file:"}
+
+if [ -z "$SAVEPOINT_DIR" ]; then
+  echo "Savepoint location was empty. This may mean that the stop-with-savepoint failed."
+  exit 1
+elif [ ! -d "$SAVEPOINT_DIR" ]; then
+  echo "Savepoint $SAVEPOINT_PATH does not exist."
+  exit 1
+fi
 
 # Since it is not possible to differentiate reporter output between the first and second execution,
 # we remember the number of metrics sampled in the first execution so that they can be ignored in the following monitorings

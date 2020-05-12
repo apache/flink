@@ -34,7 +34,6 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
@@ -192,15 +191,24 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 	}
 
 	/**
-	 * This test checks that no mkdirs is called by the checkpoint storage location when resolved.
+	 * This test checks that the expected mkdirs action for checkpoint storage,
+	 * only be called when initializeBaseLocations and not called when resolveCheckpointStorageLocation.
 	 */
 	@Test
-	public void testStorageLocationDoesNotMkdirs() throws Exception {
+	public void testStorageLocationMkdirs() throws Exception {
 		FsCheckpointStorage storage = new FsCheckpointStorage(
 				randomTempPath(), null, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
 
-		File baseDir =  new File(storage.getCheckpointsDirectory().getPath());
+		File baseDir = new File(storage.getCheckpointsDirectory().getPath());
+		assertFalse(baseDir.exists());
+
+		// mkdirs would only be called when initializeBaseLocations
+		storage.initializeBaseLocations();
 		assertTrue(baseDir.exists());
+
+		// mkdir would not be called when resolveCheckpointStorageLocation
+		storage = new FsCheckpointStorage(
+				randomTempPath(), null, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
 
 		FsCheckpointStorageLocation location = (FsCheckpointStorageLocation)
 				storage.resolveCheckpointStorageLocation(177, CheckpointStorageLocationReference.getDefault());
@@ -256,7 +264,7 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 		}
 
 		@Override
-		public FileSystem getFileSystem() throws IOException {
+		public FileSystem getFileSystem() {
 			return fileSystem;
 		}
 	}

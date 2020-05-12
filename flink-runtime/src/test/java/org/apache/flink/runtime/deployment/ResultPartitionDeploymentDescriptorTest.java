@@ -30,9 +30,7 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor.ReleaseType;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
-import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -49,6 +47,7 @@ import static org.junit.Assert.assertThat;
  */
 public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 	private static final IntermediateDataSetID resultId = new IntermediateDataSetID();
+	private static final int numberOfPartitions = 5;
 
 	private static final IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 	private static final ExecutionAttemptID producerExecutionId = new ExecutionAttemptID();
@@ -59,6 +58,7 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 
 	private static final PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
 		resultId,
+		numberOfPartitions,
 		partitionId,
 		partitionType,
 		numberOfSubpartitions,
@@ -90,8 +90,7 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 		ShuffleDescriptor shuffleDescriptor = new NettyShuffleDescriptor(
 			producerLocation,
 			new NetworkPartitionConnectionInfo(connectionID),
-			resultPartitionID,
-			false);
+			resultPartitionID);
 
 		ResultPartitionDeploymentDescriptor copy =
 			createCopyAndVerifyResultPartitionDeploymentDescriptor(shuffleDescriptor);
@@ -102,16 +101,6 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 		assertThat(shuffleDescriptorCopy.isUnknown(), is(false));
 		assertThat(shuffleDescriptorCopy.isLocalTo(producerLocation), is(true));
 		assertThat(shuffleDescriptorCopy.getConnectionId(), is(connectionID));
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void testIncompatibleReleaseTypeManual() {
-		new ResultPartitionDeploymentDescriptor(
-			partitionDescriptor,
-			NettyShuffleDescriptorBuilder.newBuilder().setBlocking(false).buildLocal(),
-			1,
-			true,
-			ReleaseType.MANUAL);
 	}
 
 	private static ResultPartitionDeploymentDescriptor createCopyAndVerifyResultPartitionDeploymentDescriptor(
@@ -128,6 +117,7 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 
 	private static void verifyResultPartitionDeploymentDescriptorCopy(ResultPartitionDeploymentDescriptor copy) {
 		assertThat(copy.getResultId(), is(resultId));
+		assertThat(copy.getTotalNumberOfPartitions(), is(numberOfPartitions));
 		assertThat(copy.getPartitionId(), is(partitionId));
 		assertThat(copy.getPartitionType(), is(partitionType));
 		assertThat(copy.getNumberOfSubpartitions(), is(numberOfSubpartitions));

@@ -60,7 +60,7 @@ trait BatchExecJoinRuleBase {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(buildRel)
     val mq = buildRel.getCluster.getMetadataQuery
     val ratioConf = tableConfig.getConfiguration.getDouble(
-      BatchExecJoinRuleBase.SQL_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO)
+      BatchExecJoinRuleBase.TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO)
     val inputRows = mq.getRowCount(buildRel)
     val ndvOfGroupKey = mq.getDistinctRowCount(
       buildRel, ImmutableBitSet.of(distinctKeys: _*), null)
@@ -85,8 +85,8 @@ object BatchExecJoinRuleBase {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO: ConfigOption[JDouble] =
-    key("sql.optimizer.semi-anti-join.build-distinct.ndv-ratio")
+  val TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO: ConfigOption[JDouble] =
+    key("table.optimizer.semi-anti-join.build-distinct.ndv-ratio")
       .defaultValue(JDouble.valueOf(0.8))
       .withDescription("In order to reduce the amount of data on semi/anti join's" +
           " build side, we will add distinct node before semi/anti join when" +
@@ -96,8 +96,8 @@ object BatchExecJoinRuleBase {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED: ConfigOption[JBoolean] =
-    key("sql.optimizer.shuffle.partial-key.enabled")
+  val TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED: ConfigOption[JBoolean] =
+    key("table.optimizer.shuffle-by-partial-key-enabled")
         .defaultValue(JBoolean.valueOf(false))
         .withDescription("Enables shuffling by partial partition keys. " +
             "For example, A join with join condition: L.c1 = R.c1 and L.c2 = R.c2. " +

@@ -94,15 +94,13 @@ class TestProjectableTableSource(
     rowtime: String = null,
     proctime: String = null,
     fieldMapping: Map[String, String] = null)
-  extends TestTableSourceWithTime[Row](
+  extends TestProjectableTableSourceWithoutExplainSourceOverride(
     tableSchema,
     returnType,
     values,
     rowtime,
     proctime,
-    fieldMapping)
-  with ProjectableTableSource[Row] {
-
+    fieldMapping) {
   override def projectFields(fields: Array[Int]): TableSource[Row] = {
 
     val rowType = returnType.asInstanceOf[RowTypeInfo]
@@ -145,6 +143,62 @@ class TestProjectableTableSource(
   override def explainSource(): String = {
     s"TestSource(" +
       s"physical fields: ${getReturnType.asInstanceOf[RowTypeInfo].getFieldNames.mkString(", ")})"
+  }
+}
+
+class TestProjectableTableSourceWithoutExplainSourceOverride(
+    tableSchema: TableSchema,
+    returnType: TypeInformation[Row],
+    values: Seq[Row],
+    rowtime: String = null,
+    proctime: String = null,
+    fieldMapping: Map[String, String] = null)
+  extends TestTableSourceWithTime[Row](
+    tableSchema,
+    returnType,
+    values,
+    rowtime,
+    proctime,
+    fieldMapping)
+  with ProjectableTableSource[Row] {
+
+  override def projectFields(fields: Array[Int]): TableSource[Row] = {
+
+    val rowType = returnType.asInstanceOf[RowTypeInfo]
+
+    val (projectedNames: Array[String], projectedMapping) = if (fieldMapping == null) {
+      val projectedNames = fields.map(rowType.getFieldNames.apply(_))
+      (projectedNames, null)
+    } else {
+      val invertedMapping = fieldMapping.map(_.swap)
+      val projectedNames = fields.map(rowType.getFieldNames.apply(_))
+
+      val projectedMapping: Map[String, String] = projectedNames.map{ f =>
+        val logField = invertedMapping(f)
+        logField -> s"remapped-$f"
+      }.toMap
+      val renamedNames = projectedNames.map(f => s"remapped-$f")
+      (renamedNames, projectedMapping)
+    }
+
+    val projectedTypes = fields.map(rowType.getFieldTypes.apply(_))
+    val projectedReturnType = new RowTypeInfo(
+      projectedTypes.asInstanceOf[Array[TypeInformation[_]]],
+      projectedNames)
+
+    val projectedValues = values.map { fromRow =>
+      val pRow = new Row(fields.length)
+      fields.zipWithIndex.foreach{ case (from, to) => pRow.setField(to, fromRow.getField(from)) }
+      pRow
+    }
+
+    new TestProjectableTableSourceWithoutExplainSourceOverride(
+      tableSchema,
+      projectedReturnType,
+      projectedValues,
+      rowtime,
+      proctime,
+      projectedMapping)
   }
 }
 

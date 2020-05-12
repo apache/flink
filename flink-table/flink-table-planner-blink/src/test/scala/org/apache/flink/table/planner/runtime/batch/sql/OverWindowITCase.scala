@@ -23,16 +23,19 @@ import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.{AggregateFunction, FunctionDefinition, ScalarFunctionDefinition}
+import org.apache.flink.table.module.{CoreModule, Module}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.IsNullUDF
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
 
 import java.lang.{Iterable => JIterable, Long => JLong}
+import java.util.{Collections, Optional}
 
 import scala.collection.Seq
 import scala.util.Random
@@ -218,25 +221,25 @@ class OverWindowITCase extends BatchTestBase {
           "min(e) over (partition by d order by e desc) FROM Table5",
       Seq(
         // d  e  r  r  d  s  c  a  ma m mi m
-        row( 1, 1, 1, 1, 1, 1, 1, 1.0, 1, 1, 1, 1),
+        row( 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
 
-        row( 2, 2, 2, 2, 2, 5, 2, 2.5, 2, 3, 2, 2),
-        row( 2, 3, 1, 1, 1, 3, 1, 3.0, 3, 3, 2, 3),
+        row( 2, 2, 2, 2, 2, 5, 2, 2, 2, 3, 2, 2),
+        row( 2, 3, 1, 1, 1, 3, 1, 3, 3, 3, 2, 3),
 
-        row( 3, 4, 3, 3, 3,15, 3, 5.0, 4, 6, 4, 4),
-        row( 3, 5, 2, 2, 2,11, 2, 5.5, 5, 6, 4, 5),
-        row( 3, 6, 1, 1, 1, 6, 1, 6.0, 6, 6, 4, 6),
+        row( 3, 4, 3, 3, 3,15, 3, 5, 4, 6, 4, 4),
+        row( 3, 5, 2, 2, 2,11, 2, 5, 5, 6, 4, 5),
+        row( 3, 6, 1, 1, 1, 6, 1, 6, 6, 6, 4, 6),
 
-        row( 4, 7, 4, 4, 4,34, 4, 8.5, 7,10, 7, 7),
-        row( 4, 8, 3, 3, 3,27, 3, 9.0, 8,10, 7, 8),
-        row( 4, 9, 2, 2, 2,19, 2, 9.5, 9,10, 7, 9),
-        row( 4,10, 1, 1, 1,10, 1,10.0,10,10, 7,10),
+        row( 4, 7, 4, 4, 4,34, 4, 8, 7,10, 7, 7),
+        row( 4, 8, 3, 3, 3,27, 3, 9, 8,10, 7, 8),
+        row( 4, 9, 2, 2, 2,19, 2, 9, 9,10, 7, 9),
+        row( 4,10, 1, 1, 1,10, 1,10,10,10, 7,10),
 
-        row( 5,11, 5, 5, 5,65, 5,13.0,11,15,11,11),
-        row( 5,12, 4, 4, 4,54, 4,13.5,12,15,11,12),
-        row( 5,13, 3, 3, 3,42, 3,14.0,13,15,11,13),
-        row( 5,14, 2, 2, 2,29, 2,14.5,14,15,11,14),
-        row( 5,15, 1, 1, 1,15, 1,15.0,15,15,11,15)
+        row( 5,11, 5, 5, 5,65, 5,13,11,15,11,11),
+        row( 5,12, 4, 4, 4,54, 4,13,12,15,11,12),
+        row( 5,13, 3, 3, 3,42, 3,14,13,15,11,13),
+        row( 5,14, 2, 2, 2,29, 2,14,14,15,11,14),
+        row( 5,15, 1, 1, 1,15, 1,15,15,15,11,15)
       ))
 
     checkResult(
@@ -271,6 +274,31 @@ class OverWindowITCase extends BatchTestBase {
 
     checkResult(
       "SELECT d, e, rank() over (order by e desc), dense_rank() over (order by e desc) FROM Table5",
+      Seq(
+        row(5, 15, 1, 1),
+        row(5, 14, 2, 2),
+        row(5, 13, 3, 3),
+        row(5, 12, 4, 4),
+        row(5, 11, 5, 5),
+        row(4, 10, 6, 6),
+        row(4, 9, 7, 7),
+        row(4, 8, 8, 8),
+        row(4, 7, 9, 9),
+        row(3, 6, 10, 10),
+        row(3, 5, 11, 11),
+        row(3, 4, 12, 12),
+        row(2, 3, 13, 13),
+        row(2, 2, 14, 14),
+        row(1, 1, 15, 15)
+      )
+    )
+  }
+
+  @Test
+  def testRankByDecimal(): Unit = {
+    checkResult(
+      "SELECT d, de, rank() over (order by de desc), dense_rank() over (order by de desc) FROM" +
+          " (select d, cast(e as decimal(10, 0)) as de from Table5)",
       Seq(
         row(5, 15, 1, 1),
         row(5, 14, 2, 2),
@@ -359,6 +387,28 @@ class OverWindowITCase extends BatchTestBase {
         row(5, 5),
         row(5, 5),
         row(5, 5)
+      )
+    )
+
+    // deal with input with 0 as the first row's rank field
+    checkResult(
+      "SELECT f, dense_rank() over (order by f) FROM Table5",
+      Seq(
+        row(0, 1),
+        row(1, 2),
+        row(2, 3),
+        row(3, 4),
+        row(4, 5),
+        row(5, 6),
+        row(6, 7),
+        row(7, 8),
+        row(8, 9),
+        row(9, 10),
+        row(10, 11),
+        row(11, 12),
+        row(12, 13),
+        row(13, 14),
+        row(14, 15)
       )
     )
   }
@@ -546,21 +596,21 @@ class OverWindowITCase extends BatchTestBase {
     checkResult(
       "SELECT d, e, avg(e) over (partition by d order by e desc) FROM Table5",
       Seq(
-        row(1, 1, 1.0),
-        row(2, 3, 3.0),
-        row(2, 2, 2.5),
-        row(3, 6, 6.0),
-        row(3, 5, 5.5),
-        row(3, 4, 5.0),
-        row(4, 10, 10.0),
-        row(4, 9, 9.5),
-        row(4, 8, 9.0),
-        row(4, 7, 8.5),
-        row(5, 15, 15.0),
-        row(5, 14, 14.5),
-        row(5, 13, 14.0),
-        row(5, 12, 13.5),
-        row(5, 11, 13.0)
+        row(1, 1, 1),
+        row(2, 3, 3),
+        row(2, 2, 2),
+        row(3, 6, 6),
+        row(3, 5, 5),
+        row(3, 4, 5),
+        row(4, 10, 10),
+        row(4, 9, 9),
+        row(4, 8, 9),
+        row(4, 7, 8),
+        row(5, 15, 15),
+        row(5, 14, 14),
+        row(5, 13, 14),
+        row(5, 12, 13),
+        row(5, 11, 13)
       )
     )
 
@@ -639,21 +689,21 @@ class OverWindowITCase extends BatchTestBase {
     checkResult(
       "SELECT d, avg(e) over (partition by d) FROM Table5",
       Seq(
-        row(1, 1.0),
-        row(2, 2.5),
-        row(2, 2.5),
-        row(3, 5.0),
-        row(3, 5.0),
-        row(3, 5.0),
-        row(4, 8.5),
-        row(4, 8.5),
-        row(4, 8.5),
-        row(4, 8.5),
-        row(5, 13.0),
-        row(5, 13.0),
-        row(5, 13.0),
-        row(5, 13.0),
-        row(5, 13.0)
+        row(1, 1),
+        row(2, 2),
+        row(2, 2),
+        row(3, 5),
+        row(3, 5),
+        row(3, 5),
+        row(4, 8),
+        row(4, 8),
+        row(4, 8),
+        row(4, 8),
+        row(5, 13),
+        row(5, 13),
+        row(5, 13),
+        row(5, 13),
+        row(5, 13)
       )
     )
   }
@@ -942,6 +992,29 @@ class OverWindowITCase extends BatchTestBase {
 
     checkResult(
       "SELECT d, h, dense_rank() over (order by d, h desc) FROM Table5",
+      Seq(
+        row(1, 1, 1),
+        row(2, 2, 2),
+        row(2, 1, 3),
+        row(3, 3, 4),
+        row(3, 2, 5),
+        row(3, 2, 5),
+        row(4, 2, 6),
+        row(4, 2, 6),
+        row(4, 1, 7),
+        row(4, 1, 7),
+        row(5, 3, 8),
+        row(5, 3, 8),
+        row(5, 2, 9),
+        row(5, 2, 9),
+        row(5, 1, 10)
+      )
+    )
+
+    // test tinyint and smallint.
+    checkResult(
+      "SELECT d, h, dense_rank() over (order by cast(d as tinyint), cast(h as smallint) desc)" +
+          " FROM Table5",
       Seq(
         row(1, 1, 1),
         row(2, 2, 2),
@@ -2436,21 +2509,35 @@ class OverWindowITCase extends BatchTestBase {
     checkResult(
       sqlQuery,
       Seq(
-        row(1, 1L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(2, 2L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(2, 3L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(3, 4L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(3, 5L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(3, 6L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(4, 7L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(4, 8L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(4, 9L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(4, 10L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(5, 11L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(5, 12L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(5, 13L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(5, 14L, 30, 1.0, 15, 1, 1, true, null, false, null),
-        row(5, 15L, 30, 1.0, 15, 1, 1, true, null, false, null)))
+        row(1, 1L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(2, 2L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(2, 3L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(3, 4L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(3, 5L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(3, 6L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(4, 7L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(4, 8L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(4, 9L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(4, 10L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(5, 11L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(5, 12L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(5, 13L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(5, 14L, 30, 1, 15, 1, 1, true, null, false, null),
+        row(5, 15L, 30, 1, 15, 1, 1, true, null, false, null)))
+  }
+
+  @Test
+  def testRankWithCustomModule(): Unit = {
+    tEnv.unloadModule("core")
+    tEnv.loadModule("test-module", new TestModule)
+    tEnv.loadModule("core", CoreModule.INSTANCE)
+    registerCollection("emp",
+      Seq(row("1", "A", 1), row("1", "B", 2), row("2", "C", 3)),
+      new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO),
+      "dep,name,salary")
+    checkResult(
+      "select dep,name,rank() over (partition by dep order by salary desc) as rnk from emp",
+      Seq(row("1", "A", 2), row("1", "B", 1), row("2", "C", 1)))
   }
 }
 
@@ -2505,4 +2592,19 @@ class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
   }
 
   override def getResultType: TypeInformation[JLong] = Types.LONG
+}
+
+private class TestModule extends Module {
+
+  private val funcName = "isnull"
+
+  override def listFunctions(): java.util.Set[String] = Collections.singleton(funcName)
+
+  override def getFunctionDefinition(name: String): Optional[FunctionDefinition] = {
+    if (name.equalsIgnoreCase(funcName)) {
+      Optional.of(new ScalarFunctionDefinition(name, IsNullUDF))
+    } else {
+      Optional.empty()
+    }
+  }
 }

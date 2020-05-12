@@ -1,6 +1,6 @@
 ---
-title: "Aliyun 对象存储服务 (OSS)"
-nav-title: Aliyun OSS
+title: "阿里云对象存储服务 (OSS)"
+nav-title: 阿里云 OSS
 nav-parent_id: filesystems
 nav-pos: 2
 ---
@@ -23,56 +23,67 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-## OSS: Object Storage Service
+## OSS：对象存储服务
 
-[Aliyun Object Storage Service](https://www.aliyun.com/product/oss) (Aliyun OSS) is widely used, particularly popular among China’s cloud users, and it provides cloud object storage for a variety of use cases.
-You can use OSS with Flink for **reading** and **writing data** as well in conjunction with the [streaming **state backends**]({{ site.baseurl }}/ops/state/state_backends.html)
+[阿里云对象存储服务](https://www.aliyun.com/product/oss) (Aliyun OSS) 使用广泛，尤其在中国云用户中十分流行，能提供多种应用场景下的云对象存储。OSS 可与 Flink 一起使用以读取与存储数据，以及与[流 State Backend]({{ site.baseurl }}/zh/ops/state/state_backends.html) 结合使用。
 
 * This will be replaced by the TOC
 {:toc}
 
-You can use OSS objects like regular files by specifying paths in the following format:
+通过以下格式指定路径，OSS 对象可类似于普通文件使用：
 
 {% highlight plain %}
 oss://<your-bucket>/<object-name>
 {% endhighlight %}
 
-Below shows how to use OSS with Flink:
+以下代码展示了如何在 Flink 作业中使用 OSS：
 
 {% highlight java %}
-// Read from OSS bucket
+// 读取 OSS bucket
 env.readTextFile("oss://<your-bucket>/<object-name>");
 
-// Write to OSS bucket
+// 写入 OSS bucket
 stream.writeAsText("oss://<your-bucket>/<object-name>")
 
-// Use OSS as FsStatebackend
+// 将 OSS 用作 FsStatebackend
 env.setStateBackend(new FsStateBackend("oss://<your-bucket>/<object-name>"));
 {% endhighlight %}
 
-### Shaded Hadoop OSS file system 
+### Shaded Hadoop OSS 文件系统
 
-To use `flink-oss-fs-hadoop,` copy the respective JAR file from the opt directory to the lib directory of your Flink distribution before starting Flink, e.g.
+为使用 `flink-oss-fs-hadoop`，在启动 Flink 之前，将对应的 JAR 文件从 `opt` 目录复制到 Flink 发行版中的 `plugin` 目录下的一个文件夹中，例如：
 
 {% highlight bash %}
-cp ./opt/flink-oss-fs-hadoop-{{ site.version }}.jar ./lib/
+mkdir ./plugins/oss-fs-hadoop
+cp ./opt/flink-oss-fs-hadoop-{{ site.version }}.jar ./plugins/oss-fs-hadoop/
 {% endhighlight %}
 
-`flink-oss-fs-hadoop` registers default FileSystem wrappers for URIs with the oss:// scheme.
+`flink-oss-fs-hadoop` 为使用 *oss://* scheme 的 URI 注册了默认的文件系统包装器。
 
-#### Configurations setup
-After setting up the OSS FileSystem wrapper, you need to add some configurations to make sure that Flink is allowed to access your OSS buckets.
+#### 配置设置
 
-To allow for easy adoption, you can use the same configuration keys in `flink-conf.yaml` as in Hadoop's `core-site.xml`
+在设置好 OSS 文件系统包装器之后，需要添加一些配置以保证 Flink 有权限访问 OSS buckets。
 
-You can see the configuration keys in the [Hadoop OSS documentation](http://hadoop.apache.org/docs/current/hadoop-aliyun/tools/hadoop-aliyun/index.html).
+为了简单使用，可直接在 `flink-conf.yaml` 中使用与 Hadoop `core-site.xml` 相同的配置关键字。
 
-There are some required configurations that must be added to `flink-conf.yaml` (**Other configurations defined in Hadoop OSS documentation are advanced configurations which used by performance tuning**):
+可在 [Hadoop OSS 文档](http://hadoop.apache.org/docs/current/hadoop-aliyun/tools/hadoop-aliyun/index.html) 中查看配置关键字。
+
+一些配置必须添加至 `flink-conf.yaml` （**在 Hadoop OSS 文档中定义的其它配置为用作性能调优的高级配置**）：
 
 {% highlight yaml %}
-fs.oss.endpoint: Aliyun OSS endpoint to connect to
+fs.oss.endpoint: 连接的 Aliyun OSS endpoint
 fs.oss.accessKeyId: Aliyun access key ID
 fs.oss.accessKeySecret: Aliyun access key secret
 {% endhighlight %}
+
+备选的 `CredentialsProvider` 也可在 `flink-conf.yaml` 中配置，例如：
+{% highlight yaml %}
+# 从 OSS_ACCESS_KEY_ID 和 OSS_ACCESS_KEY_SECRET 读取凭据 (Credentials)
+fs.oss.credentials.provider: com.aliyun.oss.common.auth.EnvironmentVariableCredentialsProvider
+{% endhighlight %}
+
+其余的凭据提供者（credential providers）可在[这里](https://github.com/aliyun/aliyun-oss-java-sdk/tree/master/src/main/java/com/aliyun/oss/common/auth)中找到。
+
+
 
 {% top %}

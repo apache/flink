@@ -17,26 +17,17 @@
 
 package org.apache.flink.streaming.runtime.partitioner;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
-import org.apache.flink.runtime.executiongraph.DummyJobInformation;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.TestingSlotProvider;
-import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
@@ -49,7 +40,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -115,10 +105,6 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
 
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-		final JobID jobId = new JobID();
-		final String jobName = "Semi-Rebalance Test Job";
-		final Configuration cfg = new Configuration();
-
 		List<JobVertex> jobVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
 
 		JobVertex sourceVertex = jobVertices.get(0);
@@ -129,25 +115,11 @@ public class RescalePartitionerTest extends StreamPartitionerTest {
 		assertEquals(4, mapVertex.getParallelism());
 		assertEquals(2, sinkVertex.getParallelism());
 
-		final JobInformation jobInformation = new DummyJobInformation(
-			jobId,
-			jobName);
+		ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder().build();
 
-		ExecutionGraph eg = new ExecutionGraph(
-			jobInformation,
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
-			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy(),
-			new RestartAllStrategy.Factory(),
-			new TestingSlotProvider(ignored -> new CompletableFuture<>()),
-			ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance(),
-			AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(jobVertices);
-		}
-		catch (JobException e) {
+		} catch (JobException e) {
 			e.printStackTrace();
 			fail("Building ExecutionGraph failed: " + e.getMessage());
 		}

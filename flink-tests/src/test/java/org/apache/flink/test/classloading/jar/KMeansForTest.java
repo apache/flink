@@ -60,7 +60,6 @@ public class KMeansForTest {
 		final int numIterations = Integer.parseInt(args[2]);
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().disableSysoutLogging();
 
 		// get input data
 		DataSet<Point> points = env.fromElements(pointsData.split("\n"))

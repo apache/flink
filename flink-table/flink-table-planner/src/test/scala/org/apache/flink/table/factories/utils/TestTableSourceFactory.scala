@@ -22,7 +22,7 @@ import java.util
 
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
-import org.apache.flink.table.factories.utils.TestTableSinkFactory.{CONNECTOR_TYPE_VALUE_TEST, FORMAT_TYPE_VALUE_TEST}
+import org.apache.flink.table.factories.utils.TestTableSourceFactory.{CONNECTOR_TYPE_VALUE_TEST, FORMAT_TYPE_VALUE_TEST}
 import org.apache.flink.table.factories.{StreamTableSourceFactory, TableFactory}
 import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.types.Row

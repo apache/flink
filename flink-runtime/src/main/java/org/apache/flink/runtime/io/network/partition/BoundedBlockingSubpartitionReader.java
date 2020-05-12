@@ -124,11 +124,6 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() throws IOException {
-		parent.onConsumedSubpartition();
-	}
-
-	@Override
 	public void releaseAllResources() throws IOException {
 		// it is not a problem if this method executes multiple times
 		isReleased = true;
@@ -151,13 +146,17 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	}
 
 	@Override
-	public boolean nextBufferIsEvent() {
-		return nextBuffer != null && !nextBuffer.isBuffer();
+	public void resumeConsumption() {
+		throw new UnsupportedOperationException("Method should never be called.");
 	}
 
 	@Override
-	public boolean isAvailable() {
-		return nextBuffer != null;
+	public boolean isAvailable(int numCreditsAvailable) {
+		if (numCreditsAvailable > 0) {
+			return nextBuffer != null;
+		}
+
+		return nextBuffer != null && !nextBuffer.isBuffer();
 	}
 
 	@Override
@@ -167,9 +166,14 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	}
 
 	@Override
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		return parent.unsynchronizedGetNumberOfQueuedBuffers();
+	}
+
+	@Override
 	public String toString() {
 		return String.format("Blocking Subpartition Reader: ID=%s, index=%d",
 				parent.parent.getPartitionId(),
-				parent.index);
+				parent.getSubPartitionIndex());
 	}
 }

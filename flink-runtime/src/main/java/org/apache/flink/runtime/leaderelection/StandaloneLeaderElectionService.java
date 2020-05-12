@@ -57,7 +57,7 @@ public class StandaloneLeaderElectionService implements LeaderElectionService {
 	}
 
 	@Override
-	public void confirmLeaderSessionID(UUID leaderSessionID) {}
+	public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
 
 	@Override
 	public boolean hasLeadership(@Nonnull UUID leaderSessionId) {

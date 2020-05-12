@@ -27,15 +27,31 @@ import org.apache.avro.Schema;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 import static java.lang.String.format;
 
 /**
- * Reads schema using Confluent Schema Registry protocol.
+ * Reads and Writes schema using Confluent Schema Registry protocol.
  */
 public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 
 	private final SchemaRegistryClient schemaRegistryClient;
+	private String subject;
+	private static final int CONFLUENT_MAGIC_BYTE = 0;
+
+	/**
+	 * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to
+	 * schema registry.
+	 *
+	 * @param schemaRegistryClient client to connect schema registry
+	 * @param subject              subject of schema registry to produce
+	 */
+	public ConfluentSchemaRegistryCoder(String subject, SchemaRegistryClient schemaRegistryClient) {
+		this.schemaRegistryClient = schemaRegistryClient;
+		this.subject = subject;
+	}
 
 	/**
 	 * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to
@@ -61,6 +77,18 @@ public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 			} catch (RestClientException e) {
 				throw new IOException(format("Could not find schema with id %s in registry", schemaId), e);
 			}
+		}
+	}
+
+	@Override
+	public void writeSchema(Schema schema, OutputStream out) throws IOException {
+		try {
+			int registeredId = schemaRegistryClient.register(subject, schema);
+			out.write(CONFLUENT_MAGIC_BYTE);
+			byte[] schemaIdBytes = ByteBuffer.allocate(4).putInt(registeredId).array();
+			out.write(schemaIdBytes);
+		} catch (RestClientException e) {
+			throw new IOException("Could not register schema in registry", e);
 		}
 	}
 

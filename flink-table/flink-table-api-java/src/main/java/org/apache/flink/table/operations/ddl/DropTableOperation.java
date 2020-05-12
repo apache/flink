@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -29,27 +30,37 @@ import java.util.Map;
  * Operation to describe a DROP TABLE statement.
  */
 public class DropTableOperation implements DropOperation {
-	private final String[] tableName;
+	private final ObjectIdentifier tableIdentifier;
 	private final boolean ifExists;
+	private final boolean isTemporary;
 
-	public DropTableOperation(String[] tableName, boolean ifExists) {
-		this.tableName = tableName;
+	public DropTableOperation(
+			ObjectIdentifier tableIdentifier,
+			boolean ifExists,
+			boolean isTemporary) {
+		this.tableIdentifier = tableIdentifier;
 		this.ifExists = ifExists;
+		this.isTemporary = isTemporary;
 	}
 
-	public String[] getTableName() {
-		return this.tableName;
+	public ObjectIdentifier getTableIdentifier() {
+		return this.tableIdentifier;
 	}
 
 	public boolean isIfExists() {
 		return this.ifExists;
 	}
 
+	public boolean isTemporary() {
+		return isTemporary;
+	}
+
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("tableName", tableName);
+		params.put("identifier", tableIdentifier);
 		params.put("IfExists", ifExists);
+		params.put("isTemporary", isTemporary);
 
 		return OperationUtils.formatWithChildren(
 			"DROP TABLE",

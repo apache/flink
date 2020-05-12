@@ -107,7 +107,7 @@ public class BucketsTest {
 
 		final RollingPolicy<String, String> onCheckpointRP =
 				DefaultRollingPolicy
-						.create()
+						.builder()
 						.withMaxPartSize(7L) // roll with 2 elements
 						.build();
 
@@ -316,8 +316,9 @@ public class BucketsTest {
 				new VerifyingBucketAssigner(timestamp, watermark, processingTime),
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
-				DefaultRollingPolicy.create().build(),
-				2
+				DefaultRollingPolicy.builder().build(),
+				2,
+				OutputFileConfig.builder().build()
 		);
 
 		buckets.onElement(
@@ -371,16 +372,27 @@ public class BucketsTest {
 	private static Buckets<String, String> createBuckets(
 			final Path basePath,
 			final RollingPolicy<String, String> rollingPolicy,
-			final int subtaskIdx
-	) throws IOException {
+			final int subtaskIdx) throws IOException {
+		return createBuckets(
+				basePath,
+				rollingPolicy,
+				subtaskIdx,
+				OutputFileConfig.builder().build());
+	}
 
+	private static Buckets<String, String> createBuckets(
+			final Path basePath,
+			final RollingPolicy<String, String> rollingPolicy,
+			final int subtaskIdx,
+			final OutputFileConfig outputFileConfig) throws IOException {
 		return new Buckets<>(
 				basePath,
 				new TestUtils.StringIdentityBucketAssigner(),
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				rollingPolicy,
-				subtaskIdx
+				subtaskIdx,
+				outputFileConfig
 		);
 	}
 
@@ -389,10 +401,24 @@ public class BucketsTest {
 			final RollingPolicy<String, String> rollingPolicy,
 			final int subtaskIdx,
 			final ListState<byte[]> bucketState,
-			final ListState<Long> partCounterState
-	) throws Exception {
+			final ListState<Long> partCounterState) throws Exception {
+		return restoreBuckets(
+				basePath,
+				rollingPolicy,
+				subtaskIdx,
+				bucketState,
+				partCounterState,
+				OutputFileConfig.builder().build());
+	}
 
-		final Buckets<String, String> restoredBuckets = createBuckets(basePath, rollingPolicy, subtaskIdx);
+	private static Buckets<String, String> restoreBuckets(
+			final Path basePath,
+			final RollingPolicy<String, String> rollingPolicy,
+			final int subtaskIdx,
+			final ListState<byte[]> bucketState,
+			final ListState<Long> partCounterState,
+			final OutputFileConfig outputFileConfig) throws Exception {
+		final Buckets<String, String> restoredBuckets = createBuckets(basePath, rollingPolicy, subtaskIdx, outputFileConfig);
 		restoredBuckets.initializeState(bucketState, partCounterState);
 		return restoredBuckets;
 	}

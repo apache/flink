@@ -71,11 +71,11 @@ public class DuplicatingCheckpointOutputStreamTest extends TestLogger {
 		StreamStateHandle primaryStateHandle = duplicatingStream.closeAndGetPrimaryHandle();
 		StreamStateHandle secondaryStateHandle = duplicatingStream.closeAndGetSecondaryHandle();
 
-		Assert.assertTrue(CommonTestUtils.isSteamContentEqual(
+		Assert.assertTrue(CommonTestUtils.isStreamContentEqual(
 			refStateHandle.openInputStream(),
 			primaryStateHandle.openInputStream()));
 
-		Assert.assertTrue(CommonTestUtils.isSteamContentEqual(
+		Assert.assertTrue(CommonTestUtils.isStreamContentEqual(
 			refStateHandle.openInputStream(),
 			secondaryStateHandle.openInputStream()));
 

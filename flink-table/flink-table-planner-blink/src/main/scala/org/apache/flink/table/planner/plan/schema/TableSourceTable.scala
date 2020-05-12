@@ -18,65 +18,60 @@
 
 package org.apache.flink.table.planner.plan.schema
 
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import com.google.common.collect.ImmutableList
+import org.apache.calcite.plan.RelOptSchema
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
+import org.apache.flink.table.connector.source.DynamicTableSource
+import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.sources.TableSourceUtil
-import org.apache.flink.table.sources.TableSource
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import java.util
 
 /**
-  * Abstract class which define the interfaces required to convert a [[TableSource]] to
-  * a Calcite Table
-  *
-  * @param tableSource The [[TableSource]] for which is converted to a Calcite Table.
-  * @param isStreamingMode A flag that tells if the current table is in stream mode.
-  * @param statistic The table statistics.
-  */
-class TableSourceTable[T](
-    val tableSource: TableSource[T],
+ * A [[FlinkPreparingTableBase]] implementation which defines the context variables
+ * required to translate the Calcite [[org.apache.calcite.plan.RelOptTable]] to the Flink specific
+ * relational expression with [[DynamicTableSource]].
+ *
+ * @param relOptSchema The RelOptSchema that this table comes from
+ * @param tableIdentifier The full path of the table to retrieve.
+ * @param rowType The table row type
+ * @param statistic The table statistics
+ * @param tableSource The [[DynamicTableSource]] for which is converted to a Calcite Table
+ * @param isStreamingMode A flag that tells if the current table is in stream mode
+ * @param catalogTable Catalog table where this table source table comes from
+ * @param dynamicOptions The dynamic hinted options
+ */
+class TableSourceTable(
+    relOptSchema: RelOptSchema,
+    val tableIdentifier: ObjectIdentifier,
+    rowType: RelDataType,
+    statistic: FlinkStatistic,
+    val tableSource: DynamicTableSource,
     val isStreamingMode: Boolean,
-    val statistic: FlinkStatistic,
-    val selectedFields: Option[Array[Int]])
-  extends FlinkTable {
+    val catalogTable: CatalogTable,
+    dynamicOptions: JMap[String, String])
+  extends FlinkPreparingTableBase(
+    relOptSchema,
+    rowType,
+    util.Arrays.asList(
+      tableIdentifier.getCatalogName,
+      tableIdentifier.getDatabaseName,
+      tableIdentifier.getObjectName),
+    statistic) {
 
-  def this(tableSource: TableSource[T], isStreamingMode: Boolean, statistic: FlinkStatistic) {
-    this(tableSource, isStreamingMode, statistic, None)
-  }
-
-  // TODO implements this
-  // TableSourceUtil.validateTableSource(tableSource)
-
-  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    TableSourceUtil.getRelDataType(
-      tableSource,
-      selectedFields,
-      streaming = isStreamingMode,
-      typeFactory.asInstanceOf[FlinkTypeFactory])
-  }
-
-  /**
-    * Creates a copy of this table, changing statistic.
-    *
-    * @param statistic A new FlinkStatistic.
-    * @return Copy of this table, substituting statistic.
-    */
-  override def copy(statistic: FlinkStatistic): TableSourceTable[T] = {
-    new TableSourceTable(tableSource, isStreamingMode, statistic)
-  }
-
-  /**
-    * Returns statistics of current table.
-    */
-  override def getStatistic: FlinkStatistic = statistic
-
-  /**
-    * Replaces table source with the given one, and create a new table source table.
-    *
-    * @param tableSource tableSource to replace.
-    * @return new TableSourceTable
-    */
-  def replaceTableSource(tableSource: TableSource[T]): TableSourceTable[T] = {
-    new TableSourceTable[T](tableSource, isStreamingMode, statistic)
+  override def getQualifiedName: util.List[String] = {
+    val names = super.getQualifiedName
+    if (dynamicOptions.size() == 0) {
+      names
+    } else {
+      // Add the dynamic options as part of the table digest,
+      // this is a temporary solution, we expect to avoid this
+      // before Calcite 1.23.0.
+      ImmutableList.builder[String]()
+        .addAll(names)
+        .add(s"dynamic options: $dynamicOptions")
+        .build()
+    }
   }
 }

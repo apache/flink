@@ -20,7 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.TestingPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.TestLogger;
 
@@ -54,7 +54,7 @@ public class ExecutionGraphResultPartitionAvailabilityCheckerTest extends TestLo
 			}};
 
 		// let the partition tracker respect the expected availability result
-		final TestingPartitionTracker partitionTracker = new TestingPartitionTracker();
+		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
 		partitionTracker.setIsPartitionTrackedFunction(rpID -> expectedAvailability.get(rpID.getPartitionId()));
 
 		// the execution attempt ID should make no difference in this case

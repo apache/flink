@@ -18,6 +18,7 @@
 ################################################################################
 
 source "$(dirname "$0")"/common.sh
+source "$(dirname "$0")"/common_docker.sh
 
 DOCKER_MODULE_DIR=${END_TO_END_DIR}/../flink-container/docker
 DOCKER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
@@ -32,14 +33,16 @@ export INPUT_PATH=/data/test/input
 export OUTPUT_PATH=/data/test/output
 
 INPUT_TYPE=${1:-file}
+RESULT_HASH="72a690412be8928ba239c2da967328a5"
 case $INPUT_TYPE in
     (file)
-        INPUT_LOCATION=${INPUT_PATH}/words
+        INPUT_ARGS="--input ${INPUT_PATH}/words"
     ;;
     (dummy-fs)
         source "$(dirname "$0")"/common_dummy_fs.sh
         dummy_fs_setup
-        INPUT_LOCATION="dummy://localhost/words"
+        INPUT_ARGS="--input dummy://localhost/words --input anotherDummy://localhost/words"
+        RESULT_HASH="0e5bd0a3dd7d5a7110aa85ff70adb54b"
     ;;
     (*)
         echo "Unknown input type $INPUT_TYPE"
@@ -47,10 +50,10 @@ case $INPUT_TYPE in
     ;;
 esac
 
-export FLINK_JOB_ARGUMENTS="--input ${INPUT_LOCATION} --output ${OUTPUT_PATH}/docker_wc_out"
+export FLINK_JOB_ARGUMENTS="${INPUT_ARGS} --output ${OUTPUT_PATH}/docker_wc_out"
 
 build_image() {
-    ./build.sh --from-local-dist --job-artifacts ${FLINK_DIR}/examples/batch/WordCount.jar --image-name ${FLINK_DOCKER_IMAGE_NAME}
+    build_image_with_jar ${FLINK_DIR}/examples/batch/WordCount.jar ${FLINK_DOCKER_IMAGE_NAME}
 }
 
 # user inside the container must be able to create files, this is a workaround in-container permissions
@@ -68,4 +71,4 @@ docker-compose -f ${DOCKER_MODULE_DIR}/docker-compose.yml -f ${DOCKER_SCRIPTS}/d
 docker-compose -f ${DOCKER_MODULE_DIR}/docker-compose.yml -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs job-cluster > ${FLINK_DIR}/log/jobmanager.log
 docker-compose -f ${DOCKER_MODULE_DIR}/docker-compose.yml -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs taskmanager > ${FLINK_DIR}/log/taskmanager.log
 
-check_result_hash "WordCount" $OUTPUT_VOLUME/docker_wc_out "72a690412be8928ba239c2da967328a5"
+check_result_hash "WordCount" $OUTPUT_VOLUME/docker_wc_out "${RESULT_HASH}"

@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, JoinedRow}
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.{JoinedRowData, RowData}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ProjectionCodeGenerator}
@@ -45,7 +46,7 @@ object SortAggCodeGenerator {
       grouping: Array[Int],
       auxGrouping: Array[Int],
       isMerge: Boolean,
-      isFinal: Boolean): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
+      isFinal: Boolean): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     val aggCallToAggFunction = aggInfoList.aggInfos.map(info => (info.agg, info.function))
@@ -95,8 +96,8 @@ object SortAggCodeGenerator {
       outputType)
 
     val joinedRow = "joinedRow"
-    ctx.addReusableOutputRecord(outputType, classOf[JoinedRow], joinedRow)
-    val binaryRow = classOf[BinaryRow].getName
+    ctx.addReusableOutputRecord(outputType, classOf[JoinedRowData], joinedRow)
+    val binaryRow = classOf[BinaryRowData].getName
     ctx.addReusableMember(s"$binaryRow $lastKeyTerm = null;")
 
     val processCode =
@@ -141,7 +142,7 @@ object SortAggCodeGenerator {
     AggCodeGenHelper.generateOperator(
       ctx,
       className,
-      classOf[TableStreamOperator[BaseRow]].getCanonicalName,
+      classOf[TableStreamOperator[RowData]].getCanonicalName,
       processCode,
       endInputCode,
       inputType)

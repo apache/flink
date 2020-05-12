@@ -36,12 +36,14 @@ import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -56,6 +58,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Integration tests for the {@link TaskExecutor}.
  */
+@Category(AlsoRunWithLegacyScheduler.class)
 public class TaskExecutorITCase extends TestLogger {
 
 	private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
@@ -157,7 +160,7 @@ public class TaskExecutorITCase extends TestLogger {
 	private JobGraph createJobGraphWithRestartStrategy(int parallelism) throws IOException {
 		final JobGraph jobGraph = createJobGraph(parallelism);
 		final ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 0L));
 		jobGraph.setExecutionConfig(executionConfig);
 
 		return jobGraph;

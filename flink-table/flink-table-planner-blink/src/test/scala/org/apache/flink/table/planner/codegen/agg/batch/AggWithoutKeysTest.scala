@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType}
-
 import org.junit.Test
 
 /**
@@ -42,9 +41,9 @@ class AggWithoutKeysTest extends BatchAggTestBase {
 
   override val globalOutputType = RowType.of(
     Array[LogicalType](
+      new BigIntType(),
       new DoubleType(),
-      new DoubleType(),
-      new DoubleType()),
+      new BigIntType()),
     Array(
       "agg1Output",
       "agg2Output",
@@ -72,7 +71,7 @@ class AggWithoutKeysTest extends BatchAggTestBase {
         row(4L, 2L, 4D, 2L, row(4L, 2L)),
         row(6L, 2L, 6D, 2L, row(6L, 2L))
       ),
-      Array(row(3.0D, 3.0D, 3.0D)))
+      Array(row(3L, 3.0D, 3L)))
   }
 
   @Test
@@ -85,11 +84,11 @@ class AggWithoutKeysTest extends BatchAggTestBase {
         row("key1", 4L, 4D, 4L, "aux1"),
         row("key1", 4L, 4D, 4L, "aux1")
       ),
-      Array(row(5.0D, 5.0D, 5.0D)))
+      Array(row(5L, 5.0D, 5L)))
   }
 
   private def getOperatorWithoutKey(isMerge: Boolean, isFinal: Boolean)
-    : (CodeGenOperatorFactory[BaseRow], RowType, RowType) = {
+    : (CodeGenOperatorFactory[RowData], RowType, RowType) = {
     val (iType, oType) = if (isMerge && isFinal) {
       (localOutputType, globalOutputType)
     } else if (!isMerge && isFinal) {
@@ -99,6 +98,6 @@ class AggWithoutKeysTest extends BatchAggTestBase {
     }
     val genOp = AggWithoutKeysCodeGenerator.genWithoutKeys(
       ctx, relBuilder, aggInfoList, iType, oType, isMerge, isFinal, "Without")
-    (new CodeGenOperatorFactory[BaseRow](genOp), iType, oType)
+    (new CodeGenOperatorFactory[RowData](genOp), iType, oType)
   }
 }

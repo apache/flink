@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testSingleSink">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[sink], fields=[a])
+LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[a])
 +- LogicalProject(cnt=[$1])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
       +- LogicalProject(a=[$0])
@@ -28,7 +28,7 @@ LogicalSink(name=[sink], fields=[a])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Sink(name=[sink], fields=[a])
+Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a])
 +- Calc(select=[cnt])
    +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
       +- Exchange(distribution=[hash[a]])
@@ -41,21 +41,19 @@ Sink(name=[sink], fields=[a])
   <TestCase name="testMultiSinks">
     <Resource name="planBefore">
       <![CDATA[
-LogicalSink(name=[sink1], fields=[total_sum])
+LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
-   +- LogicalProject(sum_a=[$0])
-      +- LogicalProject(sum_a=[$1], c=[$0])
-         +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
-            +- LogicalProject(c=[$2], a=[$0])
-               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(sum_a=[$1])
+      +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
+         +- LogicalProject(c=[$2], a=[$0])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
-LogicalSink(name=[sink2], fields=[total_min])
+LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
-   +- LogicalProject(sum_a=[$0])
-      +- LogicalProject(sum_a=[$1], c=[$0])
-         +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
-            +- LogicalProject(c=[$2], a=[$0])
-               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(sum_a=[$1])
+      +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
+         +- LogicalProject(c=[$2], a=[$0])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -67,13 +65,13 @@ Calc(select=[sum_a], reuse_id=[1])
          +- Calc(select=[c, a])
             +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 
-Sink(name=[sink1], fields=[total_sum])
+Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[total_sum])
 +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS total_sum])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_SUM(sum_a) AS sum$0])
          +- Reused(reference_id=[1])
 
-Sink(name=[sink2], fields=[total_min])
+Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[total_min])
 +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS total_min])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_MIN(sum_a) AS min$0])

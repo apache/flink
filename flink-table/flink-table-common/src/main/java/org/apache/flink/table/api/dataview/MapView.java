@@ -204,6 +204,17 @@ public class MapView<K, V> implements DataView {
 	}
 
 	/**
+	 * Returns true if the map view contains no key-value mappings, otherwise false.
+	 *
+	 * @return True if the map view contains no key-value mappings, otherwise false.
+	 *
+	 * @throws Exception Thrown if the system cannot access the state.
+	 */
+	public boolean isEmpty() throws Exception {
+		return map.isEmpty();
+	}
+
+	/**
 	 * Removes all entries of this map.
 	 */
 	@Override

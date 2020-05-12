@@ -60,7 +60,7 @@ public class KeytabOverlay extends AbstractContainerOverlay {
 				.setDest(TARGET_PATH)
 				.setCachable(false)
 				.build());
-			container.getDynamicConfiguration().setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, TARGET_PATH.getPath());
+			container.getFlinkConfiguration().setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, TARGET_PATH.getPath());
 		}
 	}
 

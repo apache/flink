@@ -79,4 +79,13 @@ public class CopyOnWriteStateTableSnapshot<K, N, S> extends AbstractStateTableSn
 
 		return stateMapSnapshot;
 	}
+
+	@Override
+	public void release() {
+		for (CopyOnWriteStateMapSnapshot snapshot : stateMapSnapshots) {
+			if (!snapshot.isReleased()) {
+				snapshot.release();
+			}
+		}
+	}
 }

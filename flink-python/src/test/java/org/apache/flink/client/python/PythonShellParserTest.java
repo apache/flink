@@ -53,9 +53,9 @@ public class PythonShellParserTest {
 
 	@Test
 	public void testParseYarnWithOptions() {
-		String[] args = {"yarn", "-n", "2", "-jm", "1024m", "-tm", "4096m"};
+		String[] args = {"yarn", "-jm", "1024m", "-tm", "4096m"};
 		List<String> commandOptions = PythonShellParser.parseYarn(args);
-		String[] expectedCommandOptions = {"yarn", "-m", "yarn-cluster", "-yn", "2", "-yjm", "1024m", "-ytm", "4096m"};
+		String[] expectedCommandOptions = {"yarn", "-m", "yarn-cluster", "-yjm", "1024m", "-ytm", "4096m"};
 		Assert.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
 	}
 }

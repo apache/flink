@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -125,6 +126,14 @@ public abstract class KafkaTestEnvironment {
 
 	public abstract List<KafkaServer> getBrokers();
 
+	public Properties getIdempotentProducerConfig() {
+		Properties props = new Properties();
+		props.put("enable.idempotence", "true");
+		props.put("acks", "all");
+		props.put("retries", "3");
+		return props;
+	}
+
 	// -- consumer / producer instances:
 	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props) {
 		return getConsumer(topics, new KafkaDeserializationSchemaWrapper<T>(deserializationSchema), props);
@@ -200,5 +209,16 @@ public abstract class KafkaTestEnvironment {
 		NetworkFailuresProxy proxy = new NetworkFailuresProxy(0, remoteHost, remotePort);
 		networkFailuresProxies.add(proxy);
 		return proxy;
+	}
+
+	protected void maybePrintDanglingThreadStacktrace(String threadNameKeyword) {
+		for (Map.Entry<Thread, StackTraceElement[]> threadEntry : Thread.getAllStackTraces().entrySet()) {
+			if (threadEntry.getKey().getName().contains(threadNameKeyword)) {
+				System.out.println("Dangling thread found:");
+				for (StackTraceElement ste : threadEntry.getValue()) {
+					System.out.println(ste);
+				}
+			}
+		}
 	}
 }

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
 
@@ -73,18 +73,6 @@ abstract class BatchExecGroupAggregateBase(
   def getAggCallList: Seq[AggregateCall] = aggCallToAggFunction.map(_._1)
 
   def getAggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)] = aggCallToAggFunction
-
-  def aggOperatorName(prefix: String): String = {
-    RelExplainUtil.aggOperatorName(
-      prefix,
-      grouping,
-      auxGrouping,
-      inputRowType,
-      outputRowType,
-      aggCallToAggFunction,
-      isMerge,
-      isFinal)
-  }
 
   protected def isEnforceTwoStageAgg: Boolean = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)

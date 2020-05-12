@@ -20,7 +20,10 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
+import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.MockSerializationSchema;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.AMQP.BasicProperties;
@@ -33,7 +36,9 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Collections;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -82,14 +87,14 @@ public class RMQSinkTest {
 	public void openCallDeclaresQueueInStandardMode() throws Exception {
 		createRMQSink();
 
-		verify(channel).queueDeclare(QUEUE_NAME, false, false, false, null);
+		verify(channel).queueDeclare(QUEUE_NAME, true, false, false, null);
 	}
 
 	@Test
 	public void openCallDontDeclaresQueueInWithOptionsMode() throws Exception {
 		createRMQSinkWithOptions(false, false);
 
-		verify(channel, never()).queueDeclare(null, false, false, false, null);
+		verify(channel, never()).queueDeclare(null, true, false, false, null);
 	}
 
 	@Test
@@ -100,6 +105,19 @@ public class RMQSinkTest {
 		} catch (RuntimeException ex) {
 			assertEquals("None of RabbitMQ channels are available", ex.getMessage());
 		}
+	}
+
+	@Test
+	public void testOpen() throws Exception {
+		MockSerializationSchema<String> serializationSchema = new MockSerializationSchema<>();
+
+		RMQSink<String> producer = new RMQSink<>(rmqConnectionConfig, serializationSchema, publishOptions);
+		AbstractStreamOperatorTestHarness<Object> testHarness = new AbstractStreamOperatorTestHarness<>(
+			new StreamSink<>(producer), 1, 1, 0
+		);
+
+		testHarness.open();
+		assertThat("Open method was not called", serializationSchema.isOpenCalled(), is(true));
 	}
 
 	private RMQSink<String> createRMQSink() throws Exception {

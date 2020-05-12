@@ -41,28 +41,6 @@ public class CommonTestUtils {
 	private static final long RETRY_INTERVAL = 100L;
 
 	/**
-	 * Sleeps for a given set of milliseconds, uninterruptibly. If interrupt is called,
-	 * the sleep will continue nonetheless.
-	 *
-	 * @param msecs The number of milliseconds to sleep.
-	 */
-	public static void sleepUninterruptibly(long msecs) {
-		
-		long now = System.currentTimeMillis();
-		long sleepUntil = now + msecs;
-		long remaining;
-		
-		while ((remaining = sleepUntil - now) > 0) {
-			try {
-				Thread.sleep(remaining);
-			}
-			catch (InterruptedException ignored) {}
-			
-			now = System.currentTimeMillis();
-		}
-	}
-
-	/**
 	 * Gets the classpath with which the current JVM was started.
 	 *
 	 * @return The classpath with which the current JVM was started.
@@ -120,36 +98,19 @@ public class CommonTestUtils {
 		return null;
 	}
 
-	/**
-	 * Checks whether a process is still alive. Utility method for JVM versions before 1.8,
-	 * where no direct method to check that is available.
-	 *
-	 * @param process The process to check.
-	 * @return True, if the process is alive, false otherwise.
-	 */
-	public static boolean isProcessAlive(Process process) {
-		if (process == null) {
-			return false;
-
-		}
-		try {
-			process.exitValue();
-			return false;
-		}
-		catch(IllegalThreadStateException e) {
-			return true;
-		}
-	}
-
 	public static void printLog4jDebugConfig(File file) throws IOException {
 		try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-			writer.println("log4j.rootLogger=DEBUG, console");
-			writer.println("log4j.appender.console=org.apache.log4j.ConsoleAppender");
-			writer.println("log4j.appender.console.target = System.err");
-			writer.println("log4j.appender.console.layout=org.apache.log4j.PatternLayout");
-			writer.println("log4j.appender.console.layout.ConversionPattern=%d{HH:mm:ss,SSS} %-4r [%t] %-5p %c %x - %m%n");
-			writer.println("log4j.logger.org.eclipse.jetty.util.log=OFF");
-			writer.println("log4j.logger.org.apache.zookeeper=OFF");
+			writer.println("rootLogger.level = INFO");
+			writer.println("rootLogger.appenderRef.console.ref = ConsoleAppender");
+			writer.println("appender.console.name = ConsoleAppender");
+			writer.println("appender.console.type = CONSOLE");
+			writer.println("appender.console.target = SYSTEM_ERR");
+			writer.println("appender.console.layout.type = PatternLayout");
+			writer.println("appender.console.layout.pattern = %d{HH:mm:ss,SSS} %-4r [%t] %-5p %c %x - %m%n");
+			writer.println("logger.jetty.name = org.eclipse.jetty.util.log");
+			writer.println("logger.jetty.level = OFF");
+			writer.println("logger.zookeeper.name = org.apache.zookeeper");
+			writer.println("logger.zookeeper.level = OFF");
 			writer.flush();
 		}
 	}
@@ -160,7 +121,8 @@ public class CommonTestUtils {
 
 	public static void waitUntilCondition(SupplierWithException<Boolean, Exception> condition, Deadline timeout, long retryIntervalMillis) throws Exception {
 		while (timeout.hasTimeLeft() && !condition.get()) {
-			Thread.sleep(Math.min(retryIntervalMillis, timeout.timeLeft().toMillis()));
+			final long timeLeft = Math.max(0, timeout.timeLeft().toMillis());
+			Thread.sleep(Math.min(retryIntervalMillis, timeLeft));
 		}
 
 		if (!timeout.hasTimeLeft()) {
@@ -200,7 +162,7 @@ public class CommonTestUtils {
 		}
 	}
 
-	public static boolean isSteamContentEqual(InputStream input1, InputStream input2) throws IOException {
+	public static boolean isStreamContentEqual(InputStream input1, InputStream input2) throws IOException {
 
 		if (!(input1 instanceof BufferedInputStream)) {
 			input1 = new BufferedInputStream(input1);

@@ -23,8 +23,9 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink}
-import org.apache.flink.table.planner.utils.{TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSources}
+import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestStreamTableSource, TestTableSourceSinks}
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -305,7 +306,10 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testTableSourceWithFilterable(): Unit = {
-    tEnv.registerTableSource("MyTable", TestFilterableTableSource(false))
+    TestFilterableTableSource.createTemporaryTable(
+      tEnv,
+      TestFilterableTableSource.defaultSchema,
+      "MyTable")
 
     val sqlQuery = "SELECT id, name FROM MyTable WHERE amount > 4 AND price < 9"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -319,7 +323,7 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testTableSourceWithPartitionable(): Unit = {
-    tEnv.registerTableSource("PartitionableTable", new TestPartitionableTableSource(true))
+    TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartitionableTable", true)
 
     val sqlQuery = "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A'"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -333,9 +337,7 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testCsvTableSource(): Unit = {
-    val csvTable = TestTableSources.getPersonCsvTableSource
-    tEnv.registerTableSource("persons", csvTable)
-
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "persons")
     val sink = new TestingAppendSink()
     tEnv.sqlQuery(
       "SELECT id, `first`, `last`, score FROM persons WHERE id < 4 ")
@@ -353,10 +355,8 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testLookupJoinCsvTemporalTable(): Unit = {
-    val orders = TestTableSources.getOrdersCsvTableSource
-    val rates = TestTableSources.getRatesCsvTableSource
-    tEnv.registerTableSource("orders", orders)
-    tEnv.registerTableSource("rates", rates)
+    TestTableSourceSinks.createOrdersCsvTemporaryTable(tEnv, "orders")
+    TestTableSourceSinks.createRatesCsvTemporaryTable(tEnv, "rates")
 
     val sql =
       """
@@ -386,10 +386,8 @@ class TableSourceITCase extends StreamingTestBase {
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
       Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
-    val tableSource = new TestInputFormatTableSource(
-      tableSchema, tableSchema.toRowType, TestData.smallData3)
-    tEnv.registerTableSource("MyInputFormatTable", tableSource)
-
+    TestInputFormatTableSource.createTemporaryTable(
+      tEnv, tableSchema, TestData.smallData3, "MyInputFormatTable")
     val sink = new TestingAppendSink()
     tEnv.sqlQuery("SELECT a, c FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
 
@@ -399,6 +397,71 @@ class TableSourceITCase extends StreamingTestBase {
       "1,Hi",
       "2,Hello",
       "3,Hello world"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testDecimalSource(): Unit = {
+    val tableSchema = TableSchema.builder().fields(
+      Array("a", "b", "c", "d"),
+      Array(
+        DataTypes.INT(),
+        DataTypes.DECIMAL(5, 2),
+        DataTypes.VARCHAR(5),
+        DataTypes.CHAR(5))).build()
+
+    val data = Seq(
+      row(1, new java.math.BigDecimal(5.1), "1", "1"),
+      row(2, new java.math.BigDecimal(6.1), "12", "12"),
+      row(3, new java.math.BigDecimal(7.1), "123", "123")
+    )
+
+    TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable", data.seq)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery("SELECT a, b, c, d FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
+
+    env.execute()
+
+    val expected = Seq(
+      "1,5.10,1,1",
+      "2,6.10,12,12",
+      "3,7.10,123,123"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  /**
+    * StreamTableSource must use type info in DataStream, so it will loose precision.
+    * Just support default precision decimal.
+    */
+  @Test
+  def testLegacyDecimalSourceUsingStreamTableSource(): Unit = {
+    val tableSchema = new TableSchema(
+      Array("a", "b", "c"),
+      Array(
+        Types.INT(),
+        Types.DECIMAL(),
+        Types.STRING()
+      ))
+
+    val data = Seq(
+      row(1, new java.math.BigDecimal(5.1), "1"),
+      row(2, new java.math.BigDecimal(6.1), "12"),
+      row(3, new java.math.BigDecimal(7.1), "123")
+    )
+
+    TestStreamTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable", data)
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery("SELECT a, b, c FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
+
+    env.execute()
+
+    val expected = Seq(
+      "1,5.099999999999999645,1",
+      "2,6.099999999999999645,12",
+      "3,7.099999999999999645,123"
     )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }

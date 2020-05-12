@@ -52,7 +52,7 @@ public class InputChannelMetrics {
 		Counter[] counters = new Counter[parents.length];
 		for (int i = 0; i < parents.length; i++) {
 			counters[i] = parents[i].counter(name);
-			parents[i].meter(name + MetricNames.SUFFIX_RATE, new MeterView(counters[i], 60));
+			parents[i].meter(name + MetricNames.SUFFIX_RATE, new MeterView(counters[i]));
 		}
 		return new MultiCounterWrapper(counters);
 	}

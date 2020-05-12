@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
@@ -69,8 +69,8 @@ class SortAggCodeGeneratorTest extends BatchAggTestBase {
         row("key2", "aux2", 8L, 2L, 8D, 2L, row(8L, 2L))
       ),
       Array(
-        row("key1", "aux1", 3.0D, 3.0D, 3.0D),
-        row("key2", "aux2", 4.0D, 4.0D, 4.0D))
+        row("key1", "aux1", 3L, 3.0D, 3L),
+        row("key2", "aux2", 4L, 4.0D, 4L))
     )
   }
 
@@ -86,13 +86,13 @@ class SortAggCodeGeneratorTest extends BatchAggTestBase {
         row("key2", 3L, 3D, 3L, "aux2")
       ),
       Array(
-        row("key1", "aux1", 5.5D, 5.5D, 5.5D),
-        row("key2", "aux2", 3.0D, 3.0D, 3.0D))
+        row("key1", "aux1", 5L, 5.5D, 5L),
+        row("key2", "aux2", 3L, 3.0D, 3L))
     )
   }
 
   private def getOperatorWithKey(isMerge: Boolean, isFinal: Boolean)
-    : (CodeGenOperatorFactory[BaseRow], RowType, RowType) = {
+    : (CodeGenOperatorFactory[RowData], RowType, RowType) = {
     val localOutputType = RowType.of(
       Array[LogicalType](
         new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH),
@@ -115,6 +115,6 @@ class SortAggCodeGeneratorTest extends BatchAggTestBase {
     val auxGrouping = if (isMerge) Array(1) else Array(4)
     val genOp = SortAggCodeGenerator.genWithKeys(
       ctx, relBuilder, aggInfoList, iType, oType, Array(0), auxGrouping, isMerge, isFinal)
-    (new CodeGenOperatorFactory[BaseRow](genOp), iType, oType)
+    (new CodeGenOperatorFactory[RowData](genOp), iType, oType)
   }
 }

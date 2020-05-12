@@ -41,13 +41,13 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TypeInformationAnyType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -181,7 +181,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return createLegacyType(LogicalTypeRoot.STRUCTURED_TYPE, typeInfo);
 		}
 
-		return createLegacyType(LogicalTypeRoot.ANY, typeInfo);
+		return createLegacyType(LogicalTypeRoot.RAW, typeInfo);
 	}
 
 	public static TypeInformation<?> toLegacyTypeInfo(DataType dataType) {
@@ -197,7 +197,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return foundTypeInfo;
 		}
 
-		// we are relaxing the constraint for DECIMAL, CHAR, TIMESTAMP_WITHOUT_TIME_ZONE to
+		// we are relaxing the constraint for DECIMAL, CHAR, VARCHAR, TIMESTAMP_WITHOUT_TIME_ZONE to
 		// support value literals in legacy planner
 		LogicalType logicalType = dataType.getLogicalType();
 		if (hasRoot(logicalType, LogicalTypeRoot.DECIMAL)) {
@@ -208,8 +208,26 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return Types.STRING;
 		}
 
-		else if (canConvertToTimestampTypeInfoLenient(dataType)) {
+		else if (hasRoot(logicalType, LogicalTypeRoot.VARCHAR)) {
+			return Types.STRING;
+		}
+
+		// relax the precision constraint as Timestamp can store the highest precision
+		else if (hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
+			dataType.getConversionClass() == Timestamp.class) {
 			return Types.SQL_TIMESTAMP;
+		}
+
+		// relax the precision constraint as LocalDateTime can store the highest precision
+		else if (hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
+			dataType.getConversionClass() == LocalDateTime.class) {
+			return Types.LOCAL_DATE_TIME;
+		}
+
+		// relax the precision constraint as LocalTime can store the highest precision
+		else if (hasRoot(logicalType, LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE) &&
+			dataType.getConversionClass() == LocalTime.class) {
+			return Types.LOCAL_TIME;
 		}
 
 		else if (canConvertToLegacyTypeInfo(dataType)) {
@@ -233,9 +251,9 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return convertToMapTypeInfo((KeyValueDataType) dataType);
 		}
 
-		// makes the any type accessible in the legacy planner
-		else if (canConvertToAnyTypeInfo(dataType)) {
-			return convertToAnyTypeInfo(dataType);
+		// makes the raw type accessible in the legacy planner
+		else if (canConvertToRawTypeInfo(dataType)) {
+			return convertToRawTypeInfo(dataType);
 		}
 
 		throw new TableException(
@@ -244,13 +262,6 @@ public final class LegacyTypeInfoDataTypeConverter {
 					"that originated from type information fully support a reverse conversion.",
 				dataType,
 				dataType.getConversionClass().getName()));
-	}
-
-	private static boolean canConvertToTimestampTypeInfoLenient(DataType dataType) {
-		LogicalType logicalType = dataType.getLogicalType();
-		return hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
-			dataType.getConversionClass() != LocalDateTime.class &&
-			LogicalTypeChecks.getPrecision(logicalType) <= 3;
 	}
 
 	private static DataType createLegacyType(LogicalTypeRoot typeRoot, TypeInformation<?> typeInfo) {
@@ -376,14 +387,14 @@ public final class LegacyTypeInfoDataTypeConverter {
 		return ((LegacyTypeInformationType) dataType.getLogicalType()).getTypeInformation();
 	}
 
-	private static boolean canConvertToAnyTypeInfo(DataType dataType) {
-		return dataType.getLogicalType() instanceof TypeInformationAnyType &&
+	private static boolean canConvertToRawTypeInfo(DataType dataType) {
+		return dataType.getLogicalType() instanceof TypeInformationRawType &&
 			dataType.getConversionClass().equals(
-				((TypeInformationAnyType) dataType.getLogicalType()).getTypeInformation().getTypeClass());
+				((TypeInformationRawType) dataType.getLogicalType()).getTypeInformation().getTypeClass());
 	}
 
-	private static TypeInformation<?> convertToAnyTypeInfo(DataType dataType) {
-		return ((TypeInformationAnyType) dataType.getLogicalType()).getTypeInformation();
+	private static TypeInformation<?> convertToRawTypeInfo(DataType dataType) {
+		return ((TypeInformationRawType) dataType.getLogicalType()).getTypeInformation();
 	}
 
 	private LegacyTypeInfoDataTypeConverter() {

@@ -51,7 +51,8 @@ cd ..
 
 FLINK_DIR=`pwd`
 RELEASE_DIR=${FLINK_DIR}/tools/releasing/release
-mkdir -p ${RELEASE_DIR}
+PYTHON_RELEASE_DIR=${RELEASE_DIR}/python
+mkdir -p ${PYTHON_RELEASE_DIR}
 
 ###########################
 
@@ -74,7 +75,8 @@ make_binary_release() {
   # enable release profile here (to check for the maven version)
   $MVN clean package $FLAGS -Prelease -pl flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests
 
-  cd flink-dist/target/flink-*-bin/
+  cd flink-dist/target/flink-${RELEASE_VERSION}-bin
+  ${FLINK_DIR}/tools/releasing/collect_license_files.sh ./flink-${RELEASE_VERSION} ./flink-${RELEASE_VERSION}
   tar czf "${dir_name}.tgz" flink-*
 
   cp flink-*.tgz ${RELEASE_DIR}
@@ -89,9 +91,66 @@ make_binary_release() {
   cd ${FLINK_DIR}
 }
 
+make_python_release() {
+  cd flink-python/
+  # use lint-python.sh script to create a python environment.
+  dev/lint-python.sh -s basic
+  source dev/.conda/bin/activate
+  pip install -r dev/dev-requirements.txt
+  python setup.py sdist
+  conda deactivate
+  cd dist/
+  pyflink_actual_name=`echo *.tar.gz`
+  PYFLINK_VERSION=${RELEASE_VERSION/-SNAPSHOT/.dev0}
+  pyflink_release_name="apache-flink-${PYFLINK_VERSION}.tar.gz"
+
+  if [[ "$pyflink_actual_name" != "$pyflink_release_name" ]] ; then
+    echo -e "\033[31;1mThe file name of the python package: ${pyflink_actual_name} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
+    exit 1
+  fi
+
+  cp ${pyflink_actual_name} "${PYTHON_RELEASE_DIR}/${pyflink_release_name}"
+
+  wheel_packages_num=0
+  # py35,py36,py37 for mac and linux (6 wheel packages)
+  EXPECTED_WHEEL_PACKAGES_NUM=6
+  # Need to move the downloaded wheel packages from Azure CI to the directory flink-python/dist manually.
+  for wheel_file in *.whl; do
+    if [[ ! ${wheel_file} =~ ^apache_flink-$PYFLINK_VERSION- ]]; then
+        echo -e "\033[31;1mThe file name of the python package: ${wheel_file} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
+        exit 1
+    fi
+    cp ${wheel_file} "${PYTHON_RELEASE_DIR}/${wheel_file}"
+    wheel_packages_num=$((wheel_packages_num+1))
+  done
+  if [[ ${wheel_packages_num} != ${EXPECTED_WHEEL_PACKAGES_NUM} ]]; then
+    echo -e "\033[31;1mThe number of wheel packages ${wheel_packages_num} is not equal to the expected number ${EXPECTED_WHEEL_PACKAGES_NUM}!\033[0m"
+    exit 1
+  fi
+
+  cd ${PYTHON_RELEASE_DIR}
+
+  # Sign sha the tgz and wheel packages
+  if [ "$SKIP_GPG" == "false" ] ; then
+    gpg --armor --detach-sig "${pyflink_release_name}"
+    for wheel_file in *.whl; do
+      gpg --armor --detach-sig "${wheel_file}"
+    done
+  fi
+  $SHASUM "${pyflink_release_name}" > "${pyflink_release_name}.sha512"
+
+  for wheel_file in *.whl; do
+    $SHASUM "${wheel_file}" > "${wheel_file}.sha512"
+  done
+
+  cd ${FLINK_DIR}
+}
+
 if [ "$SCALA_VERSION" == "none" ]; then
   make_binary_release "2.12"
   make_binary_release "2.11"
+  make_python_release
 else
   make_binary_release "$SCALA_VERSION"
+  make_python_release
 fi

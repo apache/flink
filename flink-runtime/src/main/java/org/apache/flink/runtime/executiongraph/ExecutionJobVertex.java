@@ -27,10 +27,12 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
@@ -45,6 +47,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorUtil;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.OptionalFailure;
@@ -88,24 +92,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 	private final JobVertex jobVertex;
 
-	/**
-	 * The IDs of all operators contained in this execution job vertex.
-	 *
-	 * <p>The ID's are stored depth-first post-order; for the forking chain below the ID's would be stored as [D, E, B, C, A].
-	 *  A - B - D
-	 *   \    \
-	 *    C    E
-	 * This is the same order that operators are stored in the {@code StreamTask}.
-	 */
-	private final List<OperatorID> operatorIDs;
-
-	/**
-	 * The alternative IDs of all operators contained in this execution job vertex.
-	 *
-	 * <p>The ID's are in the same order as {@link ExecutionJobVertex#operatorIDs}.
-	 */
-	private final List<OperatorID> userDefinedOperatorIds;
-
 	private final ExecutionVertex[] taskVertices;
 
 	private final IntermediateResult[] producedDataSets;
@@ -132,6 +118,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * the serialized task information.
 	 */
 	private Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey = null;
+
+	private final Map<OperatorID, OperatorCoordinator> operatorCoordinators;
 
 	private InputSplitAssigner splitAssigner;
 
@@ -192,11 +180,9 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 
 		this.parallelism = numTaskVertices;
-		this.resourceProfile = ResourceProfile.fromResourceSpec(jobVertex.getMinResources(), 0);
+		this.resourceProfile = ResourceProfile.fromResourceSpec(jobVertex.getMinResources(), MemorySize.ZERO);
 
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
-		this.operatorIDs = Collections.unmodifiableList(jobVertex.getOperatorIDs());
-		this.userDefinedOperatorIds = Collections.unmodifiableList(jobVertex.getUserDefinedOperatorIDs());
 
 		this.inputs = new ArrayList<>(jobVertex.getInputs().size());
 
@@ -243,6 +229,18 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			}
 		}
 
+		try {
+			final Map<OperatorID, OperatorCoordinator> coordinators = OperatorCoordinatorUtil.instantiateCoordinators(
+					jobVertex.getOperatorCoordinators(),
+					graph.getUserClassLoader(),
+					(opId) -> new ExecutionJobVertexCoordinatorContext(opId, this));
+
+			this.operatorCoordinators = Collections.unmodifiableMap(coordinators);
+		}
+		catch (IOException | ClassNotFoundException e) {
+			throw new JobException("Cannot instantiate the coordinator for operator " + getName(), e);
+		}
+
 		// set up the input splits, if the vertex has any
 		try {
 			@SuppressWarnings("unchecked")
@@ -272,21 +270,12 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	}
 
 	/**
-	 * Returns a list containing the IDs of all operators contained in this execution job vertex.
+	 * Returns a list containing the ID pairs of all operators contained in this execution job vertex.
 	 *
-	 * @return list containing the IDs of all contained operators
+	 * @return list containing the ID pairs of all contained operators
 	 */
-	public List<OperatorID> getOperatorIDs() {
-		return operatorIDs;
-	}
-
-	/**
-	 * Returns a list containing the alternative IDs of all operators contained in this execution job vertex.
-	 *
-	 * @return list containing alternative the IDs of all contained operators
-	 */
-	public List<OperatorID> getUserDefinedOperatorIDs() {
-		return userDefinedOperatorIds;
+	public List<OperatorIDPair> getOperatorIDs() {
+		return jobVertex.getOperatorIDs();
 	}
 
 	public void setMaxParallelism(int maxParallelismDerived) {
@@ -382,6 +371,19 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return getJobVertex().getInputDependencyConstraint();
 	}
 
+	@Nullable
+	public OperatorCoordinator getOperatorCoordinator(OperatorID operatorId) {
+		return operatorCoordinators.get(operatorId);
+	}
+
+	public Map<OperatorID, OperatorCoordinator> getOperatorCoordinatorMap() {
+		return operatorCoordinators;
+	}
+
+	public Collection<OperatorCoordinator> getOperatorCoordinators() {
+		return operatorCoordinators.values();
+	}
+
 	public Either<SerializedValue<TaskInformation>, PermanentBlobKey> getTaskInformationOrBlobKey() throws IOException {
 		// only one thread should offload the task information, so let's also let only one thread
 		// serialize the task information!
@@ -416,18 +418,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		return getAggregateJobVertexState(num, parallelism);
 	}
-
-	private String generateDebugString() {
-
-		return "ExecutionJobVertex" +
-				"(" + jobVertex.getName() + " | " + jobVertex.getID() + ")" +
-				"{" +
-				"parallelism=" + parallelism +
-				", maxParallelism=" + getMaxParallelism() +
-				", maxParallelismConfigured=" + maxParallelismConfigured +
-				'}';
-	}
-
 
 	//---------------------------------------------------------------------------------------------
 
@@ -515,10 +505,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		synchronized (stateMonitor) {
 			// check and reset the sharing groups with scheduler hints
-			if (slotSharingGroup != null) {
-				slotSharingGroup.clearTaskAssignment();
-			}
-
 			for (int i = 0; i < parallelism; i++) {
 				taskVertices[i].resetForNewExecution(timestamp, expectedGlobalModVersion);
 			}
@@ -611,54 +597,5 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			// all else collapses under created
 			return ExecutionState.CREATED;
 		}
-	}
-
-	public static Map<JobVertexID, ExecutionJobVertex> includeLegacyJobVertexIDs(
-			Map<JobVertexID, ExecutionJobVertex> tasks) {
-
-		Map<JobVertexID, ExecutionJobVertex> expanded = new HashMap<>(2 * tasks.size());
-		// first include all new ids
-		expanded.putAll(tasks);
-
-		// now expand and add legacy ids
-		for (ExecutionJobVertex executionJobVertex : tasks.values()) {
-			if (null != executionJobVertex) {
-				JobVertex jobVertex = executionJobVertex.getJobVertex();
-				if (null != jobVertex) {
-					List<JobVertexID> alternativeIds = jobVertex.getIdAlternatives();
-					for (JobVertexID jobVertexID : alternativeIds) {
-						ExecutionJobVertex old = expanded.put(jobVertexID, executionJobVertex);
-						Preconditions.checkState(null == old || old.equals(executionJobVertex),
-								"Ambiguous jobvertex id detected during expansion to legacy ids.");
-					}
-				}
-			}
-		}
-
-		return expanded;
-	}
-
-	public static Map<OperatorID, ExecutionJobVertex> includeAlternativeOperatorIDs(
-			Map<OperatorID, ExecutionJobVertex> operatorMapping) {
-
-		Map<OperatorID, ExecutionJobVertex> expanded = new HashMap<>(2 * operatorMapping.size());
-		// first include all existing ids
-		expanded.putAll(operatorMapping);
-
-		// now expand and add user-defined ids
-		for (ExecutionJobVertex executionJobVertex : operatorMapping.values()) {
-			if (executionJobVertex != null) {
-				JobVertex jobVertex = executionJobVertex.getJobVertex();
-				if (jobVertex != null) {
-					for (OperatorID operatorID : jobVertex.getUserDefinedOperatorIDs()) {
-						if (operatorID != null) {
-							expanded.put(operatorID, executionJobVertex);
-						}
-					}
-				}
-			}
-		}
-
-		return expanded;
 	}
 }

@@ -93,7 +93,7 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
 			final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 			slotPool.registerTaskManager(taskManagerLocation.getResourceID());
 
-			final SlotOffer slotOffer = new SlotOffer(new AllocationID(), 0, ResourceProfile.UNKNOWN);
+			final SlotOffer slotOffer = new SlotOffer(new AllocationID(), 0, ResourceProfile.ANY);
 			final Collection<SlotOffer> acceptedSlots = slotPool.offerSlots(taskManagerLocation, new SimpleAckingTaskManagerGateway(), Collections.singleton(slotOffer));
 
 			assertThat(acceptedSlots, containsInAnyOrder(slotOffer));

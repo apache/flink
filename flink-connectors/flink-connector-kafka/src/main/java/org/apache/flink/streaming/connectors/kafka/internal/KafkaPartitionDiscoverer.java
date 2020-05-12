@@ -69,18 +69,24 @@ public class KafkaPartitionDiscoverer extends AbstractPartitionDiscoverer {
 	}
 
 	@Override
-	protected List<KafkaTopicPartition> getAllPartitionsForTopics(List<String> topics) throws AbstractPartitionDiscoverer.WakeupException {
-		List<KafkaTopicPartition> partitions = new LinkedList<>();
+	protected List<KafkaTopicPartition> getAllPartitionsForTopics(List<String> topics) throws WakeupException, RuntimeException {
+		final List<KafkaTopicPartition> partitions = new LinkedList<>();
 
 		try {
 			for (String topic : topics) {
-				for (PartitionInfo partitionInfo : kafkaConsumer.partitionsFor(topic)) {
+				final List<PartitionInfo> kafkaPartitions = kafkaConsumer.partitionsFor(topic);
+
+				if (kafkaPartitions == null) {
+					throw new RuntimeException(String.format("Could not fetch partitions for %s. Make sure that the topic exists.", topic));
+				}
+
+				for (PartitionInfo partitionInfo : kafkaPartitions) {
 					partitions.add(new KafkaTopicPartition(partitionInfo.topic(), partitionInfo.partition()));
 				}
 			}
 		} catch (org.apache.kafka.common.errors.WakeupException e) {
 			// rethrow our own wakeup exception
-			throw new AbstractPartitionDiscoverer.WakeupException();
+			throw new WakeupException();
 		}
 
 		return partitions;

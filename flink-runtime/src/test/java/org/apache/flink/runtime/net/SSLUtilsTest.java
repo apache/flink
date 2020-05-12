@@ -34,12 +34,22 @@ import org.junit.runners.Parameterized;
 
 import javax.net.ssl.SSLServerSocket;
 
+import java.io.File;
+import java.io.InputStream;
 import java.net.ServerSocket;
+import java.nio.file.Files;
+import java.security.KeyStore;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -281,6 +291,15 @@ public class SSLUtilsTest extends TestLogger {
 	}
 
 	@Test
+	public void testInternalSSLWithSSLPinning() throws Exception {
+		final Configuration config = createInternalSslConfigWithKeyAndTrustStores();
+		config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, getCertificateFingerprint(config, "flink.test"));
+
+		assertNotNull(SSLUtils.createInternalServerSSLEngineFactory(config));
+		assertNotNull(SSLUtils.createInternalClientSSLEngineFactory(config));
+	}
+
+	@Test
 	public void testInternalSSLDisables() throws Exception {
 		final Configuration config = createInternalSslConfigWithKeyAndTrustStores();
 		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, false);
@@ -437,6 +456,22 @@ public class SSLUtilsTest extends TestLogger {
 			arrayContainingInAnyOrder(sslAlgorithms));
 	}
 
+	@Test
+	public void testInvalidFingerprintParsing() throws Exception {
+		final Configuration config = createInternalSslConfigWithKeyAndTrustStores();
+		final String fingerprint = getCertificateFingerprint(config, "flink.test");
+
+		config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, fingerprint.substring(0, fingerprint.length() - 3));
+
+		try {
+			SSLUtils.createInternalServerSSLEngineFactory(config);
+			fail("expected exception");
+		}
+		catch (IllegalArgumentException e) {
+			assertThat(e.getMessage(), containsString("malformed fingerprint"));
+		}
+	}
+
 	// ------------------------------- utils ----------------------------------
 
 	private Configuration createRestSslConfigWithKeyStore() {
@@ -493,6 +528,22 @@ public class SSLUtilsTest extends TestLogger {
 		return config;
 	}
 
+	public static String getCertificateFingerprint(Configuration config, String certificateAlias) throws Exception {
+		KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+		try (InputStream keyStoreFile = Files.newInputStream(new File(config.getString(SecurityOptions.SSL_INTERNAL_KEYSTORE)).toPath())) {
+			keyStore.load(keyStoreFile, config.getString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD).toCharArray());
+		}
+		return getSha1Fingerprint(keyStore.getCertificate(certificateAlias));
+	}
+
+	public static String getRestCertificateFingerprint(Configuration config, String certificateAlias) throws Exception {
+		KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+		try (InputStream keyStoreFile = Files.newInputStream(new File(config.getString(SecurityOptions.SSL_REST_KEYSTORE)).toPath())) {
+			keyStore.load(keyStoreFile, config.getString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD).toCharArray());
+		}
+		return getSha1Fingerprint(keyStore.getCertificate(certificateAlias));
+	}
+
 	private static void addSslProviderConfig(Configuration config, String sslProvider) {
 		if (sslProvider.equalsIgnoreCase("OPENSSL")) {
 			assertTrue("openSSL not available", OpenSsl.isAvailable());
@@ -523,5 +574,34 @@ public class SSLUtilsTest extends TestLogger {
 	private static void addInternalTrustStoreConfig(Configuration config) {
 		config.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_PATH);
 		config.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, TRUST_STORE_PASSWORD);
+	}
+
+	private static String getSha1Fingerprint(Certificate cert) {
+		if (cert == null) {
+			return null;
+		}
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA1");
+			return toHexadecimalString(digest.digest(cert.getEncoded()));
+		} catch (NoSuchAlgorithmException | CertificateEncodingException e) {
+			// ignore
+		}
+		return null;
+	}
+
+	private static String toHexadecimalString(byte[] value) {
+		StringBuilder sb = new StringBuilder();
+		int len = value.length;
+		for (int i = 0; i < len; i++) {
+			int num = ((int) value[i]) & 0xff;
+			if (num < 0x10) {
+				sb.append('0');
+			}
+			sb.append(Integer.toHexString(num));
+			if (i < len - 1) {
+				sb.append(':');
+			}
+		}
+		return sb.toString().toUpperCase(Locale.US);
 	}
 }

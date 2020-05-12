@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
-import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
+import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.{JArrayList, JDouble, JList}
 
@@ -72,7 +72,7 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
   // --------------- averageColumnSizes ------------------------------------------------------------
 
   def averageColumnSizes(rel: TableScan, mq: RelMetadataQuery): JList[JDouble] = {
-    val statistic = rel.getTable.asInstanceOf[FlinkRelOptTable].getFlinkStatistic
+    val statistic = rel.getTable.asInstanceOf[FlinkPreparingTableBase].getStatistic
     rel.getRowType.getFieldList.map { field =>
       val colStats = statistic.getColumnStats(field.getName)
       if (colStats != null && colStats.getAvgLen != null) {
@@ -428,7 +428,7 @@ object FlinkRelMdSize {
     // TODO after time/date => int, timestamp => long, this estimate value should update
     case SqlTypeName.TIME | SqlTypeName.TIMESTAMP |
          SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE | SqlTypeName.DATE => 12D
-    case SqlTypeName.ANY => 128D // 128 is an arbitrary estimate
+    case SqlTypeName.ANY | SqlTypeName.OTHER => 128D // 128 is an arbitrary estimate
     case SqlTypeName.BINARY | SqlTypeName.VARBINARY => 16D // 16 is an arbitrary estimate
     case _ => throw new TableException(s"Unsupported data type encountered: $sqlType")
   }

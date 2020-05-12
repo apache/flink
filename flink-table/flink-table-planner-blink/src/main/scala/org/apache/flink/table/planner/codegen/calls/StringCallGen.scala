@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.dataformat.DataFormatConverters
+import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateCallIfArgsNotNull, generateCallIfArgsNullable, generateStringResultCallIfArgsNotNull}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedEx
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
-import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, MapType, VarBinaryType, VarCharType}
+import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.runtime.SqlFunctions
 import org.apache.calcite.sql.SqlOperator
@@ -37,11 +37,11 @@ import java.lang.reflect.Method
 
 /**
   * Code generator for call with string parameters or return value.
-  * 1.Some specific optimization of BinaryString.
+  * 1.Some specific optimization of StringData.
   * 2.Deal with conversions between Java String and internal String.
   *
-  * <p>TODO Need to rewrite most of the methods here, calculated directly on the BinaryString
-  * instead of convert BinaryString to String.
+  * <p>TODO Need to rewrite most of the methods here, calculated directly on the StringData
+  * instead of convert StringData to String.
   */
 object StringCallGen {
 
@@ -63,13 +63,13 @@ object StringCallGen {
       case NOT_LIKE =>
         generateNot(ctx, new LikeCallGen().generate(ctx, operands, new BooleanType()))
 
-      case SUBSTRING | SUBSTR => generateSubString(ctx, operands)
+      case SUBSTR | SUBSTRING => generateSubString(ctx, operands)
 
       case LEFT => generateLeft(ctx, operands.head, operands(1))
 
       case RIGHT => generateRight(ctx, operands.head, operands(1))
 
-      case CHAR_LENGTH | CHARACTER_LENGTH | LENGTH => generateCharLength(ctx, operands)
+      case CHAR_LENGTH | CHARACTER_LENGTH => generateCharLength(ctx, operands)
 
       case SIMILAR_TO => generateSimilarTo(ctx, operands)
 
@@ -109,8 +109,6 @@ object StringCallGen {
 
       case SPLIT_INDEX => generateSplitIndex(ctx, operands)
 
-      case KEYVALUE => generateKeyValue(ctx, operands)
-
       case HASH_CODE if isCharacterString(operands.head.resultType) =>
         generateHashCode(ctx, operands)
 
@@ -137,8 +135,6 @@ object StringCallGen {
       case CHR => generateChr(ctx, operands)
 
       case REGEXP => generateRegExp(ctx, operands)
-
-      case JSONVALUE => generateJsonValue(ctx, operands)
 
       case BIN => generateBin(ctx, operands)
 
@@ -180,7 +176,7 @@ object StringCallGen {
         requireBoolean(operands.head)
         new IfCallGen().generate(ctx, operands, returnType)
 
-      // Date/Time & BinaryString Converting -- start
+      // Date/Time & StringData Converting -- start
 
       case TO_DATE if operands.size == 1 && isCharacterString(operands.head.resultType) =>
         methodGen(BuiltInMethods.STRING_TO_DATE)
@@ -206,73 +202,26 @@ object StringCallGen {
           isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.UNIX_TIMESTAMP_FORMAT)
 
-      case DATEDIFF if isTimestamp(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATEDIFF_T_S)
-
-      case DATEDIFF if isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATEDIFF_S_S)
-
-      case DATEDIFF if isCharacterString(operands.head.resultType) &&
-          isTimestamp(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATEDIFF_S_T)
-
       case DATE_FORMAT if operands.size == 2 &&
           isTimestamp(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_LONG_STRING)
+        methodGen(BuiltInMethods.DATE_FORMAT_TIMESTAMP_STRING)
 
       case DATE_FORMAT if operands.size == 2 &&
           isTimestampWithLocalZone(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_LONG_STRING_TIME_ZONE)
+        methodGen(BuiltInMethods.DATE_FORMAT_TIMESTAMP_STRING_TIME_ZONE)
 
       case DATE_FORMAT if operands.size == 2 &&
           isCharacterString(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.DATE_FORMAT_STIRNG_STRING)
 
-      case DATE_FORMAT if operands.size == 3 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) &&
-          isCharacterString(operands(2).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_STRING_STRING_STRING)
-
-      case TO_TIMESTAMP_TZ if operands.size == 2 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP_TZ)
-
-      case TO_TIMESTAMP_TZ if operands.size == 3 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) &&
-          isCharacterString(operands(2).resultType) =>
-        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP_FORMAT_TZ)
-
-      case DATE_FORMAT_TZ if operands.size == 2 &&
-          isTimestamp(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_LONG_ZONE)
-
-      case DATE_FORMAT_TZ if operands.size == 3 &&
-          isTimestamp(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) &&
-          isCharacterString(operands(2).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_LONG_STRING_ZONE)
-
       case CONVERT_TZ if operands.size == 3 &&
           isCharacterString(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) &&
           isCharacterString(operands(2).resultType) =>
         methodGen(BuiltInMethods.CONVERT_TZ)
-
-      case CONVERT_TZ if operands.size == 4 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) &&
-          isCharacterString(operands(2).resultType) &&
-          isCharacterString(operands(3).resultType) =>
-        methodGen(BuiltInMethods.CONVERT_FORMAT_TZ)
 
       case _ => null
     }
@@ -293,7 +242,7 @@ object StringCallGen {
   private def safeToStringTerms(terms: Seq[String], operands: Seq[GeneratedExpression]) = {
     terms.zipWithIndex.map { case (term, index) =>
       if (isCharacterString(operands(index).resultType)) {
-        s"$STRING_UTIL.safeToString($term)"
+        s"$BINARY_STRING_UTIL.safeToString($term)"
       } else {
         term
       }
@@ -304,7 +253,7 @@ object StringCallGen {
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNullable(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"$STRING_UTIL.concat(${terms.mkString(", ")})"
+      terms => s"$BINARY_STRING_UTIL.concat(${terms.mkString(", ")})"
     }
   }
 
@@ -312,12 +261,12 @@ object StringCallGen {
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNullable(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"$STRING_UTIL.concatWs(${terms.mkString(", ")})"
+      terms => s"$BINARY_STRING_UTIL.concatWs(${terms.mkString(", ")})"
     }
   }
 
   /**
-    * Optimization: use BinaryString equals instead of compare.
+    * Optimization: use StringData equals instead of compare.
     */
   def generateStringEquals(
       ctx: CodeGeneratorContext,
@@ -329,7 +278,7 @@ object StringCallGen {
   }
 
   /**
-    * Optimization: use BinaryString equals instead of compare.
+    * Optimization: use StringData equals instead of compare.
     */
   def generateStringNotEquals(
       ctx: CodeGeneratorContext,
@@ -344,7 +293,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"$STRING_UTIL.substringSQL(${terms.head}, ${terms.drop(1).mkString(", ")})"
+      terms => s"$BINARY_STRING_UTIL.substringSQL(${terms.head}, ${terms.drop(1).mkString(", ")})"
     }
   }
 
@@ -356,7 +305,7 @@ object StringCallGen {
       val emptyString = s"$BINARY_STRING.EMPTY_UTF8"
       terms =>
         s"${terms(1)} <= 0 ? $emptyString :" +
-            s" $STRING_UTIL.substringSQL(${terms.head}, 1, ${terms(1)})"
+            s" $BINARY_STRING_UTIL.substringSQL(${terms.head}, 1, ${terms(1)})"
     }
   }
 
@@ -371,7 +320,7 @@ object StringCallGen {
            |  $BINARY_STRING.EMPTY_UTF8 :
            |  ${terms(1)} >= ${terms.head}.numChars() ?
            |  ${terms.head} :
-           |  $STRING_UTIL.substringSQL(${terms.head}, -${terms(1)})
+           |  $BINARY_STRING_UTIL.substringSQL(${terms.head}, -${terms(1)})
        """.stripMargin
     }
   }
@@ -553,7 +502,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"$STRING_UTIL.reverse(${terms.head})"
+      terms => s"$BINARY_STRING_UTIL.reverse(${terms.head})"
     }
   }
 
@@ -605,7 +554,7 @@ object StringCallGen {
     val digestTerm = ctx.addReusableMessageDigest(algorithm)
     if (operands.length == 1) {
       generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-        terms =>s"$STRING_UTIL.hash(${terms.head}, $digestTerm)"
+        terms =>s"$BINARY_STRING_UTIL.hash(${terms.head}, $digestTerm)"
       }
     } else {
       val className = classOf[SqlFunctionUtils].getCanonicalName
@@ -648,7 +597,7 @@ object StringCallGen {
       val digestTerm = ctx.addReusableSha2MessageDigest(operands.last)
       if (operands.length == 2) {
         generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-          terms =>s"$STRING_UTIL.hash(${terms.head}, $digestTerm)"
+          terms =>s"$BINARY_STRING_UTIL.hash(${terms.head}, $digestTerm)"
         }
       } else {
         generateStringResultCallIfArgsNotNull(ctx, operands) {
@@ -661,7 +610,7 @@ object StringCallGen {
       if (operands.length == 2) {
         generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
           terms =>
-            s"""$STRING_UTIL.hash(${terms.head}, "SHA-" + ${terms.last})"""
+            s"""$BINARY_STRING_UTIL.hash(${terms.head}, "SHA-" + ${terms.last})"""
         }
       } else {
         generateStringResultCallIfArgsNotNull(ctx, operands) {
@@ -687,7 +636,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
-    generateCallIfArgsNotNull(ctx, new VarBinaryType(VarBinaryType.MAX_LENGTH), operands) {
+    generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
       terms => s"$className.fromBase64(${terms.head})"
     }
   }
@@ -745,7 +694,7 @@ object StringCallGen {
         val leading = compareEnum(terms.head, BOTH) || compareEnum(terms.head, LEADING)
         val trailing = compareEnum(terms.head, BOTH) || compareEnum(terms.head, TRAILING)
         val args = s"$leading, $trailing, ${terms(1)}"
-        s"$STRING_UTIL.trim(${terms(2)}, $args)"
+        s"$BINARY_STRING_UTIL.trim(${terms(2)}, $args)"
     }
   }
 
@@ -753,7 +702,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"$STRING_UTIL.trimLeft(${terms.mkString(", ")})"
+      terms => s"$BINARY_STRING_UTIL.trimLeft(${terms.mkString(", ")})"
     }
   }
 
@@ -761,7 +710,7 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
     generateCallIfArgsNotNull(ctx, new VarCharType(VarCharType.MAX_LENGTH), operands) {
-      terms => s"$STRING_UTIL.trimRight(${terms.mkString(", ")})"
+      terms => s"$BINARY_STRING_UTIL.trimRight(${terms.mkString(", ")})"
     }
   }
 

@@ -20,6 +20,9 @@ package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.internal.SelectTableSink;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -29,8 +32,8 @@ import java.util.List;
 /**
  * This interface serves two purposes:
  * <ul>
- * <li>SQL parser - transforms a SQL string into a Table API specific tree of
- * {@link Operation}s</li>
+ * <li>SQL parser via {@link #getParser()} - transforms a SQL string into a Table API specific objects
+ * e.g. tree of {@link Operation}s</li>
  * <li>relational planner - provides a way to plan, optimize and transform tree of
  * {@link ModifyOperation} into a runnable form ({@link Transformation})</li>
  * </ul>.
@@ -43,7 +46,7 @@ import java.util.List;
  * of {@link Planner#translate(List)} will strip any execution configuration from
  * the DataStream information.
  *
- * <p>All Tables referenced in either {@link Planner#parse(String)} or
+ * <p>All Tables referenced in either {@link Parser#parse(String)} or
  * {@link Planner#translate(List)} should be previously registered in a
  * {@link org.apache.flink.table.catalog.CatalogManager}, which will be provided during
  * instantiation of the {@link Planner}.
@@ -52,18 +55,11 @@ import java.util.List;
 public interface Planner {
 
 	/**
-	 * Entry point for parsing sql queries expressed as a String.
+	 * Retrieves a {@link Parser} that provides methods for parsing a SQL string.
 	 *
-	 * <p><b>Note:</b>If the created {@link Operation} is a {@link QueryOperation}
-	 * it must be in a form that will be understood by the
-	 * {@link Planner#translate(List)} method.
-	 *
-	 * <p>The produced Operation trees should already be validated.
-	 *
-	 * @param statement the sql statement to evaluate
-	 * @return parsed queries as trees of relational {@link Operation}s
+	 * @return initialized {@link Parser}
 	 */
-	List<Operation> parse(String statement);
+	Parser getParser();
 
 	/**
 	 * Converts a relational tree of {@link ModifyOperation}s into a set of runnable
@@ -81,15 +77,23 @@ public interface Planner {
 	List<Transformation<?>> translate(List<ModifyOperation> modifyOperations);
 
 	/**
+	 * Creates a {@link SelectTableSink} for a select query.
+	 *
+	 * @param tableSchema the table schema of select result.
+	 * @return The {@link SelectTableSink} for the select query.
+	 */
+	SelectTableSink createSelectTableSink(TableSchema tableSchema);
+
+	/**
 	 * Returns the AST of the specified Table API and SQL queries and the execution plan
 	 * to compute the result of the given collection of {@link QueryOperation}s.
 	 *
 	 * @param operations The collection of relational queries for which the AST
 	 * and execution plan will be returned.
-	 * @param extended if the plan should contain additional properties such as
-	 * e.g. estimated cost, traits
+	 * @param extraDetails The extra explain details which the explain result should include,
+	 *   e.g. estimated cost, changelog mode for streaming
 	 */
-	String explain(List<Operation> operations, boolean extended);
+	String explain(List<Operation> operations, ExplainDetail... extraDetails);
 
 	/**
 	 * Returns completion hints for the given statement at the given cursor position.

@@ -18,7 +18,6 @@
 package org.apache.flink.table.runtime.join
 
 import java.util
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
@@ -27,7 +26,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.{SqlKind, SqlOperatorTable}
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.functions.sql.ProctimeSqlFunction
@@ -444,6 +443,7 @@ object WindowJoinUtil {
       case JoinRelType.LEFT => true
       case JoinRelType.RIGHT => true
       case JoinRelType.FULL => true
+      case _ => throw new TableException(s"$joinType is not supported.")
     }
 
     // generate other non-equi function code

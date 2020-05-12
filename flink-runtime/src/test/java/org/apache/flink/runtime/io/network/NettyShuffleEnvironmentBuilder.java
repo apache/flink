@@ -33,50 +33,48 @@ import java.time.Duration;
  */
 public class NettyShuffleEnvironmentBuilder {
 
-	public static final int DEFAULT_NUM_NETWORK_BUFFERS = 1024;
+	private static final int DEFAULT_NETWORK_BUFFER_SIZE = 32 << 10;
+	private static final int DEFAULT_NUM_NETWORK_BUFFERS = 1024;
 
-	private static final String[] DEFAULT_TEMP_DIRS = new String[] {EnvironmentInformation.getTemporaryFileDirectory()};
+	private static final String[] DEFAULT_TEMP_DIRS = {EnvironmentInformation.getTemporaryFileDirectory()};
+	private static final Duration DEFAULT_REQUEST_SEGMENTS_TIMEOUT = Duration.ofMillis(30000L);
+
+	private int bufferSize = DEFAULT_NETWORK_BUFFER_SIZE;
 
 	private int numNetworkBuffers = DEFAULT_NUM_NETWORK_BUFFERS;
 
-	private int networkBufferSize = 32 * 1024;
+	private int partitionRequestInitialBackoff;
 
-	private int partitionRequestInitialBackoff = 0;
-
-	private int partitionRequestMaxBackoff = 0;
+	private int partitionRequestMaxBackoff;
 
 	private int networkBuffersPerChannel = 2;
 
 	private int floatingNetworkBuffersPerGate = 8;
 
-	private Duration requestSegmentsTimeout = Duration.ofMillis(30000L);
+	private int maxBuffersPerChannel = Integer.MAX_VALUE;
 
-	private boolean isCreditBased = true;
+	private boolean blockingShuffleCompressionEnabled = false;
 
-	private boolean isNetworkDetailedMetrics = false;
+	private String compressionCodec = "LZ4";
 
 	private ResourceID taskManagerLocation = ResourceID.generate();
 
 	private NettyConfig nettyConfig;
 
-	private TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
-
 	private MetricGroup metricGroup = UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
-
-	private String[] tempDirs = DEFAULT_TEMP_DIRS;
 
 	public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
 		this.taskManagerLocation = taskManagerLocation;
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setNumNetworkBuffers(int numNetworkBuffers) {
-		this.numNetworkBuffers = numNetworkBuffers;
+	public NettyShuffleEnvironmentBuilder setBufferSize(int bufferSize) {
+		this.bufferSize = bufferSize;
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setNetworkBufferSize(int networkBufferSize) {
-		this.networkBufferSize = networkBufferSize;
+	public NettyShuffleEnvironmentBuilder setNumNetworkBuffers(int numNetworkBuffers) {
+		this.numNetworkBuffers = numNetworkBuffers;
 		return this;
 	}
 
@@ -100,12 +98,18 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public void setRequestSegmentsTimeout(Duration requestSegmentsTimeout) {
-		this.requestSegmentsTimeout = requestSegmentsTimeout;
+	public NettyShuffleEnvironmentBuilder setMaxBuffersPerChannel(int maxBuffersPerChannel) {
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
+		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setIsCreditBased(boolean isCreditBased) {
-		this.isCreditBased = isCreditBased;
+	public NettyShuffleEnvironmentBuilder setBlockingShuffleCompressionEnabled(boolean blockingShuffleCompressionEnabled) {
+		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
+		return this;
+	}
+
+	public NettyShuffleEnvironmentBuilder setCompressionCodec(String compressionCodec) {
+		this.compressionCodec = compressionCodec;
 		return this;
 	}
 
@@ -114,18 +118,8 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setTaskEventDispatcher(TaskEventDispatcher taskEventDispatcher) {
-		this.taskEventDispatcher = taskEventDispatcher;
-		return this;
-	}
-
 	public NettyShuffleEnvironmentBuilder setMetricGroup(MetricGroup metricGroup) {
 		this.metricGroup = metricGroup;
-		return this;
-	}
-
-	public NettyShuffleEnvironmentBuilder setTempDirs(String[] tempDirs) {
-		this.tempDirs = tempDirs;
 		return this;
 	}
 
@@ -133,19 +127,22 @@ public class NettyShuffleEnvironmentBuilder {
 		return NettyShuffleServiceFactory.createNettyShuffleEnvironment(
 			new NettyShuffleEnvironmentConfiguration(
 				numNetworkBuffers,
-				networkBufferSize,
+				DEFAULT_NETWORK_BUFFER_SIZE,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
 				networkBuffersPerChannel,
 				floatingNetworkBuffersPerGate,
-				requestSegmentsTimeout,
-				isCreditBased,
-				isNetworkDetailedMetrics,
+				DEFAULT_REQUEST_SEGMENTS_TIMEOUT,
+				false,
 				nettyConfig,
-				tempDirs,
-				BoundedBlockingSubpartitionType.AUTO),
+				DEFAULT_TEMP_DIRS,
+				BoundedBlockingSubpartitionType.AUTO,
+				false,
+				blockingShuffleCompressionEnabled,
+				compressionCodec,
+				maxBuffersPerChannel),
 			taskManagerLocation,
-			taskEventDispatcher,
+			new TaskEventDispatcher(),
 			metricGroup);
 	}
 }

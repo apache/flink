@@ -23,9 +23,8 @@ import org.apache.flink.table.functions.FunctionDefinition;
 
 /**
  * A factory to create {@link FunctionDefinition}.
- * See also {@link TableFactory} for more information.
  */
-public interface FunctionDefinitionFactory extends TableFactory {
+public interface FunctionDefinitionFactory {
 
 	/**
 	 * Creates a {@link FunctionDefinition} from given {@link CatalogFunction}.

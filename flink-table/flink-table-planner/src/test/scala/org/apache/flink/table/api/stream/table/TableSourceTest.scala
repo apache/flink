@@ -45,7 +45,7 @@ class TableSourceTest extends TableTestBase {
       "rowTimeT",
       new TestTableSourceWithTime[Row](tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
-    val t = util.tableEnv.scan("rowTimeT").select("rowtime, id, name, val")
+    val t = util.tableEnv.scan("rowTimeT").select($"rowtime", $"id", $"name", $"val")
 
     val expected = "StreamTableSourceScan(table=[[default_catalog, default_database, rowTimeT]], " +
       "fields=[rowtime, id, name, val], " +
@@ -69,7 +69,7 @@ class TableSourceTest extends TableTestBase {
       "rowTimeT",
       new TestTableSourceWithTime[Row](tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
-    val t = util.tableEnv.scan("rowTimeT").select("rowtime, id, name, val")
+    val t = util.tableEnv.scan("rowTimeT").select($"rowtime", $"id", $"name", $"val")
 
     val expected = "StreamTableSourceScan(table=[[default_catalog, default_database, rowTimeT]], " +
       "fields=[rowtime, id, name, val], " +
@@ -94,7 +94,7 @@ class TableSourceTest extends TableTestBase {
       new TestTableSourceWithTime[Row](tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
     val t = util.tableEnv.scan("rowTimeT")
-      .filter("val > 100")
+      .filter($"val" > 100)
       .window(Tumble over 10.minutes on 'rowtime as 'w)
       .groupBy('name, 'w)
       .select('name, 'w.end, 'val.avg)
@@ -136,7 +136,7 @@ class TableSourceTest extends TableTestBase {
       "procTimeT",
       new TestTableSourceWithTime[Row](tableSchema, returnType, Seq(), proctime = "proctime"))
 
-    val t = util.tableEnv.scan("procTimeT").select("proctime, id, name, val")
+    val t = util.tableEnv.scan("procTimeT").select($"proctime", $"id", $"name", $"val")
 
     val expected =
       unaryNode(

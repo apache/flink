@@ -25,6 +25,7 @@
 package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.function.RunnableWithException;
 
 import javax.annotation.Nullable;
@@ -47,6 +48,27 @@ public final class ExceptionUtils {
 
 	/** The stringified representation of a null exception reference. */
 	public static final String STRINGIFIED_NULL_EXCEPTION = "(null)";
+
+	private static final String TM_DIRECT_OOM_ERROR_MESSAGE = String.format(
+		"Direct buffer memory. The direct out-of-memory error has occurred. This can mean two things: either job(s) require(s) " +
+			"a larger size of JVM direct memory or there is a direct memory leak. The direct memory can be " +
+			"allocated by user code or some of its dependencies. In this case '%s' configuration option should be " +
+			"increased. Flink framework and its dependencies also consume the direct memory, mostly for network " +
+			"communication. The most of network memory is managed by Flink and should not result in out-of-memory " +
+			"error. In certain special cases, in particular for jobs with high parallelism, the framework may " +
+			"require more direct memory which is not managed by Flink. In this case '%s' configuration option " +
+			"should be increased. If the error persists then there is probably a direct memory leak which has to " +
+			"be investigated and fixed. The task executor has to be shutdown...",
+		TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(),
+		TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.key());
+
+	private static final String TM_METASPACE_OOM_ERROR_MESSAGE = String.format(
+		"Metaspace. The metaspace out-of-memory error has occurred. This can mean two things: either the job requires " +
+			"a larger size of JVM metaspace to load classes or there is a class loading leak. In the first case " +
+			"'%s' configuration option should be increased. If the error persists (usually in cluster after " +
+			"several job (re-)submissions) then there is probably a class loading leak which has to be " +
+			"investigated and fixed. The task executor has to be shutdown...",
+		TaskManagerOptions.JVM_METASPACE.key());
 
 	/**
 	 * Makes a string representation of the exception's stack trace, or "(null)", if the
@@ -107,6 +129,75 @@ public final class ExceptionUtils {
 	 */
 	public static boolean isJvmFatalOrOutOfMemoryError(Throwable t) {
 		return isJvmFatalError(t) || t instanceof OutOfMemoryError;
+	}
+
+	/**
+	 * Tries to enrich the passed exception with additional information.
+	 *
+	 * <p>This method improves error message for direct and metaspace {@link OutOfMemoryError}.
+	 * It adds description of possible causes and ways of resolution.
+	 *
+	 * @param exception exception to enrich if not {@code null}
+	 * @return the enriched exception or the original if no additional information could be added;
+	 * {@code null} if the argument was {@code null}
+	 */
+	@Nullable
+	public static Throwable tryEnrichTaskManagerError(@Nullable Throwable exception) {
+		if (exception instanceof OutOfMemoryError) {
+			return tryEnrichTaskManagerOutOfMemoryError((OutOfMemoryError) exception);
+		}
+
+		return exception;
+	}
+
+	private static Throwable tryEnrichTaskManagerOutOfMemoryError(OutOfMemoryError oom) {
+		if (isMetaspaceOutOfMemoryError(oom)) {
+			return changeOutOfMemoryErrorMessage(oom, TM_METASPACE_OOM_ERROR_MESSAGE);
+		} else if (isDirectOutOfMemoryError(oom)) {
+			return changeOutOfMemoryErrorMessage(oom, TM_DIRECT_OOM_ERROR_MESSAGE);
+		}
+
+		return oom;
+	}
+
+	private static OutOfMemoryError changeOutOfMemoryErrorMessage(OutOfMemoryError oom, String newMessage) {
+		if (oom.getMessage().equals(newMessage)) {
+			return oom;
+		}
+		OutOfMemoryError newError = new OutOfMemoryError(newMessage);
+		newError.initCause(oom.getCause());
+		newError.setStackTrace(oom.getStackTrace());
+		return newError;
+	}
+
+	/**
+	 * Checks whether the given exception indicates a JVM metaspace out-of-memory error.
+	 *
+	 * @param t The exception to check.
+	 * @return True, if the exception is the metaspace {@link OutOfMemoryError}, false otherwise.
+	 */
+	public static boolean isMetaspaceOutOfMemoryError(@Nullable Throwable t) {
+		return isOutOfMemoryErrorWithMessageStartingWith(t, "Metaspace");
+	}
+
+	/**
+	 * Checks whether the given exception indicates a JVM direct out-of-memory error.
+	 *
+	 * @param t The exception to check.
+	 * @return True, if the exception is the direct {@link OutOfMemoryError}, false otherwise.
+	 */
+	public static boolean isDirectOutOfMemoryError(@Nullable Throwable t) {
+		return isOutOfMemoryErrorWithMessageStartingWith(t, "Direct buffer memory");
+	}
+
+	private static boolean isOutOfMemoryErrorWithMessageStartingWith(@Nullable Throwable t, String prefix) {
+		// the exact matching of the class is checked to avoid matching any custom subclasses of OutOfMemoryError
+		// as we are interested in the original exceptions, generated by JVM.
+		return isOutOfMemoryError(t) && t.getMessage() != null && t.getMessage().startsWith(prefix);
+	}
+
+	private static boolean isOutOfMemoryError(@Nullable Throwable t) {
+		return t != null && t.getClass() == OutOfMemoryError.class;
 	}
 
 	/**
@@ -312,6 +403,38 @@ public final class ExceptionUtils {
 		else {
 			throw new IOException(t.getMessage(), t);
 		}
+	}
+
+	/**
+	 * Checks whether a throwable chain contains a specific type of exception and returns it. It deserializes
+	 * any {@link SerializedThrowable} that are found using the provided {@link ClassLoader}.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param searchType the type of exception to search for in the chain.
+	 * @param classLoader to use for deserialization.
+	 * @return Optional throwable of the requested type if available, otherwise empty
+	 */
+	public static <T extends Throwable> Optional<T> findSerializedThrowable(Throwable throwable, Class<T> searchType, ClassLoader classLoader) {
+		if (throwable == null || searchType == null) {
+			return Optional.empty();
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (searchType.isAssignableFrom(t.getClass())) {
+				return Optional.of(searchType.cast(t));
+			} else if (t.getClass().isAssignableFrom(SerializedThrowable.class)) {
+				Throwable next = ((SerializedThrowable) t).deserializeError(classLoader);
+				// SerializedThrowable#deserializeError returns itself under some conditions (e.g., null cause).
+				// If that happens, exit to avoid looping infinitely. This is ok because if the user was searching
+				// for a SerializedThrowable, we would have returned it in the initial if condition.
+				t = (next == t) ? null : next;
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return Optional.empty();
 	}
 
 	/**

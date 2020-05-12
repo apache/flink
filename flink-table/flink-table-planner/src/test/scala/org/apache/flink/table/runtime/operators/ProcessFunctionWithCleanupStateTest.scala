@@ -25,10 +25,10 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
-import org.apache.flink.table.api.StreamQueryConfig
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.runtime.aggregate.ProcessFunctionWithCleanupState
 import org.apache.flink.table.runtime.harness.HarnessTestBase
-import org.apache.flink.table.runtime.harness.HarnessTestBase.TestStreamQueryConfig
+import org.apache.flink.table.runtime.harness.HarnessTestBase.TestTableConfig
 import org.apache.flink.util.Collector
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -37,9 +37,12 @@ class ProcessFunctionWithCleanupStateTest extends HarnessTestBase {
 
   @Test
   def testStateCleaning(): Unit = {
-    val queryConfig = new TestStreamQueryConfig(Time.milliseconds(5), Time.milliseconds(10))
+    val config = new TestTableConfig
+    config.setIdleStateRetentionTime(Time.milliseconds(5), Time.milliseconds(10))
 
-    val func = new MockedProcessFunction[String](queryConfig)
+    val func = new MockedProcessFunction[String](
+      config.getMinIdleStateRetentionTime,
+      config.getMaxIdleStateRetentionTime)
     val operator = new KeyedProcessOperator(func)
 
     val testHarness = createHarnessTester(operator,
@@ -93,8 +96,11 @@ class ProcessFunctionWithCleanupStateTest extends HarnessTestBase {
   }
 }
 
-private class MockedProcessFunction[K](queryConfig: StreamQueryConfig)
-    extends ProcessFunctionWithCleanupState[K, (String, String), String](queryConfig) {
+private class MockedProcessFunction[K](
+    minRetentionTime: Long,
+    maxRetentionTime: Long)
+    extends ProcessFunctionWithCleanupState[K, (String, String), String](
+      minRetentionTime, maxRetentionTime) {
 
   var state: ValueState[String] = _
 

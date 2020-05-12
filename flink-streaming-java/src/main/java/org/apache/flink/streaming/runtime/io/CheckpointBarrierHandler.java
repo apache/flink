@@ -24,28 +24,33 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.util.function.ThrowingRunnable;
 
-import javax.annotation.Nullable;
-
+import java.io.Closeable;
 import java.io.IOException;
+import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The {@link CheckpointBarrierHandler} reacts to checkpoint barrier arriving from the input channels.
  * Different implementations may either simply track barriers, or block certain inputs on
  * barriers.
  */
-public abstract class CheckpointBarrierHandler {
+public abstract class CheckpointBarrierHandler implements Closeable {
 
 	/** The listener to be notified on complete checkpoints. */
-	@Nullable
 	private final AbstractInvokable toNotifyOnCheckpoint;
 
-	public CheckpointBarrierHandler(@Nullable AbstractInvokable toNotifyOnCheckpoint) {
-		this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
+	private long latestCheckpointStartDelayNanos;
+
+	public CheckpointBarrierHandler(AbstractInvokable toNotifyOnCheckpoint) {
+		this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
 	}
 
-	public abstract void releaseBlocksAndResetBarriers() throws IOException;
+	public abstract void releaseBlocksAndResetBarriers();
 
 	/**
 	 * Checks whether the channel with the given index is blocked.
@@ -55,51 +60,61 @@ public abstract class CheckpointBarrierHandler {
 	 */
 	public abstract boolean isBlocked(int channelIndex);
 
-	/**
-	 * @return true if some blocked data should be unblocked/rolled over.
-	 */
-	public abstract boolean processBarrier(CheckpointBarrier receivedBarrier, int channelIndex, long bufferedBytes) throws Exception;
+	@Override
+	public void close() throws IOException {
+	}
 
-	/**
-	 * @return true if some blocked data should be unblocked/rolled over.
-	 */
-	public abstract boolean processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception;
+	public abstract void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws Exception;
 
-	/**
-	 * @return true if some blocked data should be unblocked/rolled over.
-	 */
-	public abstract boolean processEndOfPartition() throws Exception;
+	public abstract void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception;
+
+	public abstract void processEndOfPartition() throws Exception;
 
 	public abstract long getLatestCheckpointId();
 
 	public abstract long getAlignmentDurationNanos();
 
-	public abstract void checkpointSizeLimitExceeded(long maxBufferedBytes) throws Exception;
-
-	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long bufferedBytes, long alignmentDurationNanos) throws Exception {
-		if (toNotifyOnCheckpoint != null) {
-			CheckpointMetaData checkpointMetaData =
-				new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
-
-			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
-				.setBytesBufferedInAlignment(bufferedBytes)
-				.setAlignmentDurationNanos(alignmentDurationNanos);
-
-			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
-				checkpointMetaData,
-				checkpointBarrier.getCheckpointOptions(),
-				checkpointMetrics);
-		}
+	public long getCheckpointStartDelayNanos() {
+		return latestCheckpointStartDelayNanos;
 	}
 
-	protected void notifyAbortOnCancellationBarrier(long checkpointId) throws Exception {
+	public Optional<BufferReceivedListener> getBufferReceivedListener() {
+		return Optional.empty();
+	}
+
+	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long alignmentDurationNanos) throws IOException {
+		CheckpointMetaData checkpointMetaData =
+			new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
+
+		CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
+			.setAlignmentDurationNanos(alignmentDurationNanos)
+			.setCheckpointStartDelayNanos(latestCheckpointStartDelayNanos);
+
+		toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
+			checkpointMetaData,
+			checkpointBarrier.getCheckpointOptions(),
+			checkpointMetrics);
+	}
+
+	protected void notifyAbortOnCancellationBarrier(long checkpointId) throws IOException {
 		notifyAbort(checkpointId,
 			new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
 	}
 
-	protected void notifyAbort(long checkpointId, CheckpointException cause) throws Exception {
-		if (toNotifyOnCheckpoint != null) {
-			toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
-		}
+	protected void notifyAbort(long checkpointId, CheckpointException cause) throws IOException {
+		toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
+	}
+
+	protected void markCheckpointStart(long checkpointCreationTimestamp) {
+		latestCheckpointStartDelayNanos = 1_000_000 * Math.max(
+			0,
+			System.currentTimeMillis() - checkpointCreationTimestamp);
+	}
+
+	protected <E extends Exception> void executeInTaskThread(
+			ThrowingRunnable<E> runnable,
+			String descriptionFormat,
+			Object... descriptionArgs) throws E {
+		toNotifyOnCheckpoint.executeInTaskThread(runnable, descriptionFormat, descriptionArgs);
 	}
 }

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -54,7 +55,7 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 	private static final ResourceID resourceID = ResourceID.generate();
 	private static final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 	private static final SlotID slotId = new SlotID(resourceID, 0);
-	private static final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
+	private static final ResourceProfile resourceProfile = ResourceProfile.fromResources(1.0, 1);
 	private static final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
 	private static final SlotReport slotReport = new SlotReport(slotStatus);
 
@@ -104,7 +105,7 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testTaskManagerIsNotReleasedBeforeItCanBe() throws Exception {
-		try (SlotManager slotManager = createAndStartSlotManagerWithTM()) {
+		try (SlotManagerImpl slotManager = createAndStartSlotManagerWithTM()) {
 			checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(slotManager, false);
 			verifyTmReleased(false);
 
@@ -118,7 +119,7 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testTaskManagerIsNotReleasedInCaseOfConcurrentAllocation() throws Exception {
-		try (SlotManager slotManager = createAndStartSlotManagerWithTM()) {
+		try (SlotManagerImpl slotManager = createAndStartSlotManagerWithTM()) {
 			checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(slotManager, true, () -> {
 				// Allocate and free slot between triggering TM.canBeReleased request and receiving response.
 				// There can be potentially newly unreleased partitions, therefore TM can not be released yet.
@@ -134,8 +135,8 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 		}
 	}
 
-	private SlotManager createAndStartSlotManagerWithTM() {
-		SlotManager slotManager = SlotManagerBuilder
+	private SlotManagerImpl createAndStartSlotManagerWithTM() {
+		SlotManagerImpl slotManager = SlotManagerBuilder
 			.newBuilder()
 			.setScheduledExecutor(mainThreadExecutor)
 			.setTaskManagerTimeout(Time.milliseconds(0L))
@@ -146,13 +147,13 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 	}
 
 	private void checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(
-			SlotManager slotManager,
+			SlotManagerImpl slotManager,
 			boolean canBeReleased) throws Exception {
 		checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(slotManager, canBeReleased, () -> {});
 	}
 
 	private void checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(
-			SlotManager slotManager,
+			SlotManagerImpl slotManager,
 			boolean canBeReleased,
 			RunnableWithException doAfterCheckTriggerBeforeCanBeReleasedResponse) throws Exception {
 		canBeReleasedFuture.set(new CompletableFuture<>());

@@ -40,7 +40,7 @@ class GroupingSetsITCase extends BatchTestBase {
   private val empsNames =
     "empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat"
   private val nullableOfEmps: Array[Boolean] =
-    Array(false, false, false, true, true, false, true, true, false, false)
+    Array(true, true, true, true, true, true, true, true, true, true)
   private lazy val empsData = Seq(
     row(100L, "Fred", 10, null, null, 40L, 25, true, false, localDate("1996-08-03")),
     row(110L, "Eric", 20, "M", "San Francisco", 3L, 80, null, false, localDate("2001-01-01")),
@@ -52,7 +52,7 @@ class GroupingSetsITCase extends BatchTestBase {
   private val TABLE_NAME_EMP = "emp"
   private val empTypes = new RowTypeInfo(Types.STRING, Types.INT, Types.STRING)
   private val empNames = "ename, deptno, gender"
-  private val nullableOfEmp = Array(false, true, false)
+  private val nullableOfEmp = Array(true, true, true)
   private lazy val empData = Seq(
     row("Adam", 50, "M"),
     row("Alice", 30, "F"),
@@ -68,7 +68,7 @@ class GroupingSetsITCase extends BatchTestBase {
   private val TABLE_NAME_DEPT = "dept"
   private val deptTypes = new RowTypeInfo(Types.INT, Types.STRING)
   private val deptNames = "deptno, dname"
-  private val nullableOfDept = Array(false, false)
+  private val nullableOfDept = Array(true, true)
   private lazy val deptData = Seq(
     row(10, "Sales"),
     row(20, "Marketing"),
@@ -80,7 +80,7 @@ class GroupingSetsITCase extends BatchTestBase {
   private val scottEmpTypes = new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.INT,
     Types.LOCAL_DATE, Types.DOUBLE, Types.DOUBLE, Types.INT)
   private val scottEmpNames = "empno, ename, job, mgr, hiredate, sal, comm, deptno"
-  private val nullableOfScottEmp = Array(false, false, false, true, false, false, true, false)
+  private val nullableOfScottEmp = Array(true, true, true, true, true, true, true, true)
   private lazy val scottEmpData = Seq(
     row(7369, "SMITH", "CLERK", 7902, localDate("1980-12-17"), 800.00, null, 20),
     row(7499, "ALLEN", "SALESMAN", 7698, localDate("1981-02-20"), 1600.00, 300.00, 30),
@@ -110,7 +110,7 @@ class GroupingSetsITCase extends BatchTestBase {
       }
       row(r.getField(0), r.getField(1), newField2)
     }
-    val nullablesOfNullsData3 = Array(false, false, true)
+    val nullablesOfNullsData3 = Array(true, true, true)
     registerCollection(TABLE_WITH_NULLS_NAME, nullableData3, type3, "f0, f1, f2",
       nullablesOfNullsData3)
 
@@ -127,7 +127,7 @@ class GroupingSetsITCase extends BatchTestBase {
       "select deptno, avg(age) as a, group_id() as g," +
         " grouping(deptno) as gb, grouping_id(deptno)as gib" +
         " from emps group by grouping sets (deptno)",
-      Seq(row(10, 25.0, 0, 0, 0), row(20, 42.5, 0, 0, 0), row(40, null, 0, 0, 0))
+      Seq(row(10, 25, 0, 0, 0), row(20, 42, 0, 0, 0), row(40, null, 0, 0, 0))
     )
   }
 
@@ -208,11 +208,11 @@ class GroupingSetsITCase extends BatchTestBase {
     checkResult(
       "select deptno / 2 + 1 as half1, count(*) as c from emp " +
         "group by rollup(deptno / 2, gender), rollup(substring(ename FROM 1 FOR 1))",
-      Seq(row(11.0, 1), row(11.0, 1), row(11.0, 1), row(11.0, 1), row(16.0, 1), row(16.0, 1),
-        row(16.0, 1), row(16.0, 1), row(16.0, 2), row(16.0, 2), row(26.0, 1), row(26.0, 1),
-        row(26.0, 1), row(26.0, 1), row(26.0, 1), row(26.0, 1), row(26.0, 2), row(31.0, 1),
-        row(31.0, 1), row(31.0, 1), row(31.0, 1), row(6.0, 1), row(6.0, 1), row(6.0, 1),
-        row(6.0, 1), row(6.0, 1), row(6.0, 1), row(6.0, 2), row(null, 1), row(null, 1),
+      Seq(row(11, 1), row(11, 1), row(11, 1), row(11, 1), row(16, 1), row(16, 1),
+        row(16, 1), row(16, 1), row(16, 2), row(16, 2), row(26, 1), row(26, 1),
+        row(26, 1), row(26, 1), row(26, 1), row(26, 1), row(26, 2), row(31, 1),
+        row(31, 1), row(31, 1), row(31, 1), row(6, 1), row(6, 1), row(6, 1),
+        row(6, 1), row(6, 1), row(6, 1), row(6, 2), row(null, 1), row(null, 1),
         row(null, 1), row(null, 1), row(null, 1), row(null, 1), row(null, 1),
         row(null, 1), row(null, 1), row(null, 2), row(null, 2), row(null, 9))
     )
@@ -395,13 +395,16 @@ class GroupingSetsITCase extends BatchTestBase {
 
   @Test
   def testCALCITE1824(): Unit = {
-    // TODO:
-    // When "[CALCITE-1824] GROUP_ID returns wrong result" is fixed,
-    // there will be an extra row (null, 1, 14).
     checkResult(
       "select deptno, group_id() as g, count(*) as c " +
         "from scott_emp group by grouping sets (deptno, (), ())",
-      Seq(row(10, 0, 3), row(20, 0, 5), row(30, 0, 6), row(null, 0, 14))
+      Seq(row(10, 0, 3),
+        row(10, 1, 3),
+        row(20, 0, 5),
+        row(20, 1, 5),
+        row(30, 0, 6),
+        row(30, 1, 6),
+        row(null, 0, 14))
     )
   }
 
@@ -460,34 +463,34 @@ class GroupingSetsITCase extends BatchTestBase {
         " GROUPING SETS (f1, f2, ())"
 
     val expected = Seq(
-      row(1, null, 1.0, 0, 0, 1, 0, 1, 1, 1),
-      row(6, null, 18.5, 0, 0, 1, 0, 1, 1, 6),
-      row(2, null, 2.5, 0, 0, 1, 0, 1, 1, 2),
-      row(4, null, 8.5, 0, 0, 1, 0, 1, 1, 4),
-      row(5, null, 13.0, 0, 0, 1, 0, 1, 1, 5),
-      row(3, null, 5.0, 0, 0, 1, 0, 1, 1, 3),
-      row(null, "Comment#11", 17.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#8", 14.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#2", 8.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#1", 7.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#14", 20.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#7", 13.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#6", 12.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#3", 9.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#12", 18.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#5", 11.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#15", 21.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#4", 10.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Hi", 1.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#10", 16.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Hello world", 3.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "I am fine.", 5.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Hello world, how are you?", 4.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#9", 15.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#13", 19.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Luke Skywalker", 6.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Hello", 2.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, null, 11.0, 0, 1, 1, 1, 1, 3, 21))
+      row(1, null, 1, 0, 0, 1, 0, 1, 1, 1),
+      row(6, null, 18, 0, 0, 1, 0, 1, 1, 6),
+      row(2, null, 2, 0, 0, 1, 0, 1, 1, 2),
+      row(4, null, 8, 0, 0, 1, 0, 1, 1, 4),
+      row(5, null, 13, 0, 0, 1, 0, 1, 1, 5),
+      row(3, null, 5, 0, 0, 1, 0, 1, 1, 3),
+      row(null, "Comment#11", 17, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#8", 14, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#2", 8, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#1", 7, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#14", 20, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#7", 13, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#6", 12, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#3", 9, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#12", 18, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#5", 11, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#15", 21, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#4", 10, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Hi", 1, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#10", 16, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Hello world", 3, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "I am fine.", 5, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Hello world, how are you?", 4, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#9", 15, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#13", 19, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Luke Skywalker", 6, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Hello", 2, 0, 1, 0, 1, 0, 2, 1),
+      row(null, null, 11, 0, 1, 1, 1, 1, 3, 21))
     checkResult(query, expected)
   }
 
@@ -496,32 +499,32 @@ class GroupingSetsITCase extends BatchTestBase {
     val query = "SELECT f1, f2, avg(f0) as a, GROUP_ID() as g FROM " +
       TABLE_WITH_NULLS_NAME + " GROUP BY GROUPING SETS (f1, f2)"
     val expected = Seq(
-      row(6, null, 18.5, 0),
-      row(5, null, 13.0, 0),
-      row(4, null, 8.5, 0),
-      row(3, null, 5.0, 0),
-      row(2, null, 2.5, 0),
-      row(1, null, 1.0, 0),
-      row(null, "Luke Skywalker", 6.0, 0),
-      row(null, "I am fine.", 5.0, 0),
-      row(null, "Hi", 1.0, 0),
-      row(null, null, 3.5, 0),
-      row(null, "Hello", 2.0, 0),
-      row(null, "Comment#9", 15.0, 0),
-      row(null, "Comment#8", 14.0, 0),
-      row(null, "Comment#7", 13.0, 0),
-      row(null, "Comment#6", 12.0, 0),
-      row(null, "Comment#5", 11.0, 0),
-      row(null, "Comment#4", 10.0, 0),
-      row(null, "Comment#3", 9.0, 0),
-      row(null, "Comment#2", 8.0, 0),
-      row(null, "Comment#15", 21.0, 0),
-      row(null, "Comment#14", 20.0, 0),
-      row(null, "Comment#13", 19.0, 0),
-      row(null, "Comment#12", 18.0, 0),
-      row(null, "Comment#11", 17.0, 0),
-      row(null, "Comment#10", 16.0, 0),
-      row(null, "Comment#1", 7.0, 0))
+      row(6, null, 18, 0),
+      row(5, null, 13, 0),
+      row(4, null, 8, 0),
+      row(3, null, 5, 0),
+      row(2, null, 2, 0),
+      row(1, null, 1, 0),
+      row(null, "Luke Skywalker", 6, 0),
+      row(null, "I am fine.", 5, 0),
+      row(null, "Hi", 1, 0),
+      row(null, null, 3, 0),
+      row(null, "Hello", 2, 0),
+      row(null, "Comment#9", 15, 0),
+      row(null, "Comment#8", 14, 0),
+      row(null, "Comment#7", 13, 0),
+      row(null, "Comment#6", 12, 0),
+      row(null, "Comment#5", 11, 0),
+      row(null, "Comment#4", 10, 0),
+      row(null, "Comment#3", 9, 0),
+      row(null, "Comment#2", 8, 0),
+      row(null, "Comment#15", 21, 0),
+      row(null, "Comment#14", 20, 0),
+      row(null, "Comment#13", 19, 0),
+      row(null, "Comment#12", 18, 0),
+      row(null, "Comment#11", 17, 0),
+      row(null, "Comment#10", 16, 0),
+      row(null, "Comment#1", 7, 0))
     checkResult(query, expected)
   }
 

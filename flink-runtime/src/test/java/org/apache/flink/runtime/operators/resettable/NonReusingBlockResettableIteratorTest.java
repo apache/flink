@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.junit.Assert;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializer;
@@ -53,7 +54,7 @@ public class NonReusingBlockResettableIteratorTest {
 	@Before
 	public void startup() {
 		// set up IO and memory manager
-		this.memman = new MemoryManager(MEMORY_CAPACITY, 1);
+		this.memman = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_CAPACITY).build();
 		
 		// create test objects
 		this.objects = new ArrayList<Record>(20000);

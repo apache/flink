@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
+import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.table.planner.utils.TestLimitableTableSource
 
 import org.junit._
 
@@ -30,9 +33,8 @@ class LimitITCase extends BatchTestBase {
     super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
-    // TODO support LimitableTableSource
-//    val rowType = new RowTypeInfo(type3.getFieldTypes, Array("a", "b", "c"))
-//    tEnv.registerTableSource("LimitTable", new TestLimitableTableSource(data3, rowType))
+    TestLimitableTableSource.createTemporaryTable(
+      tEnv, data3, new TableSchema(Array("a", "b", "c"), type3.getFieldTypes), "LimitTable")
   }
 
   @Test
@@ -56,7 +58,6 @@ class LimitITCase extends BatchTestBase {
       10)
   }
 
-  @Ignore
   @Test
   def testFetchWithLimitTable(): Unit = {
     checkSize(
@@ -71,7 +72,6 @@ class LimitITCase extends BatchTestBase {
       10)
   }
 
-  @Ignore
   @Test
   def testFetchFirstWithLimitTable(): Unit = {
     checkSize(
@@ -86,7 +86,13 @@ class LimitITCase extends BatchTestBase {
       5)
   }
 
-  @Ignore
+  @Test
+  def testLimit0WithLimitTable(): Unit = {
+    checkSize(
+      "SELECT * FROM LimitTable LIMIT 0",
+      0)
+  }
+
   @Test
   def testLimitWithLimitTable(): Unit = {
     checkSize(
@@ -94,8 +100,7 @@ class LimitITCase extends BatchTestBase {
       5)
   }
 
-  @Ignore
-  @Test
+  @Test(expected = classOf[ValidationException])
   def testTableLimitWithLimitTable(): Unit = {
     Assert.assertEquals(
       executeQuery(tEnv.scan("LimitTable").fetch(5)).size,
@@ -109,8 +114,7 @@ class LimitITCase extends BatchTestBase {
       19)
   }
 
-  @Ignore
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testLessThanOffsetWithLimitSource(): Unit = {
     checkSize(
       "SELECT * FROM LimitTable OFFSET 2 ROWS FETCH NEXT 50 ROWS ONLY",

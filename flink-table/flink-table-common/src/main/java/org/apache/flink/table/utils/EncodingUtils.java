@@ -29,7 +29,6 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.Base64;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -143,11 +142,6 @@ public abstract class EncodingUtils {
 			hexChars[j * 2 + 1] = HEX_CHARS[v & 0x0F];
 		}
 		return new String(hexChars);
-	}
-
-	public static String objectToString(Object object) {
-		final String arrayString = Arrays.deepToString(new Object[]{object});
-		return arrayString.substring(1, arrayString.length() - 1);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -20,12 +20,13 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.types.Row;
 
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -90,24 +91,30 @@ public final class CliUtils {
 		return Arrays.asList(line1.toAttributedString(), line2.toAttributedString());
 	}
 
-	public static String[] rowToString(Row row) {
-		final String[] fields = new String[row.getArity()];
-		for (int i = 0; i < row.getArity(); i++) {
-			final Object field = row.getField(i);
-			if (field == null) {
-				fields[i] = CliStrings.NULL_COLUMN;
-			} else {
-				fields[i] = field.toString();
-			}
-		}
-		return fields;
-	}
-
 	public static String[] typesToString(DataType[] types) {
 		final String[] typesAsString = new String[types.length];
 		for (int i = 0; i < types.length; i++) {
 			typesAsString[i] = types[i].toString();
 		}
 		return typesAsString;
+	}
+
+	/**
+	 * Create the file as well as the parent directory.
+	 */
+	public static boolean createFile(final Path filePath) {
+		try {
+			final Path parent = filePath.getParent();
+			if (parent == null) {
+				return false;
+			}
+			Files.createDirectories(parent);
+			if (Files.notExists(filePath)) {
+				Files.createFile(filePath);
+			}
+			return true;
+		} catch (final Exception e) {
+			return false;
+		}
 	}
 }

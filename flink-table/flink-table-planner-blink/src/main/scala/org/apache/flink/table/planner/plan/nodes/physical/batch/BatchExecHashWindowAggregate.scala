@@ -91,8 +91,4 @@ class BatchExecHashWindowAggregate(
 
   override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
 
-  override def getOperatorName: String = {
-    val aggregateNamePrefix = if (isMerge) "Global" else "Complete"
-    aggregateNamePrefix + "WindowHashAggregateBatchExec"
-  }
 }

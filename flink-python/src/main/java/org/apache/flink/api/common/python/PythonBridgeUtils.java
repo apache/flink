@@ -17,60 +17,135 @@
 
 package org.apache.flink.api.common.python;
 
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.python.pickle.ArrayConstructor;
 import org.apache.flink.api.common.python.pickle.ByteArrayConstructor;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.Collector;
 
+import net.razorvine.pickle.Pickler;
 import net.razorvine.pickle.Unpickler;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Utility class that contains helper methods to create a DataStream/DataSet from
+ * Utility class that contains helper methods to create a TableSource from
  * a file which contains Python objects.
  */
 public final class PythonBridgeUtils {
 
-	/**
-	 * Creates a DataStream from a file which contains serialized python objects.
-	 */
-	public static DataStream<Object[]> createDataStreamFromFile(
-		final StreamExecutionEnvironment streamExecutionEnvironment,
-		final String fileName,
-		final boolean batched) throws IOException {
-		return streamExecutionEnvironment
-			.fromCollection(readPythonObjects(fileName))
-			.flatMap(new PythonFlatMapFunction(batched))
-			.returns(Types.GENERIC(Object[].class));
+	private static Object[] getObjectArrayFromUnpickledData(Object input) {
+		if (input.getClass().isArray()) {
+			return (Object[]) input;
+		} else {
+			return ((ArrayList<Object>) input).toArray(new Object[0]);
+		}
 	}
 
-	/**
-	 * Creates a DataSet from a file which contains serialized python objects.
-	 */
-	public static DataSet<Object[]> createDataSetFromFile(
-		final ExecutionEnvironment executionEnvironment,
-		final String fileName,
-		final boolean batched) throws IOException {
-		return executionEnvironment
-			.fromCollection(readPythonObjects(fileName))
-			.flatMap(new PythonFlatMapFunction(batched))
-			.returns(Types.GENERIC(Object[].class));
+	public static List<Object[]> readPythonObjects(String fileName, boolean batched)
+		throws IOException {
+		List<byte[]> data = readPickledBytes(fileName);
+		Unpickler unpickle = new Unpickler();
+		initialize();
+		List<Object[]> unpickledData = new ArrayList<>();
+		for (byte[] pickledData: data) {
+			Object obj = unpickle.loads(pickledData);
+			if (batched) {
+				if (obj instanceof Object[]) {
+					Object[] arrayObj = (Object[]) obj;
+					for (Object o : arrayObj) {
+						unpickledData.add(getObjectArrayFromUnpickledData(o));
+					}
+				} else {
+					for (Object o : (ArrayList<Object>) obj) {
+						unpickledData.add(getObjectArrayFromUnpickledData(o));
+					}
+				}
+			} else {
+				unpickledData.add(getObjectArrayFromUnpickledData(obj));
+			}
+		}
+		return unpickledData;
 	}
 
-	private static List<byte[]> readPythonObjects(final String fileName) throws IOException {
+	public static byte[] convertLiteralToPython(RexLiteral o, SqlTypeName typeName) {
+		byte type;
+		Object value;
+		Pickler pickler = new Pickler();
+		if (o.getValue3() == null) {
+			type = 0;
+			value = null;
+		} else {
+			switch (typeName) {
+				case TINYINT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).byteValueExact();
+					break;
+				case SMALLINT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).shortValueExact();
+					break;
+				case INTEGER:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).intValueExact();
+					break;
+				case BIGINT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).longValueExact();
+					break;
+				case FLOAT:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).floatValue();
+					break;
+				case DOUBLE:
+					type = 0;
+					value = ((BigDecimal) o.getValue3()).doubleValue();
+					break;
+				case DECIMAL:
+				case BOOLEAN:
+					type = 0;
+					value = o.getValue3();
+					break;
+				case CHAR:
+				case VARCHAR:
+					type = 0;
+					value = o.getValue3().toString();
+					break;
+				case DATE:
+					type = 1;
+					value = o.getValue3();
+					break;
+				case TIME:
+					type = 2;
+					value = o.getValue3();
+					break;
+				case TIMESTAMP:
+					type = 3;
+					value = o.getValue3();
+					break;
+				default:
+					throw new RuntimeException("Unsupported type " + typeName);
+			}
+		}
+		byte[] pickledData;
+		try {
+			pickledData = pickler.dumps(value);
+		} catch (IOException e) {
+			throw new RuntimeException("Pickle Java object failed", e);
+		}
+		byte[] typePickledData = new byte[pickledData.length + 1];
+		typePickledData[0] = type;
+		System.arraycopy(pickledData, 0, typePickledData, 1, pickledData.length);
+		return typePickledData;
+	}
+
+	private static List<byte[]> readPickledBytes(final String fileName) throws IOException {
 		List<byte[]> objs = new LinkedList<>();
 		try (DataInputStream din = new DataInputStream(new FileInputStream(fileName))) {
 			try {
@@ -85,50 +160,6 @@ public final class PythonBridgeUtils {
 			}
 		}
 		return objs;
-	}
-
-	private static final class PythonFlatMapFunction extends RichFlatMapFunction<byte[], Object[]> {
-
-		private static final long serialVersionUID = 1L;
-
-		private final boolean batched;
-		private transient Unpickler unpickle;
-
-		PythonFlatMapFunction(boolean batched) {
-			this.batched = batched;
-			initialize();
-		}
-
-		@Override
-		public void open(Configuration parameters) {
-			this.unpickle = new Unpickler();
-		}
-
-		@Override
-		public void flatMap(byte[] value, Collector<Object[]> out) throws Exception {
-			Object obj = unpickle.loads(value);
-			if (batched) {
-				if (obj instanceof Object[]) {
-					for (int i = 0; i < ((Object[]) obj).length; i++) {
-						collect(out, ((Object[]) obj)[i]);
-					}
-				} else {
-					for (Object o : (ArrayList<Object>) obj) {
-						collect(out, o);
-					}
-				}
-			} else {
-				collect(out, obj);
-			}
-		}
-
-		private void collect(Collector<Object[]> out, Object obj) {
-			if (obj.getClass().isArray()) {
-				out.collect((Object[]) obj);
-			} else {
-				out.collect(((ArrayList<Object>) obj).toArray(new Object[0]));
-			}
-		}
 	}
 
 	private static boolean initialized = false;

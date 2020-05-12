@@ -18,12 +18,11 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.catalog.ObjectIdentifier
 import org.apache.flink.table.operations.QueryOperation
 
-import java.util.{List => JList, Map => JMap}
-
-import collection.JavaConversions._
+import java.util.{Map => JMap}
 
 object TableSinkUtils {
 
@@ -34,14 +33,14 @@ object TableSinkUtils {
     *
     * @param staticPartitions Static partitions of the sink if there exists any.
     * @param query            The query that is supposed to be written.
-    * @param sinkPath         Tha path of the sink. It is needed just for logging. It does not
+    * @param objectIdentifier The path of the sink. It is needed just for logging. It does not
     *                         participate in the validation.
     * @param sink             The sink that we want to write to.
     */
   def validateSink(
       staticPartitions: JMap[String, String],
       query: QueryOperation,
-      sinkPath: JList[String],
+      objectIdentifier: ObjectIdentifier,
       sink: TableSink[_])
     : Unit = {
     // validate schema of source table and table sink
@@ -56,45 +55,25 @@ object TableSinkUtils {
 
       // format table and table sink schema strings
       val srcSchema = srcFieldNames.zip(srcFieldTypes)
-        .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
+        .map { case (n, t) => s"$n: $t" }
         .mkString("[", ", ", "]")
       val sinkSchema = sinkFieldNames.zip(sinkFieldTypes)
-        .map { case (n, t) => s"$n: ${t.getTypeClass.getSimpleName}" }
+        .map { case (n, t) => s"$n: $t" }
         .mkString("[", ", ", "]")
 
       throw new ValidationException(
         s"Field types of query result and registered TableSink " +
-          s"$sinkPath do not match.\n" +
+          s"$objectIdentifier do not match.\n" +
           s"Query result schema: $srcSchema\n" +
           s"TableSink schema:    $sinkSchema")
     }
     // check partitions are valid
     if (staticPartitions != null && !staticPartitions.isEmpty) {
       val invalidMsg = "Can't insert static partitions into a non-partitioned table sink. " +
-        "A partitioned sink should implement 'PartitionableTableSink' and return partition " +
-        "field names via 'getPartitionFieldNames()' method."
+        "A partitioned sink should implement 'PartitionableTableSink'."
       sink match {
-        case pts: PartitionableTableSink =>
-          val partitionFields = pts.getPartitionFieldNames
-          if (partitionFields == null || partitionFields.isEmpty) {
-            throw new ValidationException(invalidMsg)
-          }
-          staticPartitions.map(_._1) foreach { p =>
-            if (!partitionFields.contains(p)) {
-              throw new ValidationException(s"Static partition column $p " +
-                s"should be in the partition fields list $partitionFields.")
-            }
-          }
-          staticPartitions.map(_._1).zip(partitionFields).foreach {
-            case (p1, p2) =>
-              if (p1 != p2) {
-                throw new ValidationException(s"Static partition column $p1 " +
-                  s"should appear before dynamic partition $p2.")
-              }
-          }
-        case _ =>
-          throw new ValidationException(invalidMsg)
-
+        case _: PartitionableTableSink =>
+        case _ => throw new ValidationException(invalidMsg)
       }
     }
   }

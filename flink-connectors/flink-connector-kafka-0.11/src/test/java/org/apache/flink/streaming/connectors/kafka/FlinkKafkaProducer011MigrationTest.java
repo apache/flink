@@ -44,7 +44,8 @@ public class FlinkKafkaProducer011MigrationTest extends KafkaMigrationTestBase {
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
 	public static Collection<MigrationVersion> parameters() {
 		return Arrays.asList(
-			MigrationVersion.v1_8);
+			MigrationVersion.v1_8,
+			MigrationVersion.v1_9);
 	}
 
 	public FlinkKafkaProducer011MigrationTest(MigrationVersion testMigrateVersion) {

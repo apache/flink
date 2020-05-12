@@ -28,6 +28,7 @@ import org.junit.Test;
 
 import java.io.File;
 
+import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -61,7 +62,7 @@ public class TextOutputFormatITCase extends AbstractTestBase {
 			OutputFormatTestPrograms.wordCountToText(WordCountData.TEXT, resultPath, FileSystem.WriteMode.NO_OVERWRITE);
 			fail("File should exist.");
 		} catch (Exception e) {
-			assertTrue(e.getCause().getMessage().contains("File already exists"));
+			assertTrue(findThrowableWithMessage(e, "File already exists").isPresent());
 		}
 	}
 

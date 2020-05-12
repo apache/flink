@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.planner.plan.nodes.common
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, JoinUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, JoinUtil}
+import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -47,6 +50,12 @@ abstract class CommonPhysicalJoin(
     joinType: JoinRelType)
   extends Join(cluster, traitSet, leftRel, rightRel, condition, Set.empty[CorrelationId], joinType)
   with FlinkPhysicalRel {
+
+  if (containsPythonCall(condition)) {
+    throw new TableException("Only inner join condition with equality predicates supports the " +
+      "Python UDF taking the inputs from the left table and the right table at the same time, " +
+      "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
+  }
 
   def getJoinInfo: JoinInfo = joinInfo
 
@@ -78,8 +87,8 @@ abstract class CommonPhysicalJoin(
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("left", getLeft).input("right", getRight)
       .item("joinType", flinkJoinType.toString)
-      .item("where",
-        RelExplainUtil.expressionToString(getCondition, inputRowType, getExpressionString))
+      .item("where", getExpressionString(
+        getCondition, inputRowType.getFieldNames.toList, None, preferExpressionFormat(pw)))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 

@@ -121,6 +121,12 @@ class TtlMapState<K, N, UK, UV>
 		return entries().iterator();
 	}
 
+	@Override
+	public boolean isEmpty() throws Exception {
+		accessCallback.run();
+		return original.isEmpty();
+	}
+
 	@Nullable
 	@Override
 	public Map<UK, TtlValue<UV>> getUnexpiredOrNull(@Nonnull Map<UK, TtlValue<UV>> ttlValue) {

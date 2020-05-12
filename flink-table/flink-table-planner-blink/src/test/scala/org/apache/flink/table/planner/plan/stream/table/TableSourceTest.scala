@@ -46,7 +46,7 @@ class TableSourceTest extends TableTestBase {
       new TestTableSourceWithTime[Row](
         false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
-    val t = util.tableEnv.scan("rowTimeT").select("rowtime, id, name, val")
+    val t = util.tableEnv.scan("rowTimeT").select($"rowtime", $"id", $"name", $"val")
     util.verifyPlan(t)
   }
 
@@ -67,7 +67,7 @@ class TableSourceTest extends TableTestBase {
       new TestTableSourceWithTime[Row](
         false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
-    val t = util.tableEnv.scan("rowTimeT").select("rowtime, id, name, val")
+    val t = util.tableEnv.scan("rowTimeT").select($"rowtime", $"id", $"name", $"val")
     util.verifyPlan(t)
   }
 
@@ -89,7 +89,7 @@ class TableSourceTest extends TableTestBase {
         false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
     val t = util.tableEnv.scan("rowTimeT")
-      .filter("val > 100")
+      .where($"val" > 100)
       .window(Tumble over 10.minutes on 'rowtime as 'w)
       .groupBy('name, 'w)
       .select('name, 'w.end, 'val.avg)
@@ -112,7 +112,7 @@ class TableSourceTest extends TableTestBase {
       new TestTableSourceWithTime[Row](
         false, tableSchema, returnType, Seq(), proctime = "proctime"))
 
-    val t = util.tableEnv.scan("procTimeT").select("proctime, id, name, val")
+    val t = util.tableEnv.scan("procTimeT").select($"proctime", $"id", $"name", $"val")
     util.verifyPlan(t)
   }
 

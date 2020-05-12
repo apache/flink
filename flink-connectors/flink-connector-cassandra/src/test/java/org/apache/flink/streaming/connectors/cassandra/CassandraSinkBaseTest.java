@@ -36,12 +36,18 @@ import org.junit.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.LinkedList;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 
+import static org.apache.flink.util.ExceptionUtils.findSerializedThrowable;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.number.OrderingComparison.greaterThan;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
@@ -78,7 +84,7 @@ public class CassandraSinkBaseTest {
 			casSinkFunc.enqueueCompletableFuture(CompletableFuture.completedFuture(null));
 
 			final int originalPermits = casSinkFunc.getAvailablePermits();
-			Assert.assertThat(originalPermits, greaterThan(0));
+			assertThat(originalPermits, greaterThan(0));
 			Assert.assertEquals(0, casSinkFunc.getAcquiredPermits());
 
 			casSinkFunc.invoke("hello");
@@ -155,7 +161,8 @@ public class CassandraSinkBaseTest {
 
 				Assert.fail();
 			} catch (Exception e) {
-				Assert.assertTrue(e.getCause() instanceof IOException);
+				Optional<IOException> exCause = findSerializedThrowable(e, IOException.class, ClassLoader.getSystemClassLoader());
+				Assert.assertTrue(exCause.isPresent());
 			}
 		}
 	}
@@ -180,7 +187,7 @@ public class CassandraSinkBaseTest {
 				}
 			};
 			t.start();
-			while (t.getState() != Thread.State.WAITING) {
+			while (t.getState() != Thread.State.TIMED_WAITING) {
 				Thread.sleep(5);
 			}
 
@@ -212,7 +219,7 @@ public class CassandraSinkBaseTest {
 				}
 			};
 			t.start();
-			while (t.getState() != Thread.State.WAITING) {
+			while (t.getState() != Thread.State.TIMED_WAITING) {
 				Thread.sleep(5);
 			}
 
@@ -269,6 +276,34 @@ public class CassandraSinkBaseTest {
 
 			Assert.assertEquals(1, testCassandraSink.getAvailablePermits());
 			Assert.assertEquals(0, testCassandraSink.getAcquiredPermits());
+		}
+	}
+
+	@Test(timeout = DEFAULT_TEST_TIMEOUT)
+	public void testReleaseOnThrowingSend() throws Exception {
+		final CassandraSinkBaseConfig config = CassandraSinkBaseConfig.newBuilder()
+			.setMaxConcurrentRequests(1)
+			.build();
+
+		Function<String, ListenableFuture<ResultSet>> failingSendFunction = ignoredMessage -> {
+			throwCheckedAsUnchecked(new Throwable("expected"));
+			//noinspection ReturnOfNull
+			return null;
+		};
+
+		try (TestCassandraSink testCassandraSink = new MockCassandraSink(config, failingSendFunction)) {
+			testCassandraSink.open(new Configuration());
+			assertThat(testCassandraSink.getAvailablePermits(), is(1));
+			assertThat(testCassandraSink.getAcquiredPermits(), is(0));
+
+			//noinspection OverlyBroadCatchBlock,NestedTryStatement
+			try {
+				testCassandraSink.invoke("none");
+			} catch (Throwable e) {
+				assertThat(e, instanceOf(Throwable.class));
+				assertThat(testCassandraSink.getAvailablePermits(), is(1));
+				assertThat(testCassandraSink.getAcquiredPermits(), is(0));
+			}
 		}
 	}
 
@@ -331,6 +366,11 @@ public class CassandraSinkBaseTest {
 		return testHarness;
 	}
 
+	private static <T extends Throwable> void throwCheckedAsUnchecked(Throwable ex) throws T {
+		//noinspection unchecked
+		throw (T) ex;
+	}
+
 	private static class TestCassandraSink extends CassandraSinkBase<String, ResultSet> implements AutoCloseable {
 
 		private static final ClusterBuilder builder;
@@ -377,6 +417,22 @@ public class CassandraSinkBaseTest {
 		void enqueueCompletableFuture(CompletableFuture<ResultSet> completableFuture) {
 			Preconditions.checkNotNull(completableFuture);
 			resultSetFutures.offer(ResultSetFutures.fromCompletableFuture(completableFuture));
+		}
+	}
+
+	private static class MockCassandraSink extends TestCassandraSink {
+		private static final long serialVersionUID = -3363195776692829911L;
+
+		private final Function<String, ListenableFuture<ResultSet>> sendFunction;
+
+		MockCassandraSink(CassandraSinkBaseConfig config, Function<String, ListenableFuture<ResultSet>> sendFunction) {
+			super(config, new NoOpCassandraFailureHandler());
+			this.sendFunction = sendFunction;
+		}
+
+		@Override
+		public ListenableFuture<ResultSet> send(String value) {
+			return this.sendFunction.apply(value);
 		}
 	}
 }

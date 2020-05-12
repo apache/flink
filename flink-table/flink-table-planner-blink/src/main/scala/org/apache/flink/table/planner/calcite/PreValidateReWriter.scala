@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.SqlProperty
 import org.apache.flink.sql.parser.dml.RichSqlInsert
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.calcite.PreValidateReWriter.appendPartitionProjects
 
 import org.apache.calcite.plan.RelOptTable
@@ -45,10 +46,14 @@ class PreValidateReWriter(
     val typeFactory: RelDataTypeFactory) extends SqlBasicVisitor[Unit] {
   override def visit(call: SqlCall): Unit = {
     call match {
-      case r: RichSqlInsert if r.getStaticPartitions.nonEmpty
-        && r.getSource.isInstanceOf[SqlSelect] =>
-        appendPartitionProjects(r, catalogReader, typeFactory,
-          r.getSource.asInstanceOf[SqlSelect], r.getStaticPartitions)
+      case r: RichSqlInsert if r.getStaticPartitions.nonEmpty => r.getSource match {
+        case select: SqlSelect =>
+          appendPartitionProjects(r, catalogReader, typeFactory, select, r.getStaticPartitions)
+        case source =>
+          throw new ValidationException(
+            s"INSERT INTO <table> PARTITION statement only support SELECT clause for now," +
+                s" '$source' is not supported yet.")
+      }
       case _ =>
     }
   }
@@ -146,8 +151,8 @@ object PreValidateReWriter {
       catalogReader: CalciteCatalogReader,
       table: SqlValidatorTable,
       targetColumnList: SqlNodeList): RelDataType = {
-    val baseRowType = table.getRowType
-    if (targetColumnList == null) return baseRowType
+    val rowType = table.getRowType
+    if (targetColumnList == null) return rowType
     val fields = new util.ArrayList[util.Map.Entry[String, RelDataType]]
     val assignedFields = new util.HashSet[Integer]
     val relOptTable = table match {
@@ -156,7 +161,7 @@ object PreValidateReWriter {
     }
     for (node <- targetColumnList) {
       val id = node.asInstanceOf[SqlIdentifier]
-      val targetField = SqlValidatorUtil.getTargetField(baseRowType,
+      val targetField = SqlValidatorUtil.getTargetField(rowType,
         typeFactory, id, catalogReader, relOptTable)
       validateField(assignedFields.add, id, targetField)
       fields.add(targetField)

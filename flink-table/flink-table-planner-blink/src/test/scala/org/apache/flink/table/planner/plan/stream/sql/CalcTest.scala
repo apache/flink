@@ -80,6 +80,12 @@ class CalcTest extends TableTestBase {
   }
 
   @Test
+  def testFilterOnNonAsciiLiteral(): Unit = {
+    val sql = s"SELECT a, b, c, c || TRIM(' 世界 ') FROM MyTable WHERE c = '你好'"
+    util.verifyPlan(sql)
+  }
+
+  @Test
   def testNotIn(): Unit = {
     val sql = s"SELECT * FROM MyTable WHERE b NOT IN (1, 3, 4, 5, 6) OR c = 'xx'"
     util.verifyPlan(sql)

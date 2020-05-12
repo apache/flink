@@ -24,11 +24,13 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
+import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.service.Service;
@@ -47,6 +49,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -54,6 +57,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.createDefaultJobManagerProcessSpec;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -64,6 +69,7 @@ import static org.junit.Assert.fail;
  */
 public class YarnClusterDescriptorTest extends TestLogger {
 
+	private static final int YARN_MAX_VCORES = 16;
 	private static YarnConfiguration yarnConfiguration;
 
 	private static YarnClient yarnClient;
@@ -92,35 +98,15 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		yarnClient.stop();
 	}
 
-	/**
-	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-11781">FLINK-11781</a>
-	 */
-	@Test
-	public void testThrowsExceptionIfUserTriesToDisableUserJarInclusionInSystemClassPath() {
-		final Configuration configuration = new Configuration();
-		configuration.setString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR, "DISABLED");
-
-		try {
-			createYarnClusterDescriptor(configuration);
-			fail("Expected exception not thrown");
-		} catch (final IllegalArgumentException e) {
-			assertThat(e.getMessage(), containsString("cannot be set to DISABLED anymore"));
-		}
-	}
-
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() throws ClusterDeploymentException {
 		final Configuration flinkConfiguration = new Configuration();
-		flinkConfiguration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
 		YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(flinkConfiguration);
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(1)
-			.setTaskManagerMemoryMB(1)
-			.setNumberTaskManagers(1)
 			.setSlotsPerTaskManager(Integer.MAX_VALUE)
 			.createClusterSpecification();
 
@@ -143,7 +129,6 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		Configuration configuration = new Configuration();
 		// overwrite vcores in config
 		configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
-		configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
 
 		YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(configuration);
 
@@ -151,10 +136,6 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 		// configure slots
 		ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(1)
-			.setTaskManagerMemoryMB(1)
-			.setNumberTaskManagers(1)
-			.setSlotsPerTaskManager(1)
 			.createClusterSpecification();
 
 		try {
@@ -176,8 +157,9 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		Configuration cfg = new Configuration();
 		YarnClusterDescriptor clusterDescriptor = createYarnClusterDescriptor(cfg);
 
+		final JobManagerProcessSpec jobManagerProcessSpec = createDefaultJobManagerProcessSpec(1024);
 		final String java = "$JAVA_HOME/bin/java";
-		final String jvmmem = "-Xms424m -Xmx424m";
+		final String jvmmem = ProcessMemoryUtils.generateJvmParametersStr(jobManagerProcessSpec);
 		final String jvmOpts = "-Djvm"; // if set
 		final String jmJvmOpts = "-DjmJvm"; // if set
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
@@ -185,230 +167,213 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			"-Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR +
 				"/jobmanager.log\""; // if set
 		final String logback =
-			"-Dlogback.configurationFile=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME; // if set
+			"-Dlogback.configurationFile=file:" + YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME; // if set
 		final String log4j =
-			"-Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME; // if set
+			"-Dlog4j.configuration=file:" + YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME +
+				" -Dlog4j.configurationFile=file:" + YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME; // if set
 		final String mainClass = clusterDescriptor.getYarnSessionClusterEntrypoint();
-		final String args = "";
 		final String redirects =
 			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
 			"2> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err";
-		final int jobManagerMemory = 1024;
 
 		try {
 			// no logging, with/out krb5
 			assertEquals(
 				java + " " + jvmmem +
-					" " + // jvmOpts
-					" " + // logging
-					" " + mainClass + " " + args + " " + redirects,
+					"" + // jvmOpts
+					"" + // logging
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
 						false,
-						false,
-						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			assertEquals(
 				java + " " + jvmmem +
-					" " + " " + krb5 + // jvmOpts
-					" " + // logging
-					" " + mainClass + " " + args + " " + redirects,
+					" " + krb5 + // jvmOpts
+					"" + // logging
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						false,
-						false,
 						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// logback only, with/out krb5
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			assertEquals(
 				java + " " + jvmmem +
-					" " + // jvmOpts
+					"" + // jvmOpts
 					" " + logfile + " " + logback +
-					" " + mainClass + " " + args + " " + redirects,
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						true,
 						false,
-						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			assertEquals(
 				java + " " + jvmmem +
-					" " + " " + krb5 + // jvmOpts
+					" " + krb5 + // jvmOpts
 					" " + logfile + " " + logback +
-					" " + mainClass + " " + args + " " + redirects,
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
 						true,
-						false,
-						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// log4j, with/out krb5
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME);
 			assertEquals(
 				java + " " + jvmmem +
-					" " + // jvmOpts
+					"" + // jvmOpts
 					" " + logfile + " " + log4j +
-					" " + mainClass + " " + args + " " + redirects,
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
 						false,
-						true,
-						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME);
 			assertEquals(
 				java + " " + jvmmem +
-					" " + " " + krb5 + // jvmOpts
+					" " + krb5 + // jvmOpts
 					" " + logfile + " " + log4j +
-					" " + mainClass + " " + args + " " + redirects,
+					" " + mainClass + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						true,
+						jobManagerProcessSpec)
+					.getCommands().get(0));
+
+			// logback, with/out krb5
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
+			assertEquals(
+				java + " " + jvmmem +
+					"" + // jvmOpts
+					" " + logfile + " " + logback +
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
 						false,
-						true,
-						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
-			// logback + log4j, with/out krb5
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			assertEquals(
 				java + " " + jvmmem +
-					" " + // jvmOpts
-					" " + logfile + " " + logback + " " + log4j +
-					" " + mainClass + " " + args + " " + redirects,
+					" " + krb5 + // jvmOpts
+					" " + logfile + " " + logback +
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
 						true,
-						true,
-						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
-			assertEquals(
-				java + " " + jvmmem +
-					" " + " " + krb5 + // jvmOpts
-					" " + logfile + " " + logback + " " + log4j +
-					" " + mainClass + " " + args + " " + redirects,
-				clusterDescriptor
-					.setupApplicationMasterContainer(
-						mainClass,
-						true,
-						true,
-						true,
-						jobManagerMemory)
-					.getCommands().get(0));
-
-			// logback + log4j, with/out krb5, different JVM opts
+			// logback, with/out krb5, different JVM opts
 			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor,
 			// because we have a reference to the ClusterDescriptor's configuration which we modify continuously
 			cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					" " + jvmOpts +
-					" " + logfile + " " + logback + " " + log4j +
-					" " + mainClass + " " + args + " " + redirects,
+					" " + logfile + " " + logback +
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						true,
-						true,
 						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					" " + jvmOpts + " " + krb5 + // jvmOpts
-					" " + logfile + " " + logback + " " + log4j +
-					" " + mainClass + " " + args + " " + redirects,
+					" " + logfile + " " + logback +
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
 						true,
-						true,
-						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
-			// logback + log4j, with/out krb5, different JVM opts
+			// log4j, with/out krb5, different JVM opts
 			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
 			cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					" " + jvmOpts + " " + jmJvmOpts +
-					" " + logfile + " " + logback + " " + log4j +
-					" " + mainClass + " " + args + " " + redirects,
+					" " + logfile + " " + log4j +
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
-						true,
-						true,
 						false,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOG4J_NAME);
 			assertEquals(
 				java + " " + jvmmem +
 					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
-					" " + logfile + " " + logback + " " + log4j +
-					" " + mainClass + " " + args + " " + redirects,
+					" " + logfile + " " + log4j +
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
 						true,
-						true,
-						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
 			// now try some configurations with different yarn.container-start-command-template
 			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 				"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
 			assertEquals(
 				java + " 1 " + jvmmem +
 					" 2 " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
-					" 3 " + logfile + " " + logback + " " + log4j +
-					" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
+					" 3 " + logfile + " " + logback +
+					" 4 " + mainClass + " 5 6 " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
 						true,
-						true,
-						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 
+			cfg.set(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE, YarnLogConfigUtil.CONFIG_FILE_LOGBACK_NAME);
 			cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 				"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
 			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
 			assertEquals(
 				java +
-					" " + logfile + " " + logback + " " + log4j +
+					" " + logfile + " " + logback +
 					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
 					" " + jvmmem +
-					" " + mainClass + " " + args + " " + redirects,
+					" " + mainClass + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
 						true,
-						true,
-						true,
-						jobManagerMemory)
+						jobManagerProcessSpec)
 					.getCommands().get(0));
 		} finally {
 			clusterDescriptor.close();
@@ -426,8 +391,8 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			File libFile = temporaryFolder.newFile("libFile.jar");
 			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
 
-			Assert.assertFalse(descriptor.shipFiles.contains(libFile));
-			Assert.assertFalse(descriptor.shipFiles.contains(libFolder));
+			Assert.assertFalse(descriptor.getShipFiles().contains(libFile));
+			Assert.assertFalse(descriptor.getShipFiles().contains(libFolder));
 
 			List<File> shipFiles = new ArrayList<>();
 			shipFiles.add(libFile);
@@ -435,35 +400,35 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 			descriptor.addShipFiles(shipFiles);
 
-			Assert.assertTrue(descriptor.shipFiles.contains(libFile));
-			Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
+			Assert.assertTrue(descriptor.getShipFiles().contains(libFile));
+			Assert.assertTrue(descriptor.getShipFiles().contains(libFolder));
 
 			// only execute part of the deployment to test for shipped files
 			Set<File> effectiveShipFiles = new HashSet<>();
-			descriptor.addEnvironmentFoldersToShipFiles(effectiveShipFiles);
+			descriptor.addLibFoldersToShipFiles(effectiveShipFiles);
 
 			Assert.assertEquals(0, effectiveShipFiles.size());
-			Assert.assertEquals(2, descriptor.shipFiles.size());
-			Assert.assertTrue(descriptor.shipFiles.contains(libFile));
-			Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
+			Assert.assertEquals(2, descriptor.getShipFiles().size());
+			Assert.assertTrue(descriptor.getShipFiles().contains(libFile));
+			Assert.assertTrue(descriptor.getShipFiles().contains(libFolder));
 		}
 	}
 
 	@Test
 	public void testEnvironmentLibShipping() throws Exception {
-		testEnvironmentDirectoryShipping(ConfigConstants.ENV_FLINK_LIB_DIR);
+		testEnvironmentDirectoryShipping(ConfigConstants.ENV_FLINK_LIB_DIR, false);
 	}
 
 	@Test
 	public void testEnvironmentPluginsShipping() throws Exception {
-		testEnvironmentDirectoryShipping(ConfigConstants.ENV_FLINK_PLUGINS_DIR);
+		testEnvironmentDirectoryShipping(ConfigConstants.ENV_FLINK_PLUGINS_DIR, true);
 	}
 
-	public void testEnvironmentDirectoryShipping(String environmentVariable) throws Exception {
+	private void testEnvironmentDirectoryShipping(String environmentVariable, boolean onlyShip) throws Exception {
 		try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
 			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
 			File libFile = new File(libFolder, "libFile.jar");
-			libFile.createNewFile();
+			assertTrue(libFile.createNewFile());
 
 			Set<File> effectiveShipFiles = new HashSet<>();
 
@@ -473,7 +438,11 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				env.put(environmentVariable, libFolder.getAbsolutePath());
 				CommonTestUtils.setEnv(env);
 				// only execute part of the deployment to test for shipped files
-				descriptor.addEnvironmentFoldersToShipFiles(effectiveShipFiles);
+				if (onlyShip) {
+					descriptor.addPluginsFoldersToShipFiles(effectiveShipFiles);
+				} else {
+					descriptor.addLibFoldersToShipFiles(effectiveShipFiles);
+				}
 			} finally {
 				CommonTestUtils.setEnv(oldEnv);
 			}
@@ -481,13 +450,13 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			// only add the ship the folder, not the contents
 			Assert.assertFalse(effectiveShipFiles.contains(libFile));
 			Assert.assertTrue(effectiveShipFiles.contains(libFolder));
-			Assert.assertFalse(descriptor.shipFiles.contains(libFile));
-			Assert.assertFalse(descriptor.shipFiles.contains(libFolder));
+			Assert.assertFalse(descriptor.getShipFiles().contains(libFile));
+			Assert.assertFalse(descriptor.getShipFiles().contains(libFolder));
 		}
 	}
 
 	@Test
-	public void testEnvironmentEmptyPluginsShipping() throws Exception {
+	public void testEnvironmentEmptyPluginsShipping() {
 		try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
 			File pluginsFolder = Paths.get(temporaryFolder.getRoot().getAbsolutePath(), "s0m3_p4th_th4t_sh0uld_n0t_3x1sts").toFile();
 			Set<File> effectiveShipFiles = new HashSet<>();
@@ -498,12 +467,26 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				env.put(ConfigConstants.ENV_FLINK_PLUGINS_DIR, pluginsFolder.getAbsolutePath());
 				CommonTestUtils.setEnv(env);
 				// only execute part of the deployment to test for shipped files
-				descriptor.addEnvironmentFoldersToShipFiles(effectiveShipFiles);
+				descriptor.addPluginsFoldersToShipFiles(effectiveShipFiles);
 			} finally {
 				CommonTestUtils.setEnv(oldEnv);
 			}
 
 			assertTrue(effectiveShipFiles.isEmpty());
+		}
+	}
+
+	@Test
+	public void testDisableSystemClassPathIncludeUserJarAndWithIllegalShipDirectoryName() throws IOException {
+		final Configuration configuration = new Configuration();
+		configuration.setString(CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED.toString());
+
+		final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration);
+		try {
+			yarnClusterDescriptor.addShipFiles(Collections.singletonList(temporaryFolder.newFolder(ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR)));
+			fail();
+		} catch (IllegalArgumentException exception) {
+			assertThat(exception.getMessage(), containsString("This is an illegal ship directory :"));
 		}
 	}
 
@@ -522,12 +505,12 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		closableYarnClient.init(yarnConfiguration);
 		closableYarnClient.start();
 
-		yarnClusterDescriptor = new YarnClusterDescriptor(
-			new Configuration(),
-			yarnConfiguration,
-			temporaryFolder.getRoot().getAbsolutePath(),
-			closableYarnClient,
-			false);
+		yarnClusterDescriptor = YarnTestUtils.createClusterDescriptorWithLogging(
+				temporaryFolder.getRoot().getAbsolutePath(),
+				new Configuration(),
+				yarnConfiguration,
+				closableYarnClient,
+				false);
 
 		yarnClusterDescriptor.close();
 
@@ -539,11 +522,13 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	}
 
 	private YarnClusterDescriptor createYarnClusterDescriptor(Configuration configuration) {
-		return new YarnClusterDescriptor(
-			configuration,
-			yarnConfiguration,
-			temporaryFolder.getRoot().getAbsolutePath(),
-			yarnClient,
-			true);
+		YarnTestUtils.configureLogFile(configuration, temporaryFolder.getRoot().getAbsolutePath());
+
+		return YarnClusterDescriptorBuilder.newBuilder(yarnClient, true)
+			.setFlinkConfiguration(configuration)
+			.setYarnConfiguration(yarnConfiguration)
+			.setYarnClusterInformationRetriever(() -> YARN_MAX_VCORES)
+			.build();
+
 	}
 }

@@ -18,46 +18,19 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-
-import javax.annotation.Nullable;
-
-import java.util.UUID;
 
 /**
  * {@link Dispatcher} factory interface.
  */
-public interface DispatcherFactory<T extends Dispatcher> {
+public interface DispatcherFactory {
 
 	/**
-	 * Create a {@link Dispatcher} of the given type {@link T}.
+	 * Create a {@link Dispatcher}.
 	 */
-	T createDispatcher(
-		Configuration configuration,
+	Dispatcher createDispatcher(
 		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-		BlobServer blobServer,
-		HeartbeatServices heartbeatServices,
-		JobManagerMetricGroup jobManagerMetricGroup,
-		@Nullable String metricQueryServiceAddress,
-		ArchivedExecutionGraphStore archivedExecutionGraphStore,
-		FatalErrorHandler fatalErrorHandler,
-		HistoryServerArchivist historyServerArchivist) throws Exception;
-
-	default String generateEndpointIdWithUUID() {
-		return getEndpointId() + UUID.randomUUID();
-	}
-
-	default String getEndpointId() {
-		return Dispatcher.DISPATCHER_NAME;
-	}
+		DispatcherId fencingToken,
+		DispatcherBootstrap dispatcherBootstrap,
+		PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
 }

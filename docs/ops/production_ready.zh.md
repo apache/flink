@@ -1,7 +1,7 @@
 ---
 title: "生产就绪情况核对清单"
 nav-parent_id: ops
-nav-pos: 5
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

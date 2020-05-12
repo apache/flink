@@ -22,12 +22,13 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.client.deployment.executors.LocalExecutor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutor;
@@ -62,6 +63,8 @@ public class TestEnvironment extends ExecutionEnvironment {
 		this.jobExecutor = Preconditions.checkNotNull(jobExecutor);
 		this.jarFiles = Preconditions.checkNotNull(jarFiles);
 		this.classPaths = Preconditions.checkNotNull(classPaths);
+		getConfiguration().set(DeploymentOptions.TARGET, LocalExecutor.NAME);
+		getConfiguration().set(DeploymentOptions.ATTACHED, true);
 
 		setParallelism(parallelism);
 
@@ -97,10 +100,6 @@ public class TestEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
-	public void startNewSession() throws Exception {
-	}
-
-	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		OptimizedPlan op = compileProgram(jobName);
 
@@ -115,14 +114,6 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 		this.lastJobExecutionResult = jobExecutor.executeJobBlocking(jobGraph);
 		return this.lastJobExecutionResult;
-	}
-
-	@Override
-	public String getExecutionPlan() throws Exception {
-		OptimizedPlan op = compileProgram("unused");
-
-		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-		return jsonGen.getOptimizerPlanAsJSON(op);
 	}
 
 	private OptimizedPlan compileProgram(String jobName) {

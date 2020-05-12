@@ -35,9 +35,4 @@ public class AsynchronousException extends Exception {
 	public AsynchronousException(String message, Throwable cause) {
 		super(message, cause);
 	}
-
-	@Override
-	public String toString() {
-		return "AsynchronousException{" + getCause() + "}";
-	}
 }

@@ -18,27 +18,30 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
+import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.OperatingSystem;
 
+import org.apache.flink.shaded.guava18.com.google.common.escape.Escaper;
+import org.apache.flink.shaded.guava18.com.google.common.escape.Escapers;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 
 import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -46,14 +49,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.BindException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 import scala.Some;
 import scala.Tuple2;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -70,93 +73,90 @@ public class BootstrapTools {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BootstrapTools.class);
 
-	/**
-	 * Starts an ActorSystem with the given configuration listening at the address/ports.
-	 * @param configuration The Flink configuration
-	 * @param listeningAddress The address to listen at.
-	 * @param portRangeDefinition The port range to choose a port from.
-	 * @param logger The logger to output log information.
-	 * @return The ActorSystem which has been started
-	 * @throws Exception Thrown when actor system cannot be started in specified port range
-	 */
-	public static ActorSystem startActorSystem(
-		Configuration configuration,
-		String listeningAddress,
-		String portRangeDefinition,
-		Logger logger) throws Exception {
-		return startActorSystem(
-			configuration,
-			listeningAddress,
-			portRangeDefinition,
-			logger,
-			ForkJoinExecutorConfiguration.fromConfiguration(configuration));
-	}
+	private static final Escaper UNIX_SINGLE_QUOTE_ESCAPER = Escapers.builder()
+		.addEscape('\'', "'\\''")
+		.build();
+
+	private static final Escaper WINDOWS_DOUBLE_QUOTE_ESCAPER = Escapers.builder()
+		.addEscape('"', "\\\"")
+		.addEscape('^', "\"^^\"")
+		.build();
 
 	/**
-	 * Starts an ActorSystem with the given configuration listening at the address/ports.
-	 *
+	 * Starts a remote ActorSystem at given address and specific port range.
 	 * @param configuration The Flink configuration
-	 * @param listeningAddress The address to listen at.
-	 * @param portRangeDefinition The port range to choose a port from.
+	 * @param externalAddress The external address to access the ActorSystem.
+	 * @param externalPortRange The choosing range of the external port to access the ActorSystem.
 	 * @param logger The logger to output log information.
-	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
 	 * @return The ActorSystem which has been started
 	 * @throws Exception Thrown when actor system cannot be started in specified port range
 	 */
-	public static ActorSystem startActorSystem(
-			Configuration configuration,
-			String listeningAddress,
-			String portRangeDefinition,
-			Logger logger,
-			@Nonnull ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
-		return startActorSystem(
+	@VisibleForTesting
+	public static ActorSystem startRemoteActorSystem(
+		Configuration configuration,
+		String externalAddress,
+		String externalPortRange,
+		Logger logger) throws Exception {
+		return startRemoteActorSystem(
 			configuration,
 			AkkaUtils.getFlinkActorSystemName(),
-			listeningAddress,
-			portRangeDefinition,
+			externalAddress,
+			externalPortRange,
+			NetUtils.getWildcardIPAddress(),
+			Optional.empty(),
 			logger,
-			actorSystemExecutorConfiguration);
+			ForkJoinExecutorConfiguration.fromConfiguration(configuration),
+			null);
 	}
 
 	/**
-	 * Starts an ActorSystem with the given configuration listening at the address/ports.
+	 * Starts a remote ActorSystem at given address and specific port range.
 	 *
 	 * @param configuration The Flink configuration
 	 * @param actorSystemName Name of the started {@link ActorSystem}
-	 * @param listeningAddress The address to listen at.
-	 * @param portRangeDefinition The port range to choose a port from.
+	 * @param externalAddress The external address to access the ActorSystem.
+	 * @param externalPortRange The choosing range of the external port to access the ActorSystem.
+	 * @param bindAddress The local address to bind to.
+	 * @param bindPort The local port to bind to. If not present, then the external port will be used.
 	 * @param logger The logger to output log information.
 	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
+	 * @param customConfig Custom Akka config to be combined with the config derived from Flink configuration.
 	 * @return The ActorSystem which has been started
 	 * @throws Exception Thrown when actor system cannot be started in specified port range
 	 */
-	public static ActorSystem startActorSystem(
+	public static ActorSystem startRemoteActorSystem(
 			Configuration configuration,
 			String actorSystemName,
-			String listeningAddress,
-			String portRangeDefinition,
+			String externalAddress,
+			String externalPortRange,
+			String bindAddress,
+			@SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Integer> bindPort,
 			Logger logger,
-			@Nonnull ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
+			ActorSystemExecutorConfiguration actorSystemExecutorConfiguration,
+			Config customConfig) throws Exception {
 
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
 		try {
-			portsIterator = NetUtils.getPortRangeFromString(portRangeDefinition);
+			portsIterator = NetUtils.getPortRangeFromString(externalPortRange);
 		} catch (Exception e) {
-			throw new IllegalArgumentException("Invalid port range definition: " + portRangeDefinition);
+			throw new IllegalArgumentException("Invalid port range definition: " + externalPortRange);
 		}
 
 		while (portsIterator.hasNext()) {
-			final int port = portsIterator.next();
+			final int externalPort = portsIterator.next();
 
 			try {
-				return startActorSystem(
+				return startRemoteActorSystem(
 					configuration,
 					actorSystemName,
-					listeningAddress,
-					port,
+					externalAddress,
+					externalPort,
+					bindAddress,
+					bindPort.orElse(externalPort),
 					logger,
-					actorSystemExecutorConfiguration);
+					actorSystemExecutorConfiguration,
+					customConfig);
 			}
 			catch (Exception e) {
 				// we can continue to try if this contains a netty channel exception
@@ -170,97 +170,56 @@ public class BootstrapTools {
 
 		// if we come here, we have exhausted the port range
 		throw new BindException("Could not start actor system on any port in port range "
-			+ portRangeDefinition);
+			+ externalPortRange);
 	}
 
 	/**
-	 * Starts an Actor System at a specific port.
-	 *
-	 * @param configuration The Flink configuration.
-	 * @param listeningAddress The address to listen at.
-	 * @param listeningPort The port to listen at.
-	 * @param logger the logger to output log information.
-	 * @return The ActorSystem which has been started.
-	 * @throws Exception
-	 */
-	public static ActorSystem startActorSystem(
-		Configuration configuration,
-		String listeningAddress,
-		int listeningPort,
-		Logger logger) throws Exception {
-		return startActorSystem(
-			configuration,
-			listeningAddress,
-			listeningPort,
-			logger,
-			ForkJoinExecutorConfiguration.fromConfiguration(configuration));
-	}
-
-	/**
-	 * Starts an Actor System at a specific port.
-	 * @param configuration The Flink configuration.
-	 * @param listeningAddress The address to listen at.
-	 * @param listeningPort The port to listen at.
-	 * @param logger the logger to output log information.
-	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
-	 * @return The ActorSystem which has been started.
-	 * @throws Exception
-	 */
-	public static ActorSystem startActorSystem(
-				Configuration configuration,
-				String listeningAddress,
-				int listeningPort,
-				Logger logger,
-				ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
-		return startActorSystem(
-			configuration,
-			AkkaUtils.getFlinkActorSystemName(),
-			listeningAddress,
-			listeningPort,
-			logger,
-			actorSystemExecutorConfiguration);
-	}
-
-	/**
-	 * Starts an Actor System at a specific port.
+	 * Starts a remote Actor System at given address and specific port.
 	 * @param configuration The Flink configuration.
 	 * @param actorSystemName Name of the started {@link ActorSystem}
-	 * @param listeningAddress The address to listen at.
-	 * @param listeningPort The port to listen at.
+	 * @param externalAddress The external address to access the ActorSystem.
+	 * @param externalPort The external port to access the ActorSystem.
+	 * @param bindAddress The local address to bind to.
+	 * @param bindPort The local port to bind to.
 	 * @param logger the logger to output log information.
 	 * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying executor
+	 * @param customConfig Custom Akka config to be combined with the config derived from Flink configuration.
 	 * @return The ActorSystem which has been started.
 	 * @throws Exception
 	 */
-	public static ActorSystem startActorSystem(
+	private static ActorSystem startRemoteActorSystem(
 		Configuration configuration,
 		String actorSystemName,
-		String listeningAddress,
-		int listeningPort,
+		String externalAddress,
+		int externalPort,
+		String bindAddress,
+		int bindPort,
 		Logger logger,
-		ActorSystemExecutorConfiguration actorSystemExecutorConfiguration) throws Exception {
+		ActorSystemExecutorConfiguration actorSystemExecutorConfiguration,
+		Config customConfig) throws Exception {
 
-		String hostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(listeningAddress, listeningPort);
-		logger.info("Trying to start actor system at {}", hostPortUrl);
+		String externalHostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(externalAddress, externalPort);
+		String bindHostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(bindAddress, bindPort);
+		logger.info("Trying to start actor system, external address {}, bind address {}.", externalHostPortUrl, bindHostPortUrl);
 
 		try {
 			Config akkaConfig = AkkaUtils.getAkkaConfig(
 				configuration,
-				new Some<>(new Tuple2<>(listeningAddress, listeningPort)),
+				new Some<>(new Tuple2<>(externalAddress, externalPort)),
+				new Some<>(new Tuple2<>(bindAddress, bindPort)),
 				actorSystemExecutorConfiguration.getAkkaConfig());
 
-			logger.debug("Using akka configuration\n {}", akkaConfig);
+			if (customConfig != null) {
+				akkaConfig = customConfig.withFallback(akkaConfig);
+			}
 
-			ActorSystem actorSystem = AkkaUtils.createActorSystem(actorSystemName, akkaConfig);
-
-			logger.info("Actor system started at {}", AkkaUtils.getAddress(actorSystem));
-			return actorSystem;
+			return startActorSystem(akkaConfig, actorSystemName, logger);
 		}
 		catch (Throwable t) {
 			if (t instanceof ChannelException) {
 				Throwable cause = t.getCause();
 				if (cause != null && t.getCause() instanceof BindException) {
-					throw new IOException("Unable to create ActorSystem at address " + hostPortUrl +
+					throw new IOException("Unable to create ActorSystem at address " + bindHostPortUrl +
 						" : " + cause.getMessage(), t);
 				}
 			}
@@ -269,37 +228,55 @@ public class BootstrapTools {
 	}
 
 	/**
-	 * Generate a task manager configuration.
-	 * @param baseConfig Config to start from.
-	 * @param jobManagerHostname Job manager host name.
-	 * @param jobManagerPort Port of the job manager.
-	 * @param numSlots Number of slots to configure.
-	 * @param registrationTimeout Timeout for registration
-	 * @return TaskManager configuration
+	 * Starts a local Actor System.
+	 * @param configuration The Flink configuration.
+	 * @param actorSystemName Name of the started ActorSystem.
+	 * @param logger The logger to output log information.
+	 * @param actorSystemExecutorConfiguration Configuration for the ActorSystem's underlying executor.
+	 * @param customConfig Custom Akka config to be combined with the config derived from Flink configuration.
+	 * @return The ActorSystem which has been started.
+	 * @throws Exception
 	 */
-	public static Configuration generateTaskManagerConfiguration(
-				Configuration baseConfig,
-				String jobManagerHostname,
-				int jobManagerPort,
-				int numSlots,
-				FiniteDuration registrationTimeout) {
+	public static ActorSystem startLocalActorSystem(
+		Configuration configuration,
+		String actorSystemName,
+		Logger logger,
+		ActorSystemExecutorConfiguration actorSystemExecutorConfiguration,
+		Config customConfig) throws Exception {
 
-		Configuration cfg = cloneConfiguration(baseConfig);
+		logger.info("Trying to start local actor system");
 
-		if (jobManagerHostname != null && !jobManagerHostname.isEmpty()) {
-			cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
+		try {
+			Config akkaConfig = AkkaUtils.getAkkaConfig(
+				configuration,
+				scala.Option.empty(),
+				scala.Option.empty(),
+				actorSystemExecutorConfiguration.getAkkaConfig());
+
+			if (customConfig != null) {
+				akkaConfig = customConfig.withFallback(akkaConfig);
+			}
+
+			return startActorSystem(akkaConfig, actorSystemName, logger);
 		}
-
-		if (jobManagerPort > 0) {
-			cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
+		catch (Throwable t) {
+			throw new Exception("Could not create actor system", t);
 		}
+	}
 
-		cfg.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, registrationTimeout.toString());
-		if (numSlots != -1){
-			cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots);
-		}
+	/**
+	 * Starts an Actor System with given Akka config.
+	 * @param akkaConfig Config of the started ActorSystem.
+	 * @param actorSystemName Name of the started ActorSystem.
+	 * @param logger The logger to output log information.
+	 * @return The ActorSystem which has been started.
+	 */
+	private static ActorSystem startActorSystem(Config akkaConfig, String actorSystemName, Logger logger) {
+		logger.debug("Using akka configuration\n {}", akkaConfig);
+		ActorSystem actorSystem = AkkaUtils.createActorSystem(actorSystemName, akkaConfig);
 
-		return cfg;
+		logger.info("Actor system started at {}", AkkaUtils.getAddress(actorSystem));
+		return actorSystem;
 	}
 
 	/**
@@ -311,11 +288,10 @@ public class BootstrapTools {
 	public static void writeConfiguration(Configuration cfg, File file) throws IOException {
 		try (FileWriter fwrt = new FileWriter(file);
 			PrintWriter out = new PrintWriter(fwrt)) {
-			for (String key : cfg.keySet()) {
-				String value = cfg.getString(key, null);
-				out.print(key);
+			for (Map.Entry<String, String> entry : cfg.toMap().entrySet()) {
+				out.print(entry.getKey());
 				out.print(": ");
-				out.println(value);
+				out.println(entry.getValue());
 			}
 		}
 	}
@@ -371,7 +347,7 @@ public class BootstrapTools {
 	 * Get an instance of the dynamic properties option.
 	 *
 	 * <p>Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>
+	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.network.min=536346624</tt>
      */
 	public static Option newDynamicPropertiesOption() {
 		return new Option(DYNAMIC_PROPERTIES_OPT, true, "Dynamic properties");
@@ -418,21 +394,14 @@ public class BootstrapTools {
 			boolean hasLogback,
 			boolean hasLog4j,
 			boolean hasKrb5,
-			Class<?> mainClass) {
+			Class<?> mainClass,
+			String mainArgs) {
 
 		final Map<String, String> startCommandValues = new HashMap<>();
 		startCommandValues.put("java", "$JAVA_HOME/bin/java");
 
-		ArrayList<String> params = new ArrayList<>();
-		params.add(String.format("-Xms%dm", tmParams.taskManagerHeapSizeMB()));
-		params.add(String.format("-Xmx%dm", tmParams.taskManagerHeapSizeMB()));
-
-		if (tmParams.taskManagerDirectMemoryLimitMB() >= 0) {
-			params.add(String.format("-XX:MaxDirectMemorySize=%dm",
-				tmParams.taskManagerDirectMemoryLimitMB()));
-		}
-
-		startCommandValues.put("jvmmem", StringUtils.join(params, ' '));
+		final TaskExecutorProcessSpec taskExecutorProcessSpec = tmParams.getTaskExecutorProcessSpec();
+		startCommandValues.put("jvmmem", ProcessMemoryUtils.generateJvmParametersStr(taskExecutorProcessSpec));
 
 		String javaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
 		if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
@@ -456,6 +425,8 @@ public class BootstrapTools {
 			if (hasLog4j) {
 				logging += " -Dlog4j.configuration=file:" + configDirectory +
 					"/log4j.properties";
+				logging += " -Dlog4j.configurationFile=file:" + configDirectory +
+					"/log4j.properties";
 			}
 		}
 
@@ -464,7 +435,12 @@ public class BootstrapTools {
 		startCommandValues.put("redirects",
 			"1> " + logDirectory + "/taskmanager.out " +
 			"2> " + logDirectory + "/taskmanager.err");
-		startCommandValues.put("args", "--configDir " + configDirectory);
+
+		String argsStr = TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec) + " --configDir " + configDirectory;
+		if (!mainArgs.isEmpty()) {
+			argsStr += " " + mainArgs;
+		}
+		startCommandValues.put("args", argsStr);
 
 		final String commandTemplate = flinkConfig
 			.getString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
@@ -509,7 +485,9 @@ public class BootstrapTools {
 		for (Map.Entry<String, String> variable : startCommandValues
 			.entrySet()) {
 			template = template
-				.replace("%" + variable.getKey() + "%", variable.getValue());
+				.replace("%" + variable.getKey() + "%", variable.getValue())
+				.replace("  ", " ")
+				.trim();
 		}
 		return template;
 	}
@@ -648,5 +626,64 @@ public class BootstrapTools {
 		public Config getAkkaConfig() {
 			return AkkaUtils.getThreadPoolExecutorConfig(this);
 		}
+	}
+
+	/**
+	 * Get dynamic properties based on two Flink configurations. If base config does not contain and target config
+	 * contains the key or the value is different, it should be added to results. Otherwise, if the base config contains
+	 * and target config does not contain the key, it will be ignored.
+	 *
+	 * @param baseConfig The base configuration.
+	 * @param targetConfig The target configuration.
+	 * @return Dynamic properties as string, separated by whitespace.
+	 */
+	public static String getDynamicPropertiesAsString(Configuration baseConfig, Configuration targetConfig) {
+
+		String[] newAddedConfigs = targetConfig.keySet().stream().flatMap(
+			(String key) -> {
+				final String baseValue = baseConfig.getString(ConfigOptions.key(key).stringType().noDefaultValue());
+				final String targetValue = targetConfig.getString(ConfigOptions.key(key).stringType().noDefaultValue());
+
+				if (!baseConfig.keySet().contains(key) || !baseValue.equals(targetValue)) {
+					return Stream.of("-" + CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getOpt() + key +
+						CommandLineOptions.DYNAMIC_PROPERTY_OPTION.getValueSeparator() + escapeForDifferentOS(targetValue));
+				} else {
+					return Stream.empty();
+				}
+			})
+			.toArray(String[]::new);
+		return String.join(" ", newAddedConfigs);
+	}
+
+	/**
+	 * Escape all the dynamic property values.
+	 * For Unix-like OS(Linux, MacOS, FREE_BSD, etc.), each value will be surrounded with single quotes. This works for
+	 * all chars except single quote itself. To escape the single quote, close the quoting before it, insert the escaped
+	 * single quote, and then re-open the quoting. For example, the value is foo'bar and the escaped value is
+	 * 'foo'\''bar'. See <a href="https://stackoverflow.com/questions/15783701/which-characters-need-to-be-escaped-when-using-bash">https://stackoverflow.com/questions/15783701/which-characters-need-to-be-escaped-when-using-bash</a>
+	 * for more information about Unix escaping.
+	 *
+	 * <p>For Windows OS, each value will be surrounded with double quotes. The double quote itself needs to be escaped with
+	 * back slash. Also the caret symbol need to be escaped with double carets since Windows uses it to escape characters.
+	 * See <a href="https://en.wikibooks.org/wiki/Windows_Batch_Scripting">https://en.wikibooks.org/wiki/Windows_Batch_Scripting</a>
+	 * for more information about Windows escaping.
+	 *
+	 * @param value value to be escaped
+	 * @return escaped value
+	 */
+	public static String escapeForDifferentOS(String value) {
+		if (OperatingSystem.isWindows()) {
+			return escapeWithDoubleQuote(value);
+		} else {
+			return escapeWithSingleQuote(value);
+		}
+	}
+
+	public static String escapeWithSingleQuote(String value) {
+		return "'" + UNIX_SINGLE_QUOTE_ESCAPER.escape(value) + "'";
+	}
+
+	public static String escapeWithDoubleQuote(String value) {
+		return "\"" + WINDOWS_DOUBLE_QUOTE_ESCAPER.escape(value) + "\"";
 	}
 }

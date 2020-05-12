@@ -18,23 +18,26 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.Random;
-
-import static org.junit.Assert.fail;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 /**
  * The test generates two random streams (input channels) which independently
@@ -46,11 +49,10 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 	private static final int PAGE_SIZE = 1024;
 
 	@Test
-	public void testWithTwoChannelsAndRandomBarriers() {
+	public void testWithTwoChannelsAndRandomBarriers() throws Exception {
 		NetworkBufferPool networkBufferPool1 = null;
 		NetworkBufferPool networkBufferPool2 = null;
-		try (IOManager ioMan = new IOManagerAsync()) {
-
+		try {
 			networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE, 1);
 			networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE, 1);
 			BufferPool pool1 = networkBufferPool1.createBufferPool(100, 100);
@@ -60,7 +62,11 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 					new BufferPool[] { pool1, pool2 },
 					new BarrierGenerator[] { new CountBarrier(100000), new RandomBarrier(100000) });
 
-			CheckpointedInputGate checkpointedInputGate = new CheckpointedInputGate(myIG, new BufferSpiller(ioMan, PAGE_SIZE), "Testing: No task associated", null);
+			CheckpointedInputGate checkpointedInputGate =
+				new CheckpointedInputGate(
+					myIG,
+					"Testing: No task associated",
+					new DummyCheckpointInvokable());
 
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = checkpointedInputGate.pollNext().get();
@@ -68,10 +74,6 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 					boe.getBuffer().recycleBuffer();
 				}
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 		finally {
 			if (networkBufferPool1 != null) {
@@ -129,6 +131,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		private final int numberOfChannels;
 		private final BufferPool[] bufferPools;
 		private final int[] currentBarriers;
+		private final boolean[] channelBlocked;
 		private final BarrierGenerator[] barrierGens;
 		private int currentChannel = 0;
 		private long c = 0;
@@ -136,9 +139,10 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		public RandomGeneratingInputGate(BufferPool[] bufferPools, BarrierGenerator[] barrierGens) {
 			this.numberOfChannels = bufferPools.length;
 			this.currentBarriers = new int[numberOfChannels];
+			this.channelBlocked = new boolean[numberOfChannels];
 			this.bufferPools = bufferPools;
 			this.barrierGens = barrierGens;
-			this.isAvailable = AVAILABLE;
+			availabilityHelper.resetAvailable();
 		}
 
 		@Override
@@ -152,10 +156,23 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		}
 
 		@Override
-		public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
+		public InputChannel getChannel(int channelIndex) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Optional<BufferOrEvent> getNext() throws IOException {
 			currentChannel = (currentChannel + 1) % numberOfChannels;
+			if (channelBlocked[currentChannel]) {
+				return getNext();
+			}
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
+				channelBlocked[currentChannel] = true;
+				if (allChannelsBlocked()) {
+					Arrays.fill(channelBlocked, false);
+				}
+
 				return Optional.of(
 					new BufferOrEvent(
 						new CheckpointBarrier(
@@ -165,6 +182,11 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 						currentChannel));
 			} else {
 				Buffer buffer = bufferPools[currentChannel].requestBuffer();
+				if (buffer == null) {
+					// we exhausted buffer pool for this channel that is supposed to be blocked
+					// by the credit-based flow control, so we should poll from the second channel
+					return getNext();
+				}
 				buffer.getMemorySegment().putLong(0, c++);
 				return Optional.of(new BufferOrEvent(buffer, currentChannel));
 			}
@@ -175,15 +197,41 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 			return getNext();
 		}
 
+		private boolean allChannelsBlocked() {
+			for (boolean blocked : channelBlocked) {
+				if (!blocked) {
+					return false;
+				}
+			}
+			return true;
+		}
+
 		@Override
 		public void sendTaskEvent(TaskEvent event) {}
+
+		@Override
+		public void resumeConsumption(int channelIndex) {
+		}
 
 		@Override
 		public void setup() {
 		}
 
 		@Override
+		public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public void requestPartitions() {
+		}
+
+		@Override
 		public void close() {
+		}
+
+		@Override
+		public void registerBufferReceivedListener(BufferReceivedListener listener) {
 		}
 	}
 }

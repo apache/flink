@@ -29,22 +29,11 @@ $FLINK_DIR/bin/taskmanager.sh start
 $FLINK_DIR/bin/taskmanager.sh start
 
 # CLI regular expressions
-JOB_ID_REGEX_EXTRACTOR=".*JobID ([0-9,a-f]*)"
 JOB_INFO_PACT_DATA_SOURCE_REGEX_EXTRACTOR="\"pact\": \"(Data Source)\""
 JOB_INFO_PACT_DATA_SINK_REGEX_EXTRACTOR="\"pact\": \"(Data Sink)\""
 JOB_LIST_REGEX_EXTRACTOR_BY_STATUS="([0-9,a-f]*) :"
 
 EXIT_CODE=0
-
-function extract_job_id_from_job_submission_return() {
-    if [[ $1 =~ $JOB_ID_REGEX_EXTRACTOR ]];
-        then
-            JOB_ID="${BASH_REMATCH[1]}";
-        else
-            JOB_ID=""
-        fi
-    echo "$JOB_ID"
-}
 
 function extract_valid_pact_from_job_info_return() {
     PACT_MATCH=0

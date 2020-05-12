@@ -38,7 +38,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testCrossJoin(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
 
     val func1 = new TableFunc1
     val result = in.joinLateral(func1('c) as 's).select('c, 's)
@@ -57,7 +57,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testLeftOuterJoinWithoutPredicates(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
 
     val func2 = new TableFunc2
     val result = in.leftOuterJoinLateral(func2('c) as ('s, 'l)).select('c, 's, 'l)
@@ -70,7 +70,7 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testLeftOuterJoinWithSplit(): Unit = {
     tEnv.getConfig.setMaxGeneratedCodeLength(1) // split every field
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
 
     val func2 = new TableFunc2
     val result = in.leftOuterJoinLateral(func2('c) as ('s, 'l)).select('c, 's, 'l)
@@ -85,7 +85,7 @@ class CorrelateITCase extends BatchTestBase {
     */
   @Test (expected = classOf[ValidationException])
   def testLeftOuterJoinWithPredicates(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
 
     val func2 = new TableFunc2
     val result = in
@@ -98,7 +98,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testWithFilter(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = in
@@ -114,7 +114,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testCustomReturnType(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
     val func2 = new TableFunc2
 
     val result = in
@@ -130,7 +130,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testHierarchyType(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
 
     val hierarchy = new HierarchyTableFunction
     val result = in
@@ -146,7 +146,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testPojoType(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
 
     val pojo = new PojoTableFunc()
     val result = in
@@ -162,7 +162,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunction(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
     val func1 = new TableFunc1
 
     val result = in
@@ -178,7 +178,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedTableFunctionWithScalarFunctionInCondition(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = in
@@ -194,7 +194,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testLongAndTemporalTypes(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
     val func0 = new JavaTableFunc0
 
     val result = in
@@ -212,7 +212,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testByteShortFloatArguments(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
     val tFunc = new TableFunc4
 
     val result = in.select(
@@ -266,7 +266,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testTableFunctionConstructorWithParams(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
     val func30 = new TableFunc3(null)
     val func31 = new TableFunc3("OneConf_")
     val func32 = new TableFunc3("TwoConf_")
@@ -322,7 +322,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testCountStarOnCorrelate(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = in
@@ -336,7 +336,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testCountStarOnLeftCorrelate(): Unit = {
-    val in = testData.as('a, 'b, 'c)
+    val in = testData.as("a", "b", "c")
     val func0 = new TableFunc0
 
     val result = in
@@ -350,7 +350,7 @@ class CorrelateITCase extends BatchTestBase {
 
   @Test
   def testTableFunctionCollectorOpenClose(): Unit = {
-    val t = testData.as('a, 'b, 'c)
+    val t = testData.as("a", "b", "c")
     val func0 = new TableFunc0
     val func = new FuncWithOpen
 

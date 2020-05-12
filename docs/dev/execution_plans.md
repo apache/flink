@@ -28,10 +28,8 @@ useful to know how exactly Flink will execute your program.
 
 __Plan Visualization Tool__
 
-Flink comes packaged with a visualization tool for execution plans. The HTML document containing
-the visualizer is located under ```tools/planVisualizer.html```. It takes a JSON representation of
-the job execution plan and visualizes it as a graph with complete annotations of execution
-strategies.
+Flink provides a [visualization tool](https://flink.apache.org/visualizer/) for execution plans, which takes a JSON
+representation of the job execution plan and visualizes it as a graph with complete annotations of execution strategies.
 
 The following code shows how to print the execution plan JSON from your program:
 
@@ -59,7 +57,7 @@ println(env.getExecutionPlan())
 
 To visualize the execution plan, do the following:
 
-1. **Open** ```planVisualizer.html``` with your web browser,
+1. **Open** the [visualizer](https://flink.apache.org/visualizer/) with your web browser,
 2. **Paste** the JSON string into the text field, and
 3. **Press** the draw button.
 
@@ -71,8 +69,7 @@ After these steps, a detailed execution plan will be visualized.
 __Web Interface__
 
 Flink offers a web interface for submitting and executing jobs. The interface is part of the JobManager's
-web interface for monitoring, per default running on port 8081. Job submission via this interfaces requires
-that you have set `web.submit.enable: true` in `flink-conf.yaml`.
+web interface for monitoring, per default running on port 8081.
 
 You may specify program arguments before the job is executed. The plan visualization enables you to show
 the execution plan before executing the Flink job.

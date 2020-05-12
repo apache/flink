@@ -24,7 +24,8 @@ import org.apache.flink.util.TestLogger
 import org.junit.Test
 import org.scalatest.junit.JUnitSuiteLike
 
-case class Outer(a: Int, i: FieldAccessorTest.Inner, b: Boolean)
+case class Outer(a: Int, i: Inner, b: Boolean)
+case class Inner(x: Long, b: Boolean)
 case class IntBoolean(foo: Int, bar: Boolean)
 case class InnerCaseClass(a: Short, b: String)
 case class OuterCaseClassWithInner(a: Int, i: InnerCaseClass, b: Boolean)
@@ -39,6 +40,9 @@ class CaseClassFieldAccessorTest extends TestLogger with JUnitSuiteLike {
       // by field name
       val accessor1 = FieldAccessorFactory.getAccessor[IntBoolean, Int](tpeInfo, "foo", null)
       val accessor2 = FieldAccessorFactory.getAccessor[IntBoolean, Boolean](tpeInfo, "bar", null)
+
+      assert(accessor1.getFieldType.getTypeClass.getSimpleName == "Integer")
+      assert(accessor2.getFieldType.getTypeClass.getSimpleName == "Boolean")
 
       val x1 = IntBoolean(5, false)
       assert(accessor1.get(x1) == 5)
@@ -61,6 +65,9 @@ class CaseClassFieldAccessorTest extends TestLogger with JUnitSuiteLike {
       val accessor1 = FieldAccessorFactory.getAccessor[IntBoolean, Int](tpeInfo, 0, null)
       val accessor2 = FieldAccessorFactory.getAccessor[IntBoolean, Boolean](tpeInfo, 1, null)
 
+      assert(accessor1.getFieldType.getTypeClass.getSimpleName == "Integer")
+      assert(accessor2.getFieldType.getTypeClass.getSimpleName == "Boolean")
+
       val x1 = IntBoolean(5, false)
       assert(accessor1.get(x1) == 5)
       assert(accessor2.get(x1) == false)
@@ -80,28 +87,31 @@ class CaseClassFieldAccessorTest extends TestLogger with JUnitSuiteLike {
 
   @Test
   def testFieldAccessorPojoInCaseClass(): Unit = {
-    var x = Outer(1, new FieldAccessorTest.Inner(3L, true), false)
+    var x = Outer(1, Inner(3L, true), false)
     val tpeInfo = createTypeInformation[Outer]
     val cfg = new ExecutionConfig
 
     val fib = FieldAccessorFactory.getAccessor[Outer, Boolean](tpeInfo, "i.b", cfg)
+    assert(fib.getFieldType.getTypeClass.getSimpleName == "Boolean")
     assert(fib.get(x) == true)
     assert(x.i.b == true)
     x = fib.set(x, false)
     assert(fib.get(x) == false)
     assert(x.i.b == false)
 
-    val fi = FieldAccessorFactory.getAccessor[Outer, FieldAccessorTest.Inner](tpeInfo, "i", cfg)
+    val fi = FieldAccessorFactory.getAccessor[Outer, Inner](tpeInfo, "i", cfg)
+    assert(fi.getFieldType.getTypeClass.getSimpleName == "Inner")
     assert(fi.get(x).x == 3L)
     assert(x.i.x == 3L)
-    x = fi.set(x, new FieldAccessorTest.Inner(4L, true))
+    x = fi.set(x, Inner(4L, true))
     assert(fi.get(x).x == 4L)
     assert(x.i.x == 4L)
 
-    val fin = FieldAccessorFactory.getAccessor[Outer, FieldAccessorTest.Inner](tpeInfo, 1, cfg)
+    val fin = FieldAccessorFactory.getAccessor[Outer, Inner](tpeInfo, 1, cfg)
+    assert(fin.getFieldType.getTypeClass.getSimpleName == "Inner")
     assert(fin.get(x).x == 4L)
     assert(x.i.x == 4L)
-    x = fin.set(x, new FieldAccessorTest.Inner(5L, true))
+    x = fin.set(x, Inner(5L, true))
     assert(fin.get(x).x == 5L)
     assert(x.i.x == 5L)
   }
@@ -111,6 +121,7 @@ class CaseClassFieldAccessorTest extends TestLogger with JUnitSuiteLike {
     val tpeInfo = createTypeInformation[(Int, Long)]
     var x = (5, 6L)
     val f0 = FieldAccessorFactory.getAccessor[(Int, Long), Int](tpeInfo, 0, null)
+    assert(f0.getFieldType.getTypeClass.getSimpleName == "Integer")
     assert(f0.get(x) == 5)
     x = f0.set(x, 8)
     assert(f0.get(x) == 8)
@@ -125,6 +136,7 @@ class CaseClassFieldAccessorTest extends TestLogger with JUnitSuiteLike {
 
     val fib = FieldAccessorFactory
       .getAccessor[OuterCaseClassWithInner, String](tpeInfo, "i.b", null)
+    assert(fib.getFieldType.getTypeClass.getSimpleName == "String")
     assert(fib.get(x) == "alma")
     assert(x.i.b == "alma")
     x = fib.set(x, "korte")
@@ -133,6 +145,7 @@ class CaseClassFieldAccessorTest extends TestLogger with JUnitSuiteLike {
 
     val fi = FieldAccessorFactory
       .getAccessor[OuterCaseClassWithInner, InnerCaseClass](tpeInfo, "i", null)
+    assert(fi.getFieldType.getTypeClass == classOf[InnerCaseClass])
     assert(fi.get(x) == InnerCaseClass(2, "korte"))
     x = fi.set(x, InnerCaseClass(3, "aaa"))
     assert(x.i == InnerCaseClass(3, "aaa"))

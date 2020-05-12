@@ -20,6 +20,7 @@ package org.apache.flink.util.function;
 
 import org.apache.flink.util.ExceptionUtils;
 
+import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -112,6 +113,16 @@ public class FunctionUtils {
 			} catch (Throwable t) {
 				ExceptionUtils.rethrow(t);
 			}
+			return result;
+		};
+	}
+
+	/**
+	 * Converts {@link RunnableWithException} into a {@link Callable} that will return the {@code result}.
+	 */
+	public static <T> Callable<T> asCallable(RunnableWithException command, T result) {
+		return () -> {
+			command.run();
 			return result;
 		};
 	}

@@ -22,18 +22,25 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.Preconditions;
 
 import com.esotericsoftware.kryo.Serializer;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -92,7 +99,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private ClosureCleanerLevel closureCleanerLevel = ClosureCleanerLevel.RECURSIVE;
 
-	private int parallelism = PARALLELISM_DEFAULT;
+	private int parallelism = CoreOptions.DEFAULT_PARALLELISM.defaultValue();
 
 	/**
 	 * The program wide maximum parallelism used for operators which haven't specified a maximum
@@ -121,9 +128,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	private boolean forceAvro = false;
 
 	private CodeAnalysisMode codeAnalysisMode = CodeAnalysisMode.DISABLE;
-
-	/** If set to true, progress updates are printed to System.out during execution */
-	private boolean printProgressDuringExecution = true;
 
 	private long autoWatermarkInterval = 0;
 
@@ -165,7 +169,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	// ------------------------------- User code values --------------------------------------------
 
-	private GlobalJobParameters globalJobParameters;
+	private GlobalJobParameters globalJobParameters = new GlobalJobParameters();
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in linked maps/sets to ensure they are registered in order in all kryo instances.
@@ -549,7 +553,13 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	@PublicEvolving
 	public void setDefaultInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
-		this.defaultInputDependencyConstraint = inputDependencyConstraint;
+		if (inputDependencyConstraint != null) {
+			this.defaultInputDependencyConstraint = inputDependencyConstraint;
+		} else {
+			// defaultInputDependencyConstraint is not allowed to be null
+			// setting it to ANY to not break existing jobs
+			this.defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
+		}
 	}
 
 	/**
@@ -732,32 +742,27 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * Enables the printing of progress update messages to {@code System.out}
-	 * 
-	 * @return The ExecutionConfig object, to allow for function chaining.
+	 * @deprecated Ineffective. Will be removed at 2.0.
 	 */
+	@Deprecated
 	public ExecutionConfig enableSysoutLogging() {
-		this.printProgressDuringExecution = true;
 		return this;
 	}
 
 	/**
-	 * Disables the printing of progress update messages to {@code System.out}
-	 *
-	 * @return The ExecutionConfig object, to allow for function chaining.
+	 * @deprecated Ineffective. Will be removed at 2.0.
 	 */
+	@Deprecated
 	public ExecutionConfig disableSysoutLogging() {
-		this.printProgressDuringExecution = false;
 		return this;
 	}
 
 	/**
-	 * Gets whether progress update messages should be printed to {@code System.out}
-	 * 
-	 * @return True, if progress update messages should be printed, false otherwise.
+	 * @deprecated Ineffective. Will be removed at 2.0.
 	 */
+	@Deprecated
 	public boolean isSysoutLoggingEnabled() {
-		return this.printProgressDuringExecution;
+		return false;
 	}
 
 	public GlobalJobParameters getGlobalJobParameters() {
@@ -769,6 +774,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * @param globalJobParameters Custom user configuration object
 	 */
 	public void setGlobalJobParameters(GlobalJobParameters globalJobParameters) {
+		Preconditions.checkNotNull(globalJobParameters, "globalJobParameters shouldn't be null");
 		this.globalJobParameters = globalJobParameters;
 	}
 
@@ -989,7 +995,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&
 				forceAvro == other.forceAvro &&
 				Objects.equals(codeAnalysisMode, other.codeAnalysisMode) &&
-				printProgressDuringExecution == other.printProgressDuringExecution &&
 				Objects.equals(globalJobParameters, other.globalJobParameters) &&
 				autoWatermarkInterval == other.autoWatermarkInterval &&
 				registeredTypesWithKryoSerializerClasses.equals(other.registeredTypesWithKryoSerializerClasses) &&
@@ -1018,7 +1023,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			autoTypeRegistrationEnabled,
 			forceAvro,
 			codeAnalysisMode,
-			printProgressDuringExecution,
 			globalJobParameters,
 			autoWatermarkInterval,
 			registeredTypesWithKryoSerializerClasses,
@@ -1028,6 +1032,41 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			taskCancellationIntervalMillis,
 			useSnapshotCompression,
 			defaultInputDependencyConstraint);
+	}
+
+	@Override
+	public String toString() {
+		return "ExecutionConfig{" +
+			"executionMode=" + executionMode +
+			", closureCleanerLevel=" + closureCleanerLevel +
+			", parallelism=" + parallelism +
+			", maxParallelism=" + maxParallelism +
+			", numberOfExecutionRetries=" + numberOfExecutionRetries +
+			", forceKryo=" + forceKryo +
+			", disableGenericTypes=" + disableGenericTypes +
+			", enableAutoGeneratedUids=" + enableAutoGeneratedUids +
+			", objectReuse=" + objectReuse +
+			", autoTypeRegistrationEnabled=" + autoTypeRegistrationEnabled +
+			", forceAvro=" + forceAvro +
+			", codeAnalysisMode=" + codeAnalysisMode +
+			", autoWatermarkInterval=" + autoWatermarkInterval +
+			", latencyTrackingInterval=" + latencyTrackingInterval +
+			", isLatencyTrackingConfigured=" + isLatencyTrackingConfigured +
+			", executionRetryDelay=" + executionRetryDelay +
+			", restartStrategyConfiguration=" + restartStrategyConfiguration +
+			", taskCancellationIntervalMillis=" + taskCancellationIntervalMillis +
+			", taskCancellationTimeoutMillis=" + taskCancellationTimeoutMillis +
+			", useSnapshotCompression=" + useSnapshotCompression +
+			", failTaskOnCheckpointError=" + failTaskOnCheckpointError +
+			", defaultInputDependencyConstraint=" + defaultInputDependencyConstraint +
+			", globalJobParameters=" + globalJobParameters +
+			", registeredTypesWithKryoSerializers=" + registeredTypesWithKryoSerializers +
+			", registeredTypesWithKryoSerializerClasses=" + registeredTypesWithKryoSerializerClasses +
+			", defaultKryoSerializers=" + defaultKryoSerializers +
+			", defaultKryoSerializerClasses=" + defaultKryoSerializerClasses +
+			", registeredKryoTypes=" + registeredKryoTypes +
+			", registeredPojoTypes=" + registeredPojoTypes +
+			'}';
 	}
 
 	public boolean canEqual(Object obj) {
@@ -1075,6 +1114,20 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		public Map<String, String> toMap() {
 			return Collections.emptyMap();
 		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == null || this.getClass() != obj.getClass()) {
+				return false;
+			}
+
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash();
+		}
 	}
 
 	/**
@@ -1095,5 +1148,143 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		 * Clean all the fields recursively.
 		 */
 		RECURSIVE
+	}
+
+	/**
+	 * Sets all relevant options contained in the {@link ReadableConfig} such as e.g.
+	 * {@link PipelineOptions#CLOSURE_CLEANER_LEVEL}.
+	 *
+	 * <p>It will change the value of a setting only if a corresponding option was set in the
+	 * {@code configuration}. If a key is not present, the current value of a field will remain
+	 * untouched.
+	 *
+	 * @param configuration a configuration to read the values from
+	 * @param classLoader a class loader to use when loading classes
+	 */
+	public void configure(ReadableConfig configuration, ClassLoader classLoader) {
+		configuration.getOptional(PipelineOptions.AUTO_TYPE_REGISTRATION)
+			.ifPresent(b -> this.autoTypeRegistrationEnabled = b);
+		configuration.getOptional(PipelineOptions.AUTO_GENERATE_UIDS)
+			.ifPresent(b -> this.enableAutoGeneratedUids = b);
+		configuration.getOptional(PipelineOptions.AUTO_WATERMARK_INTERVAL)
+			.ifPresent(i -> this.setAutoWatermarkInterval(i.toMillis()));
+		configuration.getOptional(PipelineOptions.CLOSURE_CLEANER_LEVEL)
+			.ifPresent(this::setClosureCleanerLevel);
+		configuration.getOptional(PipelineOptions.FORCE_AVRO)
+			.ifPresent(b -> this.forceAvro = b);
+		configuration.getOptional(PipelineOptions.GENERIC_TYPES)
+			.ifPresent(b -> this.disableGenericTypes = !b);
+		configuration.getOptional(PipelineOptions.FORCE_KRYO)
+			.ifPresent(b -> this.forceKryo = b);
+		configuration.getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
+			.<GlobalJobParameters>map(MapBasedJobParameters::new)
+			.ifPresent(this::setGlobalJobParameters);
+
+		configuration.getOptional(MetricOptions.LATENCY_INTERVAL)
+			.ifPresent(this::setLatencyTrackingInterval);
+
+		configuration.getOptional(PipelineOptions.MAX_PARALLELISM)
+			.ifPresent(this::setMaxParallelism);
+		configuration.getOptional(CoreOptions.DEFAULT_PARALLELISM)
+			.ifPresent(this::setParallelism);
+		configuration.getOptional(PipelineOptions.OBJECT_REUSE)
+			.ifPresent(o -> this.objectReuse = o);
+		configuration.getOptional(TaskManagerOptions.TASK_CANCELLATION_INTERVAL)
+			.ifPresent(this::setTaskCancellationInterval);
+		configuration.getOptional(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT)
+			.ifPresent(this::setTaskCancellationTimeout);
+		configuration.getOptional(ExecutionOptions.SNAPSHOT_COMPRESSION)
+			.ifPresent(this::setUseSnapshotCompression);
+		RestartStrategies.fromConfiguration(configuration)
+			.ifPresent(this::setRestartStrategy);
+		configuration.getOptional(PipelineOptions.KRYO_DEFAULT_SERIALIZERS)
+			.map(s -> parseKryoSerializersWithExceptionHandling(classLoader, s))
+			.ifPresent(s -> this.defaultKryoSerializerClasses = s);
+
+		configuration.getOptional(PipelineOptions.POJO_REGISTERED_CLASSES)
+			.map(c -> loadClasses(c, classLoader, "Could not load pojo type to be registered."))
+			.ifPresent(c -> this.registeredPojoTypes = c);
+
+		configuration.getOptional(PipelineOptions.KRYO_REGISTERED_CLASSES)
+			.map(c -> loadClasses(c, classLoader, "Could not load kryo type to be registered."))
+			.ifPresent(c -> this.registeredKryoTypes = c);
+	}
+
+	private LinkedHashSet<Class<?>> loadClasses(List<String> classNames, ClassLoader classLoader, String errorMessage) {
+		return classNames.stream()
+			.map(name -> this.<Class<?>>loadClass(name, classLoader, errorMessage))
+			.collect(Collectors.toCollection(LinkedHashSet::new));
+	}
+
+	private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> parseKryoSerializersWithExceptionHandling(
+			ClassLoader classLoader,
+			List<String> kryoSerializers) {
+		try {
+			return parseKryoSerializers(classLoader, kryoSerializers);
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Could not configure kryo serializers from " + kryoSerializers);
+		}
+	}
+
+	private LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> parseKryoSerializers(
+			ClassLoader classLoader,
+			List<String> kryoSerializers) {
+		return kryoSerializers.stream()
+			.map(v -> Arrays.stream(v.split(","))
+				.map(p -> p.split(":"))
+				.collect(
+					Collectors.toMap(
+						arr -> arr[0], // entry key
+						arr -> arr[1] // entry value
+					)
+				)
+			)
+			.collect(Collectors.toMap(
+				m -> loadClass(m.get("class"), classLoader, "Could not load class for kryo serialization"),
+				m -> loadClass(m.get("serializer"), classLoader, "Could not load serializer's class"),
+				(m1, m2) -> {
+					throw new IllegalArgumentException("Duplicated serializer for class: " + m1);
+				},
+				LinkedHashMap::new
+			));
+	}
+
+	@SuppressWarnings("unchecked")
+	private <T extends Class> T loadClass(String className, ClassLoader classLoader, String errorMessage) {
+		try {
+			return (T) Class.forName(className, false, classLoader);
+		} catch (ClassNotFoundException e) {
+			throw new IllegalArgumentException(errorMessage, e);
+		}
+	}
+
+	private static class MapBasedJobParameters extends GlobalJobParameters {
+		private final Map<String, String> properties;
+
+		private MapBasedJobParameters(Map<String, String> properties) {
+			this.properties = properties;
+		}
+
+		@Override
+		public Map<String, String> toMap() {
+			return properties;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (!(o instanceof GlobalJobParameters)) {
+				return false;
+			}
+			GlobalJobParameters that = (GlobalJobParameters) o;
+			return Objects.equals(properties, that.toMap());
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(super.hashCode(), properties);
+		}
 	}
 }

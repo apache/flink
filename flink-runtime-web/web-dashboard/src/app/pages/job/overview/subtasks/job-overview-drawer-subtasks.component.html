@@ -21,7 +21,7 @@
   [nzSize]="'small'"
   [nzLoading]="isLoading"
   [nzData]="listOfTask"
-  [nzScroll]="{x:'1430px',y:'calc( 100% - 35px )'}"
+  [nzScroll]="{x:'1480px',y:'calc( 100% - 35px )'}"
   [nzFrontPagination]="false"
   [nzShowPagination]="false">
   <thead (nzSortChange)="sort($event)" nzSingleSort>
@@ -36,7 +36,8 @@
       <th nzSortKey="start_time" nzShowSort nzWidth="150px">Start Time</th>
       <th nzSortKey="duration" nzShowSort nzWidth="100px">Duration</th>
       <th nzSortKey="end-time" nzShowSort nzWidth="150px">End Time</th>
-      <th nzSortKey="status" nzShowSort nzWidth="120px" nzRight="0px">Status</th>
+      <th nzSortKey="status" nzShowSort nzWidth="120px" nzRight="50px">Status</th>
+      <th nzWidth="50px" nzRight="0px">More</th>
     </tr>
   </thead>
   <tbody>
@@ -69,8 +70,21 @@
       <td>{{ task["start_time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
       <td>{{ task.duration | humanizeDuration }}</td>
       <td>{{ task["end-time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
-      <td nzRight="0px">
+      <td nzRight="50px">
         <flink-job-badge [state]="task.status"></flink-job-badge>
+      </td>
+      <td nzRight="0px">
+        <span *ngIf="!task['taskmanager-id'] || task['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
+        <ng-template #hrefTpl>
+          <nz-dropdown [nzPlacement]="'bottomRight'">
+            <span nz-dropdown><i nz-icon nzType="ellipsis" nzTheme="outline"></i></span>
+            <ul nz-menu>
+              <li nz-menu-item>
+                <a [routerLink]="['/task-manager',task['taskmanager-id'],'logs']" target="_blank">View taskmanager log</a>
+              </li>
+            </ul>
+          </nz-dropdown>
+        </ng-template>
       </td>
     </tr>
   </tbody>

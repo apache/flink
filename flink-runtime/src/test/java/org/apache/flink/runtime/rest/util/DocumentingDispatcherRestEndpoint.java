@@ -18,13 +18,11 @@
 
 package org.apache.flink.runtime.rest.util;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.blob.TransientBlobKey;
-import org.apache.flink.runtime.blob.TransientBlobService;
+import org.apache.flink.runtime.blob.NoOpTransientBlobService;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -43,9 +41,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import javax.annotation.Nonnull;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -86,9 +82,10 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint im
 			handlerConfig,
 			resourceManagerGatewayRetriever,
 			NoOpTransientBlobService.INSTANCE,
-			Executors.newFixedThreadPool(1),
+			Executors.newScheduledThreadPool(1),
 			VoidMetricFetcher.INSTANCE,
 			NoOpElectionService.INSTANCE,
+			NoOpExecutionGraphCache.INSTANCE,
 			NoOpFatalErrorHandler.INSTANCE);
 	}
 
@@ -110,7 +107,7 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint im
 		}
 
 		@Override
-		public void confirmLeaderSessionID(final UUID leaderSessionID) {
+		public void confirmLeadership(final UUID leaderSessionID, final String leaderAddress) {
 
 		}
 
@@ -129,53 +126,4 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint im
 		}
 	}
 
-	/**
-	 * No-op implementation of {@link TransientBlobService}.
-	 */
-	private enum NoOpTransientBlobService implements TransientBlobService {
-		INSTANCE;
-
-		@Override
-		public File getFile(TransientBlobKey key) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public File getFile(JobID jobId, TransientBlobKey key) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public TransientBlobKey putTransient(byte[] value) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public TransientBlobKey putTransient(JobID jobId, byte[] value) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public TransientBlobKey putTransient(InputStream inputStream) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public TransientBlobKey putTransient(JobID jobId, InputStream inputStream) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public boolean deleteFromCache(TransientBlobKey key) {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public boolean deleteFromCache(JobID jobId, TransientBlobKey key) {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public void close() throws IOException {}
-	}
 }

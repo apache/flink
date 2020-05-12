@@ -29,8 +29,8 @@ import java.util.Set;
 
 import scala.concurrent.duration.Duration;
 
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS;
-import static org.apache.flink.table.api.config.OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS;
+import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY;
 
 /**
  * Utility class for {@link TableConfig} related helper functions.
@@ -45,7 +45,10 @@ public class TableConfigUtils {
 	 * @return true if the given operator is disabled.
 	 */
 	public static boolean isOperatorDisabled(TableConfig tableConfig, OperatorType operatorType) {
-		String value = tableConfig.getConfiguration().getString(SQL_EXEC_DISABLED_OPERATORS);
+		String value = tableConfig.getConfiguration().getString(TABLE_EXEC_DISABLED_OPERATORS);
+		if (value == null) {
+			return false;
+		}
 		String[] operators = value.split(",");
 		Set<OperatorType> operatorSets = new HashSet<>();
 		for (String operator : operators) {
@@ -70,7 +73,7 @@ public class TableConfigUtils {
 	 * @return the aggregate phase strategy
 	 */
 	public static AggregatePhaseStrategy getAggPhaseStrategy(TableConfig tableConfig) {
-		String aggPhaseConf = tableConfig.getConfiguration().getString(SQL_OPTIMIZER_AGG_PHASE_STRATEGY).trim();
+		String aggPhaseConf = tableConfig.getConfiguration().getString(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY).trim();
 		if (aggPhaseConf.isEmpty()) {
 			return AggregatePhaseStrategy.AUTO;
 		} else {

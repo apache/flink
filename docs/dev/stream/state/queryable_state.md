@@ -185,7 +185,7 @@ For more on this, you can check how to [set up a Flink program]({{ site.baseurl 
 The `QueryableStateClient` will submit your query to the internal proxy, which will then process your query and return 
 the final result. The only requirement to initialize the client is to provide a valid `TaskManager` hostname (remember 
 that there is a queryable state proxy running on each task manager) and the port where the proxy listens. More on how 
-to configure the proxy and state server port(s) in the [Configuration Section](#Configuration).
+to configure the proxy and state server port(s) in the [Configuration Section](#configuration).
 
 {% highlight java %}
 QueryableStateClient client = new QueryableStateClient(tmHostname, proxyPort);

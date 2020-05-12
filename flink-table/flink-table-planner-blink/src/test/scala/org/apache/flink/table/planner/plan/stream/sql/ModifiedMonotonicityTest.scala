@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase,
 
 import org.apache.calcite.sql.validate.SqlMonotonicity.{CONSTANT, DECREASING, INCREASING, NOT_MONOTONIC}
 import org.junit.Assert.assertEquals
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class ModifiedMonotonicityTest extends TableTestBase {
 
@@ -66,9 +66,9 @@ class ModifiedMonotonicityTest extends TableTestBase {
   @Test
   def testMaxWithRetractOptimizeWithLocalGlobal(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration
-      .setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
+      .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query = "SELECT a1, max(a3) from (SELECT a1, a2, max(a3) as a3 FROM A GROUP BY a1, a2) " +
       "group by a1"
     util.verifyPlanWithTrait(query)
@@ -77,9 +77,9 @@ class ModifiedMonotonicityTest extends TableTestBase {
   @Test
   def testMinWithRetractOptimizeWithLocalGlobal(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration
-      .setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
+      .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query = "SELECT min(a3) from (SELECT a1, a2, min(a3) as a3 FROM A GROUP BY a1, a2)"
     util.verifyPlanWithTrait(query)
   }
@@ -87,17 +87,15 @@ class ModifiedMonotonicityTest extends TableTestBase {
   @Test
   def testMinCanNotOptimizeWithLocalGlobal(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration
-      .setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
+      .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "100 ms")
     val query =
       "SELECT a1, MIN(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1"
     util.verifyPlanWithTrait(query)
   }
 
-  @Ignore
   @Test
-  // TODO remove ignore after window aggregate supported
   def testTumbleFunAndRegularAggFunInGroupBy(): Unit = {
     val sql = "SELECT b, d, weightedAvg(c, a) FROM " +
       " (SELECT a, b, c, count(*) d," +
@@ -108,9 +106,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
     verifyMonotonicity(sql, new RelModifiedMonotonicity(Array(CONSTANT, CONSTANT, NOT_MONOTONIC)))
   }
 
-  @Ignore
   @Test
-  // TODO remove ignore after anti-join supported
   def testAntiJoin(): Unit = {
     val sql = "SELECT * FROM AA WHERE NOT EXISTS (SELECT b1 from BB WHERE a1 = b1)"
     verifyMonotonicity(sql, null)
