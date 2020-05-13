@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -171,7 +172,7 @@ public class BucketTest {
 		return new TypeSafeMatcher<BucketState<String>>() {
 			@Override
 			protected boolean matchesSafely(BucketState<String> state) {
-				return state.getInProgressResumableFile() != null;
+				return state.getInProgressFileRecoverable() != null;
 			}
 
 			@Override
@@ -185,7 +186,7 @@ public class BucketTest {
 		return new TypeSafeMatcher<BucketState<String>>() {
 			@Override
 			protected boolean matchesSafely(BucketState<String> state) {
-				return state.getInProgressResumableFile() == null;
+				return state.getInProgressFileRecoverable() == null;
 			}
 
 			@Override
@@ -200,7 +201,7 @@ public class BucketTest {
 		return new TypeSafeMatcher<Bucket<String, String>>() {
 			@Override
 			protected boolean matchesSafely(Bucket<String, String> bucket) {
-				final PartFileWriter<String, String> inProgressPart = bucket.getInProgressPart();
+				final InProgressFileWriter<String, String> inProgressPart = bucket.getInProgressPart();
 				return isNull == (inProgressPart == null);
 			}
 
@@ -349,23 +350,21 @@ public class BucketTest {
 
 	private static final RollingPolicy<String, String> rollingPolicy = DefaultRollingPolicy.builder().build();
 
-	private static final PartFileWriter.PartFileFactory<String, String> partFileFactory =
-			new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>());
+	private static final Encoder ENCODER = new SimpleStringEncoder<>();
 
 	private static Bucket<String, String> createBucket(
 			final RecoverableWriter writer,
 			final Path bucketPath,
 			final int subtaskIdx,
 			final int initialPartCounter,
-			final OutputFileConfig outputFileConfig) {
+			final OutputFileConfig outputFileConfig) throws IOException {
 
 		return Bucket.getNew(
-				writer,
 				subtaskIdx,
 				bucketId,
 				bucketPath,
 				initialPartCounter,
-				partFileFactory,
+				new RowWisePartWriter.Factory<>(writer, ENCODER),
 				rollingPolicy,
 				outputFileConfig);
 	}
@@ -378,10 +377,9 @@ public class BucketTest {
 			final OutputFileConfig outputFileConfig) throws Exception {
 
 		return Bucket.restore(
-				writer,
 				subtaskIndex,
 				initialPartCounter,
-				partFileFactory,
+				new RowWisePartWriter.Factory<>(writer, ENCODER),
 				rollingPolicy,
 				bucketState,
 				outputFileConfig);
@@ -402,24 +400,46 @@ public class BucketTest {
 
 	private Bucket<String, String> getRestoredBucketWithOnlyInProgressPart(final BaseStubWriter writer) throws IOException {
 		final BucketState<String> stateWithOnlyInProgressFile =
-				new BucketState<>("test", new Path(), 12345L, new NoOpRecoverable(), new HashMap<>());
-		return Bucket.restore(writer, 0, 1L, partFileFactory, rollingPolicy, stateWithOnlyInProgressFile, OutputFileConfig.builder().build());
+				new BucketState<>(
+					"test",
+					new Path(),
+					12345L,
+					new OutputStreamBasedPartFileWriter.OutputStreamBasedInProgressFileRecoverable(new NoOpRecoverable()),
+					new HashMap<>());
+
+		return Bucket.restore(
+			0,
+			1L,
+			new RowWisePartWriter.Factory<>(writer, ENCODER),
+			rollingPolicy,
+			stateWithOnlyInProgressFile,
+			OutputFileConfig.builder().build());
 	}
 
 	private Bucket<String, String> getRestoredBucketWithOnlyPendingParts(final BaseStubWriter writer, final int numberOfPendingParts) throws IOException {
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> completePartsPerCheckpoint =
+		final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> completePartsPerCheckpoint =
 				createPendingPartsPerCheckpoint(numberOfPendingParts);
 
 		final BucketState<String> initStateWithOnlyInProgressFile =
-				new BucketState<>("test", new Path(), 12345L, null, completePartsPerCheckpoint);
-		return Bucket.restore(writer, 0, 1L, partFileFactory, rollingPolicy, initStateWithOnlyInProgressFile, OutputFileConfig.builder().build());
+				new BucketState<>(
+					"test",
+					new Path(),
+					12345L,
+					null,
+					completePartsPerCheckpoint);
+		return Bucket.restore(
+			0,
+			1L,
+			new RowWisePartWriter.Factory<>(writer, ENCODER),
+			rollingPolicy,
+			initStateWithOnlyInProgressFile, OutputFileConfig.builder().build());
 	}
 
-	private Map<Long, List<RecoverableWriter.CommitRecoverable>> createPendingPartsPerCheckpoint(int noOfCheckpoints) {
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingCommittablesPerCheckpoint = new HashMap<>();
+	private Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> createPendingPartsPerCheckpoint(int noOfCheckpoints) {
+		final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> pendingCommittablesPerCheckpoint = new HashMap<>();
 		for (int checkpointId = 0; checkpointId < noOfCheckpoints; checkpointId++) {
-			final List<RecoverableWriter.CommitRecoverable> pending = new ArrayList<>();
-			pending.add(new NoOpRecoverable());
+			final List<InProgressFileWriter.PendingFileRecoverable> pending = new ArrayList<>();
+			pending.add(new OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverable(new NoOpRecoverable()));
 			pendingCommittablesPerCheckpoint.put((long) checkpointId, pending);
 		}
 		return pendingCommittablesPerCheckpoint;

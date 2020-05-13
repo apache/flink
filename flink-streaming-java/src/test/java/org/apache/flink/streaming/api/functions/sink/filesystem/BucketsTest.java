@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils.MockListState;
@@ -93,8 +94,8 @@ public class BucketsTest {
 				return bucket.getBucketId().equals(bucketId) &&
 						bucket.getBucketPath().equals(new Path(testTmpPath, bucketId)) &&
 						bucket.getInProgressPart() == null &&
-						bucket.getPendingPartsForCurrentCheckpoint().isEmpty() &&
-						bucket.getPendingPartsPerCheckpoint().size() == 1;
+						bucket.getPendingFileRecoverablesForCurrentCheckpoint().isEmpty() &&
+						bucket.getPendingFileRecoverablesPerCheckpoint().size() == 1;
 			}
 
 			@Override
@@ -145,7 +146,7 @@ public class BucketsTest {
 		Assert.assertEquals(2L, bucketsTwo.getMaxPartCounter());
 
 		// make sure we have one in-progress file here and a pending
-		Assert.assertEquals(1L, bucketsTwo.getActiveBuckets().get("test1").getPendingPartsPerCheckpoint().size());
+		Assert.assertEquals(1L, bucketsTwo.getActiveBuckets().get("test1").getPendingFileRecoverablesPerCheckpoint().size());
 		Assert.assertNotNull(bucketsTwo.getActiveBuckets().get("test1").getInProgressPart());
 
 		final ListState<byte[]> mergedBucketStateContainer = new MockListState<>();
@@ -175,10 +176,10 @@ public class BucketsTest {
 
 		// this is due to the Bucket#merge(). The in progress file of one
 		// of the previous tasks is put in the list of pending files.
-		Assert.assertEquals(1L, bucket.getPendingPartsForCurrentCheckpoint().size());
+		Assert.assertEquals(1L, bucket.getPendingFileRecoverablesForCurrentCheckpoint().size());
 
 		// we commit the pending for previous checkpoints
-		Assert.assertTrue(bucket.getPendingPartsPerCheckpoint().isEmpty());
+		Assert.assertTrue(bucket.getPendingFileRecoverablesPerCheckpoint().isEmpty());
 	}
 
 	@Test
@@ -210,8 +211,8 @@ public class BucketsTest {
 		Assert.assertEquals("test", bucket.getBucketId());
 
 		Assert.assertNull(bucket.getInProgressPart());
-		Assert.assertEquals(1L, bucket.getPendingPartsForCurrentCheckpoint().size());
-		Assert.assertTrue(bucket.getPendingPartsPerCheckpoint().isEmpty());
+		Assert.assertEquals(1L, bucket.getPendingFileRecoverablesForCurrentCheckpoint().size());
+		Assert.assertTrue(bucket.getPendingFileRecoverablesPerCheckpoint().isEmpty());
 	}
 
 	@Test
@@ -321,7 +322,7 @@ public class BucketsTest {
 				path,
 				new VerifyingBucketAssigner(timestamp, watermark, processingTime),
 				new DefaultBucketFactoryImpl<>(),
-				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
+				new RowWisePartWriter.Factory<>(FileSystem.get(path.toUri()).createRecoverableWriter(), new SimpleStringEncoder<>()),
 				DefaultRollingPolicy.builder().build(),
 				null,
 				2,
@@ -458,7 +459,7 @@ public class BucketsTest {
 				basePath,
 				new TestUtils.StringIdentityBucketAssigner(),
 				new DefaultBucketFactoryImpl<>(),
-				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
+				new RowWisePartWriter.Factory<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), new SimpleStringEncoder<>()),
 				rollingPolicy,
 				bucketLifeCycleListener,
 				subtaskIdx,
