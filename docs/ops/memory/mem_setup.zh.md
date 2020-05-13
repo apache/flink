@@ -142,11 +142,11 @@ It can also happen that the fraction is ignored if the sizes of the total memory
 In this case, the *JVM Overhead* is the rest of the total memory. The derived value still has to be within its min/max
 range otherwise the configuration fails. For example, suppose only the following memory options are set:
 - *total Process memory* = 1000Mb,
-- *task heap* = 100Mb, (similar example can be for *JVM Heap* in job executor)
+- *task heap* = 100Mb, (similar example can be for *JVM Heap* in Flink Master)
 - *JVM Overhead min* = 64Mb,
 - *JVM Overhead max* = 256Mb,
 - *JVM Overhead fraction* = 0.1
 
 All other components of the *total Process memory* have default values, including the default *Managed Memory* fraction
-(or *Off-heap* memory in job executor). Then the *JVM Overhead* is not the fraction (1000Mb x 0.1 = 100Mb), but the rest
+(or *Off-heap* memory in Flink Master). Then the *JVM Overhead* is not the fraction (1000Mb x 0.1 = 100Mb), but the rest
 of the *total Process memory* which will either be within the range 64-256Mb or fail.
