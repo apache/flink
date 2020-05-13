@@ -22,12 +22,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-* toc
-{:toc}
-
 The Master is the controlling element of the Flink Cluster. 
 It consists of three distinct components: Flink Resource Manager, Flink Dispatcher and one Flink JobManager per running Flink Job.
 This guide walks you through high level and fine-grained memory configurations for the Master.
+
+* toc
+{:toc}
 
 The further described memory configuration is applicable starting with the release version *1.11*. If you upgrade Flink
 from earlier versions, check the [migration guide](mem_migration.html) because many changes were introduced with the *1.11* release.
