@@ -18,6 +18,8 @@
 
 package org.apache.flink.util.clock;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * A clock that returns the time of the system / process.
  *
@@ -26,6 +28,7 @@ package org.apache.flink.util.clock;
  *
  * <p>This SystemClock exists as a singleton instance.
  */
+@PublicEvolving
 public final class SystemClock extends Clock {
 
 	private static final SystemClock INSTANCE = new SystemClock();

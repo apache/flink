@@ -18,6 +18,8 @@
 
 package org.apache.flink.util.clock;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -25,6 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * A {@link Clock} implementation which allows to advance time manually.
  */
+@PublicEvolving
 public final class ManualClock extends Clock {
 
 	private AtomicLong currentTime = new AtomicLong(0L);
