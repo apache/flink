@@ -150,7 +150,7 @@ public class Buckets<IN, BucketID> {
 	 * @throws Exception if anything goes wrong during retrieving the state or restoring/committing of any
 	 * in-progress/pending part files
 	 */
-	void initializeState(final ListState<byte[]> bucketStates, final ListState<Long> partCounterState) throws Exception {
+	public void initializeState(final ListState<byte[]> bucketStates, final ListState<Long> partCounterState) throws Exception {
 
 		initializePartCounter(partCounterState);
 
@@ -210,7 +210,7 @@ public class Buckets<IN, BucketID> {
 		}
 	}
 
-	void commitUpToCheckpoint(final long checkpointId) throws IOException {
+	public void commitUpToCheckpoint(final long checkpointId) throws IOException {
 		final Iterator<Map.Entry<BucketID, Bucket<IN, BucketID>>> activeBucketIt =
 				activeBuckets.entrySet().iterator();
 
@@ -232,7 +232,7 @@ public class Buckets<IN, BucketID> {
 		}
 	}
 
-	void snapshotState(
+	public void snapshotState(
 			final long checkpointId,
 			final ListState<byte[]> bucketStatesContainer,
 			final ListState<Long> partCounterStateContainer) throws Exception {
@@ -269,13 +269,26 @@ public class Buckets<IN, BucketID> {
 		}
 	}
 
-	Bucket<IN, BucketID> onElement(final IN value, final SinkFunction.Context context) throws Exception {
-		final long currentProcessingTime = context.currentProcessingTime();
+	@VisibleForTesting
+	public Bucket<IN, BucketID> onElement(
+			final IN value,
+			final SinkFunction.Context context) throws Exception {
+		return onElement(
+				value,
+				context.currentProcessingTime(),
+				context.timestamp(),
+				context.currentWatermark());
+	}
 
+	public Bucket<IN, BucketID> onElement(
+			final IN value,
+			final long currentProcessingTime,
+			@Nullable final Long elementTimestamp,
+			final long currentWatermark) throws Exception {
 		// setting the values in the bucketer context
 		bucketerContext.update(
-				context.timestamp(),
-				context.currentWatermark(),
+				elementTimestamp,
+				currentWatermark,
 				currentProcessingTime);
 
 		final BucketID bucketId = bucketAssigner.getBucketId(value, bucketerContext);
@@ -312,13 +325,13 @@ public class Buckets<IN, BucketID> {
 		return bucket;
 	}
 
-	void onProcessingTime(long timestamp) throws Exception {
+	public void onProcessingTime(long timestamp) throws Exception {
 		for (Bucket<IN, BucketID> bucket : activeBuckets.values()) {
 			bucket.onProcessingTime(timestamp);
 		}
 	}
 
-	void close() {
+	public void close() {
 		if (activeBuckets != null) {
 			activeBuckets.values().forEach(Bucket::disposePartFile);
 		}
