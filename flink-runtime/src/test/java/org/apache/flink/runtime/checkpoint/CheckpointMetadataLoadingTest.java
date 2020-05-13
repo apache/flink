@@ -129,6 +129,29 @@ public class CheckpointMetadataLoadingTest {
 		assertTrue(loaded.getOperatorStates().isEmpty());
 	}
 
+	/**
+	 * Tests that savepoint loading fails when there is non-restored coordinator state only,
+	 * and non-restored state is not allowed.
+	 */
+	@Test
+	public void testUnmatchedCoordinatorOnlyStateFails() throws Exception {
+		final OperatorID operatorID = new OperatorID();
+		final int maxParallelism = 1234;
+
+		final OperatorState state = new OperatorState(operatorID, maxParallelism / 2, maxParallelism);
+		state.setCoordinatorState(new ByteStreamStateHandle("coordinatorState", new byte[0]));
+
+		final CompletedCheckpointStorageLocation testSavepoint = createSavepointWithOperatorState(42L, state);
+		final Map<JobVertexID, ExecutionJobVertex> tasks = Collections.emptyMap();
+
+		try {
+			Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false);
+			fail("Did not throw expected Exception");
+		} catch (IllegalStateException expected) {
+			assertTrue(expected.getMessage().contains("allowNonRestoredState"));
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  setup utils
 	// ------------------------------------------------------------------------
