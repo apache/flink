@@ -327,7 +327,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
 		}
 	}
 
-	int unsynchronizedGetExclusiveBuffersUsed() {
+	int unsynchronizedGetAvailableExclusiveBuffers() {
 		return bufferQueue.exclusiveBuffers.size();
 	}
 
