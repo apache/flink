@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.api.{EnvironmentSettings, ImplicitExpressionConversions}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.api.{EnvironmentSettings, Table}
+
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
@@ -72,5 +75,13 @@ class StreamingTestBase extends AbstractTestBase {
       i => row.setField(i, args(i))
     }
     row
+  }
+
+  def execInsertSqlAndWaitResult(insert: String): JobExecutionResult = {
+    TableEnvUtil.execInsertSqlAndWaitResult(tEnv, insert)
+  }
+
+  def execInsertTableAndWaitResult(table: Table, targetPath: String): JobExecutionResult = {
+    TableEnvUtil.execInsertTableAndWaitResult(table, targetPath)
   }
 }

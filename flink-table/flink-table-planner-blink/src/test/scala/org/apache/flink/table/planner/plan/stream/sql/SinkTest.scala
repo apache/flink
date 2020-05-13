@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{ExplainDetail, TableException}
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
@@ -39,47 +39,47 @@ class SinkTest extends TableTestBase {
   def testExceptionForAppendSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val appendSink = util.createAppendTableSink(Array("a"), Array(LONG))
-    util.writeToSink(table, appendSink, "appendSink")
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage("AppendStreamTableSink doesn't support consuming update " +
       "changes which is produced by node GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
-    util.verifyPlanWithTrait()
+    util.verifyPlanInsert(table, appendSink, "appendSink")
   }
 
   @Test
   def testExceptionForOverAggregate(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
     val table = util.tableEnv.sqlQuery("SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
     util.tableEnv.createTemporaryView("TempTable", table)
 
     val retractSink = util.createRetractTableSink(Array("cnt"), Array(LONG))
-    util.writeToSink(table, retractSink, "retractSink1")
+    util.tableEnv.registerTableSink("retractSink1", retractSink)
+    stmtSet.addInsert("retractSink1", table)
 
     val table2 = util.tableEnv.sqlQuery(
       "SELECT cnt, SUM(cnt) OVER (ORDER BY PROCTIME()) FROM TempTable")
     val retractSink2 = util.createRetractTableSink(Array("cnt", "total"), Array(LONG, LONG))
-    util.writeToSink(table2, retractSink2, "retractSink2")
+    util.tableEnv.registerTableSink("retractSink2", retractSink2)
+    stmtSet.addInsert("retractSink2", table2)
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage("OverAggregate doesn't support consuming update changes " +
       "which is produced by node GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
-    util.verifyPlanWithTrait()
+    util.verifyPlan(stmtSet)
   }
 
   @Test
   def testAppendSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT a + b, c FROM MyTable")
     val appendSink = util.createAppendTableSink(Array("d", "c"), Array(LONG, STRING))
-    util.writeToSink(table, appendSink, "appendSink")
-    util.verifyPlanWithTrait()
+    util.verifyPlanInsert(table, appendSink, "appendSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testRetractSink1(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val retractSink = util.createRetractTableSink(Array("a", "cnt"), Array(INT, LONG))
-    util.writeToSink(table, retractSink, "retractSink")
-    util.verifyPlanWithTrait()
+    util.verifyPlanInsert(table, retractSink, "retractSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -92,16 +92,14 @@ class SinkTest extends TableTestBase {
       """.stripMargin
     val table = util.tableEnv.sqlQuery(sqlQuery)
     val retractSink = util.createRetractTableSink(Array("cnt", "a"), Array(LONG, LONG))
-    util.writeToSink(table, retractSink, "retractSink")
-    util.verifyPlanWithTrait()
+    util.verifyPlanInsert(table, retractSink, "retractSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testUpsertSink1(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val upsertSink = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
-    util.writeToSink(table, upsertSink, "upsertSink")
-    util.verifyPlanWithTrait()
+    util.verifyPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -118,8 +116,7 @@ class SinkTest extends TableTestBase {
     val table = util.tableEnv.sqlQuery(sqlQuery)
     val upsertSink = util.createUpsertTableSink(Array(), Array("a1", "b", "c1"),
       Array(INT, LONG, STRING))
-    util.writeToSink(table, upsertSink, "upsertSink")
-    util.verifyPlanWithTrait()
+    util.verifyPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -132,46 +129,52 @@ class SinkTest extends TableTestBase {
         |""".stripMargin
     val table = util.tableEnv.sqlQuery(sql)
     val upsertSink = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
-    util.writeToSink(table, upsertSink, "upsertSink")
     // a filter after aggregation, the Aggregation and Calc should produce UPDATE_BEFORE
-    util.verifyPlanWithTrait()
+    util.verifyPlanInsert(table, upsertSink, "upsertSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testRetractAndUpsertSink(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
     val table = util.tableEnv.sqlQuery("SELECT b, COUNT(a) AS cnt FROM MyTable GROUP BY b")
     util.tableEnv.registerTable("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable WHERE b < 4")
     val retractSink = util.createRetractTableSink(Array("b", "cnt"), Array(LONG, LONG))
-    util.writeToSink(table1, retractSink, "retractSink")
+    util.tableEnv.registerTableSink("retractSink", retractSink)
+    stmtSet.addInsert("retractSink", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable WHERE b >= 4 AND b < 6")
     val upsertSink = util.createUpsertTableSink(Array(), Array("b", "cnt"), Array(LONG, LONG))
-    util.writeToSink(table2, upsertSink, "upsertSink")
+    util.tableEnv.registerTableSink("upsertSink", upsertSink)
+    stmtSet.addInsert("upsertSink", table2)
 
-    util.verifyPlanWithTrait()
+    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testUpsertAndUpsertSink(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
     val table = util.tableEnv.sqlQuery("SELECT b, COUNT(a) AS cnt FROM MyTable GROUP BY b")
     util.tableEnv.registerTable("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery(
       "SELECT cnt, COUNT(b) AS frequency FROM TempTable WHERE b < 4 GROUP BY cnt")
     val upsertSink1 = util.createUpsertTableSink(Array(0), Array("b", "cnt"), Array(LONG, LONG))
-    util.writeToSink(table1, upsertSink1, "upsertSink1")
+    util.tableEnv.registerTableSink("upsertSink1", upsertSink1)
+    stmtSet.addInsert("upsertSink1", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable WHERE b >= 4 AND b < 6")
     val upsertSink2 = util.createUpsertTableSink(Array(), Array("b", "cnt"), Array(LONG, LONG))
-    util.writeToSink(table2, upsertSink2,  "upsertSink2")
+    util.tableEnv.registerTableSink("upsertSink2", upsertSink2)
+    stmtSet.addInsert("upsertSink2", table2)
 
-    util.verifyPlanWithTrait()
+    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testAppendUpsertAndRetractSink(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
     util.addDataStream[(Int, Long, String)]("MyTable2", 'd, 'e, 'f)
     util.addDataStream[(Int, Long, String)]("MyTable3", 'i, 'j, 'k)
 
@@ -180,7 +183,8 @@ class SinkTest extends TableTestBase {
     util.tableEnv.registerTable("TempTable", table)
 
     val appendSink = util.createAppendTableSink(Array("a", "b"), Array(INT, LONG))
-    util.writeToSink(table, appendSink, "appendSink")
+    util.tableEnv.registerTableSink("appendSink", appendSink)
+    stmtSet.addInsert("appendSink", table)
 
     val table1 = util.tableEnv.sqlQuery(
       "SELECT a, b FROM TempTable UNION ALL SELECT i, j FROM MyTable3")
@@ -188,13 +192,15 @@ class SinkTest extends TableTestBase {
 
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable1")
     val retractSink = util.createRetractTableSink(Array("total_sum"), Array(INT))
-    util.writeToSink(table2, retractSink, "retractSink")
+    util.tableEnv.registerTableSink("retractSink", retractSink)
+    stmtSet.addInsert("retractSink", table2)
 
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable1")
     val upsertSink = util.createUpsertTableSink(Array(), Array("total_min"), Array(INT))
-    util.writeToSink(table3, upsertSink, "upsertSink")
+    util.tableEnv.registerTableSink("upsertSink", upsertSink)
+    stmtSet.addInsert("upsertSink", table3)
 
-    util.verifyPlanWithTrait()
+    util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
 }

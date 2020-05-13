@@ -25,6 +25,7 @@ import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -73,10 +74,10 @@ public class FunctionITCase extends StreamingTestBase {
 	@Test
 	public void testCreateCatalogFunctionInDefaultCatalog() {
 		String ddl1 = "create function f1 as 'org.apache.flink.function.TestFunction'";
-		tEnv().sqlUpdate(ddl1);
+		tEnv().executeSql(ddl1);
 		assertTrue(Arrays.asList(tEnv().listFunctions()).contains("f1"));
 
-		tEnv().sqlUpdate("DROP FUNCTION IF EXISTS default_catalog.default_database.f1");
+		tEnv().executeSql("DROP FUNCTION IF EXISTS default_catalog.default_database.f1");
 		assertFalse(Arrays.asList(tEnv().listFunctions()).contains("f1"));
 	}
 
@@ -84,10 +85,10 @@ public class FunctionITCase extends StreamingTestBase {
 	public void testCreateFunctionWithFullPath() {
 		String ddl1 = "create function default_catalog.default_database.f2 as" +
 			" 'org.apache.flink.function.TestFunction'";
-		tEnv().sqlUpdate(ddl1);
+		tEnv().executeSql(ddl1);
 		assertTrue(Arrays.asList(tEnv().listFunctions()).contains("f2"));
 
-		tEnv().sqlUpdate("DROP FUNCTION IF EXISTS default_catalog.default_database.f2");
+		tEnv().executeSql("DROP FUNCTION IF EXISTS default_catalog.default_database.f2");
 		assertFalse(Arrays.asList(tEnv().listFunctions()).contains("f2"));
 	}
 
@@ -95,10 +96,10 @@ public class FunctionITCase extends StreamingTestBase {
 	public void testCreateFunctionWithoutCatalogIdentifier() {
 		String ddl1 = "create function default_database.f3 as" +
 			" 'org.apache.flink.function.TestFunction'";
-		tEnv().sqlUpdate(ddl1);
+		tEnv().executeSql(ddl1);
 		assertTrue(Arrays.asList(tEnv().listFunctions()).contains("f3"));
 
-		tEnv().sqlUpdate("DROP FUNCTION IF EXISTS default_catalog.default_database.f3");
+		tEnv().executeSql("DROP FUNCTION IF EXISTS default_catalog.default_database.f3");
 		assertFalse(Arrays.asList(tEnv().listFunctions()).contains("f3"));
 	}
 
@@ -107,7 +108,7 @@ public class FunctionITCase extends StreamingTestBase {
 		String ddl1 = "create function catalog1.database1.f3 as 'org.apache.flink.function.TestFunction'";
 
 		try {
-			tEnv().sqlUpdate(ddl1);
+			tEnv().executeSql(ddl1);
 		} catch (Exception e){
 			assertEquals("Catalog catalog1 does not exist", e.getMessage());
 		}
@@ -118,7 +119,7 @@ public class FunctionITCase extends StreamingTestBase {
 		String ddl1 = "create function default_catalog.database1.f3 as 'org.apache.flink.function.TestFunction'";
 
 		try {
-			tEnv().sqlUpdate(ddl1);
+			tEnv().executeSql(ddl1);
 		} catch (Exception e){
 			assertEquals(e.getMessage(), "Could not execute CREATE CATALOG FUNCTION:" +
 				" (catalogFunction: [Optional[This is a user-defined function]], identifier:" +
@@ -138,18 +139,18 @@ public class FunctionITCase extends StreamingTestBase {
 
 		String ddl4 = "drop temporary function if exists default_catalog.default_database.f4";
 
-		tEnv().sqlUpdate(ddl1);
+		tEnv().executeSql(ddl1);
 		assertTrue(Arrays.asList(tEnv().listFunctions()).contains("f4"));
 
-		tEnv().sqlUpdate(ddl2);
+		tEnv().executeSql(ddl2);
 		assertTrue(Arrays.asList(tEnv().listFunctions()).contains("f4"));
 
-		tEnv().sqlUpdate(ddl3);
+		tEnv().executeSql(ddl3);
 		assertFalse(Arrays.asList(tEnv().listFunctions()).contains("f4"));
 
-		tEnv().sqlUpdate(ddl1);
+		tEnv().executeSql(ddl1);
 		try {
-			tEnv().sqlUpdate(ddl1);
+			tEnv().executeSql(ddl1);
 		} catch (Exception e) {
 			assertTrue(e instanceof ValidationException);
 			assertEquals(e.getMessage(),
@@ -157,10 +158,10 @@ public class FunctionITCase extends StreamingTestBase {
 					" is already defined");
 		}
 
-		tEnv().sqlUpdate(ddl3);
-		tEnv().sqlUpdate(ddl4);
+		tEnv().executeSql(ddl3);
+		tEnv().executeSql(ddl4);
 		try {
-			tEnv().sqlUpdate(ddl3);
+			tEnv().executeSql(ddl3);
 		} catch (Exception e) {
 			assertTrue(e instanceof ValidationException);
 			assertEquals(e.getMessage(),
@@ -179,9 +180,9 @@ public class FunctionITCase extends StreamingTestBase {
 
 		String ddl3 = "drop temporary system function default_catalog.default_database.f5";
 
-		tEnv().sqlUpdate(ddl1);
-		tEnv().sqlUpdate(ddl2);
-		tEnv().sqlUpdate(ddl3);
+		tEnv().executeSql(ddl1);
+		tEnv().executeSql(ddl2);
+		tEnv().executeSql(ddl3);
 	}
 
 	@Test
@@ -192,11 +193,11 @@ public class FunctionITCase extends StreamingTestBase {
 		ObjectPath objectPath = new ObjectPath("default_database", "f3");
 		assertTrue(tEnv().getCatalog("default_catalog").isPresent());
 		Catalog catalog = tEnv().getCatalog("default_catalog").get();
-		tEnv().sqlUpdate(create);
+		tEnv().executeSql(create);
 		CatalogFunction beforeUpdate = catalog.getFunction(objectPath);
 		assertEquals("org.apache.flink.function.TestFunction", beforeUpdate.getClassName());
 
-		tEnv().sqlUpdate(alter);
+		tEnv().executeSql(alter);
 		CatalogFunction afterUpdate = catalog.getFunction(objectPath);
 		assertEquals("org.apache.flink.function.TestFunction2", afterUpdate.getClassName());
 	}
@@ -213,7 +214,7 @@ public class FunctionITCase extends StreamingTestBase {
 			"as 'org.apache.flink.function.TestFunction'";
 
 		try {
-			tEnv().sqlUpdate(alterUndefinedFunction);
+			tEnv().executeSql(alterUndefinedFunction);
 			fail();
 		} catch (Exception e){
 			assertEquals(e.getMessage(),
@@ -221,14 +222,14 @@ public class FunctionITCase extends StreamingTestBase {
 		}
 
 		try {
-			tEnv().sqlUpdate(alterFunctionInWrongCatalog);
+			tEnv().executeSql(alterFunctionInWrongCatalog);
 			fail();
 		} catch (Exception e) {
 			assertEquals("Catalog catalog1 does not exist", e.getMessage());
 		}
 
 		try {
-			tEnv().sqlUpdate(alterFunctionInWrongDB);
+			tEnv().executeSql(alterFunctionInWrongDB);
 			fail();
 		} catch (Exception e) {
 			assertEquals(e.getMessage(), "Function db1.f4 does not exist" +
@@ -242,7 +243,7 @@ public class FunctionITCase extends StreamingTestBase {
 			" as 'org.apache.flink.function.TestFunction'";
 
 		try {
-			tEnv().sqlUpdate(alterTemporary);
+			tEnv().executeSql(alterTemporary);
 			fail();
 		} catch (Exception e) {
 			assertEquals("Alter temporary catalog function is not supported", e.getMessage());
@@ -255,7 +256,7 @@ public class FunctionITCase extends StreamingTestBase {
 			" as 'org.apache.flink.function.TestFunction'";
 
 		try {
-			tEnv().sqlUpdate(alterTemporary);
+			tEnv().executeSql(alterTemporary);
 			fail();
 		} catch (Exception e) {
 			assertEquals("Alter temporary system function is not supported", e.getMessage());
@@ -271,7 +272,7 @@ public class FunctionITCase extends StreamingTestBase {
 		String dropFunctionInWrongDB = "DROP FUNCTION default_catalog.db1.f4";
 
 		try {
-			tEnv().sqlUpdate(dropUndefinedFunction);
+			tEnv().executeSql(dropUndefinedFunction);
 			fail();
 		} catch (Exception e){
 			assertEquals(e.getMessage(),
@@ -279,14 +280,14 @@ public class FunctionITCase extends StreamingTestBase {
 		}
 
 		try {
-			tEnv().sqlUpdate(dropFunctionInWrongCatalog);
+			tEnv().executeSql(dropFunctionInWrongCatalog);
 			fail();
 		} catch (Exception e) {
 			assertEquals("Catalog catalog1 does not exist", e.getMessage());
 		}
 
 		try {
-			tEnv().sqlUpdate(dropFunctionInWrongDB);
+			tEnv().executeSql(dropFunctionInWrongDB);
 			fail();
 		} catch (Exception e) {
 			assertEquals(e.getMessage(),
@@ -301,7 +302,7 @@ public class FunctionITCase extends StreamingTestBase {
 		String dropFunctionInWrongDB = "DROP TEMPORARY FUNCTION default_catalog.db1.f4";
 
 		try {
-			tEnv().sqlUpdate(dropUndefinedFunction);
+			tEnv().executeSql(dropUndefinedFunction);
 			fail();
 		} catch (Exception e){
 			assertEquals(e.getMessage(), "Temporary catalog function" +
@@ -309,7 +310,7 @@ public class FunctionITCase extends StreamingTestBase {
 		}
 
 		try {
-			tEnv().sqlUpdate(dropFunctionInWrongCatalog);
+			tEnv().executeSql(dropFunctionInWrongCatalog);
 			fail();
 		} catch (Exception e) {
 			assertEquals(e.getMessage(), "Temporary catalog function " +
@@ -317,7 +318,7 @@ public class FunctionITCase extends StreamingTestBase {
 		}
 
 		try {
-			tEnv().sqlUpdate(dropFunctionInWrongDB);
+			tEnv().executeSql(dropFunctionInWrongDB);
 			fail();
 		} catch (Exception e) {
 			assertEquals(e.getMessage(), "Temporary catalog function " +
@@ -332,24 +333,24 @@ public class FunctionITCase extends StreamingTestBase {
 
 		String dropNoCatalogDB = "drop temporary function f4";
 
-		tEnv().sqlUpdate(createNoCatalogDB);
-		tEnv().sqlUpdate(dropNoCatalogDB);
+		tEnv().executeSql(createNoCatalogDB);
+		tEnv().executeSql(dropNoCatalogDB);
 
 		String createNonExistsCatalog = "create temporary function catalog1.default_database.f4" +
 			" as '" + TEST_FUNCTION + "'";
 
 		String dropNonExistsCatalog = "drop temporary function catalog1.default_database.f4";
 
-		tEnv().sqlUpdate(createNonExistsCatalog);
-		tEnv().sqlUpdate(dropNonExistsCatalog);
+		tEnv().executeSql(createNonExistsCatalog);
+		tEnv().executeSql(dropNonExistsCatalog);
 
 		String createNonExistsDB = "create temporary function default_catalog.db1.f4" +
 			" as '" + TEST_FUNCTION + "'";
 
 		String dropNonExistsDB = "drop temporary function default_catalog.db1.f4";
 
-		tEnv().sqlUpdate(createNonExistsDB);
-		tEnv().sqlUpdate(dropNonExistsDB);
+		tEnv().executeSql(createNonExistsDB);
+		tEnv().executeSql(dropNonExistsDB);
 	}
 
 	@Test
@@ -360,12 +361,12 @@ public class FunctionITCase extends StreamingTestBase {
 
 		String ddl3 = "drop temporary system function if exists f5";
 
-		tEnv().sqlUpdate(ddl1);
-		tEnv().sqlUpdate(ddl2);
-		tEnv().sqlUpdate(ddl3);
+		tEnv().executeSql(ddl1);
+		tEnv().executeSql(ddl2);
+		tEnv().executeSql(ddl3);
 
 		try {
-			tEnv().sqlUpdate(ddl2);
+			tEnv().executeSql(ddl2);
 		} catch (Exception e) {
 			assertEquals(
 				e.getMessage(),
@@ -380,7 +381,7 @@ public class FunctionITCase extends StreamingTestBase {
 		String dropFunctionDDL = "drop function addOne";
 		testUserDefinedCatalogFunction(functionDDL);
 		// delete the function
-		tEnv().sqlUpdate(dropFunctionDDL);
+		tEnv().executeSql(dropFunctionDDL);
 	}
 
 	@Test
@@ -390,7 +391,7 @@ public class FunctionITCase extends StreamingTestBase {
 		String dropFunctionDDL = "drop temporary function addOne";
 		testUserDefinedCatalogFunction(functionDDL);
 		// delete the function
-		tEnv().sqlUpdate(dropFunctionDDL);
+		tEnv().executeSql(dropFunctionDDL);
 	}
 
 	@Test
@@ -400,7 +401,7 @@ public class FunctionITCase extends StreamingTestBase {
 		String dropFunctionDDL = "drop temporary system function addOne";
 		testUserDefinedCatalogFunction(functionDDL);
 		// delete the function
-		tEnv().sqlUpdate(dropFunctionDDL);
+		tEnv().executeSql(dropFunctionDDL);
 	}
 
 	/**
@@ -430,19 +431,19 @@ public class FunctionITCase extends StreamingTestBase {
 
 		String query = "select t1.a, t1.b, addOne(t1.a, 1) as c from t1";
 
-		tEnv().sqlUpdate(sourceDDL);
-		tEnv().sqlUpdate(sinkDDL);
-		tEnv().sqlUpdate(createFunctionDDL);
+		tEnv().executeSql(sourceDDL);
+		tEnv().executeSql(sinkDDL);
+		tEnv().executeSql(createFunctionDDL);
 		Table t2 = tEnv().sqlQuery(query);
-		tEnv().insertInto("t2", t2);
-		tEnv().execute("job1");
+		TableResult tableResult = t2.executeInsert("t2");
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 
 		Row[] result = TestCollectionTableFactory.RESULT().toArray(new Row[0]);
 		Row[] expected = sourceData.toArray(new Row[0]);
 		assertArrayEquals(expected, result);
 
-		tEnv().sqlUpdate("drop table t1");
-		tEnv().sqlUpdate("drop table t2");
+		tEnv().executeSql("drop table t1");
+		tEnv().executeSql("drop table t2");
 	}
 
 	@Test
@@ -462,11 +463,10 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE TestTable(i INT NOT NULL, b BIGINT NOT NULL, s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE TestTable(i INT NOT NULL, b BIGINT NOT NULL, s STRING) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("PrimitiveScalarFunction", PrimitiveScalarFunction.class);
-		tEnv().sqlUpdate("INSERT INTO TestTable SELECT i, PrimitiveScalarFunction(i, b, s), s FROM TestTable");
-		tEnv().execute("Test Job");
+		execInsertSqlAndWaitResult("INSERT INTO TestTable SELECT i, PrimitiveScalarFunction(i, b, s), s FROM TestTable");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
@@ -478,21 +478,20 @@ public class FunctionITCase extends StreamingTestBase {
 
 		TestCollectionTableFactory.reset();
 
-		tEnv().sqlUpdate(
+		tEnv().executeSql(
 			"CREATE TABLE TestTable(s1 STRING, s2 STRING, s3 STRING, s4 STRING, s5 STRING, s6 STRING) " +
 			"WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("ClassNameScalarFunction", ClassNameScalarFunction.class);
 		tEnv().createTemporarySystemFunction("ClassNameOrUnknownScalarFunction", ClassNameOrUnknownScalarFunction.class);
 		tEnv().createTemporarySystemFunction("WildcardClassNameScalarFunction", WildcardClassNameScalarFunction.class);
-		tEnv().sqlUpdate("INSERT INTO TestTable SELECT " +
+		execInsertSqlAndWaitResult("INSERT INTO TestTable SELECT " +
 			"ClassNameScalarFunction(NULL), " +
 			"ClassNameScalarFunction(CAST(NULL AS STRING)), " +
 			"ClassNameOrUnknownScalarFunction(NULL), " +
 			"ClassNameOrUnknownScalarFunction(CAST(NULL AS STRING)), " +
 			"WildcardClassNameScalarFunction(NULL), " +
 			"WildcardClassNameScalarFunction(CAST(NULL AS BOOLEAN))");
-		tEnv().execute("Test Job");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
@@ -508,14 +507,13 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate(
+		tEnv().executeSql(
 			"CREATE TABLE TestTable(i INT, r ROW<i INT, s STRING>) " +
 			"WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RowScalarFunction", RowScalarFunction.class);
 		// the names of the function input and r differ
-		tEnv().sqlUpdate("INSERT INTO TestTable SELECT i, RowScalarFunction(r) FROM TestTable");
-		tEnv().execute("Test Job");
+		execInsertSqlAndWaitResult("INSERT INTO TestTable SELECT i, RowScalarFunction(r) FROM TestTable");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sourceData));
 	}
@@ -563,10 +561,10 @@ public class FunctionITCase extends StreamingTestBase {
 			Object.class,
 			new KryoSerializer<>(Object.class, new ExecutionConfig()));
 
-		tEnv().sqlUpdate(
+		tEnv().executeSql(
 			"CREATE TABLE SourceTable(i INT, b BYTES) " +
 			"WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate(
+		tEnv().executeSql(
 			"CREATE TABLE SinkTable(" +
 			"  i INT, " +
 			"  s1 STRING, " +
@@ -577,7 +575,7 @@ public class FunctionITCase extends StreamingTestBase {
 			"WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("ComplexScalarFunction", ComplexScalarFunction.class);
-		tEnv().sqlUpdate(
+		execInsertSqlAndWaitResult(
 			"INSERT INTO SinkTable " +
 			"SELECT " +
 			"  i, " +
@@ -586,7 +584,6 @@ public class FunctionITCase extends StreamingTestBase {
 			"  ComplexScalarFunction(), " +
 			"  ComplexScalarFunction(b) " +
 			"FROM SourceTable");
-		tEnv().execute("Test Job");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
@@ -610,18 +607,17 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE SourceTable(i INT) WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(i1 INT, i2 INT, i3 INT) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SourceTable(i INT) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(i1 INT, i2 INT, i3 INT) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
-		tEnv().sqlUpdate(
+		execInsertSqlAndWaitResult(
 			"INSERT INTO SinkTable " +
 			"SELECT " +
 			"  i, " +
 			"  CustomScalarFunction(i), " +
 			"  CustomScalarFunction(CAST(NULL AS INT), 5, i, i) " +
 			"FROM SourceTable");
-		tEnv().execute("Test Job");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
@@ -668,13 +664,13 @@ public class FunctionITCase extends StreamingTestBase {
 			DayOfWeek.class,
 			new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig()));
 
-		tEnv().sqlUpdate(
+		tEnv().executeSql(
 			"CREATE TABLE SourceTable(" +
 			"  i INT, " +
 			"  r " + rawType.asSerializableString() +
 			") " +
 			"WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate(
+		tEnv().executeSql(
 			"CREATE TABLE SinkTable(" +
 			"  i INT, " +
 			"  s STRING, " +
@@ -683,7 +679,7 @@ public class FunctionITCase extends StreamingTestBase {
 			"WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RawLiteralScalarFunction", RawLiteralScalarFunction.class);
-		tEnv().sqlUpdate(
+		execInsertSqlAndWaitResult(
 			"INSERT INTO SinkTable " +
 			"  (SELECT " +
 			"    i, " +
@@ -696,22 +692,19 @@ public class FunctionITCase extends StreamingTestBase {
 			"    RawLiteralScalarFunction(r, TRUE), " +
 			"    RawLiteralScalarFunction(r, FALSE) " +
 			"  FROM SourceTable)");
-		tEnv().execute("Test Job");
 
 		assertThat(TestCollectionTableFactory.getResult(), containsInAnyOrder(sinkData));
 	}
 
 	@Test
 	public void testInvalidCustomScalarFunction() {
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
 		try {
-			tEnv().sqlUpdate(
+			execInsertSqlAndWaitResult(
 				"INSERT INTO SinkTable " +
 				"SELECT CustomScalarFunction('test')");
-			// trigger translation
-			tEnv().explain(false);
 			fail();
 		} catch (CodeGenException e) {
 			assertThat(
@@ -742,12 +735,11 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING> NOT NULL) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING> NOT NULL) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
-		tEnv().sqlUpdate("INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable, LATERAL TABLE(RowTableFunction(s)) t");
-		tEnv().execute("Test Job");
+		execInsertSqlAndWaitResult("INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable, LATERAL TABLE(RowTableFunction(s)) t");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
@@ -762,32 +754,29 @@ public class FunctionITCase extends StreamingTestBase {
 
 		TestCollectionTableFactory.reset();
 
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("DynamicTableFunction", DynamicTableFunction.class);
-		tEnv().sqlUpdate(
+		execInsertSqlAndWaitResult(
 			"INSERT INTO SinkTable " +
 			"SELECT T1.s FROM TABLE(DynamicTableFunction('Test')) AS T1(s) " +
 			"UNION ALL " +
 			"SELECT CAST(T2.i AS STRING) FROM TABLE(DynamicTableFunction(42)) AS T2(i)" +
 			"UNION ALL " +
 			"SELECT CAST(T3.i AS STRING) FROM TABLE(DynamicTableFunction(CAST(NULL AS INT))) AS T3(i)");
-		tEnv().execute("Test Job");
 
 		assertThat(TestCollectionTableFactory.getResult(), containsInAnyOrder(sinkData));
 	}
 
 	@Test
 	public void testInvalidUseOfScalarFunction() {
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("PrimitiveScalarFunction", PrimitiveScalarFunction.class);
 		try {
-			tEnv().sqlUpdate(
+			tEnv().executeSql(
 				"INSERT INTO SinkTable " +
 				"SELECT * FROM TABLE(PrimitiveScalarFunction(1, 2, '3'))");
-			// trigger translation
-			tEnv().explain(false);
 			fail();
 		} catch (ValidationException e) {
 			assertThat(
@@ -800,14 +789,12 @@ public class FunctionITCase extends StreamingTestBase {
 
 	@Test
 	public void testInvalidUseOfSystemScalarFunction() {
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
 
 		try {
-			tEnv().sqlUpdate(
+			tEnv().explainSql(
 				"INSERT INTO SinkTable " +
 				"SELECT * FROM TABLE(MD5('3'))");
-			// trigger translation
-			tEnv().explain(false);
 			fail();
 		} catch (ValidationException e) {
 			assertThat(
@@ -820,11 +807,11 @@ public class FunctionITCase extends StreamingTestBase {
 
 	@Test
 	public void testInvalidUseOfTableFunction() {
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 		try {
-			tEnv().sqlUpdate(
+			tEnv().executeSql(
 				"INSERT INTO SinkTable " +
 				"SELECT RowTableFunction('test')");
 			fail();

@@ -40,6 +40,7 @@ import org.apache.flink.table.functions.hive.util.TestHiveGenericUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveSimpleUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveUDTF;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.planner.runtime.utils.TestingRetractSink;
 import org.apache.flink.table.util.JavaScalaConversionUtil;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -212,8 +213,8 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 					false
 			);
 
-			tEnv.sqlUpdate(format("insert into %s " + selectSql, sinkTableName));
-			tEnv.execute("myjob");
+			TableEnvUtil.execInsertSqlAndWaitResult(
+					tEnv, format("insert into %s " + selectSql, sinkTableName));
 
 			// assert written result
 			StringBuilder builder = new StringBuilder();

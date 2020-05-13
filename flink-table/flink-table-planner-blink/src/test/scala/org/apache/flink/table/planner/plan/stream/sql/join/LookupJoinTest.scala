@@ -470,7 +470,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   }
 
   private def verifyTranslationSuccess(sql: String): Unit = {
-    util.tableEnv.explain(util.tableEnv.sqlQuery(sql))
+    util.tableEnv.sqlQuery(sql).explain()
   }
 }
 

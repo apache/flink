@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema}
-import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.test.util.TestBaseUtils
 
@@ -48,12 +48,10 @@ class TableSinkITCase extends BatchTestBase {
       tEnv, schema, "testSink")
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
-    tEnv.scan("Table3")
+    val table = tEnv.from("Table3")
         .where('a > 20)
         .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-        .insertInto("testSink")
-
-    tEnv.execute("")
+    execInsertTableAndWaitResult(table, "testSink")
 
     val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
     val expected = Seq("12345,55,12345").mkString("\n")
@@ -76,12 +74,10 @@ class TableSinkITCase extends BatchTestBase {
 
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
-    tEnv.scan("Table3")
+    val table = tEnv.from("Table3")
         .where('a > 20)
         .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
-        .insertInto("testSink")
-
-    tEnv.execute("")
+    execInsertTableAndWaitResult(table, "testSink")
 
     val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
     val expected = Seq("12345,55,12345").mkString("\n")
@@ -106,12 +102,10 @@ class TableSinkITCase extends BatchTestBase {
 
     registerCollection("Table3", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
 
-    tEnv.from("Table3")
+    val table = tEnv.from("Table3")
       .select('a.cast(DataTypes.STRING()), 'b.cast(DataTypes.DECIMAL(10, 2)))
       .distinct()
-      .insertInto("testSink")
-
-    tEnv.execute("")
+    execInsertTableAndWaitResult(table, "testSink")
 
     val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
     val expected = Seq("1,0.100000000000000000", "2,0.200000000000000000",
@@ -139,11 +133,10 @@ class TableSinkITCase extends BatchTestBase {
     sink.expectedKeys = Some(Array("a"))
     sink.expectedIsAppendOnly = Some(false)
 
-    tEnv.from("MyTable")
+   val table = tEnv.from("MyTable")
         .groupBy('a)
         .select('a, 'b.sum())
-        .insertInto("testSink")
-    tEnv.execute("")
+    execInsertTableAndWaitResult(table, "testSink")
 
     val result = sink.getUpsertResults.sorted
     val expected = List(
@@ -161,11 +154,10 @@ class TableSinkITCase extends BatchTestBase {
     sink.expectedKeys = None
     sink.expectedIsAppendOnly = Some(true)
 
-    tEnv.from("MyTable")
+    val table = tEnv.from("MyTable")
         .select('a, 'b)
         .where('a < 3)
-        .insertInto("testSink")
-    tEnv.execute("")
+    execInsertTableAndWaitResult(table, "testSink")
 
     val result = sink.getRawResults.sorted
     val expected = List(
@@ -190,11 +182,10 @@ class TableSinkITCase extends BatchTestBase {
   def testRetractSink(): Unit = {
     val sink = prepareForRetractSink()
 
-    tEnv.from("MyTable")
+    val table = tEnv.from("MyTable")
         .groupBy('a)
         .select('a, 'b.sum())
-        .insertInto("testSink")
-    tEnv.execute("")
+    execInsertTableAndWaitResult(table, "testSink")
 
     val result = sink.getRawResults.sorted
     val expected = List(

@@ -26,6 +26,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.sources.InputFormatTableSource;
@@ -66,8 +67,9 @@ public class BatchSQLTestProgram {
 			new CsvTableSink(outputPath)
 				.configure(new String[]{"f0", "f1"}, new TypeInformation[]{Types.INT, Types.SQL_TIMESTAMP}));
 
-		tEnv.sqlUpdate(sqlStatement);
-		tEnv.execute("TestSqlJob");
+		TableResult result = tEnv.executeSql(sqlStatement);
+		// wait job finish
+		result.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 	}
 
 	/**

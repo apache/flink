@@ -70,13 +70,13 @@ public class HiveDialectTest {
 
 	@Test
 	public void testCreateDatabase() throws Exception {
-		tableEnv.sqlUpdate("create database db1 comment 'db1 comment'");
+		tableEnv.executeSql("create database db1 comment 'db1 comment'");
 		Database db = hiveCatalog.getHiveDatabase("db1");
 		assertEquals("db1 comment", db.getDescription());
 		assertFalse(Boolean.parseBoolean(db.getParameters().get(CatalogConfig.IS_GENERIC)));
 
 		String db2Location = warehouse + "/db2_location";
-		tableEnv.sqlUpdate(String.format("create database db2 location '%s' with dbproperties('k1'='v1')", db2Location));
+		tableEnv.executeSql(String.format("create database db2 location '%s' with dbproperties('k1'='v1')", db2Location));
 		db = hiveCatalog.getHiveDatabase("db2");
 		assertEquals(db2Location, new URI(db.getLocationUri()).getPath());
 		assertEquals("v1", db.getParameters().get("k1"));
@@ -85,8 +85,8 @@ public class HiveDialectTest {
 	@Test
 	public void testAlterDatabase() throws Exception {
 		// alter properties
-		tableEnv.sqlUpdate("create database db1 with dbproperties('k1'='v1')");
-		tableEnv.sqlUpdate("alter database db1 set dbproperties ('k1'='v11','k2'='v2')");
+		tableEnv.executeSql("create database db1 with dbproperties('k1'='v1')");
+		tableEnv.executeSql("alter database db1 set dbproperties ('k1'='v11','k2'='v2')");
 		Database db = hiveCatalog.getHiveDatabase("db1");
 		// there's an extra is_generic property
 		assertEquals(3, db.getParametersSize());
@@ -94,12 +94,12 @@ public class HiveDialectTest {
 		assertEquals("v2", db.getParameters().get("k2"));
 
 		// alter owner
-		tableEnv.sqlUpdate("alter database db1 set owner user user1");
+		tableEnv.executeSql("alter database db1 set owner user user1");
 		db = hiveCatalog.getHiveDatabase("db1");
 		assertEquals("user1", db.getOwnerName());
 		assertEquals(PrincipalType.USER, db.getOwnerType());
 
-		tableEnv.sqlUpdate("alter database db1 set owner role role1");
+		tableEnv.executeSql("alter database db1 set owner role role1");
 		db = hiveCatalog.getHiveDatabase("db1");
 		assertEquals("role1", db.getOwnerName());
 		assertEquals(PrincipalType.ROLE, db.getOwnerType());
@@ -107,7 +107,7 @@ public class HiveDialectTest {
 		// alter location
 		if (hiveCatalog.getHiveVersion().compareTo("2.4.0") >= 0) {
 			String newLocation = warehouse + "/db1_new_location";
-			tableEnv.sqlUpdate(String.format("alter database db1 set location '%s'", newLocation));
+			tableEnv.executeSql(String.format("alter database db1 set location '%s'", newLocation));
 			db = hiveCatalog.getHiveDatabase("db1");
 			assertEquals(newLocation, new URI(db.getLocationUri()).getPath());
 		}

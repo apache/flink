@@ -325,7 +325,9 @@ public interface TableEnvironment {
 	 * Creates a table from a table source.
 	 *
 	 * @param source table source used as table
+	 * @deprecated use {@link #createTemporaryView(String, Table)}.
 	 */
+	@Deprecated
 	Table fromTableSource(TableSource<?> source);
 
 	/**
@@ -676,7 +678,8 @@ public interface TableEnvironment {
 	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
 	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
 	 *        {@link Table} is written.
-	 * @deprecated use {@link #insertInto(String, Table)}
+	 * @deprecated use {@link Table#executeInsert(String)} for single sink,
+	 *             use {@link TableEnvironment#createStatementSet()} for multiple sinks.
 	 */
 	@Deprecated
 	void insertInto(Table table, String sinkPath, String... sinkPathContinued);
@@ -689,7 +692,10 @@ public interface TableEnvironment {
 	 *
 	 * @param targetPath The path of the registered {@link TableSink} to which the {@link Table} is written.
 	 * @param table The Table to write to the sink.
+	 * @deprecated use {@link Table#executeInsert(String)} for single sink,
+	 *             use {@link TableEnvironment#createStatementSet()} for multiple sinks.
 	 */
+	@Deprecated
 	void insertInto(String targetPath, Table table);
 
 	/**
@@ -820,7 +826,9 @@ public interface TableEnvironment {
 	 * the result of the given {@link Table}.
 	 *
 	 * @param table The table for which the AST and execution plan will be returned.
+	 * @deprecated use {@link Table#explain(ExplainDetail...)}.
 	 */
+	@Deprecated
 	String explain(Table table);
 
 	/**
@@ -830,7 +838,9 @@ public interface TableEnvironment {
 	 * @param table The table for which the AST and execution plan will be returned.
 	 * @param extended if the plan should contain additional properties,
 	 * e.g. estimated cost, traits
+	 * @deprecated use {@link Table#explain(ExplainDetail...)}.
 	 */
+	@Deprecated
 	String explain(Table table, boolean extended);
 
 	/**
@@ -839,7 +849,9 @@ public interface TableEnvironment {
 	 *
 	 * @param extended if the plan should contain additional properties,
 	 * e.g. estimated cost, traits
+	 * @deprecated use {@link StatementSet#explain(ExplainDetail...)}.
 	 */
+	@Deprecated
 	String explain(boolean extended);
 
 	/**
@@ -968,7 +980,10 @@ public interface TableEnvironment {
 	 * This code snippet creates a job to read data from Kafka source into a CSV sink.
 	 *
 	 * @param stmt The SQL statement to evaluate.
+	 * @deprecated use {@link #executeSql(String)} for single statement,
+	 *             use {@link TableEnvironment#createStatementSet()} for multiple DML statements.
 	 */
+	@Deprecated
 	void sqlUpdate(String stmt);
 
 	/**
@@ -1130,7 +1145,10 @@ public interface TableEnvironment {
 	 * @param jobName Desired name of the job
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception which occurs during job execution.
+	 * @deprecated use {@link #executeSql(String)} or {@link Table#executeInsert(String)} for single sink,
+	 *             use {@link #createStatementSet()} for multiple sinks.
 	 */
+	@Deprecated
 	JobExecutionResult execute(String jobName) throws Exception;
 
 	/**

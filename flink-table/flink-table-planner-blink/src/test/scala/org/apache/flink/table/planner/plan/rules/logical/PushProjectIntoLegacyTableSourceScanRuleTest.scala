@@ -60,7 +60,7 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
          |  'is-bounded' = 'true'
          |)
        """.stripMargin
-    util.tableEnv.sqlUpdate(ddl1)
+    util.tableEnv.executeSql(ddl1)
 
     val ddl2 =
       s"""
@@ -74,7 +74,7 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
          |  'is-bounded' = 'true'
          |)
        """.stripMargin
-    util.tableEnv.sqlUpdate(ddl2)
+    util.tableEnv.executeSql(ddl2)
   }
 
   @Test

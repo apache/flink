@@ -95,10 +95,12 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
                  |  ${additionalProperties().mkString(",\n")}
                  |)
        """.stripMargin
-    tEnv.sqlUpdate(ddl)
+    tEnv.executeSql(ddl)
 
-    tEnv.insertInto("sink_table", tEnv.sqlQuery("select * from my_table"))
-    tEnv.execute("insert")
+    val tableResult = tEnv.sqlQuery("select * from my_table").executeInsert("sink_table")
+    tableResult.getJobClient.get()
+      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
+      .get()
 
     check(
       ddl,
@@ -109,7 +111,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
   def check(ddl: String, sqlQuery: String, expectedResult: Seq[Row]): Unit = {
     val setting = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
     val tEnv = TableEnvironment.create(setting)
-    tEnv.sqlUpdate(ddl)
+    tEnv.executeSql(ddl)
 
     val result = Lists.newArrayList(tEnv.sqlQuery(sqlQuery).execute().collect())
 

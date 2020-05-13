@@ -58,7 +58,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   def testRedundantWatermarkDefinition(): Unit = {
     util.tableEnv.getConfig.getConfiguration
         .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
-    util.addTableWithWatermark("MyTable3", util.tableEnv.scan("MyTable1"), "rowtime", 0)
+    util.addTableWithWatermark("MyTable3", util.tableEnv.from("MyTable1"), "rowtime", 0)
     val sql = "SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable3 GROUP BY b"
     util.verifyPlan(sql)
   }
@@ -69,7 +69,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     tableConfig.getConfiguration
         .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
     withEarlyFireDelay(tableConfig, Time.milliseconds(500))
-    util.addTableWithWatermark("MyTable3", util.tableEnv.scan("MyTable1"), "rowtime", 0)
+    util.addTableWithWatermark("MyTable3", util.tableEnv.from("MyTable1"), "rowtime", 0)
     val sql =
       """
         | SELECT b, SUM(cnt)
@@ -90,7 +90,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   def testWindowCascade(): Unit = {
     util.tableEnv.getConfig.getConfiguration
         .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "3 s")
-    util.addTableWithWatermark("MyTable3", util.tableEnv.scan("MyTable1"), "rowtime", 0)
+    util.addTableWithWatermark("MyTable3", util.tableEnv.from("MyTable1"), "rowtime", 0)
     val sql =
       """
         | SELECT b,
@@ -109,8 +109,8 @@ class MiniBatchIntervalInferTest extends TableTestBase {
 
   @Test
   def testWindowJoinWithMiniBatch(): Unit = {
-    util.addTableWithWatermark("LeftT", util.tableEnv.scan("MyTable1"), "rowtime", 0)
-    util.addTableWithWatermark("RightT", util.tableEnv.scan("MyTable2"), "rowtime", 0)
+    util.addTableWithWatermark("LeftT", util.tableEnv.from("MyTable1"), "rowtime", 0)
+    util.addTableWithWatermark("RightT", util.tableEnv.from("MyTable2"), "rowtime", 0)
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
 
@@ -132,7 +132,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
 
   @Test
   def testRowtimeRowsOverWithMiniBatch(): Unit = {
-    util.addTableWithWatermark("MyTable3", util.tableEnv.scan("MyTable1"), "rowtime", 0)
+    util.addTableWithWatermark("MyTable3", util.tableEnv.from("MyTable1"), "rowtime", 0)
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
 
@@ -152,15 +152,15 @@ class MiniBatchIntervalInferTest extends TableTestBase {
 
   @Test
   def testTemporalTableFunctionJoinWithMiniBatch(): Unit = {
-    util.addTableWithWatermark("Orders", util.tableEnv.scan("MyTable1"), "rowtime", 0)
-    util.addTableWithWatermark("RatesHistory", util.tableEnv.scan("MyTable2"), "rowtime", 0)
+    util.addTableWithWatermark("Orders", util.tableEnv.from("MyTable1"), "rowtime", 0)
+    util.addTableWithWatermark("RatesHistory", util.tableEnv.from("MyTable2"), "rowtime", 0)
 
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
 
     util.addFunction(
       "Rates",
-      util.tableEnv.scan("RatesHistory").createTemporalTableFunction($"rowtime", $"b"))
+      util.tableEnv.from("RatesHistory").createTemporalTableFunction($"rowtime", $"b"))
 
     val sqlQuery =
       """
@@ -180,8 +180,8 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   @Test
   def testMultiOperatorNeedsWatermark1(): Unit = {
     // infer result: miniBatchInterval=[Rowtime, 0ms]
-    util.addTableWithWatermark("LeftT", util.tableEnv.scan("MyTable1"), "rowtime", 0)
-    util.addTableWithWatermark("RightT", util.tableEnv.scan("MyTable2"), "rowtime", 0)
+    util.addTableWithWatermark("LeftT", util.tableEnv.from("MyTable1"), "rowtime", 0)
+    util.addTableWithWatermark("RightT", util.tableEnv.from("MyTable2"), "rowtime", 0)
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
 
@@ -206,8 +206,8 @@ class MiniBatchIntervalInferTest extends TableTestBase {
 
   @Test
   def testMultiOperatorNeedsWatermark2(): Unit = {
-    util.addTableWithWatermark("LeftT", util.tableEnv.scan("MyTable1"), "rowtime", 0)
-    util.addTableWithWatermark("RightT", util.tableEnv.scan("MyTable2"), "rowtime", 0)
+    util.addTableWithWatermark("LeftT", util.tableEnv.from("MyTable1"), "rowtime", 0)
+    util.addTableWithWatermark("RightT", util.tableEnv.from("MyTable2"), "rowtime", 0)
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "6 s")
 
@@ -243,7 +243,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
 
   @Test
   def testMultiOperatorNeedsWatermark3(): Unit = {
-    util.addTableWithWatermark("RightT", util.tableEnv.scan("MyTable2"), "rowtime", 0)
+    util.addTableWithWatermark("RightT", util.tableEnv.from("MyTable2"), "rowtime", 0)
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "6 s")
 
@@ -273,12 +273,13 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     */
   @Test
   def testMultipleWindowAggregates(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
     util.addDataStream[(Int, Long, String)]("T1", 'id1, 'rowtime.rowtime, 'text)
     util.addDataStream[(Int, Long, Int, String, String)](
       "T2",
       'id2, 'rowtime.rowtime, 'cnt, 'name, 'goods)
-    util.addTableWithWatermark("T3", util.tableEnv.scan("T1"), "rowtime", 0)
-    util.addTableWithWatermark("T4", util.tableEnv.scan("T2"), "rowtime", 0)
+    util.addTableWithWatermark("T3", util.tableEnv.from("T1"), "rowtime", 0)
+    util.addTableWithWatermark("T4", util.tableEnv.from("T2"), "rowtime", 0)
 
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "500 ms")
@@ -313,7 +314,8 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY HOP(ts, INTERVAL '12' SECOND, INTERVAL '4' SECOND), id1
       """.stripMargin)
     val appendSink1 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.writeToSink(table3, appendSink1, "appendSink1")
+    util.tableEnv.registerTableSink("appendSink1", appendSink1)
+    stmtSet.addInsert("appendSink1", table3)
 
     val table4 = util.tableEnv.sqlQuery(
       """
@@ -323,7 +325,8 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY TUMBLE(ts, INTERVAL '9' SECOND), id1
       """.stripMargin)
     val appendSink2 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.writeToSink(table4, appendSink2, "appendSink2")
+    util.tableEnv.registerTableSink("appendSink2", appendSink2)
+    stmtSet.addInsert("appendSink2", table4)
 
     val table5 = util.tableEnv.sqlQuery(
       """
@@ -333,9 +336,10 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |GROUP BY id1
       """.stripMargin)
     val appendSink3 = util.createRetractTableSink(Array("a", "b"), Array(INT, LONG))
-    util.writeToSink(table5, appendSink3, "appendSink3")
+    util.tableEnv.registerTableSink("appendSink3", appendSink3)
+    stmtSet.addInsert("appendSink3", table5)
 
-    util.verifyExplain()
+    util.verifyExplain(stmtSet)
   }
 
   @Test

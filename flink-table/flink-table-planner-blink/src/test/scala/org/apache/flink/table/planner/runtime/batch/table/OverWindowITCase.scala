@@ -52,7 +52,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testSingleRowOverWindow(): Unit = {
-    val table = tEnv.scan("Table1")
+    val table = tEnv.from("Table1")
 
     val expected = Seq(
       row("a", 1, 5),
@@ -97,7 +97,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testUnboundedRowOverWindow(): Unit = {
-    val table = tEnv.scan("Table1")
+    val table = tEnv.from("Table1")
 
     checkTableResult(
       table
@@ -119,7 +119,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testOrderByStringTypeField(): Unit = {
-    val table2 = tEnv.scan("Table2")
+    val table2 = tEnv.from("Table2")
 
     checkTableResult(
       table2
@@ -174,7 +174,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationSumWithOrderBy(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -204,7 +204,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationSumWithOrderByAndWithoutPartitionBy(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -234,7 +234,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationCountWithOrderBy(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -264,7 +264,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationAvgWithOrderBy(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -294,7 +294,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationSumWithOrderByWithRowsBetween(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -324,7 +324,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationSumWithOrderByShrinkWindow(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     val expected = Seq(
       row(1, 1, 1),
@@ -370,7 +370,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationSumWithOrderByWithRangeBetween(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -417,7 +417,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationWithOrderByWithRowBetween(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -462,7 +462,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationMaxWithOrderBy(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -492,7 +492,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationMinWithOrderBy(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -522,7 +522,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testAvg(): Unit = {
-    val table = tEnv.scan("Table4")
+    val table = tEnv.from("Table4")
 
     checkTableResult(
       table
@@ -545,7 +545,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testRangeFrame(): Unit = {
-    val table = tEnv.scan("Table4")
+    val table = tEnv.from("Table4")
 
     // sliding frame case: 1 - 1
     checkTableResult(
@@ -607,7 +607,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testRowsFrame(): Unit = {
-    val table = tEnv.scan("Table4")
+    val table = tEnv.from("Table4")
 
     // sliding frame case: unbounded - 1
     checkTableResult(
@@ -650,7 +650,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testRangeFrameWithNullValue(): Unit = {
-    val table = tEnv.scan("NullTable4")
+    val table = tEnv.from("NullTable4")
 
     checkTableResult(
       table
@@ -673,7 +673,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testNegativeRows(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -840,7 +840,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testNegativeRange(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -1007,7 +1007,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testFractionalRange(): Unit = {
-    val table = tEnv.scan("Table5")
+    val table = tEnv.from("Table5")
 
     checkTableResult(
       table
@@ -1062,7 +1062,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggWithConstants(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table
@@ -1142,7 +1142,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggWithNull(): Unit = {
-    val table = tEnv.scan("NullTable2")
+    val table = tEnv.from("NullTable2")
 
     checkTableResult(
       table
@@ -1234,7 +1234,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationAtDate(): Unit = {
-    val table = tEnv.scan("Table3")
+    val table = tEnv.from("Table3")
 
     checkTableResult(
       table
@@ -1266,7 +1266,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationAtTime(): Unit = {
-    val table = tEnv.scan("Table3")
+    val table = tEnv.from("Table3")
 
     checkTableResult(
       table
@@ -1298,7 +1298,7 @@ class OverWindowITCase extends BatchTestBase {
 
   @Test
   def testBatchCurrentRange(): Unit = {
-    val table = tEnv.scan("Table2")
+    val table = tEnv.from("Table2")
 
     checkTableResult(
       table

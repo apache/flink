@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
@@ -100,8 +101,11 @@ public class TpcdsTestProgram {
 						resultTable.getSchema().getFieldNames(),
 						resultTable.getSchema().getFieldDataTypes()
 					));
-			tableEnvironment.insertInto(resultTable, sinkTableName);
-			tableEnvironment.execute(queryName);
+			TableResult tableResult = resultTable.executeInsert(sinkTableName);
+			// wait job finish
+			tableResult.getJobClient().get()
+					.getJobExecutionResult(Thread.currentThread().getContextClassLoader())
+					.get();
 			System.out.println("[INFO]Run TPC-DS query " + queryId + " success.");
 		}
 	}

@@ -145,13 +145,13 @@ class TemporalJoinITCase(state: StateBackendMode)
     tEnv.createTemporarySystemFunction(
       "Rates",
       tEnv
-        .scan("FilteredRatesHistory")
+        .from("FilteredRatesHistory")
         .createTemporalTableFunction($"rowtime", $"currency"))
     tEnv.registerTable("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
 
     // Scan from registered table to test for interplay between
     // LogicalCorrelateToTemporalTableJoinRule and TableScanRule
-    val result = tEnv.scan("TemporalJoinResult").toAppendStream[Row]
+    val result = tEnv.from("TemporalJoinResult").toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()

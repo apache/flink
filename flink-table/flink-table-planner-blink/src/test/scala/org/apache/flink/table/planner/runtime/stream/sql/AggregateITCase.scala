@@ -1243,14 +1243,13 @@ class AggregateITCase(
       Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
     tEnv.registerTableSink("testSink", tableSink)
 
-    tEnv.sqlUpdate(
+    execInsertSqlAndWaitResult(
       """
         |insert into testSink
         |select c, max(b) from
         | (select b, c, true as f from MyTable) t
         |group by c, f
       """.stripMargin)
-    tEnv.execute("test")
 
     val expected = List("A,1", "B,2", "C,3")
     assertEquals(expected.sorted, tableSink.getUpsertResults.sorted)

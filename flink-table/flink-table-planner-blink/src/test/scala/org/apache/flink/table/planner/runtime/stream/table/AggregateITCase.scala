@@ -308,8 +308,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
 
     tEnv.registerTableSink("testSink", tableSink)
-    tEnv.insertInto("testSink", t)
-    tEnv.execute("test")
+    execInsertTableAndWaitResult(t, "testSink")
 
     val expected = List("A,1", "B,2", "C,3")
     assertEquals(expected.sorted, tableSink.getUpsertResults.sorted)

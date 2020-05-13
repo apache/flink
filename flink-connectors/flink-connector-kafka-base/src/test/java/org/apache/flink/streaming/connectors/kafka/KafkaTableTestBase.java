@@ -28,6 +28,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
@@ -127,9 +128,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 			"  (5.33,'US Dollar','2019-12-12 00:00:05.006001'), \n" +
 			"  (0,'DUMMY','2019-12-12 00:00:10'))\n" +
 			"  AS orders (price, currency, ts)";
-		tEnv.sqlUpdate(initialValues);
-
-		tEnv.execute("Job_1");
+		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, initialValues);
 
 		// ---------- Consume stream from Kafka -------------------
 

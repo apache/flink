@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -97,8 +98,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerTable("src", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from src").insertInto("hive.`default`.dest");
-		tableEnv.execute("mytest");
+		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from src"), "hive.`default`.dest");
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
@@ -139,8 +139,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerTable("complexSrc", src);
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from complexSrc").insertInto("hive.`default`.dest");
-		tableEnv.execute("mytest");
+		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from complexSrc"), "hive.`default`.dest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
@@ -178,8 +177,7 @@ public class HiveTableSinkTest {
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("nestedSrc", src);
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from nestedSrc").insertInto("hive.`default`.dest");
-		tableEnv.execute("mytest");
+		TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery("select * from nestedSrc"), "hive.`default`.dest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
@@ -203,8 +201,7 @@ public class HiveTableSinkTest {
 			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 			tableEnv.useCatalog(hiveCatalog.getName());
 
-			tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
-			tableEnv.execute("write to dest");
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
 			List<String> results = hiveShell.executeQuery("select * from db1.dest");
 			assertEquals(1, results.size());
 			String[] cols = results.get(0).split("\t");

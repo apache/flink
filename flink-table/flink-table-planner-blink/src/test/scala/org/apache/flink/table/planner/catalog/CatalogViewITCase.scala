@@ -19,13 +19,14 @@
 package org.apache.flink.table.planner.catalog
 
 import java.util
-
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.{Before, Rule, Test}
 import org.junit.rules.ExpectedException
@@ -80,10 +81,6 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     row
   }
 
-  def execJob(name: String) = {
-    tableEnv.execute(name)
-  }
-
   @Test
   def testCreateViewIfNotExistsTwice(): Unit = {
     val sourceData = List(
@@ -135,8 +132,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(viewWith2ColumnDDL)
 
     val result = tableEnv.sqlQuery(query)
-    result.insertInto("T2")
-    execJob("testJob")
+    TableEnvUtil.execInsertTableAndWaitResult(result, "T2")
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
@@ -185,8 +181,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(viewDDL)
 
     val result = tableEnv.sqlQuery(query)
-    result.insertInto("T2")
-    execJob("testJob")
+    TableEnvUtil.execInsertTableAndWaitResult(result, "T2")
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
@@ -235,8 +230,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(viewDDL)
 
     val result = tableEnv.sqlQuery(query)
-    result.insertInto("T2")
-    execJob("testJob")
+    TableEnvUtil.execInsertTableAndWaitResult(result, "T2")
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
@@ -304,8 +298,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
     val query = "SELECT * FROM T3"
 
-    tableEnv.sqlQuery(query).insertInto("T2")
-    execJob("testJob")
+    TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery(query), "T2")
     // temporary view T3 masks permanent view T3
     assertEquals(temporaryViewData.sorted, TestCollectionTableFactory.RESULT.sorted)
 
@@ -317,8 +310,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |DROP TEMPORARY VIEW IF EXISTS T3
       """.stripMargin
     tableEnv.executeSql(dropTemporaryView)
-    tableEnv.sqlQuery(query).insertInto("T2")
-    execJob("testJob")
+    TableEnvUtil.execInsertTableAndWaitResult(tableEnv.sqlQuery(query), "T2")
     // now we only have permanent view T3
     assertEquals(permanentViewData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }

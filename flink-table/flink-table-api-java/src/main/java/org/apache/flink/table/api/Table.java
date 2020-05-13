@@ -1008,7 +1008,10 @@ public interface Table {
 	 *
 	 * @param tablePath The path of the registered {@link TableSink} to which the {@link Table} is
 	 *        written.
+	 * @deprecated use {@link #executeInsert(String)} for single sink,
+	 *             use {@link TableEnvironment#createStatementSet()} for multiple sinks.
 	 */
+	@Deprecated
 	void insertInto(String tablePath);
 
 	/**

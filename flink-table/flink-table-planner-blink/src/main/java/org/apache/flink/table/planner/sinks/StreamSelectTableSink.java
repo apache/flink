@@ -52,7 +52,8 @@ public class StreamSelectTableSink implements AppendStreamTableSink<Row>, Select
 
 	@SuppressWarnings("unchecked")
 	public StreamSelectTableSink(TableSchema tableSchema) {
-		this.tableSchema = SelectTableSinkSchemaConverter.convert(tableSchema);
+		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
+				SelectTableSinkSchemaConverter.changeDefaultConversionClass(tableSchema));
 		this.typeSerializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
 				.fromDataTypeToTypeInfo(this.tableSchema.toRowDataType())
 				.createSerializer(new ExecutionConfig());

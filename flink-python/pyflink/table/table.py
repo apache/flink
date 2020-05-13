@@ -16,6 +16,8 @@
 # limitations under the License.
 ################################################################################
 
+import warnings
+
 from py4j.java_gateway import get_method
 from pyflink.java_gateway import get_gateway
 from pyflink.table.table_schema import TableSchema
@@ -680,7 +682,14 @@ class Table(object):
         :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
                the :class:`~pyflink.table.Table` is written.
         :type table_path: str
+
+        .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
+                  use :class:`TableTableEnvironment`#:func:`create_statement_set`
+                  for multiple sinks.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_insert for single sink, "
+                      "use TableTableEnvironment#create_statement_set for multiple sinks.",
+                      DeprecationWarning)
         self._j_table.insertInto(table_path)
 
     def get_schema(self):

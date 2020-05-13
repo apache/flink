@@ -24,7 +24,7 @@ import org.apache.flink.table.catalog.{CatalogViewImpl, ObjectPath}
 import org.apache.flink.table.planner.JHashMap
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.{IS_BOUNDED, Param}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink
-import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil, TestingTableEnvironment}
+import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil, TestingStatementSet, TestingTableEnvironment}
 
 import org.hamcrest.Matchers._
 import org.junit.Assert.{assertEquals, assertThat}
@@ -93,9 +93,10 @@ class OptionsHintTest(param: Param)
          |insert into t1 /*+ OPTIONS(k1='#v1', k5='v5') */
          |select d, e from t2
          |""".stripMargin
-    util.tableEnv.sqlUpdate(sql)
-    val testTableEnv = util.tableEnv.asInstanceOf[TestingTableEnvironment]
-    val relNodes = testTableEnv.getBufferedOperations.map(util.getPlanner.translateToRel)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(sql)
+    val testStmtSet = stmtSet.asInstanceOf[TestingStatementSet]
+    val relNodes = testStmtSet.getOperations.map(util.getPlanner.translateToRel)
     assertThat(relNodes.length, is(1))
     assert(relNodes.head.isInstanceOf[LogicalSink])
     val sink = relNodes.head.asInstanceOf[LogicalSink]

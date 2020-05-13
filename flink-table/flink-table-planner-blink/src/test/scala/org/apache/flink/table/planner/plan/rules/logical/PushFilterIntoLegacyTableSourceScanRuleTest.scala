@@ -66,7 +66,7 @@ class PushFilterIntoLegacyTableSourceScanRuleTest extends TableTestBase {
          |  'is-bounded' = 'true'
          |)
        """.stripMargin
-    util.tableEnv.sqlUpdate(ddl)
+    util.tableEnv.executeSql(ddl)
   }
 
   @Test

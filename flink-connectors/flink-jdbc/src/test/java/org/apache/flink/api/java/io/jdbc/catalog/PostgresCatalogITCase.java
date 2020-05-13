@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io.jdbc.catalog;
 
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -71,8 +72,9 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 	public void test_insert() throws Exception {
 		TableEnvironment tEnv = getTableEnvWithPgCatalog();
 
-		tEnv.sqlUpdate(String.format("insert into %s select * from `%s`", TABLE4, TABLE1));
-		tEnv.execute("test");
+		TableResult tableResult = tEnv.executeSql(String.format("insert into %s select * from `%s`", TABLE4, TABLE1));
+		// wait to finish
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 
 		List<Row> results = Lists.newArrayList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE1)).execute().collect());

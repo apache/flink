@@ -216,7 +216,7 @@ public class HiveTableSourceTest {
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.test_table_pt_1 where pt = 0");
 		// first check execution plan to ensure partition prunning works
-		String[] explain = tEnv.explain(src).split("==.*==\n");
+		String[] explain = src.explain().split("==.*==\n");
 		assertEquals(4, explain.length);
 		String optimizedLogicalPlan = explain[2];
 		String physicalExecutionPlan = explain[3];
@@ -251,7 +251,7 @@ public class HiveTableSourceTest {
 			tableEnv.registerCatalog(catalog.getName(), catalog);
 			tableEnv.useCatalog(catalog.getName());
 			Table query = tableEnv.sqlQuery("select x from db1.part where p1>1 or p2<>'a' order by x");
-			String[] explain = tableEnv.explain(query).split("==.*==\n");
+			String[] explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			String optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 3"));
@@ -259,7 +259,7 @@ public class HiveTableSourceTest {
 			assertEquals("[2, 3, 4]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where p1>2 and p2<='a' order by x");
-			explain = tableEnv.explain(query).split("==.*==\n");
+			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 0"));
@@ -267,7 +267,7 @@ public class HiveTableSourceTest {
 			assertEquals("[]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where p1 in (1,3,5) order by x");
-			explain = tableEnv.explain(query).split("==.*==\n");
+			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
@@ -275,7 +275,7 @@ public class HiveTableSourceTest {
 			assertEquals("[1, 3]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where (p1=1 and p2='a') or ((p1=2 and p2='b') or p2='d') order by x");
-			explain = tableEnv.explain(query).split("==.*==\n");
+			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 2"));
@@ -283,7 +283,7 @@ public class HiveTableSourceTest {
 			assertEquals("[1, 2]", results.toString());
 
 			query = tableEnv.sqlQuery("select x from db1.part where p2 = 'c:2' order by x");
-			explain = tableEnv.explain(query).split("==.*==\n");
+			explain = query.explain().split("==.*==\n");
 			assertFalse(catalog.fallback);
 			optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
@@ -314,7 +314,7 @@ public class HiveTableSourceTest {
 
 			Table query = tableEnv.sqlQuery(
 					"select x from db1.part where p1>cast('2018-08-09' as date) and p2<>cast('2018-08-08 08:08:09' as timestamp)");
-			String[] explain = tableEnv.explain(query).split("==.*==\n");
+			String[] explain = query.explain().split("==.*==\n");
 			assertTrue(catalog.fallback);
 			String optimizedPlan = explain[2];
 			assertTrue(optimizedPlan, optimizedPlan.contains("PartitionPruned: true, PartitionNums: 1"));
@@ -341,7 +341,7 @@ public class HiveTableSourceTest {
 			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			tableEnv.registerCatalog(catalogName, hiveCatalog);
 			Table table = tableEnv.sqlQuery("select p1, count(y) from hive.`default`.src group by p1");
-			String[] explain = tableEnv.explain(table).split("==.*==\n");
+			String[] explain = table.explain().split("==.*==\n");
 			assertEquals(4, explain.length);
 			String logicalPlan = explain[2];
 			String physicalPlan = explain[3];
@@ -375,7 +375,7 @@ public class HiveTableSourceTest {
 			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
 			tableEnv.registerCatalog(catalogName, hiveCatalog);
 			Table table = tableEnv.sqlQuery("select * from hive.`default`.src limit 1");
-			String[] explain = tableEnv.explain(table).split("==.*==\n");
+			String[] explain = table.explain().split("==.*==\n");
 			assertEquals(4, explain.length);
 			String logicalPlan = explain[2];
 			String physicalPlan = explain[3];

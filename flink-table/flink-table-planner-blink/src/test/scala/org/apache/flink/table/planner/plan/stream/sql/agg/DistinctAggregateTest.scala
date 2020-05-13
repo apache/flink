@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule
@@ -165,7 +166,7 @@ class DistinctAggregateTest(
         |  GROUP BY c
         |) GROUP BY a
       """.stripMargin
-    util.verifyPlanWithTrait(sqlQuery)
+    util.verifyPlan(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -181,7 +182,7 @@ class DistinctAggregateTest(
          |  GROUP BY a
          |) GROUP BY c
        """.stripMargin
-    util.verifyPlanWithTrait(sqlQuery)
+    util.verifyPlan(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -197,7 +198,7 @@ class DistinctAggregateTest(
          |  GROUP BY a
          |) GROUP BY b
        """.stripMargin
-    util.verifyPlanWithTrait(sqlQuery)
+    util.verifyPlan(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 }
 

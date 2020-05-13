@@ -19,17 +19,24 @@
 package org.apache.flink.table.api.batch
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
-import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.{Before, Test}
 
 @RunWith(classOf[Parameterized])
 class ExplainTest(extended: Boolean) extends TableTestBase {
+
+  private val extraDetails = if (extended) {
+    Array(ExplainDetail.CHANGELOG_MODE, ExplainDetail.ESTIMATED_COST)
+  } else {
+    Array.empty[ExplainDetail]
+  }
 
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -48,22 +55,22 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 
   @Test
   def testExplainWithTableSourceScan(): Unit = {
-    util.verifyExplain("SELECT * FROM MyTable", extended)
+    util.verifyExplain("SELECT * FROM MyTable", extraDetails: _*)
   }
 
   @Test
   def testExplainWithDataStreamScan(): Unit = {
-    util.verifyExplain("SELECT * FROM MyTable1", extended)
+    util.verifyExplain("SELECT * FROM MyTable1", extraDetails: _*)
   }
 
   @Test
   def testExplainWithFilter(): Unit = {
-    util.verifyExplain("SELECT * FROM MyTable1 WHERE mod(a, 2) = 0", extended)
+    util.verifyExplain("SELECT * FROM MyTable1 WHERE mod(a, 2) = 0", extraDetails: _*)
   }
 
   @Test
   def testExplainWithAgg(): Unit = {
-    util.verifyExplain("SELECT COUNT(*) FROM MyTable1 GROUP BY a", extended)
+    util.verifyExplain("SELECT COUNT(*) FROM MyTable1 GROUP BY a", extraDetails: _*)
   }
 
   @Test
@@ -71,41 +78,43 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     // TODO support other join operators when them are supported
     util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
-    util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extended)
+    util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extraDetails: _*)
   }
 
   @Test
   def testExplainWithUnion(): Unit = {
-    util.verifyExplain("SELECT * FROM MyTable1 UNION ALL SELECT * FROM MyTable2", extended)
+    util.verifyExplain("SELECT * FROM MyTable1 UNION ALL SELECT * FROM MyTable2", extraDetails: _*)
   }
 
   @Test
   def testExplainWithSort(): Unit = {
-    util.verifyExplain("SELECT * FROM MyTable1 ORDER BY a LIMIT 5", extended)
+    util.verifyExplain("SELECT * FROM MyTable1 ORDER BY a LIMIT 5", extraDetails: _*)
   }
 
   @Test
   def testExplainWithSingleSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT * FROM MyTable1 WHERE a > 10")
     val sink = util.createCollectTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.writeToSink(table, sink, "sink")
-    util.verifyExplain(extended)
+    util.verifyExplainInsert(table, sink, "sink", extraDetails: _*)
   }
 
   @Test
   def testExplainWithMultiSinks(): Unit = {
+    val stmtSet = util.tableEnv.createStatementSet()
     val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable1 GROUP BY a")
     util.tableEnv.registerTable("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt > 10")
     val sink1 = util.createCollectTableSink(Array("a", "cnt"), Array(INT, LONG))
-    util.writeToSink(table1, sink1, "sink1")
+    util.tableEnv.registerTableSink("sink1", sink1)
+    stmtSet.addInsert("sink1", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt < 10")
     val sink2 = util.createCollectTableSink(Array("a", "cnt"), Array(INT, LONG))
-    util.writeToSink(table2, sink2, "sink2")
+    util.tableEnv.registerTableSink("sink2", sink2)
+    stmtSet.addInsert("sink2", table2)
 
-    util.verifyExplain(extended)
+    util.verifyExplain(stmtSet, extraDetails: _*)
   }
 
 }
