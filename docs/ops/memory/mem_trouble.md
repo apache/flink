@@ -36,29 +36,29 @@ greater than 1, etc.) or configuration conflicts. Check the documentation chapte
 
 The exception usually indicates that the *JVM Heap* is too small. You can try to increase the JVM Heap size
 by increasing [total memory](mem_setup.html#configure-total-memory). You can also directly increase
-[task heap memory](mem_setup_tm.html#task-operator-heap-memory) for task executors or
-[JVM Heap memory](mem_setup_jm.html#configure-jvm-heap) for job manager.
+[task heap memory](mem_setup_tm.html#task-operator-heap-memory) for TaskManagers or
+[JVM Heap memory](mem_setup_jm.html#configure-jvm-heap) for Masters.
 
 <span class="label label-info">Note</span> You can also increase the [framework heap memory](mem_setup_tm.html#framework-memory)
-for task executors but this option is advanced and should only be changed if you are sure that the Flink framework itself needs more memory.
+for TaskManagers, but you should only change this option if you are sure the Flink framework itself needs more memory.
 
 ## OutOfMemoryError: Direct buffer memory
 
 The exception usually indicates that the JVM *direct memory* limit is too small or that there is a *direct memory leak*.
 Check whether user code or other external dependencies use the JVM *direct memory* and that it is properly accounted for.
 You can try to increase its limit by adjusting direct off-heap memory.
-See also how to configure off-heap memory for [task executors](mem_setup_tm.html#configure-off-heap-memory-direct-or-native),
-[job manager](mem_setup_jm.html#configure-off-heap-memory) and the [JVM arguments](mem_setup.html#jvm-parameters) which Flink sets.
+See also how to configure off-heap memory for [TaskManagers](mem_setup_tm.html#configure-off-heap-memory-direct-or-native),
+[Masters](mem_setup_jm.html#configure-off-heap-memory) and the [JVM arguments](mem_setup.html#jvm-parameters) which Flink sets.
 
 ## OutOfMemoryError: Metaspace
 
 The exception usually indicates that [JVM metaspace limit](mem_setup.html#jvm-parameters) is configured too small.
-You can try to increase the JVM metaspace option for [task executors](../config.html#taskmanager-memory-jvm-metaspace-size)
-or [job manager](../config.html#jobmanager-memory-jvm-metaspace-size).
+You can try to increase the JVM metaspace option for [TaskManagers](../config.html#taskmanager-memory-jvm-metaspace-size)
+or [Masters](../config.html#jobmanager-memory-jvm-metaspace-size).
 
 ## IOException: Insufficient number of network buffers
 
-This is relevant only for task executors.
+This is only relevant for TaskManagers.
 
 The exception usually indicates that the size of the configured [network memory](mem_setup_tm.html#detailed-memory-model)
 is not big enough. You can try to increase the *network memory* by adjusting the following options:
@@ -72,8 +72,8 @@ If a Flink container tries to allocate memory beyond its requested size (Yarn, M
 this usually indicates that Flink has not reserved enough native memory. You can observe this either by using an external
 monitoring system or from the error messages when a container gets killed by the deployment environment.
 
-If [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend) is used and the memory controlling is disabled,
-you can try to increase the [managed memory](mem_setup.html#managed-memory) in task executor.
+If [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend) is used, and the memory controlling is disabled,
+you can try to increase the TaskManager's [managed memory](mem_setup.html#managed-memory).
 
 Alternatively, you can increase the [JVM Overhead](mem_setup.html#capped-fractionated-components).
 See also [how to configure memory for containers](mem_tuning.html#configure-memory-for-containers).
