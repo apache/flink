@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -1210,6 +1211,8 @@ public class CheckpointCoordinator {
 					allowNonRestoredState,
 					LOG);
 
+			restoreStateToCoordinators(operatorStates);
+
 			// update metrics
 
 			if (statsTracker != null) {
@@ -1414,6 +1417,20 @@ public class CheckpointCoordinator {
 		return timer.scheduleAtFixedRate(
 			new ScheduledTrigger(),
 			initDelay, baseInterval, TimeUnit.MILLISECONDS);
+	}
+
+	private void restoreStateToCoordinators(final Map<OperatorID, OperatorState> operatorStates) throws Exception {
+		for (OperatorCoordinatorCheckpointContext coordContext : coordinatorsToCheckpoint) {
+			final OperatorState state = operatorStates.get(coordContext.operatorId());
+			if (state == null) {
+				continue;
+			}
+
+			final ByteStreamStateHandle coordinatorState = state.getCoordinatorState();
+			if (coordinatorState != null) {
+				coordContext.coordinator().resetToCheckpoint(coordinatorState.getData());
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
