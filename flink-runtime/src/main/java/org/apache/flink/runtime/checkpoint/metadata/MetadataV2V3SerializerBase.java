@@ -468,6 +468,7 @@ public abstract class MetadataV2V3SerializerBase {
 		dos.flush();
 	}
 
+	@Nullable
 	static StreamStateHandle deserializeStreamStateHandle(
 			DataInputStream dis,
 			@Nullable DeserializationContext context) throws IOException {
@@ -495,6 +496,19 @@ public abstract class MetadataV2V3SerializerBase {
 			return new RelativeFileStateHandle(statePath, relativePath, size);
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
+		}
+	}
+
+	@Nullable
+	static ByteStreamStateHandle deserializeAndCheckByteStreamStateHandle(
+			DataInputStream dis,
+			@Nullable DeserializationContext context) throws IOException {
+
+		final StreamStateHandle handle = deserializeStreamStateHandle(dis, context);
+		if (handle == null || handle instanceof ByteStreamStateHandle) {
+			return (ByteStreamStateHandle) handle;
+		} else {
+			throw new IOException("Expected a ByteStreamStateHandle but found a " + handle.getClass().getName());
 		}
 	}
 

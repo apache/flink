@@ -28,7 +28,7 @@ import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateUtil;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -432,7 +432,7 @@ public class PendingCheckpoint {
 
 	public TaskAcknowledgeResult acknowledgeCoordinatorState(
 			OperatorCoordinatorCheckpointContext coordinatorInfo,
-			@Nullable StreamStateHandle stateHandle) {
+			@Nullable ByteStreamStateHandle stateHandle) {
 
 		synchronized (lock) {
 			if (discarded) {

@@ -84,7 +84,7 @@ public class CheckpointTestUtils {
 
 			final boolean hasCoordinatorState = random.nextBoolean();
 			if (hasCoordinatorState) {
-				final StreamStateHandle stateHandle = createDummyStreamStateHandle(random, basePath);
+				final ByteStreamStateHandle stateHandle = createDummyByteStreamStreamStateHandle(random);
 				taskState.setCoordinatorState(stateHandle);
 			}
 
@@ -222,7 +222,11 @@ public class CheckpointTestUtils {
 			createDummyStreamStateHandle(rnd, basePath));
 	}
 
-	public static StreamStateHandle createDummyStreamStateHandle(Random rnd, String basePath) {
+	public static ByteStreamStateHandle createDummyByteStreamStreamStateHandle(Random rnd) {
+		return (ByteStreamStateHandle) createDummyStreamStateHandle(rnd, null);
+	}
+
+	public static StreamStateHandle createDummyStreamStateHandle(Random rnd, @Nullable String basePath) {
 		if (!isSavepoint(basePath)) {
 			return new ByteStreamStateHandle(
 				String.valueOf(createRandomUUID(rnd)),
