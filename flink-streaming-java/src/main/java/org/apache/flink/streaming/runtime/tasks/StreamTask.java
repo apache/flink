@@ -71,6 +71,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -531,9 +532,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			afterInvoke();
 		}
-		finally {
-			cleanUpInvoke();
+		catch (Exception invokeException) {
+			try {
+				cleanUpInvoke();
+			}
+			catch (Throwable cleanUpException) {
+				throw (Exception) ExceptionUtils.firstOrSuppressed(cleanUpException, invokeException);
+			}
+			throw invokeException;
 		}
+		cleanUpInvoke();
 	}
 
 	protected boolean runMailboxStep() throws Exception {
