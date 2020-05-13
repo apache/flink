@@ -238,6 +238,10 @@ public interface Buffer {
 	/**
 	 * Used to identify the type of data contained in the {@link Buffer} so that we can get
 	 * the information without deserializing the serialized data.
+	 *
+	 * <p>Notes: Currently, one byte is used to serialize the ordinal of {@link DataType} in
+	 * {@link org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse}, so the
+	 * maximum number of supported data types is 128.
 	 */
 	enum DataType {
 		/**

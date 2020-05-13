@@ -268,7 +268,7 @@ public abstract class NettyMessage {
 
 		static final byte ID = 0;
 
-		// receiver ID (16), sequence number (4), backlog (4), isBuffer (1), isCompressed (1), buffer size (4)
+		// receiver ID (16), sequence number (4), backlog (4), dataType (1), isCompressed (1), buffer size (4)
 		static final int MESSAGE_HEADER_LENGTH = 16 + 4 + 4 + 1 + 1 + 4;
 
 		final Buffer buffer;
@@ -279,7 +279,7 @@ public abstract class NettyMessage {
 
 		final int backlog;
 
-		final boolean isBuffer;
+		final Buffer.DataType dataType;
 
 		final boolean isCompressed;
 
@@ -287,14 +287,14 @@ public abstract class NettyMessage {
 
 		private BufferResponse(
 				@Nullable Buffer buffer,
-				boolean isBuffer,
+				Buffer.DataType dataType,
 				boolean isCompressed,
 				int sequenceNumber,
 				InputChannelID receiverId,
 				int backlog,
 				int bufferSize) {
 			this.buffer = buffer;
-			this.isBuffer = isBuffer;
+			this.dataType = dataType;
 			this.isCompressed = isCompressed;
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
@@ -308,7 +308,8 @@ public abstract class NettyMessage {
 				InputChannelID receiverId,
 				int backlog) {
 			this.buffer = checkNotNull(buffer);
-			this.isBuffer = buffer.isBuffer();
+			checkArgument(buffer.getDataType().ordinal() <= Byte.MAX_VALUE, "Too many data types defined!");
+			this.dataType = buffer.getDataType();
 			this.isCompressed = buffer.isCompressed();
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
@@ -317,7 +318,7 @@ public abstract class NettyMessage {
 		}
 
 		boolean isBuffer() {
-			return isBuffer;
+			return dataType.isBuffer();
 		}
 
 		@Nullable
@@ -348,7 +349,7 @@ public abstract class NettyMessage {
 				receiverId.writeTo(headerBuf);
 				headerBuf.writeInt(sequenceNumber);
 				headerBuf.writeInt(backlog);
-				headerBuf.writeBoolean(isBuffer);
+				headerBuf.writeByte(dataType.ordinal());
 				headerBuf.writeBoolean(isCompressed);
 				headerBuf.writeInt(buffer.readableBytes());
 
@@ -383,17 +384,17 @@ public abstract class NettyMessage {
 			InputChannelID receiverId = InputChannelID.fromByteBuf(messageHeader);
 			int sequenceNumber = messageHeader.readInt();
 			int backlog = messageHeader.readInt();
-			boolean isBuffer = messageHeader.readBoolean();
+			Buffer.DataType dataType = Buffer.DataType.values()[messageHeader.readByte()];
 			boolean isCompressed = messageHeader.readBoolean();
 			int size = messageHeader.readInt();
 
 			Buffer dataBuffer = null;
 
 			if (size != 0) {
-				if (isBuffer) {
+				if (dataType.isBuffer()) {
 					dataBuffer = bufferAllocator.allocatePooledNetworkBuffer(receiverId);
 				} else {
-					dataBuffer = bufferAllocator.allocateUnPooledNetworkBuffer(size);
+					dataBuffer = bufferAllocator.allocateUnPooledNetworkBuffer(size, dataType);
 				}
 			}
 
@@ -403,7 +404,7 @@ public abstract class NettyMessage {
 
 			return new BufferResponse(
 				dataBuffer,
-				isBuffer,
+				dataType,
 				isCompressed,
 				sequenceNumber,
 				receiverId,
