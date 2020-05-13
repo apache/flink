@@ -60,12 +60,7 @@ public abstract class SqlAlterTable extends SqlCall {
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER");
-		if (isView()) {
-			writer.keyword("VIEW");
-		} else {
-			writer.keyword("TABLE");
-		}
+		writer.keyword("ALTER TABLE");
 		tableIdentifier.unparse(writer, leftPrec, rightPrec);
 		SqlNodeList partitionSpec = getPartitionSpec();
 		if (partitionSpec != null && partitionSpec.size() > 0) {
@@ -90,12 +85,5 @@ public abstract class SqlAlterTable extends SqlCall {
 	 */
 	public LinkedHashMap<String, String> getPartitionKVs() {
 		return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
-	}
-
-	/**
-	 * Whether the target object is a view or a table.
-	 */
-	public boolean isView() {
-		return false;
 	}
 }
