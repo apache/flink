@@ -468,6 +468,7 @@ public abstract class MetadataV2V3SerializerBase {
 		dos.flush();
 	}
 
+	@Nullable
 	public static StreamStateHandle deserializeStreamStateHandle(DataInputStream dis) throws IOException {
 		final int type = dis.read();
 		if (NULL_HANDLE == type) {
@@ -484,6 +485,15 @@ public abstract class MetadataV2V3SerializerBase {
 			return new ByteStreamStateHandle(handleName, data);
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
+		}
+	}
+
+	public static ByteStreamStateHandle deserializeAndCheckByteStreamStateHandle(DataInputStream dis) throws IOException {
+		final StreamStateHandle handle = deserializeStreamStateHandle(dis);
+		if (handle == null || handle instanceof ByteStreamStateHandle) {
+			return (ByteStreamStateHandle) handle;
+		} else {
+			throw new IOException("Expected a ByteStreamStateHandle but found a " + handle.getClass().getName());
 		}
 	}
 

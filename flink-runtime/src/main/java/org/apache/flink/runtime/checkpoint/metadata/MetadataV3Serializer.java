@@ -117,7 +117,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
 		final OperatorState operatorState = new OperatorState(jobVertexId, parallelism, maxParallelism);
 
 		// Coordinator state
-		operatorState.setCoordinatorState(deserializeStreamStateHandle(dis));
+		operatorState.setCoordinatorState(deserializeAndCheckByteStreamStateHandle(dis));
 
 		// Sub task states
 		final int numSubTaskStates = dis.readInt();
