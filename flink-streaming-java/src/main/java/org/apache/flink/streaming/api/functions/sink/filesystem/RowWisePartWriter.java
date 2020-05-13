@@ -32,7 +32,7 @@ import java.io.IOException;
  * This also implements the {@link PartFileInfo}.
  */
 @Internal
-final class RowWisePartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID> {
+final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter<IN, BucketID> {
 
 	private final Encoder<IN> encoder;
 
@@ -46,7 +46,7 @@ final class RowWisePartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID>
 	}
 
 	@Override
-	void write(IN element, long currentTime) throws IOException {
+	public void write(final IN element, final long currentTime) throws IOException {
 		encoder.encode(element, currentPartStream);
 		markWrite(currentTime);
 	}
@@ -56,11 +56,12 @@ final class RowWisePartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID>
 	 * @param <IN> The type of input elements.
 	 * @param <BucketID> The type of ids for the buckets, as returned by the {@link BucketAssigner}.
 	 */
-	static class Factory<IN, BucketID> implements PartFileWriter.PartFileFactory<IN, BucketID> {
+	static class Factory<IN, BucketID> extends OutputStreamBasedPartFileWriter.OutputStreamBasedPartFileFactory<IN, BucketID> {
 
 		private final Encoder<IN> encoder;
 
-		Factory(Encoder<IN> encoder) {
+		Factory(final RecoverableWriter recoverableWriter, final Encoder<IN> encoder) {
+			super(recoverableWriter);
 			this.encoder = encoder;
 		}
 
@@ -69,7 +70,7 @@ final class RowWisePartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID>
 				final BucketID bucketId,
 				final RecoverableFsDataOutputStream stream,
 				final RecoverableWriter.ResumeRecoverable resumable,
-				final long creationTime) throws IOException {
+				final long creationTime) {
 
 			Preconditions.checkNotNull(stream);
 			Preconditions.checkNotNull(resumable);
@@ -82,7 +83,7 @@ final class RowWisePartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID>
 				final BucketID bucketId,
 				final RecoverableFsDataOutputStream stream,
 				final Path path,
-				final long creationTime) throws IOException {
+				final long creationTime) {
 
 			Preconditions.checkNotNull(stream);
 			Preconditions.checkNotNull(path);
