@@ -204,4 +204,21 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 		sql("drop table tbl").ok("DROP TABLE `TBL`");
 		sql("drop table if exists cat.tbl").ok("DROP TABLE IF EXISTS `CAT`.`TBL`");
 	}
+
+	@Test
+	public void testInsert() {
+		sql("insert into tbl partition(p1=1,p2,p3) select * from src")
+				.ok("INSERT INTO `TBL`\n" +
+						"PARTITION (`P1` = 1)\n" +
+						"(SELECT *\n" +
+						"FROM `SRC`)");
+		sql("insert overwrite table tbl select * from src")
+				.ok("INSERT OVERWRITE `TBL`\n" +
+						"(SELECT *\n" +
+						"FROM `SRC`)");
+		sql("insert into table tbl(x,y) select * from src")
+				.ok("INSERT INTO `TBL` (`X`, `Y`)\n" +
+						"(SELECT *\n" +
+						"FROM `SRC`)");
+	}
 }
