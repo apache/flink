@@ -69,6 +69,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -267,6 +268,17 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
 		assertArrayEquals("coordinator should have a restored checkpoint",
 				coordinatorState, coordinator.getLastRestoredCheckpointState());
+	}
+
+	@Test
+	public void testLocalFailureDoesNotResetToCheckpoint() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		takeCompleteCheckpoint(scheduler, coordinator, new byte[] {37, 11, 83, 4});
+		failAndRestartTask(scheduler, 0);
+
+		assertNull("coordinator should not have a restored checkpoint", coordinator.getLastRestoredCheckpointState());
 	}
 
 	@Test
