@@ -154,10 +154,35 @@ public class CsvFormatFactoryTest extends TestLogger {
 	@Test
 	public void testInvalidCharacterOption() {
 		thrown.expect(ValidationException.class);
-		thrown.expect(containsCause(new ValidationException("Option [csv.quote-character] must be a Character.")));
+		thrown.expect(containsCause(new ValidationException("Option 'csv.quote-character' must be "
+				+ "a string with single character, but was: abc")));
 
 		final Map<String, String> options =
 				getModifiedOptions(opts -> opts.put("csv.quote-character", "abc"));
+
+		createTableSink(options);
+	}
+
+	@Test
+	public void testInvalidLineDelimiter() {
+		thrown.expect(ValidationException.class);
+		thrown.expect(containsCause(new ValidationException("Invalid value for option 'csv.line-delimiter'. "
+				+ "Supported values are [\\r, \\n, \\r\\n, \"\"], but was: abc")));
+
+		final Map<String, String> options =
+				getModifiedOptions(opts -> opts.put("csv.line-delimiter", "abc"));
+
+		createTableSink(options);
+	}
+
+	@Test
+	public void testInvalidIgnoreParseError() {
+		thrown.expect(ValidationException.class);
+		thrown.expect(containsCause(new IllegalArgumentException("Unrecognized option for boolean: abc. "
+						+ "Expected either true or false(case insensitive)")));
+
+		final Map<String, String> options =
+				getModifiedOptions(opts -> opts.put("csv.ignore-parse-errors", "abc"));
 
 		createTableSink(options);
 	}
