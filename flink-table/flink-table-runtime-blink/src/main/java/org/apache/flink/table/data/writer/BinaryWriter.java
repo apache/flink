@@ -153,6 +153,7 @@ public interface BinaryWriter {
 				writer.writeMap(pos, (MapData) o, (MapDataSerializer) serializer);
 				break;
 			case ROW:
+			case STRUCTURED_TYPE:
 				writer.writeRow(pos, (RowData) o, (RowDataSerializer) serializer);
 				break;
 			case RAW:

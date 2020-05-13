@@ -217,6 +217,9 @@ public interface ArrayData {
 				return array.getMap(pos);
 			case ROW:
 				return array.getRow(pos, ((RowType) elementType).getFieldCount());
+			case STRUCTURED_TYPE:
+				// not the most efficient code but ok for a deprecated method
+				return array.getRow(pos, getFieldCount(elementType));
 			case BINARY:
 			case VARBINARY:
 				return array.getBinary(pos);

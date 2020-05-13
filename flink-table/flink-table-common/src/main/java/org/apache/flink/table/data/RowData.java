@@ -281,6 +281,9 @@ public interface RowData {
 				return row.getMap(pos);
 			case ROW:
 				return row.getRow(pos, ((RowType) fieldType).getFieldCount());
+			case STRUCTURED_TYPE:
+				// not the most efficient code but ok for a deprecated method
+				return row.getRow(pos, getFieldCount(fieldType));
 			case BINARY:
 			case VARBINARY:
 				return row.getBinary(pos);
