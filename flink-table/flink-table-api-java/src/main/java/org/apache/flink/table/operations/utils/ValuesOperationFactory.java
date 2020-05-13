@@ -38,7 +38,6 @@ import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -202,13 +201,10 @@ class ValuesOperationFactory {
 			ResolvedExpression sourceExpression,
 			FieldsDataType targetDataType,
 			ExpressionResolver.PostResolverFactory postResolverFactory) {
-		DataType[] targetDataTypes = ((RowType) targetDataType.getLogicalType()).getFieldNames()
-			.stream()
-			.map(name -> targetDataType.getFieldDataTypes().get(name))
-			.toArray(DataType[]::new);
+		List<DataType> targetDataTypes = targetDataType.getChildren();
 		List<ResolvedExpression> resolvedChildren = sourceExpression.getResolvedChildren();
 
-		if (resolvedChildren.size() != targetDataTypes.length) {
+		if (resolvedChildren.size() != targetDataTypes.size()) {
 			return Optional.empty();
 		}
 
@@ -217,13 +213,13 @@ class ValuesOperationFactory {
 			boolean typesMatch = resolvedChildren.get(i)
 				.getOutputDataType()
 				.getLogicalType()
-				.equals(targetDataTypes[i].getLogicalType());
+				.equals(targetDataTypes.get(i).getLogicalType());
 			if (typesMatch) {
 				castedChildren[i] = resolvedChildren.get(i);
 			}
 
 			ResolvedExpression child = resolvedChildren.get(i);
-			DataType targetChildDataType = targetDataTypes[i];
+			DataType targetChildDataType = targetDataTypes.get(i);
 
 			Optional<ResolvedExpression> castedChild = convertToExpectedType(
 				child,

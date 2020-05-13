@@ -661,8 +661,9 @@ public final class DataTypes {
 			.map(f -> Preconditions.checkNotNull(f, "Field definition must not be null."))
 			.map(f -> new RowField(f.name, f.dataType.getLogicalType(), f.description))
 			.collect(Collectors.toList());
-		final Map<String, DataType> fieldDataTypes = Stream.of(fields)
-			.collect(Collectors.toMap(f -> f.name, f -> f.dataType));
+		final List<DataType> fieldDataTypes = Stream.of(fields)
+			.map(f -> f.dataType)
+			.collect(Collectors.toList());
 		return new FieldsDataType(new RowType(logicalFields), fieldDataTypes);
 	}
 

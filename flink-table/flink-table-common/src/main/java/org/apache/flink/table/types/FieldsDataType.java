@@ -25,39 +25,67 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
 
 /**
- * A data type that contains field data types (e.g. {@code ROW} or structured types).
+ * A data type that contains field data types (i.e. row, structured, and distinct types).
  *
  * @see DataTypes for a list of supported data types
  */
 @PublicEvolving
 public final class FieldsDataType extends DataType {
 
-	private final Map<String, DataType> fieldDataTypes;
+	private final List<DataType> fieldDataTypes;
 
 	public FieldsDataType(
 			LogicalType logicalType,
 			@Nullable Class<?> conversionClass,
-			Map<String, DataType> fieldDataTypes) {
+			List<DataType> fieldDataTypes) {
 		super(logicalType, conversionClass);
-		this.fieldDataTypes = Collections.unmodifiableMap(
-			new HashMap<>(
-				Preconditions.checkNotNull(fieldDataTypes, "Field data types must not be null.")));
+		this.fieldDataTypes = Preconditions.checkNotNull(
+			fieldDataTypes,
+			"Field data types must not be null.");
 	}
 
 	public FieldsDataType(
 			LogicalType logicalType,
-			Map<String, DataType> fieldDataTypes) {
+			List<DataType> fieldDataTypes) {
 		this(logicalType, null, fieldDataTypes);
 	}
 
+	@Deprecated
+	public FieldsDataType(
+			LogicalType logicalType,
+			@Nullable Class<?> conversionClass,
+			Map<String, DataType> oldFieldDataTypes) {
+		super(logicalType, conversionClass);
+		this.fieldDataTypes = getFieldNames(logicalType).stream()
+			.map(oldFieldDataTypes::get)
+			.collect(Collectors.toList());
+	}
+
+	@Deprecated
+	public FieldsDataType(
+			LogicalType logicalType,
+			Map<String, DataType> oldFieldDataTypes) {
+		this(logicalType, null, oldFieldDataTypes);
+	}
+
+	/**
+	 * @deprecated This method returns a non-deterministic order. Use {@link #getChildren()} instead.
+	 */
+	@Deprecated
 	public Map<String, DataType> getFieldDataTypes() {
-		return fieldDataTypes;
+		final List<String> fieldNames = getFieldNames(logicalType);
+		return IntStream.range(0, fieldNames.size())
+			.boxed()
+			.collect(Collectors.toMap(fieldNames::get, fieldDataTypes::get));
 	}
 
 	@Override
@@ -82,6 +110,11 @@ public final class FieldsDataType extends DataType {
 			logicalType,
 			Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."),
 			fieldDataTypes);
+	}
+
+	@Override
+	public List<DataType> getChildren() {
+		return fieldDataTypes;
 	}
 
 	@Override

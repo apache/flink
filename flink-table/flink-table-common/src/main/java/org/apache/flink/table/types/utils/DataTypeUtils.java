@@ -43,10 +43,10 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Utilities for handling {@link DataType}s.
@@ -144,19 +144,22 @@ public final class DataTypeUtils {
 
 		@Override
 		public DataType visit(FieldsDataType fieldsDataType) {
-			Map<String, DataType> newFields = new HashMap<>();
-			fieldsDataType.getFieldDataTypes().forEach((name, type) ->
-				newFields.put(name, type.accept(this)));
-			LogicalType logicalType = fieldsDataType.getLogicalType();
-			LogicalType newLogicalType;
+			final List<DataType> newFields = fieldsDataType.getChildren().stream()
+				.map(dt -> dt.accept(this))
+				.collect(Collectors.toList());
+
+			final LogicalType logicalType = fieldsDataType.getLogicalType();
+			final LogicalType newLogicalType;
 			if (logicalType instanceof RowType) {
-				List<RowType.RowField> rowFields = ((RowType) logicalType).getFields();
-				List<RowType.RowField> newRowFields = rowFields.stream()
-					.map(f -> new RowType.RowField(
-						f.getName(),
-						newFields.get(f.getName()).getLogicalType(),
-						f.getDescription().orElse(null)))
+				final List<RowType.RowField> oldFields = ((RowType) logicalType).getFields();
+				final List<RowType.RowField> newRowFields = IntStream.range(0, oldFields.size())
+					.mapToObj(i ->
+						new RowType.RowField(
+							oldFields.get(i).getName(),
+							newFields.get(i).getLogicalType(),
+							oldFields.get(i).getDescription().orElse(null)))
 					.collect(Collectors.toList());
+
 				newLogicalType = new RowType(
 					logicalType.isNullable(),
 					newRowFields);
