@@ -120,7 +120,6 @@ in_flink_source = os.path.isfile("../flink-java/src/main/java/org/apache/flink/a
 # Due to changes in FLINK-14008, the licenses directory and NOTICE file may not exist in
 # build-target folder. Just ignore them in this case.
 exist_licenses = None
-exist_notice = None
 try:
     if in_flink_source:
 
@@ -217,7 +216,6 @@ run sdist.
                   "directory.")
             sys.exit(-1)
         exist_licenses = os.path.exists(LICENSES_TEMP_PATH)
-        exist_notice = os.path.exists(NOTICE_FILE_TEMP_PATH)
 
     script_names = ["pyflink-shell.sh", "find-flink-home.sh"]
     scripts = [os.path.join(SCRIPTS_TEMP_PATH, script) for script in script_names]
