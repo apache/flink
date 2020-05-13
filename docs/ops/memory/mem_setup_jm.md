@@ -1,5 +1,5 @@
 ---
-title: "Set up Job Manager Memory"
+title: "Set up Flink Master Memory"
 nav-parent_id: ops_mem
 nav-pos: 3
 ---

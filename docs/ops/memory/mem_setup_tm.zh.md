@@ -1,5 +1,5 @@
 ---
-title: "配置 TaskExecutor 内存"
+title: "配置 TaskManager 内存"
 nav-parent_id: ops_mem
 nav-pos: 2
 ---

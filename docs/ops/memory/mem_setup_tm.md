@@ -1,5 +1,5 @@
 ---
-title: "Set up Task Executor Memory"
+title: "Set up TaskManager Memory"
 nav-parent_id: ops_mem
 nav-pos: 2
 ---

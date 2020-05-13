@@ -1,5 +1,5 @@
 ---
-title: "Set up Job Manager Memory"
+title: "Set up Flink Master Memory"
 nav-parent_id: ops_mem
 nav-pos: 3
 ---
@@ -22,21 +22,23 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+The Master is the controlling element of the Flink Cluster. 
+It consists of three distinct components: Flink Resource Manager, Flink Dispatcher and one Flink JobManager per running Flink Job.
+This guide walks you through high level and fine-grained memory configurations for the Master.
+
 * toc
 {:toc}
 
 The further described memory configuration is applicable starting with the release version *1.11*. If you upgrade Flink
 from earlier versions, check the [migration guide](mem_migration.html) because many changes were introduced with the *1.11* release.
 
-<span class="label label-info">Note</span> This memory setup guide is relevant <strong>only for job managers</strong>!
-The main job manager memory components have a similar but simpler structure compared to the [task executors'](mem_setup_tm.html).
+<span class="label label-info">Note</span> This memory setup guide is relevant <strong>only for the Master</strong>!
+The Master memory components have a similar but simpler structure compared to the [TaskManagers' memory configuration](mem_setup_tm.html).
 
 ## Configure Total Memory
 
-If you run the job manager process locally, you do not need to configure memory options, they will have no effect.
-See also [notes for the execution mode](#notes-for-the-execution-mode). Otherwise, the simplest way to set up the
-memory configuration is to configure the total memory.
-See [how to configure it for the Flink process](mem_setup.html#configure-total-memory).
+The simplest way to set up the memory configuration is to configure the [total memory](mem_setup.html#configure-total-memory) for the process.
+If you run the Master process using local [execution mode](#local-execution) you do not need to configure memory options, they will have no effect.
 
 ## Detailed configuration
 
@@ -56,43 +58,37 @@ affect the size of the respective components:
 
 ### Configure JVM Heap
 
-As mentioned before in the [total memory description](mem_setup.html#configure-total-memory), another way to setup memory
-for job manager is to specify explicitly *JVM Heap* size ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)).
-It gives more control over the available *JVM Heap* to the following purposes:
+As mentioned before in the [total memory description](mem_setup.html#configure-total-memory), another way to set up the memory
+for the Master is to specify explicitly the *JVM Heap* size ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)).
+It gives more control over the available *JVM Heap* which contains:
 
 * Flink framework (e.g. *Job cache*)
-* User code running during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
+* User code executed during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
 
-The required size of *JVM Heap* is mostly driven by the amount of running jobs, their structure and requirements for
+The required size of *JVM Heap* is mostly driven by the number of running jobs, their structure, and requirements for
 the mentioned user code.
 
-The *Job cache* resides in the *JVM Heap*. It already can be configured currently by
-[`jobstore.cache-size`](../config.html#jobstore-cache-size) which must be less than the configured or derived *JVM Heap*.
+The *Job cache* resides in the *JVM Heap*. It can be configured by
+[`jobstore.cache-size`](../config.html#jobstore-cache-size) which must be less than the configured or derived *JVM Heap* size.
 
 <span class="label label-info">Note</span> If you have configured the *JVM Heap* explicitly, it is recommended to set
 neither *total process memory* nor *total Flink memory*. Otherwise, it may easily lead to memory configuration conflicts.
-The *JVM Heap* size is set as the corresponding JVM parameters (*-Xms* and *-Xmx*) when the job manager process is started
-by Flink’s scripts or CLI, see also [JVM parameters](mem_setup.html#jvm-parameters).
+The Flink scripts and CLI set the *JVM Heap* size via the JVM parameters *-Xms* and *-Xmx* when they start the Master process, see also [JVM parameters](mem_setup.html#jvm-parameters).
 
 ### Configure Off-heap Memory
 
 The *Off-heap* memory component accounts for any type of *JVM direct memory* and *native memory* usage. Therefore, it
-is also set as the corresponding JVM argument: *-XX:MaxDirectMemorySize*, see also [JVM parameters](mem_setup.html#jvm-parameters).
+is also set via the corresponding JVM argument: *-XX:MaxDirectMemorySize*, see also [JVM parameters](mem_setup.html#jvm-parameters).
 
 The size of this component can be configured by [`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size)
-option. This option can be tuned e.g. if the job manager process throws ‘OutOfMemoryError: Direct buffer memory’, see
-also [the troubleshooting guide](mem_trouble.html#outofmemoryerror-direct-buffer-memory).
+option. This option can be tuned e.g. if the Master process throws ‘OutOfMemoryError: Direct buffer memory’, see
+the [the troubleshooting guide](mem_trouble.html#outofmemoryerror-direct-buffer-memory) for more information.
 
-There can be the following possible sources of the *Off-heap* memory consumption in JM:
+There can be the following possible sources of *Off-heap* memory consumption:
 
 * Flink framework dependencies (e.g. Akka network communication)
-* User code running during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
+* User code executed during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
 
-## Notes for the execution mode
+## Local Execution
 
-The configuration options of the described components are relevant only if Flink is either started using the provided
-*bin* scripts for [standalone](../deployment/cluster_setup.html) and [Mesos](../deployment/mesos.html) deployments or
-via Flink’s CLI for other containerised deployments ([Kubernetes](../deployment/kubernetes.html) and [Yarn](../deployment/yarn_setup.html)).
-
-If you run Flink locally (e.g. from your IDE) without creating a cluster, then Flink’s JVM process is started manually
-and the configuration options of the described components are not applicable.
+If you run Flink locally (e.g. from your IDE) without creating a cluster, then the Master memory configuration options are ignored.
