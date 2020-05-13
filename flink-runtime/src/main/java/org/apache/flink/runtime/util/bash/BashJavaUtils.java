@@ -78,7 +78,7 @@ public class BashJavaUtils {
 	private static void getJmResourceParams(String[] args) throws Exception {
 		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfigWithFallbackForLegacyHeap(
 			FlinkConfigLoader.loadConfiguration(args),
-			JobManagerOptions.TOTAL_FLINK_MEMORY);
+			JobManagerOptions.JVM_HEAP_MEMORY);
 		System.out.println(EXECUTION_PREFIX + ProcessMemoryUtils.generateJvmParametersStr(jobManagerProcessSpec));
 	}
 
