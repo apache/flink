@@ -30,12 +30,9 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -57,9 +54,6 @@ import static org.mockito.Mockito.when;
  */
 public class CheckpointMetadataLoadingTest {
 
-	@Rule
-	public final TemporaryFolder tmpFolder = new TemporaryFolder();
-
 	/**
 	 * Tests loading and validation of savepoints with correct setup,
 	 * parallelism mismatch, and a missing task.
@@ -67,7 +61,6 @@ public class CheckpointMetadataLoadingTest {
 	@Test
 	public void testLoadAndValidateSavepoint() throws Exception {
 		final Random rnd = new Random();
-		File tmp = tmpFolder.newFolder();
 
 		int parallelism = 128128;
 		long checkpointId = Integer.MAX_VALUE + 123123L;
