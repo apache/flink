@@ -396,7 +396,14 @@ public class DataTypeExtractorTest {
 			// method with generic return type
 			TestSpec
 				.forMethodOutput(IntegerVarArg.class)
-				.expectDataType(DataTypes.INT())
+				.expectDataType(DataTypes.INT()),
+
+			// structured type with invalid constructor
+			TestSpec
+				.forType(SimplePojoWithInvalidConstructor.class)
+				.expectErrorMessage(
+					"Class '" + SimplePojoWithInvalidConstructor.class.getName() + "' has neither a " +
+						"constructor that assigns all fields nor a default constructor.")
 		);
 	}
 
@@ -941,5 +948,18 @@ public class DataTypeExtractorTest {
 
 	private static class RawTypeSpecific extends RawTypeGeneric {
 		// nothing to do
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public static class SimplePojoWithInvalidConstructor {
+		public Integer intField;
+		public boolean primitiveBooleanField;
+		public int primitiveIntField;
+		public String stringField;
+
+		public SimplePojoWithInvalidConstructor(Integer intField) {
+			this.intField = intField;
+		}
 	}
 }
