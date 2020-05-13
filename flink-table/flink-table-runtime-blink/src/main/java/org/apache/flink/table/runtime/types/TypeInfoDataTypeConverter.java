@@ -44,7 +44,6 @@ import org.apache.flink.table.runtime.typeutils.TimestampDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.WrapperTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -170,14 +169,13 @@ public class TypeInfoDataTypeConverter {
 				if (RowData.class.isAssignableFrom(dataType.getConversionClass())) {
 					return RowDataTypeInfo.of((RowType) fromDataTypeToLogicalType(dataType));
 				} else if (Row.class == dataType.getConversionClass()) {
-					FieldsDataType rowType = (FieldsDataType) dataType;
 					RowType logicalRowType = (RowType) logicalType;
 					return new RowTypeInfo(
-							logicalRowType.getFieldNames().stream()
-									.map(name -> rowType.getFieldDataTypes().get(name))
-									.map(TypeInfoDataTypeConverter::fromDataTypeToTypeInfo)
-									.toArray(TypeInformation[]::new),
-							logicalRowType.getFieldNames().toArray(new String[0]));
+						dataType.getChildren()
+							.stream()
+							.map(TypeInfoDataTypeConverter::fromDataTypeToTypeInfo)
+							.toArray(TypeInformation[]::new),
+						logicalRowType.getFieldNames().toArray(new String[0]));
 				} else {
 					return TypeConversions.fromDataTypeToLegacyInfo(dataType);
 				}

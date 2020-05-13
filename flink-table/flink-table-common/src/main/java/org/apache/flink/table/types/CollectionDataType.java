@@ -27,6 +27,8 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Array;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -79,6 +81,11 @@ public final class CollectionDataType extends DataType {
 			logicalType,
 			Preconditions.checkNotNull(newConversionClass, "New conversion class must not be null."),
 			elementDataType);
+	}
+
+	@Override
+	public List<DataType> getChildren() {
+		return Collections.singletonList(elementDataType);
 	}
 
 	@Override

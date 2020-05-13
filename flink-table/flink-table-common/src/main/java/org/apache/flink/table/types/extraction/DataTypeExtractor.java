@@ -489,11 +489,20 @@ public final class DataTypeExtractor {
 			type,
 			fields);
 
+		final List<StructuredAttribute> attributes = createStructuredTypeAttributes(
+			constructor,
+			fieldDataTypes);
+
 		final StructuredType.Builder builder = StructuredType.newBuilder(clazz);
-		builder.attributes(createStructuredTypeAttributes(constructor, fieldDataTypes));
+		builder.attributes(attributes);
 		builder.setFinal(true); // anonymous structured types should not allow inheritance
 		builder.setInstantiable(true);
-		return new FieldsDataType(builder.build(), clazz, fieldDataTypes);
+		return new FieldsDataType(
+			builder.build(),
+			clazz,
+			attributes.stream()
+				.map(a -> fieldDataTypes.get(a.getName()))
+				.collect(Collectors.toList()));
 	}
 
 	private Map<String, DataType> extractStructuredTypeFields(

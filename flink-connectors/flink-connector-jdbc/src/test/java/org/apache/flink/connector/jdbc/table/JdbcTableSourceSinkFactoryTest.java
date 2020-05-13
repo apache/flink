@@ -32,17 +32,16 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 /**
@@ -183,10 +182,8 @@ public class JdbcTableSourceSinkFactoryTest {
 			.createStreamTableSource(properties))
 			.projectFields(new int[] {0, 2});
 
-		Map<String, DataType> projectedFields = ((FieldsDataType) actual.getProducedDataType()).getFieldDataTypes();
-		assertEquals(projectedFields.get("aaa"), DataTypes.INT());
-		assertNull(projectedFields.get("bbb"));
-		assertEquals(projectedFields.get("ccc"), DataTypes.DOUBLE());
+		List<DataType> projectedFields = actual.getProducedDataType().getChildren();
+		assertEquals(Arrays.asList(DataTypes.INT(), DataTypes.DOUBLE()), projectedFields);
 
 		// test jdbc table source description
 		List<String> fieldNames = ((RowType) actual.getProducedDataType().getLogicalType()).getFieldNames();

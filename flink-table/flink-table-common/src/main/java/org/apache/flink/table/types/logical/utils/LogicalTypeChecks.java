@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
@@ -26,11 +27,15 @@ import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -40,6 +45,9 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 
@@ -64,6 +72,10 @@ public final class LogicalTypeChecks {
 	private static final FractionalPrecisionExtractor FRACTIONAL_PRECISION_EXTRACTOR = new FractionalPrecisionExtractor();
 
 	private static final SingleFieldIntervalExtractor SINGLE_FIELD_INTERVAL_EXTRACTOR = new SingleFieldIntervalExtractor();
+
+	private static final FieldCountExtractor FIELD_COUNT_EXTRACTOR = new FieldCountExtractor();
+
+	private static final FieldNamesExtractor FIELD_NAMES_EXTRACTOR = new FieldNamesExtractor();
 
 	public static boolean hasRoot(LogicalType logicalType, LogicalTypeRoot typeRoot) {
 		return logicalType.getTypeRoot() == typeRoot;
@@ -170,6 +182,20 @@ public final class LogicalTypeChecks {
 
 	public static boolean isSingleFieldInterval(LogicalType logicalType) {
 		return logicalType.accept(SINGLE_FIELD_INTERVAL_EXTRACTOR);
+	}
+
+	/**
+	 * Returns the field count of row and structured types.
+	 */
+	public static int getFieldCount(LogicalType logicalType) {
+		return logicalType.accept(FIELD_COUNT_EXTRACTOR);
+	}
+
+	/**
+	 * Returns the field names of row and structured types.
+	 */
+	public static List<String> getFieldNames(LogicalType logicalType) {
+		return logicalType.accept(FIELD_NAMES_EXTRACTOR);
 	}
 
 	private LogicalTypeChecks() {
@@ -357,6 +383,68 @@ public final class LogicalTypeChecks {
 				default:
 					return false;
 			}
+		}
+	}
+
+	private static class FieldCountExtractor extends Extractor<Integer> {
+
+		@Override
+		public Integer visit(RowType rowType) {
+			return rowType.getFieldCount();
+		}
+
+		@Override
+		public Integer visit(StructuredType structuredType) {
+			int fieldCount = 0;
+			StructuredType currentType = structuredType;
+			while (currentType != null) {
+				fieldCount += currentType.getAttributes().size();
+				currentType = currentType.getSuperType().orElse(null);
+			}
+			return fieldCount;
+		}
+
+		@Override
+		public Integer visit(DistinctType distinctType) {
+			return distinctType.getSourceType().accept(this);
+		}
+	}
+
+	private static class FieldNamesExtractor extends Extractor<List<String>> {
+
+		@Override
+		public List<String> visit(RowType rowType) {
+			return rowType.getFieldNames();
+		}
+
+		@Override
+		public List<String> visit(StructuredType structuredType) {
+			final List<String> fieldNames = new ArrayList<>();
+			// add super fields first
+			structuredType.getSuperType()
+				.map(superType -> superType.accept(this))
+				.ifPresent(fieldNames::addAll);
+			// then specific fields
+			structuredType.getAttributes().stream()
+				.map(StructuredAttribute::getName)
+				.forEach(fieldNames::add);
+			return fieldNames;
+		}
+
+		@Override
+		public List<String> visit(DistinctType distinctType) {
+			return distinctType.getSourceType().accept(this);
+		}
+
+		@Override
+		protected List<String> defaultMethod(LogicalType logicalType) {
+			// legacy
+			if (hasRoot(logicalType, LogicalTypeRoot.STRUCTURED_TYPE)) {
+				return Arrays.asList(
+					((CompositeType<?>) ((LegacyTypeInformationType<?>) logicalType).getTypeInformation())
+						.getFieldNames());
+			}
+			return super.defaultMethod(logicalType);
 		}
 	}
 

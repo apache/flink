@@ -43,10 +43,11 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
 
 /**
  * Utilities for handling {@link DataType}s.
@@ -144,19 +145,22 @@ public final class DataTypeUtils {
 
 		@Override
 		public DataType visit(FieldsDataType fieldsDataType) {
-			Map<String, DataType> newFields = new HashMap<>();
-			fieldsDataType.getFieldDataTypes().forEach((name, type) ->
-				newFields.put(name, type.accept(this)));
-			LogicalType logicalType = fieldsDataType.getLogicalType();
-			LogicalType newLogicalType;
+			final List<DataType> newFields = fieldsDataType.getChildren().stream()
+				.map(dt -> dt.accept(this))
+				.collect(Collectors.toList());
+
+			final LogicalType logicalType = fieldsDataType.getLogicalType();
+			final LogicalType newLogicalType;
 			if (logicalType instanceof RowType) {
-				List<RowType.RowField> rowFields = ((RowType) logicalType).getFields();
-				List<RowType.RowField> newRowFields = rowFields.stream()
-					.map(f -> new RowType.RowField(
-						f.getName(),
-						newFields.get(f.getName()).getLogicalType(),
-						f.getDescription().orElse(null)))
+				final List<RowType.RowField> oldFields = ((RowType) logicalType).getFields();
+				final List<RowType.RowField> newRowFields = IntStream.range(0, oldFields.size())
+					.mapToObj(i ->
+						new RowType.RowField(
+							oldFields.get(i).getName(),
+							newFields.get(i).getLogicalType(),
+							oldFields.get(i).getDescription().orElse(null)))
 					.collect(Collectors.toList());
+
 				newLogicalType = new RowType(
 					logicalType.isNullable(),
 					newRowFields);
@@ -185,16 +189,16 @@ public final class DataTypeUtils {
 	}
 
 	private static TableSchema expandCompositeType(FieldsDataType dataType) {
-		Map<String, DataType> fieldDataTypes = dataType.getFieldDataTypes();
+		DataType[] fieldDataTypes = dataType.getChildren().toArray(new DataType[0]);
 		return dataType.getLogicalType().accept(new LogicalTypeDefaultVisitor<TableSchema>() {
 			@Override
 			public TableSchema visit(RowType rowType) {
-				return expandRowType(rowType, fieldDataTypes);
+				return expandCompositeType(rowType, fieldDataTypes);
 			}
 
 			@Override
 			public TableSchema visit(StructuredType structuredType) {
-				return expandStructuredType(structuredType, fieldDataTypes);
+				return expandCompositeType(structuredType, fieldDataTypes);
 			}
 
 			@Override
@@ -222,32 +226,12 @@ public final class DataTypeUtils {
 		return new TableSchema(fieldNames, fieldTypes);
 	}
 
-	private static TableSchema expandStructuredType(
-		StructuredType structuredType,
-		Map<String, DataType> fieldDataTypes) {
-		String[] fieldNames = structuredType.getAttributes()
-			.stream()
-			.map(StructuredType.StructuredAttribute::getName)
-			.toArray(String[]::new);
-		DataType[] dataTypes = structuredType.getAttributes()
-			.stream()
-			.map(attr -> fieldDataTypes.get(attr.getName()))
-			.toArray(DataType[]::new);
+	private static TableSchema expandCompositeType(
+			LogicalType compositeType,
+			DataType[] fieldDataTypes) {
+		final String[] fieldNames = getFieldNames(compositeType).toArray(new String[0]);
 		return TableSchema.builder()
-			.fields(fieldNames, dataTypes)
-			.build();
-	}
-
-	private static TableSchema expandRowType(
-		RowType rowType,
-		Map<String, DataType> fieldDataTypes) {
-		String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
-		DataType[] dataTypes = rowType.getFields()
-			.stream()
-			.map(field -> fieldDataTypes.get(field.getName()))
-			.toArray(DataType[]::new);
-		return TableSchema.builder()
-			.fields(fieldNames, dataTypes)
+			.fields(fieldNames, fieldDataTypes)
 			.build();
 	}
 }

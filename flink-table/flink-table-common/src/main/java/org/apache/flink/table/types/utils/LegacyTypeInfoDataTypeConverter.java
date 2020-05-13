@@ -55,7 +55,6 @@ import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
@@ -324,8 +323,8 @@ public final class LegacyTypeInfoDataTypeConverter {
 			.map(RowType.RowField::getName)
 			.toArray(String[]::new);
 
-		final TypeInformation<?>[] fieldTypes = Stream.of(fieldNames)
-			.map(name -> fieldsDataType.getFieldDataTypes().get(name))
+		final TypeInformation<?>[] fieldTypes = fieldsDataType.getChildren()
+			.stream()
 			.map(LegacyTypeInfoDataTypeConverter::toLegacyTypeInfo)
 			.toArray(TypeInformation[]::new);
 
