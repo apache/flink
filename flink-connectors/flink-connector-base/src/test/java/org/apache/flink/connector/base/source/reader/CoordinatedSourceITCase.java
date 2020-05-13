@@ -20,6 +20,7 @@ package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.common.accumulators.ListAccumulator;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -35,6 +36,9 @@ import java.util.TreeSet;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * IT case for the {@link Source} with a coordinator.
+ */
 public class CoordinatedSourceITCase extends AbstractTestBase {
 
 	@Test

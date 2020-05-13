@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.base.source.reader.mocks;
 
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -33,6 +32,7 @@ import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -115,12 +115,17 @@ public class MockBaseSource implements Source<Integer, MockSourceSplit, List<Moc
 
 			@Override
 			public byte[] serialize(List<MockSourceSplit> obj) throws IOException {
-				return SerializationUtils.serialize(obj.toArray());
+				return InstantiationUtil.serializeObject(obj.toArray());
 			}
 
 			@Override
 			public List<MockSourceSplit> deserialize(int version, byte[] serialized) throws IOException {
-				MockSourceSplit[] splitArray = SerializationUtils.deserialize(serialized);
+				MockSourceSplit[] splitArray;
+				try {
+					splitArray = InstantiationUtil.deserializeObject(serialized, getClass().getClassLoader());
+				} catch (ClassNotFoundException e) {
+					throw new RuntimeException("Failed to deserialize the source split.");
+				}
 				return new ArrayList<>(Arrays.asList(splitArray));
 			}
 		};

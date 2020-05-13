@@ -31,6 +31,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * A mock {@link SplitEnumerator} for unit tests.
+ */
 public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, List<MockSourceSplit>> {
 	private final List<MockSourceSplit> splits;
 	private final SplitEnumeratorContext<MockSourceSplit> context;
@@ -54,7 +57,7 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Lis
 
 	@Override
 	public void addSplitsBack(List<MockSourceSplit> splits, int subtaskId) {
-
+		this.splits.addAll(splits);
 	}
 
 	@Override
@@ -63,8 +66,9 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Lis
 			int numReaders = context.registeredReaders().size();
 			Map<Integer, List<MockSourceSplit>> assignment = new HashMap<>();
 			for (int i = 0; i < splits.size(); i++) {
-				assignment.computeIfAbsent(i % numReaders, t -> new ArrayList<>())
-						  .add(splits.get(i));
+				assignment
+						.computeIfAbsent(i % numReaders, t -> new ArrayList<>())
+						.add(splits.get(i));
 			}
 			context.assignSplits(new SplitsAssignment<>(assignment));
 			splits.clear();
@@ -76,7 +80,7 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Lis
 
 	@Override
 	public List<MockSourceSplit> snapshotState() {
-		return null;
+		return splits;
 	}
 
 	@Override
