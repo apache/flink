@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
@@ -62,11 +61,11 @@ import static org.junit.Assert.assertThat;
 @RunWith(Parameterized.class)
 public class BucketStateSerializerTest {
 
-	private static final int CURRENT_VERSION = 1;
+	private static final int CURRENT_VERSION = 2;
 
 	@Parameterized.Parameters(name = "Previous Version = {0}")
 	public static Collection<Integer> previousVersions() {
-		return Arrays.asList(1);
+		return Arrays.asList(1, 2);
 	}
 
 	@Parameterized.Parameter
@@ -136,7 +135,7 @@ public class BucketStateSerializerTest {
 
 		Assert.assertEquals(testBucketPath, bucket.getBucketPath());
 		Assert.assertNull(bucket.getInProgressPart());
-		Assert.assertTrue(bucket.getPendingPartsPerCheckpoint().isEmpty());
+		Assert.assertTrue(bucket.getPendingFileRecoverablesPerCheckpoint().isEmpty());
 	}
 
 	@Test
@@ -266,8 +265,8 @@ public class BucketStateSerializerTest {
 			final int noOfPendingCheckpoints = 5;
 
 			// there are 5 checkpoint does not complete.
-			final Map<Long, List<RecoverableWriter.CommitRecoverable>>
-				pendingFileRecoverables = recoveredState.getCommittableFilesPerCheckpoint();
+			final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>>
+				pendingFileRecoverables = recoveredState.getPendingFileRecoverablesPerCheckpoint();
 			Assert.assertEquals(5L, pendingFileRecoverables.size());
 
 			final Set<String> beforeRestorePaths = Files.list(outputPath.resolve(BUCKET_ID))
@@ -283,7 +282,7 @@ public class BucketStateSerializerTest {
 			// recover and commit
 			final Bucket bucket = restoreBucket(noOfPendingCheckpoints + 1, recoveredState);
 			Assert.assertEquals(testBucketPath, bucket.getBucketPath());
-			Assert.assertEquals(0, bucket.getPendingPartsPerCheckpoint().size());
+			Assert.assertEquals(0, bucket.getPendingFileRecoverablesForCurrentCheckpoint().size());
 
 			final Set<String> afterRestorePaths = Files.list(outputPath.resolve(BUCKET_ID))
 				.map(file -> file.getFileName().toString())
@@ -313,25 +312,35 @@ public class BucketStateSerializerTest {
 
 	private static Bucket<String, String> createNewBucket(final Path bucketPath) throws IOException {
 		return Bucket.getNew(
-			FileSystem.getLocalFileSystem().createRecoverableWriter(),
 			0,
 			BUCKET_ID,
 			bucketPath,
 			0,
-			new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
+			createBucketWriter(),
 			DefaultRollingPolicy.builder().withMaxPartSize(10).build(),
 			OutputFileConfig.builder().build());
 	}
 
 	private static Bucket<String, String> restoreBucket(final int initialPartCounter, final BucketState<String> bucketState) throws IOException {
 		return Bucket.restore(
-			FileSystem.getLocalFileSystem().createRecoverableWriter(),
 			0,
 			initialPartCounter,
-			new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
+			createBucketWriter(),
 			DefaultRollingPolicy.builder().withMaxPartSize(10).build(),
 			bucketState,
 			OutputFileConfig.builder().build());
+	}
+
+	private static RowWiseBucketWriter<String, String> createBucketWriter() throws IOException {
+		return new RowWiseBucketWriter<>(FileSystem.getLocalFileSystem().createRecoverableWriter(), new SimpleStringEncoder<>());
+	}
+
+	private static SimpleVersionedSerializer<BucketState<String>> bucketStateSerializer() throws IOException {
+		final RowWiseBucketWriter bucketWriter = createBucketWriter();
+		return new BucketStateSerializer<>(
+			bucketWriter.getProperties().getInProgressFileRecoverableSerializer(),
+			bucketWriter.getProperties().getPendingFileRecoverableSerializer(),
+			SimpleVersionedStringSerializer.INSTANCE);
 	}
 
 	private static BucketState<String> readBucketState(final String scenarioName, final int version) throws IOException {
@@ -349,14 +358,6 @@ public class BucketStateSerializerTest {
 		FileUtils.copy(new Path(scenarioPath.toString() + "-template"), new Path(scenarioPath.toString()), false);
 
 		return readBucketState(scenarioName, version);
-	}
-
-	private static SimpleVersionedSerializer<BucketState<String>> bucketStateSerializer() throws IOException {
-		RecoverableWriter recoverableWriter = FileSystem.getLocalFileSystem().createRecoverableWriter();
-		return new BucketStateSerializer<>(
-			recoverableWriter.getResumeRecoverableSerializer(),
-			recoverableWriter.getCommitRecoverableSerializer(),
-			SimpleVersionedStringSerializer.INSTANCE);
 	}
 
 	private static void moveToTemplateDirectory(java.nio.file.Path scenarioPath) throws IOException {
