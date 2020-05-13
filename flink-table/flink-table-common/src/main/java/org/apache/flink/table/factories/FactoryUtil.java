@@ -71,11 +71,30 @@ public final class FactoryUtil {
 			"Uniquely identifies the connector of a dynamic table that is used for accessing data in " +
 			"an external system. Its value is used during table source and table sink discovery.");
 
-	public static final String FORMAT_PREFIX = "format.";
+	public static final ConfigOption<String> KEY_FORMAT = ConfigOptions
+		.key("key.format")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Defines the format identifier for encoding key data. " +
+			"The identifier is used to discover a suitable format factory.");
 
-	public static final String KEY_FORMAT_PREFIX = "key.format.";
+	public static final ConfigOption<String> VALUE_FORMAT = ConfigOptions
+		.key("value.format")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Defines the format identifier for encoding value data. " +
+			"The identifier is used to discover a suitable format factory.");
 
-	public static final String VALUE_FORMAT_PREFIX = "value.format.";
+	public static final ConfigOption<String> FORMAT = ConfigOptions
+		.key("format")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Defines the format identifier for encoding data. " +
+			"The identifier is used to discover a suitable format factory.");
+
+	private static final String FORMAT_KEY = "format";
+
+	private static final String FORMAT_SUFFIX = ".format";
 
 	/**
 	 * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
@@ -162,11 +181,19 @@ public final class FactoryUtil {
 	 * <pre>{@code
 	 * // in createDynamicTableSource()
 	 * helper = FactoryUtil.createTableFactoryHelper(this, context);
-	 * keyFormat = helper.discoverScanFormat(classloader, MyFormatFactory.class, KEY_OPTION, "prefix");
-	 * valueFormat = helper.discoverScanFormat(classloader, MyFormatFactory.class, VALUE_OPTION, "prefix");
+	 * keyFormat = helper.discoverScanFormat(DeserializationFormatFactory.class, KEY_FORMAT);
+	 * valueFormat = helper.discoverScanFormat(DeserializationFormatFactory.class, VALUE_FORMAT);
 	 * helper.validate();
 	 * ... // construct connector with discovered formats
 	 * }</pre>
+	 *
+	 * <p>Note: The format option parameter of {@code helper.discoverScanFormat(formatFactoryClass, formatOption)}
+	 * and {@code helper.discoverSinkFormat(formatFactoryClass, formatOption)} must be 'format' or
+	 * with '.format' suffix (e.g. {@link #FORMAT}, {@link #KEY_FORMAT} and {@link #VALUE_FORMAT}).
+	 * The discovery logic will replace 'format' with the factory identifier value as the format
+	 * prefix. For example, assuming the identifier is 'json', if format option key is 'format',
+	 * then format prefix is 'json.'. If format option key is 'value.format', then format prefix
+	 * is 'value.json'. The format prefix is used to project the options for the format factory.
 	 *
 	 * <p>Note: This utility checks for left-over options in the final step.
 	 */
@@ -377,14 +404,11 @@ public final class FactoryUtil {
 
 		/**
 		 * Discovers a {@link ScanFormat} of the given type using the given option as factory identifier.
-		 *
-		 * <p>A prefix, e.g. {@link #KEY_FORMAT_PREFIX}, projects the options for the format factory.
 		 */
 		public <I, F extends ScanFormatFactory<I>> ScanFormat<I> discoverScanFormat(
 				Class<F> formatFactoryClass,
-				ConfigOption<String> formatOption,
-				String formatPrefix) {
-			return discoverOptionalScanFormat(formatFactoryClass, formatOption, formatPrefix)
+				ConfigOption<String> formatOption) {
+			return discoverOptionalScanFormat(formatFactoryClass, formatOption)
 				.orElseThrow(() ->
 					new ValidationException(
 						String.format("Could not find required scan format '%s'.", formatOption.key())));
@@ -393,15 +417,13 @@ public final class FactoryUtil {
 		/**
 		 * Discovers a {@link ScanFormat} of the given type using the given option (if present) as factory
 		 * identifier.
-		 *
-		 * <p>A prefix, e.g. {@link #KEY_FORMAT_PREFIX}, projects the options for the format factory.
 		 */
 		public <I, F extends ScanFormatFactory<I>> Optional<ScanFormat<I>> discoverOptionalScanFormat(
 				Class<F> formatFactoryClass,
-				ConfigOption<String> formatOption,
-				String formatPrefix) {
-			return discoverOptionalFormatFactory(formatFactoryClass, formatOption, formatPrefix)
+				ConfigOption<String> formatOption) {
+			return discoverOptionalFormatFactory(formatFactoryClass, formatOption)
 				.map(formatFactory -> {
+					String formatPrefix = formatPrefix(formatFactory, formatOption);
 					try {
 						return formatFactory.createScanFormat(context, projectOptions(formatPrefix));
 					} catch (Throwable t) {
@@ -417,14 +439,11 @@ public final class FactoryUtil {
 
 		/**
 		 * Discovers a {@link SinkFormat} of the given type using the given option as factory identifier.
-		 *
-		 * <p>A prefix, e.g. {@link #KEY_FORMAT_PREFIX}, projects the options for the format factory.
 		 */
 		public <I, F extends SinkFormatFactory<I>> SinkFormat<I> discoverSinkFormat(
 				Class<F> formatFactoryClass,
-				ConfigOption<String> formatOption,
-				String formatPrefix) {
-			return discoverOptionalSinkFormat(formatFactoryClass, formatOption, formatPrefix)
+				ConfigOption<String> formatOption) {
+			return discoverOptionalSinkFormat(formatFactoryClass, formatOption)
 				.orElseThrow(() ->
 					new ValidationException(
 						String.format("Could not find required sink format '%s'.", formatOption.key())));
@@ -433,15 +452,13 @@ public final class FactoryUtil {
 		/**
 		 * Discovers a {@link SinkFormat} of the given type using the given option (if present) as factory
 		 * identifier.
-		 *
-		 * <p>A prefix, e.g. {@link #KEY_FORMAT_PREFIX}, projects the options for the format factory.
 		 */
 		public <I, F extends SinkFormatFactory<I>> Optional<SinkFormat<I>> discoverOptionalSinkFormat(
 				Class<F> formatFactoryClass,
-				ConfigOption<String> formatOption,
-				String formatPrefix) {
-			return discoverOptionalFormatFactory(formatFactoryClass, formatOption, formatPrefix)
+				ConfigOption<String> formatOption) {
+			return discoverOptionalFormatFactory(formatFactoryClass, formatOption)
 				.map(formatFactory -> {
+					String formatPrefix = formatPrefix(formatFactory, formatOption);
 					try {
 						return formatFactory.createSinkFormat(context, projectOptions(formatPrefix));
 					} catch (Throwable t) {
@@ -492,8 +509,7 @@ public final class FactoryUtil {
 
 		private <F extends Factory> Optional<F> discoverOptionalFormatFactory(
 				Class<F> formatFactoryClass,
-				ConfigOption<String> formatOption,
-				String formatPrefix) {
+				ConfigOption<String> formatOption) {
 			final String identifier = allOptions.get(formatOption);
 			if (identifier == null) {
 				return Optional.empty();
@@ -502,6 +518,7 @@ public final class FactoryUtil {
 				context.getClassLoader(),
 				formatFactoryClass,
 				identifier);
+			String formatPrefix = formatPrefix(factory, formatOption);
 			// log all used options of other factories
 			consumedOptionKeys.addAll(
 				factory.requiredOptions().stream()
@@ -514,6 +531,21 @@ public final class FactoryUtil {
 					.map(k -> formatPrefix + k)
 					.collect(Collectors.toSet()));
 			return Optional.of(factory);
+		}
+
+		private String formatPrefix(Factory formatFactory, ConfigOption<String> formatOption) {
+			String identifier = formatFactory.factoryIdentifier();
+			if (formatOption.key().equals(FORMAT_KEY)) {
+				return identifier + ".";
+			} else if (formatOption.key().endsWith(FORMAT_SUFFIX)) {
+				// extract the key prefix, e.g. extract 'key' from 'key.format'
+				String keyPrefix = formatOption.key().substring(0, formatOption.key().length() - FORMAT_SUFFIX.length());
+				return keyPrefix + "." + identifier + ".";
+			} else {
+				throw new ValidationException(
+					"Format identifier key should be 'format' or suffix with '.format', " +
+						"don't support format identifier key '" + formatOption.key() + "'.");
+			}
 		}
 
 		private ReadableConfig projectOptions(String formatPrefix) {

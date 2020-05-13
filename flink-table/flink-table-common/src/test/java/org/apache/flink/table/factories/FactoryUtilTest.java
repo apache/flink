@@ -85,8 +85,8 @@ public class FactoryUtilTest {
 
 	@Test
 	public void testMissingFormat() {
-		expectError("Could not find required scan format 'value.format.kind'.");
-		testError(options -> options.remove("value.format.kind"));
+		expectError("Could not find required scan format 'value.format'.");
+		testError(options -> options.remove("value.format"));
 	}
 
 	@Test
@@ -96,24 +96,24 @@ public class FactoryUtilTest {
 				DeserializationFormatFactory.class.getName() + "' in the classpath.\n\n" +
 			"Available factory identifiers are:\n\n" +
 			"test-format");
-		testError(options -> options.put("value.format.kind", "FAIL"));
+		testError(options -> options.put("value.format", "FAIL"));
 	}
 
 	@Test
 	public void testMissingFormatOption() {
 		expectError(
-			"Error creating scan format 'test-format' in option space 'key.format.'.");
+			"Error creating scan format 'test-format' in option space 'key.test-format.'.");
 		expectError(
 			"One or more required options are missing.\n\n" +
 			"Missing required options are:\n\n" +
 			"delimiter");
-		testError(options -> options.remove("key.format.delimiter"));
+		testError(options -> options.remove("key.test-format.delimiter"));
 	}
 
 	@Test
 	public void testInvalidFormatOption() {
 		expectError("Invalid value for option 'fail-on-missing'.");
-		testError(options -> options.put("key.format.fail-on-missing", "FAIL"));
+		testError(options -> options.put("key.test-format.fail-on-missing", "FAIL"));
 	}
 
 	@Test
@@ -126,14 +126,15 @@ public class FactoryUtilTest {
 			"Supported options:\n\n" +
 			"buffer-size\n" +
 			"connector\n" +
-			"key.format.delimiter\n" +
-			"key.format.fail-on-missing\n" +
-			"key.format.kind\n" +
+			"format\n" +
+			"key.format\n" +
+			"key.test-format.delimiter\n" +
+			"key.test-format.fail-on-missing\n" +
 			"property-version\n" +
 			"target\n" +
-			"value.format.delimiter\n" +
-			"value.format.fail-on-missing\n" +
-			"value.format.kind");
+			"value.format\n" +
+			"value.test-format.delimiter\n" +
+			"value.test-format.fail-on-missing");
 		testError(options -> {
 			options.put("this-is-not-consumed", "42");
 			options.put("this-is-also-not-consumed", "true");
@@ -161,8 +162,8 @@ public class FactoryUtilTest {
 	@Test
 	public void testOptionalFormat() {
 		final Map<String, String> options = createAllOptions();
-		options.remove("key.format.kind");
-		options.remove("key.format.delimiter");
+		options.remove("key.format");
+		options.remove("key.test-format.delimiter");
 		final DynamicTableSource actualSource = createTableSource(options);
 		final DynamicTableSource expectedSource = new DynamicTableSourceMock(
 			"MyTarget",
@@ -175,6 +176,30 @@ public class FactoryUtilTest {
 			1000L,
 			null,
 			new SinkFormatMock("|"));
+		assertEquals(expectedSink, actualSink);
+	}
+
+	@Test
+	public void testAlternativeValueFormat() {
+		final Map<String, String> options = createAllOptions();
+		options.remove("value.format");
+		options.remove("value.test-format.delimiter");
+		options.remove("value.test-format.fail-on-missing");
+		options.put("format", "test-format");
+		options.put("test-format.delimiter", ";");
+		options.put("test-format.fail-on-missing", "true");
+		final DynamicTableSource actualSource = createTableSource(options);
+		final DynamicTableSource expectedSource = new DynamicTableSourceMock(
+			"MyTarget",
+			new ScanFormatMock(",", false),
+			new ScanFormatMock(";", true));
+		assertEquals(expectedSource, actualSource);
+		final DynamicTableSink actualSink = createTableSink(options);
+		final DynamicTableSink expectedSink = new DynamicTableSinkMock(
+			"MyTarget",
+			1000L,
+			new SinkFormatMock(","),
+			new SinkFormatMock(";"));
 		assertEquals(expectedSink, actualSink);
 	}
 
@@ -198,11 +223,11 @@ public class FactoryUtilTest {
 		options.put("connector", TestDynamicTableFactory.IDENTIFIER);
 		options.put("target", "MyTarget");
 		options.put("buffer-size", "1000");
-		options.put("key.format.kind", TestFormatFactory.IDENTIFIER);
-		options.put("key.format.delimiter", ",");
-		options.put("value.format.kind", TestFormatFactory.IDENTIFIER);
-		options.put("value.format.delimiter", "|");
-		options.put("value.format.fail-on-missing", "true");
+		options.put("key.format", "test-format");
+		options.put("key.test-format.delimiter", ",");
+		options.put("value.format", "test-format");
+		options.put("value.test-format.delimiter", "|");
+		options.put("value.test-format.fail-on-missing", "true");
 		return options;
 	}
 
