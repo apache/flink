@@ -34,16 +34,16 @@ the Master memory configuration from Flink <= *1.10* to >= *1.11*.
 <div class="alert alert-warning">
   <strong>Warning:</strong> It is important to review this guide because the legacy and new memory configuration can
   result in different sizes of memory components. If you try to reuse your Flink configuration from older versions
-  before 1.10 for task executors or before 1.11 for job manager, it can result in changes to the behavior,
+  before 1.10 for TaskManagers or before 1.11 for Masters, it can result in changes to the behavior,
   performance or even configuration failures of your application.
 </div>
 
-<span class="label label-info">Note</span> Before version *1.10* for task executors and before *1.11* for job managers,
+<span class="label label-info">Note</span> Before version *1.10* for TaskManagers and before *1.11* for Masters,
 Flink did not require that memory related options are set at all as they all had default values.
 The [new memory configuration](mem_setup.html#configure-total-memory) requires that at least one subset of
 the following options is configured explicitly, otherwise the configuration will fail:
 
-| &nbsp;&nbsp;**for task executor:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**for job manager:**&nbsp;&nbsp;                                      |
+| &nbsp;&nbsp;**for TaskManager:**&nbsp;&nbsp;                                                                                                                                        | &nbsp;&nbsp;**for Master:**&nbsp;&nbsp;                                      |
 | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------- |
 | [`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)                                                                                                       | [`jobmanager.memory.flink.size`](../config.html#jobmanager-memory-flink-size)     |
 | [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)                                                                                                   | [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size) |
@@ -148,22 +148,22 @@ Despite their naming, they included not only JVM Heap but also other off-heap me
 
 The Mesos integration also had a separate option with the same semantics: `mesos.resourcemanager.tasks.mem` which has also been removed.
 
-If the mentioned legacy options are used without specifying the corresponding new options,
+If you use the mentioned legacy options without specifying the corresponding new options,
 they will be directly translated into the following new options:
 * Total Flink memory ([`taskmanager.memory.flink.size`](../config.html#taskmanager-memory-flink-size)) for standalone deployments
 * Total process memory ([`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)) for containerized deployments (Yarn or Mesos)
 
-It is also recommended to use these new options instead of the legacy ones as they might be completely removed in the following releases.
+It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
 
 See also [how to configure total memory now](mem_setup.html#configure-total-memory).
 
 ### JVM Heap Memory
 
 JVM Heap memory previously consisted of the managed memory (if configured to be on-heap) and the rest
-which included any other usages of heap memory. This rest was always implicitly derived as the remaining part of the total memory,
+which included any other usages of heap memory. This rest was the remaining part of the total memory,
 see also [how to migrate managed memory](#managed-memory).
 
-Now, if only *total Flink memory* or *total process memory* is configured, then the JVM Heap is also derived as the rest of
+Now, if only *total Flink memory* or *total process memory* is configured, then the JVM Heap is the rest of
 what is left after subtracting all other components from the total memory, see also [how to configure total memory](mem_setup.html#configure-total-memory).
 
 Additionally, you can now have more direct control over the JVM Heap assigned to the operator tasks
@@ -172,7 +172,7 @@ see also [Task (Operator) Heap Memory](mem_setup_tm.html#task-operator-heap-memo
 The JVM Heap memory is also used by the heap state backends ([MemoryStateBackend](../state/state_backends.html#the-memorystatebackend)
 or [FsStateBackend](../state/state_backends.html#the-fsstatebackend)) if it is chosen for streaming jobs.
 
-A part of the JVM Heap is now always reserved for Flink framework
+A part of the JVM Heap is now always reserved for the Flink framework
 ([`taskmanager.memory.framework.heap.size`](../config.html#taskmanager-memory-framework-heap-size)).
 See also [Framework memory](mem_setup_tm.html#framework-memory).
 
@@ -201,7 +201,7 @@ This new option will set the [managed memory](mem_setup_tm.html#managed-memory) 
 If the [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend) is chosen for a streaming job,
 its native memory consumption should now be accounted for in [managed memory](mem_setup_tm.html#managed-memory).
 The RocksDB memory allocation is limited by the [managed memory](mem_setup_tm.html#managed-memory) size.
-This should prevent the killing of containers on [Yarn](../deployment/yarn_setup.html) or [Mesos](../deployment/mesos.html).
+This should prevent the killing of containers on [Yarn](../deployment/yarn_setup.html) and [Mesos](../deployment/mesos.html).
 You can disable the RocksDB memory control by setting [state.backend.rocksdb.memory.managed](../config.html#state-backend-rocksdb-memory-managed)
 to `false`. See also [how to migrate container cut-off](#container-cut-off-memory).
 
@@ -214,7 +214,7 @@ Additionally, the following changes have been made:
 
 ## Migrate Job Manager Memory Configuration
 
-Previously, there were options responsible for the *JVM Heap* used by Flink are:
+Previously, there were options responsible for setting the *JVM Heap* size of the Flink Master:
 * `jobmanager.heap.size`
 * `jobmanager.heap.mb`
 
@@ -224,14 +224,14 @@ they also included other off-heap memory consumption. The size of *JVM Heap* was
 cut-off which has been completely removed after *1.11*.
 
 The [Mesos](../deployment/mesos.html) integration did not take into account the mentioned legacy memory options.
-The scripts provided in Flink to start the Mesos master did not set any memory JVM arguments. After *1.11* release,
-they are set the same way as for [standalone deployment](../deployment/cluster_setup.html) scripts.
+The scripts provided in Flink to start the Mesos Master process did not set any memory JVM arguments. After the *1.11* release,
+they are set the same way as it is done by the [standalone deployment](../deployment/cluster_setup.html) scripts.
 
 The mentioned legacy options have been deprecated. If they are used without specifying the corresponding new options,
 they will be directly translated into the following new options:
-* Total Flink memory ([`jobmanager.memory.flink.size`](../config.html#jobmanager-memory-flink-size)) for [standalone](../deployment/cluster_setup.html) and [Mesos](../deployment/mesos.html) deployments
+* JVM Heap ([`jobmanager.memory.heap.size`](../config.html#jobmanager-memory-heap-size)) for [standalone](../deployment/cluster_setup.html) and [Mesos](../deployment/mesos.html) deployments
 * Total process memory ([`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes](../deployment/kubernetes.html) and [Yarn](../deployment/yarn_setup.html))
-It is also recommended to use these new options instead of the legacy ones as they might be completely removed in the following releases.
+It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
 
 Now, if only the *total Flink memory* or *total process memory* is configured, then the [JVM Heap](mem_setup_jm.html#configure-jvm-heap)
 is also derived as the rest of what is left after subtracting all other components from the total memory, see also
@@ -242,11 +242,11 @@ control over the [JVM Heap](mem_setup_jm.html#configure-jvm-heap) by adjusting t
 ## Container Cut-Off Memory
 
 For containerized deployments, you could previously specify a cut-off memory. This memory could accommodate for unaccounted memory allocations.
-Dependencies which were not directly controlled by Flink were the main source of those allocations, e.g. RocksDB, internals of JVM, etc.
-This is no longer available and the related configuration options (`containerized.heap-cutoff-ratio` and `containerized.heap-cutoff-min`)
-will have no effect anymore. The new memory model introduced more specific memory components, described further, to address these concerns.
+Dependencies which were not directly controlled by Flink were the main source of those allocations, e.g. RocksDB, JVM internals, etc.
+This is no longer available, and the related configuration options (`containerized.heap-cutoff-ratio` and `containerized.heap-cutoff-min`)
+will have no effect anymore. The new memory model introduced more specific memory components to address these concerns.
 
-### for Task Executors
+### for TaskManagers
 
 In streaming jobs which use [RocksDBStateBackend](../state/state_backends.html#the-rocksdbstatebackend), the RocksDB
 native memory consumption should be accounted for as a part of the [managed memory](mem_setup_tm.html#managed-memory) now.
@@ -259,7 +259,7 @@ The other direct or native off-heap memory consumers can now be addressed by the
 * JVM metaspace ([`taskmanager.memory.jvm-metaspace.size`](../config.html#taskmanager-memory-jvm-metaspace-size))
 * [JVM overhead](mem_setup_tm.html#detailed-memory-model)
 
-### for Job Managers
+### for Masters
 
 The direct or native off-heap memory consumers can now be addressed by the following new configuration options:
 * Off-heap memory ([`jobmanager.memory.off-heap.size`](../config.html#jobmanager-memory-off-heap-size))
@@ -270,15 +270,14 @@ The direct or native off-heap memory consumers can now be addressed by the follo
 
 This section describes the changes of the default `flink-conf.yaml` shipped with Flink.
 
-The total memory for task executors (`taskmanager.heap.size`) is replaced by [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)
-in the default `flink-conf.yaml`. The value is also increased from 1024Mb to 1728Mb.
+The total memory for TaskManagers (`taskmanager.heap.size`) is replaced by [`taskmanager.memory.process.size`](../config.html#taskmanager-memory-process-size)
+in the default `flink-conf.yaml`. The value increased from 1024Mb to 1728Mb.
 
-The total memory for job managers (`jobmanager.heap.size`) is replaced by [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size)
-in the default `flink-conf.yaml`. The value is also increased from 1024Mb to 1600Mb.
+The total memory for Masters (`jobmanager.heap.size`) is replaced by [`jobmanager.memory.process.size`](../config.html#jobmanager-memory-process-size)
+in the default `flink-conf.yaml`. The value increased from 1024Mb to 1600Mb.
 
 See also [how to configure total memory now](mem_setup.html#configure-total-memory).
 
 <div class="alert alert-warning">
-  <strong>Warning:</strong> If you use the new default `flink-conf.yaml` it can result in different sizes of
-  the memory components and can lead to performance changes.
+  <strong>Warning:</strong> If you use the new default `flink-conf.yaml` it can result in different sizes of memory components and can lead to performance changes.
 </div>
