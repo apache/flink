@@ -16,61 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl;
+package org.apache.flink.sql.parser.hive.ddl;
+
+import org.apache.flink.sql.parser.hive.impl.ParseException;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 
-import java.util.List;
-
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_TBL_PROPS;
 
 /**
- * ALTER TABLE [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*).
+ * ALTER DDL to change properties of a Hive table.
  */
-public class SqlAlterTableProperties extends SqlAlterTable {
+public class SqlAlterHiveTableProps extends SqlAlterHiveTable {
 
-	private final SqlNodeList propertyList;
+	private final SqlNodeList origProps;
 
-	public SqlAlterTableProperties(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
-		super(pos, tableName);
-		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
-	}
-
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(tableIdentifier, propertyList);
-	}
-
-	public SqlNodeList getPropertyList() {
-		return propertyList;
+	public SqlAlterHiveTableProps(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList)
+			throws ParseException {
+		super(CHANGE_TBL_PROPS, pos, tableName, HiveDDLUtils.checkReservedTableProperties(propertyList));
+		// remove the last property which is the ALTER_TABLE_OP
+		this.origProps = new SqlNodeList(propertyList.getList().subList(0, propertyList.size() - 1),
+				propertyList.getParserPosition());
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("SET");
+		writer.keyword("SET TBLPROPERTIES");
 		SqlWriter.Frame withFrame = writer.startList("(", ")");
-		for (SqlNode property : propertyList) {
+		for (SqlNode property : getPropertyList()) {
 			printIndent(writer);
 			property.unparse(writer, leftPrec, rightPrec);
 		}
 		writer.newlineAndIndent();
 		writer.endList(withFrame);
 	}
-
-	protected void printIndent(SqlWriter writer) {
-		writer.sep(",", false);
-		writer.newlineAndIndent();
-		writer.print("  ");
-	}
-
-	public String[] fullTableName() {
-		return tableIdentifier.names.toArray(new String[0]);
-	}
-
 }

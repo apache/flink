@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
+import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_TABLE_OP;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase.DATABASE_LOCATION_URI;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_INFO_PROP_PREFIX;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_LIB_CLASS_NAME;
@@ -72,7 +73,7 @@ public class HiveDDLUtils {
 	static {
 		RESERVED_DB_PROPERTIES.addAll(Arrays.asList(ALTER_DATABASE_OP, DATABASE_LOCATION_URI));
 
-		RESERVED_TABLE_PROPERTIES.addAll(Arrays.asList(TABLE_LOCATION_URI,
+		RESERVED_TABLE_PROPERTIES.addAll(Arrays.asList(ALTER_TABLE_OP, TABLE_LOCATION_URI,
 				TABLE_IS_EXTERNAL, PK_CONSTRAINT_TRAIT, NOT_NULL_CONSTRAINT_TRAITS,
 				STORED_AS_FILE_FORMAT, STORED_AS_INPUT_FORMAT, STORED_AS_OUTPUT_FORMAT, SERDE_LIB_CLASS_NAME));
 
@@ -302,14 +303,18 @@ public class HiveDDLUtils {
 	public static SqlNodeList deepCopyColList(SqlNodeList colList) {
 		SqlNodeList res = new SqlNodeList(colList.getParserPosition());
 		for (SqlNode node : colList) {
-			SqlTableColumn col = (SqlTableColumn) node;
-			res.add(new SqlTableColumn(
-					col.getName(),
-					col.getType(),
-					col.getConstraint().orElse(null),
-					col.getComment().orElse(null),
-					col.getParserPosition()));
+			res.add(deepCopyTableColumn((SqlTableColumn) node));
 		}
 		return res;
+	}
+
+	public static SqlTableColumn deepCopyTableColumn(SqlTableColumn column) {
+		return new SqlTableColumn(
+				column.getName(),
+				column.getType(),
+				column.getConstraint().orElse(null),
+				column.getComment().orElse(null),
+				column.getParserPosition()
+		);
 	}
 }

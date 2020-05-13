@@ -18,13 +18,18 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlPartitionUtils;
+
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+
+import java.util.LinkedHashMap;
 
 import static java.util.Objects.requireNonNull;
 
@@ -55,11 +60,42 @@ public abstract class SqlAlterTable extends SqlCall {
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER TABLE");
+		writer.keyword("ALTER");
+		if (isView()) {
+			writer.keyword("VIEW");
+		} else {
+			writer.keyword("TABLE");
+		}
 		tableIdentifier.unparse(writer, leftPrec, rightPrec);
+		SqlNodeList partitionSpec = getPartitionSpec();
+		if (partitionSpec != null && partitionSpec.size() > 0) {
+			writer.keyword("PARTITION");
+			partitionSpec.unparse(writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
+		}
 	}
 
 	public String[] fullTableName() {
 		return tableIdentifier.names.toArray(new String[0]);
+	}
+
+	/**
+	 * Returns the partition spec if the ALTER should be applied to partitions, and null otherwise.
+	 */
+	public SqlNodeList getPartitionSpec() {
+		return null;
+	}
+
+	/**
+	 * Get partition spec as key-value strings.
+	 */
+	public LinkedHashMap<String, String> getPartitionKVs() {
+		return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
+	}
+
+	/**
+	 * Whether the target object is a view or a table.
+	 */
+	public boolean isView() {
+		return false;
 	}
 }

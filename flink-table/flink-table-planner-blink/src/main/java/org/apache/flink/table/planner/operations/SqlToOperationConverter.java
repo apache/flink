@@ -49,11 +49,14 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogPartition;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
@@ -77,6 +80,7 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTablePropertiesOperation;
@@ -115,6 +119,7 @@ import org.apache.calcite.sql.parser.SqlParser;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -231,80 +236,88 @@ public class SqlToOperationConverter {
 	private Operation convertAlterTable(SqlAlterTable sqlAlterTable) {
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlAlterTable.fullTableName());
 		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		Optional<CatalogManager.TableLookupResult> optionalCatalogTable = catalogManager.getTable(tableIdentifier);
+		if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
+			throw new ValidationException(String.format("Table %s doesn't exist or is a temporary table.",
+					tableIdentifier.toString()));
+		}
+		CatalogBaseTable baseTable = optionalCatalogTable.get().getTable();
 		if (sqlAlterTable instanceof SqlAlterTableRename) {
 			UnresolvedIdentifier newUnresolvedIdentifier =
 				UnresolvedIdentifier.of(((SqlAlterTableRename) sqlAlterTable).fullNewTableName());
 			ObjectIdentifier newTableIdentifier = catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
 			return new AlterTableRenameOperation(tableIdentifier, newTableIdentifier);
 		} else if (sqlAlterTable instanceof SqlAlterTableProperties) {
-			Optional<CatalogManager.TableLookupResult> optionalCatalogTable = catalogManager.getTable(tableIdentifier);
-			if (optionalCatalogTable.isPresent() && !optionalCatalogTable.get().isTemporary()) {
-				CatalogTable originalCatalogTable = (CatalogTable) optionalCatalogTable.get().getTable();
-				Map<String, String> properties = new HashMap<>(originalCatalogTable.getOptions());
-				((SqlAlterTableProperties) sqlAlterTable).getPropertyList().getList().forEach(p ->
-					properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
-				CatalogTable catalogTable = new CatalogTableImpl(
-					originalCatalogTable.getSchema(),
-					originalCatalogTable.getPartitionKeys(),
-					properties,
-					originalCatalogTable.getComment());
-				return new AlterTablePropertiesOperation(tableIdentifier, catalogTable);
-			} else {
-				throw new ValidationException(String.format("Table %s doesn't exist or is a temporary table.",
-					tableIdentifier.toString()));
-			}
+			return convertAlterTableProperties(
+					tableIdentifier,
+					baseTable,
+					(SqlAlterTableProperties) sqlAlterTable);
 		} else if (sqlAlterTable instanceof SqlAlterTableAddConstraint) {
-			Optional<CatalogManager.TableLookupResult> optionalCatalogTable =
-					catalogManager.getTable(tableIdentifier);
-			if (optionalCatalogTable.isPresent() && !optionalCatalogTable.get().isTemporary()) {
-				SqlTableConstraint constraint = ((SqlAlterTableAddConstraint) sqlAlterTable)
-						.getConstraint();
-				validateTableConstraint(constraint);
-				TableSchema oriSchema = optionalCatalogTable.get().getTable().getSchema();
-				// Sanity check for constraint.
-				TableSchema.Builder builder = TableSchemaUtils.builderWithGivenSchema(oriSchema);
-				if (constraint.getConstraintName().isPresent()) {
-					builder.primaryKey(
-							constraint.getConstraintName().get(),
-							constraint.getColumnNames());
-				} else {
-					builder.primaryKey(constraint.getColumnNames());
-				}
-				builder.build();
-				return new AlterTableAddConstraintOperation(
-						tableIdentifier,
-						constraint.getConstraintName().orElse(null),
+			SqlTableConstraint constraint = ((SqlAlterTableAddConstraint) sqlAlterTable)
+					.getConstraint();
+			validateTableConstraint(constraint);
+			TableSchema oriSchema = baseTable.getSchema();
+			// Sanity check for constraint.
+			TableSchema.Builder builder = TableSchemaUtils.builderWithGivenSchema(oriSchema);
+			if (constraint.getConstraintName().isPresent()) {
+				builder.primaryKey(
+						constraint.getConstraintName().get(),
 						constraint.getColumnNames());
 			} else {
-				throw new ValidationException(String.format("Table %s doesn't exist or is a temporary table.",
-						tableIdentifier.toString()));
+				builder.primaryKey(constraint.getColumnNames());
 			}
+			builder.build();
+			return new AlterTableAddConstraintOperation(
+					tableIdentifier,
+					constraint.getConstraintName().orElse(null),
+					constraint.getColumnNames());
 		} else if (sqlAlterTable instanceof SqlAlterTableDropConstraint) {
-			Optional<CatalogManager.TableLookupResult> optionalCatalogTable =
-					catalogManager.getTable(tableIdentifier);
-			if (optionalCatalogTable.isPresent() && !optionalCatalogTable.get().isTemporary()) {
-				SqlAlterTableDropConstraint dropConstraint = ((SqlAlterTableDropConstraint) sqlAlterTable);
-				String constraintName = dropConstraint.getConstraintName().getSimple();
-				CatalogTable oriCatalogTable = (CatalogTable) optionalCatalogTable.get().getTable();
-				TableSchema oriSchema = oriCatalogTable.getSchema();
-				if (!oriSchema.getPrimaryKey()
-						.filter(pk -> pk.getName().equals(constraintName))
-						.isPresent()) {
-					throw new ValidationException(
-							String.format("CONSTRAINT [%s] does not exist", constraintName));
-				}
-				return new AlterTableDropConstraintOperation(
-						tableIdentifier,
-						constraintName);
-			} else {
-				throw new ValidationException(String.format("Table %s doesn't exist or is a temporary table.",
-						tableIdentifier.toString()));
+			SqlAlterTableDropConstraint dropConstraint = ((SqlAlterTableDropConstraint) sqlAlterTable);
+			String constraintName = dropConstraint.getConstraintName().getSimple();
+			TableSchema oriSchema = baseTable.getSchema();
+			if (!oriSchema.getPrimaryKey()
+					.filter(pk -> pk.getName().equals(constraintName))
+					.isPresent()) {
+				throw new ValidationException(
+						String.format("CONSTRAINT [%s] does not exist", constraintName));
 			}
+			return new AlterTableDropConstraintOperation(
+					tableIdentifier,
+					constraintName);
 		} else {
 			throw new ValidationException(
 					String.format("[%s] needs to implement",
 							sqlAlterTable.toSqlString(CalciteSqlDialect.DEFAULT)));
 		}
+	}
+
+	private Operation convertAlterTableProperties(ObjectIdentifier tableIdentifier, CatalogBaseTable baseTable,
+			SqlAlterTableProperties alterTableProperties) {
+		LinkedHashMap<String, String> partitionKVs = alterTableProperties.getPartitionKVs();
+		// it's altering partitions
+		if (partitionKVs != null) {
+			CatalogPartitionSpec partitionSpec = new CatalogPartitionSpec(partitionKVs);
+			CatalogPartition catalogPartition = catalogManager.getPartition(tableIdentifier, partitionSpec)
+					.orElseThrow(() -> new ValidationException(String.format("Partition %s of table %s doesn't exist",
+							partitionSpec.getPartitionSpec(), tableIdentifier)));
+			Map<String, String> props = catalogPartition.getProperties();
+			alterTableProperties.getPropertyList().getList().forEach(p ->
+					props.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
+			return new AlterPartitionPropertiesOperation(tableIdentifier, partitionSpec, catalogPartition);
+		}
+		// it's altering a table
+		if (baseTable instanceof CatalogTable) {
+			CatalogTable oldTable = (CatalogTable) baseTable;
+			Map<String, String> newProperties = new HashMap<>(oldTable.getProperties());
+			newProperties.putAll(extractProperties(alterTableProperties.getPropertyList()));
+			CatalogTable newTable = new CatalogTableImpl(
+					oldTable.getSchema(),
+					oldTable.getPartitionKeys(),
+					newProperties,
+					oldTable.getComment());
+			return new AlterTablePropertiesOperation(tableIdentifier, newTable);
+		}
+		throw new ValidationException("Unsupported CatalogBaseTable type: " + baseTable.getClass().getName());
 	}
 
 	/** Convert CREATE FUNCTION statement. */
@@ -654,5 +667,14 @@ public class SqlToOperationConverter {
 		// transform to a relational tree
 		RelRoot relational = planner.rel(validated);
 		return new PlannerQueryOperation(relational.project());
+	}
+
+	private static Map<String, String> extractProperties(SqlNodeList propList) {
+		Map<String, String> properties = new HashMap<>();
+		if (propList != null) {
+			propList.getList().forEach(p ->
+					properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
+		}
+		return properties;
 	}
 }

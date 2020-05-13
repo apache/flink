@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.util.StringUtils;
@@ -324,6 +325,17 @@ public final class CatalogManager {
 				return getPermanentTable(objectIdentifier);
 			}
 		} catch (TableNotExistException ignored) {
+		}
+		return Optional.empty();
+	}
+
+	public Optional<CatalogPartition> getPartition(ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
+		Catalog catalog = catalogs.get(tableIdentifier.getCatalogName());
+		if (catalog != null) {
+			try {
+				return Optional.of(catalog.getPartition(tableIdentifier.toObjectPath(), partitionSpec));
+			} catch (PartitionNotExistException ignored) {
+			}
 		}
 		return Optional.empty();
 	}
