@@ -204,6 +204,13 @@ public class KubernetesConfigOptions {
 				"in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;" +
 				"key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000");
 
+	public static final ConfigOption<Map<String, String>> REST_SERVICE_ANNOTATIONS =
+		key("kubernetes.rest-service.annotations")
+			.mapType()
+			.noDefaultValue()
+			.withDescription("The user-specified annotations that are set to the rest Service. The value should be " +
+				"in the form of a1:v1,a2:v2");
+
 	/**
 	 * The flink rest service exposed type.
 	 */
