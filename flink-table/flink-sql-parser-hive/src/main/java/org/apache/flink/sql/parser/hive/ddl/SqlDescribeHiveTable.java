@@ -18,43 +18,34 @@
 
 package org.apache.flink.sql.parser.hive.ddl;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
+import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * Abstract class for ALTER DDL of a Hive database.
+ * DESCRIBE DDL to describe a Hive table.
  */
-public abstract class SqlAlterHiveDatabase extends SqlAlterDatabase {
+public class SqlDescribeHiveTable extends SqlRichDescribeTable {
 
-	public static final String ALTER_DATABASE_OP = "hive.alter.database.op";
+	private final boolean extended;
+	private final boolean formatted;
 
-	protected final SqlNodeList originPropList;
-
-	public SqlAlterHiveDatabase(SqlParserPos pos, SqlIdentifier databaseName, SqlNodeList propertyList) {
-		super(pos, databaseName, propertyList);
-		originPropList = new SqlNodeList(propertyList.getList(), propertyList.getParserPosition());
-		propertyList.add(HiveDDLUtils.toTableOption(ALTER_DATABASE_OP, getAlterOp().name(), pos));
+	public SqlDescribeHiveTable(SqlParserPos pos, SqlIdentifier tableNameIdentifier, boolean extended, boolean formatted) {
+		super(pos, tableNameIdentifier, extended || formatted);
+		this.extended = extended;
+		this.formatted = formatted;
 	}
-
-	protected abstract AlterHiveDatabaseOp getAlterOp();
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER DATABASE");
-		getDatabaseName().unparse(writer, leftPrec, rightPrec);
-		writer.keyword("SET");
-	}
-
-	/**
-	 * Type of ALTER DATABASE operation.
-	 */
-	public enum AlterHiveDatabaseOp {
-		CHANGE_PROPS,
-		CHANGE_LOCATION,
-		CHANGE_OWNER
+		writer.keyword("DESCRIBE");
+		if (extended) {
+			writer.keyword("EXTENDED");
+		} else if (formatted) {
+			writer.keyword("FORMATTED");
+		}
+		tableNameIdentifier.unparse(writer, leftPrec, rightPrec);
 	}
 }

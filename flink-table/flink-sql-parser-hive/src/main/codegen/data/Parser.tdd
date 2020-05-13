@@ -28,6 +28,19 @@
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner"
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseProps"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase"
+    "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable"
+    "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableCreationContext"
+    "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat"
+    "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs"
+    "org.apache.flink.sql.parser.hive.ddl.SqlDescribeHiveTable"
+    "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintEnable"
+    "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintRely"
+    "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintTrait"
+    "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintValidate"
+    "org.apache.flink.sql.parser.hive.type.ExtendedHiveStructTypeNameSpec"
+    "org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement"
+    "org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint"
+    "org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec"
     "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
     "org.apache.flink.sql.parser.ddl.SqlAlterTable"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableProperties"
@@ -481,6 +494,8 @@
     "SqlUseDatabase()"
     "SqlAlterDatabase()"
     "SqlDescribeDatabase()"
+    "SqlShowTables()"
+    "SqlRichDescribeTable()"
   ]
 
   # List of methods for parsing custom literals.
@@ -493,6 +508,10 @@
   # Return type of method implementation should be "SqlTypeNameSpec".
   # Example: SqlParseTimeStampZ().
   dataTypeParserMethods: [
+    "ExtendedSqlBasicTypeName()"
+    "CustomizedCollectionsTypeName()"
+    "SqlMapTypeName()"
+    "ExtendedSqlRowTypeName()"
   ]
 
   # List of methods for parsing builtin function calls.
@@ -511,11 +530,13 @@
   # Each must accept arguments "(SqlParserPos pos, boolean replace)".
   createStatementParserMethods: [
     "SqlCreateDatabase"
+    "SqlCreateTemporary"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.
   # Each must accept arguments "(Span s)".
   dropStatementParserMethods: [
+    "SqlDropTable"
     "SqlDropDatabase"
   ]
 

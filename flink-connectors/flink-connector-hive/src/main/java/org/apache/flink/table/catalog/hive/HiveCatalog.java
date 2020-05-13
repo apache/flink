@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connectors.hive.HiveTableFactory;
+import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
@@ -70,6 +71,7 @@ import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
@@ -92,9 +94,6 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
-import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
-import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
-import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,6 +105,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,6 +113,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_COLS;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_CONSTRAINT_TRAITS;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
 import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveIntStat;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveLongStat;
@@ -128,8 +131,6 @@ public class HiveCatalog extends AbstractCatalog {
 	public static final String DEFAULT_DB = "default";
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveCatalog.class);
-	private static final StorageFormatFactory storageFormatFactory = new StorageFormatFactory();
-	private static final String DEFAULT_HIVE_TABLE_STORAGE_FORMAT = "TextFile";
 
 	// Prefix used to distinguish Flink functions from Hive functions.
 	// It's appended to Flink function's class name
@@ -373,34 +374,51 @@ public class HiveCatalog extends AbstractCatalog {
 			throw new DatabaseNotExistException(getName(), tablePath.getDatabaseName());
 		}
 
-		Table hiveTable = instantiateHiveTable(tablePath, table);
+		Table hiveTable = instantiateHiveTable(tablePath, table, hiveConf);
 
 		UniqueConstraint pkConstraint = null;
 		List<String> notNullCols = new ArrayList<>();
 		boolean isGeneric = isGenericForCreate(table.getOptions());
 		if (!isGeneric) {
 			pkConstraint = table.getSchema().getPrimaryKey().orElse(null);
-			for (int i = 0; i < table.getSchema().getFieldDataTypes().length; i++) {
-				if (!table.getSchema().getFieldDataTypes()[i].getLogicalType().isNullable()) {
-					notNullCols.add(table.getSchema().getFieldNames()[i]);
+			String nnColStr = hiveTable.getParameters().remove(NOT_NULL_COLS);
+			if (nnColStr != null) {
+				notNullCols.addAll(Arrays.asList(nnColStr.split(HiveDDLUtils.COL_DELIMITER)));
+			} else {
+				for (int i = 0; i < table.getSchema().getFieldDataTypes().length; i++) {
+					if (!table.getSchema().getFieldDataTypes()[i].getLogicalType().isNullable()) {
+						notNullCols.add(table.getSchema().getFieldNames()[i]);
+					}
 				}
 			}
 		}
 
 		try {
 			if (pkConstraint != null || !notNullCols.isEmpty()) {
-				// for now we just create constraints that are DISABLE, NOVALIDATE, RELY
-				Byte[] pkTraits = new Byte[pkConstraint == null ? 0 : pkConstraint.getColumns().size()];
-				Arrays.fill(pkTraits, HiveTableUtil.relyConstraint((byte) 0));
-				Byte[] nnTraits = new Byte[notNullCols.size()];
-				Arrays.fill(nnTraits, HiveTableUtil.relyConstraint((byte) 0));
+				// extract constraint traits from table properties
+				String pkTraitStr = hiveTable.getParameters().remove(PK_CONSTRAINT_TRAIT);
+				byte pkTrait = pkTraitStr == null ? HiveDDLUtils.defaultTrait() : Byte.parseByte(pkTraitStr);
+				List<Byte> pkTraits =
+						Collections.nCopies(pkConstraint == null ? 0 : pkConstraint.getColumns().size(), pkTrait);
+
+				List<Byte> nnTraits;
+				String nnTraitsStr = hiveTable.getParameters().remove(NOT_NULL_CONSTRAINT_TRAITS);
+				if (nnTraitsStr != null) {
+					String[] traits = nnTraitsStr.split(HiveDDLUtils.COL_DELIMITER);
+					Preconditions.checkArgument(traits.length == notNullCols.size(),
+							"Number of NOT NULL columns and constraint traits mismatch");
+					nnTraits = Arrays.stream(traits).map(Byte::new).collect(Collectors.toList());
+				} else {
+					nnTraits = Collections.nCopies(notNullCols.size(), HiveDDLUtils.defaultTrait());
+				}
+
 				client.createTableWithConstraints(
 						hiveTable,
 						hiveConf,
 						pkConstraint,
-						Arrays.asList(pkTraits),
+						pkTraits,
 						notNullCols,
-						Arrays.asList(nnTraits));
+						nnTraits);
 			} else {
 				client.createTable(hiveTable);
 			}
@@ -466,7 +484,7 @@ public class HiveCatalog extends AbstractCatalog {
 					existingTable.getClass().getName(), newCatalogTable.getClass().getName()));
 		}
 
-		Table newTable = instantiateHiveTable(tablePath, newCatalogTable);
+		Table newTable = instantiateHiveTable(tablePath, newCatalogTable, hiveConf);
 
 		// client.alter_table() requires a valid location
 		// thus, if new table doesn't have that, it reuses location of the old table
@@ -621,7 +639,7 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	@VisibleForTesting
-	protected static Table instantiateHiveTable(ObjectPath tablePath, CatalogBaseTable table) {
+	protected static Table instantiateHiveTable(ObjectPath tablePath, CatalogBaseTable table, HiveConf hiveConf) {
 		if (!(table instanceof CatalogTableImpl) && !(table instanceof CatalogViewImpl)) {
 			throw new CatalogException(
 					"HiveCatalog only supports CatalogTableImpl and CatalogViewImpl");
@@ -641,7 +659,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		// Hive table's StorageDescriptor
 		StorageDescriptor sd = hiveTable.getSd();
-		setStorageFormat(sd, properties);
+		HiveTableUtil.setDefaultStorageFormat(sd, hiveConf);
 
 		if (isGeneric) {
 			DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
@@ -653,7 +671,9 @@ public class HiveCatalog extends AbstractCatalog {
 
 			properties.putAll(tableSchemaProps.asMap());
 			properties = maskFlinkProperties(properties);
+			hiveTable.setParameters(properties);
 		} else {
+			HiveTableUtil.initiateTableFromProperties(hiveTable, properties, hiveConf);
 			List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
 			// Table columns and partition keys
 			if (table instanceof CatalogTableImpl) {
@@ -673,6 +693,8 @@ public class HiveCatalog extends AbstractCatalog {
 			} else {
 				sd.setCols(allColumns);
 			}
+			// Table properties
+			hiveTable.getParameters().putAll(properties);
 		}
 
 		if (table instanceof CatalogViewImpl) {
@@ -685,21 +707,7 @@ public class HiveCatalog extends AbstractCatalog {
 			hiveTable.setTableType(TableType.VIRTUAL_VIEW.name());
 		}
 
-		// Table properties
-		hiveTable.setParameters(properties);
-
 		return hiveTable;
-	}
-
-	private static void setStorageFormat(StorageDescriptor sd, Map<String, String> properties) {
-		// TODO: allow user to specify storage format. Simply use text format for now
-		String storageFormatName = DEFAULT_HIVE_TABLE_STORAGE_FORMAT;
-		StorageFormatDescriptor storageFormatDescriptor = storageFormatFactory.get(storageFormatName);
-		checkArgument(storageFormatDescriptor != null, "Unknown storage format " + storageFormatName);
-		sd.setInputFormat(storageFormatDescriptor.getInputFormat());
-		sd.setOutputFormat(storageFormatDescriptor.getOutputFormat());
-		String serdeLib = storageFormatDescriptor.getSerde();
-		sd.getSerdeInfo().setSerializationLib(serdeLib != null ? serdeLib : LazySimpleSerDe.class.getName());
 	}
 
 	/**
@@ -770,7 +778,7 @@ public class HiveCatalog extends AbstractCatalog {
 			}
 		} catch (TException e) {
 			throw new CatalogException(
-				String.format("Failed to create partition %s of table %s", partitionSpec, tablePath));
+				String.format("Failed to create partition %s of table %s", partitionSpec, tablePath), e);
 		}
 	}
 
@@ -900,7 +908,7 @@ public class HiveCatalog extends AbstractCatalog {
 		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
 		checkNotNull(newPartition, "New partition cannot be null");
 
-		boolean isGeneric = Boolean.valueOf(newPartition.getProperties().get(CatalogConfig.IS_GENERIC));
+		boolean isGeneric = isGenericForGet(newPartition.getProperties());
 
 		if (isGeneric) {
 			throw new CatalogException("Currently only supports non-generic CatalogPartition");
@@ -942,8 +950,8 @@ public class HiveCatalog extends AbstractCatalog {
 
 	// make sure both table and partition are generic, or neither is
 	private static void ensureTableAndPartitionMatch(Table hiveTable, CatalogPartition catalogPartition) {
-		boolean tableIsGeneric = Boolean.valueOf(hiveTable.getParameters().get(CatalogConfig.IS_GENERIC));
-		boolean partitionIsGeneric = Boolean.valueOf(catalogPartition.getProperties().get(CatalogConfig.IS_GENERIC));
+		boolean tableIsGeneric = isGenericForGet(hiveTable.getParameters());
+		boolean partitionIsGeneric = isGenericForGet(catalogPartition.getProperties());
 
 		if (tableIsGeneric != partitionIsGeneric) {
 			throw new CatalogException(String.format("Cannot handle %s partition for %s table",

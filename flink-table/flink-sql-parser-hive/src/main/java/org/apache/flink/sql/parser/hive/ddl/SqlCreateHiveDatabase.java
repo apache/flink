@@ -36,7 +36,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  */
 public class SqlCreateHiveDatabase extends SqlCreateDatabase {
 
-	public static final String DATABASE_LOCATION_URI = "database.location_uri";
+	public static final String DATABASE_LOCATION_URI = "hive.database.location-uri";
 
 	private SqlNodeList originPropList;
 	private final SqlCharStringLiteral location;

@@ -123,6 +123,10 @@ public class SqlTableConstraint extends SqlCall {
 		return Optional.ofNullable(ret);
 	}
 
+	public Optional<SqlIdentifier> getConstraintNameIdentifier() {
+		return Optional.ofNullable(constraintName);
+	}
+
 	public SqlNodeList getColumns() {
 		return columns;
 	}

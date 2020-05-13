@@ -52,7 +52,8 @@ public class HiveCatalogTest {
 				schema,
 				new FileSystem().path("/test_path").toProperties(),
 				null
-			));
+			),
+			HiveTestUtils.createHiveConf());
 
 		Map<String, String> prop = hiveTable.getParameters();
 		assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf("true"));
@@ -71,7 +72,8 @@ public class HiveCatalogTest {
 				schema,
 				map,
 				null
-			));
+			),
+			HiveTestUtils.createHiveConf());
 
 		Map<String, String> prop = hiveTable.getParameters();
 		assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf(false));
