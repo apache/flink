@@ -137,7 +137,12 @@ public class StreamEdge implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return edgeId.hashCode();
+		int result = 17;
+		result = 31 * result + edgeId.hashCode();
+		if (outputTag != null) {
+			result = 31 * result + outputTag.hashCode();
+		}
+		return result;
 	}
 
 	@Override
@@ -150,8 +155,9 @@ public class StreamEdge implements Serializable {
 		}
 
 		StreamEdge that = (StreamEdge) o;
-
-		return edgeId.equals(that.edgeId);
+		return edgeId != null && edgeId.equals(that.edgeId) &&
+			((outputTag == null && that.outputTag == null) ||
+				(outputTag != null && that.outputTag != null && outputTag.equals(that.outputTag)));
 	}
 
 	@Override

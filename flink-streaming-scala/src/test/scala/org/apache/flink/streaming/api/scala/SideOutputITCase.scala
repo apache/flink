@@ -325,6 +325,94 @@ class SideOutputITCase extends AbstractTestBase {
     assertEquals(util.Arrays.asList("sideout-1", "sideout-2", "sideout-5"),
       sideOutputResultSink.getResult)
   }
+
+  /**
+   * Test the union of two side outputs.
+   */
+  @Test
+  def testUnionOfTwoSideOutputs() {
+    val evensResultSink = new TestListResultSink[Int]
+    val oddsResultSink = new TestListResultSink[Int]
+    val oddsUEvensResultSink = new TestListResultSink[Int]
+    val evensUOddsResultSink = new TestListResultSink[Int]
+    val oddsUOddsResultSink = new TestListResultSink[Int]
+    val evensUEvensResultSink = new TestListResultSink[Int]
+    val oddsUEvensExternalResultSink = new TestListResultSink[Int]
+
+    val resultSink = new TestListResultSink[Int]
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(3)
+
+    val input = env.fromElements(1, 2, 3, 4)
+
+    val oddTag = OutputTag[Int]("odds")
+    val evenTag = OutputTag[Int]("even")
+
+    val passThroughStream =
+      input.process(new ProcessFunction[Int, Int] {
+        override def processElement(value: Int,
+                                    ctx: ProcessFunction[Int, Int]#Context,
+                                    out: Collector[Int]): Unit = {
+          if (value % 2 != 0) {
+            ctx.output(oddTag, value)
+          } else {
+            ctx.output(evenTag, value)
+          }
+          out.collect(value)
+        }
+      })
+
+    val evens = passThroughStream.getSideOutput(evenTag)
+    val odds = passThroughStream.getSideOutput(oddTag)
+
+    evens.addSink(evensResultSink)
+    odds.addSink(oddsResultSink)
+    passThroughStream.addSink(resultSink)
+
+    odds.union(evens).addSink(oddsUEvensResultSink)
+    evens.union(odds).addSink(evensUOddsResultSink)
+
+    odds.union(odds).addSink(oddsUOddsResultSink)
+    evens.union(evens).addSink(evensUEvensResultSink)
+
+    odds.union(env.fromElements(2, 4)).addSink(oddsUEvensExternalResultSink)
+
+    env.execute()
+
+    assertEquals(
+      util.Arrays.asList(1, 3),
+      oddsResultSink.getSortedResult)
+
+    assertEquals(
+      util.Arrays.asList(2, 4),
+      evensResultSink.getSortedResult)
+
+    assertEquals(
+      util.Arrays.asList(1, 2, 3, 4),
+      resultSink.getSortedResult)
+
+    assertEquals(
+      util.Arrays.asList(1, 2, 3, 4),
+      oddsUEvensResultSink.getSortedResult)
+
+    assertEquals(
+      util.Arrays.asList(1, 2, 3, 4),
+      evensUOddsResultSink.getSortedResult)
+
+    assertEquals(
+      util.Arrays.asList(1, 1, 3, 3),
+      oddsUOddsResultSink.getSortedResult)
+
+    assertEquals(
+      util.Arrays.asList(2, 2, 4, 4),
+      evensUEvensResultSink.getSortedResult)
+
+    assertEquals(
+      util.Arrays.asList(1, 2, 3, 4),
+      oddsUEvensExternalResultSink.getSortedResult)
+  }
+
 }
 
 class TestAssigner extends AssignerWithPunctuatedWatermarks[(String, Int)] {
