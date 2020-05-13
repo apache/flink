@@ -142,7 +142,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 	}
 
 	/**
-	 * Check to and shutdown the fetchers that have completed their work.
+	 * Check and shutdown the fetchers that have completed their work.
 	 *
 	 * @return true if all the fetchers have completed the work, false otherwise.
 	 */

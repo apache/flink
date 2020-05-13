@@ -309,7 +309,6 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	}
 
 	private void updateIsIdle() {
-		// If the task queue is not empty
 		isIdle = taskQueue.isEmpty() && splitChanges.isEmpty() && assignedSplits.isEmpty();
 	}
 }
