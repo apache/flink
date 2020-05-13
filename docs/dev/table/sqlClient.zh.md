@@ -137,6 +137,10 @@ Mode "embedded" submits Flink jobs from the local machine.
                                            properties.
      -h,--help                             Show the help message with
                                            descriptions of all options.
+     -hist,--history <History file path>   The file which you want to save the
+                                           command history into. If not
+                                           specified, we will auto-generate one
+                                           under your user's home directory.
      -j,--jar <JAR file>                   A JAR file to be imported into the
                                            session. The file might contain
                                            user-defined classes needed for the
@@ -150,8 +154,83 @@ Mode "embedded" submits Flink jobs from the local machine.
                                            statements such as functions, table
                                            sources, or sinks. Can be used
                                            multiple times.
+     -pyarch,--pyArchives <arg>            Add python archive files for job. The
+                                           archive files will be extracted to
+                                           the working directory of python UDF
+                                           worker. Currently only zip-format is
+                                           supported. For each archive file, a
+                                           target directory be specified. If the
+                                           target directory name is specified,
+                                           the archive file will be extracted to
+                                           a name can directory with the
+                                           specified name. Otherwise, the
+                                           archive file will be extracted to a
+                                           directory with the same name of the
+                                           archive file. The files uploaded via
+                                           this option are accessible via
+                                           relative path. '#' could be used as
+                                           the separator of the archive file
+                                           path and the target directory name.
+                                           Comma (',') could be used as the
+                                           separator to specify multiple archive
+                                           files. This option can be used to
+                                           upload the virtual environment, the
+                                           data files used in Python UDF (e.g.:
+                                           --pyArchives
+                                           file:///tmp/py37.zip,file:///tmp/data
+                                           .zip#data --pyExecutable
+                                           py37.zip/py37/bin/python). The data
+                                           files could be accessed in Python
+                                           UDF, e.g.: f = open('data/data.txt',
+                                           'r').
+     -pyexec,--pyExecutable <arg>          Specify the path of the python
+                                           interpreter used to execute the
+                                           python UDF worker (e.g.:
+                                           --pyExecutable
+                                           /usr/local/bin/python3). The python
+                                           UDF worker depends on Python 3.5+,
+                                           Apache Beam (version == 2.19.0), Pip
+                                           (version >= 7.1.0) and SetupTools
+                                           (version >= 37.0.0). Please ensure
+                                           that the specified environment meets
+                                           the above requirements.
+     -pyfs,--pyFiles <pythonFiles>         Attach custom python files for job.
+                                           These files will be added to the
+                                           PYTHONPATH of both the local client
+                                           and the remote python UDF worker. The
+                                           standard python resource file
+                                           suffixes such as .py/.egg/.zip or
+                                           directory are all supported. Comma
+                                           (',') could be used as the separator
+                                           to specify multiple files (e.g.:
+                                           --pyFiles
+                                           file:///tmp/myresource.zip,hdfs:///$n
+                                           amenode_address/myresource2.zip).
+     -pyreq,--pyRequirements <arg>         Specify a requirements.txt file which
+                                           defines the third-party dependencies.
+                                           These dependencies will be installed
+                                           and added to the PYTHONPATH of the
+                                           python UDF worker. A directory which
+                                           contains the installation packages of
+                                           these dependencies could be specified
+                                           optionally. Use '#' as the separator
+                                           if the optional parameter exists
+                                           (e.g.: --pyRequirements
+                                           file:///tmp/requirements.txt#file:///
+                                           tmp/cached_dir).
      -s,--session <session identifier>     The identifier for a session.
                                            'default' is the default identifier.
+     -u,--update <SQL update statement>    Experimental (for testing only!):
+                                           Instructs the SQL Client to
+                                           immediately execute the given update
+                                           statement after starting up. The
+                                           process is shut down after the
+                                           statement has been submitted to the
+                                           cluster and returns an appropriate
+                                           return code. Currently, this feature
+                                           is only supported for INSERT INTO
+                                           statements that declare the target
+                                           sink table.
 {% endhighlight %}
 
 {% top %}
