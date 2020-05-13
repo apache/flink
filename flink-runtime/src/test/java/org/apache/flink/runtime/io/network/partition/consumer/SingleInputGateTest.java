@@ -30,7 +30,6 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
@@ -226,7 +225,10 @@ public class SingleInputGateTest extends InputGateTestBase {
 						if (!getNextBufferAndVerify(inputGate, states)) {
 							Thread.sleep(1);
 						}
-					} catch (CancelTaskException expected) {
+					} catch (Throwable t) {
+						if (!inputGate.getCloseFuture().isDone()) {
+							throw new AssertionError("Exceptions are expected here only if the gate was closed", t);
+						}
 						return null;
 					}
 				}
