@@ -263,7 +263,7 @@ run sdist.
         'pyflink.plugins': ['*', '*/*'],
         'pyflink.bin': ['*']}
 
-    if exist_licenses:
+    if exist_licenses and platform.system() != "Windows":
         PACKAGES.append('pyflink.licenses')
         PACKAGE_DIR['pyflink.licenses'] = TEMP_PATH + '/licenses'
         PACKAGE_DATA['pyflink.licenses'] = ['*']
