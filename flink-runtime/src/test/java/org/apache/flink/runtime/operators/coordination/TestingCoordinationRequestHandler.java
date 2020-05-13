@@ -20,6 +20,8 @@ package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * A simple testing implementation of the {@link CoordinationRequestHandler}.
  */
@@ -30,9 +32,9 @@ public class TestingCoordinationRequestHandler extends TestingOperatorCoordinato
 	}
 
 	@Override
-	public CoordinationResponse handleCoordinationRequest(CoordinationRequest request) {
+	public CompletableFuture<CoordinationResponse> handleCoordinationRequest(CoordinationRequest request) {
 		Request req = (Request) request;
-		return new Response<>(req.getPayload());
+		return CompletableFuture.completedFuture(new Response<>(req.getPayload()));
 	}
 
 	/**

@@ -946,8 +946,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 			CoordinationRequest request) throws FlinkException {
 		OperatorCoordinator coordinator = coordinatorMap.get(operator);
 		if (coordinator instanceof CoordinationRequestHandler) {
-			return CompletableFuture.completedFuture(
-				((CoordinationRequestHandler) coordinator).handleCoordinationRequest(request));
+			return ((CoordinationRequestHandler) coordinator).handleCoordinationRequest(request);
 		} else if (coordinator != null) {
 			throw new FlinkException("Coordinator of operator " + operator + " cannot handle client event");
 		} else {
