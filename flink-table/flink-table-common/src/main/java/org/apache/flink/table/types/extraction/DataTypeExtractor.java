@@ -53,6 +53,7 @@ import static org.apache.flink.table.types.extraction.ExtractionUtils.collectTyp
 import static org.apache.flink.table.types.extraction.ExtractionUtils.createRawType;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractAssigningConstructor;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.hasInvokableConstructor;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.isStructuredFieldMutable;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.resolveVariable;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.toClass;
@@ -474,6 +475,12 @@ public final class DataTypeExtractor {
 					"accessible and assigns all fields: %s",
 				clazz.getName(),
 				fields.stream().map(Field::getName).collect(Collectors.joining(", ")));
+		}
+		// check for a default constructor otherwise
+		else if (constructor == null && !hasInvokableConstructor(clazz)) {
+			throw extractionError(
+				"Class '%s' has neither a constructor that assigns all fields nor a default constructor.",
+				clazz.getName());
 		}
 
 		final Map<String, DataType> fieldDataTypes = extractStructuredTypeFields(

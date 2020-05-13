@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -66,6 +67,10 @@ import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getMethodDescr
 @Internal
 public final class ExtractionUtils {
 
+	// --------------------------------------------------------------------------------------------
+	// Methods shared across packages
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Collects methods of the given name.
 	 */
@@ -77,29 +82,33 @@ public final class ExtractionUtils {
 	}
 
 	/**
-	 * Checks whether a method can be called with the given argument classes. This includes type
+	 * Checks whether a method/constructor can be called with the given argument classes. This includes type
 	 * widening and vararg. {@code null} is a wildcard.
 	 *
 	 * <p>E.g., {@code (int.class, int.class)} matches {@code f(Object...), f(int, int), f(Integer, Object)}
 	 * and so forth.
 	 */
-	public static boolean isMethodInvokable(Method method, Class<?>... classes) {
-		final int paramCount = method.getParameterCount();
+	public static boolean isInvokable(Executable executable, Class<?>... classes) {
+		final int m = executable.getModifiers();
+		if (!Modifier.isPublic(m)) {
+			return false;
+		}
+		final int paramCount = executable.getParameterCount();
 		final int classCount = classes.length;
 		// check for enough classes for each parameter
-		if (classCount < paramCount || (method.isVarArgs() && classCount < paramCount - 1)) {
+		if (classCount < paramCount || (executable.isVarArgs() && classCount < paramCount - 1)) {
 			return false;
 		}
 		int currentClass = 0;
 		for (int currentParam = 0; currentParam < paramCount; currentParam++) {
-			final Class<?> param = method.getParameterTypes()[currentParam];
+			final Class<?> param = executable.getParameterTypes()[currentParam];
 			// entire parameter matches
 			if (classes[currentClass] == null || ExtractionUtils.isAssignable(classes[currentClass], param, true)) {
 				currentClass++;
 			}
 			// last parameter is a vararg that consumes remaining classes
-			else if (currentParam == paramCount - 1 && method.isVarArgs()) {
-				final Class<?> paramComponent = method.getParameterTypes()[currentParam].getComponentType();
+			else if (currentParam == paramCount - 1 && executable.isVarArgs()) {
+				final Class<?> paramComponent = executable.getParameterTypes()[currentParam].getComponentType();
 				while (currentClass < classCount && ExtractionUtils.isAssignable(classes[currentClass], paramComponent, true)) {
 					currentClass++;
 				}
@@ -135,6 +144,125 @@ public final class ExtractionUtils {
 					.collect(Collectors.joining(", ", "(", ")")));
 		return builder.toString();
 	}
+
+	/**
+	 * Checks for a field getter of a structured type. The logic is as broad as possible to support
+	 * both Java and Scala in different flavors.
+	 */
+	public static Optional<Method> getStructuredFieldGetter(Class<?> clazz, Field field) {
+		final String normalizedFieldName = field.getName().toUpperCase();
+
+		final List<Method> methods = collectStructuredMethods(clazz);
+		for (Method method : methods) {
+			// check name:
+			// get<Name>()
+			// is<Name>()
+			// <Name>() for Scala
+			final String normalizedMethodName = method.getName().toUpperCase();
+			final boolean hasName = normalizedMethodName.equals("GET" + normalizedFieldName) ||
+				normalizedMethodName.equals("IS" + normalizedFieldName) ||
+				normalizedMethodName.equals(normalizedFieldName);
+			if (!hasName) {
+				continue;
+			}
+
+			// check return type:
+			// equal to field type
+			final Type returnType = method.getGenericReturnType();
+			final boolean hasReturnType = returnType.equals(field.getGenericType());
+			if (!hasReturnType) {
+				continue;
+			}
+
+			// check parameters:
+			// no parameters
+			final boolean hasNoParameters = method.getParameterCount() == 0;
+			if (!hasNoParameters) {
+				continue;
+			}
+
+			// matching getter found
+			return Optional.of(method);
+		}
+
+		// no getter found
+		return Optional.empty();
+	}
+
+	/**
+	 * Checks for a field setters of a structured type. The logic is as broad as possible to support
+	 * both Java and Scala in different flavors.
+	 */
+	public static Optional<Method> getStructuredFieldSetter(Class<?> clazz, Field field) {
+		final String normalizedFieldName = field.getName().toUpperCase();
+
+		final List<Method> methods = collectStructuredMethods(clazz);
+		for (Method method : methods) {
+
+			// check name:
+			// set<Name>(type)
+			// <Name>(type)
+			// <Name>_$eq(type) for Scala
+			final String normalizedMethodName = method.getName().toUpperCase();
+			final boolean hasName = normalizedMethodName.equals("SET" + normalizedFieldName) ||
+				normalizedMethodName.equals(normalizedFieldName) ||
+				normalizedMethodName.equals(normalizedFieldName + "_$EQ");
+			if (!hasName) {
+				continue;
+			}
+
+			// check return type:
+			// void or the declaring class
+			final Class<?> returnType = method.getReturnType();
+			final boolean hasReturnType = returnType == Void.TYPE || returnType == clazz;
+			if (!hasReturnType) {
+				continue;
+			}
+
+			// check parameters:
+			// one parameter that has the same (or primitive) type of the field
+			final boolean hasParameter = method.getParameterCount() == 1 &&
+				(method.getGenericParameterTypes()[0].equals(field.getGenericType()) ||
+					primitiveToWrapper(method.getGenericParameterTypes()[0]).equals(field.getGenericType()));
+			if (!hasParameter) {
+				continue;
+			}
+
+			// matching setter found
+			return Optional.of(method);
+		}
+
+		// no setter found
+		return Optional.empty();
+	}
+
+	/**
+	 * Checks for an invokable constructor matching the given arguments.
+	 *
+	 * @see #isInvokable(Executable, Class[])
+	 */
+	public static boolean hasInvokableConstructor(Class<?> clazz, Class<?>... classes) {
+		for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
+			if (isInvokable(constructor, classes)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Checks whether a field is directly readable without a getter.
+	 */
+	public static boolean isStructuredFieldDirectlyReadable(Field field) {
+		final int m = field.getModifiers();
+
+		// field is directly readable
+		return Modifier.isPublic(m);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Methods intended for this package
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Helper method for creating consistent exceptions during extraction.
@@ -310,15 +438,13 @@ public final class ExtractionUtils {
 	 * Validates if a field is properly readable either directly or through a getter.
 	 */
 	static void validateStructuredFieldReadability(Class<?> clazz, Field field) {
-		final int m = field.getModifiers();
-
 		// field is accessible
-		if (Modifier.isPublic(m)) {
+		if (isStructuredFieldDirectlyReadable(field)) {
 			return;
 		}
 
 		// field needs a getter
-		if (!hasStructuredFieldGetter(clazz, field)) {
+		if (!getStructuredFieldGetter(clazz, field).isPresent()) {
 			throw extractionError(
 				"Field '%s' of class '%s' is neither publicly accessible nor does it have " +
 					"a corresponding getter method.",
@@ -342,8 +468,9 @@ public final class ExtractionUtils {
 		if (Modifier.isPublic(m)) {
 			return true;
 		}
+
 		// field has setters by which it is mutable
-		if (hasFieldSetter(clazz, field)) {
+		if (getStructuredFieldSetter(clazz, field).isPresent()) {
 			return true;
 		}
 
@@ -355,53 +482,6 @@ public final class ExtractionUtils {
 	}
 
 	/**
-	 * Checks for a field setters. The logic is as broad as possible to support both Java and Scala
-	 * in different flavors.
-	 */
-	static boolean hasFieldSetter(Class<?> clazz, Field field) {
-		final String normalizedFieldName = field.getName().toUpperCase();
-
-		final List<Method> methods = collectStructuredMethods(clazz);
-		for (Method method : methods) {
-
-			// check name:
-			// set<Name>(type)
-			// <Name>(type)
-			// <Name>_$eq(type) for Scala
-			final String normalizedMethodName = method.getName().toUpperCase();
-			final boolean hasName = normalizedMethodName.equals("SET" + normalizedFieldName) ||
-				normalizedMethodName.equals(normalizedFieldName) ||
-				normalizedMethodName.equals(normalizedFieldName + "_$EQ");
-			if (!hasName) {
-				continue;
-			}
-
-			// check return type:
-			// void or the declaring class
-			final Class<?> returnType = method.getReturnType();
-			final boolean hasReturnType = returnType == Void.TYPE || returnType == clazz;
-			if (!hasReturnType) {
-				continue;
-			}
-
-			// check parameters:
-			// one parameter that has the same (or primitive) type of the field
-			final boolean hasParameter = method.getParameterCount() == 1 &&
-				(method.getGenericParameterTypes()[0].equals(field.getGenericType()) ||
-					primitiveToWrapper(method.getGenericParameterTypes()[0]).equals(field.getGenericType()));
-			if (!hasParameter) {
-				continue;
-			}
-
-			// matching setter found
-			return true;
-		}
-
-		// no setter found
-		return false;
-	}
-
-	/**
 	 * Returns the boxed type of a primitive type.
 	 */
 	static Type primitiveToWrapper(Type type) {
@@ -409,50 +489,6 @@ public final class ExtractionUtils {
 			return primitiveToWrapper((Class<?>) type);
 		}
 		return type;
-	}
-
-	/**
-	 * Checks for a field getter. The logic is as broad as possible to support both Java and Scala
-	 * in different flavors.
-	 */
-	static boolean hasStructuredFieldGetter(Class<?> clazz, Field field) {
-		final String normalizedFieldName = field.getName().toUpperCase();
-
-		final List<Method> methods = collectStructuredMethods(clazz);
-		for (Method method : methods) {
-			// check name:
-			// get<Name>()
-			// is<Name>()
-			// <Name>() for Scala
-			final String normalizedMethodName = method.getName().toUpperCase();
-			final boolean hasName = normalizedMethodName.equals("GET" + normalizedFieldName) ||
-				normalizedMethodName.equals("IS" + normalizedFieldName) ||
-				normalizedMethodName.equals(normalizedFieldName);
-			if (!hasName) {
-				continue;
-			}
-
-			// check return type:
-			// equal to field type
-			final Type returnType = method.getGenericReturnType();
-			final boolean hasReturnType = returnType.equals(field.getGenericType());
-			if (!hasReturnType) {
-				continue;
-			}
-
-			// check parameters:
-			// no parameters
-			final boolean hasNoParameters = method.getParameterCount() == 0;
-			if (!hasNoParameters) {
-				continue;
-			}
-
-			// matching getter found
-			return true;
-		}
-
-		// no getter found
-		return false;
 	}
 
 	/**

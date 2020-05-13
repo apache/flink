@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.functions.inference.OperatorBindingCallCon
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.extraction.ExtractionUtils.{createMethodSignatureString, isAssignable, isMethodInvokable, primitiveToWrapper}
+import org.apache.flink.table.types.extraction.ExtractionUtils.{createMethodSignatureString, isAssignable, isInvokable, primitiveToWrapper}
 import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
@@ -332,7 +332,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     val outputClass = outputDataType.map(_.getConversionClass).getOrElse(classOf[Unit])
     // verifies regular JVM calling semantics
     def methodMatches(method: Method): Boolean = {
-      isMethodInvokable(method, argumentClasses: _*) &&
+      isInvokable(method, argumentClasses: _*) &&
         isAssignable(outputClass, method.getReturnType, true)
     }
     if (!methods.exists(methodMatches)) {
