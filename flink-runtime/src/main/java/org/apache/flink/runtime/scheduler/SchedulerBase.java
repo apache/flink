@@ -321,18 +321,25 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	}
 
-	protected void restoreState(final Set<ExecutionVertexID> vertices) throws Exception {
+	protected void restoreState(final Set<ExecutionVertexID> vertices, final boolean isGlobalRecovery) throws Exception {
+		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+		if (checkpointCoordinator == null) {
+			return;
+		}
+
 		// if there is checkpointed state, reload it into the executions
-		if (executionGraph.getCheckpointCoordinator() != null) {
-			// abort pending checkpoints to
-			// i) enable new checkpoint triggering without waiting for last checkpoint expired.
-			// ii) ensure the EXACTLY_ONCE semantics if needed.
-			executionGraph.getCheckpointCoordinator().abortPendingCheckpoints(
+
+		// abort pending checkpoints to
+		// i) enable new checkpoint triggering without waiting for last checkpoint expired.
+		// ii) ensure the EXACTLY_ONCE semantics if needed.
+		checkpointCoordinator.abortPendingCheckpoints(
 				new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION));
 
-			executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedStateToAll(
-				getInvolvedExecutionJobVertices(vertices),
-				true);
+		final Set<ExecutionJobVertex> jobVerticesToRestore = getInvolvedExecutionJobVertices(vertices);
+		if (isGlobalRecovery) {
+			checkpointCoordinator.restoreLatestCheckpointedStateToAll(jobVerticesToRestore, true);
+		} else {
+			checkpointCoordinator.restoreLatestCheckpointedStateToSubtasks(jobVerticesToRestore);
 		}
 	}
 

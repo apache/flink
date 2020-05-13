@@ -221,6 +221,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 		final Set<ExecutionVertexVersion> executionVertexVersions =
 			new HashSet<>(executionVertexVersioner.recordVertexModifications(verticesToRestart).values());
+		final boolean globalRecovery = failureHandlingResult.isGlobalFailure();
 
 		addVerticesToRestartPending(verticesToRestart);
 
@@ -228,7 +229,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 		delayExecutor.schedule(
 			() -> FutureUtils.assertNoException(
-				cancelFuture.thenRunAsync(restartTasks(executionVertexVersions), getMainThreadExecutor())),
+				cancelFuture.thenRunAsync(restartTasks(executionVertexVersions, globalRecovery), getMainThreadExecutor())),
 			failureHandlingResult.getRestartDelayMS(),
 			TimeUnit.MILLISECONDS);
 	}
@@ -245,7 +246,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		}
 	}
 
-	private Runnable restartTasks(final Set<ExecutionVertexVersion> executionVertexVersions) {
+	private Runnable restartTasks(final Set<ExecutionVertexVersion> executionVertexVersions, final boolean isGlobalRecovery) {
 		return () -> {
 			final Set<ExecutionVertexID> verticesToRestart = executionVertexVersioner.getUnmodifiedExecutionVertices(executionVertexVersions);
 
@@ -254,7 +255,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			resetForNewExecutions(verticesToRestart);
 
 			try {
-				restoreState(verticesToRestart);
+				restoreState(verticesToRestart, isGlobalRecovery);
 			} catch (Throwable t) {
 				handleGlobalFailure(t);
 				return;
