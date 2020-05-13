@@ -35,15 +35,13 @@ import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStag
 import org.apache.flink.table.utils.{TestTableSourceWithTime, TestingOverwritableTableSink}
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
-
 import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Rule, Test}
+import org.junit.{After, Before, Rule, Test}
 
 import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
 import _root_.java.lang.{Long => JLong}
@@ -82,6 +80,11 @@ class TableEnvironmentITCase(tableEnvName: String) {
       case _ => throw new UnsupportedOperationException("unsupported tableEnvName: " + tableEnvName)
     }
     tEnv.registerTableSource("MyTable", getPersonCsvTableSource)
+  }
+
+  @After
+  def teardown(): Unit = {
+    StreamITCase.clear
   }
 
   @Test
@@ -335,6 +338,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     streamTableEnv.registerTableSource("MyTable", getPersonCsvTableSource)
     val sink1Path = registerCsvTableSink(streamTableEnv, Array("first"), Array(STRING), "MySink1")
     checkEmptyFile(sink1Path)
+    StreamITCase.clear
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
     val resultSet = streamTableEnv.toAppendStream(table, classOf[Row])
