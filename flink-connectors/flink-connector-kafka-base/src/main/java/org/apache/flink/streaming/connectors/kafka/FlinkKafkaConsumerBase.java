@@ -1068,6 +1068,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		return pendingOffsetsToCommit;
 	}
 
+	@VisibleForTesting
+	boolean getEnableCommitOnCheckpoints() {
+		return enableCommitOnCheckpoints;
+	}
+
 	/**
 	 * Creates state serializer for kafka topic partition to offset tuple.
 	 * Using of the explicit state serializer with KryoSerializer is needed because otherwise
