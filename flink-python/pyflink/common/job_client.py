@@ -16,6 +16,8 @@
 # limitations under the License.
 ################################################################################
 from pyflink.common.completable_future import CompletableFuture
+from pyflink.common.job_execution_result import JobExecutionResult
+from pyflink.common.job_status import JobStatus
 
 __all__ = ['JobClient']
 
@@ -35,7 +37,7 @@ class JobClient(object):
         :return: JobID, or null if the job has been executed on a runtime without JobIDs
                  or if the execution failed.
         """
-        return self._j_job_client.getJobID()
+        return str(self._j_job_client.getJobID())
 
     def get_job_status(self):
         """
@@ -44,7 +46,7 @@ class JobClient(object):
         :return: A CompletableFuture containing the JobStatus of the associated job.
         :rtype: pyflink.common.CompletableFuture
         """
-        return CompletableFuture(self._j_job_client.getJobStatus())
+        return CompletableFuture(self._j_job_client.getJobStatus(), JobStatus)
 
     def cancel(self):
         """
@@ -72,7 +74,8 @@ class JobClient(object):
         :rtype: pyflink.common.CompletableFuture
         """
         return CompletableFuture(
-            self._j_job_client.stopWithSavepoint(advance_to_end_of_event_time, savepoint_directory))
+            self._j_job_client.stopWithSavepoint(advance_to_end_of_event_time, savepoint_directory),
+            str)
 
     def trigger_savepoint(self, savepoint_directory):
         """
@@ -84,7 +87,7 @@ class JobClient(object):
         :return: A CompletableFuture containing the path where the savepoint is located.
         :rtype: pyflink.common.CompletableFuture
         """
-        return CompletableFuture(self._j_job_client.triggerSavepoint(savepoint_directory))
+        return CompletableFuture(self._j_job_client.triggerSavepoint(savepoint_directory), str)
 
     def get_accumulators(self, class_loader):
         """
@@ -96,7 +99,7 @@ class JobClient(object):
         :return: A CompletableFuture containing the accumulators of the associated job.
         :rtype: pyflink.common.CompletableFuture
         """
-        return CompletableFuture(self._j_job_client.getAccumulators(class_loader))
+        return CompletableFuture(self._j_job_client.getAccumulators(class_loader), dict)
 
     def get_job_execution_result(self, user_class_loader):
         """
@@ -106,4 +109,5 @@ class JobClient(object):
         :return: A CompletableFuture containing the JobExecutionResult result of the job execution.
         :rtype: pyflink.common.CompletableFuture
         """
-        return CompletableFuture(self._j_job_client.getJobExecutionResult(user_class_loader))
+        return CompletableFuture(self._j_job_client.getJobExecutionResult(user_class_loader),
+                                 JobExecutionResult)

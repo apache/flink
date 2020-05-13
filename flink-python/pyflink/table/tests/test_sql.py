@@ -20,7 +20,6 @@ import os
 import subprocess
 import unittest
 
-from pyflink.common import JobExecutionResult
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, ResultKind
@@ -74,6 +73,7 @@ class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
         self.assertIsNotNone(table_result.get_result_kind())
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS)
         table_result.print()
+
         table_result = t_env.execute_sql("alter table tbl set ('k1' = 'a', 'k2' = 'b')")
         self.assertIsNone(table_result.get_job_client())
         self.assertIsNotNone(table_result.get_table_schema())
@@ -81,6 +81,7 @@ class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
         self.assertIsNotNone(table_result.get_result_kind())
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS)
         table_result.print()
+
         field_names = ["k1", "k2", "c"]
         field_types = [DataTypes.BIGINT(), DataTypes.INT(), DataTypes.STRING()]
         t_env.register_table_sink(
@@ -93,14 +94,16 @@ class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
                           ["default_catalog.default_database.sinks"])
         self.assertIsNotNone(table_result.get_result_kind())
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
+        job_status = table_result.get_job_client().get_job_status().result()
+        self.assertFalse(job_status.is_globally_terminal_state())
+        self.assertFalse(job_status.is_terminal_state())
         job_execution_result = table_result.get_job_client().get_job_execution_result(
             get_gateway().jvm.Thread.currentThread().getContextClassLoader()).result()
-        self.assertIsNotNone(job_execution_result)
-        job_execution_result = JobExecutionResult(job_execution_result)
         self.assertIsNotNone(job_execution_result.get_job_id())
         self.assertIsNotNone(job_execution_result.get_job_execution_result())
         self.assertTrue(job_execution_result.is_job_execution_result())
         table_result.print()
+
         table_result = t_env.execute_sql("drop table tbl")
         self.assertIsNone(table_result.get_job_client())
         self.assertIsNotNone(table_result.get_table_schema())

@@ -35,7 +35,7 @@ class JobExecutionResult(object):
         :return: JobID, or null if the job has been executed on a runtime without JobIDs
                  or if the execution failed.
         """
-        return self._j_job_execution_result.getJobID()
+        return str(self._j_job_execution_result.getJobID())
 
     def is_job_execution_result(self):
         """

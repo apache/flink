@@ -77,6 +77,36 @@ class JobStatus(object):
     SUSPENDED = 8
     RECONCILING = 9
 
+    def __init__(self, j_job_status) -> None:
+        super().__init__()
+        self._j_job_status = j_job_status
+
+    def is_globally_terminal_state(self):
+        """
+        Checks whether this state is <i>globally terminal</i>. A globally terminal job
+        is complete and cannot fail any more and will not be restarted or recovered by another
+        standby master node.
+
+        When a globally terminal state has been reached, all recovery data for the job is
+        dropped from the high-availability services.
+
+        :return: ``True`` if this job status is globally terminal, ``False`` otherwise.
+        """
+        return self._j_job_status.isGloballyTerminalState()
+
+    def is_terminal_state(self):
+        """
+        Checks whether this state is locally terminal. Locally terminal refers to the
+        state of a job's execution graph within an executing JobManager. If the execution graph
+        is locally terminal, the JobManager will not continue executing or recovering the job.
+
+        The only state that is locally terminal, but not globally terminal is SUSPENDED,
+        which is typically entered when the executing JobManager looses its leader status.
+
+        :return: ``True`` if this job status is terminal, ``False`` otherwise.
+        """
+        return self._j_job_status.isTerminalState()
+
     @staticmethod
     def _from_j_job_status(j_job_status):
         gateway = get_gateway()

@@ -29,9 +29,10 @@ class CompletableFuture(Future):
     only one of them succeeds.
     """
 
-    def __init__(self, j_completable_future):
+    def __init__(self, j_completable_future, py_class=None):
         super().__init__()
         self._j_completable_future = j_completable_future
+        self._py_class = py_class
 
     def cancel(self):
         return self._j_completable_future.cancel(True)
@@ -43,7 +44,10 @@ class CompletableFuture(Future):
         return self._j_completable_future.isDone()
 
     def result(self):
-        return self._j_completable_future.get()
+        if self._py_class is None:
+            return self._j_completable_future.get()
+        else:
+            return self._py_class(self._j_completable_future.get())
 
     def exception(self):
         return self._exception
