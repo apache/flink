@@ -449,18 +449,6 @@ DataStream<Long> output = iterationBody.filter(new FilterFunction<Long>(){
             </p>
           </td>
         </tr>
-        <tr>
-          <td><strong>Extract Timestamps</strong><br>DataStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Extracts timestamps from records in order to work with windows
-                that use event time semantics. See <a href="{{ site.baseurl }}/dev/event_time.html">Event Time</a>.
-{% highlight java %}
-stream.assignTimestamps (new TimeStampExtractor() {...});
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
   </tbody>
 </table>
 
@@ -762,19 +750,6 @@ initialStream.iterate {
     (iterationBody.filter(_ > 0), iterationBody.filter(_ <= 0))
   }
 }
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Extract Timestamps</strong><br>DataStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Extracts timestamps from records in order to work with windows
-                that use event time semantics.
-                See <a href="{{ site.baseurl }}/dev/event_time.html">Event Time</a>.
-{% highlight scala %}
-stream.assignTimestamps { timestampExtractor }
 {% endhighlight %}
             </p>
           </td>
