@@ -86,7 +86,7 @@ public class BashJavaUtils {
 	}
 
 	private static List<String> getJmResourceParams(Configuration configuration) {
-		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfigWithFallbackForLegacyHeap(
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
 			configuration,
 			JobManagerOptions.JVM_HEAP_MEMORY);
 		return Collections.singletonList(ProcessMemoryUtils.generateJvmParametersStr(jobManagerProcessSpec));
