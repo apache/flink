@@ -18,6 +18,8 @@
 
 package org.apache.flink.util.clock;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * A clock that gives access to time. This clock returns two flavors of time:
  *
@@ -35,6 +37,7 @@ package org.apache.flink.util.clock;
  * not affected by adjustments to the system clock, so it never jumps. Relative time behaves similar
  * to {@link System#nanoTime()}.
  */
+@PublicEvolving
 public abstract class Clock {
 
 	/**
