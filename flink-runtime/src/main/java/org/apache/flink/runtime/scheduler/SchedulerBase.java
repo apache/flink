@@ -244,9 +244,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 		if (checkpointCoordinator != null) {
 			// check whether we find a valid checkpoint
-			if (!checkpointCoordinator.restoreLatestCheckpointedState(
+			if (!checkpointCoordinator.restoreLatestCheckpointedStateToAll(
 				new HashSet<>(newExecutionGraph.getAllVertices().values()),
-				false,
 				false)) {
 
 				// check whether we can restore from a savepoint
@@ -331,9 +330,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 			executionGraph.getCheckpointCoordinator().abortPendingCheckpoints(
 				new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION));
 
-			executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
+			executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedStateToAll(
 				getInvolvedExecutionJobVertices(vertices),
-				false,
 				true);
 		}
 	}

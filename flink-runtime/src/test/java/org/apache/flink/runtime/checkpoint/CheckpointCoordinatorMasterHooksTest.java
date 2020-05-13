@@ -141,9 +141,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(hook2);
 
 		// initialize the hooks
-		cc.restoreLatestCheckpointedState(
+		cc.restoreLatestCheckpointedStateToAll(
 			Collections.emptySet(),
-			false,
 			false);
 		verify(hook1, times(1)).reset();
 		verify(hook2, times(1)).reset();
@@ -280,9 +279,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(statefulHook2);
 
 		cc.getCheckpointStore().addCheckpoint(checkpoint);
-		cc.restoreLatestCheckpointedState(
+		cc.restoreLatestCheckpointedStateToAll(
 				Collections.emptySet(),
-				true,
 				false);
 
 		verify(statefulHook1, times(1)).restoreCheckpoint(eq(checkpointId), eq(state1));
@@ -335,18 +333,16 @@ public class CheckpointCoordinatorMasterHooksTest {
 
 		// since we have unmatched state, this should fail
 		try {
-			cc.restoreLatestCheckpointedState(
+			cc.restoreLatestCheckpointedStateToAll(
 					Collections.emptySet(),
-					true,
 					false);
 			fail("exception expected");
 		}
 		catch (IllegalStateException ignored) {}
 
 		// permitting unmatched state should succeed
-		cc.restoreLatestCheckpointedState(
+		cc.restoreLatestCheckpointedStateToAll(
 				Collections.emptySet(),
-				true,
 				true);
 
 		verify(statefulHook, times(1)).restoreCheckpoint(eq(checkpointId), eq(state1));
