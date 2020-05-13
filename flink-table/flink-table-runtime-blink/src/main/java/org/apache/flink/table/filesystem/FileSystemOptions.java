@@ -99,4 +99,50 @@ public class FileSystemOptions {
 					.defaultValue(Duration.ofMinutes(60))
 					.withDescription("The cache TTL (e.g. 10min) for the build table in lookup join. " +
 							"By default the TTL is 60 minutes.");
+
+	public static final ConfigOption<String> SINK_PARTITION_COMMIT_TRIGGER =
+			key("sink.partition-commit.trigger")
+					.stringType()
+					.defaultValue("partition-time")
+					.withDescription("Trigger type for partition commit:" +
+							" 'partition-time': extract time from partition," +
+							" if 'watermark' > 'partition-time' + 'delay', will commit the partition." +
+							" 'process-time': use processing time, if 'current processing time' > " +
+							"'partition directory creation time' + 'delay', will commit the partition.");
+
+	public static final ConfigOption<Duration> SINK_PARTITION_COMMIT_DELAY =
+			key("sink.partition-commit.delay")
+					.durationType()
+					.defaultValue(Duration.ofMillis(0))
+					.withDescription("The partition will not commit until the delay time." +
+							" if it is a day partition, should be '1 d'," +
+							" if it is a hour partition, should be '1 h'");
+
+	public static final ConfigOption<String> SINK_PARTITION_COMMIT_POLICY_KIND =
+			key("sink.partition-commit.policy.kind")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("Policy to commit a partition is to notify the downstream" +
+							" application that the partition has finished writing, the partition" +
+							" is ready to be read." +
+							" metastore: add partition to metastore. Only work with hive table," +
+							" it is empty implementation for file system table." +
+							" success-file: add '_success' file to directory." +
+							" Both can be configured at the same time: 'metastore,success-file'." +
+							" custom: use policy class to create a commit policy." +
+							" Support to configure multiple policies: 'metastore,success-file'.");
+
+	public static final ConfigOption<String> SINK_PARTITION_COMMIT_POLICY_CLASS =
+			key("sink.partition-commit.policy.class")
+					.stringType()
+					.noDefaultValue()
+					.withDescription("The partition commit policy class for implement" +
+							" PartitionCommitPolicy interface. Only work in custom commit policy");
+
+	public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
+			key("sink.partition-commit.success-file.name")
+					.stringType()
+					.defaultValue("_SUCCESS")
+					.withDescription("The file name for success-file partition commit policy," +
+							" default is '_SUCCESS'.");
 }

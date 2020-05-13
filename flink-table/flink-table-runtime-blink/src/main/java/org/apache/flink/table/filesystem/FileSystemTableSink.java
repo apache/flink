@@ -22,6 +22,8 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -29,16 +31,23 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.BucketsBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
+import org.apache.flink.table.filesystem.stream.InactiveBucketListener;
+import org.apache.flink.table.filesystem.stream.StreamingFileCommitter;
+import org.apache.flink.table.filesystem.stream.StreamingFileCommitter.CommitMessage;
+import org.apache.flink.table.filesystem.stream.StreamingFileWriter;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.OverwritableTableSink;
 import org.apache.flink.table.sinks.PartitionableTableSink;
@@ -54,6 +63,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
+import static org.apache.flink.table.filesystem.FileSystemTableFactory.SINK_ROLLING_POLICY_FILE_SIZE;
+import static org.apache.flink.table.filesystem.FileSystemTableFactory.SINK_ROLLING_POLICY_TIME_INTERVAL;
 import static org.apache.flink.table.filesystem.FileSystemTableFactory.createFormatFactory;
 
 /**
@@ -64,14 +76,13 @@ public class FileSystemTableSink implements
 		PartitionableTableSink,
 		OverwritableTableSink {
 
+	private final ObjectIdentifier tableIdentifier;
 	private final boolean isBounded;
 	private final TableSchema schema;
 	private final List<String> partitionKeys;
 	private final Path path;
 	private final String defaultPartName;
-	private final long rollingFileSize;
-	private final long rollingTimeInterval;
-	private final Map<String, String> formatProperties;
+	private final Map<String, String> properties;
 
 	private boolean overwrite = false;
 	private boolean dynamicGrouping = false;
@@ -86,27 +97,23 @@ public class FileSystemTableSink implements
 	 * @param partitionKeys partition keys of the table.
 	 * @param defaultPartName The default partition name in case the dynamic partition column value
 	 *                        is null/empty string.
-	 * @param rollingFileSize the maximum part file size before rolling.
-	 * @param rollingTimeInterval the maximum time duration a part file can stay open before rolling.
-	 * @param formatProperties format properties.
+	 * @param properties properties.
 	 */
 	public FileSystemTableSink(
+			ObjectIdentifier tableIdentifier,
 			boolean isBounded,
 			TableSchema schema,
 			Path path,
 			List<String> partitionKeys,
 			String defaultPartName,
-			long rollingFileSize,
-			long rollingTimeInterval,
-			Map<String, String> formatProperties) {
+			Map<String, String> properties) {
+		this.tableIdentifier = tableIdentifier;
 		this.isBounded = isBounded;
 		this.schema = schema;
 		this.path = path;
 		this.defaultPartName = defaultPartName;
-		this.rollingFileSize = rollingFileSize;
-		this.rollingTimeInterval = rollingTimeInterval;
-		this.formatProperties = formatProperties;
 		this.partitionKeys = partitionKeys;
+		this.properties = properties;
 	}
 
 	@Override
@@ -117,48 +124,94 @@ public class FileSystemTableSink implements
 				schema.getFieldDataTypes(),
 				partitionKeys.toArray(new String[0]));
 
+		TableMetaStoreFactory metaStoreFactory = createTableMetaStoreFactory(path);
+
 		if (isBounded) {
 			FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
 			builder.setPartitionComputer(computer);
 			builder.setDynamicGrouped(dynamicGrouping);
 			builder.setPartitionColumns(partitionKeys.toArray(new String[0]));
 			builder.setFormatFactory(createOutputFormatFactory());
-			builder.setMetaStoreFactory(createTableMetaStoreFactory(path));
+			builder.setMetaStoreFactory(metaStoreFactory);
 			builder.setOverwrite(overwrite);
 			builder.setStaticPartitions(staticPartitions);
 			builder.setTempPath(toStagingPath());
 			return dataStream.writeUsingOutputFormat(builder.build())
 					.setParallelism(dataStream.getParallelism());
 		} else {
-			if (overwrite) {
-				throw new IllegalStateException("Streaming mode not support overwrite.");
-			}
-
+			Configuration conf = new Configuration();
+			properties.forEach(conf::setString);
 			Object writer = createWriter();
-
 			TableBucketAssigner assigner = new TableBucketAssigner(computer);
 			TableRollingPolicy rollingPolicy = new TableRollingPolicy(
 					!(writer instanceof Encoder),
-					rollingFileSize,
-					rollingTimeInterval);
+					conf.get(SINK_ROLLING_POLICY_FILE_SIZE),
+					conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL));
 
-			StreamingFileSink<RowData> sink;
+			BucketsBuilder<RowData, ?, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder;
+			InactiveBucketListener listener = new InactiveBucketListener();
 			if (writer instanceof Encoder) {
 				//noinspection unchecked
-				sink = StreamingFileSink.forRowFormat(
+				bucketsBuilder = StreamingFileSink.forRowFormat(
 						path, new ProjectionEncoder((Encoder<RowData>) writer, computer))
 						.withBucketAssigner(assigner)
-						.withRollingPolicy(rollingPolicy).build();
+						.withBucketLifeCycleListener(listener)
+						.withRollingPolicy(rollingPolicy);
 			} else {
 				//noinspection unchecked
-				sink = StreamingFileSink.forBulkFormat(
+				bucketsBuilder = StreamingFileSink.forBulkFormat(
 						path, new ProjectionBulkFactory((BulkWriter.Factory<RowData>) writer, computer))
 						.withBucketAssigner(assigner)
-						.withRollingPolicy(rollingPolicy).build();
+						.withBucketLifeCycleListener(listener)
+						.withRollingPolicy(rollingPolicy);
 			}
-
-			return dataStream.addSink(sink).setParallelism(dataStream.getParallelism());
+			return createStreamingSink(
+					conf,
+					path,
+					partitionKeys,
+					tableIdentifier,
+					overwrite,
+					dataStream,
+					bucketsBuilder,
+					listener,
+					metaStoreFactory);
 		}
+	}
+
+	public static DataStreamSink<RowData> createStreamingSink(
+			Configuration conf,
+			Path path,
+			List<String> partitionKeys,
+			ObjectIdentifier tableIdentifier,
+			boolean overwrite,
+			DataStream<RowData> inputStream,
+			BucketsBuilder<RowData, ?, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder,
+			InactiveBucketListener listener,
+			TableMetaStoreFactory msFactory) {
+		if (overwrite) {
+			throw new IllegalStateException("Streaming mode not support overwrite.");
+		}
+
+		StreamingFileWriter fileWriter = new StreamingFileWriter(
+				BucketsBuilder.DEFAULT_BUCKET_CHECK_INTERVAL, bucketsBuilder, listener);
+		DataStream<CommitMessage> writerStream = inputStream.transform(
+				StreamingFileWriter.class.getSimpleName(),
+				TypeExtractor.createTypeInfo(CommitMessage.class),
+				fileWriter).setParallelism(inputStream.getParallelism());
+
+		DataStream<?> returnStream = writerStream;
+
+		// save committer when we don't need it.
+		if (partitionKeys.size() > 0 && conf.contains(SINK_PARTITION_COMMIT_POLICY_KIND)) {
+			StreamingFileCommitter committer = new StreamingFileCommitter(
+					path, tableIdentifier, partitionKeys, msFactory, conf);
+			returnStream = writerStream
+					.transform(StreamingFileCommitter.class.getSimpleName(), Types.VOID, committer)
+					.setParallelism(1)
+					.setMaxParallelism(1);
+		}
+		//noinspection unchecked
+		return returnStream.addSink(new DiscardingSink()).setParallelism(1);
 	}
 
 	private Path toStagingPath() {
@@ -183,7 +236,7 @@ public class FileSystemTableSink implements
 	}
 
 	private Object createWriter() {
-		FileSystemFormatFactory formatFactory = createFormatFactory(formatProperties);
+		FileSystemFormatFactory formatFactory = createFormatFactory(properties);
 		FileSystemFormatFactory.WriterContext context = new FileSystemFormatFactory.WriterContext() {
 
 			@Override
@@ -193,7 +246,7 @@ public class FileSystemTableSink implements
 
 			@Override
 			public Map<String, String> getFormatProperties() {
-				return formatProperties;
+				return properties;
 			}
 
 			@Override

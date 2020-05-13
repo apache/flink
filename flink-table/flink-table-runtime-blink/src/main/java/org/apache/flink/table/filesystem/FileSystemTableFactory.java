@@ -39,6 +39,13 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
+import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
+import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_TRIGGER;
 
 /**
  * File system {@link TableFactory}.
@@ -116,6 +123,13 @@ public class FileSystemTableFactory implements
 		properties.add(SINK_ROLLING_POLICY_FILE_SIZE.key());
 		properties.add(SINK_ROLLING_POLICY_TIME_INTERVAL.key());
 		properties.add(SINK_SHUFFLE_BY_PARTITION.key());
+		properties.add(PARTITION_TIME_EXTRACTOR_KIND.key());
+		properties.add(PARTITION_TIME_EXTRACTOR_CLASS.key());
+		properties.add(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key());
+		properties.add(SINK_PARTITION_COMMIT_TRIGGER.key());
+		properties.add(SINK_PARTITION_COMMIT_DELAY.key());
+		properties.add(SINK_PARTITION_COMMIT_POLICY_KIND.key());
+		properties.add(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.key());
 
 		// format
 		properties.add(FORMAT);
@@ -134,7 +148,7 @@ public class FileSystemTableFactory implements
 				new Path(properties.getString(PATH)),
 				context.getTable().getPartitionKeys(),
 				getPartitionDefaultName(properties),
-				getFormatProperties(context.getTable().getProperties()));
+				context.getTable().getProperties());
 	}
 
 	@Override
@@ -143,20 +157,13 @@ public class FileSystemTableFactory implements
 		properties.putProperties(context.getTable().getProperties());
 
 		return new FileSystemTableSink(
+				context.getObjectIdentifier(),
 				context.isBounded(),
 				context.getTable().getSchema(),
 				new Path(properties.getString(PATH)),
 				context.getTable().getPartitionKeys(),
 				getPartitionDefaultName(properties),
-				properties.getOptionalLong(SINK_ROLLING_POLICY_FILE_SIZE.key())
-						.orElse(SINK_ROLLING_POLICY_FILE_SIZE.defaultValue()),
-				properties.getOptionalLong(SINK_ROLLING_POLICY_TIME_INTERVAL.key())
-						.orElse(SINK_ROLLING_POLICY_TIME_INTERVAL.defaultValue()),
-				getFormatProperties(context.getTable().getProperties()));
-	}
-
-	private static Map<String, String> getFormatProperties(Map<String, String> tableProperties) {
-		return tableProperties;
+				context.getTable().getOptions());
 	}
 
 	private static String getPartitionDefaultName(DescriptorProperties properties) {
