@@ -23,6 +23,9 @@ import org.apache.flink.table.types.logical.ArrayType;
 
 import org.apache.commons.lang3.ArrayUtils;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
  * An internal data structure representing data of {@link ArrayType}.
  *
@@ -130,6 +133,25 @@ public final class GenericArrayData implements ArrayData {
 	@Override
 	public boolean isNullAt(int pos) {
 		return !isPrimitiveArray && ((Object[]) array)[pos] == null;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		GenericArrayData that = (GenericArrayData) o;
+		return size == that.size &&
+			isPrimitiveArray == that.isPrimitiveArray &&
+			Arrays.deepEquals(new Object[] {array}, new Object[]{that.array});
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(array, size, isPrimitiveArray);
 	}
 
 	// ------------------------------------------------------------------------------------------

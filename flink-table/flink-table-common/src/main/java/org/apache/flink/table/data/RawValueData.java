@@ -61,7 +61,14 @@ public interface RawValueData<T> {
 	 * Creates an instance of {@link RawValueData} from a Java object.
 	 */
 	static <T> RawValueData<T> fromObject(T javaObject) {
-		return new BinaryRawValueData<>(javaObject);
+		return BinaryRawValueData.fromObject(javaObject);
+	}
+
+	/**
+	 * Creates an instance of {@link RawValueData} from the given byte array.
+	 */
+	static <T> RawValueData<T> fromBytes(byte[] bytes) {
+		return BinaryRawValueData.fromBytes(bytes);
 	}
 
 }

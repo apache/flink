@@ -53,7 +53,14 @@ import org.apache.flink.table.types.logical.TypeInformationRawType;
 public class InternalSerializers {
 
 	/**
-	 * Get {@link TypeSerializer} for internal data structure from the given {@link LogicalType}.
+	 * Creates a {@link TypeSerializer} for internal data structures of the given {@link LogicalType}.
+	 */
+	public static TypeSerializer<?> create(LogicalType type) {
+		return create(type, new ExecutionConfig());
+	}
+
+	/**
+	 * Creates a {@link TypeSerializer} for internal data structures of the given {@link LogicalType}.
 	 */
 	public static TypeSerializer create(LogicalType type, ExecutionConfig config) {
 		switch (type.getTypeRoot()) {

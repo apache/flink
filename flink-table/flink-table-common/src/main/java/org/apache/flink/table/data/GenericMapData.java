@@ -23,6 +23,7 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * An internal data structure representing data of {@link MapType} or {@link MultisetType}.
@@ -73,6 +74,23 @@ public final class GenericMapData implements MapData {
 	public ArrayData valueArray() {
 		Object[] values = map.values().toArray();
 		return new GenericArrayData(values);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		GenericMapData that = (GenericMapData) o;
+		return Objects.equals(map, that.map);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(map);
 	}
 }
 
