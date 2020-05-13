@@ -27,12 +27,12 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.specific.SpecificRecordBase;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.function.Function;
 
 /**
  * Convenience builder to create {@link AvroWriterFactory} instances for the different Avro types.
@@ -42,7 +42,7 @@ public class AvroWriters {
 	/**
 	 * A configurator to set the properties of the writer.
 	 */
-	public interface WriterConfigurator<T> extends Serializable {
+	public interface DataFileWriterConfigurator<T> extends Serializable {
 
 		/**
 		 * Modifies the properties of the writer.
@@ -72,12 +72,12 @@ public class AvroWriters {
 	 */
 	public static <T extends SpecificRecordBase> AvroWriterFactory<T> forSpecificRecord(
 		Class<T> type,
-		WriterConfigurator<T> configurator) {
+		DataFileWriterConfigurator<T> configurator) {
 
 		String schemaString = SpecificData.get().getSchema(type).toString();
 		AvroBuilder<T> builder = (out) -> createAvroDataFileWriter(
 			schemaString,
-			AvroRecordType.SPECIFIC,
+			SpecificDatumWriter::new,
 			configurator,
 			out);
 		return new AvroWriterFactory<>(builder);
@@ -103,12 +103,12 @@ public class AvroWriters {
 	 */
 	public static AvroWriterFactory<GenericRecord> forGenericRecord(
 		Schema schema,
-		WriterConfigurator<GenericRecord> configurator) {
+		DataFileWriterConfigurator<GenericRecord> configurator) {
 
 		String schemaString = schema.toString();
 		AvroBuilder<GenericRecord> builder = (out) -> createAvroDataFileWriter(
 			schemaString,
-			AvroRecordType.GENERIC,
+			GenericDatumWriter::new,
 			configurator,
 			out);
 		return new AvroWriterFactory<>(builder);
@@ -135,12 +135,12 @@ public class AvroWriters {
 	 */
 	public static <T> AvroWriterFactory<T> forReflectRecord(
 		Class<T> type,
-		WriterConfigurator<T> configurator) {
+		DataFileWriterConfigurator<T> configurator) {
 
 		String schemaString = ReflectData.get().getSchema(type).toString();
 		AvroBuilder<T> builder = (out) -> createAvroDataFileWriter(
 			schemaString,
-			AvroRecordType.REFLECT,
+			ReflectDatumWriter::new,
 			configurator,
 			out);
 		return new AvroWriterFactory<>(builder);
@@ -148,24 +148,12 @@ public class AvroWriters {
 
 	private static <T> DataFileWriter<T> createAvroDataFileWriter(
 		String schemaString,
-		AvroRecordType recordType,
-		WriterConfigurator<T> configurator,
+		Function<Schema, DatumWriter<T>> datumWriterFactory,
+		DataFileWriterConfigurator<T> configurator,
 		OutputStream out) throws IOException {
 
 		Schema schema = new Schema.Parser().parse(schemaString);
-		DatumWriter<T> datumWriter = null;
-
-		switch (recordType) {
-			case SPECIFIC:
-				datumWriter = new SpecificDatumWriter<>(schema);
-				break;
-			case GENERIC:
-				datumWriter = new GenericDatumWriter<>(schema);
-				break;
-			case REFLECT:
-				datumWriter = new ReflectDatumWriter<>(schema);
-				break;
-		}
+		DatumWriter<T> datumWriter = datumWriterFactory.apply(schema);
 
 		DataFileWriter<T> dataFileWriter = new DataFileWriter<>(datumWriter);
 		configurator.configureWriter(dataFileWriter);
@@ -174,23 +162,6 @@ public class AvroWriters {
 	}
 
 	// ------------------------------------------------------------------------
-
-	/**
-	 * The type of the avro record.
-	 */
-	private enum AvroRecordType {
-		/**
-		 * The record type is subclass of {@link SpecificRecord}, which is usually generated
-		 * from .avro files.
-		 */
-		SPECIFIC,
-
-		/** The record uses {@link GenericRecord} directly. */
-		GENERIC,
-
-		/** The record is of arbitrary type and its schema is deducted with reflection. */
-		REFLECT
-	}
 
 	/** Class is not meant to be instantiated. */
 	private AvroWriters() {}
