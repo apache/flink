@@ -69,7 +69,11 @@ public class JdbcTableOutputFormatTest extends JDBCDataTestBase {
 		JdbcDmlOptions dmlOptions = JdbcDmlOptions.builder()
 				.withTableName(options.getTableName()).withDialect(options.getDialect())
 				.withFieldNames(fieldNames).withKeyFields(keyFields).build();
-		format = new TableJdbcUpsertOutputFormat(new SimpleJdbcConnectionProvider(options), dmlOptions, JdbcExecutionOptions.defaults());
+		format = new TableJdbcUpsertOutputFormat(
+			new SimpleJdbcConnectionProvider(options),
+			dmlOptions,
+			JdbcExecutionOptions.defaults(),
+			JdbcDdlOptions.builder().build());
 		RuntimeContext context = Mockito.mock(RuntimeContext.class);
 		ExecutionConfig config = Mockito.mock(ExecutionConfig.class);
 		doReturn(config).when(context).getExecutionConfig();

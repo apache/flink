@@ -22,6 +22,7 @@ import org.apache.flink.api.java.io.jdbc.source.row.converter.DerbyRowConverter;
 import org.apache.flink.api.java.io.jdbc.source.row.converter.JDBCRowConverter;
 import org.apache.flink.api.java.io.jdbc.source.row.converter.MySQLRowConverter;
 import org.apache.flink.api.java.io.jdbc.source.row.converter.PostgresRowConverter;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
@@ -30,7 +31,11 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
 
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -142,6 +147,10 @@ public final class JDBCDialects {
 		private static final int MAX_DECIMAL_PRECISION = 31;
 		private static final int MIN_DECIMAL_PRECISION = 1;
 
+		// Define MAX length of VARCHAR TYPE  according to derby docs
+		// http://db.apache.org/derby/docs/10.14/ref/rrefsqlj41207.html
+		private static final int MAX_VARCHAR_LEN = 32672;
+
 		@Override
 		public boolean canHandle(String url) {
 			return url.startsWith("jdbc:derby:");
@@ -188,6 +197,26 @@ public final class JDBCDialects {
 		}
 
 		@Override
+		public String getCreateTableStatement(String tableName, TableSchema schema, String[] primaryKeyFields) {
+			List<String> expressions = new ArrayList<>();
+			for (TableColumn column : schema.getTableColumns()) {
+				expressions.add(quoteIdentifier(column.getName()) + " " + getDialectTypeName(column.getType()));
+			}
+			if (primaryKeyFields != null && primaryKeyFields.length > 0) {
+				String primaryKey = "PRIMARY KEY" + String.format("(%s)", StringUtils.join(
+					Arrays.stream(primaryKeyFields)
+						.map(name -> quoteIdentifier(name))
+						.collect(Collectors.toList()),
+					","));
+				expressions.add(primaryKey);
+			}
+
+			// derby do not support `if not exists` grammar
+			return String.format("CREATE TABLE %s (%s)", quoteIdentifier(tableName),
+				StringUtils.join(expressions, ","));
+		}
+
+		@Override
 		public List<LogicalTypeRoot> unsupportedTypes() {
 			// The data types used in Derby are list at
 			// http://db.apache.org/derby/docs/10.14/ref/crefsqlj31068.html
@@ -211,6 +240,28 @@ public final class JDBCDialects {
 					LogicalTypeRoot.SYMBOL,
 					LogicalTypeRoot.UNRESOLVED);
 		}
+
+		@Override
+		public String getDialectTypeName(DataType dataType) {
+			switch (dataType.getLogicalType().getTypeRoot()) {
+				case VARCHAR:
+					final int len = ((VarCharType) dataType.getLogicalType()).getLength();
+					return String.format("VARCHAR(%d)", len > MAX_VARCHAR_LEN ? MAX_VARCHAR_LEN : len);
+				case DECIMAL:
+					if (dataType.getLogicalType() instanceof DecimalType) {
+						return dataType.toString();
+					}
+					// for legacy type
+					return "DECIMAL(" + MAX_DECIMAL_PRECISION + ", 18)";
+				// derby does not support time/timestamp type with precision
+				case TIME_WITHOUT_TIME_ZONE:
+					return "TIME";
+				case TIMESTAMP_WITHOUT_TIME_ZONE:
+					return "TIMESTAMP";
+				default:
+					return dataType.toString();
+			}
+		}
 	}
 
 	/**
@@ -229,6 +280,11 @@ public final class JDBCDialects {
 		// https://dev.mysql.com/doc/refman/8.0/en/fixed-point-types.html
 		private static final int MAX_DECIMAL_PRECISION = 65;
 		private static final int MIN_DECIMAL_PRECISION = 1;
+
+		// Define MAX length of VARCHAR type  according to Mysql docs
+		// https://dev.mysql.com/doc/refman/8.0/en/char.html
+		// The row max length is 65535, set default length of VARCHAR column to 1024.
+		private static final int DEFAULT_MAX_VARCHAR_LEN = 1024;
 
 		@Override
 		public boolean canHandle(String url) {
@@ -317,6 +373,23 @@ public final class JDBCDialects {
 					LogicalTypeRoot.UNRESOLVED
 			);
 		}
+
+		@Override
+		public String getDialectTypeName(DataType dataType) {
+			switch (dataType.getLogicalType().getTypeRoot()) {
+				case VARCHAR:
+					final int len = ((VarCharType) dataType.getLogicalType()).getLength();
+					return  len > DEFAULT_MAX_VARCHAR_LEN ? "TEXT" : String.format("VARCHAR(%d)", len);
+				case DECIMAL:
+					if (dataType.getLogicalType() instanceof DecimalType) {
+						return dataType.toString();
+					}
+					// for legacy type
+					return "DECIMAL(" + MAX_DECIMAL_PRECISION + ", 18)";
+				default:
+					return dataType.toString();
+			}
+		}
 	}
 
 	/**
@@ -335,6 +408,11 @@ public final class JDBCDialects {
 		// https://www.postgresql.org/docs/12/datatype-numeric.html#DATATYPE-NUMERIC-DECIMAL
 		private static final int MAX_DECIMAL_PRECISION = 1000;
 		private static final int MIN_DECIMAL_PRECISION = 1;
+
+		// Define MAX length of VARCHAR TYPE  according to PostgreSQL docs
+		// https://www.postgresql.org/docs/12/datatype-character.html
+		// The VARCHAR max length is 1GB bytes, set default length of VARCHAR column to  10 * 1024 * 1024.
+		private static final int DEFAULT_MAX_VARCHAR_LEN = 10 * 1024 * 1024;
 
 		@Override
 		public boolean canHandle(String url) {
@@ -420,7 +498,26 @@ public final class JDBCDialects {
 					LogicalTypeRoot.SYMBOL,
 					LogicalTypeRoot.UNRESOLVED
 			);
+		}
 
+		@Override
+		public String getDialectTypeName(DataType dataType) {
+			switch (dataType.getLogicalType().getTypeRoot()) {
+				case VARCHAR:
+					final int len = ((VarCharType) dataType.getLogicalType()).getLength();
+					return  len > DEFAULT_MAX_VARCHAR_LEN ? "TEXT" : String.format("VARCHAR(%d)", len);
+				// PostgreSQL using `DOUBLE PRECISION` represents double type.
+				case DOUBLE:
+					return dataType.toString().replace("DOUBLE", "DOUBLE PRECISION");
+				case DECIMAL:
+					if (dataType.getLogicalType() instanceof DecimalType) {
+						return dataType.toString();
+					}
+					// for legacy type
+					return "DECIMAL(" + MAX_DECIMAL_PRECISION + ", 18)";
+				default:
+					return dataType.toString();
+			}
 		}
 	}
 }

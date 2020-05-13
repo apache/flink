@@ -58,6 +58,7 @@ import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_TABLE;
 import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_TYPE_VALUE_JDBC;
 import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_URL;
 import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_USERNAME;
+import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_WRITE_AUTO_CREATE_TABLE;
 import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_WRITE_FLUSH_INTERVAL;
 import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_WRITE_FLUSH_MAX_ROWS;
 import static org.apache.flink.table.descriptors.JDBCValidator.CONNECTOR_WRITE_MAX_RETRIES;
@@ -108,6 +109,7 @@ public class JDBCTableSourceSinkFactory implements
 		properties.add(CONNECTOR_WRITE_FLUSH_MAX_ROWS);
 		properties.add(CONNECTOR_WRITE_FLUSH_INTERVAL);
 		properties.add(CONNECTOR_WRITE_MAX_RETRIES);
+		properties.add(CONNECTOR_WRITE_AUTO_CREATE_TABLE);
 
 		// schema
 		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
@@ -152,6 +154,7 @@ public class JDBCTableSourceSinkFactory implements
 		descriptorProperties.getOptionalDuration(CONNECTOR_WRITE_FLUSH_INTERVAL).ifPresent(
 			s -> builder.setFlushIntervalMills(s.toMillis()));
 		descriptorProperties.getOptionalInt(CONNECTOR_WRITE_MAX_RETRIES).ifPresent(builder::setMaxRetryTimes);
+		descriptorProperties.getOptionalBoolean(CONNECTOR_WRITE_AUTO_CREATE_TABLE).ifPresent(builder::setCreateTableIfNotExists);
 
 		return builder.build();
 	}
