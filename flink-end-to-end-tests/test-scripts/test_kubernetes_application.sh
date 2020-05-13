@@ -33,8 +33,7 @@ setConsoleLogging
 
 start_kubernetes
 
-cd "$DOCKER_MODULE_DIR"
-build_image_with_jar ${FLINK_DIR}/examples/batch/WordCount.jar ${FLINK_IMAGE_NAME}
+build_image ${FLINK_IMAGE_NAME}
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
 
@@ -49,7 +48,7 @@ mkdir -p "$LOCAL_LOGS_PATH"
     -Dkubernetes.taskmanager.cpu=0.5 \
     -Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%" \
     -Dkubernetes.rest-service.exposed.type=NodePort \
-    local:///opt/flink/usrlib/WordCount.jar
+    local:///opt/flink/examples/batch/WordCount.jar
 
 kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')

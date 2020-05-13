@@ -20,8 +20,6 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_docker.sh
 
-DOCKER_MODULE_DIR=${END_TO_END_DIR}/../flink-container/docker
-KUBERNETES_MODULE_DIR=${END_TO_END_DIR}/../flink-container/kubernetes
 CONTAINER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 MINIKUBE_START_RETRIES=3
 MINIKUBE_START_BACKOFF=5

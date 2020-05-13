@@ -16,35 +16,16 @@
 # limitations under the License.
 ################################################################################
 
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: flink-task-manager
-spec:
-  replicas: ${FLINK_JOB_PARALLELISM}
-  selector:
-    matchLabels:
-      app: flink
-      component: task-manager
-  template:
-    metadata:
-      labels:
-        app: flink
-        component: task-manager
-    spec:
-      containers:
-      - name: flink-task-manager
-        image: ${FLINK_IMAGE_NAME}
-        imagePullPolicy: Never
-        args: ["taskmanager", "-Djobmanager.rpc.address=flink-job-cluster"]
-        volumeMounts:
-        - mountPath: /cache
-          name: cache-volume
-        - name: job-artifacts-volume
-          mountPath: /opt/flink/usrlib
-      volumes:
-      - name: cache-volume
-        emptyDir: {}
-      - name: job-artifacts-volume
-        hostPath:
-          path: ${USER_LIB}
+import SimpleHTTPServer
+import SocketServer
+
+handler = SimpleHTTPServer.SimpleHTTPRequestHandler
+
+# azure says that ports are still in use if this is not set
+SocketServer.TCPServer.allow_reuse_address = True
+httpd = SocketServer.TCPServer(("", 9999), handler)
+
+try:
+    httpd.handle_request()
+except:
+    httpd.shutdown()

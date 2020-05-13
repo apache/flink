@@ -36,14 +36,12 @@ start_kubernetes
 
 mkdir -p $OUTPUT_VOLUME
 
-cd "$DOCKER_MODULE_DIR"
-build_image_with_jar ${FLINK_DIR}/examples/batch/WordCount.jar ${FLINK_IMAGE_NAME}
-cd "$END_TO_END_DIR"
+build_image ${FLINK_IMAGE_NAME}
 
-
-kubectl create -f ${KUBERNETES_MODULE_DIR}/job-cluster-service.yaml
-envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB} ${FLINK_JOB_PARALLELISM} ${FLINK_JOB_ARGUMENTS}' < ${CONTAINER_SCRIPTS}/job-cluster-job.yaml.template | kubectl create -f -
-envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB_PARALLELISM}' < ${CONTAINER_SCRIPTS}/task-manager-deployment.yaml.template | kubectl create -f -
+export USER_LIB=${FLINK_DIR}/examples/batch
+kubectl create -f ${CONTAINER_SCRIPTS}/job-cluster-service.yaml
+envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB} ${FLINK_JOB_PARALLELISM} ${FLINK_JOB_ARGUMENTS} ${USER_LIB}' < ${CONTAINER_SCRIPTS}/job-cluster-job.yaml.template | kubectl create -f -
+envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB_PARALLELISM} ${USER_LIB}' < ${CONTAINER_SCRIPTS}/task-manager-deployment.yaml.template | kubectl create -f -
 kubectl wait --for=condition=complete job/flink-job-cluster --timeout=1h
 kubectl cp `kubectl get pods | awk '/task-manager/ {print $1}'`:/cache/${OUTPUT_FILE} ${OUTPUT_VOLUME}/${OUTPUT_FILE}
 
