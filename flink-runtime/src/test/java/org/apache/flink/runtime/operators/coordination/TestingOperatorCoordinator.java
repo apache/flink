@@ -25,7 +25,9 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * A simple testing implementation of the {@link OperatorCoordinator}.
@@ -36,11 +38,20 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
 	private final ArrayList<Integer> failedTasks = new ArrayList<>();
 
+	@Nullable
+	private byte[] lastRestoredCheckpointState;
+
+	private BlockingQueue<CompletableFuture<byte[]>> triggeredCheckpoints;
+
+	private BlockingQueue<Long> lastCheckpointComplete;
+
 	private boolean started;
 	private boolean closed;
 
 	public TestingOperatorCoordinator(OperatorCoordinator.Context context) {
 		this.context = context;
+		this.triggeredCheckpoints = new LinkedBlockingQueue<>();
+		this.lastCheckpointComplete = new LinkedBlockingQueue<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -65,17 +76,22 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
 	@Override
 	public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) {
-		throw new UnsupportedOperationException();
+		final CompletableFuture<byte[]> coordinatorStateFuture = new CompletableFuture<>();
+
+		boolean added = triggeredCheckpoints.offer(coordinatorStateFuture);
+		assert added; // guard the test assumptions
+
+		return coordinatorStateFuture;
 	}
 
 	@Override
 	public void checkpointComplete(long checkpointId) {
-		throw new UnsupportedOperationException();
+		lastCheckpointComplete.offer(checkpointId);
 	}
 
 	@Override
 	public void resetToCheckpoint(byte[] checkpointData) {
-		throw new UnsupportedOperationException();
+		lastRestoredCheckpointState = checkpointData;
 	}
 
 	// ------------------------------------------------------------------------
@@ -94,6 +110,19 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 
 	public Collection<Integer> getFailedTasks() {
 		return failedTasks;
+	}
+
+	@Nullable
+	public byte[] getLastRestoredCheckpointState() {
+		return lastRestoredCheckpointState;
+	}
+
+	public CompletableFuture<byte[]> getLastTriggeredCheckpoint() throws InterruptedException {
+		return triggeredCheckpoints.take();
+	}
+
+	public long getLastCheckpointComplete() throws InterruptedException {
+		return lastCheckpointComplete.take();
 	}
 
 	// ------------------------------------------------------------------------

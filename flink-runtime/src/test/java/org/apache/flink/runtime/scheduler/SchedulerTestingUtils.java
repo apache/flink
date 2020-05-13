@@ -25,6 +25,7 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -89,6 +90,7 @@ import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 /**
  * A utility class to create {@link DefaultScheduler} instances for testing.
@@ -262,6 +264,13 @@ public class SchedulerTestingUtils {
 		);
 	}
 
+	public static void setAllExecutionsToCancelled(final DefaultScheduler scheduler) {
+		final JobID jid = scheduler.requestJob().getJobID();
+		getAllCurrentExecutionAttempts(scheduler).forEach(
+			(attemptId) -> scheduler.updateTaskExecutionState(new TaskExecutionState(jid, attemptId, ExecutionState.CANCELED))
+		);
+	}
+
 	public static void acknowledgePendingCheckpoint(final DefaultScheduler scheduler, final long checkpointId) throws CheckpointException {
 		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
 		final JobID jid = scheduler.requestJob().getJobID();
@@ -270,6 +279,33 @@ public class SchedulerTestingUtils {
 			final AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(jid, attemptId, checkpointId);
 			checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint, "Unknown location");
 		}
+	}
+
+	public static CompletableFuture<CompletedCheckpoint> triggerCheckpoint(DefaultScheduler scheduler) throws Exception {
+		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
+		return checkpointCoordinator.triggerCheckpoint(false);
+	}
+
+	public static void acknowledgeCurrentCheckpoint(DefaultScheduler scheduler) {
+		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
+		assertEquals("Coordinator has not ", 1, checkpointCoordinator.getNumberOfPendingCheckpoints());
+
+		final PendingCheckpoint pc = checkpointCoordinator.getPendingCheckpoints().values().iterator().next();
+
+		// because of races against the async thread in the coordinator, we need to wait here until the
+		// coordinator state is acknowledged. This can be removed once the CheckpointCoordinator is
+		// executes all actions in the Scheduler's main thread executor.
+		while (pc.getNumberOfNonAcknowledgedOperatorCoordinators() > 0) {
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				fail("interrupted");
+			}
+		}
+
+		getAllCurrentExecutionAttempts(scheduler).forEach(
+			(attemptId) -> scheduler.acknowledgeCheckpoint(pc.getJobId(), attemptId, pc.getCheckpointId(), new CheckpointMetrics(), null));
 	}
 
 	public static CompletedCheckpoint takeCheckpoint(DefaultScheduler scheduler) throws Exception {
