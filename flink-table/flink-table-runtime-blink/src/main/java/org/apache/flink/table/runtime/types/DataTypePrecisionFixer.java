@@ -32,13 +32,16 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
-import java.util.Map;
+import java.util.List;
+import java.util.stream.IntStream;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
  * The data type visitor used to fix the precision for data type with the given logical type
@@ -133,19 +136,15 @@ public final class DataTypePrecisionFixer implements DataTypeVisitor<DataType> {
 
 	@Override
 	public DataType visit(FieldsDataType fieldsDataType) {
-		Map<String, DataType> fieldDataTypes = fieldsDataType.getFieldDataTypes();
-		if (logicalType.getTypeRoot() == LogicalTypeRoot.ROW) {
-			RowType rowType = (RowType) logicalType;
-			DataTypes.Field[] fields = rowType.getFields().stream()
-				.map(f -> {
-					DataType fieldType = fieldDataTypes.get(f.getName());
-					DataType newFieldType = null;
-					try {
-						newFieldType = fieldType.accept(new DataTypePrecisionFixer(f.getType()));
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-					return DataTypes.FIELD(f.getName(), newFieldType);
+		final List<DataType> fieldDataTypes = fieldsDataType.getChildren();
+		if (hasRoot(logicalType, LogicalTypeRoot.ROW)) {
+			final List<String> fieldNames = getFieldNames(logicalType);
+			DataTypes.Field[] fields = IntStream.range(0, fieldDataTypes.size())
+				.mapToObj(i -> {
+					final DataType oldFieldType = fieldDataTypes.get(i);
+					final DataType newFieldType = oldFieldType.accept(
+						new DataTypePrecisionFixer(oldFieldType.getLogicalType()));
+					return DataTypes.FIELD(fieldNames.get(i), newFieldType);
 				})
 				.toArray(DataTypes.Field[]::new);
 			return DataTypes.ROW(fields).bridgedTo(fieldsDataType.getConversionClass());

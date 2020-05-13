@@ -26,12 +26,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
 
 /**
  * A data type that contains field data types (i.e. row, structured, and distinct types).
@@ -57,35 +52,6 @@ public final class FieldsDataType extends DataType {
 			LogicalType logicalType,
 			List<DataType> fieldDataTypes) {
 		this(logicalType, null, fieldDataTypes);
-	}
-
-	@Deprecated
-	public FieldsDataType(
-			LogicalType logicalType,
-			@Nullable Class<?> conversionClass,
-			Map<String, DataType> oldFieldDataTypes) {
-		super(logicalType, conversionClass);
-		this.fieldDataTypes = getFieldNames(logicalType).stream()
-			.map(oldFieldDataTypes::get)
-			.collect(Collectors.toList());
-	}
-
-	@Deprecated
-	public FieldsDataType(
-			LogicalType logicalType,
-			Map<String, DataType> oldFieldDataTypes) {
-		this(logicalType, null, oldFieldDataTypes);
-	}
-
-	/**
-	 * @deprecated This method returns a non-deterministic order. Use {@link #getChildren()} instead.
-	 */
-	@Deprecated
-	public Map<String, DataType> getFieldDataTypes() {
-		final List<String> fieldNames = getFieldNames(logicalType);
-		return IntStream.range(0, fieldNames.size())
-			.boxed()
-			.collect(Collectors.toMap(fieldNames::get, fieldDataTypes::get));
 	}
 
 	@Override
