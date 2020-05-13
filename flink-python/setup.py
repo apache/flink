@@ -17,9 +17,11 @@
 ################################################################################
 from __future__ import print_function
 
+import glob
 import io
 import os
 import platform
+import subprocess
 import sys
 from distutils.command.build_ext import build_ext
 from shutil import copytree, copy, rmtree
@@ -40,6 +42,15 @@ def remove_if_exists(file_path):
             assert os.path.isdir(file_path)
             rmtree(file_path)
 
+
+def find_file_path(pattern):
+    files = glob.glob(pattern)
+    if len(files) < 1:
+        print("Failed to find the file %s." % pattern)
+        exit(-1)
+    if len(files) > 1:
+        print("The file pattern %s is ambiguous: %s" % (pattern, files))
+    return files[0]
 
 # Currently Cython optimizing doesn't support Windows.
 if platform.system() == 'Windows':
@@ -136,6 +147,10 @@ run sdist.
 
         LIB_PATH = os.path.join(FLINK_HOME, "lib")
         OPT_PATH = os.path.join(FLINK_HOME, "opt")
+        OPT_PYTHON_JAR_NAME = os.path.basename(
+            find_file_path(os.path.join(OPT_PATH, "flink-python_*.jar")))
+        OPT_SQL_CLIENT_JAR_NAME = os.path.basename(
+            find_file_path(os.path.join(OPT_PATH, "flink-sql-client_*.jar")))
         CONF_PATH = os.path.join(FLINK_HOME, "conf")
         EXAMPLES_PATH = os.path.join(FLINK_HOME, "examples")
         LICENSES_PATH = os.path.join(FLINK_HOME, "licenses")
@@ -143,11 +158,9 @@ run sdist.
         SCRIPTS_PATH = os.path.join(FLINK_HOME, "bin")
 
         LICENSE_FILE_PATH = os.path.join(FLINK_HOME, "LICENSE")
-        NOTICE_FILE_PATH = os.path.join(FLINK_HOME, "NOTICE")
         README_FILE_PATH = os.path.join(FLINK_HOME, "README.txt")
 
         exist_licenses = os.path.exists(LICENSES_PATH)
-        exist_notice = os.path.exists(NOTICE_FILE_PATH)
 
         if not os.path.isdir(LIB_PATH):
             print(incorrect_invocation_message, file=sys.stderr)
@@ -159,35 +172,43 @@ run sdist.
         except BaseException:  # pylint: disable=broad-except
             support_symlinks = False
 
+        os.mkdir(OPT_TEMP_PATH)
         if support_symlinks:
-            os.symlink(OPT_PATH, OPT_TEMP_PATH)
+            os.symlink(os.path.join(OPT_PATH, OPT_PYTHON_JAR_NAME),
+                       os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME))
+            os.symlink(os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
+                       os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME))
             os.symlink(CONF_PATH, CONF_TEMP_PATH)
             os.symlink(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
-            if exist_licenses:
-                os.symlink(LICENSES_PATH, LICENSES_TEMP_PATH)
             os.symlink(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             os.symlink(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
             os.symlink(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
-            if exist_notice:
-                os.symlink(NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
             os.symlink(README_FILE_PATH, README_FILE_TEMP_PATH)
         else:
             copytree(LIB_PATH, LIB_TEMP_PATH)
-            copytree(OPT_PATH, OPT_TEMP_PATH)
+            copy(os.path.join(OPT_PATH, OPT_PYTHON_JAR_NAME),
+                 os.path.join(OPT_TEMP_PATH, OPT_PYTHON_JAR_NAME))
+            copy(os.path.join(OPT_PATH, OPT_SQL_CLIENT_JAR_NAME),
+                 os.path.join(OPT_TEMP_PATH, OPT_SQL_CLIENT_JAR_NAME))
             copytree(CONF_PATH, CONF_TEMP_PATH)
             copytree(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
-            if exist_licenses:
-                copytree(LICENSES_PATH, LICENSES_TEMP_PATH)
             copytree(PLUGINS_PATH, PLUGINS_TEMP_PATH)
             copytree(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
             copy(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
-            if exist_notice:
-                copy(NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
             copy(README_FILE_PATH, README_FILE_TEMP_PATH)
         os.mkdir(LOG_TEMP_PATH)
         with open(os.path.join(LOG_TEMP_PATH, "empty.txt"), 'w') as f:
             f.write("This file is used to force setuptools to include the log directory. "
                     "You can delete it at any time after installation.")
+        if exist_licenses and platform.system() != "Windows":
+            # regenerate the licenses directory and NOTICE file as we only copy part of the
+            # flink binary distribution.
+            collect_licenses_file_sh = os.path.abspath(os.path.join(
+                this_directory, "..", "tools", "releasing", "collect_license_files.sh"))
+            subprocess.check_output([collect_licenses_file_sh, TEMP_PATH, TEMP_PATH])
+            # move the NOTICE file to the root of the package
+            GENERATED_NOTICE_FILE_PATH = os.path.join(TEMP_PATH, "NOTICE")
+            os.rename(GENERATED_NOTICE_FILE_PATH, NOTICE_FILE_TEMP_PATH)
     else:
         if not os.path.isdir(LIB_TEMP_PATH) or not os.path.isdir(OPT_TEMP_PATH) \
                 or not os.path.isdir(SCRIPTS_TEMP_PATH):
