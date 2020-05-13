@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -49,6 +50,7 @@ import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -177,6 +179,48 @@ public class StreamTaskTest extends TestLogger {
 
 	@Rule
 	public final Timeout timeoutPerTest = Timeout.seconds(30);
+
+	@Test
+	public void testCleanUpExceptionSuppressing() throws Exception {
+		OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
+			OneInputStreamTask::new,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.setupOutputForSingletonOperatorChain();
+
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setStreamOperator(new FailingTwiceOperator());
+		streamConfig.setOperatorID(new OperatorID());
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+
+		testHarness.processElement(new StreamRecord<>("Doesn't matter", 0));
+
+		try {
+			testHarness.waitForTaskCompletion();
+		}
+		catch (Exception ex) {
+			if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
+				throw ex;
+			}
+		}
+	}
+
+	private static class FailingTwiceOperator extends AbstractStreamOperator<String> implements OneInputStreamOperator<String, String> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void processElement(StreamRecord<String> element) throws Exception {
+			throw new ExpectedTestException();
+		}
+
+		@Override
+		public void dispose() throws Exception {
+			fail("This exception should be suppressed");
+		}
+	}
 
 	/**
 	 * This test checks the async exceptions handling wraps the message and cause as an AsynchronousException
