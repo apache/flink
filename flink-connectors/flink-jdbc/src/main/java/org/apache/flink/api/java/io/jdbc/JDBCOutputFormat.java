@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.java.io.jdbc.JdbcConnectionOptions.JdbcConnectionOptionsBuilder;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
@@ -27,6 +28,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCUtils.setRecordToStatement;
 
@@ -49,6 +54,11 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 
 	final JdbcInsertOptions insertOptions;
 	private final JdbcExecutionOptions batchOptions;
+
+	private transient volatile boolean closed = false;
+	private transient ScheduledExecutorService scheduler;
+	private transient ScheduledFuture<?> scheduledFuture;
+	private transient volatile Exception flushException;
 
 	private transient PreparedStatement upload;
 	private transient int batchCount = 0;
@@ -84,10 +94,35 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 		} catch (SQLException sqe) {
 			throw new IOException("open() failed.", sqe);
 		}
+
+		if (batchOptions.getBatchIntervalMs() != DEFAULT_FLUSH_INTERVAL_MILLS && batchOptions.getBatchSize() != 1) {
+			this.scheduler = Executors.newScheduledThreadPool(
+				1, new ExecutorThreadFactory("jdbc-output-format"));
+			this.scheduledFuture = this.scheduler.scheduleWithFixedDelay(() -> {
+				synchronized (JDBCOutputFormat.this) {
+					if (closed) {
+						return;
+					}
+					try {
+						flush();
+					} catch (Exception e) {
+						flushException = e;
+					}
+				}
+			}, batchOptions.getBatchIntervalMs(), batchOptions.getBatchIntervalMs(), TimeUnit.MILLISECONDS);
+		}
+	}
+
+	private void checkFlushException() {
+		if (flushException != null) {
+			throw new RuntimeException("Writing records to JDBC failed.", flushException);
+		}
 	}
 
 	@Override
 	public void writeRecord(Row row) {
+		checkFlushException();
+
 		try {
 			setRecordToStatement(upload, insertOptions.getFieldTypes(), row);
 			upload.addBatch();
@@ -105,6 +140,8 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 
 	@Override
 	public void flush() {
+		checkFlushException();
+
 		try {
 			upload.executeBatch();
 			batchCount = 0;
@@ -113,16 +150,24 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 		}
 	}
 
-	int[] getTypesArray() {
-		return insertOptions.getFieldTypes();
-	}
-
 	/**
 	 * Executes prepared statement and closes all resources of this instance.
 	 *
 	 */
 	@Override
 	public void close() {
+		if (closed) {
+			return;
+		}
+		closed = true;
+
+		checkFlushException();
+
+		if (this.scheduledFuture != null) {
+			scheduledFuture.cancel(false);
+			this.scheduler.shutdown();
+		}
+
 		if (upload != null) {
 			flush();
 			try {
@@ -155,6 +200,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 		private String dbURL;
 		private String query;
 		private int batchInterval = DEFAULT_FLUSH_MAX_SIZE;
+		private long flushIntervalMills = DEFAULT_FLUSH_INTERVAL_MILLS;
 		private int[] typesArray;
 
 		protected JDBCOutputFormatBuilder() {}
@@ -194,6 +240,11 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 			return this;
 		}
 
+		public JDBCOutputFormatBuilder setFlushIntervalMills(long flushIntervalMills) {
+			this.flushIntervalMills = flushIntervalMills;
+			return this;
+		}
+
 		/**
 		 * Finalizes the configuration and checks validity.
 		 *
@@ -203,7 +254,7 @@ public class JDBCOutputFormat extends AbstractJdbcOutputFormat<Row> {
 			return new JDBCOutputFormat(
 				new SimpleJdbcConnectionProvider(buildConnectionOptions()),
 				new JdbcInsertOptions(query, typesArray),
-				JdbcExecutionOptions.builder().withBatchSize(batchInterval).build());
+				JdbcExecutionOptions.builder().withBatchIntervalMs(flushIntervalMills).withBatchSize(batchInterval).build());
 		}
 
 		public JdbcConnectionOptions buildConnectionOptions() {
