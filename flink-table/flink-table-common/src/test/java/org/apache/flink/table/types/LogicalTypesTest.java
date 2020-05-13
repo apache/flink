@@ -674,7 +674,7 @@ public class LogicalTypesTest {
 
 		testInvalidStringSerializability(structuredType);
 
-		testStringSummary(structuredType, User.class.getName());
+		testStringSummary(structuredType, "*" + User.class.getName() + "*");
 
 		testConversions(
 			structuredType,
