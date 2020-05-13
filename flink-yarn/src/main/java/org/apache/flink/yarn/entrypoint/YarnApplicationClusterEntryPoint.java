@@ -35,6 +35,7 @@ import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
@@ -54,6 +55,11 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
 			final Configuration configuration,
 			final PackagedProgram program) {
 		super(configuration, program, YarnResourceManagerFactory.getInstance());
+	}
+
+	@Override
+	protected String getRPCPortRange(Configuration configuration) {
+		return configuration.getString(YarnConfigOptions.APPLICATION_MASTER_PORT);
 	}
 
 	public static void main(final String[] args) {
