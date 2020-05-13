@@ -21,9 +21,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.Preconditions;
@@ -61,7 +59,7 @@ public class Buckets<IN, BucketID> {
 
 	private final BucketAssigner<IN, BucketID> bucketAssigner;
 
-	private final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory;
+	private final BucketWriter<IN, BucketID> bucketWriter;
 
 	private final RollingPolicy<IN, BucketID> rollingPolicy;
 
@@ -78,8 +76,6 @@ public class Buckets<IN, BucketID> {
 
 	private long maxPartCounter;
 
-	private final RecoverableWriter fsWriter;
-
 	private final OutputFileConfig outputFileConfig;
 
 	// --------------------------- State Related Fields -----------------------------
@@ -92,23 +88,23 @@ public class Buckets<IN, BucketID> {
 	 * @param basePath The base path for our buckets.
 	 * @param bucketAssigner The {@link BucketAssigner} provided by the user.
 	 * @param bucketFactory The {@link BucketFactory} to be used to create buckets.
-	 * @param partFileWriterFactory The {@link PartFileWriter.PartFileFactory} to be used when writing data.
+	 * @param bucketWriter The {@link BucketWriter} to be used when writing data.
 	 * @param rollingPolicy The {@link RollingPolicy} as specified by the user.
 	 */
 	Buckets(
 			final Path basePath,
 			final BucketAssigner<IN, BucketID> bucketAssigner,
 			final BucketFactory<IN, BucketID> bucketFactory,
-			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
+			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			@Nullable final BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener,
 			final int subtaskIndex,
-			final OutputFileConfig outputFileConfig) throws IOException {
+			final OutputFileConfig outputFileConfig) {
 
 		this.basePath = Preconditions.checkNotNull(basePath);
 		this.bucketAssigner = Preconditions.checkNotNull(bucketAssigner);
 		this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
-		this.partFileWriterFactory = Preconditions.checkNotNull(partFileWriterFactory);
+		this.bucketWriter = Preconditions.checkNotNull(bucketWriter);
 		this.rollingPolicy = Preconditions.checkNotNull(rollingPolicy);
 		this.bucketLifeCycleListener = bucketLifeCycleListener;
 		this.subtaskIndex = subtaskIndex;
@@ -118,19 +114,10 @@ public class Buckets<IN, BucketID> {
 		this.activeBuckets = new HashMap<>();
 		this.bucketerContext = new Buckets.BucketerContext();
 
-		try {
-			this.fsWriter = FileSystem.get(basePath.toUri()).createRecoverableWriter();
-		} catch (IOException e) {
-			LOG.error("Unable to create filesystem for path: {}", basePath);
-			throw e;
-		}
-
 		this.bucketStateSerializer = new BucketStateSerializer<>(
-				fsWriter.getResumeRecoverableSerializer(),
-				fsWriter.getCommitRecoverableSerializer(),
-				bucketAssigner.getSerializer()
-		);
-
+			bucketWriter.getProperties().getInProgressFileRecoverableSerializer(),
+			bucketWriter.getProperties().getPendingFileRecoverableSerializer(),
+			bucketAssigner.getSerializer());
 		this.maxPartCounter = 0L;
 	}
 
@@ -185,10 +172,9 @@ public class Buckets<IN, BucketID> {
 
 		final Bucket<IN, BucketID> restoredBucket = bucketFactory
 				.restoreBucket(
-						fsWriter,
 						subtaskIndex,
 						maxPartCounter,
-						partFileWriterFactory,
+						bucketWriter,
 						rollingPolicy,
 						recoveredState,
 						outputFileConfig
@@ -238,7 +224,7 @@ public class Buckets<IN, BucketID> {
 			final ListState<Long> partCounterStateContainer) throws Exception {
 
 		Preconditions.checkState(
-				fsWriter != null && bucketStateSerializer != null,
+			bucketWriter != null && bucketStateSerializer != null,
 				"sink has not been initialized");
 
 		LOG.info("Subtask {} checkpointing for checkpoint with id={} (max part counter={}).",
@@ -308,12 +294,11 @@ public class Buckets<IN, BucketID> {
 		if (bucket == null) {
 			final Path bucketPath = assembleBucketPath(bucketId);
 			bucket = bucketFactory.getNewBucket(
-					fsWriter,
 					subtaskIndex,
 					bucketId,
 					bucketPath,
 					maxPartCounter,
-					partFileWriterFactory,
+					bucketWriter,
 					rollingPolicy,
 					outputFileConfig);
 			activeBuckets.put(bucketId, bucket);
