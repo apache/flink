@@ -56,6 +56,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 	private DatadogHttpClient client;
 	private List<String> configTags;
+	private int maxMetricsPerRequestValue;
 
 	private final Clock clock = () -> System.currentTimeMillis() / 1000L;
 
@@ -64,6 +65,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	public static final String PROXY_PORT = "proxyPort";
 	public static final String DATA_CENTER = "dataCenter";
 	public static final String TAGS = "tags";
+	public static final String MAX_METRICS_PER_REQUEST = "maxMetricsPerRequest";
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
@@ -113,6 +115,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		String proxyHost = config.getString(PROXY_HOST, null);
 		Integer proxyPort = config.getInteger(PROXY_PORT, 8080);
 		String rawDataCenter = config.getString(DATA_CENTER, "US");
+		maxMetricsPerRequestValue = config.getInteger(MAX_METRICS_PER_REQUEST, 2000);
 		DataCenter dataCenter = DataCenter.valueOf(rawDataCenter);
 		String tags = config.getString(TAGS, "");
 
@@ -120,7 +123,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 		configTags = getTagsFromConfig(tags);
 
-		LOGGER.info("Configured DatadogHttpReporter with {tags={}, proxyHost={}, proxyPort={}, dataCenter={}", tags, proxyHost, proxyPort, dataCenter);
+		LOGGER.info("Configured DatadogHttpReporter with {tags={}, proxyHost={}, proxyPort={}, dataCenter={}, maxMetricsPerRequest={}", tags, proxyHost, proxyPort, dataCenter, maxMetricsPerRequestValue);
 	}
 
 	@Override
@@ -131,16 +134,34 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 	@Override
 	public void report() {
-		DSeries request = new DSeries();
-
-		addGaugesAndUnregisterOnException(request);
-		counters.values().forEach(request::addCounter);
-		meters.values().forEach(request::addMeter);
-
 		try {
-			client.send(request);
+			int totalGaugesSent = addGaugesAndUnregisterOnException();
+
+			DSeries request = new DSeries();
+			int currentCount = 0;
+			for (DCounter c : counters.values()) {
+				request.addCounter(c);
+				++currentCount;
+				if (currentCount % maxMetricsPerRequestValue == 0) {
+					client.send(request);
+					request = new DSeries();
+				}
+			}
+
+			for (DMeter m : meters.values()) {
+				request.addMeter(m);
+				++currentCount;
+				if (currentCount % maxMetricsPerRequestValue == 0) {
+					client.send(request);
+					request = new DSeries();
+				}
+			}
+			// send any leftover metrics
+			if (request.getSeries().size() > 0) {
+				client.send(request);
+			}
 			counters.values().forEach(DCounter::ackReport);
-			LOGGER.debug("Reported series with size {}.", request.getSeries().size());
+			LOGGER.debug("Reported series with size {}.", totalGaugesSent + currentCount);
 		} catch (SocketTimeoutException e) {
 			LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout: {}", e.getMessage());
 		} catch (Exception e) {
@@ -148,7 +169,10 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		}
 	}
 
-	private void addGaugesAndUnregisterOnException(DSeries request) {
+	private int addGaugesAndUnregisterOnException() {
+		DSeries request = new DSeries();
+		int currentCount = 0;
+		int totalGauges = gauges.size();
 		List<Gauge> gaugesToRemove = new ArrayList<>();
 		for (Map.Entry<Gauge, DGauge> entry : gauges.entrySet()) {
 			DGauge g = entry.getValue();
@@ -157,6 +181,11 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 				// Flink uses Gauge to store many types other than Number
 				g.getMetricValue();
 				request.addGauge(g);
+				++currentCount;
+				if (currentCount % maxMetricsPerRequestValue == 0 || currentCount >= totalGauges) {
+					client.send(request);
+					request = new DSeries();
+				}
 			} catch (ClassCastException e) {
 				LOGGER.info("The metric {} will not be reported because only number types are supported by this reporter.", g.getMetric());
 				gaugesToRemove.add(entry.getKey());
@@ -170,6 +199,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 			}
 		}
 		gaugesToRemove.forEach(gauges::remove);
+		return currentCount;
 	}
 
 	/**
