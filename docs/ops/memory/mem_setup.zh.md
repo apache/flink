@@ -54,10 +54,10 @@ The simplest way to setup memory in Flink is to configure either of the two foll
 {:.table-bordered}
 <br/>
 
-<span class="label label-info">Note</span> For local execution, see detailed information for [TaskManager](mem_setup_tm.html#local-execution) and [Master](mem_setup_jm.html#local-execxution) processes.
+<span class="label label-info">Note</span> For local execution, see detailed information for [TaskManager](mem_setup_tm.html#local-execution) and [Master](mem_setup_master.html#local-execxution) processes.
 
 The rest of the memory components will be adjusted automatically, based on default values or additionally configured options.
-See also how to set up other components for [TaskManager](mem_setup_tm.html) and [Master](mem_setup_jm.html) memory.
+See also how to set up other components for [TaskManager](mem_setup_tm.html) and [Master](mem_setup_master.html) memory.
 
 Configuring *total Flink memory* is better suited for [standalone deployments](../deployment/cluster_setup.html)
 where you want to declare how much memory is given to Flink itself. The *total Flink memory* splits up into *JVM Heap*
@@ -71,7 +71,7 @@ For the containerized deployments it corresponds to the size of the requested co
 
 Another way to set up the memory is to configure the required internal components of the *total Flink memory* which are
 specific to the concrete Flink process. Check how to configure them for [TaskManager](mem_setup_tm.html#configure-heap-and-managed-memory)
-and for [Master](mem_setup_jm.html#configure-jvm-heap).
+and for [Master](mem_setup_master.html#configure-jvm-heap).
 
 <span class="label label-info">Note</span> One of the three mentioned ways has to be used to configure Flink’s memory
 (except for local execution), or the Flink startup will fail. This means that one of the following option subsets,
@@ -104,7 +104,7 @@ or derived memory component sizes:
 <br/><br/>
 
 Check also the detailed memory model for [TaskManager](mem_setup_tm.html#detailed-memory-model) and
-[Master](mem_setup_jm.html#detailed-configuration) to understand how to configure the relevant components.
+[Master](mem_setup_master.html#detailed-configuration) to understand how to configure the relevant components.
 
 ## Capped Fractionated Components
 
@@ -114,7 +114,7 @@ This section describes the configuration details of options which can be a fract
 * *Network memory* can be a fraction of the *total Flink memory* (only for TaskManager)
 
 Check also the detailed memory model for [TaskManager](mem_setup_tm.html#detailed-memory-model) and
-[Master](mem_setup_jm.html#detailed-configuration) to understand how to configure the relevant components.
+[Master](mem_setup_master.html#detailed-configuration) to understand how to configure the relevant components.
 
 The size of those components always has to be between its maximum and minimum value, otherwise Flink startup will fail.
 The maximum and minimum values have defaults or can be explicitly set by corresponding configuration options.
