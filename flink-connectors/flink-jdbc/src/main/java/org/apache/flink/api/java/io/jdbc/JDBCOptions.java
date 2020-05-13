@@ -37,8 +37,8 @@ public class JDBCOptions extends JdbcConnectionOptions {
 	private JDBCDialect dialect;
 
 	private JDBCOptions(String dbURL, String tableName, String driverName, String username,
-			String password, JDBCDialect dialect) {
-		super(dbURL, driverName, username, password);
+			String password, Boolean autoCommit, JDBCDialect dialect) {
+		super(dbURL, driverName, username, password, autoCommit);
 		this.tableName = tableName;
 		this.dialect = dialect;
 	}
@@ -79,6 +79,7 @@ public class JDBCOptions extends JdbcConnectionOptions {
 		private String driverName;
 		private String username;
 		private String password;
+		private Boolean autoCommit;
 		private JDBCDialect dialect;
 
 		/**
@@ -123,6 +124,14 @@ public class JDBCOptions extends JdbcConnectionOptions {
 		}
 
 		/**
+		 * required, autoCommit setting.
+		 */
+		public Builder setAutoCommit(boolean autoCommit) {
+			this.autoCommit = autoCommit;
+			return this;
+		}
+
+		/**
 		 * optional, Handle the SQL dialect of jdbc driver. If not set, it will be infer by
 		 * {@link JDBCDialects#get} from DB url.
 		 */
@@ -147,7 +156,7 @@ public class JDBCOptions extends JdbcConnectionOptions {
 				});
 			}
 
-			return new JDBCOptions(dbURL, tableName, driverName, username, password, dialect);
+			return new JDBCOptions(dbURL, tableName, driverName, username, password, autoCommit, dialect);
 		}
 	}
 }

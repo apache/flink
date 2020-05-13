@@ -20,6 +20,9 @@ package org.apache.flink.api.java.io.jdbc.executor;
 
 import org.apache.flink.api.java.io.jdbc.JdbcStatementBuilder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -32,12 +35,15 @@ import java.util.function.Function;
  */
 class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T> {
 
+	private static final Logger LOG = LoggerFactory.getLogger(SimpleBatchStatementExecutor.class);
+
 	private final String sql;
 	private final JdbcStatementBuilder<V> parameterSetter;
 	private final Function<T, V> valueTransformer;
 
 	private transient PreparedStatement st;
 	private transient List<V> batch;
+	private transient Connection connection;
 
 	SimpleBatchStatementExecutor(String sql, JdbcStatementBuilder<V> statementBuilder, Function<T, V> valueTransformer) {
 		this.sql = sql;
@@ -48,6 +54,7 @@ class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T
 	@Override
 	public void open(Connection connection) throws SQLException {
 		this.batch = new ArrayList<>();
+		this.connection = connection;
 		this.st = connection.prepareStatement(sql);
 	}
 
@@ -62,8 +69,13 @@ class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T
 			for (V r : batch) {
 				parameterSetter.accept(st, r);
 				st.addBatch();
+				LOG.trace("Added to batch: {}", r);
 			}
+			LOG.debug("Batch size: {} released", batch.size());
 			st.executeBatch();
+			if (!connection.getAutoCommit()) {
+				connection.commit();
+			}
 			batch.clear();
 		}
 	}

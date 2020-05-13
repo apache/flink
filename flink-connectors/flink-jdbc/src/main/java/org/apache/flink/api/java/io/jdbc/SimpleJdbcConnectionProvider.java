@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Optional;
 
 /**
  * Simple JDBC connection provider.
@@ -47,6 +48,10 @@ class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Serializab
 						connection = DriverManager.getConnection(jdbcOptions.getDbURL(), jdbcOptions.getUsername().get(), jdbcOptions.getPassword().orElse(null));
 					} else {
 						connection = DriverManager.getConnection(jdbcOptions.getDbURL());
+					}
+					Optional<Boolean> autoCommit = jdbcOptions.getAutoCommit();
+					if (autoCommit.isPresent()) {
+						connection.setAutoCommit(autoCommit.get());
 					}
 				}
 			}

@@ -20,6 +20,9 @@ package org.apache.flink.api.java.io.jdbc.executor;
 
 import org.apache.flink.api.java.io.jdbc.JdbcStatementBuilder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -32,12 +35,15 @@ import java.util.function.Function;
  */
 class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T> {
 
+	private static final Logger LOG = LoggerFactory.getLogger(KeyedBatchStatementExecutor.class);
+
 	private final String sql;
 	private final JdbcStatementBuilder<K> parameterSetter;
 	private final Function<T, K> keyExtractor;
 
 	private transient Set<K> batch = new HashSet<>();
 	private transient PreparedStatement st;
+	private transient Connection connection;
 
 	/**
 	 * Keep in mind object reuse: if it's on then key extractor may be required to return new object.
@@ -51,6 +57,7 @@ class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T>
 	@Override
 	public void open(Connection connection) throws SQLException {
 		batch = new HashSet<>();
+		this.connection = connection;
 		st = connection.prepareStatement(sql);
 	}
 
@@ -65,8 +72,13 @@ class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T>
 			for (K entry : batch) {
 				parameterSetter.accept(st, entry);
 				st.addBatch();
+				LOG.trace("Added to batch: {}", entry);
 			}
+			LOG.debug("Batch size: {} released", batch.size());
 			st.executeBatch();
+			if (!connection.getAutoCommit()) {
+				connection.commit();
+			}
 			batch.clear();
 		}
 	}
