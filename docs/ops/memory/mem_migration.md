@@ -22,11 +22,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The memory setup has changed a lot with the *1.10* release [for task executors](mem_setup_tm.html) and with the *1.11*
-release [for job managers](mem_setup_jm.html). Many configuration options were removed or their semantics changed.
-This guide will help you to migrate the task executor memory configuration from Flink
+The memory setup has changed a lot with the *1.10* release for [TaskManagers](mem_setup_tm.html) and with the *1.11*
+release for [Masters](mem_setup_jm.html). Many configuration options were removed or their semantics changed.
+This guide will help you to migrate the TaskManager memory configuration from Flink
 [<= *1.9*](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/mem_setup.html) to >= *1.10* and
-the job manager memory configuration from Flink <= *1.10* to >= *1.11*.
+the Master memory configuration from Flink <= *1.10* to >= *1.11*.
 
 * toc
 {:toc}
