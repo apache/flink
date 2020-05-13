@@ -36,16 +36,16 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
 import org.apache.flink.table.runtime.typeutils.TimestampDataSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
-import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RawType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
 
 /**
  * {@link TypeSerializer} of {@link LogicalType} for internal sql engine execution data formats.
@@ -63,9 +63,18 @@ public class InternalSerializers {
 	 * Creates a {@link TypeSerializer} for internal data structures of the given {@link LogicalType}.
 	 */
 	public static TypeSerializer create(LogicalType type, ExecutionConfig config) {
+		// ordered by type root definition
 		switch (type.getTypeRoot()) {
+			case CHAR:
+			case VARCHAR:
+				return StringDataSerializer.INSTANCE;
 			case BOOLEAN:
 				return BooleanSerializer.INSTANCE;
+			case BINARY:
+			case VARBINARY:
+				return BytePrimitiveArraySerializer.INSTANCE;
+			case DECIMAL:
+				return new DecimalDataSerializer(getPrecision(type), getScale(type));
 			case TINYINT:
 				return ByteSerializer.INSTANCE;
 			case SMALLINT:
@@ -78,35 +87,27 @@ public class InternalSerializers {
 			case BIGINT:
 			case INTERVAL_DAY_TIME:
 				return LongSerializer.INSTANCE;
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				TimestampType timestampType = (TimestampType) type;
-				return new TimestampDataSerializer(timestampType.getPrecision());
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				LocalZonedTimestampType lzTs = (LocalZonedTimestampType) type;
-				return new TimestampDataSerializer(lzTs.getPrecision());
 			case FLOAT:
 				return FloatSerializer.INSTANCE;
 			case DOUBLE:
 				return DoubleSerializer.INSTANCE;
-			case CHAR:
-			case VARCHAR:
-				return StringDataSerializer.INSTANCE;
-			case DECIMAL:
-				DecimalType decimalType = (DecimalType) type;
-				return new DecimalDataSerializer(decimalType.getPrecision(), decimalType.getScale());
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				return new TimestampDataSerializer(getPrecision(type));
+			case TIMESTAMP_WITH_TIME_ZONE:
+				throw new UnsupportedOperationException();
 			case ARRAY:
 				return new ArrayDataSerializer(((ArrayType) type).getElementType(), config);
+			case MULTISET:
+				return new MapDataSerializer(((MultisetType) type).getElementType(), new IntType(false), config);
 			case MAP:
 				MapType mapType = (MapType) type;
 				return new MapDataSerializer(mapType.getKeyType(), mapType.getValueType(), config);
-			case MULTISET:
-				return new MapDataSerializer(((MultisetType) type).getElementType(), new IntType(), config);
 			case ROW:
-				RowType rowType = (RowType) type;
-				return new RowDataSerializer(config, rowType);
-			case BINARY:
-			case VARBINARY:
-				return BytePrimitiveArraySerializer.INSTANCE;
+			case STRUCTURED_TYPE:
+				return new RowDataSerializer(config, type.getChildren().toArray(new LogicalType[0]));
+			case DISTINCT_TYPE:
+				return create(((DistinctType) type).getSourceType(), config);
 			case RAW:
 				if (type instanceof RawType) {
 					final RawType<?> rawType = (RawType<?>) type;
@@ -114,6 +115,9 @@ public class InternalSerializers {
 				}
 				return new RawValueDataSerializer<>(
 					((TypeInformationRawType<?>) type).getTypeInformation().createSerializer(config));
+			case NULL:
+			case SYMBOL:
+			case UNRESOLVED:
 			default:
 				throw new UnsupportedOperationException(
 					"Unsupported type '" + type + "' to get internal serializer");

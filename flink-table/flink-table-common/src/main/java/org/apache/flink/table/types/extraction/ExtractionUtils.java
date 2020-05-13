@@ -146,6 +146,25 @@ public final class ExtractionUtils {
 	}
 
 	/**
+	 * Returns the field of a structured type. The logic is as broad as possible to support
+	 * both Java and Scala in different flavors.
+	 */
+	public static Field getStructuredField(Class<?> clazz, String fieldName) {
+		final String normalizedFieldName = fieldName.toUpperCase();
+
+		final List<Field> fields = collectStructuredFields(clazz);
+		for (Field field : fields) {
+			if (field.getName().toUpperCase().equals(normalizedFieldName)) {
+				return field;
+			}
+		}
+		throw extractionError(
+			"Could not to find a field named '%s' in class '%s' for structured type.",
+			fieldName,
+			clazz.getName());
+	}
+
+	/**
 	 * Checks for a field getter of a structured type. The logic is as broad as possible to support
 	 * both Java and Scala in different flavors.
 	 */
@@ -257,6 +276,21 @@ public final class ExtractionUtils {
 		final int m = field.getModifiers();
 
 		// field is directly readable
+		return Modifier.isPublic(m);
+	}
+
+	/**
+	 * Checks whether a field is directly writable without a setter or constructor.
+	 */
+	public static boolean isStructuredFieldDirectlyWritable(Field field) {
+		final int m = field.getModifiers();
+
+		// field is immutable
+		if (Modifier.isFinal(m)) {
+			return false;
+		}
+
+		// field is directly writable
 		return Modifier.isPublic(m);
 	}
 
