@@ -23,6 +23,7 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * An internal data structure representing data of {@link MapType} or {@link MultisetType}.
@@ -73,6 +74,53 @@ public final class GenericMapData implements MapData {
 	public ArrayData valueArray() {
 		Object[] values = map.values().toArray();
 		return new GenericArrayData(values);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o == this) {
+			return true;
+		}
+		if (!(o instanceof GenericMapData)) {
+			return false;
+		}
+		// deepEquals for values of byte[]
+		return deepEquals(map, ((GenericMapData) o).map);
+	}
+
+	private static <K, V> boolean deepEquals(Map<K, V> m1, Map<?, ?> m2) {
+		// copied from HashMap.equals but with deepEquals comparision
+		if (m1.size() != m2.size()) {
+			return false;
+		}
+		try {
+			for (Map.Entry<K, V> e : m1.entrySet()) {
+				K key = e.getKey();
+				V value = e.getValue();
+				if (value == null) {
+					if (!(m2.get(key) == null && m2.containsKey(key))) {
+						return false;
+					}
+				} else {
+					if (!Objects.deepEquals(value, m2.get(key))) {
+						return false;
+					}
+				}
+			}
+		} catch (ClassCastException | NullPointerException unused) {
+			return false;
+		}
+		return true;
+	}
+
+	@Override
+	public int hashCode() {
+		int result = 0;
+		for (Object key : map.keySet()) {
+			// only include key because values can contain byte[]
+			result += 31 * key.hashCode();
+		}
+		return result;
 	}
 }
 

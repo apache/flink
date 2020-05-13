@@ -25,6 +25,7 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -191,17 +192,22 @@ public final class GenericRowData implements RowData {
 
 	@Override
 	public boolean equals(Object o) {
-		if (o instanceof GenericRowData) {
-			GenericRowData other = (GenericRowData) o;
-			return kind == other.kind && Arrays.equals(fields, other.fields);
-		} else {
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof GenericRowData)) {
 			return false;
 		}
+		GenericRowData that = (GenericRowData) o;
+		return kind == that.kind &&
+			Arrays.deepEquals(fields, that.fields);
 	}
 
 	@Override
 	public int hashCode() {
-		return 31 * kind.hashCode() + Arrays.hashCode(fields);
+		int result = Objects.hash(kind);
+		result = 31 * result + Arrays.deepHashCode(fields);
+		return result;
 	}
 
 	@Override

@@ -104,4 +104,35 @@ public final class BinaryRawValueData<T> extends LazyBinaryFormat<T> implements 
 			throw new RuntimeException(e);
 		}
 	}
+
+	// ------------------------------------------------------------------------------------------
+	// Construction Utilities
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * Creates a {@link BinaryRawValueData} instance from the given Java object.
+	 */
+	public static <T> BinaryRawValueData<T> fromObject(T javaObject) {
+		if (javaObject == null) {
+			return null;
+		}
+		return new BinaryRawValueData<>(javaObject);
+	}
+
+	/**
+	 * Creates a {@link BinaryStringData} instance from the given bytes.
+	 */
+	public static <T> BinaryRawValueData<T> fromBytes(byte[] bytes) {
+		return fromBytes(bytes, 0, bytes.length);
+	}
+
+	/**
+	 * Creates a {@link BinaryStringData} instance from the given bytes with offset and number of bytes.
+	 */
+	public static <T> BinaryRawValueData<T> fromBytes(byte[] bytes, int offset, int numBytes) {
+		return new BinaryRawValueData<>(
+			new MemorySegment[] {MemorySegmentFactory.wrap(bytes)},
+			offset,
+			numBytes);
+	}
 }

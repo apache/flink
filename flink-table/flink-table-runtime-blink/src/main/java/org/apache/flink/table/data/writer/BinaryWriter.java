@@ -26,14 +26,20 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
 import org.apache.flink.table.runtime.typeutils.MapDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
+
+import java.io.Serializable;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 
 /**
  * Writer to write a composite data format, like row, array.
@@ -89,6 +95,12 @@ public interface BinaryWriter {
 	 */
 	void complete();
 
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * @deprecated Use {@link #createValueSetter(LogicalType)} for avoiding logical types during runtime.
+	 */
+	@Deprecated
 	static void write(
 			BinaryWriter writer, int pos, Object o, LogicalType type, TypeSerializer<?> serializer) {
 		switch (type.getTypeRoot()) {
@@ -153,5 +165,77 @@ public interface BinaryWriter {
 			default:
 				throw new UnsupportedOperationException("Not support type: " + type);
 		}
+	}
+
+	/**
+	 * Creates an accessor for setting the elements of an array writer during runtime.
+	 *
+	 * @param elementType the element type of the array
+	 */
+	static ValueSetter createValueSetter(LogicalType elementType) {
+		// ordered by type root definition
+		switch (elementType.getTypeRoot()) {
+			case CHAR:
+			case VARCHAR:
+				return (writer, pos, value) -> writer.writeString(pos, (StringData) value);
+			case BOOLEAN:
+				return (writer, pos, value) -> writer.writeBoolean(pos, (boolean) value);
+			case BINARY:
+			case VARBINARY:
+				return (writer, pos, value) -> writer.writeBinary(pos, (byte[]) value);
+			case DECIMAL:
+				final int decimalPrecision = getPrecision(elementType);
+				return (writer, pos, value) -> writer.writeDecimal(pos, (DecimalData) value, decimalPrecision);
+			case TINYINT:
+				return (writer, pos, value) -> writer.writeByte(pos, (byte) value);
+			case SMALLINT:
+				return (writer, pos, value) -> writer.writeShort(pos, (short) value);
+			case INTEGER:
+			case DATE:
+			case TIME_WITHOUT_TIME_ZONE:
+			case INTERVAL_YEAR_MONTH:
+				return (writer, pos, value) -> writer.writeInt(pos, (int) value);
+			case BIGINT:
+			case INTERVAL_DAY_TIME:
+				return (writer, pos, value) -> writer.writeLong(pos, (long) value);
+			case FLOAT:
+				return (writer, pos, value) -> writer.writeFloat(pos, (float) value);
+			case DOUBLE:
+				return (writer, pos, value) -> writer.writeDouble(pos, (double) value);
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				final int timestampPrecision = getPrecision(elementType);
+				return (writer, pos, value) -> writer.writeTimestamp(pos, (TimestampData) value, timestampPrecision);
+			case TIMESTAMP_WITH_TIME_ZONE:
+				throw new UnsupportedOperationException();
+			case ARRAY:
+				final ArrayDataSerializer arraySerializer = (ArrayDataSerializer) InternalSerializers.create(elementType);
+				return (writer, pos, value) -> writer.writeArray(pos, (ArrayData) value, arraySerializer);
+			case MULTISET:
+			case MAP:
+				final MapDataSerializer mapSerializer = (MapDataSerializer) InternalSerializers.create(elementType);
+				return (writer, pos, value) -> writer.writeMap(pos, (MapData) value, mapSerializer);
+			case ROW:
+			case STRUCTURED_TYPE:
+				final RowDataSerializer rowSerializer = (RowDataSerializer) InternalSerializers.create(elementType);
+				return (writer, pos, value) -> writer.writeRow(pos, (RowData) value, rowSerializer);
+			case DISTINCT_TYPE:
+				return createValueSetter(((DistinctType) elementType).getSourceType());
+			case RAW:
+				final RawValueDataSerializer<?> rawSerializer = (RawValueDataSerializer<?>) InternalSerializers.create(elementType);
+				return (writer, pos, value) -> writer.writeRawValue(pos, (RawValueData<?>) value, rawSerializer);
+			case NULL:
+			case SYMBOL:
+			case UNRESOLVED:
+			default:
+				throw new IllegalArgumentException();
+		}
+	}
+
+	/**
+	 * Accessor for setting the elements of an array writer during runtime.
+	 */
+	interface ValueSetter extends Serializable {
+		void setValue(BinaryArrayWriter writer, int pos, Object value);
 	}
 }
