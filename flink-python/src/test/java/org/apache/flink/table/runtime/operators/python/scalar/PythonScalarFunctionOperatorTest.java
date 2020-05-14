@@ -99,7 +99,7 @@ public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperat
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
-				pythonEnvironmentManager,
+				PythonTestUtils.createTestEnvironmentManager(),
 				userDefinedFunctionInputType,
 				userDefinedFunctionOutputType,
 				jobOptions,

@@ -115,6 +115,8 @@ SCRIPTS_TEMP_PATH = os.path.join(TEMP_PATH, "bin")
 LICENSE_FILE_TEMP_PATH = os.path.join(this_directory, "LICENSE")
 NOTICE_FILE_TEMP_PATH = os.path.join(this_directory, "NOTICE")
 README_FILE_TEMP_PATH = os.path.join("pyflink", "README.txt")
+PYFLINK_UDF_RUNNER_SH = "pyflink-udf-runner.sh"
+PYFLINK_UDF_RUNNER_BAT = "pyflink-udf-runner.bat"
 
 in_flink_source = os.path.isfile("../flink-java/src/main/java/org/apache/flink/api/java/"
                                  "ExecutionEnvironment.java")
@@ -182,7 +184,6 @@ run sdist.
             os.symlink(CONF_PATH, CONF_TEMP_PATH)
             os.symlink(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
             os.symlink(PLUGINS_PATH, PLUGINS_TEMP_PATH)
-            os.symlink(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
             os.symlink(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
             os.symlink(README_FILE_PATH, README_FILE_TEMP_PATH)
         else:
@@ -194,13 +195,20 @@ run sdist.
             copytree(CONF_PATH, CONF_TEMP_PATH)
             copytree(EXAMPLES_PATH, EXAMPLES_TEMP_PATH)
             copytree(PLUGINS_PATH, PLUGINS_TEMP_PATH)
-            copytree(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
             copy(LICENSE_FILE_PATH, LICENSE_FILE_TEMP_PATH)
             copy(README_FILE_PATH, README_FILE_TEMP_PATH)
         os.mkdir(LOG_TEMP_PATH)
         with open(os.path.join(LOG_TEMP_PATH, "empty.txt"), 'w') as f:
             f.write("This file is used to force setuptools to include the log directory. "
                     "You can delete it at any time after installation.")
+
+        # copy the udf runner scripts
+        copytree(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
+        copy(os.path.join(this_directory, "bin", PYFLINK_UDF_RUNNER_SH),
+             os.path.join(SCRIPTS_TEMP_PATH, PYFLINK_UDF_RUNNER_SH))
+        copy(os.path.join(this_directory, "bin", PYFLINK_UDF_RUNNER_BAT),
+             os.path.join(SCRIPTS_TEMP_PATH, PYFLINK_UDF_RUNNER_BAT))
+
         if exist_licenses and platform.system() != "Windows":
             # regenerate the licenses directory and NOTICE file as we only copy part of the
             # flink binary distribution.

@@ -18,6 +18,7 @@
 
 package org.apache.flink.python.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
 
@@ -39,7 +40,8 @@ import java.util.Set;
 /**
  * Utils used to extract zip files and try to restore the origin permissions of files.
  */
-public class ZipUtil {
+@Internal
+public class ZipUtils {
 
 	public static void extractZipFileWithPermissions(String zipFilePath, String targetPath) throws IOException {
 		try (ZipFile zipFile = new ZipFile(zipFilePath)) {

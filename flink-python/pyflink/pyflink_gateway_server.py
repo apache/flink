@@ -190,6 +190,9 @@ def launch_gateway_server_process(env, args):
     if "FLINK_TESTING" in env:
         download_apache_avro()
         classpath = os.pathsep.join([classpath, construct_test_classpath()])
+        # use the script in the directory of flink-python/bin in case of testing
+        env["PYFLINK_UDF_RUNNER_DIR"] = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin")
     program_args = construct_program_args(args)
     if program_args.cluster_type == "local":
         command = [java_executable] + log_settings + ["-cp", classpath, program_args.main_class] \
