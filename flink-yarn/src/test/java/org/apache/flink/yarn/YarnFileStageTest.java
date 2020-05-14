@@ -210,14 +210,15 @@ public class YarnFileStageTest extends TestLogger {
 
 			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
 			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.from(
-					targetFileSystem, targetDir, Collections.emptyList(), applicationId);
+				targetFileSystem,
+				targetDir,
+				Collections.emptyList(),
+				applicationId,
+				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
 			final List<String> classpath = uploader.registerMultipleLocalResources(
 				Collections.singletonList(srcPath),
-				remotePaths,
-				localResourceDirectory,
-				new ArrayList<>(),
-				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+				localResourceDirectory);
 
 			final Path basePath = new Path(localResourceDirectory, srcPath.getName());
 			final Path nestedPath = new Path(basePath, "nested");
@@ -274,14 +275,15 @@ public class YarnFileStageTest extends TestLogger {
 
 			final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
 			final YarnApplicationFileUploader uploader = YarnApplicationFileUploader.from(
-					targetFileSystem, targetDir, Collections.emptyList(), applicationId);
+				targetFileSystem,
+				targetDir,
+				Collections.emptyList(),
+				applicationId,
+				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 
 			final List<String> classpath = uploader.registerMultipleLocalResources(
 				Collections.singletonList(new Path(srcDir.getAbsolutePath(), localFile)),
-				remotePaths,
-				localResourceDirectory,
-				new ArrayList<>(),
-				DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+				localResourceDirectory);
 
 			assertThat(classpath, containsInAnyOrder(new Path(localResourceDirectory, localFile).toString()));
 
