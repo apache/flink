@@ -194,7 +194,12 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 	public void close() {
 		synchronized (producerClosingLock) {
 			kafkaProducer.close();
-			LOG.debug("Closed internal KafkaProducer {}. Stacktrace: {}", System.identityHashCode(this), Joiner.on("\n").join(Thread.currentThread().getStackTrace()));
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(
+						"Closed internal KafkaProducer {}. Stacktrace: {}",
+						System.identityHashCode(this),
+						Joiner.on("\n").join(Thread.currentThread().getStackTrace()));
+			}
 			closed = true;
 		}
 	}
@@ -203,7 +208,12 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 	public void close(long timeout, TimeUnit unit) {
 		synchronized (producerClosingLock) {
 			kafkaProducer.close(timeout, unit);
-			LOG.debug("Closed internal KafkaProducer {}. Stacktrace: {}", System.identityHashCode(this), Joiner.on("\n").join(Thread.currentThread().getStackTrace()));
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(
+						"Closed internal KafkaProducer {}. Stacktrace: {}",
+						System.identityHashCode(this),
+						Joiner.on("\n").join(Thread.currentThread().getStackTrace()));
+			}
 			closed = true;
 		}
 	}
