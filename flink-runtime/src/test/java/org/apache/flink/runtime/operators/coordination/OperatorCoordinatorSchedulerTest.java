@@ -52,6 +52,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matcher;
 import org.junit.After;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -67,6 +68,7 @@ import java.util.function.Consumer;
 import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
 import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertArrayEquals;
@@ -173,6 +175,17 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 	}
 
 	@Test
+	public void cancellationAsPartOfFailoverNotifiesCoordinator() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerWithAllRestartOnFailureAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		failTask(scheduler, 1);
+
+		assertEquals(2, coordinator.getFailedTasks().size());
+		assertThat(coordinator.getFailedTasks(), containsInAnyOrder(0, 1));
+	}
+
+	@Test
 	public void taskRepeatedFailureNotifyCoordinator() throws Exception {
 		final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
 		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
@@ -202,6 +215,36 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		final CompletableFuture<?> result = context.sendEvent(new TestOperatorEvent(), 0);
 
 		assertThat(result, futureFailedWith(TestException.class));
+	}
+
+	// THESE TESTS BELOW SHOULD LEGITIMATELY WORK, BUT THE SCHEDULER ITSELF SEEMS TO NOT HANDLE
+	// THIS SITUATION AT THE MOMENT
+	// WE KEEP THESE TESTS HERE TO ENABLE THEM ONCE THE SCHEDULER'S CONTRACT SUPPORTS THEM
+
+	@Ignore
+	@Test
+	public void deployingTaskCancellationNotifiesCoordinator() throws Exception {
+		final DefaultScheduler scheduler = createAndStartScheduler();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		cancelTask(scheduler, 1);
+
+		assertEquals(1, coordinator.getFailedTasks().size());
+		assertThat(coordinator.getFailedTasks(), contains(1));
+		assertThat(coordinator.getFailedTasks(), not(contains(0)));
+	}
+
+	@Ignore
+	@Test
+	public void runningTaskCancellationNotifiesCoordinator() throws Exception {
+		final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		cancelTask(scheduler, 0);
+
+		assertEquals(1, coordinator.getFailedTasks().size());
+		assertThat(coordinator.getFailedTasks(), contains(0));
+		assertThat(coordinator.getFailedTasks(), not(contains(1)));
 	}
 
 	// ------------------------------------------------------------------------

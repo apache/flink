@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.ThrowingSlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
@@ -274,8 +275,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	private CompletableFuture<?> cancelExecutionVertex(final ExecutionVertexID executionVertexId) {
+		final ExecutionVertex vertex = getExecutionVertex(executionVertexId);
+
+		notifyCoordinatorOfCancellation(vertex);
+
 		executionSlotAllocator.cancel(executionVertexId);
-		return executionVertexOperations.cancel(getExecutionVertex(executionVertexId));
+		return executionVertexOperations.cancel(vertex);
 	}
 
 	@Override
@@ -466,6 +471,23 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			executionVertexOperations.deploy(executionVertex);
 		} catch (Throwable e) {
 			handleTaskDeploymentFailure(executionVertexId, e);
+		}
+	}
+
+	private void notifyCoordinatorOfCancellation(ExecutionVertex vertex) {
+		// this method makes a best effort to filter out duplicate notifications, meaning cases where
+		// the coordinator was already notified for that specific task
+		// we don't notify if the task is already FAILED, CANCELLING, or CANCELED
+
+		final ExecutionState currentState = vertex.getExecutionState();
+		if (currentState == ExecutionState.FAILED ||
+				currentState == ExecutionState.CANCELING ||
+				currentState == ExecutionState.CANCELED) {
+			return;
+		}
+
+		for (OperatorCoordinator coordinator : vertex.getJobVertex().getOperatorCoordinators()) {
+			coordinator.subtaskFailed(vertex.getParallelSubtaskIndex(), null);
 		}
 	}
 }
