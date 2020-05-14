@@ -332,16 +332,16 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"  `A`  FLOAT,\n" +
 						"  `B`  TIMESTAMP,\n" +
 						"  `C`  BINARY\n" +
-						")");
+						") CASCADE");
 		sql("alter table tbl replace columns (a char(100),b tinyint comment 'tiny comment',c smallint) restrict")
 				.ok("ALTER TABLE `TBL` REPLACE COLUMNS (\n" +
 						"  `A`  CHAR(100),\n" +
 						"  `B`  TINYINT  COMMENT 'tiny comment',\n" +
 						"  `C`  SMALLINT\n" +
-						")");
+						") RESTRICT");
 		sql("alter table tbl partition (p=1) replace columns (a array<decimal>)")
 				.ok("ALTER TABLE `TBL` PARTITION (`P` = 1) REPLACE COLUMNS (\n" +
 						"  `A`  ARRAY< DECIMAL >\n" +
-						")");
+						") RESTRICT");
 	}
 }

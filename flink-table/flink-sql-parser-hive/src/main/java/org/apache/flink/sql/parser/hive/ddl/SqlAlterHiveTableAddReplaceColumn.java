@@ -86,5 +86,10 @@ public class SqlAlterHiveTableAddReplaceColumn extends SqlAlterHiveTableColumn {
 		}
 		writer.newlineAndIndent();
 		writer.endList(frame);
+		if (cascade) {
+			writer.keyword("CASCADE");
+		} else {
+			writer.keyword("RESTRICT");
+		}
 	}
 }
