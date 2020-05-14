@@ -37,6 +37,7 @@
     "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintRely"
     "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintTrait"
     "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintValidate"
+    "org.apache.flink.sql.parser.hive.dml.RichSqlHiveInsert"
     "org.apache.flink.sql.parser.hive.type.ExtendedHiveStructTypeNameSpec"
     "org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement"
     "org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint"
@@ -490,6 +491,7 @@
   # Return type of method implementation should be 'SqlNode'.
   # Example: SqlShowDatabases(), SqlShowTables().
   statementParserMethods: [
+    "RichSqlInsert()"
     "SqlShowDatabases()"
     "SqlUseDatabase()"
     "SqlAlterDatabase()"
