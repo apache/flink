@@ -118,19 +118,20 @@ public class TypeStrategiesTest {
 				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING())
 				.expectDataType(DataTypes.ROW(
 					DataTypes.FIELD("f0", DataTypes.BIGINT()),
-					DataTypes.FIELD("f1", DataTypes.STRING()))),
+					DataTypes.FIELD("f1", DataTypes.STRING())).notNull()
+				),
 
 			TestSpec.forStrategy(
 				"Infer an array type",
 				TypeStrategies.ARRAY)
 				.inputTypes(DataTypes.BIGINT(), DataTypes.BIGINT())
-				.expectDataType(DataTypes.ARRAY(DataTypes.BIGINT())),
+				.expectDataType(DataTypes.ARRAY(DataTypes.BIGINT()).notNull()),
 
 			TestSpec.forStrategy(
 				"Infer a map type",
 				TypeStrategies.MAP)
 				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING().notNull())
-				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()))
+				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()).notNull())
 		);
 	}
 
