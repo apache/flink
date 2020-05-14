@@ -368,16 +368,16 @@ public final class StructuredType extends UserDefinedType {
 
 	@Override
 	public List<LogicalType> getChildren() {
-		final ArrayList<LogicalType> children = new ArrayList<>();
-		StructuredType currentType = this;
-		while (currentType != null) {
-			children.addAll(
-				currentType.attributes.stream()
-					.map(StructuredAttribute::getType)
-					.collect(Collectors.toList()));
-			currentType = currentType.superType;
+		final List<LogicalType> children = new ArrayList<>();
+		// add super fields first
+		if (superType != null) {
+			children.addAll(superType.getChildren());
 		}
-		Collections.reverse(children);
+		// then specific fields
+		children.addAll(
+			attributes.stream()
+				.map(StructuredAttribute::getType)
+				.collect(Collectors.toList()));
 		return Collections.unmodifiableList(children);
 	}
 
