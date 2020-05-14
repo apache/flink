@@ -77,11 +77,19 @@ class YarnApplicationFileUploader implements AutoCloseable {
 
 	private final Map<String, LocalResource> localResources;
 
+	// list of remote paths (uploaded resources will be added)
+	private final List<Path> remotePaths;
+	// ship list that enables reuse of resources for task manager containers
+	private final List<YarnLocalResourceDescriptor> envShipResourceList;
+	// number of replications of a remote file to be created
+	private final int fileReplication;
+
 	private YarnApplicationFileUploader(
 			final FileSystem fileSystem,
 			final Path homeDir,
 			final List<Path> providedLibDirs,
-			final ApplicationId applicationId) throws IOException {
+			final ApplicationId applicationId,
+			final int fileReplication) throws IOException {
 		this.fileSystem = checkNotNull(fileSystem);
 		this.homeDir = checkNotNull(homeDir);
 		this.applicationId = checkNotNull(applicationId);
@@ -89,10 +97,24 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		this.localResources = new HashMap<>();
 		this.applicationDir = getApplicationDir(applicationId);
 		this.providedSharedLibs = getAllFilesInProvidedLibDirs(providedLibDirs);
+
+		this.remotePaths = new ArrayList<>();
+		this.envShipResourceList = new ArrayList<>();
+
+		checkArgument(fileReplication >= 1);
+		this.fileReplication = fileReplication;
 	}
 
 	Map<String, LocalResource> getRegisteredLocalResources() {
 		return localResources;
+	}
+
+	List<Path> getRemotePaths() {
+		return remotePaths;
+	}
+
+	List<YarnLocalResourceDescriptor> getEnvShipResourceList() {
+		return envShipResourceList;
 	}
 
 	Path getHomeDir() {
@@ -114,14 +136,19 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 * @param resourcePath path of the resource to be registered
 	 * @param relativeDstPath the relative path at the target location
 	 *                              (this will be prefixed by the application-specific directory)
-	 * @param replicationFactor number of replications of a remote file to be created
+	 * @param whetherToAddToRemotePaths whether to add the path of local resource to <tt>remotePaths</tt>
+	 * @param whetherToAddToEnvShipResourceList whether to add the local resource to <tt>envShipResourceList</tt>
+	 *
 	 * @return the uploaded resource descriptor
 	 */
 	YarnLocalResourceDescriptor registerSingleLocalResource(
 			final String key,
 			final Path resourcePath,
 			final String relativeDstPath,
-			final int replicationFactor) throws IOException {
+			final boolean whetherToAddToRemotePaths,
+			final boolean whetherToAddToEnvShipResourceList) throws IOException {
+
+		addToRemotePaths(whetherToAddToRemotePaths, resourcePath);
 
 		if (Utils.isRemotePath(resourcePath.toString())) {
 			final FileStatus fileStatus = fileSystem.getFileStatus(resourcePath);
@@ -129,6 +156,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 
 			final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
 				.fromFileStatus(key, fileStatus, LocalResourceVisibility.APPLICATION);
+			addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
 			localResources.put(key, descriptor.toLocalResource());
 			return descriptor;
 		}
@@ -139,30 +167,31 @@ class YarnApplicationFileUploader implements AutoCloseable {
 
 			final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
 				.fromFileStatus(fileStatus.getPath().getName(), fileStatus, LocalResourceVisibility.PUBLIC);
+			addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
 			return descriptor;
 		}
 
 		final File localFile = new File(resourcePath.toUri().getPath());
-		final Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(resourcePath, relativeDstPath, replicationFactor);
+		final Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(resourcePath, relativeDstPath);
 		final YarnLocalResourceDescriptor descriptor = new YarnLocalResourceDescriptor(
 			key,
 			remoteFileInfo.f0,
 			localFile.length(),
 			remoteFileInfo.f1,
 			LocalResourceVisibility.APPLICATION);
+		addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
 		localResources.put(key, descriptor.toLocalResource());
 		return descriptor;
 	}
 
 	Tuple2<Path, Long> uploadLocalFileToRemote(
 			final Path localSrcPath,
-			final String relativeDstPath,
-			final int replicationFactor) throws IOException {
+			final String relativeDstPath) throws IOException {
 
 		final File localFile = new File(localSrcPath.toUri().getPath());
 		checkArgument(!localFile.isDirectory(), "File to copy cannot be a directory: " + localSrcPath);
 
-		final Path dst = copyToRemoteApplicationDir(localSrcPath, relativeDstPath, replicationFactor);
+		final Path dst = copyToRemoteApplicationDir(localSrcPath, relativeDstPath, fileReplication);
 
 		// Note: If we directly used registerLocalResource(FileSystem, Path) here, we would access the remote
 		//       file once again which has problems with eventually consistent read-after-write file
@@ -185,25 +214,15 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 *
 	 * @param shipFiles
 	 * 		local or remote files to register as Yarn local resources
-	 * @param remotePaths
-	 * 		paths of the remote resources (uploaded resources will be added)
 	 * @param localResourcesDirectory
 	 *		the directory the localResources are uploaded to
-	 * @param envShipResourceList
-	 * 		list of shipped resources in {@link YarnLocalResourceDescriptor} format
-	 * @param replicationFactor
-	 * 	     number of replications of a remote file to be created
 	 *
 	 * @return list of class paths with the the proper resource keys from the registration
 	 */
 	List<String> registerMultipleLocalResources(
 			final Collection<Path> shipFiles,
-			final List<Path> remotePaths,
-			final String localResourcesDirectory,
-			final List<YarnLocalResourceDescriptor> envShipResourceList,
-			final int replicationFactor) throws IOException {
+			final String localResourcesDirectory) throws IOException {
 
-		checkArgument(replicationFactor >= 1);
 		final List<Path> localPaths = new ArrayList<>();
 		final List<Path> relativePaths = new ArrayList<>();
 		for (Path shipFile : shipFiles) {
@@ -249,9 +268,8 @@ class YarnApplicationFileUploader implements AutoCloseable {
 						key,
 						localPath,
 						relativePath.getParent().toString(),
-						replicationFactor);
-				remotePaths.add(resourceDescriptor.getPath());
-				envShipResourceList.add(resourceDescriptor);
+						true,
+						true);
 
 				if (!resourceDescriptor.alreadyRegisteredAsLocalResource()) {
 					if (key.endsWith("jar")) {
@@ -302,8 +320,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 			final FileSystem fileSystem,
 			final Path homeDirectory,
 			final List<Path> providedLibDirs,
-			final ApplicationId applicationId) throws IOException {
-		return new YarnApplicationFileUploader(fileSystem, homeDirectory, providedLibDirs, applicationId);
+			final ApplicationId applicationId,
+			final int fileReplication) throws IOException {
+		return new YarnApplicationFileUploader(fileSystem, homeDirectory, providedLibDirs, applicationId, fileReplication);
 	}
 
 	private Path copyToRemoteApplicationDir(
@@ -393,5 +412,17 @@ class YarnApplicationFileUploader implements AutoCloseable {
 				})
 		);
 		return Collections.unmodifiableMap(allFiles);
+	}
+
+	private void addToRemotePaths(boolean add, Path path) {
+		if (add) {
+			remotePaths.add(path);
+		}
+	}
+
+	private void addToEnvShipResourceList(boolean add, YarnLocalResourceDescriptor descriptor) {
+		if (add) {
+			envShipResourceList.add(descriptor);
+		}
 	}
 }
