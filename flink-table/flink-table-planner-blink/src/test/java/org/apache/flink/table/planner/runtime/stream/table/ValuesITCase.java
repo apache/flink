@@ -37,9 +37,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -314,6 +317,22 @@ public class ValuesITCase extends StreamingTestBase {
 		assertThat(
 			new HashSet<>(actual),
 			equalTo(new HashSet<>(expected)));
+	}
+
+	@Test
+	public void testRegisteringValuesWithComplexTypes() {
+		Map<Integer, Integer> mapData = new HashMap<>();
+		mapData.put(1, 1);
+		mapData.put(2, 2);
+
+		Row row = Row.of(mapData, Row.of(1, 2, 3), new Integer[]{1, 2});
+		Table values = tEnv().fromValues(Collections.singletonList(row));
+		tEnv().createTemporaryView("values_t", values);
+		Iterator<Row> iter = tEnv().executeSql("select * from values_t").collect();
+
+		List<Row> results = new ArrayList<>();
+		iter.forEachRemaining(results::add);
+		assertThat(results, equalTo(Collections.singletonList(row)));
 	}
 
 	/**

@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.calcite
 
 import java.nio.charset.Charset
 import java.util
-
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.RelNode
@@ -36,7 +35,7 @@ import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Valid
 import org.apache.flink.table.calcite.ExtendedRelTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -128,6 +127,8 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
             new RawRelDataType(rawType)
           case genericType: TypeInformationRawType[_] =>
             new GenericRelDataType(genericType, true, getTypeSystem)
+          case legacyType: LegacyTypeInformationType[_] =>
+            createFieldTypeFromLogicalType(PlannerTypeUtils.removeLegacyTypes(legacyType))
         }
 
       case LogicalTypeRoot.SYMBOL =>

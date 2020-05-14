@@ -18,38 +18,10 @@
 
 package org.apache.flink.table.runtime.types;
 
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.data.DecimalDataUtils;
-import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
-import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
-import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
-import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
-import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
-import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
-import org.apache.flink.table.runtime.typeutils.TimestampDataTypeInfo;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.ArrayType;
-import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
-import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.MapType;
-import org.apache.flink.table.types.logical.MultisetType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.table.types.utils.TypeConversions;
-
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType;
 
 /**
  * Converter between {@link DataType} and {@link LogicalType}.
@@ -70,91 +42,6 @@ public class LogicalTypeDataTypeConverter {
 	 * It convert {@link LegacyTypeInformationType} to planner types.
 	 */
 	public static LogicalType fromDataTypeToLogicalType(DataType dataType) {
-		return dataType.getLogicalType().accept(new LegacyTypeToPlannerTypeConverter());
-	}
-
-	private static class LegacyTypeToPlannerTypeConverter extends LogicalTypeDefaultVisitor<LogicalType> {
-
-		@Override
-		protected LogicalType defaultMethod(LogicalType logicalType) {
-			if (logicalType instanceof LegacyTypeInformationType) {
-				TypeInformation typeInfo = ((LegacyTypeInformationType) logicalType).getTypeInformation();
-				if (typeInfo.equals(BasicTypeInfo.BIG_DEC_TYPE_INFO)) {
-					// BigDecimal have infinity precision and scale, but we converted it into a limited
-					// Decimal(38, 18). If the user's BigDecimal is more precision than this, we will
-					// throw Exception to remind user to use GenericType in real data conversion.
-					return DecimalDataUtils.DECIMAL_SYSTEM_DEFAULT;
-				} else if (typeInfo.equals(StringDataTypeInfo.INSTANCE)) {
-					return DataTypes.STRING().getLogicalType();
-				} else if (typeInfo instanceof BasicArrayTypeInfo) {
-					return new ArrayType(
-							fromTypeInfoToLogicalType(((BasicArrayTypeInfo) typeInfo).getComponentInfo()));
-				} else if (typeInfo instanceof CompositeType) {
-					CompositeType compositeType = (CompositeType) typeInfo;
-					return RowType.of(
-							Stream.iterate(0, x -> x + 1).limit(compositeType.getArity())
-									.map((Function<Integer, TypeInformation>) compositeType::getTypeAt)
-									.map(TypeInfoLogicalTypeConverter::fromTypeInfoToLogicalType)
-									.toArray(LogicalType[]::new),
-							compositeType.getFieldNames()
-					);
-				} else if (typeInfo instanceof DecimalDataTypeInfo) {
-					DecimalDataTypeInfo decimalType = (DecimalDataTypeInfo) typeInfo;
-					return new DecimalType(decimalType.precision(), decimalType.scale());
-				} else if (typeInfo instanceof BigDecimalTypeInfo) {
-					BigDecimalTypeInfo decimalType = (BigDecimalTypeInfo) typeInfo;
-					return new DecimalType(decimalType.precision(), decimalType.scale());
-				} else if (typeInfo instanceof TimestampDataTypeInfo) {
-					TimestampDataTypeInfo timestampDataTypeInfo = (TimestampDataTypeInfo) typeInfo;
-					return new TimestampType(timestampDataTypeInfo.getPrecision());
-				} else if (typeInfo instanceof LegacyLocalDateTimeTypeInfo) {
-					LegacyLocalDateTimeTypeInfo dateTimeType = (LegacyLocalDateTimeTypeInfo) typeInfo;
-					return new TimestampType(dateTimeType.getPrecision());
-				} else if (typeInfo instanceof LegacyTimestampTypeInfo) {
-					LegacyTimestampTypeInfo timstampType = (LegacyTimestampTypeInfo) typeInfo;
-					return new TimestampType(timstampType.getPrecision());
-				} else if (typeInfo instanceof LegacyInstantTypeInfo) {
-					LegacyInstantTypeInfo instantTypeInfo = (LegacyInstantTypeInfo) typeInfo;
-					return new LocalZonedTimestampType(instantTypeInfo.getPrecision());
-				} else {
-					return new TypeInformationRawType<>(typeInfo);
-				}
-			} else {
-				return logicalType;
-			}
-		}
-
-		@Override
-		public LogicalType visit(ArrayType arrayType) {
-			return new ArrayType(
-					arrayType.isNullable(),
-					arrayType.getElementType().accept(this));
-		}
-
-		@Override
-		public LogicalType visit(MultisetType multisetType) {
-			return new MultisetType(
-					multisetType.isNullable(),
-					multisetType.getElementType().accept(this));
-		}
-
-		@Override
-		public LogicalType visit(MapType mapType) {
-			return new MapType(
-					mapType.isNullable(),
-					mapType.getKeyType().accept(this),
-					mapType.getValueType().accept(this));
-		}
-
-		@Override
-		public LogicalType visit(RowType rowType) {
-			return new RowType(
-					rowType.isNullable(),
-					rowType.getFields().stream().map(field ->
-							new RowType.RowField(
-									field.getName(),
-									field.getType().accept(LegacyTypeToPlannerTypeConverter.this)))
-							.collect(Collectors.toList()));
-		}
+		return PlannerTypeUtils.removeLegacyTypes(dataType.getLogicalType());
 	}
 }
