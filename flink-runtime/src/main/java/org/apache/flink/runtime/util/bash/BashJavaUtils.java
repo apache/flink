@@ -51,15 +51,14 @@ public class BashJavaUtils {
 
 		Command command = Command.valueOf(args[0]);
 		String[] commandArgs = Arrays.copyOfRange(args, 1, args.length);
-		Configuration configuration = FlinkConfigLoader.loadConfiguration(commandArgs);
-		List<String> output = runCommand(command, configuration);
+		List<String> output = runCommand(command, commandArgs);
 		for (String outputLine : output) {
 			System.out.println(EXECUTION_PREFIX + outputLine);
 		}
 	}
 
-	@VisibleForTesting
-	static List<String> runCommand(Command command, Configuration configuration) {
+	private static List<String> runCommand(Command command, String[] commandArgs) throws FlinkException {
+		Configuration configuration = FlinkConfigLoader.loadConfiguration(commandArgs);
 		switch (command) {
 			case GET_TM_RESOURCE_PARAMS:
 				return getTmResourceParams(configuration);
@@ -85,7 +84,11 @@ public class BashJavaUtils {
 			TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec));
 	}
 
-	private static List<String> getJmResourceParams(Configuration configuration) {
+	/**
+	 * Generate and print JVM parameters of Flink Master resources as one line.
+	 */
+	@VisibleForTesting
+	static List<String> getJmResourceParams(Configuration configuration) {
 		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
 			configuration,
 			JobManagerOptions.JVM_HEAP_MEMORY);

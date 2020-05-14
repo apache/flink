@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.util.bash.BashJavaUtils.Command;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -41,7 +40,7 @@ public class BashJavaUtilsTest extends TestLogger {
 		Configuration configuration = new Configuration();
 		MemorySize heapSize = MemorySize.ofMebiBytes(10);
 		configuration.set(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, heapSize);
-		String jvmArgsLine = BashJavaUtils.runCommand(Command.GET_JM_RESOURCE_PARAMS, configuration).get(0);
+		String jvmArgsLine = BashJavaUtils.getJmResourceParams(configuration).get(0);
 		Map<String, String> jvmArgs = ConfigurationUtils.parseJvmArgString(jvmArgsLine);
 		String heapSizeStr = Long.toString(heapSize.getBytes());
 		assertThat(jvmArgs.get("-Xmx"), is(heapSizeStr));
