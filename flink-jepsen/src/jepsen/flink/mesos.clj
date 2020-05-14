@@ -197,5 +197,5 @@
     db/LogFiles
     (log-files [_ test node]
       (concat
-        (if (cu/exists? log-dir) (cu/ls-full log-dir) [])
+        (fu/find-files! log-dir)
         (fu/find-files! slave-dir "*.log")))))
