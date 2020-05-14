@@ -18,11 +18,17 @@
 
 package org.apache.flink.table.runtime.connector.sink;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.TypeTransformation;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import static org.apache.flink.table.data.util.DataFormatConverters.getConverterForDataType;
+import static org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext.InternalConversionClassTransformation.INTERNAL_CLASS_TRANSFORM;
+import static org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /**
  * Implementation of {@link DynamicTableSink.Context}. Currently we delegate
@@ -44,10 +50,25 @@ public class SinkRuntimeProviderContext implements DynamicTableSink.Context {
 		return isBounded;
 	}
 
+	@Override
+	public TypeInformation<?> createTypeInformation(DataType consumedDataType) {
+		DataType internalDataType = DataTypeUtils.transform(consumedDataType, INTERNAL_CLASS_TRANSFORM);
+		return fromDataTypeToTypeInfo(internalDataType);
+	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public DynamicTableSink.DataStructureConverter createDataStructureConverter(DataType consumedDataType) {
 		DataFormatConverters.DataFormatConverter<Object, Object> converter = getConverterForDataType(consumedDataType);
 		return new DataFormatConverterWrapper(converter);
+	}
+
+	static final class InternalConversionClassTransformation implements TypeTransformation {
+		static final TypeTransformation INTERNAL_CLASS_TRANSFORM = new InternalConversionClassTransformation();
+		@Override
+		public DataType transform(DataType typeToTransform) {
+			Class<?> internalClass = toInternalConversionClass(typeToTransform.getLogicalType());
+			return typeToTransform.bridgedTo(internalClass);
+		}
 	}
 }
