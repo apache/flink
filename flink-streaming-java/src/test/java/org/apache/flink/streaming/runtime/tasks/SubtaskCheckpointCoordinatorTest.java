@@ -18,15 +18,22 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.Test;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link SubtaskCheckpointCoordinator}.
@@ -57,5 +64,22 @@ public class SubtaskCheckpointCoordinatorTest {
 			// even task is not running, state manager could still receive the notification.
 			assertEquals(newCheckpointId, stateManager.getNotifiedCompletedCheckpointId());
 		}
+	}
+
+	@Test
+	public void testSkipChannelStateForSavepoints() throws Exception {
+		SubtaskCheckpointCoordinator coordinator = new MockSubtaskCheckpointCoordinatorBuilder()
+			.setUnalignedCheckpointEnabled(false)
+			.setPrepareInputSnapshot((u1, u2) -> {
+				fail("should not prepare input snapshot for savepoint");
+				return null;
+			}).build();
+
+		coordinator.checkpointState(
+			new CheckpointMetaData(0, 0),
+			new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
+			new CheckpointMetrics(),
+			new OperatorChain<>(new NoOpStreamTask<>(new DummyEnvironment()), new NonRecordWriter<>()),
+			() -> false);
 	}
 }
