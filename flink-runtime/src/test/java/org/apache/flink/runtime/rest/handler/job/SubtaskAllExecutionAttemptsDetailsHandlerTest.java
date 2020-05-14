@@ -36,7 +36,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -97,7 +97,7 @@ public class SubtaskAllExecutionAttemptsDetailsHandlerTest extends TestLogger {
 			Time.milliseconds(100),
 			Collections.emptyMap(),
 			SubtaskAllExecutionAttemptDetailsHeaders.getInstance(),
-			new ExecutionGraphCache(
+			new DefaultExecutionGraphCache(
 				restHandlerConfiguration.getTimeout(),
 				Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
 			TestingUtils.defaultExecutor(),
