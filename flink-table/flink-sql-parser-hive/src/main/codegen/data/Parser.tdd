@@ -498,6 +498,7 @@
     "SqlDescribeDatabase()"
     "SqlShowTables()"
     "SqlRichDescribeTable()"
+    "SqlShowFunctions()"
   ]
 
   # List of methods for parsing custom literals.
@@ -540,6 +541,7 @@
   dropStatementParserMethods: [
     "SqlDropTable"
     "SqlDropDatabase"
+    "SqlDropFunction"
   ]
 
   # Binary operators tokens

@@ -229,7 +229,11 @@ SqlCreate SqlCreateTemporary(Span s, boolean replace) :
 {
   [ <TEMPORARY>   {isTemporary = true;} ]
 
-  create = SqlCreateTable(s, isTemporary)
+  (
+    create = SqlCreateFunction(s, isTemporary)
+    |
+    create = SqlCreateTable(s, isTemporary)
+  )
   {
     return create;
   }
@@ -956,5 +960,54 @@ void TableApiIdentifierSegment(List<String> names, List<SqlParserPos> positions)
         if (positions != null) {
             positions.add(pos);
         }
+    }
+}
+
+SqlCreate SqlCreateFunction(Span s, boolean isTemporary) :
+{
+    SqlIdentifier functionIdentifier = null;
+    SqlCharStringLiteral functionClassName = null;
+}
+{
+    <FUNCTION>
+
+    functionIdentifier = CompoundIdentifier()
+
+    <AS> <QUOTED_STRING> {
+        functionClassName = createStringLiteral(token.image, getPos());
+    }
+    {
+        return new SqlCreateFunction(s.pos(), functionIdentifier, functionClassName, null,
+                false, isTemporary, false);
+    }
+}
+
+SqlDrop SqlDropFunction(Span s, boolean replace) :
+{
+    SqlIdentifier functionIdentifier = null;
+    boolean ifExists = false;
+    boolean isTemporary = false;
+}
+{
+    [ <TEMPORARY> {isTemporary = true;} ]
+    <FUNCTION>
+
+    [ LOOKAHEAD(2) <IF> <EXISTS> { ifExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    {
+        return new SqlDropFunction(s.pos(), functionIdentifier, ifExists, isTemporary, false);
+    }
+}
+
+SqlShowFunctions SqlShowFunctions() :
+{
+    SqlParserPos pos;
+}
+{
+    <SHOW> <FUNCTIONS> { pos = getPos();}
+    {
+        return new SqlShowFunctions(pos, null);
     }
 }

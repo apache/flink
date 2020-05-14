@@ -221,4 +221,22 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"(SELECT *\n" +
 						"FROM `SRC`)");
 	}
+
+	@Test
+	public void testCreateFunction() {
+		sql("create function func as 'class.name'").ok("CREATE FUNCTION `FUNC` AS 'class.name'");
+		sql("create temporary function func as 'class.name'").ok("CREATE TEMPORARY FUNCTION `FUNC` AS 'class.name'");
+	}
+
+	@Test
+	public void testDropFunction() {
+		sql("drop function if exists func").ok("DROP FUNCTION IF EXISTS `FUNC`");
+		sql("drop temporary function func").ok("DROP TEMPORARY FUNCTION `FUNC`");
+	}
+
+	@Test
+	public void testShowFunctions() {
+		// TODO: support SHOW FUNCTIONS LIKE 'regex_pattern'
+		sql("show functions").ok("SHOW FUNCTIONS");
+	}
 }

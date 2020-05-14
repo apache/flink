@@ -42,6 +42,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe;
 import org.junit.After;
@@ -220,6 +221,16 @@ public class HiveDialectTest {
 
 	private static void waitForJobFinish(TableResult tableResult) throws Exception {
 		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+	}
+
+	@Test
+	public void testFunction() throws Exception {
+		tableEnv.executeSql(String.format("create function my_abs as '%s'", GenericUDFAbs.class.getName()));
+		List<Row> functions = Lists.newArrayList(tableEnv.executeSql("show functions").collect());
+		assertTrue(functions.toString().contains("my_abs"));
+		tableEnv.executeSql("drop function my_abs");
+		assertFalse(hiveCatalog.functionExists(new ObjectPath("default", "my_abs")));
+		tableEnv.executeSql("drop function if exists foo");
 	}
 
 	private static String locationPath(String locationURI) throws URISyntaxException {
