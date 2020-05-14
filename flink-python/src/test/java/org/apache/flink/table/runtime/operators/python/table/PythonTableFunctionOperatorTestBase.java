@@ -23,6 +23,7 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.operators.python.PythonFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.runners.python.scalar.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -48,7 +49,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @param <OUT> Type of the output elements.
  * @param <UDTFIN> Type of the UDTF input type.
  */
-public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
+public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> extends PythonFunctionOperatorTestBase {
 
 	@Test
 	public void testRetractionFieldKept() throws Exception {

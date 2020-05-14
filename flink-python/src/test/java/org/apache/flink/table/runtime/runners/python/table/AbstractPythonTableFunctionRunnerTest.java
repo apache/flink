@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.runners.python.table;
 
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.runners.python.PythonFunctionRunnerTestBase;
 import org.apache.flink.table.runtime.runners.python.scalar.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -30,7 +31,7 @@ import java.util.Collections;
  *
  * @param <IN>  Type of the input elements.
  */
-public abstract class AbstractPythonTableFunctionRunnerTest<IN> {
+public abstract class AbstractPythonTableFunctionRunnerTest<IN> extends PythonFunctionRunnerTestBase {
 	AbstractPythonTableFunctionRunner<IN> createUDTFRunner() throws Exception {
 		PythonFunctionInfo pythonFunctionInfo = new PythonFunctionInfo(
 			AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,

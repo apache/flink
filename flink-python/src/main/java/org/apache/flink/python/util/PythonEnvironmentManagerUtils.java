@@ -18,6 +18,7 @@
 package org.apache.flink.python.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.OperatingSystem;
 
 import org.slf4j.Logger;
@@ -28,7 +29,6 @@ import javax.annotation.Nullable;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -50,8 +50,8 @@ public class PythonEnvironmentManagerUtils {
 	private static final String PYFLINK_UDF_RUNNER_SH = "pyflink-udf-runner.sh";
 	private static final String PYFLINK_UDF_RUNNER_BAT = "pyflink-udf-runner.bat";
 
-	private static final String PYFLINK_UDF_RUNNER_DIR = "PYFLINK_UDF_RUNNER_DIR";
-	private static final String FLINK_TESTING = "FLINK_TESTING";
+	@VisibleForTesting
+	public static final String PYFLINK_UDF_RUNNER_DIR = "PYFLINK_UDF_RUNNER_DIR";
 
 	private static final String GET_SITE_PACKAGES_PATH_SCRIPT =
 		"import sys;" +
@@ -132,7 +132,7 @@ public class PythonEnvironmentManagerUtils {
 			String pythonExecutable,
 			Map<String, String> environmentVariables) throws IOException {
 		String runnerDir;
-		if (environmentVariables.containsKey(PythonEnvironmentManagerUtils.FLINK_TESTING)) {
+		if (environmentVariables.containsKey(PYFLINK_UDF_RUNNER_DIR)) {
 			runnerDir = environmentVariables.get(PYFLINK_UDF_RUNNER_DIR);
 		} else {
 			String[] commands = new String[] { pythonExecutable, "-c", GET_RUNNER_DIR_SCRIPT};
@@ -144,11 +144,6 @@ public class PythonEnvironmentManagerUtils {
 			runnerScriptPath = String.join(File.separator, runnerDir, PYFLINK_UDF_RUNNER_BAT);
 		} else {
 			runnerScriptPath = String.join(File.separator, runnerDir, PYFLINK_UDF_RUNNER_SH);
-		}
-		if (!new File(runnerScriptPath).exists()) {
-			throw new FileNotFoundException(String.format(
-				"The runner script '%s' does not exist! " +
-				"Please reinstall the apache-flink Python package.", runnerScriptPath));
 		}
 		return runnerScriptPath;
 	}
