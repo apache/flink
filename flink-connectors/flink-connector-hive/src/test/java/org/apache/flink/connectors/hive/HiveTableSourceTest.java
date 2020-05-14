@@ -499,7 +499,6 @@ public class HiveTableSourceTest {
 		out.print(); // add print to see streaming reading
 		out.addSink(sink);
 
-		StreamTestSink.clear();
 		JobClient job = env.executeAsync("job");
 
 		Runnable runnable = () -> {
