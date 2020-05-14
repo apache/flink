@@ -981,4 +981,13 @@ public abstract class SchedulerBase implements SchedulerNG {
 		}
 		return coordinatorMap;
 	}
+
+	// ------------------------------------------------------------------------
+	//  access utils for testing
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	JobID getJobId() {
+		return jobGraph.getJobID();
+	}
 }
