@@ -21,7 +21,6 @@
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 
 cimport libc.stdlib
-from libc.string cimport strlen
 
 import datetime
 import decimal
@@ -403,6 +402,7 @@ cdef class FlattenRowCoderImpl(StreamCoderImpl):
 
     cdef void _encode_field_simple(self, TypeName field_type, item):
         cdef libc.stdint.int32_t hour, minute, seconds, microsecond, milliseconds
+        cdef bytes item_bytes
         if field_type == TINYINT:
             # tinyint
             self._encode_byte(item)
@@ -426,10 +426,11 @@ cdef class FlattenRowCoderImpl(StreamCoderImpl):
             self._encode_double(item)
         elif field_type == BINARY:
             # bytes
-            self._encode_bytes(item)
+            self._encode_bytes(item, len(item))
         elif field_type == CHAR:
             # str
-            self._encode_bytes(item.encode('utf-8'))
+            item_bytes = item.encode('utf-8')
+            self._encode_bytes(item_bytes, len(item_bytes))
         elif field_type == DATE:
             # Date
             # EPOCH_ORDINAL = datetime.datetime(1970, 1, 1).toordinal()
@@ -460,7 +461,7 @@ cdef class FlattenRowCoderImpl(StreamCoderImpl):
             decimal.setcontext((<DecimalCoderImpl> field_coder).context)
             bytes_value = str(item.quantize((<DecimalCoderImpl> field_coder).scale_format)).encode(
                 "utf-8")
-            self._encode_bytes(bytes_value)
+            self._encode_bytes(bytes_value, len(bytes_value))
             decimal.setcontext(user_context)
         elif field_type == TIMESTAMP or field_type == LOCAL_ZONED_TIMESTAMP:
             # Timestamp
@@ -611,8 +612,7 @@ cdef class FlattenRowCoderImpl(StreamCoderImpl):
     cdef void _encode_double(self, double v):
         self._encode_bigint((<libc.stdint.int64_t*> <char*> &v)[0])
 
-    cdef void _encode_bytes(self, char*b):
-        cdef libc.stdint.int32_t length = strlen(b)
+    cdef void _encode_bytes(self, char*b, size_t length):
         self._encode_int(length)
         if self._tmp_output_buffer_size < self._tmp_output_pos + length:
             self._extend(length)
