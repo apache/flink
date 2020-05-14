@@ -125,7 +125,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 
 	@Test
 	public void testIncompatibleTypes() {
-		String expectedMsg = "java.sql.SQLDataException: Invalid character string format for type INTEGER.";
+		String expectedMsg = "Invalid character string format for type INTEGER.";
 		try {
 			jdbcOutputFormat = JdbcOutputFormat.buildJdbcOutputFormat()
 				.setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
@@ -146,13 +146,13 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 			jdbcOutputFormat.close();
 		} catch (Exception e) {
 			assertTrue(e instanceof RuntimeException);
-			assertEquals(expectedMsg, e.getCause().getMessage());
+			assertTrue(expectedMsg, e.getCause().getMessage().contains(expectedMsg));
 		}
 	}
 
 	@Test
 	public void testExceptionOnInvalidType() {
-		String expectedMsg = "java.lang.Long cannot be cast to java.lang.Double, field index: 3, field value: 0.";
+		String expectedMsg = "field index: 3, field value: 0.";
 		try {
 			jdbcOutputFormat = JdbcOutputFormat.buildJdbcOutputFormat()
 				.setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
@@ -179,7 +179,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 			jdbcOutputFormat.close();
 		} catch (Exception e) {
 			assertTrue(e instanceof RuntimeException);
-			assertEquals(expectedMsg, e.getCause().getMessage());
+			assertTrue(e.getCause().getMessage().contains(expectedMsg));
 		}
 	}
 
