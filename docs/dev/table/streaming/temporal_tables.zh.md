@@ -24,9 +24,9 @@ under the License.
 
 时态表（Temporal Table）表示一直在变化的表上一个（参数化）视图的概念，该视图返回表在某个特定时间点的内容。
 
-变化的表可以是追踪变化的变化历史记录表（例如：数据库变更日志），也可以是有具体更改的维表（例如：数据库表）。
+变更表可以是跟踪变化的历史记录表（例如数据库变更日志），也可以是有具体更改的维表（例如数据库表）。
 
-对于表的历史变化，Flink 可以追踪这些变化，并且允许查询这张表在某个特定时间点的内容。在 Flink 中，这类表由 *时态表函数（Temporal Table Function）* 表示。
+对于记录变更历史的表，Flink 可以追踪这些变化，并且允许查询这张表在某个特定时间点的内容。在 Flink 中，这类表由 *时态表函数（Temporal Table Function）* 表示。
 
 对于变化的维表，Flink 允许查询这张表在处理时的内容，在 Flink 中，此类表由 *时态表（Temporal Table）* 表示。
 
@@ -36,7 +36,7 @@ under the License.
 设计初衷
 ----------
 
-### 与表的历史变化相关
+### 与记录变更历史的表相关
 
 假设我们有下表 `RatesHistory`。
 
@@ -55,7 +55,7 @@ rowtime currency   rate
 
 `RatesHistory` 表示一个关于日元且不断增长的货币汇率 append-only 表（汇率为1）。例如，`欧元`兑`日元`从 `09:00` 到 `10:45` 的汇率为 `114`。从 `10:45` 到 `11:15` ，汇率为 `116`。
 
-假设我们要输出在 `10:58` 的时间的所有当前汇率，则需要以下 SQL 查询来计算结果表：
+假设我们要输出 `10:58` 的所有当前汇率，则需要以下 SQL 查询来计算结果表：
 
 {% highlight sql %}
 SELECT *
@@ -69,7 +69,7 @@ WHERE r.rowtime = (
 
 子查询确定对应货币的最大时间小于或等于所需时间。外部查询列出具有最大时间戳的汇率。 
  
-下表显示了这种计算的结果。在我们的示例中，考虑了 `10:45` 时`欧元`的更新，但是在 `10:58` 时，该表的版本中未考虑对 `11:15` 处的`欧元`更新和`英镑`的新值。
+下表显示了这种计算的结果。在我们的示例中， `10:58` 时表的版本，考虑了 `10:45` 时`欧元`的更新，但未考虑 `11:15` 时的`欧元`更新和`英镑`的新值。
 
 {% highlight text %}
 rowtime currency   rate
@@ -79,17 +79,17 @@ rowtime currency   rate
 10:45   Euro        116
 {% endhighlight %}
 
- *时态表* 的概念旨在简化此类查询，加快其执行速度，并减少 Flink 的状态使用率。*时态表* 是 append-only 表上的参数化视图，该视图将 append-only 表的行解释为表的变更日志，并在特定时间点提供该表的版本。将 append-only 表解释为变更日志需要指定主键属性和时间戳属性。主键确定哪些行将被覆盖，时间戳确定行有效的时间。
+ *时态表* 的概念旨在简化此类查询，加快其执行速度，并减少 Flink 的状态使用。*时态表* 是 append-only 表上的参数化视图，该视图将 append-only 表的行解释为表的变更日志，并在特定时间点提供该表的版本。将 append-only 表解释为变更日志需要指定主键属性和时间戳属性。主键确定哪些行将被覆盖，时间戳确定行有效的时间。
 
 在上面的示例中，`currency` 是 `RatesHistory` 表的主键，而 `rowtime` 是时间戳属性。
 
-在Flink中, 这由 [*时态表函数*](#temporal-table-function) 表示.
+在Flink中, 这由[*时态表函数*](#temporal-table-function)表示.
 
 ### 与维表变化相关
 
 另一方面，某些用例需要连接变化的维表，该表是外部数据库表。
 
-假设 `LatestRates` 是一个以最新汇率实现的表（例如，存储在其中）。`LatestRates` 是物化的 `RatesHistory` 历史。然后在时间 `10:58` 的 `LatestRates`表的内容将是：
+假设 `LatestRates` 是一个被物化的最新汇率表（例如，存储在其中）。`LatestRates` 是物化的 `RatesHistory` 历史。那么 `LatestRates` 表在 `10:58` 的内容将是：
 
 {% highlight text %}
 10:58> SELECT * FROM LatestRates;
@@ -112,7 +112,7 @@ Euro        119
 Pounds      108
 {% endhighlight %}
 
-在Flink中，这由 [*时态表*](#temporal-table)表示.
+在Flink中，这由[*时态表*](#temporal-table)表示.
 
 <a name="temporal-table-function"></a>
 
@@ -120,7 +120,7 @@ Pounds      108
 ------------------------
 
 为了访问时态表中的数据，必须传递一个[时间属性](time_attributes.html)，该属性确定将要返回的表的版本。
- Flink 使用[表函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html#table-functions) 的SQL语法提供一种表达它的方法。
+ Flink 使用[表函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html#table-functions) 的 SQL 语法提供一种表达它的方法。
 
 定义后，*时态表函数*将使用单个时间参数 timeAttribute 并返回一个行集合。
 该集合包含相对于给定时间属性的所有现有主键的行的最新版本。
@@ -147,9 +147,9 @@ rowtime currency   rate
 
 对 `Rates（timeAttribute）` 的每个查询都将返回给定 `timeAttribute` 的 `Rates` 状态。
 
-**注意**： 当前 Flink 不支持使用常量时间属性参数直接查询时态表函数。目前，时态表函数只能在 join 中使用。上面的示例用于提供有关函数 `Rates(timeAttribute)` 返回内容的直观信息。
+**注意**：当前 Flink 不支持使用常量时间属性参数直接查询时态表函数。目前，时态表函数只能在 join 中使用。上面的示例用于提供有关函数 `Rates(timeAttribute)` 返回内容的直观信息。
 
-另请参阅有关[用于持续查询的 join ](joins.html)的页面，以获取有关如何与时态表 join 的更多信息。
+另请参阅有关[用于持续查询的 join ](joins.html)页面，以获取有关如何与时态表 join 的更多信息。
 
 ### 定义时态表函数
 
@@ -227,7 +227,7 @@ tEnv.registerFunction("Rates", rates)                                          /
 
 <span class="label label-danger">注意</span> 仅 Blink planner 支持此功能。
 
-为了访问时态表中的数据，当前必须使用 `LookupableTableSource` 定义一个 `TableSource` 。Flink使用 `FOR SYSTEM_TIME AS OF` 的SQL语法查询时态表，它在SQL:2011中被提出。
+为了访问时态表中的数据，当前必须使用 `LookupableTableSource` 定义一个 `TableSource` 。Flink 使用 SQL:2011 中提出的 `FOR SYSTEM_TIME AS OF` 的 SQL 语法查询时态表。
 
 假设我们定义了一个时态表 `LatestRates` ，我们可以通过以下方式查询此类表：
 
@@ -249,9 +249,9 @@ Euro        116
 Yen           1
 {% endhighlight %}
 
-**注意**： 当前，Flink 不支持以固定时间直接查询时态表。目前，时态表只能在 join 中使用。上面的示例用于提供有关时态表 `LatestRates` 返回内容的直观信息。
+**注意**：当前，Flink 不支持以固定时间直接查询时态表。目前，时态表只能在 join 中使用。上面的示例用于提供有关时态表 `LatestRates` 返回内容的直观信息。
 
-另请参阅有关[用于持续查询的 join ](joins.html)的页面，以获取有关如何与时态表 join 的更多信息。
+另请参阅有关[用于持续查询的 join ](joins.html)页面，以获取有关如何与时态表 join 的更多信息。
 
 ### 定义时态表
 
