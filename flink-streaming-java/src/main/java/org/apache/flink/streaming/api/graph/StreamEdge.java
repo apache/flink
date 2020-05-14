@@ -24,6 +24,7 @@ import org.apache.flink.util.OutputTag;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -137,12 +138,7 @@ public class StreamEdge implements Serializable {
 
 	@Override
 	public int hashCode() {
-		int result = 17;
-		result = 31 * result + edgeId.hashCode();
-		if (outputTag != null) {
-			result = 31 * result + outputTag.hashCode();
-		}
-		return result;
+		return Objects.hash(edgeId, outputTag);
 	}
 
 	@Override
@@ -155,9 +151,8 @@ public class StreamEdge implements Serializable {
 		}
 
 		StreamEdge that = (StreamEdge) o;
-		return edgeId != null && edgeId.equals(that.edgeId) &&
-			((outputTag == null && that.outputTag == null) ||
-				(outputTag != null && that.outputTag != null && outputTag.equals(that.outputTag)));
+		return Objects.equals(edgeId, that.edgeId) &&
+			Objects.equals(outputTag, that.outputTag);
 	}
 
 	@Override
