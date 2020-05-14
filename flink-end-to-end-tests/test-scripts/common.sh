@@ -56,7 +56,7 @@ CURL_SSL_ARGS=""
 source "${TEST_INFRA_DIR}/common_ssl.sh"
 
 function set_hadoop_classpath {
-  YARN_CLASSPATH_LOCATION="${TEST_INFRA_DIR}/hadoop/yarn.classpath";
+  YARN_CLASSPATH_LOCATION="${TEST_INFRA_DIR}/../../flink-yarn-tests/target/yarn.classpath";
   if [ ! -f $YARN_CLASSPATH_LOCATION ]; then
     echo "File '$YARN_CLASSPATH_LOCATION' does not exist."
     exit 1
