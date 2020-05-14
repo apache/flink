@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -963,5 +964,14 @@ public abstract class SchedulerBase implements SchedulerNG {
 		return getExecutionGraph().getAllVertices().values().stream()
 			.flatMap((vertex) -> vertex.getOperatorCoordinators().stream())
 			.collect(Collectors.toList());
+	}
+
+	// ------------------------------------------------------------------------
+	//  access utils for testing
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	JobID getJobId() {
+		return jobGraph.getJobID();
 	}
 }

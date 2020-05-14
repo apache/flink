@@ -142,14 +142,14 @@ public class SchedulerTestingUtils {
 			.build();
 	}
 
-	public static DefaultScheduler createScheduler(
+	public static DefaultSchedulerBuilder createSchedulerBuilder(
 			JobGraph jobGraph,
 			ManuallyTriggeredScheduledExecutorService asyncExecutor) throws Exception {
 
 		return createScheduler(jobGraph, asyncExecutor, new SimpleAckingTaskManagerGateway());
 	}
 
-	public static DefaultScheduler createScheduler(
+	public static DefaultSchedulerBuilder createSchedulerBuilder(
 			JobGraph jobGraph,
 			ManuallyTriggeredScheduledExecutorService asyncExecutor,
 			TaskExecutorOperatorEventGateway operatorEventGateway) throws Exception {
@@ -161,7 +161,7 @@ public class SchedulerTestingUtils {
 		return createScheduler(jobGraph, asyncExecutor, gateway);
 	}
 
-	public static DefaultScheduler createScheduler(
+	public static DefaultSchedulerBuilder createScheduler(
 			JobGraph jobGraph,
 			ManuallyTriggeredScheduledExecutorService asyncExecutor,
 			TaskManagerGateway taskManagerGateway) throws Exception {
@@ -171,8 +171,7 @@ public class SchedulerTestingUtils {
 			.setDelayExecutor(asyncExecutor)
 			.setSchedulingStrategyFactory(new EagerSchedulingStrategy.Factory())
 			.setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, 0))
-			.setExecutionSlotAllocatorFactory(new TestExecutionSlotAllocatorFactory(taskManagerGateway))
-			.build();
+			.setExecutionSlotAllocatorFactory(new TestExecutionSlotAllocatorFactory(taskManagerGateway));
 	}
 
 	public static DefaultExecutionSlotAllocatorFactory createDefaultExecutionSlotAllocatorFactory(
@@ -240,32 +239,32 @@ public class SchedulerTestingUtils {
 	}
 
 	public static void failExecution(DefaultScheduler scheduler, JobVertexID jvid, int subtask) {
-		final ExecutionJobVertex ejv = getJobVertex(scheduler, jvid);
-		assert ejv != null;
-		final ExecutionAttemptID attemptID = ejv.getTaskVertices()[subtask].getCurrentExecutionAttempt().getAttemptId();
-
+		final ExecutionAttemptID attemptID = getAttemptId(scheduler, jvid, subtask);
 		scheduler.updateTaskExecutionState(new TaskExecutionState(
-			ejv.getJobId(), attemptID, ExecutionState.FAILED, new Exception("test task failure")));
+			scheduler.getJobId(), attemptID, ExecutionState.FAILED, new Exception("test task failure")));
+	}
+
+	public static void canceledExecution(DefaultScheduler scheduler, JobVertexID jvid, int subtask) {
+		final ExecutionAttemptID attemptID = getAttemptId(scheduler, jvid, subtask);
+		scheduler.updateTaskExecutionState(new TaskExecutionState(
+			scheduler.getJobId(), attemptID, ExecutionState.CANCELED, new Exception("test task failure")));
 	}
 
 	public static void setExecutionToRunning(DefaultScheduler scheduler, JobVertexID jvid, int subtask) {
-		final ExecutionJobVertex ejv = getJobVertex(scheduler, jvid);
-		assert ejv != null;
-		final ExecutionAttemptID attemptID = ejv.getTaskVertices()[subtask].getCurrentExecutionAttempt().getAttemptId();
-
+		final ExecutionAttemptID attemptID = getAttemptId(scheduler, jvid, subtask);
 		scheduler.updateTaskExecutionState(new TaskExecutionState(
-			ejv.getJobId(), attemptID, ExecutionState.RUNNING));
+			scheduler.getJobId(), attemptID, ExecutionState.RUNNING));
 	}
 
 	public static void setAllExecutionsToRunning(final DefaultScheduler scheduler) {
-		final JobID jid = scheduler.requestJob().getJobID();
+		final JobID jid = scheduler.getJobId();
 		getAllCurrentExecutionAttempts(scheduler).forEach(
 			(attemptId) -> scheduler.updateTaskExecutionState(new TaskExecutionState(jid, attemptId, ExecutionState.RUNNING))
 		);
 	}
 
 	public static void setAllExecutionsToCancelled(final DefaultScheduler scheduler) {
-		final JobID jid = scheduler.requestJob().getJobID();
+		final JobID jid = scheduler.getJobId();
 		getAllCurrentExecutionAttempts(scheduler).forEach(
 			(attemptId) -> scheduler.updateTaskExecutionState(new TaskExecutionState(jid, attemptId, ExecutionState.CANCELED))
 		);
@@ -273,7 +272,7 @@ public class SchedulerTestingUtils {
 
 	public static void acknowledgePendingCheckpoint(final DefaultScheduler scheduler, final long checkpointId) throws CheckpointException {
 		final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
-		final JobID jid = scheduler.requestJob().getJobID();
+		final JobID jid = scheduler.getJobId();
 
 		for (ExecutionAttemptID attemptId : getAllCurrentExecutionAttempts(scheduler)) {
 			final AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(jid, attemptId, checkpointId);
@@ -331,6 +330,12 @@ public class SchedulerTestingUtils {
 	private static ExecutionJobVertex getJobVertex(DefaultScheduler scheduler, JobVertexID jobVertexId) {
 		final ExecutionVertexID id = new ExecutionVertexID(jobVertexId, 0);
 		return scheduler.getExecutionVertex(id).getJobVertex();
+	}
+
+	public static ExecutionAttemptID getAttemptId(DefaultScheduler scheduler, JobVertexID jvid, int subtask) {
+		final ExecutionJobVertex ejv = getJobVertex(scheduler, jvid);
+		assert ejv != null;
+		return ejv.getTaskVertices()[subtask].getCurrentExecutionAttempt().getAttemptId();
 	}
 
 	// ------------------------------------------------------------------------

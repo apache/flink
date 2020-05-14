@@ -29,6 +29,7 @@ import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorSer
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.failover.flip1.RestartAllFailoverStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -315,29 +316,21 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		return createSchedulerAndDeployTasks(new TestingOperatorCoordinator.Provider(testOperatorId));
 	}
 
+	private DefaultScheduler createSchedulerWithAllRestartOnFailureAndDeployTasks() throws Exception {
+		final DefaultScheduler scheduler = setupTestJobAndScheduler(new TestingOperatorCoordinator.Provider(testOperatorId), null, null, true);
+		scheduleAllTasksToRunning(scheduler);
+		return scheduler;
+	}
+
 	private DefaultScheduler createSchedulerAndDeployTasks(OperatorCoordinator.Provider provider) throws Exception {
 		final DefaultScheduler scheduler = setupTestJobAndScheduler(provider);
-		scheduler.startScheduling();
-		executor.triggerAll();
-		executor.triggerScheduledTasks();
-		SchedulerTestingUtils.setAllExecutionsToRunning(scheduler);
-
-		// guard test assumptions: this brings tasks into RUNNING state
-		assertEquals(ExecutionState.RUNNING, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
-
+		scheduleAllTasksToRunning(scheduler);
 		return scheduler;
 	}
 
 	private DefaultScheduler createSchedulerAndDeployTasks(TaskExecutorOperatorEventGateway gateway) throws Exception {
-		final DefaultScheduler scheduler = setupTestJobAndScheduler(new TestingOperatorCoordinator.Provider(testOperatorId), gateway, null);
-		scheduler.startScheduling();
-		executor.triggerAll();
-		executor.triggerScheduledTasks();
-		SchedulerTestingUtils.setAllExecutionsToRunning(scheduler);
-
-		// guard test assumptions: this brings tasks into RUNNING state
-		assertEquals(ExecutionState.RUNNING, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
-
+		final DefaultScheduler scheduler = setupTestJobAndScheduler(new TestingOperatorCoordinator.Provider(testOperatorId), gateway, null, false);
+		scheduleAllTasksToRunning(scheduler);
 		return scheduler;
 	}
 
@@ -356,20 +349,22 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		final DefaultScheduler scheduler = setupTestJobAndScheduler(
 				new TestingOperatorCoordinator.Provider(testOperatorId),
 				null,
-				savepointConfigurer);
+				savepointConfigurer,
+				false);
 
 		scheduler.startScheduling();
 		return scheduler;
 	}
 
 	private DefaultScheduler setupTestJobAndScheduler(OperatorCoordinator.Provider provider) throws Exception {
-		return setupTestJobAndScheduler(provider, null, null);
+		return setupTestJobAndScheduler(provider, null, null, false);
 	}
 
 	private DefaultScheduler setupTestJobAndScheduler(
 			OperatorCoordinator.Provider provider,
 			@Nullable TaskExecutorOperatorEventGateway taskExecutorOperatorEventGateway,
-			@Nullable Consumer<JobGraph> jobGraphPreProcessing) throws Exception {
+			@Nullable Consumer<JobGraph> jobGraphPreProcessing,
+			boolean restartAllOnFailover) throws Exception {
 
 		final OperatorIDPair opIds = OperatorIDPair.of(new OperatorID(), provider.getOperatorId());
 		final JobVertex vertex = new JobVertex("Vertex with OperatorCoordinator", testVertexId, Collections.singletonList(opIds));
@@ -383,13 +378,28 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 			jobGraphPreProcessing.accept(jobGraph);
 		}
 
-		final DefaultScheduler scheduler = taskExecutorOperatorEventGateway == null
-				? SchedulerTestingUtils.createScheduler(jobGraph, executor)
-				: SchedulerTestingUtils.createScheduler(jobGraph, executor, taskExecutorOperatorEventGateway);
+		final SchedulerTestingUtils.DefaultSchedulerBuilder schedulerBuilder = taskExecutorOperatorEventGateway == null
+				? SchedulerTestingUtils.createSchedulerBuilder(jobGraph, executor)
+				: SchedulerTestingUtils.createSchedulerBuilder(jobGraph, executor, taskExecutorOperatorEventGateway);
+		if (restartAllOnFailover) {
+			schedulerBuilder.setFailoverStrategyFactory(new RestartAllFailoverStrategy.Factory());
+		}
+
+		final DefaultScheduler scheduler = schedulerBuilder.build();
 		scheduler.setMainThreadExecutor(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		this.createdScheduler = scheduler;
 		return scheduler;
+	}
+
+	private void scheduleAllTasksToRunning(DefaultScheduler scheduler) {
+		scheduler.startScheduling();
+		executor.triggerAll();
+		executor.triggerScheduledTasks();
+		SchedulerTestingUtils.setAllExecutionsToRunning(scheduler);
+
+		// guard test assumptions: this brings tasks into RUNNING state
+		assertEquals(ExecutionState.RUNNING, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
 	}
 
 	private TestingOperatorCoordinator getCoordinator(DefaultScheduler scheduler) {
@@ -440,6 +450,14 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
 		// guard the test assumptions: This must bring the tasks back to RUNNING
 		assertEquals(ExecutionState.RUNNING, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
+	}
+
+	private void cancelTask(DefaultScheduler scheduler, int subtask) {
+		SchedulerTestingUtils.canceledExecution(scheduler, testVertexId, subtask);
+		executor.triggerAll();
+
+		// guard the test assumptions: This must not lead to a restart, but must keep the task in FAILED state
+		assertEquals(ExecutionState.CANCELED, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask));
 	}
 
 	private CompletableFuture<CompletedCheckpoint> triggerCheckpoint(DefaultScheduler scheduler) throws Exception {
