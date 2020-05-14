@@ -66,12 +66,13 @@ class NetworkBufferAllocator {
 	 * Allocates an un-pooled network buffer with the specific size.
 	 *
 	 * @param size The requested buffer size.
+	 * @param dataType The data type this buffer represents.
 	 * @return The un-pooled network buffer.
 	 */
-	Buffer allocateUnPooledNetworkBuffer(int size) {
+	Buffer allocateUnPooledNetworkBuffer(int size, Buffer.DataType dataType) {
 		byte[] byteArray = new byte[size];
 		MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
 
-		return new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, Buffer.DataType.EVENT_BUFFER);
+		return new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, dataType);
 	}
 }
