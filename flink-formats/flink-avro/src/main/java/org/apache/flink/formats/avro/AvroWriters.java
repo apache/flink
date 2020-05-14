@@ -31,7 +31,6 @@ import org.apache.avro.specific.SpecificRecordBase;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.Serializable;
 import java.util.function.Function;
 
 /**
@@ -40,45 +39,16 @@ import java.util.function.Function;
 public class AvroWriters {
 
 	/**
-	 * A configurator to set the properties of the writer.
-	 */
-	public interface DataFileWriterConfigurator<T> extends Serializable {
-
-		/**
-		 * Modifies the properties of the writer.
-		 *
-		 * @param dataFileWriter The writer to modify.
-		 */
-		void configureWriter(DataFileWriter<T> dataFileWriter);
-
-	}
-
-	/**
 	 * Creates an {@link AvroWriterFactory} for an Avro specific type. The Avro writers
 	 * will use the schema of that specific type to build and write the records.
 	 *
 	 * @param type The class of the type to write.
 	 */
 	public static <T extends SpecificRecordBase> AvroWriterFactory<T> forSpecificRecord(Class<T> type) {
-		return forSpecificRecord(type, writer -> {});
-	}
-
-	/**
-	 * Creates an {@link AvroWriterFactory} for an Avro specific type and given <tt>configurator</tt>.
-	 * The Avro writers will use the schema of that specific type to build and write the records.
-	 *
-	 * @param type The class of the type to write.
-	 * @param configurator The configurator to modify the writer properties.
-	 */
-	public static <T extends SpecificRecordBase> AvroWriterFactory<T> forSpecificRecord(
-		Class<T> type,
-		DataFileWriterConfigurator<T> configurator) {
-
 		String schemaString = SpecificData.get().getSchema(type).toString();
 		AvroBuilder<T> builder = (out) -> createAvroDataFileWriter(
 			schemaString,
 			SpecificDatumWriter::new,
-			configurator,
 			out);
 		return new AvroWriterFactory<>(builder);
 	}
@@ -90,26 +60,10 @@ public class AvroWriters {
 	 * @param schema The schema of the generic type.
 	 */
 	public static AvroWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
-		return forGenericRecord(schema, writer -> {});
-	}
-
-	/**
-	 * Creates an {@link AvroWriterFactory} that accepts and writes Avro generic types
-	 * and given <tt>configurator</tt>. The Avro writers will use the given schema to
-	 * build and write the records.
-	 *
-	 * @param schema The schema of the generic type.
-	 * @param configurator The configurator to modify the writer properties.
-	 */
-	public static AvroWriterFactory<GenericRecord> forGenericRecord(
-		Schema schema,
-		DataFileWriterConfigurator<GenericRecord> configurator) {
-
 		String schemaString = schema.toString();
 		AvroBuilder<GenericRecord> builder = (out) -> createAvroDataFileWriter(
 			schemaString,
 			GenericDatumWriter::new,
-			configurator,
 			out);
 		return new AvroWriterFactory<>(builder);
 	}
@@ -122,26 +76,10 @@ public class AvroWriters {
 	 * @param type The class of the type to write.
 	 */
 	public static <T> AvroWriterFactory<T> forReflectRecord(Class<T> type) {
-		return forReflectRecord(type, writer -> {});
-	}
-
-	/**
-	 * Creates an {@link AvroWriterFactory} for the given type and given <tt>configurator</tt>.
-	 * The Avro writers will use reflection to create the schema for the type and use that schema
-	 * to write the records.
-	 *
-	 * @param type The class of the type to write.
-	 * @param configurator The configurator to modify the writer properties.
-	 */
-	public static <T> AvroWriterFactory<T> forReflectRecord(
-		Class<T> type,
-		DataFileWriterConfigurator<T> configurator) {
-
 		String schemaString = ReflectData.get().getSchema(type).toString();
 		AvroBuilder<T> builder = (out) -> createAvroDataFileWriter(
 			schemaString,
 			ReflectDatumWriter::new,
-			configurator,
 			out);
 		return new AvroWriterFactory<>(builder);
 	}
@@ -149,14 +87,12 @@ public class AvroWriters {
 	private static <T> DataFileWriter<T> createAvroDataFileWriter(
 		String schemaString,
 		Function<Schema, DatumWriter<T>> datumWriterFactory,
-		DataFileWriterConfigurator<T> configurator,
 		OutputStream out) throws IOException {
 
 		Schema schema = new Schema.Parser().parse(schemaString);
 		DatumWriter<T> datumWriter = datumWriterFactory.apply(schema);
 
 		DataFileWriter<T> dataFileWriter = new DataFileWriter<>(datumWriter);
-		configurator.configureWriter(dataFileWriter);
 		dataFileWriter.create(schema, out);
 		return dataFileWriter;
 	}

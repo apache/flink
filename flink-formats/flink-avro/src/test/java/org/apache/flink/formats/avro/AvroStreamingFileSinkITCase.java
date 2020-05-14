@@ -29,7 +29,6 @@ import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.avro.Schema;
-import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
@@ -40,8 +39,6 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
@@ -61,23 +58,7 @@ import static org.junit.Assert.assertTrue;
  * Simple integration test case for writing bulk encoded files with the
  * {@link StreamingFileSink} with Avro.
  */
-@RunWith(Parameterized.class)
 public class AvroStreamingFileSinkITCase extends AbstractTestBase {
-
-	/** Whether the writer use compression. */
-	private final boolean compression;
-
-	public AvroStreamingFileSinkITCase(boolean compression) {
-		this.compression = compression;
-	}
-
-	@Parameterized.Parameters(name = "compression = {0}")
-	public static Collection<Object[]> testReadOnlyBuffer() {
-		return Arrays.asList(new Object[][]{
-			{true},
-			{false},
-		});
-	}
 
 	@Rule
 	public final Timeout timeoutPerTest = Timeout.seconds(20);
@@ -95,22 +76,13 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
 		env.setParallelism(1);
 		env.enableCheckpointing(100);
 
-		AvroWriterFactory<Address> avroWriterFactory;
-		if (!compression) {
-			avroWriterFactory = AvroWriters.forSpecificRecord(Address.class);
-		} else {
-			avroWriterFactory = AvroWriters.forSpecificRecord(
-				Address.class,
-				writer -> writer.setCodec(CodecFactory.deflateCodec(CodecFactory.DEFAULT_DEFLATE_LEVEL)));
-		}
-
+		AvroWriterFactory<Address> avroWriterFactory = AvroWriters.forSpecificRecord(Address.class);
 		DataStream<Address> stream = env.addSource(
 			new FiniteTestSource<>(data),
 			TypeInformation.of(Address.class));
 		stream.addSink(StreamingFileSink.forBulkFormat(
 			Path.fromLocalFile(folder),
 			avroWriterFactory).build());
-
 		env.execute();
 
 		validateResults(folder, new SpecificDatumReader<>(Address.class), data);
@@ -127,22 +99,13 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
 		env.setParallelism(1);
 		env.enableCheckpointing(100);
 
-		AvroWriterFactory<GenericRecord> avroWriterFactory;
-		if (!compression) {
-			avroWriterFactory = AvroWriters.forGenericRecord(schema);
-		} else {
-			avroWriterFactory = AvroWriters.forGenericRecord(
-				schema,
-				writer -> writer.setCodec(CodecFactory.deflateCodec(CodecFactory.DEFAULT_DEFLATE_LEVEL)));
-		}
-
+		AvroWriterFactory<GenericRecord> avroWriterFactory = AvroWriters.forGenericRecord(schema);
 		DataStream<GenericRecord> stream = env.addSource(
 			new FiniteTestSource<>(data),
 			new GenericRecordAvroTypeInfo(schema));
 		stream.addSink(StreamingFileSink.forBulkFormat(
 			Path.fromLocalFile(folder),
 			avroWriterFactory).build());
-
 		env.execute();
 
 		validateResults(folder, new GenericDatumReader<>(schema), new ArrayList<>(data));
@@ -161,22 +124,13 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
 		env.setParallelism(1);
 		env.enableCheckpointing(100);
 
-		AvroWriterFactory<Datum> avroWriterFactory;
-		if (!compression) {
-			avroWriterFactory = AvroWriters.forReflectRecord(Datum.class);
-		} else {
-			avroWriterFactory = AvroWriters.forReflectRecord(
-				Datum.class,
-				writer -> writer.setCodec(CodecFactory.deflateCodec(CodecFactory.DEFAULT_DEFLATE_LEVEL)));
-		}
-
+		AvroWriterFactory<Datum> avroWriterFactory = AvroWriters.forReflectRecord(Datum.class);
 		DataStream<Datum> stream = env.addSource(
 			new FiniteTestSource<>(data),
 			TypeInformation.of(Datum.class));
 		stream.addSink(StreamingFileSink.forBulkFormat(
 			Path.fromLocalFile(folder),
 			avroWriterFactory).build());
-
 		env.execute();
 
 		validateResults(folder, new ReflectDatumReader<>(Datum.class), data);
