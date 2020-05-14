@@ -226,11 +226,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		threadSafeUnaligner.close();
 	}
 
-	/**
-	 * Returns true if there is in-flight data in the buffers for the given channel and checkpoint. More specifically,
-	 * this method returns true iff the unaligner still expects the respective barrier to be <i>consumed</i> on the
-	 * that channel.
-	 */
+	@Override
 	public boolean hasInflightData(long checkpointId, int channelIndex) {
 		if (checkpointId < currentConsumedCheckpointId) {
 			return false;
@@ -241,6 +237,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		return hasInflightBuffers[channelIndex];
 	}
 
+	@Override
 	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
 		return threadSafeUnaligner.getAllBarriersReceivedFuture(checkpointId);
 	}
