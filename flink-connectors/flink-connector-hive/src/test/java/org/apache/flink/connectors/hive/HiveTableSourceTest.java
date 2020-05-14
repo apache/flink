@@ -46,6 +46,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
 import org.apache.flink.table.planner.runtime.utils.TestingAppendRowDataSink;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
@@ -497,6 +498,7 @@ public class HiveTableSourceTest {
 		DataStream<RowData> out = tEnv.toAppendStream(src, RowData.class);
 		out.print(); // add print to see streaming reading
 		out.addSink(sink);
+
 		JobClient job = env.executeAsync("job");
 
 		Runnable runnable = () -> {
@@ -529,6 +531,7 @@ public class HiveTableSourceTest {
 		results.sort(String::compareTo);
 		assertEquals(expected, results);
 		job.cancel();
+		StreamTestSink.clear();
 	}
 
 	private void testSourceConfig(boolean fallbackMR, boolean inferParallelism) throws Exception {
