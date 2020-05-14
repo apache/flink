@@ -39,13 +39,23 @@ public class RestAPIDocGeneratorTest {
 			new TestDocumentingRestEndpoint(),
 			RestAPIVersion.V0,
 			file.toPath());
-		String actual = removeUniqueId(FileUtils.readFile(file, "UTF-8"));
+		String actual = cleanUpHtml(FileUtils.readFile(file, "UTF-8"));
 
 		File expectedFile = new File(
 			RestAPIDocGeneratorTest.class.getClassLoader().getResource("rest_v0_expected.html").getFile());
-		String expected = removeUniqueId(FileUtils.readFile(expectedFile, "UTF-8"));
+		String expected = cleanUpHtml(FileUtils.readFile(expectedFile, "UTF-8"));
 
 		Assert.assertEquals(expected, actual);
+	}
+
+	private String cleanUpHtml(String html) {
+		html = removeComments(html);
+		html = removeUniqueId(html);
+		return html.trim();
+	}
+
+	private String removeComments(String s) {
+		return s.replaceAll("<!--[\\s\\S]+?-->", "");
 	}
 
 	private String removeUniqueId(String s) {
