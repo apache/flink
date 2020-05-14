@@ -67,7 +67,7 @@ public class JsonFormatFactory implements
 			.booleanType()
 			.defaultValue(false)
 			.withDescription("Optional flag to skip fields and rows with parse errors instead of failing;\n"
-					+ "fields are set to null in case of errors");
+					+ "fields are set to null in case of errors, false by default");
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -147,10 +147,8 @@ public class JsonFormatFactory implements
 	// ------------------------------------------------------------------------
 
 	private void validateFormatOptions(ReadableConfig tableOptions) {
-		boolean failOnMissingField = tableOptions.getOptional(FAIL_ON_MISSING_FIELD)
-				.orElse(false);
-		boolean ignoreParseErrors = tableOptions.getOptional(IGNORE_PARSE_ERRORS)
-				.orElse(false);
+		boolean failOnMissingField = tableOptions.get(FAIL_ON_MISSING_FIELD);
+		boolean ignoreParseErrors = tableOptions.get(IGNORE_PARSE_ERRORS);
 		if (ignoreParseErrors && failOnMissingField) {
 			throw new ValidationException(FAIL_ON_MISSING_FIELD.key()
 					+ " and "

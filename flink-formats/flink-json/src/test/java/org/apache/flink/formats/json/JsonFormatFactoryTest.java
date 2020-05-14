@@ -46,9 +46,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.util.CoreMatchers.containsCause;
-import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link JsonFormatFactory}.
@@ -119,6 +117,8 @@ public class JsonFormatFactoryTest extends TestLogger {
 	}
 
 	private void testSchemaSerializationSchema(Map<String, String> options) {
+		final JsonRowDataSerializationSchema expectedSer = new JsonRowDataSerializationSchema(ROW_TYPE);
+
 		final DynamicTableSink actualSink = createTableSink(options);
 		assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
 		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
@@ -129,7 +129,7 @@ public class JsonFormatFactoryTest extends TestLogger {
 						new SinkRuntimeProviderContext(false),
 						SCHEMA.toRowDataType());
 
-		assertThat(actualSer, instanceOf(JsonRowDataSerializationSchema.class));
+		assertEquals(expectedSer, actualSer);
 	}
 
 	/**
