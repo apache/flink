@@ -209,7 +209,7 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 	public void testInsert() {
 		sql("insert into tbl partition(p1=1,p2,p3) select * from src")
 				.ok("INSERT INTO `TBL`\n" +
-						"PARTITION (`P1` = 1)\n" +
+						"PARTITION (`P1` = 1, `P2`, `P3`)\n" +
 						"(SELECT *\n" +
 						"FROM `SRC`)");
 		sql("insert overwrite table tbl select * from src")

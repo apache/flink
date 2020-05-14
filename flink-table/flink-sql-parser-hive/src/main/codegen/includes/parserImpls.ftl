@@ -767,10 +767,9 @@ SqlTypeNameSpec ExtendedSqlRowTypeName() :
 }
 
 /**
-* Parses a partition specifications statement,
-* e.g. insert into tbl1 partition(col1='val1', col2='val2', col3) select col3 from tbl.
+* Parses a partition specifications statement for insert statement.
 */
-void PartitionSpecCommaList(SqlNodeList list) :
+void InsertPartitionSpec(SqlNodeList allPartKeys, SqlNodeList staticSpec) :
 {
     SqlIdentifier key;
     SqlNode value;
@@ -779,17 +778,18 @@ void PartitionSpecCommaList(SqlNodeList list) :
 {
     <LPAREN>
     key = SimpleIdentifier()
-    { pos = getPos(); }
+    { pos = getPos(); allPartKeys.add(key); }
     [ <EQ> value = Literal()
       {
-          list.add(new SqlProperty(key, value, pos));
+          staticSpec.add(new SqlProperty(key, value, pos));
       }
     ]
     (
-        <COMMA> key = SimpleIdentifier() { pos = getPos(); }
+        <COMMA> key = SimpleIdentifier()
+        { pos = getPos(); allPartKeys.add(key); }
         [ <EQ> value = Literal()
           {
-              list.add(new SqlProperty(key, value, pos));
+              staticSpec.add(new SqlProperty(key, value, pos));
           }
         ]
     )*
@@ -808,12 +808,17 @@ SqlNode RichSqlInsert() :
     SqlNode table;
     SqlNodeList extendList = null;
     SqlNode source;
-    final SqlNodeList partitionList = new SqlNodeList(getPos());
+    final SqlNodeList allPartKeys = new SqlNodeList(getPos());
+    final SqlNodeList staticSpec = new SqlNodeList(getPos());
     SqlNodeList columnList = null;
     final Span s;
 }
 {
-    <INSERT>
+    (
+        <INSERT>
+    |
+        <UPSERT> { keywords.add(SqlInsertKeyword.UPSERT.symbol(getPos())); }
+    )
     (
         <INTO>
     |
@@ -852,11 +857,11 @@ SqlNode RichSqlInsert() :
         }
     ]
     [
-        <PARTITION> PartitionSpecCommaList(partitionList)
+        <PARTITION> InsertPartitionSpec(allPartKeys, staticSpec)
     ]
     source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
-        return new RichSqlInsert(s.end(source), keywordList, extendedKeywordList, table, source,
-            columnList, partitionList);
+        return new RichSqlHiveInsert(s.end(source), keywordList, extendedKeywordList, table, source,
+            columnList, staticSpec, allPartKeys);
     }
 }
 
