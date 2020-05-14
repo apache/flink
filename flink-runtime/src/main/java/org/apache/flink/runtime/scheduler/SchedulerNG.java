@@ -40,6 +40,8 @@ import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
@@ -138,4 +140,14 @@ public interface SchedulerNG {
 	 *                        for the given ID.
 	 */
 	void deliverOperatorEventToCoordinator(ExecutionAttemptID taskExecution, OperatorID operator, OperatorEvent evt) throws FlinkException;
+
+	/**
+	 * Delivers a coordination request to the {@link OperatorCoordinator} with the given {@link OperatorID}
+	 * and returns the coordinator's response.
+	 *
+	 * @return A future containing the response.
+	 * @throws FlinkException Thrown, if the task is not running, or no operator/coordinator exists
+	 *                        for the given ID, or the coordinator cannot handle client events.
+	 */
+	CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(OperatorID operator, CoordinationRequest request) throws FlinkException;
 }

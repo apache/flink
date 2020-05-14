@@ -76,6 +76,9 @@ import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandler;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
@@ -107,6 +110,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -163,6 +167,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 	private final boolean legacyScheduling;
 
 	protected final ExecutionVertexVersioner executionVertexVersioner;
+
+	private final Map<OperatorID, OperatorCoordinator> coordinatorMap;
 
 	private ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
 		"SchedulerBase is not initialized with proper main thread executor. " +
@@ -222,6 +228,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.schedulingTopology = executionGraph.getSchedulingTopology();
 
 		this.inputsLocationsRetriever = new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
+
+		this.coordinatorMap = createCoordinatorMap();
 	}
 
 	private ExecutionGraph createAndRestoreExecutionGraph(
@@ -932,6 +940,20 @@ public abstract class SchedulerBase implements SchedulerNG {
 		}
 	}
 
+	@Override
+	public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
+			OperatorID operator,
+			CoordinationRequest request) throws FlinkException {
+		OperatorCoordinator coordinator = coordinatorMap.get(operator);
+		if (coordinator instanceof CoordinationRequestHandler) {
+			return ((CoordinationRequestHandler) coordinator).handleCoordinationRequest(request);
+		} else if (coordinator != null) {
+			throw new FlinkException("Coordinator of operator " + operator + " cannot handle client event");
+		} else {
+			throw new FlinkException("Coordinator of operator " + operator + " does not exist");
+		}
+	}
+
 	private void startAllOperatorCoordinators() {
 		final Collection<OperatorCoordinator> coordinators = getAllCoordinators();
 		try {
@@ -951,8 +973,16 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	private Collection<OperatorCoordinator> getAllCoordinators() {
-		return getExecutionGraph().getAllVertices().values().stream()
-			.flatMap((vertex) -> vertex.getOperatorCoordinators().stream())
-			.collect(Collectors.toList());
+		return coordinatorMap.values();
+	}
+
+	private Map<OperatorID, OperatorCoordinator> createCoordinatorMap() {
+		Map<OperatorID, OperatorCoordinator> coordinatorMap = new HashMap<>();
+		for (ExecutionJobVertex vertex : getExecutionGraph().getAllVertices().values()) {
+			for (Map.Entry<OperatorID, OperatorCoordinator> entry : vertex.getOperatorCoordinatorMap().entrySet()) {
+				coordinatorMap.put(entry.getKey(), entry.getValue());
+			}
+		}
+		return coordinatorMap;
 	}
 }

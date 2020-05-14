@@ -26,6 +26,10 @@ import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 
 import org.apache.commons.io.IOUtils;
 
@@ -41,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * An implementation of the {@link JobClient} interface that uses a {@link ClusterClient} underneath..
  */
-public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
+public class ClusterClientJobClientAdapter<ClusterID> implements JobClient, CoordinationRequestGateway {
 
 	private final ClusterClientProvider<ClusterID> clusterClientProvider;
 
@@ -115,6 +119,13 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 					})));
 	}
 
+	@Override
+	public CompletableFuture<CoordinationResponse> sendCoordinationRequest(OperatorID operatorId, CoordinationRequest request) {
+		return bridgeClientRequest(
+			clusterClientProvider,
+			clusterClient -> clusterClient.sendCoordinationRequest(jobID, operatorId, request));
+	}
+
 	private static <T> CompletableFuture<T> bridgeClientRequest(
 			ClusterClientProvider<?> clusterClientProvider,
 			Function<ClusterClient<?>, CompletableFuture<T>> resultRetriever) {
@@ -132,5 +143,4 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient {
 		return resultFuture.whenCompleteAsync(
 				(jobResult, throwable) -> IOUtils.closeQuietly(clusterClient::close));
 	}
-
 }

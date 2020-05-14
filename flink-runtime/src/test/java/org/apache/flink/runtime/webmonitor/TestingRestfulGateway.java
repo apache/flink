@@ -26,12 +26,17 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
+import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -57,6 +62,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 	static final BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER = (jobId, jobVertexId) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final BiFunction<JobID, String, CompletableFuture<String>> DEFAULT_TRIGGER_SAVEPOINT_FUNCTION = (JobID jobId, String targetDirectory) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final BiFunction<JobID, String, CompletableFuture<String>> DEFAULT_STOP_WITH_SAVEPOINT_FUNCTION = (JobID jobId, String targetDirectory) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
+	static final TriFunction<JobID, OperatorID, SerializedValue<CoordinationRequest>, CompletableFuture<CoordinationResponse>> DEFAULT_DELIVER_COORDINATION_REQUEST_TO_COORDINATOR_FUNCTION = (JobID jobId, OperatorID operatorId, SerializedValue<CoordinationRequest> serializedRequest) -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
 	static final String LOCALHOST = "localhost";
 
 	protected String address;
@@ -89,6 +95,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 
 	protected BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction;
 
+	protected TriFunction<JobID, OperatorID, SerializedValue<CoordinationRequest>, CompletableFuture<CoordinationResponse>> deliverCoordinationRequestToCoordinatorFunction;
+
 	public TestingRestfulGateway() {
 		this(
 			LOCALHOST,
@@ -104,7 +112,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 			DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER,
 			DEFAULT_TRIGGER_SAVEPOINT_FUNCTION,
 			DEFAULT_STOP_WITH_SAVEPOINT_FUNCTION,
-			DEFAULT_CLUSTER_SHUTDOWN_SUPPLIER);
+			DEFAULT_CLUSTER_SHUTDOWN_SUPPLIER,
+			DEFAULT_DELIVER_COORDINATION_REQUEST_TO_COORDINATOR_FUNCTION);
 	}
 
 	public TestingRestfulGateway(
@@ -121,7 +130,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 			BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction,
 			BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction,
 			BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction,
-			Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier) {
+			Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier,
+			TriFunction<JobID, OperatorID, SerializedValue<CoordinationRequest>, CompletableFuture<CoordinationResponse>> deliverCoordinationRequestToCoordinatorFunction) {
 		this.address = address;
 		this.hostname = hostname;
 		this.cancelJobFunction = cancelJobFunction;
@@ -136,6 +146,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 		this.triggerSavepointFunction = triggerSavepointFunction;
 		this.stopWithSavepointFunction = stopWithSavepointFunction;
 		this.clusterShutdownSupplier = clusterShutdownSupplier;
+		this.deliverCoordinationRequestToCoordinatorFunction = deliverCoordinationRequestToCoordinatorFunction;
 	}
 
 	@Override
@@ -199,6 +210,15 @@ public class TestingRestfulGateway implements RestfulGateway {
 	}
 
 	@Override
+	public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
+			JobID jobId,
+			OperatorID operatorId,
+			SerializedValue<CoordinationRequest> serializedRequest,
+			Time timeout) {
+		return deliverCoordinationRequestToCoordinatorFunction.apply(jobId, operatorId, serializedRequest);
+	}
+
+	@Override
 	public String getAddress() {
 		return address;
 	}
@@ -229,6 +249,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 		protected BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>> requestOperatorBackPressureStatsFunction;
 		protected BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction;
 		protected BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction;
+		protected TriFunction<JobID, OperatorID, SerializedValue<CoordinationRequest>, CompletableFuture<CoordinationResponse>> deliverCoordinationRequestToCoordinatorFunction;
 
 		protected AbstractBuilder() {
 			cancelJobFunction = DEFAULT_CANCEL_JOB_FUNCTION;
@@ -243,6 +264,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 			triggerSavepointFunction = DEFAULT_TRIGGER_SAVEPOINT_FUNCTION;
 			stopWithSavepointFunction = DEFAULT_STOP_WITH_SAVEPOINT_FUNCTION;
 			clusterShutdownSupplier = DEFAULT_CLUSTER_SHUTDOWN_SUPPLIER;
+			deliverCoordinationRequestToCoordinatorFunction = DEFAULT_DELIVER_COORDINATION_REQUEST_TO_COORDINATOR_FUNCTION;
 		}
 
 		public T setAddress(String address) {
@@ -315,6 +337,11 @@ public class TestingRestfulGateway implements RestfulGateway {
 			return self();
 		}
 
+		public T setDeliverCoordinationRequestToCoordinatorFunction(TriFunction<JobID, OperatorID, SerializedValue<CoordinationRequest>, CompletableFuture<CoordinationResponse>> deliverCoordinationRequestToCoordinatorFunction) {
+			this.deliverCoordinationRequestToCoordinatorFunction = deliverCoordinationRequestToCoordinatorFunction;
+			return self();
+		}
+
 		protected abstract T self();
 
 		public abstract TestingRestfulGateway build();
@@ -346,7 +373,8 @@ public class TestingRestfulGateway implements RestfulGateway {
 				requestOperatorBackPressureStatsFunction,
 				triggerSavepointFunction,
 				stopWithSavepointFunction,
-				clusterShutdownSupplier);
+				clusterShutdownSupplier,
+				deliverCoordinationRequestToCoordinatorFunction);
 		}
 	}
 }

@@ -29,12 +29,17 @@ import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -92,7 +97,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			DispatcherId fencingToken,
 			Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction,
 			Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier,
-			Function<ApplicationStatus, CompletableFuture<Acknowledge>> clusterShutdownWithStatusFunction) {
+			Function<ApplicationStatus, CompletableFuture<Acknowledge>> clusterShutdownWithStatusFunction,
+			TriFunction<JobID, OperatorID, SerializedValue<CoordinationRequest>, CompletableFuture<CoordinationResponse>> deliverCoordinationRequestToCoordinatorFunction) {
 		super(
 			address,
 			hostname,
@@ -107,7 +113,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			requestOperatorBackPressureStatsFunction,
 			triggerSavepointFunction,
 			stopWithSavepointFunction,
-			clusterShutdownSupplier);
+			clusterShutdownSupplier,
+			deliverCoordinationRequestToCoordinatorFunction);
 		this.submitFunction = submitFunction;
 		this.listFunction = listFunction;
 		this.blobServerPort = blobServerPort;
@@ -219,7 +226,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 				fencingToken,
 				requestArchivedJobFunction,
 				clusterShutdownSupplier,
-				clusterShutdownWithStatusFunction);
+				clusterShutdownWithStatusFunction,
+				deliverCoordinationRequestToCoordinatorFunction);
 		}
 	}
 }

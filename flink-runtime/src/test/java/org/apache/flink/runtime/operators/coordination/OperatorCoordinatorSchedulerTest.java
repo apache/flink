@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
@@ -161,6 +163,52 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		final CompletableFuture<?> result = context.sendEvent(new TestOperatorEvent(), 0);
 
 		assertThat(result, futureFailedWith(TestException.class));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testDeliveringClientRequestToRequestHandler() throws Exception {
+		final OperatorCoordinator.Provider provider = new TestingCoordinationRequestHandler.Provider(testOperatorId);
+		final DefaultScheduler scheduler = createScheduler(provider);
+
+		final String payload = "testing payload";
+		final TestingCoordinationRequestHandler.Request<String> request =
+			new TestingCoordinationRequestHandler.Request<>(payload);
+		final TestingCoordinationRequestHandler.Response<String> response =
+			(TestingCoordinationRequestHandler.Response<String>)
+				scheduler.deliverCoordinationRequestToCoordinator(testOperatorId, request).get();
+
+		assertEquals(payload, response.getPayload());
+	}
+
+	@Test
+	public void testDeliveringClientRequestToNonRequestHandler() throws Exception {
+		final OperatorCoordinator.Provider provider = new TestingOperatorCoordinator.Provider(testOperatorId);
+		final DefaultScheduler scheduler = createScheduler(provider);
+
+		final String payload = "testing payload";
+		final TestingCoordinationRequestHandler.Request<String> request =
+			new TestingCoordinationRequestHandler.Request<>(payload);
+
+		CommonTestUtils.assertThrows(
+			"cannot handle client event",
+			FlinkException.class,
+			() -> scheduler.deliverCoordinationRequestToCoordinator(testOperatorId, request));
+	}
+
+	@Test
+	public void testDeliveringClientRequestToNonExistingCoordinator() throws Exception {
+		final OperatorCoordinator.Provider provider = new TestingOperatorCoordinator.Provider(testOperatorId);
+		final DefaultScheduler scheduler = createScheduler(provider);
+
+		final String payload = "testing payload";
+		final TestingCoordinationRequestHandler.Request<String> request =
+			new TestingCoordinationRequestHandler.Request<>(payload);
+
+		CommonTestUtils.assertThrows(
+			"does not exist",
+			FlinkException.class,
+			() -> scheduler.deliverCoordinationRequestToCoordinator(new OperatorID(), request));
 	}
 
 	// ------------------------------------------------------------------------
