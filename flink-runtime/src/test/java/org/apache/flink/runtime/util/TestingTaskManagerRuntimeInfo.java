@@ -33,7 +33,7 @@ public class TestingTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
 
 	private final Configuration configuration;
 	private final String[] tmpDirectories;
-	private final String taskManagerAddress;
+	private final String taskManagerExternalAddress;
 
 	public TestingTaskManagerRuntimeInfo() {
 		this(new Configuration(), System.getProperty("java.io.tmpdir").split(",|" + File.pathSeparator));
@@ -54,10 +54,10 @@ public class TestingTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
 	public TestingTaskManagerRuntimeInfo(
 			Configuration configuration,
 			String[] tmpDirectories,
-			String taskManagerAddress) {
+			String taskManagerExternalAddress) {
 		this.configuration = configuration;
 		this.tmpDirectories = tmpDirectories;
-		this.taskManagerAddress = taskManagerAddress;
+		this.taskManagerExternalAddress = taskManagerExternalAddress;
 	}
 
 	@Override
@@ -77,7 +77,7 @@ public class TestingTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
 	}
 
 	@Override
-	public String getTaskManagerAddress() {
-		return taskManagerAddress;
+	public String getTaskManagerExternalAddress() {
+		return taskManagerExternalAddress;
 	}
 }

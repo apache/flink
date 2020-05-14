@@ -72,6 +72,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.net.InetAddress;
 import java.util.Collections;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -167,7 +168,10 @@ public class JvmExitOnFatalErrorTest {
 
 				final Configuration copiedConf = new Configuration(taskManagerConfig);
 				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration
-					.fromConfiguration(taskManagerConfig, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf));
+					.fromConfiguration(
+						taskManagerConfig,
+						TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf),
+						InetAddress.getLoopbackAddress().getHostAddress());
 
 				final Executor executor = Executors.newCachedThreadPool();
 

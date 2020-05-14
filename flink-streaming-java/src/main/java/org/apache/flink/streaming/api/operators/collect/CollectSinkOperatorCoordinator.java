@@ -25,6 +25,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandle
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -37,7 +38,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,8 +45,8 @@ import java.util.concurrent.Executors;
 /**
  * {@link OperatorCoordinator} for {@link CollectSinkFunction}.
  *
- * <p>This coordinator only forwards requests and responses from clients and sinks,
- * it does not store any state in itself.
+ * <p>This coordinator only forwards requests and responses from clients and sinks
+ * and it does not store any results in itself.
  */
 public class CollectSinkOperatorCoordinator implements OperatorCoordinator, CoordinationRequestHandler {
 
@@ -54,18 +54,23 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 
 	private InetSocketAddress address;
 	private Socket socket;
+	private DataInputViewStreamWrapper inStream;
+	private DataOutputViewStreamWrapper outStream;
 
 	private ExecutorService executorService;
 
 	@Override
 	public void start() throws Exception {
-		this.executorService = Executors.newFixedThreadPool(1);
+		this.executorService =
+			Executors.newSingleThreadExecutor(
+				new ExecutorThreadFactory(
+					"collect-sink-operator-coordinator-executor-thread-pool"));
 	}
 
 	@Override
 	public void close() throws Exception {
-		closeCurrentConnection();
 		this.executorService.shutdown();
+		closeCurrentConnection();
 	}
 
 	@Override
@@ -73,10 +78,10 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 		Preconditions.checkArgument(
 			event instanceof CollectSinkAddressEvent, "Operator event must be a CollectSinkAddressEvent");
 		address = ((CollectSinkAddressEvent) event).getAddress();
-		LOG.debug("Received sink socket server address: " + address);
+		LOG.info("Received sink socket server address: " + address);
 
 		// this event is sent when the sink function starts, so we remove the old socket if it is present
-		socket = null;
+		closeCurrentConnection();
 	}
 
 	@Override
@@ -93,60 +98,43 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 	private void handleRequestImpl(
 			CollectCoordinationRequest request,
 			CompletableFuture<CoordinationResponse> responseFuture) {
-		// there is no thread safety issue in this method
-		// because the thread pool has only 1 thread
-		// and by design there shall be only 1 client reading from this coordinator
+		// we back up the address object here to avoid concurrent modifying from `handleEventFromOperator`.
+		// it's ok if this address becomes invalid in the following code,
+		// if this happens, the coordinator will just return an empty result
+		InetSocketAddress address = this.address;
+
 		if (address == null) {
-			responseFuture.complete(new CollectCoordinationResponse(createEmptySerializedResult(request)));
+			responseFuture.complete(CollectCoordinationResponse.INVALID_INSTANCE);
+			return;
 		}
 
 		try {
 			if (socket == null) {
 				socket = new Socket(address.getAddress(), address.getPort());
-				LOG.debug("Sink connection established");
+				socket.setKeepAlive(true);
+				socket.setTcpNoDelay(true);
+				inStream = new DataInputViewStreamWrapper(socket.getInputStream());
+				outStream = new DataOutputViewStreamWrapper(socket.getOutputStream());
+				LOG.info("Sink connection established");
 			}
 
-			// send version and token to sink server
-			LOG.debug("Forwarding request to sink socket server");
-			DataOutputViewStreamWrapper outStream = new DataOutputViewStreamWrapper(socket.getOutputStream());
-			outStream.write(request.getBytes());
+			// send version and offset to sink server
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Forwarding request to sink socket server");
+			}
+			request.serialize(outStream);
 
 			// fetch back serialized results
-			LOG.debug("Fetching serialized result from sink socket server");
-			DataInputViewStreamWrapper inStream = new DataInputViewStreamWrapper(socket.getInputStream());
-			int size = inStream.readInt();
-			byte[] bytes = new byte[size];
-			inStream.readFully(bytes);
-
-			responseFuture.complete(new CollectCoordinationResponse(bytes));
-		} catch (Exception e) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Fetching serialized result from sink socket server");
+			}
+			responseFuture.complete(new CollectCoordinationResponse(inStream));
+		} catch (IOException e) {
 			// request failed, close current connection and send back empty results
 			// we catch every exception here because socket might suddenly becomes null if the sink fails
 			// and we do not want the coordinator to fail
 			closeCurrentConnection();
-			responseFuture.complete(new CollectCoordinationResponse(createEmptySerializedResult(request)));
-		}
-	}
-
-	private byte[] createEmptySerializedResult(CollectCoordinationRequest request) {
-		ByteArrayInputStream bais = new ByteArrayInputStream(request.getBytes());
-		DataInputViewStreamWrapper wrapper = new DataInputViewStreamWrapper(bais);
-		try {
-			CollectCoordinationRequest.DeserializedRequest deserializedRequest =
-				CollectCoordinationRequest.deserialize(wrapper);
-			// we set lastCheckpointId to Long.MIN_VALUE here which is OK,
-			// because results will be immediately exposed to user once lastCheckpointId advances,
-			// so a temporary step back does not matter
-			return CollectCoordinationResponse.serialize(
-				deserializedRequest.getVersion(),
-				deserializedRequest.getToken(),
-				Long.MIN_VALUE,
-				Collections.emptyList(),
-				null);
-		} catch (IOException e) {
-			// impossible, as the data is read from an already presented byte array
-			// still, this return value is acceptable, because client can't deserialize it and will retry
-			return new byte[0];
+			responseFuture.complete(CollectCoordinationResponse.INVALID_INSTANCE);
 		}
 	}
 

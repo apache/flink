@@ -364,8 +364,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			rpcService.getExecutor()); // TODO replace this later with some dedicated executor for io.
 
 		TaskManagerConfiguration taskManagerConfiguration =
-			TaskManagerConfiguration.fromConfiguration(
-				configuration, taskExecutorResourceSpec, taskManagerServicesConfiguration);
+			TaskManagerConfiguration.fromConfiguration(configuration, taskExecutorResourceSpec, externalAddress);
 
 		String metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 

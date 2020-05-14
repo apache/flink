@@ -34,7 +34,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
@@ -45,6 +44,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,7 +62,7 @@ public class CollectSinkFunctionTest {
 
 	private static final int MAX_RESULTS_PER_BATCH = 3;
 	private static final String LIST_ACC_NAME = "tableCollectList";
-	private static final String TOKEN_ACC_NAME = "tableCollectToken";
+	private static final String OFFSET_ACC_NAME = "tableCollectOffset";
 
 	private CollectSinkFunction<Row> function;
 	private CollectSinkOperatorCoordinator coordinator;
@@ -76,7 +76,7 @@ public class CollectSinkFunctionTest {
 		serializer = new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO).createSerializer(new ExecutionConfig());
 		runtimeContext = new MockStreamingRuntimeContext(false, 1, 0);
 		gateway = new MockOperatorEventGateway();
-		function = new CollectSinkFunction<>(serializer, MAX_RESULTS_PER_BATCH, LIST_ACC_NAME, TOKEN_ACC_NAME);
+		function = new CollectSinkFunction<>(serializer, MAX_RESULTS_PER_BATCH, LIST_ACC_NAME, OFFSET_ACC_NAME);
 		coordinator = new CollectSinkOperatorCoordinator();
 		coordinator.start();
 
@@ -97,8 +97,8 @@ public class CollectSinkFunctionTest {
 			function.invoke(Row.of(i), null);
 		}
 
-		CollectCoordinationResponse.DeserializedResponse<Row> response = sendRequest("", 0);
-		Assert.assertEquals(response.getToken(), 0);
+		CollectCoordinationResponse<Row> response = sendRequest("", 0);
+		Assert.assertEquals(0, response.getOffset());
 		String version = response.getVersion();
 
 		response = sendRequest(version, 0);
@@ -151,8 +151,8 @@ public class CollectSinkFunctionTest {
 			function.invoke(Row.of(i), null);
 		}
 
-		CollectCoordinationResponse.DeserializedResponse<Row> response = sendRequest("", 0);
-		Assert.assertEquals(response.getToken(), 0);
+		CollectCoordinationResponse<Row> response = sendRequest("", 0);
+		Assert.assertEquals(0, response.getOffset());
 		String version = response.getVersion();
 
 		response = sendRequest(version, 0);
@@ -165,7 +165,9 @@ public class CollectSinkFunctionTest {
 		response = sendRequest(version, 3);
 		assertResponseEquals(response, version, 3, Long.MIN_VALUE, Arrays.asList(3, 4, 5));
 
-		function.snapshotState(new MockFunctionSnapshotContext(0));
+		// CollectSinkFunction is not using this context
+		function.snapshotState(null);
+		function.notifyCheckpointComplete(0);
 
 		response = sendRequest(version, 4);
 		assertResponseEquals(response, version, 4, 0, Arrays.asList(4, 5));
@@ -188,16 +190,18 @@ public class CollectSinkFunctionTest {
 		}
 
 		response = sendRequest(version, 4);
-		Assert.assertEquals(3, response.getToken());
+		Assert.assertEquals(3, response.getOffset());
 		version = response.getVersion();
 
 		response = sendRequest(version, 4);
-		assertResponseEquals(response, version, 4, 0, Arrays.asList(4, 5, 9));
+		assertResponseEquals(response, version, 4, Long.MIN_VALUE, Arrays.asList(4, 5, 9));
 
 		response = sendRequest(version, 6);
-		assertResponseEquals(response, version, 6, 0, Arrays.asList(9, 10, 11));
+		assertResponseEquals(response, version, 6, Long.MIN_VALUE, Arrays.asList(9, 10, 11));
 
-		function.snapshotState(new MockFunctionSnapshotContext(1));
+		// CollectSinkFunction is not using this context
+		function.snapshotState(null);
+		function.notifyCheckpointComplete(1);
 
 		function.invoke(Row.of(12), null);
 
@@ -211,23 +215,25 @@ public class CollectSinkFunctionTest {
 		openFunction();
 
 		response = sendRequest(version, 7);
-		Assert.assertEquals(6, response.getToken());
+		Assert.assertEquals(6, response.getOffset());
 		version = response.getVersion();
 
 		response = sendRequest(version, 7);
-		assertResponseEquals(response, version, 7, 1, Arrays.asList(10, 11));
+		assertResponseEquals(response, version, 7, Long.MIN_VALUE, Arrays.asList(10, 11));
 
 		response = sendRequest(version, 9);
-		assertResponseEquals(response, version, 9, 1, Collections.emptyList());
+		assertResponseEquals(response, version, 9, Long.MIN_VALUE, Collections.emptyList());
 
 		for (int i = 13; i < 16; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
 		response = sendRequest(version, 9);
-		assertResponseEquals(response, version, 9, 1, Arrays.asList(13, 14, 15));
+		assertResponseEquals(response, version, 9, Long.MIN_VALUE, Arrays.asList(13, 14, 15));
 
-		function.snapshotState(new MockFunctionSnapshotContext(2));
+		// CollectSinkFunction is not using this context
+		function.snapshotState(null);
+		function.notifyCheckpointComplete(2);
 
 		// this is an exceptional shutdown
 		function.close();
@@ -236,18 +242,18 @@ public class CollectSinkFunctionTest {
 		openFunction();
 
 		response = sendRequest(version, 12);
-		Assert.assertEquals(9, response.getToken());
+		Assert.assertEquals(9, response.getOffset());
 		version = response.getVersion();
 
 		response = sendRequest(version, 12);
-		assertResponseEquals(response, version, 12, 2, Collections.emptyList());
+		assertResponseEquals(response, version, 12, Long.MIN_VALUE, Collections.emptyList());
 
 		for (int i = 16; i < 20; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
 		response = sendRequest(version, 12);
-		assertResponseEquals(response, version, 12, 2, Arrays.asList(16, 17, 18));
+		assertResponseEquals(response, version, 12, Long.MIN_VALUE, Arrays.asList(16, 17, 18));
 
 		// this is a normal shutdown
 		function.accumulateFinalResults();
@@ -261,33 +267,34 @@ public class CollectSinkFunctionTest {
 		coordinator.handleEventFromOperator(0, gateway.getNextEvent());
 	}
 
-	private CollectCoordinationResponse.DeserializedResponse<Row> sendRequest(
+	@SuppressWarnings("unchecked")
+	private CollectCoordinationResponse<Row> sendRequest(
 			String version,
-			long token) throws Exception {
-		CollectCoordinationRequest request = new CollectCoordinationRequest(version, token);
-		return ((CollectCoordinationResponse) coordinator.handleCoordinationRequest(request).get())
-			.getDeserializedResponse(serializer);
+			long offset) throws Exception {
+		CollectCoordinationRequest request = new CollectCoordinationRequest(version, offset);
+		return ((CollectCoordinationResponse) coordinator.handleCoordinationRequest(request).get());
 	}
 
 	private void assertResponseEquals(
-			CollectCoordinationResponse.DeserializedResponse<Row> response,
+			CollectCoordinationResponse<Row> response,
 			String version,
-			long token,
+			long offset,
 			long lastCheckpointId,
-			List<Integer> expected) {
+			List<Integer> expected) throws IOException {
 		Assert.assertEquals(version, response.getVersion());
-		Assert.assertEquals(token, response.getToken());
+		Assert.assertEquals(offset, response.getOffset());
 		Assert.assertEquals(lastCheckpointId, response.getLastCheckpointId());
-		Assert.assertEquals(expected.size(), response.getResults().size());
+		List<Row> results = response.getResults(serializer);
+		Assert.assertEquals(expected.size(), results.size());
 		for (int i = 0; i < expected.size(); i++) {
-			Row row = response.getResults().get(i);
+			Row row = results.get(i);
 			Assert.assertEquals(1, row.getArity());
 			Assert.assertEquals(expected.get(i), row.getField(0));
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	private void assertAccumulatorResult(long expectedToken, List<Integer> expectedResults) throws Exception {
+	private void assertAccumulatorResult(long expectedOffset, List<Integer> expectedResults) throws Exception {
 		Accumulator listAccumulator = runtimeContext.getAccumulator(LIST_ACC_NAME);
 		ArrayList<byte[]> serializedResult = ((SerializedListAccumulator) listAccumulator).getLocalValue();
 		List<Row> accResult = SerializedListAccumulator.deserializeList(serializedResult, serializer);
@@ -297,9 +304,9 @@ public class CollectSinkFunctionTest {
 			Assert.assertEquals(1, row.getArity());
 			Assert.assertEquals(expectedResults.get(i), row.getField(0));
 		}
-		Accumulator tokenAccumulator = runtimeContext.getAccumulator(TOKEN_ACC_NAME);
-		long token = ((LongCounter) tokenAccumulator).getLocalValue();
-		Assert.assertEquals(expectedToken, token);
+		Accumulator offsetAccumulator = runtimeContext.getAccumulator(OFFSET_ACC_NAME);
+		long offset = ((LongCounter) offsetAccumulator).getLocalValue();
+		Assert.assertEquals(expectedOffset, offset);
 	}
 
 	private static class MockOperatorStateStore implements OperatorStateStore {
@@ -369,25 +376,6 @@ public class CollectSinkFunctionTest {
 
 		@Override
 		public KeyedStateStore getKeyedStateStore() {
-			throw new UnsupportedOperationException();
-		}
-	}
-
-	private static class MockFunctionSnapshotContext implements FunctionSnapshotContext {
-
-		private final long checkpointId;
-
-		private MockFunctionSnapshotContext(long checkpointId) {
-			this.checkpointId = checkpointId;
-		}
-
-		@Override
-		public long getCheckpointId() {
-			return checkpointId;
-		}
-
-		@Override
-		public long getCheckpointTimestamp() {
 			throw new UnsupportedOperationException();
 		}
 	}

@@ -118,6 +118,7 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1860,7 +1861,10 @@ public class TaskExecutorTest extends TestLogger {
 	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices, TaskExecutorPartitionTracker taskExecutorPartitionTracker) {
 		return new TaskExecutor(
 			rpc,
-			TaskManagerConfiguration.fromConfiguration(configuration, TM_RESOURCE_SPEC),
+			TaskManagerConfiguration.fromConfiguration(
+				configuration,
+				TM_RESOURCE_SPEC,
+				InetAddress.getLoopbackAddress().getHostAddress()),
 			haServices,
 			taskManagerServices,
 			heartbeatServices,
@@ -1879,7 +1883,10 @@ public class TaskExecutorTest extends TestLogger {
 	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, HeartbeatServices heartbeatServices) {
 		return new TestingTaskExecutor(
 			rpc,
-			TaskManagerConfiguration.fromConfiguration(configuration, TM_RESOURCE_SPEC),
+			TaskManagerConfiguration.fromConfiguration(
+				configuration,
+				TM_RESOURCE_SPEC,
+				InetAddress.getLoopbackAddress().getHostAddress()),
 			haServices,
 			taskManagerServices,
 			heartbeatServices,

@@ -50,8 +50,8 @@ class SavepointTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
 	}
 
 	@Override
-	public String getTaskManagerAddress() {
+	public String getTaskManagerExternalAddress() {
 		throw new UnsupportedOperationException(
-			"Getting task manager address is not supported in SavepointTaskManagerRuntimeInfo");
+			"Getting external address of task manager is not supported in SavepointTaskManagerRuntimeInfo");
 	}
 }

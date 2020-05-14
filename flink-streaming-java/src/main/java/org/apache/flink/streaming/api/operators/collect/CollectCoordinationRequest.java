@@ -34,53 +34,32 @@ public class CollectCoordinationRequest implements CoordinationRequest {
 
 	private static final long serialVersionUID = 1L;
 
-	private final byte[] bytes;
+	private static final TypeSerializer<String> versionSerializer = StringSerializer.INSTANCE;
+	private static final TypeSerializer<Long> offsetSerializer = LongSerializer.INSTANCE;
 
-	public CollectCoordinationRequest(String version, long token) {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
-		TypeSerializer<String> versionSerializer = new StringSerializer();
-		TypeSerializer<Long> tokenSerializer = new LongSerializer();
-		try {
-			versionSerializer.serialize(version, wrapper);
-			tokenSerializer.serialize(token, wrapper);
-		} catch (IOException e) {
-			throw new RuntimeException("Failed to serialize collect sink request", e);
-		}
-		this.bytes = baos.toByteArray();
+	private final String version;
+	private final long offset;
+
+	public CollectCoordinationRequest(String version, long offset) {
+		this.version = version;
+		this.offset = offset;
 	}
 
-	public byte[] getBytes() {
-		return bytes;
+	public CollectCoordinationRequest(DataInputViewStreamWrapper wrapper) throws IOException {
+		this.version = versionSerializer.deserialize(wrapper);
+		this.offset = offsetSerializer.deserialize(wrapper);
 	}
 
-	public static DeserializedRequest deserialize(DataInputViewStreamWrapper wrapper) throws IOException {
-		TypeSerializer<String> versionSerializer = new StringSerializer();
-		TypeSerializer<Long> tokenSerializer = new LongSerializer();
-		String version = versionSerializer.deserialize(wrapper);
-		long token = tokenSerializer.deserialize(wrapper);
-		return new DeserializedRequest(version, token);
+	public String getVersion() {
+		return version;
 	}
 
-	/**
-	 * Deserialized request containing version and token.
-	 */
-	public static class DeserializedRequest {
+	public long getOffset() {
+		return offset;
+	}
 
-		private final String version;
-		private final long token;
-
-		private DeserializedRequest(String version, long token) {
-			this.version = version;
-			this.token = token;
-		}
-
-		public String getVersion() {
-			return version;
-		}
-
-		public long getToken() {
-			return token;
-		}
+	public void serialize(DataOutputViewStreamWrapper wrapper) throws IOException {
+		versionSerializer.serialize(version, wrapper);
+		offsetSerializer.serialize(offset, wrapper);
 	}
 }

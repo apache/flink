@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.operators.collect;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -27,100 +28,92 @@ import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
  * A {@link CoordinationResponse} from the coordinator containing the required batch or new results
  * and other necessary information in serialized form.
  */
-public class CollectCoordinationResponse implements CoordinationResponse {
+public class CollectCoordinationResponse<T> implements CoordinationResponse {
 
 	private static final long serialVersionUID = 1L;
 
-	private final byte[] bytes;
+	public static CollectCoordinationResponse INVALID_INSTANCE = new CollectCoordinationResponse();
 
-	public CollectCoordinationResponse(byte[] bytes) {
-		this.bytes = bytes;
-	}
+	private static final TypeSerializer<String> versionSerializer = StringSerializer.INSTANCE;
+	private static final TypeSerializer<Long> offsetSerializer = LongSerializer.INSTANCE;
+	private static final TypeSerializer<Long> checkpointIdSerializer = LongSerializer.INSTANCE;
 
-	public <T> DeserializedResponse<T> getDeserializedResponse(TypeSerializer<T> serializer) {
-		ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-		DataInputViewStreamWrapper wrapper = new DataInputViewStreamWrapper(bais);
-		TypeSerializer<String> versionSerializer = new StringSerializer();
-		TypeSerializer<Long> tokenSerializer = new LongSerializer();
-		try {
-			String version = versionSerializer.deserialize(wrapper);
-			long token = tokenSerializer.deserialize(wrapper);
-			long checkpointedToken = tokenSerializer.deserialize(wrapper);
-			int length = wrapper.readInt();
-			List<T> results = new ArrayList<>(length);
-			for (int i = 0; i < length; i++) {
-				results.add(serializer.deserialize(wrapper));
-			}
-			return new DeserializedResponse<>(version, token, checkpointedToken, results);
-		} catch (IOException e) {
-			throw new RuntimeException("Failed to deserialize collect sink result", e);
-		}
-	}
+	private static final String INVALID_VERSION = "invalid version";
 
-	public static <T> byte[] serialize(
+	private final String version;
+	private final long offset;
+	private final long lastCheckpointId;
+	private final byte[] resultBytes;
+
+	public CollectCoordinationResponse(
 			String version,
-			long token,
+			long offset,
 			long lastCheckpointId,
 			List<T> results,
-			TypeSerializer<T> serializer) {
+			TypeSerializer<T> elementSerializer) throws IOException {
+		this.version = version;
+		this.offset = offset;
+		this.lastCheckpointId = lastCheckpointId;
+
+		ListSerializer<T> listSerializer = new ListSerializer<>(elementSerializer);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
-		TypeSerializer<String> versionSerializer = new StringSerializer();
-		TypeSerializer<Long> tokenSerializer = new LongSerializer();
-		try {
-			versionSerializer.serialize(version, wrapper);
-			tokenSerializer.serialize(token, wrapper);
-			tokenSerializer.serialize(lastCheckpointId, wrapper);
-			wrapper.writeInt(results.size());
-			for (T result : results) {
-				serializer.serialize(result, wrapper);
-			}
-		} catch (IOException e) {
-			throw new RuntimeException("Failed to serialize collect sink result", e);
-		}
-		return baos.toByteArray();
+		listSerializer.serialize(results, wrapper);
+		this.resultBytes = baos.toByteArray();
 	}
 
-	/**
-	 * Deserialized response containing version, token and result batch.
-	 *
-	 * @param <T> type of result
-	 */
-	public static class DeserializedResponse<T> {
+	public CollectCoordinationResponse(DataInputViewStreamWrapper wrapper) throws IOException {
+		this.version = versionSerializer.deserialize(wrapper);
+		this.offset = offsetSerializer.deserialize(wrapper);
+		this.lastCheckpointId = offsetSerializer.deserialize(wrapper);
 
-		private final String version;
-		private final long token;
-		private final long lastCheckpointId;
-		private final List<T> results;
+		int size = wrapper.readInt();
+		this.resultBytes = new byte[size];
+		wrapper.readFully(resultBytes);
+	}
 
-		private DeserializedResponse(String version, long token, long lastCheckpointId, List<T> results) {
-			this.version = version;
-			this.token = token;
-			this.lastCheckpointId = lastCheckpointId;
-			this.results = results;
-		}
+	public String getVersion() {
+		return version;
+	}
 
-		public String getVersion() {
-			return version;
-		}
+	public long getOffset() {
+		return offset;
+	}
 
-		public long getToken() {
-			return token;
-		}
+	public long getLastCheckpointId() {
+		return lastCheckpointId;
+	}
 
-		public long getLastCheckpointId() {
-			return lastCheckpointId;
-		}
+	public List<T> getResults(TypeSerializer<T> elementSerializer) throws IOException {
+		ListSerializer<T> listSerializer = new ListSerializer<>(elementSerializer);
+		ByteArrayInputStream bais = new ByteArrayInputStream(resultBytes);
+		DataInputViewStreamWrapper wrapper = new DataInputViewStreamWrapper(bais);
+		return listSerializer.deserialize(wrapper);
+	}
 
-		public List<T> getResults() {
-			return results;
-		}
+	public void serialize(DataOutputViewStreamWrapper wrapper) throws IOException {
+		versionSerializer.serialize(version, wrapper);
+		offsetSerializer.serialize(offset, wrapper);
+		checkpointIdSerializer.serialize(lastCheckpointId, wrapper);
+
+		wrapper.writeInt(resultBytes.length);
+		wrapper.write(resultBytes);
+	}
+
+	private CollectCoordinationResponse() {
+		this.version = INVALID_VERSION;
+		this.offset = Long.MIN_VALUE;
+		this.lastCheckpointId = Long.MIN_VALUE;
+		this.resultBytes = null;
+	}
+
+	public static boolean isInvalid(CollectCoordinationResponse response) {
+		return response.version.equals(INVALID_VERSION);
 	}
 }

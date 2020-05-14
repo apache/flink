@@ -49,9 +49,9 @@ public interface TaskManagerRuntimeInfo {
 	boolean shouldExitJvmOnOutOfMemoryError();
 
 	/**
-	 * Gets the address of the TaskManager.
+	 * Gets the external address of the TaskManager.
 	 *
-	 * @return The address of the TaskManager.
+	 * @return The external address of the TaskManager.
 	 */
-	String getTaskManagerAddress();
+	String getTaskManagerExternalAddress();
 }
