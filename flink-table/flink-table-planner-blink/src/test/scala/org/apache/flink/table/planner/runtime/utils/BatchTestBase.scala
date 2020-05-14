@@ -32,7 +32,7 @@ import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.factories.{TestProjectableValuesTableFactory, TestValuesTableFactory}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
@@ -47,7 +47,6 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
-
 import org.junit.Assert._
 import org.junit.{After, Assert, Before}
 
@@ -82,6 +81,7 @@ class BatchTestBase extends BatchAbstractTestBase {
   @After
   def after(): Unit = {
     TestValuesTableFactory.clearAllData()
+    TestProjectableValuesTableFactory.clearAllRegisteredData()
   }
 
   /**
