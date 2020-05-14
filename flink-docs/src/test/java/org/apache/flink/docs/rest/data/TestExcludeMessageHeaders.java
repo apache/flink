@@ -39,6 +39,20 @@ import java.util.Collections;
 public class TestExcludeMessageHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
 	private static final String URL = "/test/excluded";
+	private static final String DESCRIPTION = "This REST API should not appear in the generated documentation.";
+
+	private final String url;
+	private final String description;
+
+	public TestExcludeMessageHeaders() {
+		this.url = URL;
+		this.description = DESCRIPTION;
+	}
+
+	public TestExcludeMessageHeaders(String url, String description) {
+		this.url = URL;
+		this.description = DESCRIPTION;
+	}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -62,7 +76,7 @@ public class TestExcludeMessageHeaders implements MessageHeaders<EmptyRequestBod
 
 	@Override
 	public String getDescription() {
-		return "This REST API should not appear in the generated documentation.";
+		return description;
 	}
 
 	@Override

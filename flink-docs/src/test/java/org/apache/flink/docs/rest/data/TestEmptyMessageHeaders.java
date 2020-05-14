@@ -37,6 +37,20 @@ import java.util.Collections;
 public class TestEmptyMessageHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
 	private static final String URL = "/test/empty";
+	private static final String DESCRIPTION = "This is an empty testing REST API.";
+
+	private final String url;
+	private final String description;
+
+	public TestEmptyMessageHeaders() {
+		this.url = URL;
+		this.description = DESCRIPTION;
+	}
+
+	public TestEmptyMessageHeaders(String url, String description) {
+		this.url = url;
+		this.description = description;
+	}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -60,7 +74,7 @@ public class TestEmptyMessageHeaders implements MessageHeaders<EmptyRequestBody,
 
 	@Override
 	public String getDescription() {
-		return "This is an empty testing REST API.";
+		return description;
 	}
 
 	@Override
@@ -70,7 +84,7 @@ public class TestEmptyMessageHeaders implements MessageHeaders<EmptyRequestBody,
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return URL;
+		return url;
 	}
 
 	@Override
