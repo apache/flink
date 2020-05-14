@@ -21,6 +21,7 @@ package org.apache.flink.docs.rest;
 import org.apache.flink.docs.rest.data.TestDocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -30,37 +31,19 @@ import java.io.File;
 /**
  * Tests for the {@link RestAPIDocGenerator}.
  */
-public class RestAPIDocGeneratorTest {
+public class RestAPIDocGeneratorTest extends TestLogger {
 
 	@Test
-	public void testDocGeneration() throws Exception {
+	public void testExcludeFromDocumentation() throws Exception {
 		File file = File.createTempFile("rest_v0_", ".html");
 		RestAPIDocGenerator.createHtmlFile(
 			new TestDocumentingRestEndpoint(),
 			RestAPIVersion.V0,
 			file.toPath());
-		String actual = cleanUpHtml(FileUtils.readFile(file, "UTF-8"));
+		String actual = FileUtils.readFile(file, "UTF-8");
 
-		File expectedFile = new File(
-			RestAPIDocGeneratorTest.class.getClassLoader().getResource("rest_v0_expected.html").getFile());
-		String expected = cleanUpHtml(FileUtils.readFile(expectedFile, "UTF-8"));
-
-		Assert.assertEquals(expected, actual);
-	}
-
-	private String cleanUpHtml(String html) {
-		html = removeComments(html);
-		html = removeUniqueId(html);
-		return html.trim();
-	}
-
-	private String removeComments(String s) {
-		return s.replaceAll("<!--[\\s\\S]+?-->", "");
-	}
-
-	private String removeUniqueId(String s) {
-		return s
-			.replaceAll("id=\\\".+?\\\"", "id=\"\"")
-			.replaceAll("data-target=\\\".+?\\\"", "data-target=\"\"");
+		Assert.assertTrue(actual.contains("This is a testing REST API."));
+		Assert.assertTrue(actual.contains("This is an empty testing REST API."));
+		Assert.assertFalse(actual.contains("This REST API should not appear in the generated documentation."));
 	}
 }

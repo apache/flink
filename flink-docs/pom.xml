@@ -139,6 +139,13 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<!-- Used for parsing HTML -->
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
