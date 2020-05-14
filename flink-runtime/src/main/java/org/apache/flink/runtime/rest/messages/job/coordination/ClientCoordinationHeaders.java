@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.job.coordination;
 
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.job.coordination.ClientCoordinationHandler;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -27,6 +28,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * Message headers for the {@link ClientCoordinationHandler}.
  */
+@Documentation.ExcludeFromDocumentation(
+	"This API is not exposed to the users, as coordinators are used only internally.")
 public class ClientCoordinationHeaders implements MessageHeaders<ClientCoordinationRequestBody, ClientCoordinationResponseBody, ClientCoordinationMessageParameters> {
 
 	public static final String URL = "/jobs/:jobid/coordinators/:operatorid";
