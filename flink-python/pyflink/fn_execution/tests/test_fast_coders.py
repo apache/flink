@@ -110,7 +110,7 @@ class CodersTest(unittest.TestCase):
         self.check_cython_coder(python_field_coders, cython_field_coders, [data])
 
     def test_cython_binary_coder(self):
-        data = [b'pyflink']
+        data = [b'pyflink', b'x\x00\x00\x00']
         python_field_coders = [coder_impl.BinaryCoderImpl() for _ in range(len(data))]
         cython_field_coders = [fast_coder_impl.BinaryCoderImpl() for _ in range(len(data))]
         self.check_cython_coder(python_field_coders, cython_field_coders, [data])
