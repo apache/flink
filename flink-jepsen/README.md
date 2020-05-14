@@ -21,13 +21,20 @@ semantics.
 ## Usage
 
 ### Setting up the Environment
-See the [Jepsen documentation](https://github.com/jepsen-io/jepsen#setting-up-a-jepsen-environment)
-for details on how to set up the environment required to run the tests.
+A Jepsen test is started and orchestrated by a Clojure program running on a _control node_.
+That program logs into several specified _DB nodes_ to set up a Flink cluster
+and submit test job(s). Afterwards, the control node will inject faults into the DB nodes
+and continue to interact with the Flink cluster (for example by probing the status of the test job).
+Tests in this project require at least 3 DB nodes; this is due to [how we install
+software](#test-spec), such as HDFS, on the DB nodes. There is no upper limit on the number of DB nodes.
+
+For details on how to set up the environment required to run the tests,
+see the [Jepsen documentation](https://github.com/jepsen-io/jepsen#setting-up-a-jepsen-environment).
 To simplify development, we have prepared Dockerfiles and a [Docker Compose](https://docs.docker.com/compose/) template
 so that you can run the tests locally in containers (see Section [Docker](#usage-docker)).
 
 ### Running Tests
-Tests are started from the control node. Therefore, the contents of this directory
+Because tests are started from the control node, the contents of this directory
 must be copied to the control node first. An example for a command that will run a test is
 
 ```bash
