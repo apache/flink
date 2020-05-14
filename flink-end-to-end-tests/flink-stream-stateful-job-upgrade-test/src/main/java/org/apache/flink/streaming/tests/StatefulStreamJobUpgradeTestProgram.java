@@ -108,28 +108,28 @@ public class StatefulStreamJobUpgradeTestProgram {
 	}
 
 	private static KeyedStream<Event, Integer> applyOriginalStatefulOperations(
-		KeyedStream<Event, Integer> source,
-		List<TypeSerializer<ComplexPayload>> stateSer,
-		List<Class<ComplexPayload>> stateClass) {
+			KeyedStream<Event, Integer> source,
+			List<TypeSerializer<ComplexPayload>> stateSer,
+			List<Class<ComplexPayload>> stateClass) {
 		source = applyTestStatefulOperator("stateMap1", simpleStateUpdate("stateMap1"), source, stateSer, stateClass);
 		return applyTestStatefulOperator("stateMap2", lastStateUpdate("stateMap2"), source, stateSer, stateClass);
 	}
 
 	private static KeyedStream<Event, Integer> applyUpgradedStatefulOperations(
-		KeyedStream<Event, Integer> source,
-		List<TypeSerializer<ComplexPayload>> stateSer,
-		List<Class<ComplexPayload>> stateClass) {
+			KeyedStream<Event, Integer> source,
+			List<TypeSerializer<ComplexPayload>> stateSer,
+			List<Class<ComplexPayload>> stateClass) {
 		source = applyTestStatefulOperator("stateMap2", simpleStateUpdate("stateMap2"), source, stateSer, stateClass);
 		source = applyTestStatefulOperator("stateMap1", lastStateUpdate("stateMap1"), source, stateSer, stateClass);
 		return applyTestStatefulOperator("stateMap3", simpleStateUpdate("stateMap3"), source, stateSer, stateClass);
 	}
 
 	private static KeyedStream<Event, Integer> applyTestStatefulOperator(
-		String name,
-		JoinFunction<Event, ComplexPayload, ComplexPayload> stateFunc,
-		KeyedStream<Event, Integer> source,
-		List<TypeSerializer<ComplexPayload>> stateSer,
-		List<Class<ComplexPayload>> stateClass) {
+			String name,
+			JoinFunction<Event, ComplexPayload, ComplexPayload> stateFunc,
+			KeyedStream<Event, Integer> source,
+			List<TypeSerializer<ComplexPayload>> stateSer,
+			List<Class<ComplexPayload>> stateClass) {
 		return source
 			.map(createArtificialKeyedStateMapper(e -> e, stateFunc, stateSer, stateClass))
 			.name(name)
