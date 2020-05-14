@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /**
  * The data type visitor used to fix the precision for data type with the given logical type
@@ -137,13 +136,13 @@ public final class DataTypePrecisionFixer implements DataTypeVisitor<DataType> {
 	@Override
 	public DataType visit(FieldsDataType fieldsDataType) {
 		final List<DataType> fieldDataTypes = fieldsDataType.getChildren();
-		if (hasRoot(logicalType, LogicalTypeRoot.ROW)) {
+		if (logicalType.getTypeRoot() == LogicalTypeRoot.ROW) {
 			final List<String> fieldNames = getFieldNames(logicalType);
 			DataTypes.Field[] fields = IntStream.range(0, fieldDataTypes.size())
 				.mapToObj(i -> {
 					final DataType oldFieldType = fieldDataTypes.get(i);
 					final DataType newFieldType = oldFieldType.accept(
-						new DataTypePrecisionFixer(oldFieldType.getLogicalType()));
+						new DataTypePrecisionFixer(logicalType.getChildren().get(i)));
 					return DataTypes.FIELD(fieldNames.get(i), newFieldType);
 				})
 				.toArray(DataTypes.Field[]::new);
