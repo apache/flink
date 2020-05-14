@@ -42,6 +42,7 @@ import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 
@@ -114,11 +115,12 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
 	private static PackagedProgramRetriever getPackagedProgramRetriever(
 			final String[] programArguments,
 			@Nullable final String jobClassName) throws IOException {
+		final File userLibDir = tryFindUserLibDirectory().orElse(null);
 		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
 				ClassPathPackagedProgramRetriever
 						.newBuilder(programArguments)
+						.setUserLibDirectory(userLibDir)
 						.setJobClassName(jobClassName);
-		tryFindUserLibDirectory().ifPresent(retrieverBuilder::setUserLibDirectory);
 		return retrieverBuilder.build();
 	}
 

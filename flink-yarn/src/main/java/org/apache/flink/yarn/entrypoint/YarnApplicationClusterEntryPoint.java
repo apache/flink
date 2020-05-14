@@ -123,17 +123,23 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
 			final String[] programArguments,
 			@Nullable final String jobClassName) throws IOException {
 
-		final List<File> pipelineJars = configuration.get(PipelineOptions.JARS).stream()
-			.map(uri -> new File(YarnEntrypointUtils.getUsrLibDir(configuration).orElse(null), new Path(uri).getName()))
-			.collect(Collectors.toList());
-		Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
-
+		final File userLibDir = YarnEntrypointUtils.getUsrLibDir(configuration).orElse(null);
+		final File userApplicationJar = getUserApplicationJar(userLibDir, configuration);
 		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
 				ClassPathPackagedProgramRetriever
 						.newBuilder(programArguments)
-						.setJarFile(pipelineJars.get(0))
+						.setUserLibDirectory(userLibDir)
+						.setJarFile(userApplicationJar)
 						.setJobClassName(jobClassName);
-		YarnEntrypointUtils.getUsrLibDir(configuration).ifPresent(retrieverBuilder::setUserLibDirectory);
 		return retrieverBuilder.build();
+	}
+
+	private static File getUserApplicationJar(final File userLibDir, final Configuration configuration) {
+		final List<File> pipelineJars = configuration.get(PipelineOptions.JARS).stream()
+			.map(uri -> new File(userLibDir, new Path(uri).getName()))
+			.collect(Collectors.toList());
+
+		Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+		return pipelineJars.get(0);
 	}
 }
