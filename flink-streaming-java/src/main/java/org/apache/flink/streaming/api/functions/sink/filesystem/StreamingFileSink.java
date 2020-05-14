@@ -40,7 +40,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Map;
 
 /**
  * Sink that emits its input elements to {@link FileSystem} files within buckets. This is

@@ -23,11 +23,13 @@ import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
+import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.core.fs.local.LocalRecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
-import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
@@ -40,6 +42,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -49,6 +52,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy.build;
 
 /**
  * Utilities for the {@link StreamingFileSink} tests.
@@ -158,7 +163,7 @@ public class TestUtils {
 			.forBulkFormat(new Path(outDir.toURI()), writer)
 			.withBucketAssigner(bucketer)
 			.withBucketCheckInterval(bucketCheckInterval)
-			.withRollingPolicy(OnCheckpointRollingPolicy.build())
+			.withRollingPolicy(build())
 			.withBucketFactory(bucketFactory)
 			.withOutputFileConfig(outputFileConfig)
 			.build();
@@ -199,11 +204,29 @@ public class TestUtils {
 		StreamingFileSink<Tuple2<String, Integer>> sink = StreamingFileSink
 				.forBulkFormat(new Path(outDir.toURI()), writer)
 				.withNewBucketAssigner(bucketer)
-				.withRollingPolicy(OnCheckpointRollingPolicy.build())
+				.withRollingPolicy(build())
 				.withBucketCheckInterval(bucketCheckInterval)
 				.withBucketFactory(bucketFactory)
 				.withOutputFileConfig(outputFileConfig)
 				.build();
+
+		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
+	}
+
+	static OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> createBucketStateMigrationTestSink(
+		final File outDir,
+		final int maxPartFileSize,
+		final int totalParallelism,
+		final int taskIdx,
+		final Encoder<Tuple2<String, Integer>> encoder,
+		final BucketAssigner<Tuple2<String, Integer>, String> bucketAssigner) throws Exception {
+
+		final StreamingFileSink<Tuple2<String, Integer>> sink =
+			new TestRowFormatBuilder(
+				new Path(outDir.toString()),
+				encoder,
+				bucketAssigner,
+				DefaultRollingPolicy.builder().withMaxPartSize(maxPartFileSize).build()).build();
 
 		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
 	}
@@ -412,6 +435,88 @@ public class TestUtils {
 		@Override
 		public void clear() {
 			backingList.clear();
+		}
+	}
+
+	static class TestRowFormatBuilder extends StreamingFileSink.RowFormatBuilder<Tuple2<String, Integer>, String, TestRowFormatBuilder> {
+
+		private final Path basePath;
+
+		private final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy;
+
+		private final Encoder<Tuple2<String, Integer>> encoder;
+
+		private final BucketAssigner<Tuple2<String, Integer>, String> bucketAssigner;
+
+		public TestRowFormatBuilder(
+			final Path basePath,
+			final Encoder<Tuple2<String, Integer>> encoder,
+			final BucketAssigner<Tuple2<String, Integer>, String> bucketAssigner,
+			final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy) {
+			super(basePath, encoder, bucketAssigner);
+			this.basePath = basePath;
+			this.encoder = encoder;
+			this.rollingPolicy = rollingPolicy;
+			this.bucketAssigner = bucketAssigner;
+		}
+
+		@Override
+		Buckets<Tuple2<String, Integer>, String> createBuckets(int subtaskIndex) {
+			return new Buckets<>(
+				basePath,
+				bucketAssigner,
+				new DefaultBucketFactoryImpl<>(),
+				new RowWisePartWriter.Factory<>(
+					new LocalRecoverableWriterForBucketStateMigrationTest(
+						new LocalFileSystem(), basePath.toString()), encoder),
+				rollingPolicy,
+				subtaskIndex,
+				OutputFileConfig.builder().build());
+		}
+	}
+
+	static class LocalRecoverableWriterForBucketStateMigrationTest extends LocalRecoverableWriter {
+
+		final String prefix;
+
+		public LocalRecoverableWriterForBucketStateMigrationTest(LocalFileSystem fs, String prefix) {
+			super(fs);
+			this.prefix = prefix;
+		}
+
+		public RecoverableFsDataOutputStream open(Path filePath) throws IOException {
+			RecoverableFsDataOutputStream recoverableFsDataOutputStream = super.open(filePath);
+			try {
+				final Field targetFileField = recoverableFsDataOutputStream.getClass().getDeclaredField("targetFile");
+				targetFileField.setAccessible(true);
+				final File targetFile = (File) targetFileField.get(recoverableFsDataOutputStream);
+				final int indexOfTargetFileRelativePath = targetFile.toString().indexOf(prefix);
+				final File relativeTargetFile = new FileForBucketSateMigrationTest(targetFile.toString().substring(indexOfTargetFileRelativePath));
+				targetFileField.set(recoverableFsDataOutputStream, relativeTargetFile);
+
+				final Field tempFileField = recoverableFsDataOutputStream.getClass().getDeclaredField("tempFile");
+				tempFileField.setAccessible(true);
+				final File tempFile = (File) tempFileField.get(recoverableFsDataOutputStream);
+				final int indexOfTempFileRelativePath = tempFile.toString().indexOf(prefix);
+				final File relativeTemptFile = new FileForBucketSateMigrationTest(tempFile.toString().substring(indexOfTempFileRelativePath));
+				tempFileField.set(recoverableFsDataOutputStream, relativeTemptFile);
+
+			} catch (NoSuchFieldException | IllegalAccessException e) {
+				e.printStackTrace();
+				return null;
+			}
+			return recoverableFsDataOutputStream;
+		}
+	}
+
+	static class FileForBucketSateMigrationTest extends File {
+
+		public FileForBucketSateMigrationTest(String pathname) {
+			super(pathname);
+		}
+
+		public String getAbsolutePath() {
+			return getPath();
 		}
 	}
 }
