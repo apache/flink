@@ -29,6 +29,7 @@ from pyflink.common.execution_mode import ExecutionMode
 from pyflink.common.input_dependency_constraint import InputDependencyConstraint
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
+from pyflink.common.job_id import JobID
 from pyflink.common.job_status import JobStatus
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 
@@ -40,6 +41,7 @@ __all__ = [
     'InputDependencyConstraint',
     'JobClient',
     'JobExecutionResult',
+    'JobID',
     'JobStatus',
     'RestartStrategies',
     'RestartStrategyConfiguration',

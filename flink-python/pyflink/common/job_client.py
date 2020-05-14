@@ -17,6 +17,7 @@
 ################################################################################
 from pyflink.common.completable_future import CompletableFuture
 from pyflink.common.job_execution_result import JobExecutionResult
+from pyflink.common.job_id import JobID
 from pyflink.common.job_status import JobStatus
 
 __all__ = ['JobClient']
@@ -37,7 +38,7 @@ class JobClient(object):
         :return: JobID, or null if the job has been executed on a runtime without JobIDs
                  or if the execution failed.
         """
-        return str(self._j_job_client.getJobID())
+        return JobID(self._j_job_client.getJobID())
 
     def get_job_status(self):
         """
