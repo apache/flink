@@ -29,7 +29,7 @@ It supports to convert between PyFlink Table and Pandas DataFrame.
 
 ## Convert Pandas DataFrame to PyFlink Table
 
-It supports to create a PyFlink Table from a Pandas DataFrame. Internally, it will serialize the Pandas DataFrame
+It supports creating a PyFlink Table from a Pandas DataFrame. Internally, it will serialize the Pandas DataFrame
 using Arrow columnar format at client side and the serialized data will be processed and deserialized in Arrow source
 during execution. The Arrow source could also be used in streaming jobs and it will properly handle the checkpoint
 and provides the exactly once guarantees.
@@ -60,8 +60,8 @@ table = t_env.from_pandas(pdf,
 
 ## Convert PyFlink Table to Pandas DataFrame
 
-It also supports to convert a PyFlink Table to a Pandas DataFrame. Internally, it will materialize the results of the 
-table and serialize them into multiple arrow batches of Arrow columnar format at client side. The maximum arrow batch size
+It also supports converting a PyFlink Table to a Pandas DataFrame. Internally, it will materialize the results of the 
+table and serialize them into multiple Arrow batches of Arrow columnar format at client side. The maximum Arrow batch size
 is determined by the config option [python.fn-execution.arrow.batch.size]({{ site.baseurl }}/zh/dev/table/python/python_config.html#python-fn-execution-arrow-batch-size).
 The serialized data will then be converted to Pandas DataFrame.
 

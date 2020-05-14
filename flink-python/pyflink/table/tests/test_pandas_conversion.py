@@ -135,7 +135,7 @@ class PandasConversionITTests(PandasConversionTestBase):
     def test_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
         result_pdf = table.to_pandas()
-        self.assertTrue(2, len(result_pdf))
+        self.assertEqual(2, len(result_pdf))
         assert_frame_equal(self.pdf, result_pdf)
 
     def test_empty_to_pandas(self):

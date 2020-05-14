@@ -57,6 +57,7 @@ class ArrowSerializer(Serializer):
     def load_from_iterator(self, itor):
         class IteratorIO(io.RawIOBase):
             def __init__(self, itor):
+                super(IteratorIO, self).__init__()
                 self.itor = itor
                 self.leftover = None
 

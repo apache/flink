@@ -26,7 +26,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableEnvImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableImpl;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -610,7 +609,7 @@ public final class ArrowUtils {
 	/**
 	 * Convert Flink table to Pandas DataFrame.
 	 */
-	public static Iterator<byte[]> collectAsPandasDataFrame(Table table, int maxArrowBatchSize) throws Exception {
+	public static CustomIterator<byte[]> collectAsPandasDataFrame(Table table, int maxArrowBatchSize) throws Exception {
 		BufferAllocator allocator = getRootAllocator().newChildAllocator("collectAsPandasDataFrame", 0, Long.MAX_VALUE);
 		RowType rowType = (RowType) table.getSchema().toRowDataType().getLogicalType();
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
@@ -633,8 +632,10 @@ public final class ArrowUtils {
 				public RowData next() {
 					// The SelectTableSink of blink planner will convert the table schema and we
 					// need to keep the table schema used here be consistent with the converted table schema
-					TableSchema convertedTableSchema = SelectTableSinkSchemaConverter.changeDefaultConversionClass(table.getSchema());
-					DataFormatConverters.DataFormatConverter converter = DataFormatConverters.getConverterForDataType(convertedTableSchema.toRowDataType());
+					TableSchema convertedTableSchema =
+						SelectTableSinkSchemaConverter.changeDefaultConversionClass(table.getSchema());
+					DataFormatConverters.DataFormatConverter converter =
+						DataFormatConverters.getConverterForDataType(convertedTableSchema.toRowDataType());
 					return (RowData) converter.toInternal(results.next());
 				}
 			};
@@ -643,7 +644,7 @@ public final class ArrowUtils {
 			convertedResults = results;
 		}
 
-		return new Iterator<byte[]>() {
+		return new CustomIterator<byte[]>() {
 			@Override
 			public boolean hasNext() {
 				return convertedResults.hasNext();
@@ -679,7 +680,7 @@ public final class ArrowUtils {
 
 	private static boolean isBlinkPlanner(Table table) {
 		TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
-		if (tableEnv instanceof BatchTableEnvironment || tableEnv instanceof TableEnvImpl) {
+		if (tableEnv instanceof TableEnvImpl) {
 			return false;
 		} else if (tableEnv instanceof TableEnvironmentImpl) {
 			Planner planner = ((TableEnvironmentImpl) tableEnv).getPlanner();
@@ -688,6 +689,17 @@ public final class ArrowUtils {
 			throw new RuntimeException(String.format(
 				"Could not determine the planner type for table environment class %s", tableEnv.getClass()));
 		}
+	}
+
+	/**
+	 * A custom iterator to bypass the Py4J Java collection as the next method of
+	 * py4j.java_collections.JavaIterator will eat all the exceptions thrown in Java
+	 * which makes it difficult to debug in case of errors.
+	 */
+	private interface CustomIterator<T> {
+		boolean hasNext();
+
+		T next();
 	}
 
 	private static class LogicalTypeToArrowTypeConverter extends LogicalTypeDefaultVisitor<ArrowType> {
