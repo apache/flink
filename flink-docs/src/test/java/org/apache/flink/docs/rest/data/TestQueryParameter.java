@@ -18,7 +18,6 @@
 
 package org.apache.flink.docs.rest.data;
 
-
 import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.MessageParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;

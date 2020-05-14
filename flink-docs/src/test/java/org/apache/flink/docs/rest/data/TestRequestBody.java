@@ -19,6 +19,7 @@
 package org.apache.flink.docs.rest.data;
 
 import org.apache.flink.runtime.rest.messages.RequestBody;
+
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
