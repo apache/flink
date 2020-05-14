@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -35,6 +36,8 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -50,19 +53,35 @@ import static org.junit.Assert.assertEquals;
 @RunWith(FlinkStandaloneHiveRunner.class)
 public class HiveLookupJoinTest {
 
+	private TableEnvironment tableEnv;
+	private HiveCatalog hiveCatalog;
+
+	@Before
+	public void setup() {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build();
+		tableEnv = TableEnvironment.create(settings);
+		hiveCatalog = HiveTestUtils.createHiveCatalog(hiveShell.getHiveConf());
+		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tableEnv.useCatalog(hiveCatalog.getName());
+	}
+
+	@After
+	public void tearDown() {
+		if (hiveCatalog != null) {
+			hiveCatalog.close();
+		}
+	}
+
 	@HiveSQL(files = {})
 	private static HiveShell hiveShell;
 
 	@Test
 	public void test() throws Exception {
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build();
-		TableEnvironment tableEnv = TableEnvironment.create(settings);
-		HiveCatalog hiveCatalog = HiveTestUtils.createHiveCatalog(hiveShell.getHiveConf());
-		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-		tableEnv.useCatalog(hiveCatalog.getName());
-
-		hiveShell.execute(String.format("create table build (x int,y string,z int) tblproperties ('%s'='5min')",
+		// create the hive build table
+		tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+		tableEnv.executeSql(String.format("create table build (x int,y string,z int) tblproperties ('%s'='5min')",
 				FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.key()));
+		tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
 
 		// verify we properly configured the cache TTL
 		ObjectIdentifier tableIdentifier = ObjectIdentifier.of(hiveCatalog.getName(), "default", "build");
@@ -82,7 +101,7 @@ public class HiveLookupJoinTest {
 
 			TestCollectionTableFactory.initData(
 					Arrays.asList(Row.of(1, "a"), Row.of(1, "c"), Row.of(2, "b"), Row.of(2, "c"), Row.of(3, "c"), Row.of(4, "d")));
-			tableEnv.sqlUpdate("create table default_catalog.default_database.probe (x int,y string,p as proctime()) " +
+			tableEnv.executeSql("create table default_catalog.default_database.probe (x int,y string,p as proctime()) " +
 					"with ('connector'='COLLECTION','is-bounded' = 'false')");
 
 			TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select p.x,p.y from default_catalog.default_database.probe as p join " +

@@ -20,7 +20,6 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveContinuousMonitoringFunction;
@@ -376,11 +375,9 @@ public class HiveTableSource implements
 			Table hiveTable = client.getTable(dbName, tableName);
 			Properties tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable);
 			String ttlStr = tableProps.getProperty(FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.key());
-			Configuration configuration = new Configuration();
-			if (ttlStr != null) {
-				configuration.setString(FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.key(), ttlStr);
-			}
-			hiveTableCacheTTL = configuration.get(FileSystemOptions.LOOKUP_JOIN_CACHE_TTL);
+			hiveTableCacheTTL = ttlStr != null ?
+					TimeUtils.parseDuration(ttlStr) :
+					FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.defaultValue();
 			if (partitionColNames != null && partitionColNames.size() > 0) {
 				final String defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
 						HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
@@ -501,11 +498,13 @@ public class HiveTableSource implements
 	public TableFunction<RowData> getLookupFunction(String[] lookupKeys) {
 		List<HiveTablePartition> allPartitions = initAllPartitions();
 		TableSchema producedSchema = getProducedTableSchema();
-		FileSystemLookupFunction.LookupContext lookupContext = new FileSystemLookupFunction.LookupContext(
-				hiveTableCacheTTL, producedSchema.getFieldNames(), producedSchema.getFieldDataTypes());
 		return new FileSystemLookupFunction<>(
 				getInputFormat(allPartitions, flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER)),
-				lookupKeys, lookupContext);
+				lookupKeys,
+				producedSchema.getFieldNames(),
+				producedSchema.getFieldDataTypes(),
+				hiveTableCacheTTL
+		);
 	}
 
 	@Override

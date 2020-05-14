@@ -38,7 +38,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,10 +55,14 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 	private static final long serialVersionUID = 1L;
 
 	private final InputFormat<RowData, T> inputFormat;
-	private final LookupContext context;
+	// names and types of the records returned by the input format
+	private final String[] producedNames;
+	private final DataType[] producedTypes;
+	private final Duration cacheTTL;
+
 	// indices of lookup columns in the record returned by input format
 	private final int[] lookupCols;
-	// use Row as key because we'll get external data in eval
+	// use Row as key for the cache
 	private transient Map<Row, List<RowData>> cache;
 	// timestamp when cache expires
 	private transient long nextLoadTime;
@@ -68,26 +71,33 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 	// converters to convert data from internal to external in order to generate keys for the cache
 	private final DataFormatConverter[] converters;
 
-	public FileSystemLookupFunction(InputFormat<RowData, T> inputFormat, String[] lookupKeys, LookupContext context) {
+	public FileSystemLookupFunction(
+			InputFormat<RowData, T> inputFormat,
+			String[] lookupKeys,
+			String[] producedNames,
+			DataType[] producedTypes,
+			Duration cacheTTL) {
 		lookupCols = new int[lookupKeys.length];
 		converters = new DataFormatConverter[lookupKeys.length];
-		Map<String, Integer> nameToIndex = IntStream.range(0, context.selectedNames.length).boxed().collect(
-				Collectors.toMap(i -> context.selectedNames[i], i -> i));
+		Map<String, Integer> nameToIndex = IntStream.range(0, producedNames.length).boxed().collect(
+				Collectors.toMap(i -> producedNames[i], i -> i));
 		for (int i = 0; i < lookupKeys.length; i++) {
 			Integer index = nameToIndex.get(lookupKeys[i]);
 			Preconditions.checkArgument(index != null, "Lookup keys %s not selected", Arrays.toString(lookupKeys));
-			converters[i] = DataFormatConverters.getConverterForDataType(context.selectedTypes[index]);
+			converters[i] = DataFormatConverters.getConverterForDataType(producedTypes[index]);
 			lookupCols[i] = index;
 		}
 		this.inputFormat = inputFormat;
-		this.context = context;
+		this.producedNames = producedNames;
+		this.producedTypes = producedTypes;
+		this.cacheTTL = cacheTTL;
 	}
 
 	@Override
 	public TypeInformation<RowData> getResultType() {
 		return new RowDataTypeInfo(
-				Arrays.stream(context.selectedTypes).map(DataType::getLogicalType).toArray(LogicalType[]::new),
-				context.selectedNames);
+				Arrays.stream(producedTypes).map(DataType::getLogicalType).toArray(LogicalType[]::new),
+				producedNames);
 	}
 
 	@Override
@@ -102,6 +112,9 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 	public void eval(Object... values) {
 		Preconditions.checkArgument(values.length == lookupCols.length, "Number of values and lookup keys mismatch");
 		checkCacheReload();
+		for (int i = 0; i < values.length; i++) {
+			values[i] = converters[i].toExternal(values[i]);
+		}
 		Row probeKey = Row.of(values);
 		List<RowData> matchedRows = cache.get(probeKey);
 		if (matchedRows != null) {
@@ -113,7 +126,7 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 
 	@VisibleForTesting
 	public Duration getCacheTTL() {
-		return context.cacheTTL;
+		return cacheTTL;
 	}
 
 	private void checkCacheReload() {
@@ -123,7 +136,7 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 		cache.clear();
 		try {
 			T[] inputSplits = inputFormat.createInputSplits(1);
-			GenericRowData reuse = new GenericRowData(context.selectedNames.length);
+			GenericRowData reuse = new GenericRowData(producedNames.length);
 			for (T split : inputSplits) {
 				inputFormat.open(split);
 				while (!inputFormat.reachedEnd()) {
@@ -146,24 +159,5 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 			key.setField(i, converters[i].toExternal(row, lookupCols[i]));
 		}
 		return key;
-	}
-
-	/**
-	 * A class to store context information for the lookup function.
-	 */
-	public static class LookupContext implements Serializable {
-
-		private static final long serialVersionUID = 1L;
-
-		private final Duration cacheTTL;
-		// names and types of the records returned by the input format
-		private final String[] selectedNames;
-		private final DataType[] selectedTypes;
-
-		public LookupContext(Duration cacheTTL, String[] selectedNames, DataType[] selectedTypes) {
-			this.cacheTTL = cacheTTL;
-			this.selectedNames = selectedNames;
-			this.selectedTypes = selectedTypes;
-		}
 	}
 }
