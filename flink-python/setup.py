@@ -201,7 +201,7 @@ run sdist.
         with open(os.path.join(LOG_TEMP_PATH, "empty.txt"), 'w') as f:
             f.write("This file is used to force setuptools to include the log directory. "
                     "You can delete it at any time after installation.")
-        
+
         # always copy the scripts directory as we need to add the udf runner script to it.
         copytree(SCRIPTS_PATH, SCRIPTS_TEMP_PATH)
         copy(os.path.join(this_directory, "bin", PYFLINK_UDF_RUNNER_SH),
