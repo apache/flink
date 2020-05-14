@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
@@ -39,7 +40,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -167,7 +167,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testDeliveringClientRequestToResponser() throws Exception {
+	public void testDeliveringClientRequestToRequestHandler() throws Exception {
 		final OperatorCoordinator.Provider provider = new TestingCoordinationRequestHandler.Provider(testOperatorId);
 		final DefaultScheduler scheduler = createScheduler(provider);
 
@@ -181,8 +181,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		assertEquals(payload, response.getPayload());
 	}
 
-	@Test(expected = FlinkException.class)
-	public void testDeliveringClientRequestToNonResponser() throws Exception {
+	@Test
+	public void testDeliveringClientRequestToNonRequestHandler() throws Exception {
 		final OperatorCoordinator.Provider provider = new TestingOperatorCoordinator.Provider(testOperatorId);
 		final DefaultScheduler scheduler = createScheduler(provider);
 
@@ -190,15 +190,13 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		final TestingCoordinationRequestHandler.Request<String> request =
 			new TestingCoordinationRequestHandler.Request<>(payload);
 
-		try {
-			scheduler.deliverCoordinationRequestToCoordinator(testOperatorId, request);
-		} catch (FlinkException e) {
-			Assert.assertTrue(e.getMessage().contains("cannot handle client event"));
-			throw e;
-		}
+		CommonTestUtils.assertThrows(
+			"cannot handle client event",
+			FlinkException.class,
+			() -> scheduler.deliverCoordinationRequestToCoordinator(testOperatorId, request));
 	}
 
-	@Test(expected = FlinkException.class)
+	@Test
 	public void testDeliveringClientRequestToNonExistingCoordinator() throws Exception {
 		final OperatorCoordinator.Provider provider = new TestingOperatorCoordinator.Provider(testOperatorId);
 		final DefaultScheduler scheduler = createScheduler(provider);
@@ -207,12 +205,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		final TestingCoordinationRequestHandler.Request<String> request =
 			new TestingCoordinationRequestHandler.Request<>(payload);
 
-		try {
-			scheduler.deliverCoordinationRequestToCoordinator(new OperatorID(), request);
-		} catch (FlinkException e) {
-			Assert.assertTrue(e.getMessage().contains("does not exist"));
-			throw e;
-		}
+		CommonTestUtils.assertThrows(
+			"does not exist",
+			FlinkException.class,
+			() -> scheduler.deliverCoordinationRequestToCoordinator(new OperatorID(), request));
 	}
 
 	// ------------------------------------------------------------------------
