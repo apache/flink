@@ -93,5 +93,6 @@ public class FileSystemOptions {
 			key("lookup.join.cache.ttl")
 					.durationType()
 					.defaultValue(Duration.ofMinutes(60))
-					.withDescription("The cache TTL (in minutes) for the build table in lookup join.");
+					.withDescription("The cache TTL (e.g. 10min) for the build table in lookup join. " +
+							"By default the TTL is 60 minutes.");
 }
