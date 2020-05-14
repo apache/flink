@@ -1461,6 +1461,7 @@ under the License.
 						<exclude>flink-end-to-end-tests/flink-state-evolution-test/savepoints/*</exclude>
 						<exclude>flink-formats/flink-avro/src/test/resources/testdata.avro</exclude>
 						<exclude>flink-formats/flink-avro/src/test/java/org/apache/flink/formats/avro/generated/*.java</exclude>
+						<exclude>flink-formats/flink-json/src/test/resources/*.txt</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/generated/*.java</exclude>
 						<exclude>flink-formats/flink-parquet/src/test/resources/avro/**</exclude>
 						<!-- netty test file, still Apache License 2.0 but with a different header -->
