@@ -403,6 +403,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		applicationConfiguration.applyToConfiguration(flinkConfiguration);
 
+		final List<String> pipelineJars = flinkConfiguration.getOptional(PipelineOptions.JARS).orElse(Collections.emptyList());
+		Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+
 		final String configurationDirectory = CliFrontend.getConfigurationDirectoryFromEnv();
 		YarnLogConfigUtil.setLogConfigFileInConfig(flinkConfiguration, configurationDirectory);
 

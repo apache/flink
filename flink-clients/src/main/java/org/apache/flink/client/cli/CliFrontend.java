@@ -188,29 +188,11 @@ public class CliFrontend {
 
 		programOptions.validate();
 		final URI uri = PackagedProgramUtils.resolveURI(programOptions.getJarFilePath());
-		// Build the packaged program when the user jar is a local file
-		if (uri.getScheme().equals("file")) {
-			final PackagedProgram program =
-				getPackagedProgram(programOptions);
-
-			final ApplicationConfiguration applicationConfiguration =
-				new ApplicationConfiguration(program.getArguments(), program.getMainClassName());
-
-			try {
-				final List<URL> jobJars = program.getJobJarAndDependencies();
-				final Configuration effectiveConfiguration =
-					getEffectiveConfiguration(commandLine, programOptions, jobJars);
-				deployer.run(effectiveConfiguration, applicationConfiguration);
-			} finally {
-				program.deleteExtractedLibraries();
-			}
-		} else {
-			final Configuration effectiveConfiguration =
-				getEffectiveConfiguration(commandLine, programOptions, Collections.singletonList(uri.toString()));
-			final ApplicationConfiguration applicationConfiguration =
-				new ApplicationConfiguration(programOptions.getProgramArgs(), programOptions.getEntryPointClassName());
-			deployer.run(effectiveConfiguration, applicationConfiguration);
-		}
+		final Configuration effectiveConfiguration =
+			getEffectiveConfiguration(commandLine, programOptions, Collections.singletonList(uri.toString()));
+		final ApplicationConfiguration applicationConfiguration =
+			new ApplicationConfiguration(programOptions.getProgramArgs(), programOptions.getEntryPointClassName());
+		deployer.run(effectiveConfiguration, applicationConfiguration);
 	}
 
 	/**
