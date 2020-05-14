@@ -78,11 +78,9 @@ public class SubtaskAllExecutionAttemptsDetailsHandler
 		JobID jobID,
 		JobVertexID jobVertexID) {
 		List<SubtaskExecutionAttemptDetailsInfo> allAttempts = new ArrayList<>();
-		executionVertex.getPriorExecutionAttempts().forEach(execution -> {
-			if (execution != null) {
-				allAttempts.add(SubtaskExecutionAttemptDetailsInfo.create(execution, metricFetcher, jobID, jobVertexID));
-			}
-		});
+		executionVertex
+			.getPriorExecutionAttempts()
+			.forEach(execution -> allAttempts.add(SubtaskExecutionAttemptDetailsInfo.create(execution, metricFetcher, jobID, jobVertexID)));
 		allAttempts.add(SubtaskExecutionAttemptDetailsInfo.create(executionVertex.getCurrentExecutionAttempt(), metricFetcher, jobID, jobVertexID));
 
 		return new SubtaskAllExecutionAttemptsDetailsInfo(allAttempts);

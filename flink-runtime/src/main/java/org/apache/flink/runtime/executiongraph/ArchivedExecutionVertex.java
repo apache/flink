@@ -112,7 +112,9 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 	public List<AccessExecution> getPriorExecutionAttempts() {
 		List<AccessExecution> accessExecutionList = new ArrayList<>();
 		for (ArchivedExecution archivedExecution: priorExecutions) {
-			accessExecutionList.add(archivedExecution);
+			if (priorExecutions != null) {
+				accessExecutionList.add(archivedExecution);
+			}
 		}
 		return Collections.unmodifiableList(accessExecutionList);
 	}

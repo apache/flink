@@ -74,7 +74,7 @@ public class SubtaskAllExecutionAttemptsDetailsHandlerTest extends TestLogger {
 
 	@BeforeClass
 	public static void setUpClass() throws HandlerRequestException {
-		HashMap<String, String> receivedPathParameters = new HashMap<>(3);
+		HashMap<String, String> receivedPathParameters = new HashMap<>();
 		receivedPathParameters.put(JobIDPathParameter.KEY, JOBID.toString());
 		receivedPathParameters.put(JobVertexIdPathParameter.KEY, JOB_VERTEXID.toString());
 		receivedPathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(SUBTASK_INDEX));
