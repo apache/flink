@@ -21,7 +21,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 
@@ -64,14 +66,14 @@ public class CollectCoordinationResponse<T> implements CoordinationResponse {
 		this.resultBytes = baos.toByteArray();
 	}
 
-	public CollectCoordinationResponse(DataInputViewStreamWrapper wrapper) throws IOException {
-		this.version = versionSerializer.deserialize(wrapper);
-		this.offset = offsetSerializer.deserialize(wrapper);
-		this.lastCheckpointId = offsetSerializer.deserialize(wrapper);
+	public CollectCoordinationResponse(DataInputView inView) throws IOException {
+		this.version = versionSerializer.deserialize(inView);
+		this.offset = offsetSerializer.deserialize(inView);
+		this.lastCheckpointId = offsetSerializer.deserialize(inView);
 
-		int size = wrapper.readInt();
+		int size = inView.readInt();
 		this.resultBytes = new byte[size];
-		wrapper.readFully(resultBytes);
+		inView.readFully(resultBytes);
 	}
 
 	public String getVersion() {
@@ -93,12 +95,12 @@ public class CollectCoordinationResponse<T> implements CoordinationResponse {
 		return listSerializer.deserialize(wrapper);
 	}
 
-	public void serialize(DataOutputViewStreamWrapper wrapper) throws IOException {
-		versionSerializer.serialize(version, wrapper);
-		offsetSerializer.serialize(offset, wrapper);
-		checkpointIdSerializer.serialize(lastCheckpointId, wrapper);
+	public void serialize(DataOutputView outView) throws IOException {
+		versionSerializer.serialize(version, outView);
+		offsetSerializer.serialize(offset, outView);
+		checkpointIdSerializer.serialize(lastCheckpointId, outView);
 
-		wrapper.writeInt(resultBytes.length);
-		wrapper.write(resultBytes);
+		outView.writeInt(resultBytes.length);
+		outView.write(resultBytes);
 	}
 }

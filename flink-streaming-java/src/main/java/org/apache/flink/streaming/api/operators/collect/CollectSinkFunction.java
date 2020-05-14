@@ -47,6 +47,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -82,7 +83,10 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 	private transient ReentrantLock bufferedResultsLock;
 	private transient Condition bufferNotFullCondition;
 
+	// this version indicates whether the sink has restarted or not
 	private transient String version;
+	// this offset acts as an acknowledgement,
+	// results before this offset can be safely thrown away
 	private transient long firstBufferedResultOffset;
 	private transient long lastCheckpointId;
 
@@ -156,7 +160,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 	public void open(Configuration parameters) throws Exception {
 		Preconditions.checkState(
 			getRuntimeContext().getNumberOfParallelSubtasks() == 1,
-			"The parallelism of SocketServerSink must be 1");
+			"The parallelism of CollectSinkFunction must be 1");
 
 		initBuffer();
 
@@ -256,6 +260,8 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 
 					CollectCoordinationRequest request = new CollectCoordinationRequest(inStream);
 					String requestVersion = request.getVersion();
+					// client acknowledges that it has successfully received results before this offset,
+					// we can safely throw away results before this offset
 					long requestOffset = request.getOffset();
 					if (LOG.isDebugEnabled()) {
 						LOG.debug(
@@ -266,14 +272,15 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 
 					if (!version.equals(requestVersion) || requestOffset < firstBufferedResultOffset) {
 						// invalid request
-						if (LOG.isDebugEnabled()) {
-							LOG.debug("Invalid request");
-						}
-						sendBufferedResults(0, 0);
+						LOG.warn("Invalid request. Received version = " + requestVersion +
+							", offset = " + requestOffset + "while expected version = "
+							+ version + ", firstBufferedOffset = " + firstBufferedResultOffset);
+						sendBackResults(Collections.emptyList());
 						continue;
 					}
 
 					// valid request, sending out results
+					List<IN> results;
 					try {
 						bufferedResultsLock.lock();
 
@@ -282,9 +289,9 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 						int end = Math.min(start + maxResultsPerBatch, oldSize);
 
 						if (LOG.isDebugEnabled()) {
-							LOG.debug("Sending back " + (end - start) + " results");
+							LOG.debug("Preparing " + (end - start) + " results");
 						}
-						sendBufferedResults(start, end - start);
+						results = prepareResultBatch(start, end - start);
 
 						if (oldSize >= maxResultsBuffered && bufferedResults.size() < maxResultsBuffered) {
 							bufferNotFullCondition.signal();
@@ -292,6 +299,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 					} finally {
 						bufferedResultsLock.unlock();
 					}
+					sendBackResults(results);
 				} catch (IOException e) {
 					// IOException occurs, just close current connection
 					// client will come with the same offset if it needs the same batch of results
@@ -340,20 +348,23 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 			return null;
 		}
 
-		private void sendBufferedResults(int offset, int length) throws IOException {
-			// skip `offset` results
+		private List<IN> prepareResultBatch(int offset, int length) {
+			// drop `offset` results
 			for (int i = 0; i < offset; i++) {
 				bufferedResults.removeFirst();
 				firstBufferedResultOffset++;
 			}
 
-			// send out `length` results
+			// prepare `length` results
 			List<IN> results = new ArrayList<>(length);
 			Iterator<IN> iterator = bufferedResults.iterator();
 			for (int i = 0; i < length; i++) {
 				results.add(iterator.next());
 			}
+			return results;
+		}
 
+		private void sendBackResults(List<IN> results) throws IOException {
 			CollectCoordinationResponse<IN> response = new CollectCoordinationResponse<>(
 				version, firstBufferedResultOffset, lastCheckpointId, results, serializer);
 			response.serialize(outStream);
@@ -366,7 +377,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 					connection = null;
 				}
 			} catch (Exception e) {
-				LOG.warn("Error occurs when closing client connections in SocketServerSink", e);
+				LOG.warn("Error occurs when closing client connections in CollectSinkFunction", e);
 			}
 		}
 
@@ -374,7 +385,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 			try {
 				serverSocket.close();
 			} catch (Exception e) {
-				LOG.warn("Error occurs when closing server in SocketServerSink", e);
+				LOG.warn("Error occurs when closing server in CollectSinkFunction", e);
 			}
 		}
 	}

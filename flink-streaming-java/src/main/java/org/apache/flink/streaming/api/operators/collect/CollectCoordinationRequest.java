@@ -20,11 +20,10 @@ package org.apache.flink.streaming.api.operators.collect;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
@@ -45,9 +44,9 @@ public class CollectCoordinationRequest implements CoordinationRequest {
 		this.offset = offset;
 	}
 
-	public CollectCoordinationRequest(DataInputViewStreamWrapper wrapper) throws IOException {
-		this.version = versionSerializer.deserialize(wrapper);
-		this.offset = offsetSerializer.deserialize(wrapper);
+	public CollectCoordinationRequest(DataInputView inView) throws IOException {
+		this.version = versionSerializer.deserialize(inView);
+		this.offset = offsetSerializer.deserialize(inView);
 	}
 
 	public String getVersion() {
@@ -58,8 +57,8 @@ public class CollectCoordinationRequest implements CoordinationRequest {
 		return offset;
 	}
 
-	public void serialize(DataOutputViewStreamWrapper wrapper) throws IOException {
-		versionSerializer.serialize(version, wrapper);
-		offsetSerializer.serialize(offset, wrapper);
+	public void serialize(DataOutputView outView) throws IOException {
+		versionSerializer.serialize(version, outView);
+		offsetSerializer.serialize(offset, outView);
 	}
 }

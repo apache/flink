@@ -36,7 +36,7 @@ public class CollectSinkOperator<IN> extends StreamSink<IN> implements OperatorE
 	private final CollectSinkFunction<IN> sinkFunction;
 	// we need operator id to identify the coordinator of this operator,
 	// this is only used for in clients so no need to serialize
-	private transient final CompletableFuture<OperatorID> operatorIdFuture;
+	private final transient CompletableFuture<OperatorID> operatorIdFuture;
 
 	public CollectSinkOperator(
 			TypeSerializer<IN> serializer,

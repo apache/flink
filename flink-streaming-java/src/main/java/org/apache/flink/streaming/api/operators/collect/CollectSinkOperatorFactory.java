@@ -47,6 +47,7 @@ public class CollectSinkOperatorFactory extends SimpleUdfStreamOperatorFactory<O
 			parameters.getStreamConfig().getOperatorID(),
 			operator);
 		operator.setOperatorEventGateway(operatorEventGateway);
+		operator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
 		return operator;
 	}
 
