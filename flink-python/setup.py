@@ -50,7 +50,9 @@ def find_file_path(pattern):
         exit(-1)
     if len(files) > 1:
         print("The file pattern %s is ambiguous: %s" % (pattern, files))
+        exit(-1)
     return files[0]
+
 
 # Currently Cython optimizing doesn't support Windows.
 if platform.system() == 'Windows':
