@@ -679,8 +679,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
-		final List<Path> providedLibDirs = ConfigUtils.decodeListFromConfig(
-			configuration, YarnConfigOptions.PROVIDED_LIB_DIRS, Path::new);
+		final List<Path> providedLibDirs = getRemoteSharedPaths(configuration);
 
 		final YarnApplicationFileUploader fileUploader = YarnApplicationFileUploader.from(
 			fs,
@@ -1064,6 +1063,20 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		final int yarnFileReplication = yarnConfiguration.getInt(DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
 		final int fileReplication = flinkConfiguration.getInteger(YarnConfigOptions.FILE_REPLICATION);
 		return fileReplication > 0 ? fileReplication : yarnFileReplication;
+	}
+
+	private List<Path> getRemoteSharedPaths(Configuration configuration) throws IOException, FlinkException {
+		final List<Path> providedLibDirs = ConfigUtils.decodeListFromConfig(
+			configuration, YarnConfigOptions.PROVIDED_LIB_DIRS, Path::new);
+
+		for (Path path : providedLibDirs) {
+			if (!Utils.isRemotePath(path.toString())) {
+				throw new FlinkException(
+						"The \"" + YarnConfigOptions.PROVIDED_LIB_DIRS.key() + "\" should only contain" +
+								" dirs accessible from all worker nodes, while the \"" + path + "\" is local.");
+			}
+		}
+		return providedLibDirs;
 	}
 
 	private static String encodeYarnLocalResourceDescriptorListToString(List<YarnLocalResourceDescriptor> resources) {
