@@ -74,7 +74,7 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
 	}
 
 	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+	public void stop(long checkpointId) {
 		lastFinishedCheckpointId = checkpointId;
 	}
 

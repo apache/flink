@@ -145,7 +145,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 	}
 
 	@Override
-	public void notifyCheckpointComplete(long checkpointId) {
+	public void stop(long checkpointId) {
 		results.remove(checkpointId);
 	}
 

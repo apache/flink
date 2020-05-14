@@ -179,7 +179,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		} else {
 			LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", taskName);
 		}
-		channelStateWriter.notifyCheckpointComplete(checkpointId);
 		env.getTaskStateManager().notifyCheckpointComplete(checkpointId);
 	}
 
@@ -189,6 +188,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			CheckpointMetrics metrics, CheckpointOptions options,
 			Exception ex) throws Exception {
 
+		channelStateWriter.abort(metadata.getCheckpointId(), ex);
 		for (OperatorSnapshotFutures operatorSnapshotResult : operatorSnapshotsInProgress.values()) {
 			if (operatorSnapshotResult != null) {
 				try {
@@ -241,8 +241,9 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		if (unalignedCheckpointEnabled) {
 			ChannelStateWriteResult writeResult = channelStateWriter.getWriteResult(metadata.getCheckpointId());
 			channelWrittenFuture = CompletableFuture.allOf(
-				writeResult.getInputChannelStateHandles(),
-				writeResult.getResultSubpartitionStateHandles());
+					writeResult.getInputChannelStateHandles(),
+					writeResult.getResultSubpartitionStateHandles())
+				.whenComplete((dummy, ex) -> channelStateWriter.stop(metadata.getCheckpointId()));
 		} else {
 			channelWrittenFuture = FutureUtils.completedVoidFuture();
 		}
