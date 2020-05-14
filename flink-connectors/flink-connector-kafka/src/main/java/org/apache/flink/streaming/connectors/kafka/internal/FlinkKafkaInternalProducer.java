@@ -145,25 +145,25 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 
 	@Override
 	public void close() {
-		closed = true;
 		synchronized (producerClosingLock) {
 			kafkaProducer.close();
+			closed = true;
 		}
 	}
 
 	@Override
 	public void close(long timeout, TimeUnit unit) {
-		closed = true;
 		synchronized (producerClosingLock) {
 			kafkaProducer.close(timeout, unit);
+			closed = true;
 		}
 	}
 
 	@Override
 	public void close(Duration duration) {
-		closed = true;
 		synchronized (producerClosingLock) {
 			kafkaProducer.close(duration);
+			closed = true;
 		}
 	}
 
