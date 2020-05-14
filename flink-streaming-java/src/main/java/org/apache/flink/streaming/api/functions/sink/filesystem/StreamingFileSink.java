@@ -40,6 +40,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * Sink that emits its input elements to {@link FileSystem} files within buckets. This is
@@ -455,5 +456,12 @@ public class StreamingFileSink<IN>
 		if (this.helper != null) {
 			this.helper.close();
 		}
+	}
+
+	// --------------------------- Testing Methods -----------------------------
+
+	@VisibleForTesting
+	Buckets<IN, ?> getBuckets() {
+		return buckets;
 	}
 }
