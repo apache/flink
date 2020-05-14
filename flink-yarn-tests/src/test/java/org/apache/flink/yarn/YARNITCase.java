@@ -33,14 +33,12 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.testjob.YarnTestCacheJob;
 import org.apache.flink.yarn.util.YarnTestUtils;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -64,13 +62,10 @@ public class YARNITCase extends YarnTestBase {
 	private static final Duration yarnAppTerminateTimeout = Duration.ofSeconds(10);
 	private static final int sleepIntervalInMS = 100;
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder(new File("/tmp"));
-
 	@BeforeClass
 	public static void setup() {
 		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-per-job");
-		startYARNWithConfig(YARN_CONFIGURATION);
+		startYARNWithConfig(YARN_CONFIGURATION, true);
 	}
 
 	@Test
@@ -96,12 +91,12 @@ public class YARNITCase extends YarnTestBase {
 
 	@Test
 	public void testPerJobWithProvidedLibDirs() throws Exception {
-		final File tmpFlinkReleaseBinary = temporaryFolder.newFolder("flink-provided-lib");
-		FileUtils.copyDirectory(flinkLibFolder, tmpFlinkReleaseBinary);
+		final Path remoteLib = new Path(miniDFSCluster.getFileSystem().getUri().toString() + "/flink-provided-lib");
+		miniDFSCluster.getFileSystem().copyFromLocalFile(new Path(flinkLibFolder.toURI()), remoteLib);
+		miniDFSCluster.getFileSystem().setPermission(remoteLib, new FsPermission("755"));
 
-		final List<String> sharedLibDirs = Collections.singletonList(tmpFlinkReleaseBinary.getAbsoluteFile().toString());
 		final Configuration flinkConfig = createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED);
-		flinkConfig.set(YarnConfigOptions.PROVIDED_LIB_DIRS, sharedLibDirs);
+		flinkConfig.set(YarnConfigOptions.PROVIDED_LIB_DIRS, Collections.singletonList(remoteLib.toString()));
 
 		runTest(() -> deployPerJob(flinkConfig, getTestingJobGraph()));
 	}
