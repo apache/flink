@@ -71,6 +71,16 @@ public class YARNApplicationITCase extends YarnTestBase {
 				createDefaultConfiguration(getTestingJar(), YarnConfigOptions.UserJarInclusion.DISABLED)));
 	}
 
+	@Test
+	public void testApplicationClusterWithRemoteUserJar() throws Exception {
+		final Path testingJar = getTestingJar();
+		final Path remoteJar = new Path(miniDFSCluster.getFileSystem().getHomeDirectory(), testingJar.getName());
+		miniDFSCluster.getFileSystem().copyFromLocalFile(testingJar, remoteJar);
+		runTest(
+			() -> deployApplication(
+				createDefaultConfiguration(remoteJar, YarnConfigOptions.UserJarInclusion.DISABLED)));
+	}
+
 	private void deployApplication(Configuration configuration) throws Exception {
 		try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration)) {
 

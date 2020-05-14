@@ -736,14 +736,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 							1));
 		}
 
-		final Set<File> userJarFiles = new HashSet<>();
+		final Set<Path> userJarFiles = new HashSet<>();
 		if (jobGraph != null) {
-			userJarFiles.addAll(jobGraph.getUserJars().stream().map(f -> f.toUri()).map(File::new).collect(Collectors.toSet()));
+			userJarFiles.addAll(jobGraph.getUserJars().stream().map(f -> f.toUri()).map(Path::new).collect(Collectors.toSet()));
 		}
 
 		final List<URI> jarUrls = ConfigUtils.decodeListFromConfig(configuration, PipelineOptions.JARS, URI::create);
 		if (jarUrls != null && YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)) {
-			userJarFiles.addAll(jarUrls.stream().map(File::new).collect(Collectors.toSet()));
+			userJarFiles.addAll(jarUrls.stream().map(Path::new).collect(Collectors.toSet()));
 		}
 
 		int yarnFileReplication = yarnConfiguration.getInt(DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
@@ -753,10 +753,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// only for per job mode
 		if (jobGraph != null) {
 			for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry : jobGraph.getUserArtifacts().entrySet()) {
-				org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(entry.getValue().filePath);
 				// only upload local files
-				if (!path.getFileSystem().isDistributedFS()) {
-					Path localPath = new Path(path.getPath());
+				if (Utils.isRemotePath(entry.getValue().filePath)) {
+					Path localPath = new Path(entry.getValue().filePath);
 					Tuple2<Path, Long> remoteFileInfo =
 							fileUploader.uploadLocalFileToRemote(localPath, entry.getKey(), fileReplication);
 					jobGraph.setUserArtifactRemotePath(entry.getKey(), remoteFileInfo.f0.toString());
@@ -775,7 +774,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// and upload the remaining dependencies as local resources with APPLICATION visibility.
 		final List<String> systemClassPaths = fileUploader.registerProvidedLocalResources();
 		final List<String> uploadedDependencies = fileUploader.registerMultipleLocalResources(
-			systemShipFiles,
+			systemShipFiles.stream().map(e -> new Path(e.toURI())).collect(Collectors.toSet()),
 			paths,
 			Path.CUR_DIR,
 			envShipResourceList,
@@ -784,12 +783,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		// upload and register ship-only files
 		fileUploader.registerMultipleLocalResources(
-			shipOnlyFiles,
+			shipOnlyFiles.stream().map(e -> new Path(e.toURI())).collect(Collectors.toSet()),
 			paths,
 			Path.CUR_DIR,
 			envShipResourceList,
 			fileReplication);
 
+		// Upload and register user jars
 		final List<String> userClassPaths = fileUploader.registerMultipleLocalResources(
 			userJarFiles,
 			paths,
