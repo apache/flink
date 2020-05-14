@@ -80,7 +80,7 @@ public class ChannelStateWriterImplTest {
 		try (ChannelStateWriterImpl writer = openWriter()) {
 			callStart(writer);
 			writer.getWriteResult(CHECKPOINT_ID);
-			writer.notifyCheckpointComplete(CHECKPOINT_ID);
+			writer.stop(CHECKPOINT_ID);
 			writer.getWriteResult(CHECKPOINT_ID);
 		}
 	}

@@ -114,6 +114,6 @@ public class MockChannelStateWriter implements ChannelStateWriter {
 	}
 
 	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+	public void stop(long checkpointId) {
 	}
 }
