@@ -104,12 +104,14 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
 		final List<File> pipelineJars = KubernetesUtils.checkJarFileForApplicationMode(configuration);
 		Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
 
+		final File userLibDir = tryFindUserLibDirectory().orElse(null);
+
 		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
 			ClassPathPackagedProgramRetriever
 				.newBuilder(programArguments)
+				.setUserLibDirectory(userLibDir)
 				.setJarFile(pipelineJars.get(0))
 				.setJobClassName(jobClassName);
-		tryFindUserLibDirectory().ifPresent(retrieverBuilder::setUserLibDirectory);
 		return retrieverBuilder.build();
 	}
 }
