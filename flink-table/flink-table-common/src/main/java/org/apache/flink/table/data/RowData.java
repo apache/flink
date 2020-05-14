@@ -237,7 +237,7 @@ public interface RowData {
 	 * @param pos position of the field to return
 	 * @param fieldType the field type
 	 * @return the field object at the specified position in this row data.
-	 * @deprecated Use {@link #createFieldGetter(LogicalType, int)} for a more efficient hot path.
+	 * @deprecated Use {@link #createFieldGetter(LogicalType, int)} for avoiding logical types during runtime.
 	 */
 	static Object get(RowData row, int pos, LogicalType fieldType) {
 		if (row.isNullAt(pos)) {

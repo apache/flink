@@ -114,7 +114,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 	}
 
 	/**
-	 * @deprecated Use {@link #createNullSetter(LogicalType)} for a more efficient hot path.
+	 * @deprecated Use {@link #createNullSetter(LogicalType)} for avoiding logical types during runtime.
 	 */
 	@Deprecated
 	public void setNullAt(int pos, LogicalType type) {

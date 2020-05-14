@@ -172,7 +172,7 @@ public interface ArrayData {
 	 * @param pos position of the element to return
 	 * @param elementType the element type of the array
 	 * @return the element object at the specified position in this array data
-	 * @deprecated Use {@link #createElementGetter(LogicalType)} for a more efficient hot path.
+	 * @deprecated Use {@link #createElementGetter(LogicalType)} for avoiding logical types during runtime.
 	 */
 	@Deprecated
 	static Object get(ArrayData array, int pos, LogicalType elementType) {

@@ -98,7 +98,7 @@ public interface BinaryWriter {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * @deprecated Use {@link #createValueSetter(LogicalType)} for a more efficient hot path.
+	 * @deprecated Use {@link #createValueSetter(LogicalType)} for avoiding logical types during runtime.
 	 */
 	@Deprecated
 	static void write(

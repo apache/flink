@@ -146,12 +146,14 @@ public final class GenericArrayData implements ArrayData {
 		GenericArrayData that = (GenericArrayData) o;
 		return size == that.size &&
 			isPrimitiveArray == that.isPrimitiveArray &&
-			Arrays.deepEquals(new Object[] {array}, new Object[]{that.array});
+			Objects.deepEquals(array, that.array);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(array, size, isPrimitiveArray);
+		int result = Objects.hash(size, isPrimitiveArray);
+		result = 31 * result + Arrays.deepHashCode(new Object[]{array});
+		return result;
 	}
 
 	// ------------------------------------------------------------------------------------------

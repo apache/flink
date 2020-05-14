@@ -22,8 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 
+import java.util.Arrays;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * An internal data structure representing data of {@link MapType} or {@link MultisetType}.
@@ -85,12 +85,15 @@ public final class GenericMapData implements MapData {
 			return false;
 		}
 		GenericMapData that = (GenericMapData) o;
-		return Objects.equals(map, that.map);
+		return Arrays.deepEquals(map.keySet().toArray(), that.map.keySet().toArray()) &&
+			Arrays.deepEquals(map.values().toArray(), that.map.values().toArray());
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(map);
+		int result = Arrays.deepHashCode(map.keySet().toArray());
+		result = 31 * result + Arrays.deepHashCode(map.values().toArray());
+		return result;
 	}
 }
 

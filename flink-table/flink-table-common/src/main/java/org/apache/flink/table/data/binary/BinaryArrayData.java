@@ -92,8 +92,9 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
 			case ROW:
 			case STRUCTURED_TYPE:
 			case RAW:
-				// long, double is 8 bytes.
-				// It store the length and offset of variable-length part when type is string, map, etc.
+				// long and double are 8 bytes;
+				// otherwise it stores the length and offset of the variable-length part for types
+				// such as is string, map, etc.
 				return 8;
 			case TIMESTAMP_WITH_TIME_ZONE:
 				throw new UnsupportedOperationException();
