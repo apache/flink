@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.SimpleFileVisitor;
@@ -108,9 +109,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	}
 
 	/**
-	 * Uploads and registers a single resource and adds it to <tt>localResources</tt>.
+	 * Register a single local/remote resource and adds it to <tt>localResources</tt>.
 	 * @param key the key to add the resource under
-	 * @param localSrcPath local path to the file
+	 * @param resourcePath path of the resource to be registered
 	 * @param relativeDstPath the relative path at the target location
 	 *                              (this will be prefixed by the application-specific directory)
 	 * @param replicationFactor number of replications of a remote file to be created
@@ -118,24 +119,31 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 */
 	YarnLocalResourceDescriptor registerSingleLocalResource(
 			final String key,
-			final Path localSrcPath,
+			final Path resourcePath,
 			final String relativeDstPath,
 			final int replicationFactor) throws IOException {
 
-		final FileStatus fileStatus = providedSharedLibs.get(localSrcPath.getName());
-		if (fileStatus != null) {
-			LOG.debug("Using provided file {} instead of the local {}", fileStatus.getPath(), localSrcPath);
+		if (Utils.isRemotePath(resourcePath.toString())) {
+			final FileStatus fileStatus = fileSystem.getFileStatus(resourcePath);
+			LOG.debug("Using remote file {} to register local resource", fileStatus.getPath());
 
-			return new YarnLocalResourceDescriptor(
-				fileStatus.getPath().getName(),
-				fileStatus.getPath(),
-				fileStatus.getLen(),
-				fileStatus.getModificationTime(),
-				LocalResourceVisibility.PUBLIC);
+			final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
+				.fromFileStatus(key, fileStatus, LocalResourceVisibility.APPLICATION);
+			localResources.put(key, descriptor.toLocalResource());
+			return descriptor;
 		}
 
-		final File localFile = new File(localSrcPath.toUri().getPath());
-		final Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(localSrcPath, relativeDstPath, replicationFactor);
+		final FileStatus fileStatus = providedSharedLibs.get(resourcePath.getName());
+		if (fileStatus != null) {
+			LOG.debug("Using provided file {} instead of the local {}", fileStatus.getPath(), resourcePath);
+
+			final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
+				.fromFileStatus(fileStatus.getPath().getName(), fileStatus, LocalResourceVisibility.PUBLIC);
+			return descriptor;
+		}
+
+		final File localFile = new File(resourcePath.toUri().getPath());
+		final Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(resourcePath, relativeDstPath, replicationFactor);
 		final YarnLocalResourceDescriptor descriptor = new YarnLocalResourceDescriptor(
 			key,
 			remoteFileInfo.f0,
@@ -172,10 +180,11 @@ class YarnApplicationFileUploader implements AutoCloseable {
 
 	/**
 	 * Recursively uploads (and registers) any (user and system) files in <tt>shipFiles</tt> except
-	 * for files matching "<tt>flink-dist*.jar</tt>" which should be uploaded separately.
+	 * for files matching "<tt>flink-dist*.jar</tt>" which should be uploaded separately. If it is
+	 * already a remote file, the uploading will be skipped.
 	 *
 	 * @param shipFiles
-	 * 		files to upload
+	 * 		local or remote files to register as Yarn local resources
 	 * @param remotePaths
 	 * 		paths of the remote resources (uploaded resources will be added)
 	 * @param localResourcesDirectory
@@ -188,7 +197,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 * @return list of class paths with the the proper resource keys from the registration
 	 */
 	List<String> registerMultipleLocalResources(
-			final Collection<File> shipFiles,
+			final Collection<Path> shipFiles,
 			final List<Path> remotePaths,
 			final String localResourcesDirectory,
 			final List<YarnLocalResourceDescriptor> envShipResourceList,
@@ -197,23 +206,36 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		checkArgument(replicationFactor >= 1);
 		final List<Path> localPaths = new ArrayList<>();
 		final List<Path> relativePaths = new ArrayList<>();
-		for (File shipFile : shipFiles) {
-			if (shipFile.isDirectory()) {
-				// add directories to the classpath
-				final java.nio.file.Path shipPath = shipFile.toPath();
-				final java.nio.file.Path parentPath = shipPath.getParent();
-				Files.walkFileTree(shipPath, new SimpleFileVisitor<java.nio.file.Path>() {
-					@Override
-					public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) {
-						localPaths.add(new Path(file.toUri()));
-						relativePaths.add(new Path(localResourcesDirectory, parentPath.relativize(file).toString()));
-						return FileVisitResult.CONTINUE;
+		for (Path shipFile : shipFiles) {
+			if (Utils.isRemotePath(shipFile.toString())) {
+				if (fileSystem.isDirectory(shipFile)) {
+					final URI parentURI = shipFile.getParent().toUri();
+					final RemoteIterator<LocatedFileStatus> iterable = fileSystem.listFiles(shipFile, true);
+					while (iterable.hasNext()) {
+						final Path current = iterable.next().getPath();
+						localPaths.add(current);
+						relativePaths.add(new Path(localResourcesDirectory, parentURI.relativize(current.toUri()).getPath()));
 					}
-				});
+					continue;
+				}
 			} else {
-				localPaths.add(new Path(shipFile.toURI()));
-				relativePaths.add(new Path(localResourcesDirectory, shipFile.getName()));
+				final File file = new File(shipFile.toUri().getPath());
+				if (file.isDirectory()) {
+					final java.nio.file.Path shipPath = file.toPath();
+					final java.nio.file.Path parentPath = shipPath.getParent();
+					Files.walkFileTree(shipPath, new SimpleFileVisitor<java.nio.file.Path>() {
+						@Override
+						public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) {
+							localPaths.add(new Path(file.toUri()));
+							relativePaths.add(new Path(localResourcesDirectory, parentPath.relativize(file).toString()));
+							return FileVisitResult.CONTINUE;
+						}
+					});
+					continue;
+				}
 			}
+			localPaths.add(shipFile);
+			relativePaths.add(new Path(localResourcesDirectory, shipFile.getName()));
 		}
 
 		final Set<String> archives = new HashSet<>();
