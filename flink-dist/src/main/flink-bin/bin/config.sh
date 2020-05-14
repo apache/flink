@@ -114,6 +114,7 @@ DEFAULT_ENV_JAVA_OPTS_CLI=""                        # Optional JVM args (Client)
 DEFAULT_ENV_SSH_OPTS=""                             # Optional SSH parameters running in cluster mode
 DEFAULT_YARN_CONF_DIR=""                            # YARN Configuration Directory, if necessary
 DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Directory, if necessary
+DEFAULT_HBASE_CONF_DIR=""                           # HBase Configuration Directory, if necessary
 
 ########################################################################################################################
 # CONFIG KEYS: The default values can be overwritten by the following keys in conf/flink-conf.yaml
@@ -126,6 +127,7 @@ KEY_ENV_LOG_DIR="env.log.dir"
 KEY_ENV_LOG_MAX="env.log.max"
 KEY_ENV_YARN_CONF_DIR="env.yarn.conf.dir"
 KEY_ENV_HADOOP_CONF_DIR="env.hadoop.conf.dir"
+KEY_ENV_HBASE_CONF_DIR="env.hbase.conf.dir"
 KEY_ENV_JAVA_HOME="env.java.home"
 KEY_ENV_JAVA_OPTS="env.java.opts"
 KEY_ENV_JAVA_OPTS_JM="env.java.opts.jobmanager"
@@ -253,6 +255,10 @@ if [ -z "${HADOOP_CONF_DIR}" ]; then
     HADOOP_CONF_DIR=$(readFromConfig ${KEY_ENV_HADOOP_CONF_DIR} "${DEFAULT_HADOOP_CONF_DIR}" "${YAML_CONF}")
 fi
 
+if [ -z "${HBASE_CONF_DIR}" ]; then
+    HBASE_CONF_DIR=$(readFromConfig ${KEY_ENV_HBASE_CONF_DIR} "${DEFAULT_HBASE_CONF_DIR}" "${YAML_CONF}")
+fi
+
 if [ -z "${FLINK_PID_DIR}" ]; then
     FLINK_PID_DIR=$(readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}" "${YAML_CONF}")
 fi
@@ -341,6 +347,24 @@ if [ -z "$HADOOP_CONF_DIR" ]; then
     if [ -d "/etc/hadoop/conf" ]; then
         echo "Setting HADOOP_CONF_DIR=/etc/hadoop/conf because no HADOOP_CONF_DIR was set."
         HADOOP_CONF_DIR="/etc/hadoop/conf"
+    fi
+fi
+
+# Check if deprecated HBASE_HOME is set, and specify config path to HBASE_CONF_DIR if it's empty.
+if [ -z "$HBASE_CONF_DIR" ]; then
+    if [ -n "$HBASE_HOME" ]; then
+        # HBASE_HOME is set.
+        if [ -d "$HBASE_HOME/conf" ]; then
+            HBASE_CONF_DIR="$HBASE_HOME/conf"
+        fi
+    fi
+fi
+
+# try and set HBASE_CONF_DIR to some common default if it's not set
+if [ -z "$HBASE_CONF_DIR" ]; then
+    if [ -d "/etc/hbase/conf" ]; then
+        echo "Setting HBASE_CONF_DIR=/etc/hbase/conf because no HBASE_CONF_DIR was set."
+        HBASE_CONF_DIR="/etc/hbase/conf"
     fi
 fi
 
