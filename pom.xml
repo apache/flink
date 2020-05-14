@@ -313,6 +313,10 @@ under the License.
 				<version>${hadoop.version}</version>
 				<exclusions>
 					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
+					<exclusion>
 						<groupId>log4j</groupId>
 						<artifactId>log4j</artifactId>
 					</exclusion>
@@ -328,6 +332,10 @@ under the License.
 				<artifactId>hadoop-hdfs</artifactId>
 				<version>${hadoop.version}</version>
 				<exclusions>
+					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
 					<exclusion>
 						<groupId>log4j</groupId>
 						<artifactId>log4j</artifactId>
@@ -345,6 +353,10 @@ under the License.
 				<version>${hadoop.version}</version>
 				<exclusions>
 					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
+					<exclusion>
 						<groupId>log4j</groupId>
 						<artifactId>log4j</artifactId>
 					</exclusion>
@@ -361,6 +373,10 @@ under the License.
 				<version>${hadoop.version}</version>
 				<exclusions>
 					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
+					<exclusion>
 						<groupId>log4j</groupId>
 						<artifactId>log4j</artifactId>
 					</exclusion>
@@ -376,6 +392,10 @@ under the License.
 				<artifactId>hadoop-yarn-client</artifactId>
 				<version>${hadoop.version}</version>
 				<exclusions>
+					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
 					<exclusion>
 						<groupId>log4j</groupId>
 						<artifactId>log4j</artifactId>
