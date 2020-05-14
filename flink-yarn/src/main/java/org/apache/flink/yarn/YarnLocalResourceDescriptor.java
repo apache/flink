@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.util.FlinkException;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
@@ -97,6 +98,21 @@ class YarnLocalResourceDescriptor {
 		} else {
 			throw new FlinkException("Error to parse YarnLocalResourceDescriptor from " + desc);
 		}
+	}
+
+	static YarnLocalResourceDescriptor fromFileStatus(
+			final String key,
+			final FileStatus fileStatus,
+			final LocalResourceVisibility visibility) {
+		checkNotNull(key);
+		checkNotNull(fileStatus);
+		checkNotNull(visibility);
+		return new YarnLocalResourceDescriptor(
+				key,
+				fileStatus.getPath(),
+				fileStatus.getLen(),
+				fileStatus.getModificationTime(),
+				visibility);
 	}
 
 	@Override

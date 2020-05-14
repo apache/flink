@@ -492,6 +492,11 @@ public final class Utils {
 		return ctx;
 	}
 
+	static boolean isRemotePath(String path) throws IOException {
+		org.apache.flink.core.fs.Path flinkPath = new org.apache.flink.core.fs.Path(path);
+		return flinkPath.getFileSystem().isDistributedFS();
+	}
+
 	private static List<YarnLocalResourceDescriptor> decodeYarnLocalResourceDescriptorListFromString(String resources) throws Exception {
 		final List<YarnLocalResourceDescriptor> resourceDescriptors = new ArrayList<>();
 		for (String shipResourceDescStr : resources.split(LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR)) {
