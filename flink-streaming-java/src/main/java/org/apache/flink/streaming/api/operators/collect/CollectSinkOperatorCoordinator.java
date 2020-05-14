@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.collect;
 
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -38,6 +39,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -104,7 +106,7 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 		InetSocketAddress address = this.address;
 
 		if (address == null) {
-			responseFuture.complete(CollectCoordinationResponse.INVALID_INSTANCE);
+			completeWithEmptyResponse(request, responseFuture);
 			return;
 		}
 
@@ -134,7 +136,27 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 			// we catch every exception here because socket might suddenly becomes null if the sink fails
 			// and we do not want the coordinator to fail
 			closeCurrentConnection();
-			responseFuture.complete(CollectCoordinationResponse.INVALID_INSTANCE);
+			completeWithEmptyResponse(request, responseFuture);
+		}
+	}
+
+	private void completeWithEmptyResponse(
+			CollectCoordinationRequest request,
+			CompletableFuture<CoordinationResponse> future) {
+		try {
+			future.complete(new CollectCoordinationResponse<>(
+				request.getVersion(),
+				request.getOffset(),
+				// this lastCheckpointId is OK
+				// because client will only expose results to the users when the checkpoint id increases
+				Long.MIN_VALUE,
+				Collections.emptyList(),
+				// just a random serializer, we're serializing no results
+				LongSerializer.INSTANCE));
+		} catch (IOException e) {
+			// this is impossible as we're serializing no results
+			// but even if this happens, client will come with the same version and offset again
+			future.completeExceptionally(e);
 		}
 	}
 

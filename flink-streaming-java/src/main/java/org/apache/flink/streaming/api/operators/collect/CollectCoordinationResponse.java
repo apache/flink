@@ -38,13 +38,9 @@ public class CollectCoordinationResponse<T> implements CoordinationResponse {
 
 	private static final long serialVersionUID = 1L;
 
-	public static CollectCoordinationResponse INVALID_INSTANCE = new CollectCoordinationResponse();
-
 	private static final TypeSerializer<String> versionSerializer = StringSerializer.INSTANCE;
 	private static final TypeSerializer<Long> offsetSerializer = LongSerializer.INSTANCE;
 	private static final TypeSerializer<Long> checkpointIdSerializer = LongSerializer.INSTANCE;
-
-	private static final String INVALID_VERSION = "invalid version";
 
 	private final String version;
 	private final long offset;
@@ -104,16 +100,5 @@ public class CollectCoordinationResponse<T> implements CoordinationResponse {
 
 		wrapper.writeInt(resultBytes.length);
 		wrapper.write(resultBytes);
-	}
-
-	private CollectCoordinationResponse() {
-		this.version = INVALID_VERSION;
-		this.offset = Long.MIN_VALUE;
-		this.lastCheckpointId = Long.MIN_VALUE;
-		this.resultBytes = null;
-	}
-
-	public static boolean isInvalid(CollectCoordinationResponse response) {
-		return response.version.equals(INVALID_VERSION);
 	}
 }

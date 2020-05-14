@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -58,7 +59,7 @@ import java.util.Set;
 /**
  * Tests for {@link CollectSinkFunction}.
  */
-public class CollectSinkFunctionTest {
+public class CollectSinkFunctionTest extends TestLogger {
 
 	private static final int MAX_RESULTS_PER_BATCH = 3;
 	private static final String LIST_ACC_NAME = "tableCollectList";

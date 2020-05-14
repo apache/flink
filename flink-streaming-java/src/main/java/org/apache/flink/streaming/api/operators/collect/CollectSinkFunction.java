@@ -165,7 +165,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		version = UUID.randomUUID().toString();
 
 		// this checkpoint id is OK even if the sink restarts,
-		// because client will only expose results to the users when the checkpoint increases
+		// because client will only expose results to the users when the checkpoint id increases
 		lastCheckpointId = Long.MIN_VALUE;
 
 		serverThread = new ServerThread();
