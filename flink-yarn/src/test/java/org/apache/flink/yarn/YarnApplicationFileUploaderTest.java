@@ -23,6 +23,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.hamcrest.Matchers;
@@ -61,7 +62,8 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
 				FileSystem.get(new YarnConfiguration()),
 				new Path(temporaryFolder.getRoot().toURI()),
 				Collections.singletonList(new Path(flinkLibDir.toURI())),
-				ApplicationId.newInstance(0, 0))) {
+				ApplicationId.newInstance(0, 0),
+				DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
 
 			yarnApplicationFileUploader.registerProvidedLocalResources();
 
@@ -88,7 +90,8 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
 						fileSystem,
 						new Path(temporaryFolder.getRoot().toURI()),
 						Arrays.asList(new Path(flinkLibDir1.toURI()), new Path(flinkLibDir2.toURI())),
-						ApplicationId.newInstance(0, 0)));
+						ApplicationId.newInstance(0, 0),
+						DFSConfigKeys.DFS_REPLICATION_DEFAULT));
 		} finally {
 			IOUtils.closeQuietly(fileSystem);
 		}
