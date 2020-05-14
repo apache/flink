@@ -178,9 +178,7 @@ public interface ChannelStateWriter extends Closeable, CheckpointListener {
 
 		@Override
 		public ChannelStateWriteResult getWriteResult(long checkpointId) {
-			return new ChannelStateWriteResult(
-				CompletableFuture.completedFuture(Collections.emptyList()),
-				CompletableFuture.completedFuture(Collections.emptyList()));
+			return ChannelStateWriteResult.EMPTY;
 		}
 
 		@Override
