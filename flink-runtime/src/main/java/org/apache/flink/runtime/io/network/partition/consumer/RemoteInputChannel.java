@@ -469,7 +469,9 @@ public class RemoteInputChannel extends InputChannel {
 
 			if (notifyReceivedBarrier != null) {
 				receivedCheckpointId = notifyReceivedBarrier.getId();
-				listener.notifyBarrierReceived(notifyReceivedBarrier, channelInfo);
+				if (notifyReceivedBarrier.isCheckpoint()) {
+					listener.notifyBarrierReceived(notifyReceivedBarrier, channelInfo);
+				}
 			} else if (notifyReceivedBuffer != null) {
 				listener.notifyBufferReceived(notifyReceivedBuffer, channelInfo);
 			}

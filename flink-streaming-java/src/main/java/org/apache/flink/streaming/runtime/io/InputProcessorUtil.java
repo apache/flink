@@ -118,10 +118,17 @@ public class InputProcessorUtil {
 		switch (config.getCheckpointMode()) {
 			case EXACTLY_ONCE:
 				if (config.isUnalignedCheckpointsEnabled()) {
-					return new CheckpointBarrierUnaligner(
-						numberOfInputChannelsPerGate.toArray(),
-						channelStateWriter,
-						taskName,
+					return new AlternatingCheckpointBarrierHandler(
+						new CheckpointBarrierAligner(
+							taskName,
+							channelIndexToInputGate,
+							inputGateToChannelIndexOffset,
+							toNotifyOnCheckpoint),
+						new CheckpointBarrierUnaligner(
+							numberOfInputChannelsPerGate.toArray(),
+							channelStateWriter,
+							taskName,
+							toNotifyOnCheckpoint),
 						toNotifyOnCheckpoint);
 				}
 				return new CheckpointBarrierAligner(

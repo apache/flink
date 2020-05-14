@@ -226,6 +226,10 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 		return 0;
 	}
 
+	public boolean isCheckpointPending() {
+		return !pendingCheckpoints.isEmpty();
+	}
+
 	/**
 	 * Simple class for a checkpoint ID with a barrier counter.
 	 */

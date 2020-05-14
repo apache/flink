@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -325,11 +326,21 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 		}
 	}
 
+	@Override
+	protected boolean isCheckpointPending() {
+		return numBarriersReceived > 0;
+	}
+
 	private void resumeConsumption(int channelIndex) {
 		InputGate inputGate = channelIndexToInputGate[channelIndex];
 		checkState(!inputGate.isFinished(), "InputGate already finished.");
 
 		inputGate.resumeConsumption(channelIndex - inputGateToChannelIndexOffset.get(inputGate));
+	}
+
+	@VisibleForTesting
+	public int getNumClosedChannels() {
+		return numClosedChannels;
 	}
 
 	@Override

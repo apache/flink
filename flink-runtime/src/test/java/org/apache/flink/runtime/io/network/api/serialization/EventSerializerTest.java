@@ -77,7 +77,7 @@ public class EventSerializerTest {
 			assertFalse(bufferConsumer.isRecycled());
 
 			if (evt instanceof CheckpointBarrier) {
-				assertTrue(Buffer.DataType.isAlignedExactlyOnceCheckpointBarrier(bufferConsumer.build()));
+				assertTrue(bufferConsumer.build().getDataType().isBlockingUpstream());
 			} else {
 				assertEquals(Buffer.DataType.EVENT_BUFFER, bufferConsumer.build().getDataType());
 			}
@@ -94,7 +94,7 @@ public class EventSerializerTest {
 			assertFalse(buffer.isRecycled());
 
 			if (evt instanceof CheckpointBarrier) {
-				assertTrue(Buffer.DataType.isAlignedExactlyOnceCheckpointBarrier(buffer));
+				assertTrue(buffer.getDataType().isBlockingUpstream());
 			} else {
 				assertEquals(Buffer.DataType.EVENT_BUFFER, buffer.getDataType());
 			}
