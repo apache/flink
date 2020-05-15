@@ -41,15 +41,6 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def registerTable(name: String, table: Table): Unit = ???
 
-  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = ???
-
-  override def registerTableSink(
-    name: String,
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]], tableSink: TableSink[_]): Unit = ???
-
-  override def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = ???
-
   override def scan(tablePath: String*): Table = ???
 
   override def connect(connectorDescriptor: ConnectorDescriptor): ConnectTableDescriptor = ???

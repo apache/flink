@@ -21,8 +21,10 @@ package org.apache.flink.table.api
 import _root_.java.util.{HashMap => JHashMap}
 import _root_.java.util.{Map => JMap}
 import _root_.java.sql.{Date, Time, Timestamp}
+
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
@@ -32,7 +34,6 @@ import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
 import org.apache.flink.types.Row
-
 import org.junit.{Assert, Test}
 
 class TableSourceTest extends TableTestBase {
@@ -47,8 +48,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource("table1", tableSource1)
-    tableEnv.registerTableSource("table2", tableSource2)
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource("table1", tableSource1)
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource("table2", tableSource2)
 
     val table1 = tableEnv.scan("table1").where($"amount" > 2)
     val table2 = tableEnv.scan("table2").where($"amount" > 2)
@@ -80,7 +81,7 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -100,7 +101,7 @@ class TableSourceTest extends TableTestBase {
     val (tableSource, tableName) = csvTable
     val util = batchTestUtil()
 
-    util.tableEnv.registerTableSource(tableName, tableSource)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
 
     val sqlQuery = s"SELECT `last`, floor(id), score * 2 FROM $tableName"
 
@@ -119,7 +120,7 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -135,7 +136,7 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -158,7 +159,7 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
 
     val result = tableEnv
         .scan(tableName)
@@ -185,7 +186,7 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -211,7 +212,7 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
 
     val result = tableEnv
         .scan(tableName)
