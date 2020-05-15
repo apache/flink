@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.BulkWriter;
@@ -264,6 +265,7 @@ public class StreamingFileSink<IN>
 			return self();
 		}
 
+		@Internal
 		public T withBucketLifeCycleListener(final BucketLifeCycleListener<IN, BucketID> listener) {
 			this.bucketLifeCycleListener = Preconditions.checkNotNull(listener);
 			return self();
@@ -381,6 +383,7 @@ public class StreamingFileSink<IN>
 			return self();
 		}
 
+		@Internal
 		public T withBucketLifeCycleListener(final BucketLifeCycleListener<IN, BucketID> listener) {
 			this.bucketLifeCycleListener = Preconditions.checkNotNull(listener);
 			return self();
