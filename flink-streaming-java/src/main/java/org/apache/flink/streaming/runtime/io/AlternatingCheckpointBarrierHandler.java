@@ -23,6 +23,8 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
+import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
+
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -112,5 +114,14 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	@Override
 	protected boolean isCheckpointPending() {
 		return activeHandler.isCheckpointPending();
+	}
+
+	@Override
+	public void close() throws IOException {
+		try (Closer closer = Closer.create()) {
+			closer.register(alignedHandler);
+			closer.register(unalignedHandler);
+			closer.register(super::close);
+		}
 	}
 }
