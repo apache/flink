@@ -58,7 +58,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TimeZone;
 
 /**
  * Deserialization schema from Avro bytes to {@link RowData}.
@@ -76,11 +75,6 @@ import java.util.TimeZone;
 public class AvroRowDataDeserializationSchema implements DeserializationSchema<RowData> {
 
 	private static final long serialVersionUID = 1L;
-
-	/**
-	 * Used for time conversions into SQL types.
-	 */
-	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
 
 	/**
 	 * Used for converting Date type.

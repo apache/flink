@@ -51,7 +51,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TimeZone;
 
 /**
  * Serialization schema that serializes {@link RowData} into Avro bytes.
@@ -67,11 +66,6 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Used for time conversions from SQL types.
-	 */
-	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
-
-	/**
 	 * Logical type describing the input type.
 	 */
 	private final RowType rowType;
@@ -82,7 +76,7 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 	private final SerializationRuntimeConverter runtimeConverter;
 
 	/**
-	 * Writer to serialize Avro record into a byte array.
+	 * Writer to serialize Avro record into a Avro bytes.
 	 */
 	private transient DatumWriter<IndexedRecord> datumWriter;
 
