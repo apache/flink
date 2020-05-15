@@ -55,6 +55,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
+import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
+import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -224,13 +226,23 @@ public class HiveDialectTest {
 	}
 
 	@Test
-	public void testFunction() throws Exception {
+	public void testFunction() {
 		tableEnv.executeSql(String.format("create function my_abs as '%s'", GenericUDFAbs.class.getName()));
 		List<Row> functions = Lists.newArrayList(tableEnv.executeSql("show functions").collect());
 		assertTrue(functions.toString().contains("my_abs"));
 		tableEnv.executeSql("drop function my_abs");
 		assertFalse(hiveCatalog.functionExists(new ObjectPath("default", "my_abs")));
 		tableEnv.executeSql("drop function if exists foo");
+	}
+
+	@Test
+	public void testCatalog() {
+		List<Row> catalogs = Lists.newArrayList(tableEnv.executeSql("show catalogs").collect());
+		assertEquals(2, catalogs.size());
+		tableEnv.executeSql("use catalog " + DEFAULT_BUILTIN_CATALOG);
+		List<Row> databases = Lists.newArrayList(tableEnv.executeSql("show databases").collect());
+		assertEquals(1, databases.size());
+		assertEquals(DEFAULT_BUILTIN_DATABASE, databases.get(0).toString());
 	}
 
 	private static String locationPath(String locationURI) throws URISyntaxException {

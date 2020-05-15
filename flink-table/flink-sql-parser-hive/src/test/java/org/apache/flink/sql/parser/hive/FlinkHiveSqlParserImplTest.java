@@ -239,4 +239,29 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 		// TODO: support SHOW FUNCTIONS LIKE 'regex_pattern'
 		sql("show functions").ok("SHOW FUNCTIONS");
 	}
+
+	@Test
+	public void testCreateCatalog() {
+		sql("create catalog cat")
+				.ok("CREATE CATALOG `CAT`");
+		sql("create catalog cat with ('k1'='v1')")
+				.ok("CREATE CATALOG `CAT` WITH (\n" +
+						"  'k1' = 'v1'\n" +
+						")");
+	}
+
+	@Test
+	public void testShowCatalogs() {
+		sql("show catalogs").ok("SHOW CATALOGS");
+	}
+
+	@Test
+	public void testUseCatalog() {
+		sql("use catalog cat").ok("USE CATALOG `CAT`");
+	}
+
+	@Test
+	public void testDescribeCatalog() {
+		sql("describe catalog cat").ok("DESCRIBE CATALOG `CAT`");
+	}
 }

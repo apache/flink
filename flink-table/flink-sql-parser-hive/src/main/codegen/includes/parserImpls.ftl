@@ -1011,3 +1011,66 @@ SqlShowFunctions SqlShowFunctions() :
         return new SqlShowFunctions(pos, null);
     }
 }
+
+/**
+* Parse a "Show Catalogs" metadata query command.
+*/
+SqlShowCatalogs SqlShowCatalogs() :
+{
+}
+{
+    <SHOW> <CATALOGS>
+    {
+        return new SqlShowCatalogs(getPos());
+    }
+}
+
+SqlDescribeCatalog SqlDescribeCatalog() :
+{
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
+}
+{
+    <DESCRIBE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlDescribeCatalog(pos, catalogName);
+    }
+}
+
+SqlUseCatalog SqlUseCatalog() :
+{
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
+}
+{
+    <USE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlUseCatalog(pos, catalogName);
+    }
+}
+
+/**
+* Parses a create catalog statement.
+* CREATE CATALOG catalog_name [WITH (property_name=property_value, ...)];
+*/
+SqlCreate SqlCreateCatalog(Span s, boolean replace) :
+{
+    SqlParserPos startPos;
+    SqlIdentifier catalogName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <CATALOG> { startPos = getPos(); }
+    catalogName = SimpleIdentifier()
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+    {
+        return new SqlCreateCatalog(startPos.plus(getPos()),
+            catalogName,
+            propertyList);
+    }
+}
