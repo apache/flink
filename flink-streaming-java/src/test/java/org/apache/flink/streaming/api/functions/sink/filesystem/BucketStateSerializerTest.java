@@ -463,9 +463,9 @@ public class BucketStateSerializerTest {
 	}
 
 	private static SimpleVersionedSerializer<BucketState<String>> getBucketStateSerializer(final PartFileWriter.PartFileFactory writer) {
-		return new BucketStateSerializer<>(
-			writer.getInProgressFileRecoverableSerializer(),
-			writer.getPendingFileRecoverableSerializer(),
+		return new BucketStateSerializer(
+			writer.getProperties().getInProgressFileRecoverableSerializer(),
+			writer.getProperties().getPendingFileRecoverableSerializer(),
 			SimpleVersionedStringSerializer.INSTANCE);
 	}
 

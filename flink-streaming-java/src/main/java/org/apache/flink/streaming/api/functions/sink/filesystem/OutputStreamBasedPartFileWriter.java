@@ -108,11 +108,6 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 		}
 
 		@Override
-		public boolean requiresCleanupOfInProgressFileRecoverableState() {
-			return recoverableWriter.requiresCleanupOfRecoverableState();
-		}
-
-		@Override
 		public boolean cleanupInProgressFileRecoverable(InProgressFileRecoverable inProgressFileRecoverable) throws IOException {
 			final RecoverableWriter.ResumeRecoverable resumeRecoverable =
 				((OutputStreamBasedInProgressFileRecoverable) inProgressFileRecoverable).getResumeRecoverable();
@@ -120,18 +115,11 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 		}
 
 		@Override
-		public SimpleVersionedSerializer<PendingFileRecoverable> getPendingFileRecoverableSerializer() {
-			return new OutputStreamBasedPendingFileRecoverableSerializer(recoverableWriter.getCommitRecoverableSerializer());
-		}
-
-		@Override
-		public SimpleVersionedSerializer<InProgressFileRecoverable> getInProgressFileRecoverableSerializer() {
-			return new OutputStreamBasedInProgressFileRecoverableSerializer(recoverableWriter.getResumeRecoverableSerializer());
-		}
-
-		@Override
-		public boolean supportsResume() {
-			return recoverableWriter.supportsResume();
+		public WriterProperties getProperties() {
+			return new WriterProperties(
+					new OutputStreamBasedInProgressFileRecoverableSerializer(recoverableWriter.getResumeRecoverableSerializer()),
+					new OutputStreamBasedPendingFileRecoverableSerializer(recoverableWriter.getCommitRecoverableSerializer()),
+					recoverableWriter.supportsResume());
 		}
 
 		public abstract PartFileWriter<IN, BucketID> openNew(
@@ -189,11 +177,6 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 		@Override
 		public void commitAfterRecovery() throws IOException {
 			committer.commitAfterRecovery();
-		}
-
-		@Override
-		public PendingFileRecoverable getRecoverable() {
-			return new OutputStreamBasedPendingFileRecoverable(committer.getRecoverable());
 		}
 	}
 

@@ -130,7 +130,7 @@ public class Bucket<IN, BucketID> {
 		// we try to resume the previous in-progress file
 		final PartFileWriter.InProgressFileRecoverable inProgressFileRecoverable = state.getInProgressFileRecoverable();
 
-		if (partFileFactory.supportsResume()) {
+		if (partFileFactory.getProperties().supportsResume()) {
 			inProgressPart = partFileFactory.resumeFrom(
 					bucketId, inProgressFileRecoverable, state.getInProgressFileCreationTime());
 		} else {
@@ -246,14 +246,14 @@ public class Bucket<IN, BucketID> {
 			inProgressFileRecoverable = inProgressPart.persist();
 			inProgressFileCreationTime = inProgressPart.getCreationTime();
 
-			// the following is an optimization so that writers that do not
-			// require cleanup, they do not have to keep track of in-progress files
-			// and later iterate over the active buckets.
-			// (see onSuccessfulCompletionOfCheckpoint())
-
-			if (partFileFactory.requiresCleanupOfInProgressFileRecoverableState()) {
-				this.inProgressFileRecoverablesPerCheckpoint.put(checkpointId, inProgressFileRecoverable);
-			}
+//			// the following is an optimization so that writers that do not
+//			// require cleanup, they do not have to keep track of in-progress files
+//			// and later iterate over the active buckets.
+//			// (see onSuccessfulCompletionOfCheckpoint())
+//
+//			if (partFileFactory.requiresCleanupOfInProgressFileRecoverableState()) {
+			this.inProgressFileRecoverablesPerCheckpoint.put(checkpointId, inProgressFileRecoverable);
+//			}
 		}
 
 		return new BucketState<>(bucketId, bucketPath, inProgressFileCreationTime, inProgressFileRecoverable, pendingFileRecoverablesPerCheckpoint);
@@ -304,12 +304,9 @@ public class Bucket<IN, BucketID> {
 			// list when the requiresCleanupOfInProgressFileRecoverableState() returns true, but having it makes
 			// the code more readable.
 
-			if (partFileFactory.requiresCleanupOfInProgressFileRecoverableState()) {
-				final boolean successfullyDeleted = partFileFactory.cleanupInProgressFileRecoverable(inProgressFileRecoverable);
-
-				if (LOG.isDebugEnabled() && successfullyDeleted) {
-					LOG.debug("Subtask {} successfully deleted incomplete part for bucket id={}.", subtaskIndex, bucketId);
-				}
+			final boolean successfullyDeleted = partFileFactory.cleanupInProgressFileRecoverable(inProgressFileRecoverable);
+			if (LOG.isDebugEnabled() && successfullyDeleted) {
+				LOG.debug("Subtask {} successfully deleted incomplete part for bucket id={}.", subtaskIndex, bucketId);
 			}
 			it.remove();
 		}

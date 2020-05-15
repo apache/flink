@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
 
@@ -89,6 +88,8 @@ interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 			final InProgressFileRecoverable inProgressFileSnapshot,
 			final long creationTime) throws IOException;
 
+		WriterProperties getProperties();
+
 		/**
 		 * Recovers a pending file for finalizing and committing.
 		 * @param pendingFileRecoverable The handle with the recovery information.
@@ -98,24 +99,11 @@ interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 		PendingFile recoverPendingFile(final PendingFileRecoverable pendingFileRecoverable) throws IOException;
 
 		/**
-		 * Marks if requiring to do any additional cleanup/freeing of resources occupied
-		 * as part of a {@link InProgressFileRecoverable}.
-		 *
-		 * <p>In case cleanup is required, then {@link #cleanupInProgressFileRecoverable(InProgressFileRecoverable)} should
-		 * be called.
-		 *
-		 * @return {@code true} if cleanup is required, {@code false} otherwise.
-		 */
-		boolean requiresCleanupOfInProgressFileRecoverableState();
-
-		/**
 		 * Frees up any resources that were previously occupied in order to be able to
 		 * recover from a (potential) failure.
 		 *
-		 * <p><b>NOTE:</b> This operation should not throw an exception if the {@link InProgressFileRecoverable} has already
-		 * been cleaned up and the resources have been freed. But the contract is that it will throw
-		 * an {@link UnsupportedOperationException} if it is called for a {@link PartFileFactory}
-		 * whose {@link #requiresCleanupOfInProgressFileRecoverableState()} returns {@code false}.
+		 * <p><b>NOTE:</b> This operation should not throw an exception, but return false if the cleanup did not
+		 * happen for any reason.
 		 *
 		 * @param inProgressFileRecoverable the {@link InProgressFileRecoverable} whose state we want to clean-up.
 		 * @return {@code true} if the resources were successfully freed, {@code false} otherwise
@@ -123,27 +111,6 @@ interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 		 * @throws IOException if an I/O error occurs
 		 */
 		boolean cleanupInProgressFileRecoverable(final InProgressFileRecoverable inProgressFileRecoverable) throws IOException;
-
-
-		/**
-		 * @return the serializer for the {@link PendingFileRecoverable}.
-		 */
-		SimpleVersionedSerializer<? extends PendingFileRecoverable> getPendingFileRecoverableSerializer();
-
-		/**
-		 * @return the serializer for the {@link InProgressFileRecoverable}.
-		 */
-		SimpleVersionedSerializer<? extends InProgressFileRecoverable> getInProgressFileRecoverableSerializer();
-
-		/**
-		 * Checks whether the {@link PartFileWriter} supports resuming (appending to) files after
-		 * recovery (via the {@link #resumeFrom(Object, InProgressFileRecoverable, long)} method).
-		 *
-		 * <p>If true, then this writer supports the {@link #resumeFrom(Object, InProgressFileRecoverable, long)} method.
-		 * If false, then that method may not be supported and file can only be recovered via
-		 * {@link #recoverPendingFile(PendingFileRecoverable)}.
-		 */
-		boolean supportsResume();
 	}
 
 	 /**
@@ -180,12 +147,5 @@ interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 		 * @throws IOException Thrown if committing fails.
 		 */
 		void commitAfterRecovery() throws IOException;
-
-		/**
-		 * Gets a recoverable object to recover the pending file The recovered pending file
-		 * will commit the file with the exact same data as this pending file would commit
-		 * it.
-		 */
-		PendingFileRecoverable getRecoverable();
 	}
 }
