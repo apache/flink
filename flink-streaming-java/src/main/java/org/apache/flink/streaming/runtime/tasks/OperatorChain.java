@@ -262,7 +262,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		// go forward through the operator chain and tell each operator
 		// to prepare the checkpoint
 		for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators()) {
-			operatorWrapper.getStreamOperator().prepareSnapshotPreBarrier(checkpointId);
+			if (!operatorWrapper.isClosed()) {
+				operatorWrapper.getStreamOperator().prepareSnapshotPreBarrier(checkpointId);
+			}
 		}
 	}
 
