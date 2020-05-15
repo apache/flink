@@ -34,7 +34,6 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction;
-import org.apache.flink.table.runtime.operators.python.PythonFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.runners.python.scalar.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -64,7 +63,7 @@ import static org.apache.flink.table.api.Expressions.call;
  * @param <OUT> Type of the output elements.
  * @param <UDFIN> Type of the UDF input type.
  */
-public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> extends PythonFunctionOperatorTestBase {
+public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 
 	@Test
 	public void testRetractionFieldKept() throws Exception {
