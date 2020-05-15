@@ -14,3 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.formats.json.JsonFormatFactory
+org.apache.flink.formats.json.debezium.DebeziumJsonFormatFactory
