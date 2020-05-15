@@ -43,7 +43,6 @@ import java.util.List;
 
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
 import static org.apache.flink.runtime.io.network.api.serialization.EventSerializer.toBuffer;
@@ -99,20 +98,33 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			assertEquals(type.isSavepoint(), alignedHandler.isCheckpointPending());
 			assertNotEquals(alignedHandler.isCheckpointPending(), unalignedHandler.isCheckpointPending());
 
-			CheckpointBarrierHandler activeHandler;
-			if (type.isSavepoint()) {
-				activeHandler = alignedHandler;
-				assertTrue(barrierHandler.getAllBarriersReceivedFuture(i).isDone());
-			}
-			else {
-				activeHandler = unalignedHandler;
+			if (!type.isSavepoint()) {
 				assertFalse(barrierHandler.getAllBarriersReceivedFuture(i).isDone());
-			}
-
-			for (int channelId = 0; channelId < inputGate.getNumberOfInputChannels(); channelId++) {
-				assertEquals(activeHandler.hasInflightData(i, channelId), barrierHandler.hasInflightData(i, channelId));
+				assertInflightDataEquals(unalignedHandler, barrierHandler, i, inputGate.getNumberOfInputChannels());
 			}
 		}
+	}
+
+	private static void assertInflightDataEquals(CheckpointBarrierHandler expected, CheckpointBarrierHandler actual, long barrierId, int numChannels) {
+		for (int channelId = 0; channelId < numChannels; channelId++) {
+			assertEquals(expected.hasInflightData(barrierId, channelId), actual.hasInflightData(barrierId, channelId));
+		}
+	}
+
+	@Test
+	public void testHasInflightDataBeforeProcessBarrier() throws Exception {
+		SingleInputGate inputGate = new SingleInputGateBuilder().setNumberOfChannels(2).build();
+		inputGate.setInputChannels(new TestInputChannel(inputGate, 0), new TestInputChannel(inputGate, 1));
+		TestInvokable target = new TestInvokable();
+		CheckpointBarrierAligner alignedHandler = new CheckpointBarrierAligner("test", new InputGate[]{inputGate, inputGate}, singletonMap(inputGate, 0), target);
+		CheckpointBarrierUnaligner unalignedHandler = new CheckpointBarrierUnaligner(new int[]{inputGate.getNumberOfInputChannels()}, ChannelStateWriter.NO_OP, "test", target);
+		AlternatingCheckpointBarrierHandler barrierHandler = new AlternatingCheckpointBarrierHandler(alignedHandler, unalignedHandler, target);
+
+		final long id = 1;
+		unalignedHandler.processBarrier(new CheckpointBarrier(id, 0, new CheckpointOptions(CHECKPOINT, CheckpointStorageLocationReference.getDefault())), 0);
+
+		assertInflightDataEquals(unalignedHandler, barrierHandler, id, inputGate.getNumberOfInputChannels());
+		assertFalse(barrierHandler.getAllBarriersReceivedFuture(id).isDone());
 	}
 
 	@Test
