@@ -46,9 +46,9 @@ import static org.apache.flink.util.CoreMatchers.containsCause;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link DebeziumFormatFactory}.
+ * Tests for {@link DebeziumJsonFormatFactory}.
  */
-public class DebeziumFormatFactoryTest extends TestLogger {
+public class DebeziumJsonFormatFactoryTest extends TestLogger {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
@@ -131,7 +131,7 @@ public class DebeziumFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock source"),
 				new Configuration(),
-				DebeziumFormatFactoryTest.class.getClassLoader());
+				DebeziumJsonFormatFactoryTest.class.getClassLoader());
 	}
 
 	private static DynamicTableSink createTableSink(Map<String, String> options) {
@@ -140,6 +140,6 @@ public class DebeziumFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock sink"),
 				new Configuration(),
-				DebeziumFormatFactoryTest.class.getClassLoader());
+				DebeziumJsonFormatFactoryTest.class.getClassLoader());
 	}
 }

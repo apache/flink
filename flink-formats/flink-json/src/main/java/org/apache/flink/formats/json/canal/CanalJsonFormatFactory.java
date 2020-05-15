@@ -44,7 +44,7 @@ import java.util.Set;
 /**
  * Format factory for providing configured instances of Canal JSON to RowData {@link DeserializationSchema}.
  */
-public class CanalFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
+public class CanalJsonFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
 
 	public static final String IDENTIFIER = "canal-json";
 

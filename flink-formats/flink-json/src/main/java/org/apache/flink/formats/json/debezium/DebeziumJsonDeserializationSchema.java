@@ -52,9 +52,10 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 public final class DebeziumJsonDeserializationSchema implements DeserializationSchema<RowData> {
 	private static final long serialVersionUID = 1L;
 
-	private static final String OP_CREATE = "c";
-	private static final String OP_UPDATE = "u";
-	private static final String OP_DELETE = "d";
+	private static final String OP_READ = "r"; // snapshot read
+	private static final String OP_CREATE = "c"; // insert
+	private static final String OP_UPDATE = "u"; // update
+	private static final String OP_DELETE = "d"; // delete
 
 	/** The deserializer to deserialize Debezium JSON data. */
 	private final JsonRowDataDeserializationSchema jsonDeserializer;
@@ -97,31 +98,40 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 
 	@Override
 	public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
-		GenericRowData row = (GenericRowData) jsonDeserializer.deserialize(message);
-		GenericRowData payload;
-		if (schemaInclude) {
-			payload = (GenericRowData) row.getField(0);
-		} else {
-			payload = row;
-		}
+		try {
+			GenericRowData row = (GenericRowData) jsonDeserializer.deserialize(message);
+			GenericRowData payload;
+			if (schemaInclude) {
+				payload = (GenericRowData) row.getField(0);
+			} else {
+				payload = row;
+			}
 
-		GenericRowData before = (GenericRowData) payload.getField(0);
-		GenericRowData after = (GenericRowData) payload.getField(1);
-		String op = payload.getField(2).toString();
-		if (OP_CREATE.equals(op) && after != null) {
-			after.setRowKind(RowKind.INSERT);
-			out.collect(after);
-		} else if (OP_UPDATE.equals(op) && (before != null && after != null)) {
-			before.setRowKind(RowKind.UPDATE_BEFORE);
-			after.setRowKind(RowKind.UPDATE_AFTER);
-			out.collect(before);
-			out.collect(after);
-		} else if (OP_DELETE.equals(op) && before != null) {
-			before.setRowKind(RowKind.DELETE);
-			out.collect(before);
-		} else {
+			GenericRowData before = (GenericRowData) payload.getField(0);
+			GenericRowData after = (GenericRowData) payload.getField(1);
+			String op = payload.getField(2).toString();
+			if (OP_CREATE.equals(op) || OP_READ.equals(op)) {
+				after.setRowKind(RowKind.INSERT);
+				out.collect(after);
+			} else if (OP_UPDATE.equals(op)) {
+				before.setRowKind(RowKind.UPDATE_BEFORE);
+				after.setRowKind(RowKind.UPDATE_AFTER);
+				out.collect(before);
+				out.collect(after);
+			} else if (OP_DELETE.equals(op)) {
+				before.setRowKind(RowKind.DELETE);
+				out.collect(before);
+			} else {
+				if (!ignoreParseErrors) {
+					throw new IOException(format(
+						"Unknown \"op\" value \"%s\". The Debezium JSON message is '%s'", op, new String(message)));
+				}
+			}
+		} catch (Throwable t) {
+			// a big try catch to protect the processing.
 			if (!ignoreParseErrors) {
-				throw new IOException(format("Failed to deserialize Debezium JSON '%s'.", new String(message)));
+				throw new IOException(format(
+					"Corrupt Debezium JSON message '%s'.", new String(message)), t);
 			}
 		}
 	}

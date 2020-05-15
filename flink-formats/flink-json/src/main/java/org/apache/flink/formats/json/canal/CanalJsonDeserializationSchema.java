@@ -48,7 +48,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
  *
  * @see <a href="https://github.com/alibaba/canal">Alibaba Canal</a>
  */
-public class CanalJsonDeserializationSchema implements DeserializationSchema<RowData> {
+public final class CanalJsonDeserializationSchema implements DeserializationSchema<RowData> {
 	private static final long serialVersionUID = 1L;
 
 	private static final String OP_INSERT = "INSERT";
@@ -91,49 +91,58 @@ public class CanalJsonDeserializationSchema implements DeserializationSchema<Row
 
 	@Override
 	public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
-		RowData row = jsonDeserializer.deserialize(message);
-		String type = row.getString(2).toString(); // "type" field
-		if (OP_INSERT.equals(type)) {
-			// "data" field is an array of row, contains inserted rows
-			ArrayData data = row.getArray(0);
-			for (int i = 0; i < data.size(); i++) {
-				RowData insert = data.getRow(i, fieldCount);
-				insert.setRowKind(RowKind.INSERT);
-				out.collect(insert);
-			}
-		} else if (OP_UPDATE.equals(type)) {
-			// "data" field is an array of row, contains new rows
-			ArrayData data = row.getArray(0);
-			// "old" field is an array of row, contains old values
-			ArrayData old = row.getArray(1);
-			for (int i = 0; i < data.size(); i++) {
-				// the underlying JSON deserialization schema always produce GenericRowData.
-				GenericRowData after = (GenericRowData) data.getRow(i, fieldCount);
-				GenericRowData before = (GenericRowData) old.getRow(i, fieldCount);
-				for (int f = 0; f < fieldCount; f++) {
-					if (before.isNullAt(f)) {
-						// not null fields in "old" (before) means the fields are changed
-						// null/empty fields in "old" (before) means the fields not not changed
-						// so we just copy the not changed fields into before
-						before.setField(f, after.getField(f));
-					}
+		try {
+			RowData row = jsonDeserializer.deserialize(message);
+			String type = row.getString(2).toString(); // "type" field
+			if (OP_INSERT.equals(type)) {
+				// "data" field is an array of row, contains inserted rows
+				ArrayData data = row.getArray(0);
+				for (int i = 0; i < data.size(); i++) {
+					RowData insert = data.getRow(i, fieldCount);
+					insert.setRowKind(RowKind.INSERT);
+					out.collect(insert);
 				}
-				before.setRowKind(RowKind.UPDATE_BEFORE);
-				after.setRowKind(RowKind.UPDATE_AFTER);
-				out.collect(before);
-				out.collect(after);
+			} else if (OP_UPDATE.equals(type)) {
+				// "data" field is an array of row, contains new rows
+				ArrayData data = row.getArray(0);
+				// "old" field is an array of row, contains old values
+				ArrayData old = row.getArray(1);
+				for (int i = 0; i < data.size(); i++) {
+					// the underlying JSON deserialization schema always produce GenericRowData.
+					GenericRowData after = (GenericRowData) data.getRow(i, fieldCount);
+					GenericRowData before = (GenericRowData) old.getRow(i, fieldCount);
+					for (int f = 0; f < fieldCount; f++) {
+						if (before.isNullAt(f)) {
+							// not null fields in "old" (before) means the fields are changed
+							// null/empty fields in "old" (before) means the fields are not changed
+							// so we just copy the not changed fields into before
+							before.setField(f, after.getField(f));
+						}
+					}
+					before.setRowKind(RowKind.UPDATE_BEFORE);
+					after.setRowKind(RowKind.UPDATE_AFTER);
+					out.collect(before);
+					out.collect(after);
+				}
+			} else if (OP_DELETE.equals(type)) {
+				// "data" field is an array of row, contains deleted rows
+				ArrayData data = row.getArray(0);
+				for (int i = 0; i < data.size(); i++) {
+					RowData insert = data.getRow(i, fieldCount);
+					insert.setRowKind(RowKind.DELETE);
+					out.collect(insert);
+				}
+			} else {
+				if (!ignoreParseErrors) {
+					throw new IOException(format(
+						"Unknown \"type\" value \"%s\". The Canal JSON message is '%s'", type, new String(message)));
+				}
 			}
-		} else if (OP_DELETE.equals(type)) {
-			// "data" field is an array of row, contains deleted rows
-			ArrayData data = row.getArray(0);
-			for (int i = 0; i < data.size(); i++) {
-				RowData insert = data.getRow(i, fieldCount);
-				insert.setRowKind(RowKind.DELETE);
-				out.collect(insert);
-			}
-		} else {
+		} catch (Throwable t) {
+			// a big try catch to protect the processing.
 			if (!ignoreParseErrors) {
-				throw new IOException(format("Failed to deserialize Canal JSON '%s'.", new String(message)));
+				throw new IOException(format(
+					"Corrupt Canal JSON message '%s'.", new String(message)), t);
 			}
 		}
 	}

@@ -72,7 +72,7 @@ public class CanalJsonDeserializationSchemaTest {
 			deserializationSchema.deserialize(line.getBytes(StandardCharsets.UTF_8), collector);
 		}
 
-		// Debezium captures change data (`debezium-data-schema-include.txt`) on the `product` table:
+		// Canal captures change data (`canal-data.txt`) on the `product` table:
 		//
 		// CREATE TABLE product (
 		//  id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,

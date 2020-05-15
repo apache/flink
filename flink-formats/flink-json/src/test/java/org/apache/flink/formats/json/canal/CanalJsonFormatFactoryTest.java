@@ -46,9 +46,9 @@ import static org.apache.flink.util.CoreMatchers.containsCause;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link CanalFormatFactory}.
+ * Tests for {@link CanalJsonFormatFactory}.
  */
-public class CanalFormatFactoryTest extends TestLogger {
+public class CanalJsonFormatFactoryTest extends TestLogger {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
@@ -129,7 +129,7 @@ public class CanalFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock source"),
 				new Configuration(),
-				CanalFormatFactoryTest.class.getClassLoader());
+				CanalJsonFormatFactoryTest.class.getClassLoader());
 	}
 
 	private static DynamicTableSink createTableSink(Map<String, String> options) {
@@ -138,6 +138,6 @@ public class CanalFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock sink"),
 				new Configuration(),
-				CanalFormatFactoryTest.class.getClassLoader());
+				CanalJsonFormatFactoryTest.class.getClassLoader());
 	}
 }

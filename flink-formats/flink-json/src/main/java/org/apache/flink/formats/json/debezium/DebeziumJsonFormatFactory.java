@@ -44,7 +44,7 @@ import java.util.Set;
 /**
  * Format factory for providing configured instances of Debezium JSON to RowData {@link DeserializationSchema}.
  */
-public class DebeziumFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
+public class DebeziumJsonFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
 
 	public static final String IDENTIFIER = "debezium-json";
 
