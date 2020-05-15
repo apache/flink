@@ -98,6 +98,7 @@ fi
 
 echo "Starting $SERVICE as a console application on host $HOSTNAME."
 
+# Add to pid file first, and then replace the current program with specified SERVICE in the same process
 echo $$ >> "$pid" 2>/dev/null
 
 # Release the lock
