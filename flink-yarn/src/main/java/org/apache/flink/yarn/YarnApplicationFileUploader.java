@@ -19,8 +19,10 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.FunctionUtils;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -285,9 +287,13 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		return classPaths;
 	}
 
-	public YarnLocalResourceDescriptor uploadFlinkDist(final Path localJarPath) throws IOException {
+	public YarnLocalResourceDescriptor uploadFlinkDist(final Path localJarPath) throws IOException, ClusterDeploymentException {
 		if (flinkDist != null) {
 			return flinkDist;
+		} else if (!providedSharedLibs.isEmpty()) {
+			throw new ClusterDeploymentException("The \"" + YarnConfigOptions.PROVIDED_LIB_DIRS.key() + "\"" +
+					" has to also include the lib/, plugin/ and flink-dist jar." +
+					" In other case, it cannot be used.");
 		}
 
 		flinkDist = registerSingleLocalResource(
