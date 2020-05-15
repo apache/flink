@@ -93,7 +93,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Arvo RowData schema test dependency -->
+		<!-- Avro RowData schema test dependency -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>

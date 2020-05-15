@@ -28,14 +28,11 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -47,10 +44,9 @@ import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.util.Utf8;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +64,8 @@ import java.util.TimeZone;
  */
 public class AvroRowDataSerializationSchema implements SerializationSchema<RowData> {
 
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Used for time conversions from SQL types.
 	 */
@@ -76,12 +74,12 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 	/**
 	 * Logical type describing the input type.
 	 */
-	private RowType rowType;
+	private final RowType rowType;
 
 	/**
-	 * Avro serialization schema.
+	 * Runtime instance that performs the actual work.
 	 */
-	private transient Schema schema;
+	private final SerializationRuntimeConverter runtimeConverter;
 
 	/**
 	 * Writer to serialize Avro record into a byte array.
@@ -102,18 +100,23 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 	 * Creates an Avro serialization schema for the given specific record class.
 	 */
 	public AvroRowDataSerializationSchema(RowType rowType) {
-		this.schema = AvroSchemaConverter.convertToSchema(rowType);
-		this.datumWriter = new SpecificDatumWriter<>(schema);
-		this.arrayOutputStream = new ByteArrayOutputStream();
-		this.encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
 		this.rowType = Preconditions.checkNotNull(rowType, "RowType cannot be null.");
+		this.runtimeConverter = createRowConverter(rowType);
+	}
+
+	@Override
+	public void open(InitializationContext context) throws Exception {
+		final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+		datumWriter = new SpecificDatumWriter<>(schema);
+		arrayOutputStream = new ByteArrayOutputStream();
+		encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
 	}
 
 	@Override
 	public byte[] serialize(RowData row) {
 		try {
 			// convert to record
-			final GenericRecord record = convertRowDataToAvroRecord(schema, row, rowType);
+			final GenericRecord record = (GenericRecord) runtimeConverter.convert(row);
 			arrayOutputStream.reset();
 			datumWriter.write(record, encoder);
 			encoder.flush();
@@ -140,140 +143,111 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 		return Objects.hash(rowType);
 	}
 
-	// --------------------------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------
+	// Runtime Converters
+	// --------------------------------------------------------------------------------
 
-	private GenericRecord convertRowDataToAvroRecord(Schema schema, RowData row, RowType rowType) {
-		final List<Schema.Field> fields = schema.getFields();
-		final int length = fields.size();
-		final GenericRecord record = new GenericData.Record(schema);
-		final List<RowType.RowField> rowFields = rowType.getFields();
-		for (int i = 0; i < length; i++) {
-			final Schema.Field field = fields.get(i);
-			final LogicalType fieldType = rowFields.get(i).getType();
-			record.put(i, convertFlinkType(
-				field.schema(),
-				RowData.get(row, i, fieldType),
-				fieldType));
-		}
-		return record;
+	/**
+	 * Runtime converter that converts objects of Flink Table & SQL internal data structures
+	 * to corresponding Avro data structures.
+	 */
+	private interface SerializationRuntimeConverter extends Serializable {
+		Object convert(Object object);
 	}
 
-	private Object convertFlinkType(Schema schema, Object object, LogicalType logicalType) {
-		if (object == null) {
-			return null;
-		}
-		switch (schema.getType()) {
-			case RECORD:
-				if (object instanceof RowData) {
-					return convertRowDataToAvroRecord(schema, (RowData) object, (RowType) logicalType);
-				}
-				throw new IllegalStateException("Row expected but was: " + object.getClass());
-			case ENUM:
-				return new GenericData.EnumSymbol(schema, object.toString());
+	private SerializationRuntimeConverter createRowConverter(RowType rowType) {
+		final SerializationRuntimeConverter[] fieldConverters = rowType.getChildren().stream()
+			.map(this::createConverter)
+			.toArray(SerializationRuntimeConverter[]::new);
+		final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+		final LogicalType[] fieldTypes = rowType.getFields().stream()
+			.map(RowType.RowField::getType)
+			.toArray(LogicalType[]::new);
+		final int length = rowType.getFieldCount();
+
+		return object -> {
+			final RowData row = (RowData) object;
+			final GenericRecord record = new GenericData.Record(schema);
+			for (int i = 0; i < length; ++i) {
+				record.put(i, fieldConverters[i].convert(RowData.get(row, i, fieldTypes[i])));
+			}
+			return record;
+		};
+	}
+
+	private SerializationRuntimeConverter createConverter(LogicalType type) {
+		switch (type.getTypeRoot()) {
+			case NULL:
+				return object -> null;
+			case BOOLEAN: // boolean
+			case INTEGER: // int
+			case INTERVAL_YEAR_MONTH: // long
+			case BIGINT: // long
+			case INTERVAL_DAY_TIME: // long
+			case FLOAT: // float
+			case DOUBLE: // double
+			case TIME_WITHOUT_TIME_ZONE: // int
+			case DATE: // int
+				return avroObject -> avroObject;
+			case CHAR:
+			case VARCHAR:
+				return object -> new Utf8(object.toString());
+			case BINARY:
+			case VARBINARY:
+				return object -> ByteBuffer.wrap((byte[]) object);
+			case TIMESTAMP_WITH_TIME_ZONE:
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return object -> ((TimestampData) object).getMillisecond();
+			case DECIMAL:
+				return object -> ByteBuffer.wrap(((DecimalData) object).toUnscaledBytes());
 			case ARRAY:
-				final Schema elementSchema = schema.getElementType();
-				final ArrayData array = (ArrayData) object;
-				final GenericData.Array<Object> convertedArray = new GenericData.Array<>(array.size(), schema);
-				final LogicalType elementType = ((ArrayType) logicalType).getElementType();
-				for (int i = 0; i < array.size(); ++i) {
-					final Object element = ArrayData.get(array, i, elementType);
-					convertedArray.add(convertFlinkType(elementSchema, element, elementType));
-				}
-				return convertedArray;
+				return createArrayConverter((ArrayType) type);
+			case ROW:
+				return createRowConverter((RowType) type);
 			case MAP:
-				final MapData map = (MapData) object;
-				final Map<Utf8, Object> convertedMap = new HashMap<>();
-				final ArrayData keyArray = map.keyArray();
-				final ArrayData valueArray = map.valueArray();
-				final MapType mapType = (MapType) logicalType;
-				final LogicalType keyType = mapType.getKeyType();
-				if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
-					throw new UnsupportedOperationException(
-						"Avro format doesn't support non-string as key type of map. " +
-							"The map type is: " + mapType.asSummaryString());
-				}
-				final LogicalType valueType = mapType.getValueType();
-				for (int i = 0; i < map.size(); ++i) {
-					final String key = keyArray.getString(i).toString(); // key must be string
-					final Object value = ArrayData.get(valueArray, i, valueType);
-					convertedMap.put(new Utf8(key), convertFlinkType(
-						schema.getValueType(),
-						value,
-						valueType));
-				}
-				return convertedMap;
-			case UNION:
-				final List<Schema> types = schema.getTypes();
-				final int size = types.size();
-				final Schema actualSchema;
-				if (size == 2 && types.get(0).getType() == Schema.Type.NULL) {
-					actualSchema = types.get(1);
-				} else if (size == 2 && types.get(1).getType() == Schema.Type.NULL) {
-					actualSchema = types.get(0);
-				} else if (size == 1) {
-					actualSchema = types.get(0);
-				} else {
-					throw new FlinkRuntimeException("Avro union is not supported.");
-				}
-				return convertFlinkType(actualSchema, object, logicalType);
-			case FIXED:
-				// check for decimal type
-				if (LogicalTypeChecks.hasRoot(logicalType, LogicalTypeRoot.DECIMAL)) {
-					return new GenericData.Fixed(schema, convertFromDecimal(schema, (DecimalData) object));
-				}
-				return new GenericData.Fixed(schema, (byte[]) object);
-			case STRING:
-				return new Utf8(object.toString());
-			case BYTES:
-				// check for decimal type
-				if (LogicalTypeChecks.hasRoot(logicalType, LogicalTypeRoot.DECIMAL)) {
-					return ByteBuffer.wrap(convertFromDecimal(schema, (DecimalData) object));
-				}
-				return ByteBuffer.wrap((byte[]) object);
-			case LONG:
-				// check for timestamp type
-				if (LogicalTypeChecks.hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
-					return convertFromTimestamp(schema, (TimestampData) object);
-				}
-				return object;
-			case INT:
-			case FLOAT:
-			case DOUBLE:
-			case BOOLEAN:
-				return object;
-		}
-		throw new RuntimeException("Unsupported Avro type:" + schema);
-	}
-
-	private byte[] convertFromDecimal(Schema schema, DecimalData decimal) {
-		final org.apache.avro.LogicalType logicalType = schema.getLogicalType();
-		if (logicalType instanceof LogicalTypes.Decimal) {
-			return decimal.toUnscaledBytes();
-		} else {
-			throw new RuntimeException("Unsupported decimal type.");
+			case MULTISET:
+				return createMapConverter((MapType) type);
+			case RAW:
+			default:
+				throw new UnsupportedOperationException("Unsupported type: " + type);
 		}
 	}
 
-	private long convertFromTimestamp(Schema schema, TimestampData timestamp) {
-		final org.apache.avro.LogicalType logicalType = schema.getLogicalType();
-		if (logicalType == LogicalTypes.timestampMillis()) {
-			final long time = timestamp.getMillisecond();
-			return time + (long) LOCAL_TZ.getOffset(time);
-		} else {
-			throw new RuntimeException("Unsupported timestamp type.");
+	private SerializationRuntimeConverter createArrayConverter(ArrayType arrayType) {
+		final SerializationRuntimeConverter elementConverter = createConverter(arrayType.getElementType());
+		final LogicalType elementType = arrayType.getElementType();
+
+		return object -> {
+			ArrayData arrayData = (ArrayData) object;
+			List<Object> list = new ArrayList<>();
+			for (int i = 0; i < arrayData.size(); ++i) {
+				list.add(elementConverter.convert(ArrayData.get(arrayData, i, elementType)));
+			}
+			return list;
+		};
+	}
+
+	private SerializationRuntimeConverter createMapConverter(MapType mapType) {
+		final LogicalType keyType = mapType.getKeyType();
+		final LogicalType valueType = mapType.getValueType();
+		if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
+			throw new UnsupportedOperationException(
+				"Avro format doesn't support non-string as key type of map. " +
+					"The map type is: " + mapType.asSummaryString());
 		}
-	}
+		final SerializationRuntimeConverter valueConverter = createConverter(mapType.getValueType());
 
-	private void writeObject(ObjectOutputStream outputStream) throws IOException {
-		outputStream.writeObject(rowType);
-	}
-
-	private void readObject(ObjectInputStream inputStream) throws ClassNotFoundException, IOException {
-		rowType = (RowType) inputStream.readObject();
-		schema = AvroSchemaConverter.convertToSchema(rowType);
-
-		datumWriter = new SpecificDatumWriter<>(schema);
-		arrayOutputStream = new ByteArrayOutputStream();
-		encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
+		return object -> {
+			final MapData mapData = (MapData) object;
+			final ArrayData keyArray = mapData.keyArray();
+			final ArrayData valueArray = mapData.valueArray();
+			final Map<Object, Object> map = new HashMap<>(mapData.size());
+			for (int i = 0; i < mapData.size(); ++i) {
+				final String key = keyArray.getString(i).toString();
+				final Object value = valueConverter.convert(ArrayData.get(valueArray, i, valueType));
+				map.put(key, value);
+			}
+			return map;
+		};
 	}
 }
