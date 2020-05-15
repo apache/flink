@@ -88,7 +88,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
 		);
 	}
 
-	TaskStateManagerImpl(
+	public TaskStateManagerImpl(
 			@Nonnull JobID jobId,
 			@Nonnull ExecutionAttemptID executionAttemptID,
 			@Nonnull TaskLocalStateStore localStateStore,

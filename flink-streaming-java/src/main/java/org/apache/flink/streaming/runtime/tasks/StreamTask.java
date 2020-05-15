@@ -28,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -474,15 +475,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	private void readRecoveredChannelState() throws IOException, InterruptedException {
-		//TODO we will support channel state recovery even if the current setting is not unaligned checkpoint.
-		if (!configuration.isUnalignedCheckpointsEnabled()) {
+		ChannelStateReader reader = getEnvironment().getTaskStateManager().getChannelStateReader();
+		if (!reader.hasChannelStates()) {
 			requestPartitions();
+			return;
 		}
 
 		ResultPartitionWriter[] writers = getEnvironment().getAllWriters();
 		if (writers != null) {
 			for (ResultPartitionWriter writer : writers) {
-				writer.readRecoveredState(getEnvironment().getTaskStateManager().getChannelStateReader());
+				writer.readRecoveredState(reader);
 			}
 		}
 
@@ -492,8 +494,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		if (inputGates != null && inputGates.length > 0) {
 			CompletableFuture[] futures = new CompletableFuture[inputGates.length];
 			for (int i = 0; i < inputGates.length; i++) {
-				futures[i] = inputGates[i].readRecoveredState(
-					channelIOExecutor, getEnvironment().getTaskStateManager().getChannelStateReader());
+				futures[i] = inputGates[i].readRecoveredState(channelIOExecutor, reader);
 			}
 
 			// Note that we must request partition after all the single gates finished recovery.
