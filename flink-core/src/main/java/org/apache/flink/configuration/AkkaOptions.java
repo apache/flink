@@ -156,12 +156,16 @@ public class AkkaOptions {
 
 	/**
 	 * Timeout for all blocking calls on the client side.
+	 *
+	 * @deprecated Use the {@code ClientOptions.CLIENT_TIMEOUT} instead.
 	 */
+	@Deprecated
 	public static final ConfigOption<String> CLIENT_TIMEOUT = ConfigOptions
 		.key("akka.client.timeout")
 		.stringType()
 		.defaultValue("60 s")
-		.withDescription("Timeout for all blocking calls on the client side.");
+		.withDescription("DEPRECATED: Use the \"client.timeout\" instead." +
+				" Timeout for all blocking calls on the client side.");
 
 	/**
 	 * Exit JVM on fatal Akka errors.

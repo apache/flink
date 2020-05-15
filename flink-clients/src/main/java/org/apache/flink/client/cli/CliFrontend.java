@@ -46,7 +46,6 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.security.SecurityConfiguration;
@@ -141,7 +140,7 @@ public class CliFrontend {
 			customCommandLine.addRunOptions(customCommandLineOptions);
 		}
 
-		this.clientTimeout = AkkaUtils.getClientTimeout(this.configuration);
+		this.clientTimeout = configuration.get(ClientOptions.CLIENT_TIMEOUT);
 		this.defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
 	}
 

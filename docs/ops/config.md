@@ -423,6 +423,10 @@ These options may be removed in a future release.
 
 # Backup
 
+#### Client
+
+{% include generated/client_configuration.html %}
+
 #### Execution
 
 {% include generated/deployment_configuration.html %}

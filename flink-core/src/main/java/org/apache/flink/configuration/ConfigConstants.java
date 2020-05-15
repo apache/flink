@@ -939,7 +939,7 @@ public final class ConfigConstants {
 	/**
 	 * Timeout for all blocking calls on the client side.
 	 *
-	 * @deprecated Use {@link AkkaOptions#CLIENT_TIMEOUT} instead.
+	 * @deprecated Use {@code ClientOptions#CLIENT_TIMEOUT} instead.
 	 */
 	@Deprecated
 	public static final String AKKA_CLIENT_TIMEOUT = "akka.client.timeout";
@@ -1787,7 +1787,7 @@ public final class ConfigConstants {
 	public static final String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#CLIENT_TIMEOUT} instead.
+	 * @deprecated Use {@code ClientOptions#CLIENT_TIMEOUT} instead.
 	 */
 	@Deprecated
 	public static final String DEFAULT_AKKA_CLIENT_TIMEOUT = "60 s";
