@@ -104,6 +104,7 @@ public abstract class StreamTaskMailboxTestHarnessBuilder<OUT> {
 			bufferSize,
 			taskStateManager);
 
+		streamMockEnvironment.setCheckpointResponder(taskStateManager.getCheckpointResponder());
 		initializeInputs(streamMockEnvironment);
 
 		checkState(inputGates != null, "InputGates hasn't been initialised");

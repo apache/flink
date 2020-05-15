@@ -146,6 +146,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
@@ -934,6 +936,62 @@ public class StreamTaskTest extends TestLogger {
 			// now the StreamTask should no longer be running
 			assertFalse(task.streamTask.isRunning());
 		}
+	}
+
+	/**
+	 * Tests that {@link StreamTask#notifyCheckpointCompleteAsync(long)} is not relayed to closed operators.
+	 *
+	 * <p>See FLINK-16383.
+	 */
+	@Test
+	public void testNotifyCheckpointOnClosedOperator() throws Throwable {
+		ClosingOperator operator = new ClosingOperator();
+		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
+			new MultipleInputStreamTaskTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+				.addInput(BasicTypeInfo.INT_TYPE_INFO);
+		StreamTaskMailboxTestHarness<Integer> harness = builder
+			.setupOutputForSingletonOperatorChain(operator)
+			.build();
+		// keeps the mailbox from suspending
+		harness.setAutoProcess(false);
+		harness.processElement(new StreamRecord<>(1));
+
+		harness.streamTask.notifyCheckpointCompleteAsync(1);
+		harness.streamTask.runMailboxStep();
+		assertEquals(1, operator.notified.get());
+		assertEquals(false, operator.closed.get());
+
+		// close operators directly, so that task is still fully running
+		harness.streamTask.operatorChain.closeOperators(harness.streamTask.getActionExecutor());
+		harness.streamTask.notifyCheckpointCompleteAsync(2);
+		harness.streamTask.runMailboxStep();
+		assertEquals(1, operator.notified.get());
+		assertEquals(true, operator.closed.get());
+	}
+
+	/**
+	 * Tests that checkpoints are declined if operators are (partially) closed.
+	 *
+	 * <p>See FLINK-16383.
+	 */
+	@Test
+	public void testCheckpointDeclinedOnClosedOperator() throws Throwable {
+		ClosingOperator operator = new ClosingOperator();
+		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
+			new MultipleInputStreamTaskTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+					.addInput(BasicTypeInfo.INT_TYPE_INFO);
+		StreamTaskMailboxTestHarness<Integer> harness = builder
+			.setupOutputForSingletonOperatorChain(operator)
+			.build();
+		// keeps the mailbox from suspending
+		harness.setAutoProcess(false);
+		harness.processElement(new StreamRecord<>(1));
+
+		harness.streamTask.operatorChain.closeOperators(harness.streamTask.getActionExecutor());
+		assertEquals(true, operator.closed.get());
+
+		harness.streamTask.triggerCheckpointOnBarrier(new CheckpointMetaData(1, 0), CheckpointOptions.forCheckpointWithDefaultLocation(), new CheckpointMetrics());
+		assertEquals(1, harness.getCheckpointResponder().getDeclineReports().size());
 	}
 
 	@Test
@@ -1924,6 +1982,34 @@ public class StreamTaskTest extends TestLogger {
 
 		boolean isPartitionRequested() {
 			return isPartitionRequested;
+		}
+	}
+
+	private static class ClosingOperator<T> extends AbstractStreamOperator<T> implements OneInputStreamOperator<T, T> {
+		static AtomicBoolean closed = new AtomicBoolean();
+		static AtomicInteger notified = new AtomicInteger();
+
+		@Override
+		public void open() throws Exception {
+			super.open();
+			closed.set(false);
+			notified.set(0);
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+			closed.set(true);
+		}
+
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+			super.notifyCheckpointComplete(checkpointId);
+			notified.incrementAndGet();
+		}
+
+		@Override
+		public void processElement(StreamRecord<T> element) throws Exception {
 		}
 	}
 }
