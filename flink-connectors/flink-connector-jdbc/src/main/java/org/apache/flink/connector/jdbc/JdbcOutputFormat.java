@@ -68,13 +68,13 @@ public class JdbcOutputFormat extends JdbcBatchingOutputFormat<Row, Row, JdbcBat
 	 * Builder for {@link JdbcOutputFormat}.
 	 */
 	public static class JdbcOutputFormatBuilder {
-		protected String username;
-		protected String password;
-		protected String drivername;
-		protected String dbURL;
-		protected String query;
-		protected int batchSize = JdbcExecutionOptions.DEFAULT_SIZE;
-		protected int[] typesArray;
+		private String username;
+		private String password;
+		private String drivername;
+		private String dbURL;
+		private String query;
+		private int batchSize = JdbcExecutionOptions.DEFAULT_SIZE;
+		private int[] typesArray;
 
 		private JdbcOutputFormatBuilder() {}
 

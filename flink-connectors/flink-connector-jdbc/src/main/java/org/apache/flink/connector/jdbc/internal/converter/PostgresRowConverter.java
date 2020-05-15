@@ -18,57 +18,95 @@
 
 package org.apache.flink.connector.jdbc.internal.converter;
 
+import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.postgresql.jdbc.PgArray;
 import org.postgresql.util.PGobject;
 
+import java.lang.reflect.Array;
+
 /**
- * Row converter for Postgres.
+ * Runtime converter that responsible to convert between JDBC object and Flink internal object for PostgreSQL.
  */
 public class PostgresRowConverter extends AbstractJdbcRowConverter {
+
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public String converterName() {
+		return "PostgreSQL";
+	}
 
 	public PostgresRowConverter(RowType rowType) {
 		super(rowType);
 	}
 
 	@Override
-	public JdbcFieldConverter createConverter(LogicalType type) {
+	public JdbcDeserializationConverter createNullableInternalConverter(LogicalType type) {
 		LogicalTypeRoot root = type.getTypeRoot();
 
 		if (root == LogicalTypeRoot.ARRAY) {
 			ArrayType arrayType = (ArrayType) type;
-
-			// PG's bytea[] is wrapped in PGobject, rather than primitive byte arrays
-			if (LogicalTypeChecks.hasFamily(arrayType.getElementType(), LogicalTypeFamily.BINARY_STRING)) {
-
-				return v -> {
-					PgArray pgArray = (PgArray) v;
-					Object[] in = (Object[]) pgArray.getArray();
-
-					Object[] out = new Object[in.length];
-					for (int i = 0; i < in.length; i++) {
-						out[i] = ((PGobject) in[i]).getValue().getBytes();
-					}
-
-					return out;
-				};
-			} else {
-				return v -> ((PgArray) v).getArray();
-			}
+			return createPostgresArrayConverter(arrayType);
 		} else {
 			return createPrimitiveConverter(type);
 		}
 	}
 
+	@Override
+	protected JdbcSerializationConverter createNullableExternalConverter(LogicalType type) {
+		LogicalTypeRoot root = type.getTypeRoot();
+		if (root == LogicalTypeRoot.ARRAY) {
+			//note:Writing ARRAY type is not yet supported by PostgreSQL dialect now.
+			return (val, index, statement) -> {
+				throw new IllegalStateException(
+					String.format("Writing ARRAY type is not yet supported in JDBC:%s.", converterName()));
+			};
+		} else {
+			return super.createNullableExternalConverter(type);
+		}
+	}
+
+	private JdbcDeserializationConverter createPostgresArrayConverter(ArrayType arrayType) {
+		// PG's bytea[] is wrapped in PGobject, rather than primitive byte arrays
+		if (LogicalTypeChecks.hasFamily(arrayType.getElementType(), LogicalTypeFamily.BINARY_STRING)) {
+			final Class<?> elementClass = LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
+			final JdbcDeserializationConverter elementConverter = createNullableInternalConverter(arrayType.getElementType());
+
+			return v -> {
+				PgArray pgArray = (PgArray) v;
+				Object[] in = (Object[]) pgArray.getArray();
+				final Object[] array = (Object[]) Array.newInstance(elementClass, in.length);
+				for (int i = 0; i < in.length; i++) {
+					array[i] = elementConverter.deserialize(((PGobject) in[i]).getValue().getBytes());
+				}
+				return new GenericArrayData(array);
+			};
+		} else {
+			final Class<?> elementClass = LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
+			final JdbcDeserializationConverter elementConverter = createNullableInternalConverter(arrayType.getElementType());
+			return v -> {
+				PgArray pgArray = (PgArray) v;
+				Object[] in = (Object[]) pgArray.getArray();
+				final Object[] array = (Object[]) Array.newInstance(elementClass, in.length);
+				for (int i = 0; i < in.length; i++) {
+					array[i] = elementConverter.deserialize(in[i]);
+				}
+				return new GenericArrayData(array);
+			};
+		}
+	}
+
 	// Have its own method so that Postgres can support primitives that super class doesn't support in the future
-	private JdbcFieldConverter createPrimitiveConverter(LogicalType type) {
-		return super.createConverter(type);
+	private JdbcDeserializationConverter createPrimitiveConverter(LogicalType type) {
+		return super.createNullableInternalConverter(type);
 	}
 
 }

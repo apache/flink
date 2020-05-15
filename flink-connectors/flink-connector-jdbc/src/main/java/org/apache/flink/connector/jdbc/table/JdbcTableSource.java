@@ -36,7 +36,6 @@ import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
@@ -54,21 +53,21 @@ public class JdbcTableSource implements
 		ProjectableTableSource<Row>,
 		LookupableTableSource<Row> {
 
-	protected final JdbcOptions options;
-	protected final JdbcReadOptions readOptions;
-	protected final JdbcLookupOptions lookupOptions;
-	protected final TableSchema schema;
+	private final JdbcOptions options;
+	private final JdbcReadOptions readOptions;
+	private final JdbcLookupOptions lookupOptions;
+	private final TableSchema schema;
 
 	// index of fields selected, null means that all fields are selected
 	private final int[] selectFields;
 	private final DataType producedDataType;
 
-	protected JdbcTableSource(
+	private JdbcTableSource(
 		JdbcOptions options, JdbcReadOptions readOptions, JdbcLookupOptions lookupOptions, TableSchema schema) {
 		this(options, readOptions, lookupOptions, schema, null);
 	}
 
-	protected JdbcTableSource(
+	private JdbcTableSource(
 		JdbcOptions options, JdbcReadOptions readOptions, JdbcLookupOptions lookupOptions,
 		TableSchema schema, int[] selectFields) {
 		this.options = options;
@@ -182,7 +181,6 @@ public class JdbcTableSource implements
 				" BETWEEN ? AND ?";
 		}
 		builder.setQuery(query);
-		builder.setRowConverter(dialect.getRowConverter((RowType) producedDataType.getLogicalType()));
 
 		return builder.finish();
 	}

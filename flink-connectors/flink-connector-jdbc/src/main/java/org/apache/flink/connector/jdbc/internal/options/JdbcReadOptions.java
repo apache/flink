@@ -34,7 +34,7 @@ public class JdbcReadOptions implements Serializable {
 
 	private final int fetchSize;
 
-	protected JdbcReadOptions(
+	private JdbcReadOptions(
 			String partitionColumnName,
 			Long partitionLowerBound,
 			Long partitionUpperBound,

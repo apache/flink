@@ -28,7 +28,6 @@ import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.JdbcInputFormat;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
-import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
@@ -50,7 +49,6 @@ import java.util.function.Function;
 
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INSERT_TEMPLATE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.OUTPUT_TABLE;
-import static org.apache.flink.connector.jdbc.JdbcTestFixture.ROW_TYPE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.ROW_TYPE_INFO;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_BOOKS;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_BOOKS_SPLIT_BY_ID;
@@ -112,8 +110,7 @@ public class JdbcFullTest extends JdbcDataTestBase {
 				.setDrivername(getDbMetadata().getDriverClass())
 				.setDBUrl(getDbMetadata().getUrl())
 				.setQuery(SELECT_ALL_BOOKS)
-				.setRowTypeInfo(ROW_TYPE_INFO)
-				.setRowConverter(JdbcDialects.get(getDbMetadata().getUrl()).get().getRowConverter(ROW_TYPE));
+				.setRowTypeInfo(ROW_TYPE_INFO);
 
 		if (exploitParallelism) {
 			final int fetchSize = 1;

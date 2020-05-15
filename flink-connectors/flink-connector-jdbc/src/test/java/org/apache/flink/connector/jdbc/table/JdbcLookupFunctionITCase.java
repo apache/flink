@@ -60,15 +60,22 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 	public static final String DB_URL = "jdbc:derby:memory:lookup";
 	public static final String LOOKUP_TABLE = "lookup_table";
 
+	private final String tableFactory;
 	private final boolean useCache;
 
-	public JdbcLookupFunctionITCase(boolean useCache) {
+	public JdbcLookupFunctionITCase(String tableFactory, boolean useCache) {
 		this.useCache = useCache;
+		this.tableFactory = tableFactory;
 	}
 
-	@Parameterized.Parameters(name = "Table config = {0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(true, false);
+	@Parameterized.Parameters(name = "Table factory = {0}, use cache {1}")
+	@SuppressWarnings("unchecked,rawtypes")
+	public static Collection<Object[]>  useCache() {
+		return Arrays.asList(new Object[][]{
+			{"legacyFactory", true},
+			{"legacyFactory", false},
+			{"dynamicFactory", true},
+			{"dynamicFactory", false}});
 	}
 
 	@Before
@@ -81,19 +88,19 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 			Statement stat = conn.createStatement()) {
 			stat.executeUpdate("CREATE TABLE " + LOOKUP_TABLE + " (" +
 					"id1 INT NOT NULL DEFAULT 0," +
-					"id2 INT NOT NULL DEFAULT 0," +
+					"id2 VARCHAR(20) NOT NULL," +
 					"comment1 VARCHAR(1000)," +
 					"comment2 VARCHAR(1000))");
 
 			Object[][] data = new Object[][] {
-					new Object[] {1, 1, "11-c1-v1", "11-c2-v1"},
-					new Object[] {1, 1, "11-c1-v2", "11-c2-v2"},
-					new Object[] {2, 3, null, "23-c2"},
-					new Object[] {2, 5, "25-c1", "25-c2"},
-					new Object[] {3, 8, "38-c1", "38-c2"}
+					new Object[] {1, "1", "11-c1-v1", "11-c2-v1"},
+					new Object[] {1, "1", "11-c1-v2", "11-c2-v2"},
+					new Object[] {2, "3", null, "23-c2"},
+					new Object[] {2, "5", "25-c1", "25-c2"},
+					new Object[] {3, "8", "38-c1", "38-c2"}
 			};
 			boolean[] surroundedByQuotes = new boolean[] {
-				false, false, true, true
+				false, true, true, true
 			};
 
 			StringBuilder sqlQueryBuilder = new StringBuilder(
@@ -141,40 +148,11 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 		StreamITCase.clear();
 
-		Table t = tEnv.fromDataStream(env.fromCollection(Arrays.asList(
-					new Tuple2<>(1, 1),
-					new Tuple2<>(1, 1),
-					new Tuple2<>(2, 3),
-					new Tuple2<>(2, 5),
-					new Tuple2<>(3, 5),
-					new Tuple2<>(3, 8)
-				)), $("id1"), $("id2"));
-
-		tEnv.registerTable("T", t);
-
-		JdbcTableSource.Builder builder = JdbcTableSource.builder()
-				.setOptions(JdbcOptions.builder()
-						.setDBUrl(DB_URL)
-						.setTableName(LOOKUP_TABLE)
-						.build())
-				.setSchema(TableSchema.builder().fields(
-						new String[]{"id1", "id2", "comment1", "comment2"},
-						new DataType[]{DataTypes.INT(), DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()})
-						.build());
-		if (useCache) {
-			builder.setLookupOptions(JdbcLookupOptions.builder()
-					.setCacheMaxSize(1000).setCacheExpireMs(1000 * 1000).build());
+		if ("legacyFactory".equals(tableFactory)) {
+			useLegacyTableFactory(env, tEnv);
+		} else {
+			useDynamicTableFactory(env, tEnv);
 		}
-		tEnv.registerFunction("jdbcLookup",
-				builder.build().getLookupFunction(t.getSchema().getFieldNames()));
-
-		String sqlQuery = "SELECT id1, id2, comment1, comment2 FROM T, " +
-				"LATERAL TABLE(jdbcLookup(id1, id2)) AS S(l_id1, l_id2, comment1, comment2)";
-		Table result = tEnv.sqlQuery(sqlQuery);
-
-		DataStream<Row> resultSet = tEnv.toAppendStream(result, Row.class);
-		resultSet.addSink(new StreamITCase.StringSink<>());
-		env.execute();
 
 		List<String> expected = new ArrayList<>();
 		expected.add("1,1,11-c1-v1,11-c2-v1");
@@ -186,5 +164,74 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 		expected.add("3,8,38-c1,38-c2");
 
 		StreamITCase.compareWithList(expected);
+	}
+
+	private void useLegacyTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) throws Exception {
+		Table t = tEnv.fromDataStream(env.fromCollection(Arrays.asList(
+			new Tuple2<>(1, "1"),
+			new Tuple2<>(1, "1"),
+			new Tuple2<>(2, "3"),
+			new Tuple2<>(2, "5"),
+			new Tuple2<>(3, "5"),
+			new Tuple2<>(3, "8")
+		)), $("id1"), $("id2"));
+
+		tEnv.registerTable("T", t);
+		JdbcTableSource.Builder builder = JdbcTableSource.builder()
+			.setOptions(JdbcOptions.builder()
+				.setDBUrl(DB_URL)
+				.setTableName(LOOKUP_TABLE)
+				.build())
+			.setSchema(TableSchema.builder().fields(
+				new String[]{"id1", "id2", "comment1", "comment2"},
+				new DataType[]{DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()})
+				.build());
+		if (useCache) {
+			builder.setLookupOptions(JdbcLookupOptions.builder()
+				.setCacheMaxSize(1000).setCacheExpireMs(1000 * 1000).build());
+		}
+		tEnv.registerFunction("jdbcLookup",
+			builder.build().getLookupFunction(t.getSchema().getFieldNames()));
+
+		String sqlQuery = "SELECT id1, id2, comment1, comment2 FROM T, " +
+			"LATERAL TABLE(jdbcLookup(id1, id2)) AS S(l_id1, l_id2, comment1, comment2)";
+		Table result = tEnv.sqlQuery(sqlQuery);
+		DataStream<Row> resultSet = tEnv.toAppendStream(result, Row.class);
+		resultSet.addSink(new StreamITCase.StringSink<>());
+		env.execute();
+	}
+
+	private void useDynamicTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) throws Exception {
+		Table t = tEnv.fromDataStream(env.fromCollection(Arrays.asList(
+			new Tuple2<>(1, "1"),
+			new Tuple2<>(1, "1"),
+			new Tuple2<>(2, "3"),
+			new Tuple2<>(2, "5"),
+			new Tuple2<>(3, "5"),
+			new Tuple2<>(3, "8")
+		)), $("id1"), $("id2"), $("proctime").proctime());
+
+		tEnv.createTemporaryView("T", t);
+
+		String cacheConfig = ", 'lookup.cache.max-rows'='4', 'lookup.cache.ttl'='10000', 'lookup.max-retries'='5'";
+		tEnv.sqlUpdate(
+			String.format("create table lookup (" +
+				"  id1 INT," +
+				"  id2 VARCHAR," +
+				"  comment1 VARCHAR," +
+				"  comment2 VARCHAR" +
+				") with(" +
+				"  'connector'='jdbc'," +
+				"  'url'='" + DB_URL + "'," +
+				"  'table-name'='" + LOOKUP_TABLE + "'" +
+				"  %s)", useCache ? cacheConfig : ""));
+
+		String sqlQuery = "SELECT source.id1, source.id2, L.comment1, L.comment2 FROM T AS source " +
+			"JOIN lookup for system_time as of source.proctime AS L " +
+			"ON source.id1 = L.id1 and source.id2 = L.id2";
+		Table result = tEnv.sqlQuery(sqlQuery);
+		DataStream<Row> resultSet = tEnv.toAppendStream(result, Row.class);
+		resultSet.addSink(new StreamITCase.StringSink<>());
+		env.execute();
 	}
 }

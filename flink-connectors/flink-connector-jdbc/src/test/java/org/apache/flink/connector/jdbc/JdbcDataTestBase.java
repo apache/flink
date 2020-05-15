@@ -20,6 +20,9 @@ package org.apache.flink.connector.jdbc;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.types.Row;
 
 import org.junit.Before;
@@ -54,11 +57,24 @@ public abstract class JdbcDataTestBase extends JdbcTestBase {
 		return row;
 	}
 
-	public static void setRuntimeContext(JdbcBatchingOutputFormat format) {
+	// utils function to build a RowData, note: only support primitive type and String from now
+	public static RowData buildGenericData(Object... args) {
+		GenericRowData row = new GenericRowData(args.length);
+		for (int i = 0; i < args.length; i++) {
+			if (args[i] instanceof String) {
+				row.setField(i, StringData.fromString((String) args[i]));
+			} else {
+				row.setField(i, args[i]);
+			}
+		}
+		return row;
+	}
+
+	public static void setRuntimeContext(JdbcBatchingOutputFormat format, Boolean reused) {
 		RuntimeContext context = Mockito.mock(RuntimeContext.class);
 		ExecutionConfig config = Mockito.mock(ExecutionConfig.class);
 		doReturn(config).when(context).getExecutionConfig();
-		doReturn(true).when(config).isObjectReuseEnabled();
+		doReturn(reused).when(config).isObjectReuseEnabled();
 		format.setRuntimeContext(context);
 	}
 }

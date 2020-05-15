@@ -69,7 +69,7 @@ class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolea
 	}
 
 	@Override
-	void addToBatch(Tuple2<Boolean, Row> original, Row extracted) throws SQLException {
+	protected void addToBatch(Tuple2<Boolean, Row> original, Row extracted) throws SQLException {
 		if (original.f0) {
 			super.addToBatch(original, extracted);
 		} else {
@@ -91,7 +91,7 @@ class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolea
 	}
 
 	@Override
-	void attemptFlush() throws SQLException {
+	protected void attemptFlush() throws SQLException {
 		super.attemptFlush();
 		deleteExecutor.executeBatch();
 	}

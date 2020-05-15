@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.jdbc.catalog;
 
-import org.apache.flink.connector.jdbc.table.JdbcTableSourceSinkFactory;
+import org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.AbstractCatalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -43,7 +43,7 @@ import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.Factory;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
@@ -119,8 +119,9 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 
 	// ------ table factory ------
 
-	public Optional<TableFactory> getTableFactory() {
-		return Optional.of(new JdbcTableSourceSinkFactory());
+	@Override
+	public Optional<Factory> getFactory() {
+		return Optional.of(new JdbcDynamicTableSourceSinkFactory());
 	}
 
 	// ------ databases ------

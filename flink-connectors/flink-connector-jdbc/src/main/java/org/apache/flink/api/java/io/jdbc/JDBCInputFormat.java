@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.io.jdbc.split.ParameterValuesProvider;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.jdbc.JdbcInputFormat;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.split.JdbcParameterValuesProvider;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
@@ -151,11 +150,6 @@ public class JDBCInputFormat extends JdbcInputFormat {
 			return this;
 		}
 
-		public JDBCInputFormatBuilder setRowConverter(JdbcRowConverter rowConverter) {
-			format.rowConverter = rowConverter;
-			return this;
-		}
-
 		public JDBCInputFormatBuilder setFetchSize(int fetchSize) {
 			Preconditions.checkArgument(fetchSize == Integer.MIN_VALUE || fetchSize > 0,
 				"Illegal value %s for fetchSize, has to be positive or Integer.MIN_VALUE.", fetchSize);
@@ -186,9 +180,6 @@ public class JDBCInputFormat extends JdbcInputFormat {
 			}
 			if (format.rowTypeInfo == null) {
 				throw new IllegalArgumentException("No " + RowTypeInfo.class.getSimpleName() + " supplied");
-			}
-			if (format.rowConverter == null) {
-				throw new IllegalArgumentException("No row converter supplied");
 			}
 			if (format.parameterValues == null) {
 				LOG.debug("No input splitting configured (data will be read with parallelism 1).");

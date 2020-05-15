@@ -38,7 +38,7 @@ public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> im
 
 	private static final long serialVersionUID = 1L;
 	public static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
-	public static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0;
+	public static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractJdbcOutputFormat.class);
 	protected transient Connection connection;

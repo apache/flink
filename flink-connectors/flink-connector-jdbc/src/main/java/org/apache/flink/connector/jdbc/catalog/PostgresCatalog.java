@@ -49,13 +49,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
-import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_PASSWORD;
-import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_TABLE;
-import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_TYPE_VALUE_JDBC;
-import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_URL;
-import static org.apache.flink.table.descriptors.JdbcValidator.CONNECTOR_USERNAME;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.IDENTIFIER;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.PASSWORD;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.TABLE_NAME;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.URL;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.USERNAME;
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 
 /**
  * Catalog for PostgreSQL.
@@ -198,13 +197,11 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 			TableSchema tableSchema = new TableSchema.Builder().fields(names, types).build();
 
 			Map<String, String> props = new HashMap<>();
-			props.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_JDBC);
-			props.put(CONNECTOR_PROPERTY_VERSION, "1");
-
-			props.put(CONNECTOR_URL, dbUrl);
-			props.put(CONNECTOR_TABLE, pgPath.getFullPath());
-			props.put(CONNECTOR_USERNAME, username);
-			props.put(CONNECTOR_PASSWORD, pwd);
+			props.put(CONNECTOR.key(), IDENTIFIER);
+			props.put(URL.key(), dbUrl);
+			props.put(TABLE_NAME.key(), pgPath.getFullPath());
+			props.put(USERNAME.key(), username);
+			props.put(PASSWORD.key(), pwd);
 
 			return new CatalogTableImpl(
 				tableSchema,
