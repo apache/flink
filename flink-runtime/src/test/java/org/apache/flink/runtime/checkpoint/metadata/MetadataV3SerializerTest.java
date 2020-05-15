@@ -49,7 +49,7 @@ import static org.junit.Assert.assertEquals;
 public class MetadataV3SerializerTest {
 
 	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Test
 	public void testCheckpointWithNoState() throws Exception {
@@ -163,13 +163,20 @@ public class MetadataV3SerializerTest {
 
 		CheckpointMetadata metadata = new CheckpointMetadata(checkpointId, operatorStates, masterStates);
 		MetadataV3Serializer.serialize(metadata, out);
-		Path metaPath = null;
-		// add this because we need to resolve the checkpoint pointer in MetadataV2V3SerializerBase.
-		if (basePath != null) {
-			metaPath = new Path(basePath, "_metadata");
-			metaPath.getFileSystem().create(metaPath, FileSystem.WriteMode.OVERWRITE);
-		}
 		out.close();
+
+		// The relative pointer resolution in MetadataV2V3SerializerBase currently runs the same
+		// code as the file system checkpoint location resolution. Because of that, it needs the
+		// a "_metadata" file present. we could change the code to resolve the pointer without doing
+		// file I/O, but it is somewhat delicate to reproduce that logic without I/O and the same guarantees
+		// to differentiate between the supported options of directory addressing and metadata file addressing.
+		// So, better safe than sorry, we do actually do the file system operations in the serializer for now,
+		// even if it makes the tests a a tad bit more clumsy
+		if (basePath != null) {
+			final Path metaPath = new Path(basePath, "_metadata");
+			// this is in the temp folder, so it will get automatically deleted
+			FileSystem.getLocalFileSystem().create(metaPath, FileSystem.WriteMode.OVERWRITE).close();
+		}
 
 		byte[] bytes = baos.toByteArray();
 
@@ -182,9 +189,6 @@ public class MetadataV3SerializerTest {
 		for (Iterator<MasterState> a = masterStates.iterator(), b = deserialized.getMasterStates().iterator();
 				a.hasNext();) {
 			CheckpointTestUtils.assertMasterStateEquality(a.next(), b.next());
-		}
-		if (metaPath != null) {
-			metaPath.getFileSystem().delete(metaPath, true);
 		}
 	}
 }
