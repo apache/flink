@@ -388,6 +388,39 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public void createFunction(String sessionId, String ddl) throws SqlExecutionException {
+		final ExecutionContext<?> context = getExecutionContext(sessionId);
+		final TableEnvironment tEnv = context.getTableEnvironment();
+		try {
+			context.wrapClassLoader(() -> tEnv.executeSql(ddl));
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not create a function from statement: " + ddl, e);
+		}
+	}
+
+	@Override
+	public void dropFunction(String sessionId, String ddl) throws SqlExecutionException {
+		final ExecutionContext<?> context = getExecutionContext(sessionId);
+		final TableEnvironment tEnv = context.getTableEnvironment();
+		try {
+			context.wrapClassLoader(() -> tEnv.executeSql(ddl));
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not drop a function from statement: " + ddl, e);
+		}
+	}
+
+	@Override
+	public void alterFunction(String sessionId, String ddl) throws SqlExecutionException {
+		final ExecutionContext<?> context = getExecutionContext(sessionId);
+		final TableEnvironment tEnv = context.getTableEnvironment();
+		try {
+			context.wrapClassLoader(() -> tEnv.executeSql(ddl));
+		} catch (Exception e) {
+			throw new SqlExecutionException("Could not alter a function from statement: " + ddl, e);
+		}
+	}
+
+	@Override
 	public List<String> listFunctions(String sessionId) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tableEnv = context.getTableEnvironment();
