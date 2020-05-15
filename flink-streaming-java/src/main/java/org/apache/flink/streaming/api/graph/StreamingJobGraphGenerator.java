@@ -254,7 +254,10 @@ public class StreamingJobGraphGenerator {
 	 */
 	private void setChaining(Map<Integer, byte[]> hashes, List<Map<Integer, byte[]>> legacyHashes) {
 		for (Integer sourceNodeId : streamGraph.getSourceIDs()) {
-			createChain(sourceNodeId, 0, new OperatorChainInfo(sourceNodeId, hashes, legacyHashes));
+			createChain(
+					sourceNodeId,
+					0,
+					new OperatorChainInfo(sourceNodeId, hashes, legacyHashes, streamGraph));
 		}
 	}
 
@@ -287,11 +290,11 @@ public class StreamingJobGraphGenerator {
 				createChain(nonChainable.getTargetId(), 0, chainInfo.newChain(nonChainable.getTargetId()));
 			}
 
-			OperatorID currentOperatorId = chainInfo.addNodeToChain(currentNodeId);
-
 			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs));
 			chainedMinResources.put(currentNodeId, createChainedMinResources(currentNodeId, chainableOutputs));
 			chainedPreferredResources.put(currentNodeId, createChainedPreferredResources(currentNodeId, chainableOutputs));
+
+			OperatorID currentOperatorId = chainInfo.addNodeToChain(currentNodeId, chainedNames.get(currentNodeId));
 
 			if (currentNode.getInputFormat() != null) {
 				getOrCreateFormatContainer(startNodeId).addInputFormat(currentOperatorId, currentNode.getInputFormat());
@@ -417,19 +420,14 @@ public class StreamingJobGraphGenerator {
 					chainedNames.get(streamNodeId),
 					jobVertexId,
 					operatorIDPairs);
-			if (streamNode.getOperatorFactory() instanceof CoordinatedOperatorFactory) {
-				OperatorCoordinator.Provider coordinatorProvider =
-						((CoordinatedOperatorFactory<?>) streamNode
-								.getOperatorFactory())
-								.getCoordinatorProvider(
-										chainedNames.get(streamNodeId),
-										new OperatorID(chainInfo.getHash(streamNodeId)));
-				try {
-					jobVertex.addOperatorCoordinator(new SerializedValue<>(coordinatorProvider));
-				} catch (IOException e) {
-					throw new FlinkRuntimeException(String.format(
-							"Coordinator Provider for node %s is not serializable.", chainedNames.get(streamNodeId)));
-				}
+		}
+
+		for (OperatorCoordinator.Provider coordinatorProvider : chainInfo.getCoordinatorProviders()) {
+			try {
+				jobVertex.addOperatorCoordinator(new SerializedValue<>(coordinatorProvider));
+			} catch (IOException e) {
+				throw new FlinkRuntimeException(String.format(
+						"Coordinator Provider for node %s is not serializable.", chainedNames.get(streamNodeId)));
 			}
 		}
 
@@ -982,15 +980,20 @@ public class StreamingJobGraphGenerator {
 		private final Map<Integer, byte[]> hashes;
 		private final List<Map<Integer, byte[]>> legacyHashes;
 		private final Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes;
+		private final List<OperatorCoordinator.Provider> coordinatorProviders;
+		private final StreamGraph streamGraph;
 
 		private OperatorChainInfo(
 				int startNodeId,
 				Map<Integer, byte[]> hashes,
-				List<Map<Integer, byte[]>> legacyHashes) {
+				List<Map<Integer, byte[]>> legacyHashes,
+				StreamGraph streamGraph) {
 			this.startNodeId = startNodeId;
 			this.hashes = hashes;
 			this.legacyHashes = legacyHashes;
 			this.chainedOperatorHashes = new HashMap<>();
+			this.coordinatorProviders = new ArrayList<>();
+			this.streamGraph = streamGraph;
 		}
 
 		byte[] getHash(Integer streamNodeId) {
@@ -1005,7 +1008,11 @@ public class StreamingJobGraphGenerator {
 			return chainedOperatorHashes.get(startNodeId);
 		}
 
-		private OperatorID addNodeToChain(int currentNodeId) {
+		private List<OperatorCoordinator.Provider> getCoordinatorProviders() {
+			return coordinatorProviders;
+		}
+
+		private OperatorID addNodeToChain(int currentNodeId, String operatorName) {
 			List<Tuple2<byte[], byte[]>> operatorHashes =
 					chainedOperatorHashes.computeIfAbsent(startNodeId, k -> new ArrayList<>());
 
@@ -1014,11 +1021,22 @@ public class StreamingJobGraphGenerator {
 			for (Map<Integer, byte[]> legacyHash : legacyHashes) {
 				operatorHashes.add(new Tuple2<>(primaryHashBytes, legacyHash.get(currentNodeId)));
 			}
+
+			StreamNode streamNode = streamGraph.getStreamNode(currentNodeId);
+
+			if (streamNode.getCoordinatorProviderFactory().isPresent()) {
+				OperatorCoordinator.Provider provider =
+						streamNode
+								.getCoordinatorProviderFactory()
+								.get()
+								.apply(new Tuple2<>(operatorName, new OperatorID(getHash(currentNodeId))));
+				coordinatorProviders.add(provider);
+			}
 			return new OperatorID(primaryHashBytes);
 		}
 
 		private OperatorChainInfo newChain(Integer startNodeId) {
-			return new OperatorChainInfo(startNodeId, hashes, legacyHashes);
+			return new OperatorChainInfo(startNodeId, hashes, legacyHashes, streamGraph);
 		}
 	}
 }
