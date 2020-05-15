@@ -63,12 +63,11 @@ public class UncheckpointedCollectClient<T> implements TestCollectClient<T> {
 			while (!jobFinishedChecker.getAsBoolean()) {
 
 				if (random.nextBoolean()) {
-					Thread.sleep(random.nextInt(100));
+					Thread.sleep(random.nextInt(10));
 				}
 
 				CollectCoordinationResponse<T> response = sender.sendRequest(version, offset);
 				String responseVersion = response.getVersion();
-				long responseOffset = response.getOffset();
 				List<T> responseResults = response.getResults(serializer);
 
 				if (INIT_VERSION.equals(version)) {
@@ -78,7 +77,6 @@ public class UncheckpointedCollectClient<T> implements TestCollectClient<T> {
 					if (version.equals(responseVersion)) {
 						// normal results
 						if (responseResults.size() > 0) {
-							Assert.assertEquals(offset, responseOffset);
 							results.addAll(responseResults);
 							offset += responseResults.size();
 						}

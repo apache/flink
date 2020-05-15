@@ -28,6 +28,8 @@ import java.io.IOException;
 
 /**
  * A {@link CoordinationRequest} from the client indicating that it wants a new batch of query results.
+ *
+ * <p>For an explanation of this communication protocol, see Java docs in {@link CollectSinkFunction}.
  */
 public class CollectCoordinationRequest implements CoordinationRequest {
 

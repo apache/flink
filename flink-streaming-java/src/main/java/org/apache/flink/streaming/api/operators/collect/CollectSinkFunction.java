@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -47,9 +48,11 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -63,10 +66,52 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>NOTE: When using this sink, make sure that its parallelism is 1, and make sure that it is used
  * in a {@link StreamTask}.
  *
+ * <h2>Communication Protocol Explanation</h2>
+ *
+ * <p>We maintain the following variables in this communication protocol
+ * <ol>
+ *     <li><strong>version</strong>: This variable will be set to a random value when the sink opens.
+ *         Client discovers that the sink has restarted if this variable is different.</li>
+ *     <li><strong>offset</strong>: This indicates that client has successfully received the results
+ *         before this offset. Sink can safely throw these results away.</li>
+ *     <li><strong>lastCheckpointedOffset</strong>:
+ *         This is the value of <code>offset</code> when the checkpoint happens. This value will be
+ *         restored from the checkpoint and set back to <code>offset</code> when the sink restarts.</li>
+ * </ol>
+ *
+ * <p>Client will put <code>version</code> and <code>offset</code> into the request, indicating that
+ * it thinks what the current version is and it has received this much results.
+ *
+ * <p>Sink will check the validity of the request. If <code>version</code> mismatches or <code>offset</code>
+ * is smaller than expected, sink will send back the current <code>version</code> and
+ * <code>lastCheckpointedOffset</code> with an empty result list to indicate an invalid request.
+ *
+ * <p>If the request is valid, sink prepares some results starting from <code>offset</code> and sends them
+ * back to the client with <code>lastCheckpointedOffset</code>.
+ *
+ * <p>For client who wants exactly-once semantics, when receiving the response, the client will check for
+ * the following conditions:
+ * <ol>
+ *     <li>If the version mismatches, client knows that sink has restarted. It will throw away all uncheckpointed
+ *         results after <code>lastCheckpointedOffset</code>.</li>
+ *     <li>Otherwise the version matches. If <code>lastCheckpointedOffset</code> increases, client knows that
+ *         a checkpoint happens. It can now move all results before this offset to a user-visible buffer. If
+ *         the response also contains new results, client will now move these new results into uncheckpointed
+ *         buffer.</li>
+ * </ol>
+ *
+ * <p>Note that
+ * <ol>
+ *     <li>user can only see results before a <code>lastCheckpointedOffset</code>, and</li>
+ *     <li>client will go back to the latest <code>lastCheckpointedOffset</code> when sink restarts,</li>
+ * </ol>
+ * client will never throw away results in user-visible buffer.
+ * So this communication protocol achieves exactly-once semantics.
+ *
  * @param <IN> type of results to be written into the sink.
  */
 @Internal
-public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements CheckpointedFunction {
+public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements CheckpointedFunction, CheckpointListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CollectSinkFunction.class);
 
@@ -86,13 +131,14 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 	private transient String version;
 	// this offset acts as an acknowledgement,
 	// results before this offset can be safely thrown away
-	private transient long firstBufferedResultOffset;
-	private transient long lastCheckpointId;
+	private transient long offset;
+	private transient long lastCheckpointedOffset;
 
 	private transient ServerThread serverThread;
 
 	private transient ListState<IN> bufferedResultsState;
-	private transient ListState<Long> firstBufferedResultOffsetState;
+	private transient ListState<Long> offsetState;
+	private transient Map<Long, Long> uncompletedCheckpointMap;
 
 	public CollectSinkFunction(
 			TypeSerializer<IN> serializer,
@@ -115,7 +161,8 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		bufferedResultsLock = new ReentrantLock();
 		bufferNotFullCondition = bufferedResultsLock.newCondition();
 
-		firstBufferedResultOffset = 0;
+		offset = 0;
+		lastCheckpointedOffset = offset;
 	}
 
 	@Override
@@ -130,26 +177,29 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 			bufferedResults.add(result);
 		}
 
-		firstBufferedResultOffsetState =
-			context.getOperatorStateStore().getListState(
-				new ListStateDescriptor<>("firstBufferedResultOffsetState", Long.class));
-		firstBufferedResultOffset = 0;
+		offsetState = context.getOperatorStateStore().getListState(
+			new ListStateDescriptor<>("offsetState", Long.class));
+		offset = 0;
 		// there must be only 1 element in this state when restoring
-		for (long offset : firstBufferedResultOffsetState.get()) {
-			firstBufferedResultOffset = offset;
+		for (long value : offsetState.get()) {
+			offset = value;
 		}
+		lastCheckpointedOffset = offset;
+
+		uncompletedCheckpointMap = new HashMap<>();
 	}
 
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		bufferedResultsLock.lock();
 		try {
-			bufferedResultsLock.lock();
-
 			bufferedResultsState.clear();
 			bufferedResultsState.addAll(bufferedResults);
 
-			firstBufferedResultOffsetState.clear();
-			firstBufferedResultOffsetState.add(firstBufferedResultOffset);
+			offsetState.clear();
+			offsetState.add(offset);
+
+			uncompletedCheckpointMap.put(context.getCheckpointId(), offset);
 		} finally {
 			bufferedResultsLock.unlock();
 		}
@@ -167,10 +217,6 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		// so that the client can know if the sink has been restarted
 		version = UUID.randomUUID().toString();
 
-		// this checkpoint id is OK even if the sink restarts,
-		// because client will only expose results to the users when the checkpoint id increases
-		lastCheckpointId = Long.MIN_VALUE;
-
 		serverThread = new ServerThread();
 		serverThread.start();
 
@@ -185,8 +231,8 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 
 	@Override
 	public void invoke(IN value, Context context) throws Exception {
+		bufferedResultsLock.lock();
 		try {
-			bufferedResultsLock.lock();
 			if (bufferedResults.size() >= maxResultsBuffered) {
 				bufferNotFullCondition.await();
 			}
@@ -202,16 +248,15 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 	}
 
 	public void accumulateFinalResults() throws Exception {
+		bufferedResultsLock.lock();
 		try {
-			bufferedResultsLock.lock();
-
 			// put results not consumed by the client into the accumulator
 			// so that we do not block the closing procedure while not throwing results away
 			SerializedListAccumulator<IN> listAccumulator = new SerializedListAccumulator<>();
 			for (IN result : bufferedResults) {
 				listAccumulator.add(result, serializer);
 			}
-			LongCounter offsetAccumulator = new LongCounter(firstBufferedResultOffset);
+			LongCounter offsetAccumulator = new LongCounter(offset);
 			getRuntimeContext().addAccumulator(finalResultListAccumulatorName, listAccumulator);
 			getRuntimeContext().addAccumulator(finalResultOffsetAccumulatorName, offsetAccumulator);
 		} finally {
@@ -219,8 +264,10 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		}
 	}
 
+	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
-		this.lastCheckpointId = checkpointId;
+		lastCheckpointedOffset = uncompletedCheckpointMap.get(checkpointId);
+		uncompletedCheckpointMap.remove(checkpointId);
 	}
 
 	public void setOperatorEventGateway(OperatorEventGateway eventGateway) {
@@ -266,31 +313,38 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 						LOG.debug(
 							"Request received, version = " + requestVersion + ", offset = " + requestOffset);
 						LOG.debug(
-							"Expecting version = " + version + ", firstBufferedOffset = " + firstBufferedResultOffset);
+							"Expecting version = " + version + ", offset = " + offset);
 					}
 
-					if (!version.equals(requestVersion) || requestOffset < firstBufferedResultOffset) {
+					if (!version.equals(requestVersion) || requestOffset < offset) {
 						// invalid request
 						LOG.warn("Invalid request. Received version = " + requestVersion +
-							", offset = " + requestOffset + "while expected version = "
-							+ version + ", firstBufferedOffset = " + firstBufferedResultOffset);
+							", offset = " + requestOffset + ", while expected version = "
+							+ version + ", offset = " + offset);
 						sendBackResults(Collections.emptyList());
 						continue;
 					}
 
 					// valid request, sending out results
 					List<IN> results;
+					bufferedResultsLock.lock();
 					try {
-						bufferedResultsLock.lock();
-
 						int oldSize = bufferedResults.size();
-						int start = Math.min((int) (requestOffset - firstBufferedResultOffset), oldSize);
-						int end = Math.min(start + maxResultsPerBatch, oldSize);
+						int ackedNum = Math.min((int) (requestOffset - offset), oldSize);
+						int nextBatchSize = Math.min(ackedNum + maxResultsPerBatch, oldSize) - ackedNum;
 
 						if (LOG.isDebugEnabled()) {
-							LOG.debug("Preparing " + (end - start) + " results");
+							LOG.debug("Preparing " + nextBatchSize + " results");
 						}
-						results = prepareResultBatch(start, end - start);
+
+						// drop acked results
+						for (int i = 0; i < ackedNum; i++) {
+							bufferedResults.removeFirst();
+							offset++;
+						}
+
+						// prepare next result batch
+						results = new ArrayList<>(bufferedResults.subList(0, nextBatchSize));
 
 						if (oldSize >= maxResultsBuffered && bufferedResults.size() < maxResultsBuffered) {
 							bufferNotFullCondition.signal();
@@ -344,25 +398,9 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 			return null;
 		}
 
-		private List<IN> prepareResultBatch(int offset, int length) {
-			// drop `offset` results
-			for (int i = 0; i < offset; i++) {
-				bufferedResults.removeFirst();
-				firstBufferedResultOffset++;
-			}
-
-			// prepare `length` results
-			List<IN> results = new ArrayList<>(length);
-			Iterator<IN> iterator = bufferedResults.iterator();
-			for (int i = 0; i < length; i++) {
-				results.add(iterator.next());
-			}
-			return results;
-		}
-
 		private void sendBackResults(List<IN> results) throws IOException {
 			CollectCoordinationResponse<IN> response = new CollectCoordinationResponse<>(
-				version, firstBufferedResultOffset, lastCheckpointId, results, serializer);
+				version, lastCheckpointedOffset, results, serializer);
 			response.serialize(outStream);
 		}
 

@@ -116,8 +116,7 @@ public class CollectSinkOperatorCoordinatorTest {
 			CollectCoordinationResponse response,
 			List<Row> expected) throws Exception {
 		Assert.assertEquals(request.getVersion(), response.getVersion());
-		Assert.assertEquals(request.getOffset(), response.getOffset());
-		Assert.assertEquals(Long.MIN_VALUE, response.getLastCheckpointId());
+		Assert.assertEquals(0, response.getLastCheckpointedOffset());
 		List<Row> results = response.getResults(serializer);
 		Assert.assertEquals(expected.size(), results.size());
 		for (int i = 0; i < results.size(); i++) {
@@ -173,8 +172,7 @@ public class CollectSinkOperatorCoordinatorTest {
 
 					CollectCoordinationResponse<Row> response = new CollectCoordinationResponse<>(
 						request.getVersion(),
-						request.getOffset(),
-						Long.MIN_VALUE,
+						0,
 						data.removeFirst(),
 						serializer);
 					response.serialize(outStream);

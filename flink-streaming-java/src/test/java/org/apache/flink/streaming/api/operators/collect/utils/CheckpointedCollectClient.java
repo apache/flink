@@ -39,8 +39,8 @@ public class CheckpointedCollectClient<T> implements TestCollectClient<T> {
 	private final CollectRequestSender<T> sender;
 	private final BooleanSupplier jobFinishedChecker;
 
-	private final List<T> uncheckpointedResults;
-	private final List<T> checkpointedResults;
+	private final LinkedList<T> uncheckpointedResults;
+	private final LinkedList<T> checkpointedResults;
 
 	public CheckpointedCollectClient(
 			TypeSerializer<T> serializer,
@@ -60,46 +60,44 @@ public class CheckpointedCollectClient<T> implements TestCollectClient<T> {
 
 		String version = INIT_VERSION;
 		long offset = 0;
-		long checkpointedOffset = 0;
-		long lastCheckpointId = Long.MIN_VALUE;
+		long lastCheckpointedOffset = 0;
 
 		try {
 			while (!jobFinishedChecker.getAsBoolean()) {
 
 				if (random.nextBoolean()) {
-					Thread.sleep(random.nextInt(100));
+					Thread.sleep(random.nextInt(10));
 				}
 
 				CollectCoordinationResponse<T> response = sender.sendRequest(version, offset);
 				String responseVersion = response.getVersion();
-				long responseOffset = response.getOffset();
-				long responseCheckpointId = response.getLastCheckpointId();
+				long responseLastCheckpointedOffset = response.getLastCheckpointedOffset();
 				List<T> responseResults = response.getResults(serializer);
 
 				if (INIT_VERSION.equals(version)) {
 					// first response, update version accordingly
 					version = responseVersion;
 				} else {
-					if (responseCheckpointId > lastCheckpointId) {
+					if (responseLastCheckpointedOffset > lastCheckpointedOffset) {
 						// a new checkpoint happens
-						checkpointedResults.addAll(uncheckpointedResults);
-						uncheckpointedResults.clear();
-						checkpointedOffset = offset;
-						lastCheckpointId = responseCheckpointId;
+						int newCheckpointedNum = (int) (responseLastCheckpointedOffset - lastCheckpointedOffset);
+						for (int i = 0; i < newCheckpointedNum; i++) {
+							checkpointedResults.add(uncheckpointedResults.removeFirst());
+						}
+						lastCheckpointedOffset = responseLastCheckpointedOffset;
 					}
 
 					if (version.equals(responseVersion)) {
 						// normal results
 						if (responseResults.size() > 0) {
-							Assert.assertEquals(offset, responseOffset);
 							uncheckpointedResults.addAll(responseResults);
 							offset += responseResults.size();
 						}
 					} else {
 						// sink has restarted
-						uncheckpointedResults.clear();
 						version = responseVersion;
-						offset = checkpointedOffset;
+						offset = lastCheckpointedOffset;
+						uncheckpointedResults.clear();
 					}
 				}
 			}

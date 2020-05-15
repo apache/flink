@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.collect.utils.CheckpointedCollectClient;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectRequestSender;
 import org.apache.flink.streaming.api.operators.collect.utils.MockFunctionInitializationContext;
+import org.apache.flink.streaming.api.operators.collect.utils.MockFunctionSnapshotContext;
 import org.apache.flink.streaming.api.operators.collect.utils.MockOperatorEventGateway;
 import org.apache.flink.streaming.api.operators.collect.utils.TestCollectClient;
 import org.apache.flink.streaming.api.operators.collect.utils.UncheckpointedCollectClient;
@@ -99,17 +100,17 @@ public class CollectSinkFunctionTest extends TestLogger {
 		}
 
 		CollectCoordinationResponse<Row> response = sendRequest("", 0);
-		Assert.assertEquals(0, response.getOffset());
+		Assert.assertEquals(0, response.getLastCheckpointedOffset());
 		String version = response.getVersion();
 
 		response = sendRequest(version, 0);
-		assertResponseEquals(response, version, 0, Long.MIN_VALUE, Arrays.asList(0, 1, 2));
+		assertResponseEquals(response, version, 0, Arrays.asList(0, 1, 2));
 
 		response = sendRequest(version, 4);
-		assertResponseEquals(response, version, 4, Long.MIN_VALUE, Arrays.asList(4, 5));
+		assertResponseEquals(response, version, 0, Arrays.asList(4, 5));
 
 		response = sendRequest(version, 6);
-		assertResponseEquals(response, version, 6, Long.MIN_VALUE, Collections.emptyList());
+		assertResponseEquals(response, version, 0, Collections.emptyList());
 
 		for (int i = 6; i < 10; i++) {
 			function.invoke(Row.of(i), null);
@@ -117,23 +118,23 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 		// invalid request
 		response = sendRequest(version, 5);
-		assertResponseEquals(response, version, 6, Long.MIN_VALUE, Collections.emptyList());
+		assertResponseEquals(response, version, 0, Collections.emptyList());
 
 		response = sendRequest(version, 6);
-		assertResponseEquals(response, version, 6, Long.MIN_VALUE, Arrays.asList(6, 7, 8));
+		assertResponseEquals(response, version, 0, Arrays.asList(6, 7, 8));
 
 		response = sendRequest(version, 6);
-		assertResponseEquals(response, version, 6, Long.MIN_VALUE, Arrays.asList(6, 7, 8));
+		assertResponseEquals(response, version, 0, Arrays.asList(6, 7, 8));
 
 		response = sendRequest(version, 12);
-		assertResponseEquals(response, version, 10, Long.MIN_VALUE, Collections.emptyList());
+		assertResponseEquals(response, version, 0, Collections.emptyList());
 
 		for (int i = 10; i < 16; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
 		response = sendRequest(version, 12);
-		assertResponseEquals(response, version, 12, Long.MIN_VALUE, Arrays.asList(12, 13, 14));
+		assertResponseEquals(response, version, 0, Arrays.asList(12, 13, 14));
 
 		finishJob();
 
@@ -151,32 +152,31 @@ public class CollectSinkFunctionTest extends TestLogger {
 		}
 
 		CollectCoordinationResponse<Row> response = sendRequest("", 0);
-		Assert.assertEquals(0, response.getOffset());
+		Assert.assertEquals(0, response.getLastCheckpointedOffset());
 		String version = response.getVersion();
 
 		response = sendRequest(version, 0);
-		assertResponseEquals(response, version, 0, Long.MIN_VALUE, Arrays.asList(0, 1));
+		assertResponseEquals(response, version, 0, Arrays.asList(0, 1));
 
 		for (int i = 2; i < 6; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
 		response = sendRequest(version, 3);
-		assertResponseEquals(response, version, 3, Long.MIN_VALUE, Arrays.asList(3, 4, 5));
+		assertResponseEquals(response, version, 0, Arrays.asList(3, 4, 5));
 
-		// CollectSinkFunction is not using this context
-		function.snapshotState(null);
-		function.notifyCheckpointComplete(0);
+		function.snapshotState(new MockFunctionSnapshotContext(1));
+		function.notifyCheckpointComplete(1);
 
 		response = sendRequest(version, 4);
-		assertResponseEquals(response, version, 4, 0, Arrays.asList(4, 5));
+		assertResponseEquals(response, version, 3, Arrays.asList(4, 5));
 
 		for (int i = 6; i < 9; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
 		response = sendRequest(version, 6);
-		assertResponseEquals(response, version, 6, 0, Arrays.asList(6, 7, 8));
+		assertResponseEquals(response, version, 3, Arrays.asList(6, 7, 8));
 
 		// this is an exceptional shutdown
 		function.close();
@@ -189,23 +189,22 @@ public class CollectSinkFunctionTest extends TestLogger {
 		}
 
 		response = sendRequest(version, 4);
-		Assert.assertEquals(3, response.getOffset());
+		Assert.assertEquals(3, response.getLastCheckpointedOffset());
 		version = response.getVersion();
 
 		response = sendRequest(version, 4);
-		assertResponseEquals(response, version, 4, Long.MIN_VALUE, Arrays.asList(4, 5, 9));
+		assertResponseEquals(response, version, 3, Arrays.asList(4, 5, 9));
 
 		response = sendRequest(version, 6);
-		assertResponseEquals(response, version, 6, Long.MIN_VALUE, Arrays.asList(9, 10, 11));
+		assertResponseEquals(response, version, 3, Arrays.asList(9, 10, 11));
 
-		// CollectSinkFunction is not using this context
-		function.snapshotState(null);
-		function.notifyCheckpointComplete(1);
+		function.snapshotState(new MockFunctionSnapshotContext(2));
+		function.notifyCheckpointComplete(2);
 
 		function.invoke(Row.of(12), null);
 
 		response = sendRequest(version, 7);
-		assertResponseEquals(response, version, 7, 1, Arrays.asList(10, 11, 12));
+		assertResponseEquals(response, version, 6, Arrays.asList(10, 11, 12));
 
 		// this is an exceptional shutdown
 		function.close();
@@ -214,25 +213,25 @@ public class CollectSinkFunctionTest extends TestLogger {
 		openFunction();
 
 		response = sendRequest(version, 7);
-		Assert.assertEquals(6, response.getOffset());
+		Assert.assertEquals(6, response.getLastCheckpointedOffset());
 		version = response.getVersion();
 
 		response = sendRequest(version, 7);
-		assertResponseEquals(response, version, 7, Long.MIN_VALUE, Arrays.asList(10, 11));
+		assertResponseEquals(response, version, 6, Arrays.asList(10, 11));
 
 		response = sendRequest(version, 9);
-		assertResponseEquals(response, version, 9, Long.MIN_VALUE, Collections.emptyList());
+		assertResponseEquals(response, version, 6, Collections.emptyList());
 
 		for (int i = 13; i < 16; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
 		response = sendRequest(version, 9);
-		assertResponseEquals(response, version, 9, Long.MIN_VALUE, Arrays.asList(13, 14, 15));
+		assertResponseEquals(response, version, 6, Arrays.asList(13, 14, 15));
 
 		// CollectSinkFunction is not using this context
-		function.snapshotState(null);
-		function.notifyCheckpointComplete(2);
+		function.snapshotState(new MockFunctionSnapshotContext(3));
+		function.notifyCheckpointComplete(3);
 
 		// this is an exceptional shutdown
 		function.close();
@@ -241,18 +240,18 @@ public class CollectSinkFunctionTest extends TestLogger {
 		openFunction();
 
 		response = sendRequest(version, 12);
-		Assert.assertEquals(9, response.getOffset());
+		Assert.assertEquals(9, response.getLastCheckpointedOffset());
 		version = response.getVersion();
 
 		response = sendRequest(version, 12);
-		assertResponseEquals(response, version, 12, Long.MIN_VALUE, Collections.emptyList());
+		assertResponseEquals(response, version, 9, Collections.emptyList());
 
 		for (int i = 16; i < 20; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
 		response = sendRequest(version, 12);
-		assertResponseEquals(response, version, 12, Long.MIN_VALUE, Arrays.asList(16, 17, 18));
+		assertResponseEquals(response, version, 9, Arrays.asList(16, 17, 18));
 
 		finishJob();
 
@@ -261,50 +260,68 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 	@Test
 	public void testUncheckpointedFunctionWithUncheckpointedClient() throws Exception {
-		List<Integer> expected = new ArrayList<>();
-		for (int i = 0; i < 100; i++) {
-			expected.add(i);
-		}
-		DataFeeder feeder = new DataFeeder(expected, false);
-		UncheckpointedCollectClient<Row> client = new UncheckpointedCollectClient<>(
-			serializer,
-			new TestCollectRequestSender(),
-			() -> jobFinished);
+		// run multiple times for this random test
+		for (int testCount = 30; testCount > 0; testCount--) {
+			List<Integer> expected = new ArrayList<>();
+			for (int i = 0; i < 50; i++) {
+				expected.add(i);
+			}
+			DataFeeder feeder = new DataFeeder(expected, false);
+			UncheckpointedCollectClient<Row> client = new UncheckpointedCollectClient<>(
+				serializer,
+				new TestCollectRequestSender(),
+				() -> jobFinished);
 
-		runFunctionWithClient(feeder, client);
-		assertResultsEqualAfterSort(expected, client.getResults());
+			runFunctionWithClient(feeder, client);
+			assertResultsEqualAfterSort(expected, client.getResults());
+
+			after();
+			before();
+		}
 	}
 
 	@Test
 	public void testUncheckpointedFunctionWithCheckpointedClient() throws Exception {
-		List<Integer> expected = new ArrayList<>();
-		for (int i = 0; i < 100; i++) {
-			expected.add(i);
-		}
-		DataFeeder feeder = new DataFeeder(expected, false);
-		CheckpointedCollectClient<Row> client = new CheckpointedCollectClient<>(
-			serializer,
-			new TestCollectRequestSender(),
-			() -> jobFinished);
+		// run multiple times for this random test
+		for (int testCount = 30; testCount > 0; testCount--) {
+			List<Integer> expected = new ArrayList<>();
+			for (int i = 0; i < 50; i++) {
+				expected.add(i);
+			}
+			DataFeeder feeder = new DataFeeder(expected, false);
+			CheckpointedCollectClient<Row> client = new CheckpointedCollectClient<>(
+				serializer,
+				new TestCollectRequestSender(),
+				() -> jobFinished);
 
-		runFunctionWithClient(feeder, client);
-		assertResultsEqualAfterSort(expected, client.getResults());
+			runFunctionWithClient(feeder, client);
+			assertResultsEqualAfterSort(expected, client.getResults());
+
+			after();
+			before();
+		}
 	}
 
 	@Test
 	public void testCheckpointedFunctionWithCheckpointedClient() throws Exception {
-		List<Integer> expected = new ArrayList<>();
-		for (int i = 0; i < 100; i++) {
-			expected.add(i);
-		}
-		DataFeeder feeder = new DataFeeder(expected, true);
-		CheckpointedCollectClient<Row> client = new CheckpointedCollectClient<>(
-			serializer,
-			new TestCollectRequestSender(),
-			() -> jobFinished);
+		// run multiple times for this random test
+		for (int testCount = 30; testCount > 0; testCount--) {
+			List<Integer> expected = new ArrayList<>();
+			for (int i = 0; i < 50; i++) {
+				expected.add(i);
+			}
+			DataFeeder feeder = new DataFeeder(expected, true);
+			CheckpointedCollectClient<Row> client = new CheckpointedCollectClient<>(
+				serializer,
+				new TestCollectRequestSender(),
+				() -> jobFinished);
 
-		runFunctionWithClient(feeder, client);
-		assertResultsEqualAfterSort(expected, client.getResults());
+			runFunctionWithClient(feeder, client);
+			assertResultsEqualAfterSort(expected, client.getResults());
+
+			after();
+			before();
+		}
 	}
 
 	private void runFunctionWithClient(DataFeeder feeder, TestCollectClient<Row> client) throws Exception {
@@ -360,12 +377,10 @@ public class CollectSinkFunctionTest extends TestLogger {
 	private void assertResponseEquals(
 			CollectCoordinationResponse<Row> response,
 			String version,
-			long offset,
-			long lastCheckpointId,
+			long lastCheckpointedOffset,
 			List<Integer> expected) throws IOException {
 		Assert.assertEquals(version, response.getVersion());
-		Assert.assertEquals(offset, response.getOffset());
-		Assert.assertEquals(lastCheckpointId, response.getLastCheckpointId());
+		Assert.assertEquals(lastCheckpointedOffset, response.getLastCheckpointedOffset());
 		List<Row> results = response.getResults(serializer);
 		assertResultsEqual(expected, results);
 	}
@@ -443,7 +458,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 						checkpointId++;
 						checkpointedData = new ArrayList<>(data);
 
-						function.snapshotState(null);
+						function.snapshotState(new MockFunctionSnapshotContext(checkpointId));
 						function.notifyCheckpointComplete(checkpointId);
 					} else {
 						// with 20% chance we fail
@@ -457,7 +472,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 					}
 
 					if (random.nextBoolean()) {
-						Thread.sleep(random.nextInt(100));
+						Thread.sleep(random.nextInt(10));
 					}
 				}
 

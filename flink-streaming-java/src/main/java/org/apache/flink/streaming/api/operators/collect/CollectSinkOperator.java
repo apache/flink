@@ -50,11 +50,6 @@ public class CollectSinkOperator<IN> extends StreamSink<IN> implements OperatorE
 	}
 
 	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		sinkFunction.notifyCheckpointComplete(checkpointId);
-	}
-
-	@Override
 	public void handleOperatorEvent(OperatorEvent evt) {
 		// nothing to handle
 	}

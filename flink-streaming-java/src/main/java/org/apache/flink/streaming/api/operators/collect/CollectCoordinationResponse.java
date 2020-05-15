@@ -35,6 +35,8 @@ import java.util.List;
 /**
  * A {@link CoordinationResponse} from the coordinator containing the required batch or new results
  * and other necessary information in serialized form.
+ *
+ * <p>For an explanation of this communication protocol, see Java docs in {@link CollectSinkFunction}.
  */
 public class CollectCoordinationResponse<T> implements CoordinationResponse {
 
@@ -42,22 +44,18 @@ public class CollectCoordinationResponse<T> implements CoordinationResponse {
 
 	private static final TypeSerializer<String> versionSerializer = StringSerializer.INSTANCE;
 	private static final TypeSerializer<Long> offsetSerializer = LongSerializer.INSTANCE;
-	private static final TypeSerializer<Long> checkpointIdSerializer = LongSerializer.INSTANCE;
 
 	private final String version;
-	private final long offset;
-	private final long lastCheckpointId;
+	private final long lastCheckpointedOffset;
 	private final byte[] resultBytes;
 
 	public CollectCoordinationResponse(
 			String version,
-			long offset,
-			long lastCheckpointId,
+			long lastCheckpointedOffset,
 			List<T> results,
 			TypeSerializer<T> elementSerializer) throws IOException {
 		this.version = version;
-		this.offset = offset;
-		this.lastCheckpointId = lastCheckpointId;
+		this.lastCheckpointedOffset = lastCheckpointedOffset;
 
 		ListSerializer<T> listSerializer = new ListSerializer<>(elementSerializer);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -68,8 +66,7 @@ public class CollectCoordinationResponse<T> implements CoordinationResponse {
 
 	public CollectCoordinationResponse(DataInputView inView) throws IOException {
 		this.version = versionSerializer.deserialize(inView);
-		this.offset = offsetSerializer.deserialize(inView);
-		this.lastCheckpointId = offsetSerializer.deserialize(inView);
+		this.lastCheckpointedOffset = offsetSerializer.deserialize(inView);
 
 		int size = inView.readInt();
 		this.resultBytes = new byte[size];
@@ -80,12 +77,8 @@ public class CollectCoordinationResponse<T> implements CoordinationResponse {
 		return version;
 	}
 
-	public long getOffset() {
-		return offset;
-	}
-
-	public long getLastCheckpointId() {
-		return lastCheckpointId;
+	public long getLastCheckpointedOffset() {
+		return lastCheckpointedOffset;
 	}
 
 	// TODO the following two methods might be not so efficient
@@ -100,8 +93,7 @@ public class CollectCoordinationResponse<T> implements CoordinationResponse {
 
 	public void serialize(DataOutputView outView) throws IOException {
 		versionSerializer.serialize(version, outView);
-		offsetSerializer.serialize(offset, outView);
-		checkpointIdSerializer.serialize(lastCheckpointId, outView);
+		offsetSerializer.serialize(lastCheckpointedOffset, outView);
 
 		outView.writeInt(resultBytes.length);
 		outView.write(resultBytes);

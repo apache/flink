@@ -146,10 +146,9 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 		try {
 			future.complete(new CollectCoordinationResponse<>(
 				request.getVersion(),
-				request.getOffset(),
-				// this lastCheckpointId is OK
-				// because client will only expose results to the users when the checkpoint id increases
-				Long.MIN_VALUE,
+				// this lastCheckpointedOffset is OK
+				// because client will only expose results to the users when the checkpointed offset increases
+				0,
 				Collections.emptyList(),
 				// just a random serializer, we're serializing no results
 				LongSerializer.INSTANCE));
