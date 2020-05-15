@@ -21,11 +21,11 @@ package org.apache.flink.connector.jdbc.internal.converter;
 import org.apache.flink.table.types.logical.RowType;
 
 /**
- * Row converter for MySQL.
+ * JDBC object to Flink internal data structure converter for Derby.
  */
-public class MySQLRowConverter extends AbstractJdbcRowConverter {
+public class DerbyToRowConverter extends AbstractJdbcToRowConverter {
 
-	public MySQLRowConverter(RowType rowType) {
+	public DerbyToRowConverter(RowType rowType) {
 		super(rowType);
 	}
 }

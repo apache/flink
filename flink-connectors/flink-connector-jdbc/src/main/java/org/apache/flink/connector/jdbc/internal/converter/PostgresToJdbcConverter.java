@@ -18,31 +18,13 @@
 
 package org.apache.flink.connector.jdbc.internal.converter;
 
-import org.apache.flink.types.Row;
-
-import java.io.Serializable;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import org.apache.flink.table.types.logical.LogicalType;
 
 /**
- * Convert row from JDBC result set to a Flink row.
+ * Flink internal data structure to JDBC object converter for Postgres.
  */
-@FunctionalInterface
-public interface JdbcRowConverter extends Serializable {
-
-	/**
-	 * Convert data retrieved from {@link ResultSet} to {@link Row}.
-	 *
-	 * @param resultSet ResultSet from JDBC
-	 * @param reuse The row to set
-	 */
-	Row convert(ResultSet resultSet, Row reuse) throws SQLException;
-
-	/**
-	 * Runtime converter to convert JDBC field to Java objects.
-	 */
-	@FunctionalInterface
-	interface JdbcFieldConverter extends Serializable {
-		Object convert(Object value) throws SQLException;
+public class PostgresToJdbcConverter extends AbstractRowToJdbcConverter{
+	public PostgresToJdbcConverter(LogicalType[] externalTypes) {
+		super(externalTypes);
 	}
 }

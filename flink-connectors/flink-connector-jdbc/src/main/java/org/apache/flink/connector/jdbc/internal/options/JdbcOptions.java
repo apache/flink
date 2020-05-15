@@ -37,7 +37,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
 	private String tableName;
 	private JdbcDialect dialect;
 
-	protected JdbcOptions(String dbURL, String tableName, String driverName, String username,
+	private JdbcOptions(String dbURL, String tableName, String driverName, String username,
 						String password, JdbcDialect dialect) {
 		super(dbURL, driverName, username, password);
 		this.tableName = tableName;
@@ -75,11 +75,11 @@ public class JdbcOptions extends JdbcConnectionOptions {
 	 * Builder of {@link JdbcOptions}.
 	 */
 	public static class Builder {
-		protected String dbURL;
-		protected String tableName;
-		protected String driverName;
-		protected String username;
-		protected String password;
+		private String dbURL;
+		private String tableName;
+		private String driverName;
+		private String username;
+		private String password;
 		private JdbcDialect dialect;
 
 		/**
@@ -138,7 +138,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
 			if (this.dialect == null) {
 				Optional<JdbcDialect> optional = JdbcDialects.get(dbURL);
 				this.dialect = optional.orElseGet(() -> {
-					throw new NullPointerException("No dialect supplied.");
+					throw new NullPointerException("Unknown dbURL,can not find proper dialect.");
 				});
 			}
 			if (this.driverName == null) {

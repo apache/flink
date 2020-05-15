@@ -18,14 +18,30 @@
 
 package org.apache.flink.connector.jdbc.internal.converter;
 
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.data.RowData;
+
+import java.io.Serializable;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 /**
- * Row converter for Derby.
+ * Converter that converts JDBC object to Flink SQL internal data structure {@link RowData}.
  */
-public class DerbyRowConverter extends AbstractJdbcRowConverter {
+@FunctionalInterface
+public interface JdbcToRowConverter extends Serializable {
 
-	public DerbyRowConverter(RowType rowType) {
-		super(rowType);
+	/**
+	 * Convert data retrieved from {@link ResultSet} to internal {@link RowData}.
+	 *
+	 * @param resultSet ResultSet from JDBC
+	 */
+	RowData toInternal(ResultSet resultSet) throws SQLException;
+
+	/**
+	 * Runtime converter to convert JDBC field to {@link RowData} type object.
+	 */
+	@FunctionalInterface
+	interface JdbcFieldConverter extends Serializable {
+		Object convert(Object field) throws SQLException;
 	}
 }

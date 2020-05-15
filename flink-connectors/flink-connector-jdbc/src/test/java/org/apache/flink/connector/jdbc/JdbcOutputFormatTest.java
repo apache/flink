@@ -104,7 +104,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 				.setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery("iamnotsql")
 				.finish();
-			setRuntimeContext(jdbcOutputFormat);
+			setRuntimeContext(jdbcOutputFormat, true);
 			jdbcOutputFormat.open(0, 1);
 		} catch (Exception e) {
 			assertTrue(findThrowable(e, IOException.class).isPresent());
@@ -135,7 +135,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 				.setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
 				.finish();
-			setRuntimeContext(jdbcOutputFormat);
+			setRuntimeContext(jdbcOutputFormat, true);
 			jdbcOutputFormat.open(0, 1);
 
 			Row row = new Row(5);
@@ -168,7 +168,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 					Types.DOUBLE,
 					Types.INTEGER})
 				.finish();
-			setRuntimeContext(jdbcOutputFormat);
+			setRuntimeContext(jdbcOutputFormat, true);
 			jdbcOutputFormat.open(0, 1);
 
 			TestEntry entry = TEST_DATA[0];
@@ -201,7 +201,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 					Types.DOUBLE,
 					Types.INTEGER})
 				.finish();
-			setRuntimeContext(jdbcOutputFormat);
+			setRuntimeContext(jdbcOutputFormat, true);
 			jdbcOutputFormat.open(0, 1);
 
 			TestEntry entry = TEST_DATA[0];
@@ -228,7 +228,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 				.setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
 				.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
 				.finish();
-		setRuntimeContext(jdbcOutputFormat);
+		setRuntimeContext(jdbcOutputFormat, true);
 		jdbcOutputFormat.open(0, 1);
 
 		for (TestEntry entry : TEST_DATA) {
@@ -264,7 +264,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
 			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE_2))
 			.setBatchSize(3)
 			.finish();
-		setRuntimeContext(jdbcOutputFormat);
+		setRuntimeContext(jdbcOutputFormat, true);
 		try (
 			Connection dbConn = DriverManager.getConnection(DERBY_EBOOKSHOP_DB.getUrl());
 			PreparedStatement statement = dbConn.prepareStatement(SELECT_ALL_NEWBOOKS_2)

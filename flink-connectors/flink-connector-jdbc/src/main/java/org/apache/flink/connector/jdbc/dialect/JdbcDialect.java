@@ -19,9 +19,11 @@
 package org.apache.flink.connector.jdbc.dialect;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
+import org.apache.flink.connector.jdbc.internal.converter.JdbcToRowConverter;
+import org.apache.flink.connector.jdbc.internal.converter.RowToJdbcConverter;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.io.Serializable;
@@ -43,11 +45,18 @@ public interface JdbcDialect extends Serializable {
 	boolean canHandle(String url);
 
 	/**
-	 * Get a row converter for the database according to the given row type.
+	 * Get converter that convert the jdbc object to flink internal object according to the given row type.
 	 * @param rowType the given row type
 	 * @return a row converter for the database
 	 */
-	JdbcRowConverter getRowConverter(RowType rowType);
+	JdbcToRowConverter getInputConverter(RowType rowType);
+
+	/**
+	 * Get converter that convert the flink internal object to jdbc object according to the given jdbc type.
+	 * @param jdbcTypes the given jdbc type
+	 * @return a row converter for the database
+	 */
+	RowToJdbcConverter getOutputConverter(LogicalType[] jdbcTypes);
 
 	/**
 	 * Check if this dialect instance support a specific data type in table schema.

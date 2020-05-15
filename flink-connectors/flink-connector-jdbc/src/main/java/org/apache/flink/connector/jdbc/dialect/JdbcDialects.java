@@ -18,14 +18,19 @@
 
 package org.apache.flink.connector.jdbc.dialect;
 
-import org.apache.flink.connector.jdbc.internal.converter.DerbyRowConverter;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
-import org.apache.flink.connector.jdbc.internal.converter.MySQLRowConverter;
-import org.apache.flink.connector.jdbc.internal.converter.PostgresRowConverter;
+import org.apache.flink.connector.jdbc.internal.converter.DerbyToJdbcConverter;
+import org.apache.flink.connector.jdbc.internal.converter.DerbyToRowConverter;
+import org.apache.flink.connector.jdbc.internal.converter.JdbcToRowConverter;
+import org.apache.flink.connector.jdbc.internal.converter.MySQLToJdbcConverter;
+import org.apache.flink.connector.jdbc.internal.converter.MySQLToRowConverter;
+import org.apache.flink.connector.jdbc.internal.converter.PostgresToJdbcConverter;
+import org.apache.flink.connector.jdbc.internal.converter.PostgresToRowConverter;
+import org.apache.flink.connector.jdbc.internal.converter.RowToJdbcConverter;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -148,8 +153,13 @@ public final class JdbcDialects {
 		}
 
 		@Override
-		public JdbcRowConverter getRowConverter(RowType rowType) {
-			return new DerbyRowConverter(rowType);
+		public JdbcToRowConverter getInputConverter(RowType rowType) {
+			return new DerbyToRowConverter(rowType);
+		}
+
+		@Override
+		public RowToJdbcConverter getOutputConverter(LogicalType[] jdbcTypes) {
+			return new DerbyToJdbcConverter(jdbcTypes);
 		}
 
 		@Override
@@ -236,8 +246,13 @@ public final class JdbcDialects {
 		}
 
 		@Override
-		public JdbcRowConverter getRowConverter(RowType rowType) {
-			return new MySQLRowConverter(rowType);
+		public JdbcToRowConverter getInputConverter(RowType rowType) {
+			return new MySQLToRowConverter(rowType);
+		}
+
+		@Override
+		public RowToJdbcConverter getOutputConverter(LogicalType[] jdbcTypes) {
+			return new MySQLToJdbcConverter(jdbcTypes);
 		}
 
 		@Override
@@ -342,8 +357,13 @@ public final class JdbcDialects {
 		}
 
 		@Override
-		public JdbcRowConverter getRowConverter(RowType rowType) {
-			return new PostgresRowConverter(rowType);
+		public JdbcToRowConverter getInputConverter(RowType rowType) {
+			return new PostgresToRowConverter(rowType);
+		}
+
+		@Override
+		public RowToJdbcConverter getOutputConverter(LogicalType[] jdbcTypes) {
+			return new PostgresToJdbcConverter(jdbcTypes);
 		}
 
 		@Override

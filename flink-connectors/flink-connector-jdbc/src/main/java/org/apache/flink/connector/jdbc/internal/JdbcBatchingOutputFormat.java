@@ -157,7 +157,7 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 		}
 	}
 
-	void addToBatch(In original, JdbcIn extracted) throws SQLException {
+	protected void addToBatch(In original, JdbcIn extracted) throws SQLException {
 		jdbcStatementExecutor.addToBatch(extracted);
 	}
 
@@ -185,7 +185,7 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 		}
 	}
 
-	void attemptFlush() throws SQLException {
+	protected void attemptFlush() throws SQLException {
 		jdbcStatementExecutor.executeBatch();
 	}
 
