@@ -20,8 +20,6 @@ package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.core.fs.EntropyInjectingFileSystem;
-import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
@@ -64,7 +62,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base (De)serializer for checkpoint metadata format version 2 and 3.
@@ -507,8 +504,6 @@ public abstract class MetadataV2V3SerializerBase {
 			long size = dis.readLong();
 			if (exclusiveCheckpointDir == null || (!externalPointer.equals(previousExternalPointer))) {
 				exclusiveCheckpointDir = ((FsCompletedCheckpointStorageLocation) (AbstractFsCheckpointStorage.resolveCheckpointPointer(externalPointer))).getExclusiveCheckpointDir();
-				EntropyInjectingFileSystem entropyFs = EntropyInjector.getEntropyFs(exclusiveCheckpointDir.getFileSystem());
-				checkState(entropyFs == null, "Do not support relative state handle for entropy file system currently.");
 				previousExternalPointer = externalPointer;
 			}
 			Path statePath = new Path(exclusiveCheckpointDir, relativePath);
