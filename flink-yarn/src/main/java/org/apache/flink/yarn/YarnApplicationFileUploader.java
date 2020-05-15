@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -326,9 +327,9 @@ class YarnApplicationFileUploader implements AutoCloseable {
 					remotePaths.add(filePath);
 					envShipResourceList.add(descriptor);
 
-					if (!isFlinkDistJar(fileName) && !isPlugin(fileStatus.getPath())) {
+					if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
 						classPaths.add(fileName);
-					} else if (isFlinkDistJar(fileName)) {
+					} else if (isFlinkDistJar(filePath.getName())) {
 						flinkDist = descriptor;
 					}
 				});
@@ -389,7 +390,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	private static boolean isPlugin(Path path) {
 		Path parent = path.getParent();
 		while (parent != null) {
-			if (parent.getName().equals("plugins")) {
+			if (ConfigConstants.DEFAULT_FLINK_PLUGINS_DIRS.equals(parent.getName())) {
 				return true;
 			}
 			parent = parent.getParent();
