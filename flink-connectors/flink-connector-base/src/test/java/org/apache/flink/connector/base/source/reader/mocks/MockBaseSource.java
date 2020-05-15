@@ -45,11 +45,17 @@ import java.util.List;
 public class MockBaseSource implements Source<Integer, MockSourceSplit, List<MockSourceSplit>> {
 	private final int numSplits;
 	private final int numRecordsPerSplit;
+	private final int startingValue;
 	private final Boundedness boundedness;
 
 	public MockBaseSource(int numSplits, int numRecordsPerSplit, Boundedness boundedness) {
+		this(numSplits, numRecordsPerSplit, 0, boundedness);
+	}
+
+	public MockBaseSource(int numSplits, int numRecordsPerSplit, int startingValue, Boundedness boundedness) {
 		this.numSplits = numSplits;
 		this.numRecordsPerSplit = numRecordsPerSplit;
+		this.startingValue = startingValue;
 		this.boundedness = boundedness;
 	}
 
@@ -83,7 +89,7 @@ public class MockBaseSource implements Source<Integer, MockSourceSplit, List<Moc
 			int endIndex = boundedness == Boundedness.BOUNDED ? numRecordsPerSplit : Integer.MAX_VALUE;
 			MockSourceSplit split = new MockSourceSplit(i, 0, endIndex);
 			for (int j = 0; j < numRecordsPerSplit; j++) {
-				split.addRecord(i * numRecordsPerSplit + j);
+				split.addRecord(startingValue + i * numRecordsPerSplit + j);
 			}
 			splits.add(split);
 		}

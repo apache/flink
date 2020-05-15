@@ -46,6 +46,20 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		MockBaseSource source = new MockBaseSource(2, 10, Boundedness.BOUNDED);
 		DataStream<Integer> stream = env.continuousSource(source, "TestingSource");
+		executeAndVerify(env, stream, 20);
+	}
+
+	@Test
+	public void testMultipleSources() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		MockBaseSource source1 = new MockBaseSource(2, 10, Boundedness.BOUNDED);
+		MockBaseSource source2 = new MockBaseSource(2, 10, 20, Boundedness.BOUNDED);
+		DataStream<Integer> stream1 = env.continuousSource(source1, "TestingSource1");
+		DataStream<Integer> stream2 = env.continuousSource(source2, "TestingSource2");
+		executeAndVerify(env, stream1.union(stream2), 40);
+	}
+
+	private void executeAndVerify(StreamExecutionEnvironment env, DataStream<Integer> stream, int numRecords) throws Exception {
 		stream.addSink(new RichSinkFunction<Integer>() {
 			@Override
 			public void open(Configuration parameters) throws Exception {
@@ -60,8 +74,8 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
 		List<Integer> result = env.execute().getAccumulatorResult("result");
 		SortedSet<Integer> resultSet = new TreeSet<>(result);
 		assertEquals(0, (int) resultSet.first());
-		assertEquals(19, (int) resultSet.last());
-		assertEquals(20, resultSet.size());
+		assertEquals(numRecords - 1, (int) resultSet.last());
+		assertEquals(numRecords, resultSet.size());
 	}
 
 }
