@@ -33,9 +33,9 @@ under the License.
 在这里我们使用一个例子来展现 broadcast state 提供的接口。假设存在一个序列，序列中的元素是具有不同颜色与形状的图形，我们希望在序列里相同颜色的图形中寻找满足一定顺序模式的图形对（比如在红色的图形里，有一个长方形跟着一个三角形）。
 同时，我们希望寻找的模式也会随着时间而改变。
 
-在这个例子中，我们定义两个流，一个流包含`图形(Item)`，具有`颜色`和`形状`两个属性。另一个流包含特定的`规则(Rule)`，代表希望寻找的模式。
+在这个例子中，我们定义两个流，一个流包含`图形（Item）`，具有`颜色`和`形状`两个属性。另一个流包含特定的`规则（Rule）`，代表希望寻找的模式。
 
-在`图形`流中，我们需要首先使用`颜色`将流进行进行分区(keyBy)，这能确保相同颜色的图形会流转到相同的物理机上。
+在`图形`流中，我们需要首先使用`颜色`将流进行进行分区（keyBy），这能确保相同颜色的图形会流转到相同的物理机上。
 
 {% highlight java %}
 // 将图形使用颜色进行划分
@@ -64,13 +64,13 @@ BroadcastStream<Rule> ruleBroadcastStream = ruleStream
  1. 将两个流关联起来
  2. 完成我们的模式识别逻辑
 
-为了关联一个非广播流 (keyed 或者 non-keyed) 与一个广播流 `BroadcastStream`，我们可以调用非广播流的方法 `connect()`，并将 `BroadcastStream` 当做参数传入。
+为了关联一个非广播流（keyed 或者 non-keyed）与一个广播流（`BroadcastStream`），我们可以调用非广播流的方法 `connect()`，并将 `BroadcastStream` 当做参数传入。
 这个方法的返回参数是 `BroadcastConnectedStream`，具有类型方法 `process()`，传入一个特殊的 `CoProcessFunction` 来书写我们的模式识别逻辑。
 具体传入 `process()` 的是哪个类型取决于非广播流的类型：
  - 如果流是一个 **keyed** 流，那就是 `KeyedBroadcastProcessFunction` 类型；
  - 如果流是一个 **non-keyed** 流，那就是 `BroadcastProcessFunction` 类型。
 
-在我们的例子中，`图形`流是一个keyed stream，所以我们书写的代码如下：
+在我们的例子中，`图形`流是一个 keyed stream，所以我们书写的代码如下：
 
 <div class="alert alert-info">
   <strong>注意：</strong>`connect()` 方法需要由非广播流来进行调用，`BroadcastStream` 作为参数传入。
@@ -118,7 +118,7 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> {
 }
 {% endhighlight %}
 
-需要注意的是 `processBroadcastElement()` 是处理的广播流的元素，而 `processElement()` 处理的是另一个流的元素。两个方法的第二个参数(Context)不同，均有以下方法：
+需要注意的是 `processBroadcastElement()` 负责处理广播流的元素，而 `processElement()` 负责处理另一个流的元素。两个方法的第二个参数(Context)不同，均有以下方法：
  1. 得到广播流的存储状态：`ctx.getBroadcastState(MapStateDescriptor<K, V> stateDescriptor)`
  2. 查询元素的时间戳：`ctx.timestamp()`
  3. 查询目前的Watermark：`ctx.currentWatermark()`
@@ -127,7 +127,7 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> {
 
 在 `getBroadcastState()` 方法中传入的 `stateDescriptor` 应该与调用 `.broadcast(ruleStateDescriptor)` 的参数相同。
 
-这两个方法的区别就是对于 broadcast state 的访问权限不同。在处理广播流元素这端，是**具有读写权限的**，而对于处理非广播流元素这端是**只读**的。
+这两个方法的区别在于对 broadcast state 的访问权限不同。在处理广播流元素这端，是**具有读写权限的**，而对于处理非广播流元素这端是**只读**的。
 这样做的原因是，Flink 中是不存在跨 task 通讯的。所以为了保证 broadcast state 在所有的并发实例中是一致的，我们在处理广播流元素的时候给予写权限，在所有的 task 中均可以看到这些元素，并且要求对这些元素处理是一致的，
 那么最终所有 task 得到的 broadcast state 是一致的。
 
@@ -136,16 +136,16 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> {
 </div>
 
 同时，`KeyedBroadcastProcessFunction` 在 Keyed Stream 上工作，所以它提供了一些 `BroadcastProcessFunction` 没有的功能:
- 1. `processElement()` 的参数 `ReadOnlyContext` 提供了方法能够访问 Flink 的定时器服务，可以注册事件或者处理时间的定时器。当定时器触发时，`onTimer()` 方法会被调用，
+ 1. `processElement()` 的参数 `ReadOnlyContext` 提供了方法能够访问 Flink 的定时器服务，可以注册事件定时器(event-time timer)或者处理时间的定时器(processing-time timer)。当定时器触发时，会调用 `onTimer()` 方法，
  提供了 `OnTimerContext`，它具有 `ReadOnlyContext` 的全部功能，并且提供：
   - 查询当前触发的是一个事件还是处理时间的定时器
   - 查询定时器关联的key
  2. `processBroadcastElement()` 方法中的参数 `Context` 会提供方法 `applyToKeyedState(StateDescriptor<S, VS> stateDescriptor, KeyedStateFunction<KS, S> function)`。
- 这个方法使用一个 `KeyedStateFunction` 能够对 `stateDescriptor` 对应的 state 的**所有key所有存储的状态**进行某些操作。
+ 这个方法使用一个 `KeyedStateFunction` 能够对 `stateDescriptor` 对应的 state 中**所有 key 的存储状态**进行某些操作。
 
 <div class="alert alert-info">
   <strong>注意：</strong>注册一个定时器只能在 `KeyedBroadcastProcessFunction` 的 `processElement()` 方法中进行。
-  在 `processBroadcastElement()` 方法中不能注册定时器，因为广播的元素中并没有关联的key。
+  在 `processBroadcastElement()` 方法中不能注册定时器，因为广播的元素中并没有关联的 key。
 </div>
 
 回到我们当前的例子中，`KeyedBroadcastProcessFunction` 应该实现如下：
@@ -219,16 +219,16 @@ new KeyedBroadcastProcessFunction<Color, Item, Rule, String>() {
 
 这里有一些 broadcast state 的重要注意事项，在使用它时需要时刻清楚：
 
-  - **没有跨 task 通讯：**如上所述，这就是为什么在 `(Keyed)-BroadcastProcessFunction` 中处理广播流元素的方法里可以更改 broadcast state 的内容。
+  - **没有跨 task 通讯：**如上所述，这就是为什么**只有**在 `(Keyed)-BroadcastProcessFunction` 中处理广播流元素的方法里可以更改 broadcast state 的内容。
   同时，用户需要保证所有 task 对于 broadcast state 的处理方式是一致的，否则会造成不同 task 读取 broadcast state 时内容不一致的情况，最终导致结果不一致。
 
-  - **broadcast state 在不同的 task 的事件顺序是不同的：**虽然广播流中元素的过程能够保证所有的下游 task 全部能够收到，但在不同 task 中元素的到达顺序可能不同。
-  所以 broadcast state 的更新*不能依赖于流中元素的到达顺序*。
+  - **broadcast state 在不同的 task 的事件顺序可能是不同的：**虽然广播流中元素的过程能够保证所有的下游 task 全部能够收到，但在不同 task 中元素的到达顺序可能不同。
+  所以 broadcast state 的更新*不能依赖于流中元素到达的顺序*。
 
   - **所有的 task 均会对 broadcast state 进行 checkpoint：**虽然所有 task 中的 broadcast state 是一致的，但当 checkpoint 来临时所有 task 均会对 broadcast state 做 checkpoint。
-  这个设计是为了防止在作业恢复后读文件造成的文件热点。当然这种方式会造成 checkpoint 一定程度的写放大，放大倍数为 p (=并行度)。Flink 会保证在恢复状态/改变并发的时候数据**没有重复**且**没有缺失**。
-  在作业恢复时，如果与之前具有相同或更小的并发度，所有的 task 读取之前已经 checkpoint 过的 state。在并发度上升的情况下，task 会读取本身的 state，多出来的并发 (`p_new` - `p_old`) 会使用轮询调度算法读取之前 task 的 state。
+  这个设计是为了防止在作业恢复后读文件造成的文件热点。当然这种方式会造成 checkpoint 一定程度的写放大，放大倍数为 p（=并行度）。Flink 会保证在恢复状态/改变并发的时候数据**没有重复**且**没有缺失**。
+  在作业恢复时，如果与之前具有相同或更小的并发度，所有的 task 读取之前已经 checkpoint 过的 state。在增大并发的情况下，task 会读取本身的 state，多出来的并发（`p_new` - `p_old`）会使用轮询调度算法读取之前 task 的 state。
 
-  - **不使用 RocksDB state backend：** broadcast state 在运行时保存在内存中，需要保证内存充足。这一特性同样适用于 Operator State。
+  - **不使用 RocksDB state backend：** broadcast state 在运行时保存在内存中，需要保证内存充足。这一特性同样适用于所有其他 Operator State。
 
 {% top %}
