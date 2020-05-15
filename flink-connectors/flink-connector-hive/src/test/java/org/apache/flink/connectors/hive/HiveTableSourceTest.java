@@ -586,7 +586,7 @@ public class HiveTableSourceTest {
 		// Waiting for writing test data to finish
 		thread.join();
 		// Wait up to 20 seconds for all data to be processed
-		for (int i = 0; i < 20; ++ i) {
+		for (int i = 0; i < 20; ++i) {
 			if (sink.getAppendResults().size() == 6) {
 				break;
 			} else {
