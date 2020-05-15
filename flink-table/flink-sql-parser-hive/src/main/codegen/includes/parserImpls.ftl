@@ -861,7 +861,7 @@ SqlNode RichSqlInsert() :
         }
     ]
     [
-        <PARTITION> InsertPartitionSpec(allPartKeys, staticSpec)
+        <PARTITION> PartitionSpecCommaList(allPartKeys, staticSpec)
     ]
     source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
         return new RichSqlHiveInsert(s.end(source), keywordList, extendedKeywordList, table, source,
