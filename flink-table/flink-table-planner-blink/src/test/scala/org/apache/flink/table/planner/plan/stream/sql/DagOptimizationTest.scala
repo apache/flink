@@ -136,11 +136,13 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(sum_a) AS total_min FROM table1")
 
     val retractSink1 = util.createRetractTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink("retractSink1", retractSink1)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+      "retractSink1", retractSink1)
     stmtSet.addInsert("retractSink1", table2)
 
     val retractSink2 = util.createRetractTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink("retractSink2", retractSink2)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+      "retractSink2", retractSink2)
     stmtSet.addInsert("retractSink2", table3)
 
     util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -160,11 +162,13 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT * FROM table1 UNION ALL SELECT * FROM table2")
 
     val appendSink1 = util.createAppendTableSink(Array("a", "b1"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink("appendSink1", appendSink1)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+      "appendSink1", appendSink1)
     stmtSet.addInsert("appendSink1", table3)
 
     val appendSink2 = util.createAppendTableSink(Array("a", "b1"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink("appendSink2", appendSink2)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+      "appendSink2", appendSink2)
     stmtSet.addInsert("appendSink2", table3)
 
     util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
