@@ -17,12 +17,103 @@
 
 package org.apache.flink.streaming.api.operators.collect.utils;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.operators.collect.CollectCoordinationResponse;
+
+import org.junit.Assert;
+
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
+import java.util.function.BooleanSupplier;
 
 /**
- * A client for collecting query results from sink.
+ * A simple client for fetching collect results.
  */
-public interface TestCollectClient<T> extends Runnable {
+public class TestCollectClient<T> extends Thread {
 
-	public List<T> getResults();
+	private static final String INIT_VERSION = "";
+
+	private final TypeSerializer<T> serializer;
+	private final CollectRequestSender<T> sender;
+	private final BooleanSupplier jobFinishedChecker;
+
+	private final LinkedList<T> uncheckpointedResults;
+	private final LinkedList<T> checkpointedResults;
+
+	public TestCollectClient(
+			TypeSerializer<T> serializer,
+			CollectRequestSender<T> sender,
+			BooleanSupplier jobFinishedChecker) {
+		this.serializer = serializer;
+		this.sender = sender;
+		this.jobFinishedChecker = jobFinishedChecker;
+
+		this.uncheckpointedResults = new LinkedList<>();
+		this.checkpointedResults = new LinkedList<>();
+	}
+
+	@Override
+	public void run() {
+		Random random = new Random();
+
+		String version = INIT_VERSION;
+		long offset = 0;
+		long lastCheckpointedOffset = 0;
+
+		try {
+			while (!jobFinishedChecker.getAsBoolean()) {
+
+				if (random.nextBoolean()) {
+					Thread.sleep(random.nextInt(10));
+				}
+
+				CollectCoordinationResponse<T> response = sender.sendRequest(version, offset);
+				String responseVersion = response.getVersion();
+				long responseLastCheckpointedOffset = response.getLastCheckpointedOffset();
+				List<T> responseResults = response.getResults(serializer);
+
+				if (INIT_VERSION.equals(version)) {
+					// first response, update version accordingly
+					version = responseVersion;
+				} else {
+					if (responseLastCheckpointedOffset > lastCheckpointedOffset) {
+						// a new checkpoint happens
+						int newCheckpointedNum = (int) (responseLastCheckpointedOffset - lastCheckpointedOffset);
+						for (int i = 0; i < newCheckpointedNum; i++) {
+							checkpointedResults.add(uncheckpointedResults.removeFirst());
+						}
+						lastCheckpointedOffset = responseLastCheckpointedOffset;
+					}
+
+					if (version.equals(responseVersion)) {
+						// normal results
+						if (responseResults.size() > 0) {
+							uncheckpointedResults.addAll(responseResults);
+							offset += responseResults.size();
+						}
+					} else {
+						// sink has restarted
+						version = responseVersion;
+						offset = lastCheckpointedOffset;
+						uncheckpointedResults.clear();
+					}
+				}
+			}
+
+			checkpointedResults.addAll(uncheckpointedResults);
+
+			Tuple2<List<T>, Long> accResults = sender.getAccumulatorResults();
+			checkpointedResults.addAll(accResults.f0.subList((int) (offset - accResults.f1), accResults.f0.size()));
+		} catch (Exception e) {
+			Assert.fail("Exception occurs in TestCollectClient");
+			e.printStackTrace();
+			throw new RuntimeException(e);
+		}
+	}
+
+	public List<T> getResults() {
+		return checkpointedResults;
+	}
 }

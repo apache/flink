@@ -28,13 +28,11 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.api.operators.collect.utils.CheckpointedCollectClient;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectRequestSender;
 import org.apache.flink.streaming.api.operators.collect.utils.MockFunctionInitializationContext;
 import org.apache.flink.streaming.api.operators.collect.utils.MockFunctionSnapshotContext;
 import org.apache.flink.streaming.api.operators.collect.utils.MockOperatorEventGateway;
 import org.apache.flink.streaming.api.operators.collect.utils.TestCollectClient;
-import org.apache.flink.streaming.api.operators.collect.utils.UncheckpointedCollectClient;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
@@ -259,15 +257,15 @@ public class CollectSinkFunctionTest extends TestLogger {
 	}
 
 	@Test
-	public void testUncheckpointedFunctionWithUncheckpointedClient() throws Exception {
+	public void testUncheckpointedFunction() throws Exception {
 		// run multiple times for this random test
 		for (int testCount = 30; testCount > 0; testCount--) {
 			List<Integer> expected = new ArrayList<>();
 			for (int i = 0; i < 50; i++) {
 				expected.add(i);
 			}
-			DataFeeder feeder = new DataFeeder(expected, false);
-			UncheckpointedCollectClient<Row> client = new UncheckpointedCollectClient<>(
+			UncheckpointedDataFeeder feeder = new UncheckpointedDataFeeder(expected);
+			TestCollectClient<Row> client = new TestCollectClient<>(
 				serializer,
 				new TestCollectRequestSender(),
 				() -> jobFinished);
@@ -281,15 +279,15 @@ public class CollectSinkFunctionTest extends TestLogger {
 	}
 
 	@Test
-	public void testUncheckpointedFunctionWithCheckpointedClient() throws Exception {
+	public void testCheckpointedFunction() throws Exception {
 		// run multiple times for this random test
 		for (int testCount = 30; testCount > 0; testCount--) {
 			List<Integer> expected = new ArrayList<>();
 			for (int i = 0; i < 50; i++) {
 				expected.add(i);
 			}
-			DataFeeder feeder = new DataFeeder(expected, false);
-			CheckpointedCollectClient<Row> client = new CheckpointedCollectClient<>(
+			CheckpointedDataFeeder feeder = new CheckpointedDataFeeder(expected);
+			TestCollectClient<Row> client = new TestCollectClient<>(
 				serializer,
 				new TestCollectRequestSender(),
 				() -> jobFinished);
@@ -302,43 +300,18 @@ public class CollectSinkFunctionTest extends TestLogger {
 		}
 	}
 
-	@Test
-	public void testCheckpointedFunctionWithCheckpointedClient() throws Exception {
-		// run multiple times for this random test
-		for (int testCount = 30; testCount > 0; testCount--) {
-			List<Integer> expected = new ArrayList<>();
-			for (int i = 0; i < 50; i++) {
-				expected.add(i);
-			}
-			DataFeeder feeder = new DataFeeder(expected, true);
-			CheckpointedCollectClient<Row> client = new CheckpointedCollectClient<>(
-				serializer,
-				new TestCollectRequestSender(),
-				() -> jobFinished);
-
-			runFunctionWithClient(feeder, client);
-			assertResultsEqualAfterSort(expected, client.getResults());
-
-			after();
-			before();
-		}
-	}
-
-	private void runFunctionWithClient(DataFeeder feeder, TestCollectClient<Row> client) throws Exception {
-		Thread feederThread = new Thread(feeder);
-		Thread clientThread = new Thread(client);
-
+	private void runFunctionWithClient(Thread feeder, Thread client) throws Exception {
 		Thread.UncaughtExceptionHandler exceptionHandler = (t, e) -> {
-			feederThread.interrupt();
-			clientThread.interrupt();
+			feeder.interrupt();
+			client.interrupt();
 		};
-		feederThread.setUncaughtExceptionHandler(exceptionHandler);
-		clientThread.setUncaughtExceptionHandler(exceptionHandler);
+		feeder.setUncaughtExceptionHandler(exceptionHandler);
+		client.setUncaughtExceptionHandler(exceptionHandler);
 
-		feederThread.start();
-		clientThread.start();
-		feederThread.join();
-		clientThread.join();
+		feeder.start();
+		client.start();
+		feeder.join();
+		client.join();
 	}
 
 	private void openFunction() throws Exception {
@@ -419,18 +392,74 @@ public class CollectSinkFunctionTest extends TestLogger {
 		}
 	}
 
-	private class DataFeeder implements Runnable {
+	/**
+	 * A thread feeding data to the function. It will fail when half of the data is fed.
+	 */
+	private class UncheckpointedDataFeeder extends Thread {
 
-		private final boolean checkpointed;
+		private LinkedList<Integer> data;
+		private List<Integer> checkpointedData;
+		private FunctionInitializationContext functionInitializationContext;
+		private boolean failedBefore;
+
+		private UncheckpointedDataFeeder(List<Integer> data) {
+			this.data = new LinkedList<>(data);
+			this.checkpointedData = new ArrayList<>(data);
+			this.functionInitializationContext = new MockFunctionInitializationContext();
+			this.failedBefore = false;
+		}
+
+		@Override
+		public void run() {
+			Random random = new Random();
+
+			try {
+				function.initializeState(functionInitializationContext);
+				openFunction();
+
+				while (data.size() > 0) {
+					int size = Math.min(data.size(), random.nextInt(MAX_RESULTS_PER_BATCH * 3) + 1);
+					for (int i = 0; i < size; i++) {
+						function.invoke(Row.of(data.removeFirst()), null);
+					}
+
+					if (!failedBefore && data.size() < checkpointedData.size() / 2) {
+						// fail half-way
+						Collections.shuffle(checkpointedData);
+						data = new LinkedList<>(checkpointedData);
+
+						function.close();
+						function.initializeState(functionInitializationContext);
+						openFunction();
+
+						failedBefore = true;
+					}
+
+					if (random.nextBoolean()) {
+						Thread.sleep(random.nextInt(10));
+					}
+				}
+
+				finishJob();
+			} catch (Exception e) {
+				Assert.fail("Exception occurs in UncheckpointedDataFeeder");
+				e.printStackTrace();
+				throw new RuntimeException(e);
+			}
+		}
+	}
+
+	/**
+	 * A thread feeding data to the function. It will randomly do checkpoint or fail.
+	 */
+	private class CheckpointedDataFeeder extends Thread {
 
 		private LinkedList<Integer> data;
 		private List<Integer> checkpointedData;
 		private long checkpointId;
 		private FunctionInitializationContext functionInitializationContext;
 
-		private DataFeeder(List<Integer> data, boolean checkpointed) {
-			this.checkpointed = checkpointed;
-
+		private CheckpointedDataFeeder(List<Integer> data) {
 			this.data = new LinkedList<>(data);
 			this.checkpointedData = new ArrayList<>(data);
 			this.checkpointId = 0;
@@ -446,7 +475,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 				openFunction();
 
 				while (data.size() > 0) {
-					int r = random.nextInt() % (checkpointed ? 5 : 3);
+					int r = random.nextInt() % 5;
 					if (r < 3) {
 						// with 60% chance we add some data
 						int size = Math.min(data.size(), random.nextInt(MAX_RESULTS_PER_BATCH * 3) + 1);
@@ -478,7 +507,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 				finishJob();
 			} catch (Exception e) {
-				Assert.fail("Exception occurs in DataFeeder");
+				Assert.fail("Exception occurs in CheckpointedDataFeeder");
 				e.printStackTrace();
 				throw new RuntimeException(e);
 			}
