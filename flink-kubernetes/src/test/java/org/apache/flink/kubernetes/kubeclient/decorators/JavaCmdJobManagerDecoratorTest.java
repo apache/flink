@@ -29,7 +29,6 @@ import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -80,9 +79,9 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		flinkConfig.set(KubernetesConfigOptions.KUBERNETES_ENTRY_PATH, KUBERNETES_ENTRY_PATH);
 	}
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
 
 		this.javaCmdJobManagerDecorator = new JavaCmdJobManagerDecorator(kubernetesJobManagerParameters);
 	}

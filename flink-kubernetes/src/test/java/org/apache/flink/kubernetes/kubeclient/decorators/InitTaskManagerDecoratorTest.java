@@ -33,7 +33,6 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Toleration;
 import org.hamcrest.Matchers;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -78,9 +77,9 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 		this.flinkConfig.setString(KubernetesConfigOptions.TASK_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
 	}
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
 
 		final InitTaskManagerDecorator initTaskManagerDecorator =
 			new InitTaskManagerDecorator(kubernetesTaskManagerParameters);

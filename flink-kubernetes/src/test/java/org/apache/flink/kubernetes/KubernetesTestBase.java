@@ -79,8 +79,11 @@ public class KubernetesTestBase extends TestLogger {
 		flinkConfig.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(JOB_MANAGER_MEMORY));
 	}
 
+	protected void onSetup() throws Exception {
+	}
+
 	@Before
-	public void setup() throws Exception {
+	public final void setup() throws Exception {
 		setupFlinkConfig();
 
 		flinkConfDir = temporaryFolder.newFolder().getAbsoluteFile();
@@ -94,6 +97,8 @@ public class KubernetesTestBase extends TestLogger {
 
 		kubeClient = server.getClient().inNamespace(NAMESPACE);
 		flinkKubeClient = new Fabric8FlinkKubeClient(flinkConfig, kubeClient, Executors::newDirectExecutorService);
+
+		onSetup();
 	}
 
 	@After

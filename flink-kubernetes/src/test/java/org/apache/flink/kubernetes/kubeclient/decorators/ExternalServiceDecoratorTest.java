@@ -27,7 +27,6 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -55,9 +54,9 @@ public class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 		}
 	};
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
 
 		this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS, customizedAnnotations);
 		this.externalServiceDecorator = new ExternalServiceDecorator(this.kubernetesJobManagerParameters);

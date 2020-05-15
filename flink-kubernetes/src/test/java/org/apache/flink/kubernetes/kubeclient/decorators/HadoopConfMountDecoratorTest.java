@@ -30,7 +30,6 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KeyToPath;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -52,9 +51,10 @@ public class HadoopConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 
 	private HadoopConfMountDecorator hadoopConfMountDecorator;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
+
 		this.hadoopConfMountDecorator = new HadoopConfMountDecorator(kubernetesJobManagerParameters);
 	}
 

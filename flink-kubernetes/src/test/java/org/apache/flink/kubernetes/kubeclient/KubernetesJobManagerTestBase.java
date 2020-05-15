@@ -28,8 +28,6 @@ import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 
-import org.junit.Before;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -87,10 +85,8 @@ public class KubernetesJobManagerTestBase extends KubernetesTestBase {
 		this.flinkConfig.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(JOB_MANAGER_MEMORY));
 	}
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
-
+	@Override
+	protected void onSetup() throws Exception {
 		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 			.setMasterMemoryMB(JOB_MANAGER_MEMORY)
 			.setTaskManagerMemoryMB(1024)
