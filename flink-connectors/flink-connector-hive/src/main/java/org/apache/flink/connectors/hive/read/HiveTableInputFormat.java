@@ -120,6 +120,10 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 		this.useMapRedReader = useMapRedReader;
 	}
 
+	public JobConf getJobConf() {
+		return jobConf;
+	}
+
 	@Override
 	public void configure(org.apache.flink.configuration.Configuration parameters) {
 	}
