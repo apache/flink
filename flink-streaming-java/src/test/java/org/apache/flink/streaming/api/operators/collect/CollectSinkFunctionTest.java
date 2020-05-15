@@ -21,21 +21,19 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
-import org.apache.flink.api.common.state.BroadcastState;
-import org.apache.flink.api.common.state.KeyedStateStore;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.api.operators.collect.utils.CheckpointedCollectClient;
+import org.apache.flink.streaming.api.operators.collect.utils.CollectRequestSender;
+import org.apache.flink.streaming.api.operators.collect.utils.MockFunctionInitializationContext;
+import org.apache.flink.streaming.api.operators.collect.utils.MockOperatorEventGateway;
+import org.apache.flink.streaming.api.operators.collect.utils.TestCollectClient;
+import org.apache.flink.streaming.api.operators.collect.utils.UncheckpointedCollectClient;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
@@ -46,15 +44,13 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.Random;
 
 /**
  * Tests for {@link CollectSinkFunction}.
@@ -65,16 +61,18 @@ public class CollectSinkFunctionTest extends TestLogger {
 	private static final String LIST_ACC_NAME = "tableCollectList";
 	private static final String OFFSET_ACC_NAME = "tableCollectOffset";
 
+	private static final TypeSerializer<Row> serializer =
+		new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO).createSerializer(new ExecutionConfig());
+
 	private CollectSinkFunction<Row> function;
 	private CollectSinkOperatorCoordinator coordinator;
+	private boolean jobFinished;
 
-	private TypeSerializer<Row> serializer;
 	private StreamingRuntimeContext runtimeContext;
 	private MockOperatorEventGateway gateway;
 
 	@Before
 	public void before() throws Exception {
-		serializer = new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO).createSerializer(new ExecutionConfig());
 		runtimeContext = new MockStreamingRuntimeContext(false, 1, 0);
 		gateway = new MockOperatorEventGateway();
 		function = new CollectSinkFunction<>(serializer, MAX_RESULTS_PER_BATCH, LIST_ACC_NAME, OFFSET_ACC_NAME);
@@ -83,6 +81,8 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 		function.setRuntimeContext(runtimeContext);
 		function.setOperatorEventGateway(gateway);
+
+		jobFinished = false;
 	}
 
 	@After
@@ -91,7 +91,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 	}
 
 	@Test
-	public void testProtocol() throws Exception {
+	public void testUncheckpointedProtocol() throws Exception {
 		openFunction();
 		for (int i = 0; i < 6; i++) {
 			// CollectSinkFunction never use context when invoked
@@ -135,15 +135,13 @@ public class CollectSinkFunctionTest extends TestLogger {
 		response = sendRequest(version, 12);
 		assertResponseEquals(response, version, 12, Long.MIN_VALUE, Arrays.asList(12, 13, 14));
 
-		// this is a normal shutdown
-		function.accumulateFinalResults();
-		function.close();
+		finishJob();
 
 		assertAccumulatorResult(12, Arrays.asList(12, 13, 14, 15));
 	}
 
 	@Test
-	public void testCheckpoint() throws Exception {
+	public void testCheckpointProtocol() throws Exception {
 		FunctionInitializationContext functionInitializationContext = new MockFunctionInitializationContext();
 		function.initializeState(functionInitializationContext);
 		openFunction();
@@ -256,16 +254,87 @@ public class CollectSinkFunctionTest extends TestLogger {
 		response = sendRequest(version, 12);
 		assertResponseEquals(response, version, 12, Long.MIN_VALUE, Arrays.asList(16, 17, 18));
 
-		// this is a normal shutdown
-		function.accumulateFinalResults();
-		function.close();
+		finishJob();
 
 		assertAccumulatorResult(12, Arrays.asList(16, 17, 18, 19));
+	}
+
+	@Test
+	public void testUncheckpointedFunctionWithUncheckpointedClient() throws Exception {
+		List<Integer> expected = new ArrayList<>();
+		for (int i = 0; i < 100; i++) {
+			expected.add(i);
+		}
+		DataFeeder feeder = new DataFeeder(expected, false);
+		UncheckpointedCollectClient<Row> client = new UncheckpointedCollectClient<>(
+			serializer,
+			new TestCollectRequestSender(),
+			() -> jobFinished);
+
+		runFunctionWithClient(feeder, client);
+		assertResultsEqualAfterSort(expected, client.getResults());
+	}
+
+	@Test
+	public void testUncheckpointedFunctionWithCheckpointedClient() throws Exception {
+		List<Integer> expected = new ArrayList<>();
+		for (int i = 0; i < 100; i++) {
+			expected.add(i);
+		}
+		DataFeeder feeder = new DataFeeder(expected, false);
+		CheckpointedCollectClient<Row> client = new CheckpointedCollectClient<>(
+			serializer,
+			new TestCollectRequestSender(),
+			() -> jobFinished);
+
+		runFunctionWithClient(feeder, client);
+		assertResultsEqualAfterSort(expected, client.getResults());
+	}
+
+	@Test
+	public void testCheckpointedFunctionWithCheckpointedClient() throws Exception {
+		List<Integer> expected = new ArrayList<>();
+		for (int i = 0; i < 100; i++) {
+			expected.add(i);
+		}
+		DataFeeder feeder = new DataFeeder(expected, true);
+		CheckpointedCollectClient<Row> client = new CheckpointedCollectClient<>(
+			serializer,
+			new TestCollectRequestSender(),
+			() -> jobFinished);
+
+		runFunctionWithClient(feeder, client);
+		assertResultsEqualAfterSort(expected, client.getResults());
+	}
+
+	private void runFunctionWithClient(DataFeeder feeder, TestCollectClient<Row> client) throws Exception {
+		Thread feederThread = new Thread(feeder);
+		Thread clientThread = new Thread(client);
+
+		Thread.UncaughtExceptionHandler exceptionHandler = (t, e) -> {
+			feederThread.interrupt();
+			clientThread.interrupt();
+		};
+		feederThread.setUncaughtExceptionHandler(exceptionHandler);
+		clientThread.setUncaughtExceptionHandler(exceptionHandler);
+
+		feederThread.start();
+		clientThread.start();
+		feederThread.join();
+		clientThread.join();
 	}
 
 	private void openFunction() throws Exception {
 		function.open(new Configuration());
 		coordinator.handleEventFromOperator(0, gateway.getNextEvent());
+	}
+
+	private void finishJob() throws Exception {
+		// this is a normal shutdown
+		function.accumulateFinalResults();
+		function.close();
+
+		jobFinished = true;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -274,6 +343,18 @@ public class CollectSinkFunctionTest extends TestLogger {
 			long offset) throws Exception {
 		CollectCoordinationRequest request = new CollectCoordinationRequest(version, offset);
 		return ((CollectCoordinationResponse) coordinator.handleCoordinationRequest(request).get());
+	}
+
+	@SuppressWarnings("unchecked")
+	private Tuple2<List<Row>, Long> getAccumualtorResults() throws Exception {
+		Accumulator listAccumulator = runtimeContext.getAccumulator(LIST_ACC_NAME);
+		ArrayList<byte[]> serializedResult = ((SerializedListAccumulator) listAccumulator).getLocalValue();
+		List<Row> results = SerializedListAccumulator.deserializeList(serializedResult, serializer);
+
+		Accumulator offsetAccumulator = runtimeContext.getAccumulator(OFFSET_ACC_NAME);
+		long offset = ((LongCounter) offsetAccumulator).getLocalValue();
+
+		return Tuple2.of(results, offset);
 	}
 
 	private void assertResponseEquals(
@@ -286,116 +367,106 @@ public class CollectSinkFunctionTest extends TestLogger {
 		Assert.assertEquals(offset, response.getOffset());
 		Assert.assertEquals(lastCheckpointId, response.getLastCheckpointId());
 		List<Row> results = response.getResults(serializer);
-		Assert.assertEquals(expected.size(), results.size());
+		assertResultsEqual(expected, results);
+	}
+
+	private void assertResultsEqual(List<Integer> expected, List<Row> actual) {
+		Assert.assertEquals(expected.size(), actual.size());
 		for (int i = 0; i < expected.size(); i++) {
-			Row row = results.get(i);
+			Row row = actual.get(i);
 			Assert.assertEquals(1, row.getArity());
 			Assert.assertEquals(expected.get(i), row.getField(0));
 		}
 	}
 
-	@SuppressWarnings("unchecked")
+	private void assertResultsEqualAfterSort(List<Integer> expected, List<Row> actual) {
+		Collections.sort(expected);
+		actual.sort(Comparator.comparingInt(row -> (int) row.getField(0)));
+		assertResultsEqual(expected, actual);
+	}
+
 	private void assertAccumulatorResult(long expectedOffset, List<Integer> expectedResults) throws Exception {
-		Accumulator listAccumulator = runtimeContext.getAccumulator(LIST_ACC_NAME);
-		ArrayList<byte[]> serializedResult = ((SerializedListAccumulator) listAccumulator).getLocalValue();
-		List<Row> accResult = SerializedListAccumulator.deserializeList(serializedResult, serializer);
-		Assert.assertEquals(expectedResults.size(), accResult.size());
-		for (int i = 0; i < expectedResults.size(); i++) {
-			Row row = accResult.get(i);
-			Assert.assertEquals(1, row.getArity());
-			Assert.assertEquals(expectedResults.get(i), row.getField(0));
-		}
-		Accumulator offsetAccumulator = runtimeContext.getAccumulator(OFFSET_ACC_NAME);
-		long offset = ((LongCounter) offsetAccumulator).getLocalValue();
-		Assert.assertEquals(expectedOffset, offset);
+		Tuple2<List<Row>, Long> accResults = getAccumualtorResults();
+		Assert.assertEquals(expectedResults.size(), accResults.f0.size());
+		Assert.assertEquals(expectedOffset, accResults.f1.longValue());
 	}
 
-	private static class MockOperatorStateStore implements OperatorStateStore {
+	private class TestCollectRequestSender implements CollectRequestSender<Row> {
 
-		private Map<String, ListState> stateMap;
-
-		private MockOperatorStateStore() {
-			this.stateMap = new HashMap<>();
+		@Override
+		public CollectCoordinationResponse<Row> sendRequest(String version, long offset) throws Exception {
+			return CollectSinkFunctionTest.this.sendRequest(version, offset);
 		}
 
 		@Override
-		public <K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) throws Exception {
-			return null;
-		}
-
-		@Override
-		@SuppressWarnings("unchecked")
-		public <S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
-			String name = stateDescriptor.getName();
-			stateMap.putIfAbsent(name, new TestUtils.MockListState());
-			return stateMap.get(name);
-		}
-
-		@Override
-		public <S> ListState<S> getUnionListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public Set<String> getRegisteredStateNames() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public Set<String> getRegisteredBroadcastStateNames() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public <S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
-			return getListState(stateDescriptor);
-		}
-
-		@Override
-		public <T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception {
-			throw new UnsupportedOperationException();
+		public Tuple2<List<Row>, Long> getAccumulatorResults() throws Exception {
+			return CollectSinkFunctionTest.this.getAccumualtorResults();
 		}
 	}
 
-	private static class MockFunctionInitializationContext implements FunctionInitializationContext {
+	private class DataFeeder implements Runnable {
 
-		private final OperatorStateStore operatorStateStore;
+		private final boolean checkpointed;
 
-		private MockFunctionInitializationContext() {
-			operatorStateStore = new MockOperatorStateStore();
+		private LinkedList<Integer> data;
+		private List<Integer> checkpointedData;
+		private long checkpointId;
+		private FunctionInitializationContext functionInitializationContext;
+
+		private DataFeeder(List<Integer> data, boolean checkpointed) {
+			this.checkpointed = checkpointed;
+
+			this.data = new LinkedList<>(data);
+			this.checkpointedData = new ArrayList<>(data);
+			this.checkpointId = 0;
+			this.functionInitializationContext = new MockFunctionInitializationContext();
 		}
 
 		@Override
-		public boolean isRestored() {
-			throw new UnsupportedOperationException();
-		}
+		public void run() {
+			Random random = new Random();
 
-		@Override
-		public OperatorStateStore getOperatorStateStore() {
-			return operatorStateStore;
-		}
+			try {
+				function.initializeState(functionInitializationContext);
+				openFunction();
 
-		@Override
-		public KeyedStateStore getKeyedStateStore() {
-			throw new UnsupportedOperationException();
-		}
-	}
+				while (data.size() > 0) {
+					int r = random.nextInt() % (checkpointed ? 5 : 3);
+					if (r < 3) {
+						// with 60% chance we add some data
+						int size = Math.min(data.size(), random.nextInt(MAX_RESULTS_PER_BATCH * 3) + 1);
+						for (int i = 0; i < size; i++) {
+							function.invoke(Row.of(data.removeFirst()), null);
+						}
+					} else if (r < 4) {
+						// with 20% chance we make a checkpoint
+						checkpointId++;
+						checkpointedData = new ArrayList<>(data);
 
-	private static class MockOperatorEventGateway implements OperatorEventGateway {
+						function.snapshotState(null);
+						function.notifyCheckpointComplete(checkpointId);
+					} else {
+						// with 20% chance we fail
+						// we shuffle data to emulate jobs whose result order is undetermined
+						Collections.shuffle(checkpointedData);
+						data = new LinkedList<>(checkpointedData);
 
-		private final LinkedList<OperatorEvent> events;
+						function.close();
+						function.initializeState(functionInitializationContext);
+						openFunction();
+					}
 
-		private MockOperatorEventGateway() {
-			events = new LinkedList<>();
-		}
+					if (random.nextBoolean()) {
+						Thread.sleep(random.nextInt(100));
+					}
+				}
 
-		@Override
-		public void sendEventToCoordinator(OperatorEvent event) {
-			events.add(event);
-		}
-
-		public OperatorEvent getNextEvent() {
-			return events.removeFirst();
+				finishJob();
+			} catch (Exception e) {
+				Assert.fail("Exception occurs in DataFeeder");
+				e.printStackTrace();
+				throw new RuntimeException(e);
+			}
 		}
 	}
 }

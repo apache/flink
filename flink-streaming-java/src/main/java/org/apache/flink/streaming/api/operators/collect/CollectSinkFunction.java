@@ -25,7 +25,6 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
@@ -333,14 +332,11 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 				context instanceof StreamingRuntimeContext,
 				"CollectSinkFunction can only be used in StreamTask");
 			StreamingRuntimeContext streamingContext = (StreamingRuntimeContext) context;
-			String bindHost = streamingContext
-				.getTaskManagerRuntimeInfo()
-				.getConfiguration()
-				.getString(TaskManagerOptions.BIND_HOST);
+			String bindAddress = streamingContext.getTaskManagerRuntimeInfo().getTaskManagerBindAddress();
 
-			if (bindHost != null) {
+			if (bindAddress != null) {
 				try {
-					return InetAddress.getByName(bindHost);
+					return InetAddress.getByName(bindAddress);
 				} catch (UnknownHostException e) {
 					return null;
 				}

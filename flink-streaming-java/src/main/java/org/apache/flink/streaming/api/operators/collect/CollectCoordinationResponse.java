@@ -88,6 +88,9 @@ public class CollectCoordinationResponse<T> implements CoordinationResponse {
 		return lastCheckpointId;
 	}
 
+	// TODO the following two methods might be not so efficient
+	//  optimize them with MemorySegment if needed
+
 	public List<T> getResults(TypeSerializer<T> elementSerializer) throws IOException {
 		ListSerializer<T> listSerializer = new ListSerializer<>(elementSerializer);
 		ByteArrayInputStream bais = new ByteArrayInputStream(resultBytes);

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 
 /**
@@ -54,4 +55,13 @@ public interface TaskManagerRuntimeInfo {
 	 * @return The external address of the TaskManager.
 	 */
 	String getTaskManagerExternalAddress();
+
+	/**
+	 * Gets the bind address of the Taskmanager.
+	 *
+	 * @return The bind address of the TaskManager.
+	 */
+	default String getTaskManagerBindAddress() {
+		return getConfiguration().getString(TaskManagerOptions.BIND_HOST);
+	}
 }
