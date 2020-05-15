@@ -264,7 +264,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * @param properties - Kafka configuration properties to be adjusted
 	 * @param offsetCommitMode offset commit mode
 	 */
-	static void adjustAutoCommitConfig(Properties properties, OffsetCommitMode offsetCommitMode) {
+	protected static void adjustAutoCommitConfig(Properties properties, OffsetCommitMode offsetCommitMode) {
 		if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS || offsetCommitMode == OffsetCommitMode.DISABLED) {
 			properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
 		}
