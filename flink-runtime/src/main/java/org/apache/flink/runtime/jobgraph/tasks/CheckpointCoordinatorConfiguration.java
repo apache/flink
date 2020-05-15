@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph.tasks;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.util.Preconditions;
@@ -66,6 +67,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 	 * @deprecated use {@link #builder()}.
 	 */
 	@Deprecated
+	@VisibleForTesting
 	public CheckpointCoordinatorConfiguration(
 			long checkpointInterval,
 			long checkpointTimeout,
@@ -85,7 +87,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 			isExactlyOnce,
 			isPreferCheckpointForRecovery,
 			tolerableCpFailureNumber,
-			false);
+			isUnalignedCheckpoint);
 	}
 
 	private CheckpointCoordinatorConfiguration(
