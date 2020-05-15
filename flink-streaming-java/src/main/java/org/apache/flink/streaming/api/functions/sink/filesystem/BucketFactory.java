@@ -35,14 +35,14 @@ interface BucketFactory<IN, BucketID> extends Serializable {
 			final BucketID bucketId,
 			final Path bucketPath,
 			final long initialPartCounter,
-			final InProgressFileWriter.BucketWriter<IN, BucketID> partFileFactory,
+			final BucketWriter<IN, BucketID> partFileFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final OutputFileConfig outputFileConfig) throws IOException;
 
 	Bucket<IN, BucketID> restoreBucket(
 			final int subtaskIndex,
 			final long initialPartCounter,
-			final InProgressFileWriter.BucketWriter<IN, BucketID> partFileFactory,
+			final BucketWriter<IN, BucketID> partFileFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final BucketState<BucketID> bucketState,
 			final OutputFileConfig outputFileConfig) throws IOException;

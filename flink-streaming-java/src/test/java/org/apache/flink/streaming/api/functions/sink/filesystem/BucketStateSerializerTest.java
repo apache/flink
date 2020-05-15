@@ -65,7 +65,7 @@ public class BucketStateSerializerTest {
 	public void testSerializationEmpty() throws IOException {
 		final File testFolder = tempFolder.newFolder();
 		final FileSystem fs = FileSystem.get(testFolder.toURI());
-		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
+		final BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(fs.createRecoverableWriter(), new SimpleStringEncoder());
 
 		final Path testBucket = new Path(testFolder.getPath(), "test");
@@ -87,7 +87,7 @@ public class BucketStateSerializerTest {
 
 		final Path testBucket = new Path(testFolder.getPath(), "test");
 
-		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
+		final BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(fs.createRecoverableWriter(), new SimpleStringEncoder());
 		final InProgressFileWriter<String, String> partFileWriter = partFileFactory.openNewInProgressFile("test", testBucket, System.currentTimeMillis());
 		partFileWriter.write(IN_PROGRESS_CONTENT, System.currentTimeMillis());
@@ -115,7 +115,7 @@ public class BucketStateSerializerTest {
 
 		final File testFolder = tempFolder.newFolder();
 		final FileSystem fs = FileSystem.get(testFolder.toURI());
-		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
+		final BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(fs.createRecoverableWriter(), new SimpleStringEncoder());
 
 		final Path bucketPath = new Path(testFolder.getPath());
@@ -165,7 +165,7 @@ public class BucketStateSerializerTest {
 
 		final File testFolder = tempFolder.newFolder();
 		final FileSystem fs = FileSystem.get(testFolder.toURI());
-		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
+		final BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(fs.createRecoverableWriter(), new SimpleStringEncoder());
 
 		final Path bucketPath = new Path(testFolder.getPath());
@@ -212,7 +212,7 @@ public class BucketStateSerializerTest {
 
 		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializerV1, bucketState);
 
-		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
+		final BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(writer, new SimpleStringEncoder());
 		final SimpleVersionedSerializer<BucketState<String>> serializerV2 = getBucketStateSerializer(partFileFactory);
 
@@ -245,7 +245,7 @@ public class BucketStateSerializerTest {
 		// to simulate that everything is over for file.
 		stream.close();
 
-		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
+		final BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(writer, new SimpleStringEncoder());
 		final SimpleVersionedSerializer<BucketState<String>> serializerV2 = getBucketStateSerializer(partFileFactory);
 
@@ -292,7 +292,7 @@ public class BucketStateSerializerTest {
 
 		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializerV1, bucketState);
 
-		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
+		final BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(writer, new SimpleStringEncoder());
 		final SimpleVersionedSerializer<BucketState<String>> serializerV2 = getBucketStateSerializer(partFileFactory);
 
@@ -335,7 +335,7 @@ public class BucketStateSerializerTest {
 
 		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializerV1, bucketState);
 
-		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
+		final BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(writer, new SimpleStringEncoder());
 		final SimpleVersionedSerializer<BucketState<String>> serializerV2 = getBucketStateSerializer(partFileFactory);
 
@@ -374,7 +374,7 @@ public class BucketStateSerializerTest {
 		final Path bucketPath,
 		final Path testBucket,
 		final BucketState<String> bucketState,
-		final InProgressFileWriter.BucketWriter<String, String> partFileFactory) throws IOException {
+		final BucketWriter<String, String> partFileFactory) throws IOException {
 
 		final FileSystem fs = FileSystem.get(bucketPath.toUri());
 
@@ -416,7 +416,7 @@ public class BucketStateSerializerTest {
 		final int noOfTasks,
 		final Path bucketPath,
 		final BucketState<String> bucketState,
-		final InProgressFileWriter.BucketWriter<String, String> partFileFactory) throws IOException {
+		final BucketWriter<String, String> partFileFactory) throws IOException {
 
 		final FileSystem fs = FileSystem.get(bucketPath.toUri());
 
@@ -462,7 +462,7 @@ public class BucketStateSerializerTest {
 			SimpleVersionedStringSerializer.INSTANCE);
 	}
 
-	private static SimpleVersionedSerializer<BucketState<String>> getBucketStateSerializer(final InProgressFileWriter.BucketWriter writer) {
+	private static SimpleVersionedSerializer<BucketState<String>> getBucketStateSerializer(final BucketWriter writer) {
 		return new BucketStateSerializer(
 			writer.getProperties().getInProgressFileRecoverableSerializer(),
 			writer.getProperties().getPendingFileRecoverableSerializer(),

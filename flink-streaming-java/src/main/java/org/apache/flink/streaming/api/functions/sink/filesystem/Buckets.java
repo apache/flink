@@ -59,7 +59,7 @@ public class Buckets<IN, BucketID> {
 
 	private final BucketAssigner<IN, BucketID> bucketAssigner;
 
-	private final InProgressFileWriter.BucketWriter<IN, BucketID> partFileWriterFactory;
+	private final BucketWriter<IN, BucketID> partFileWriterFactory;
 
 	private final RollingPolicy<IN, BucketID> rollingPolicy;
 
@@ -88,14 +88,14 @@ public class Buckets<IN, BucketID> {
 	 * @param basePath The base path for our buckets.
 	 * @param bucketAssigner The {@link BucketAssigner} provided by the user.
 	 * @param bucketFactory The {@link BucketFactory} to be used to create buckets.
-	 * @param partFileWriterFactory The {@link InProgressFileWriter.BucketWriter} to be used when writing data.
+	 * @param partFileWriterFactory The {@link BucketWriter} to be used when writing data.
 	 * @param rollingPolicy The {@link RollingPolicy} as specified by the user.
 	 */
 	Buckets(
 			final Path basePath,
 			final BucketAssigner<IN, BucketID> bucketAssigner,
 			final BucketFactory<IN, BucketID> bucketFactory,
-			final InProgressFileWriter.BucketWriter<IN, BucketID> partFileWriterFactory,
+			final BucketWriter<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			@Nullable final BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener,
 			final int subtaskIndex,

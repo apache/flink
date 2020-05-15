@@ -161,7 +161,7 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 		}
 	}
 
-	static final class OutputStreamBasedPendingFile implements PendingFile {
+	static final class OutputStreamBasedPendingFile implements BucketWriter.PendingFile {
 
 		private final RecoverableFsDataOutputStream.Committer committer;
 

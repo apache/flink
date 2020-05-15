@@ -37,7 +37,7 @@ class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, Bucket
 			final BucketID bucketId,
 			final Path bucketPath,
 			final long initialPartCounter,
-			final InProgressFileWriter.BucketWriter<IN, BucketID> partFileWriterFactory,
+			final BucketWriter<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final OutputFileConfig outputFileConfig) {
 
@@ -55,7 +55,7 @@ class DefaultBucketFactoryImpl<IN, BucketID> implements BucketFactory<IN, Bucket
 	public Bucket<IN, BucketID> restoreBucket(
 			final int subtaskIndex,
 			final long initialPartCounter,
-			final InProgressFileWriter.BucketWriter<IN, BucketID> partFileWriterFactory,
+			final BucketWriter<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final BucketState<BucketID> bucketState,
 			final OutputFileConfig outputFileConfig) throws IOException {
