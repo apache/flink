@@ -175,7 +175,7 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 	public void subtaskFailed(int subtask) {
 		// subtask failed, the socket server does not exist anymore
 		address = null;
-		socket = null;
+		closeCurrentConnection();
 	}
 
 	@Override
