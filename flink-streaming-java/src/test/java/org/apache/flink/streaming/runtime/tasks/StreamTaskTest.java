@@ -47,6 +47,7 @@ import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPart
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionTest;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -74,8 +75,10 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
+import org.apache.flink.runtime.state.TestTaskLocalStateStore;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -83,7 +86,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -955,7 +957,7 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	@Test
-	public void testInitializeChannelState() throws Exception {
+	public void testBeforeInvokeWithoutChannelStates() throws Exception {
 		int numWriters = 2;
 		int numGates = 2;
 		RecoveryResultPartition[] partitions = new RecoveryResultPartition[numWriters];
@@ -967,18 +969,52 @@ public class StreamTaskTest extends TestLogger {
 			gates[i] = new RecoveryInputGate(partitions);
 		}
 
-		Configuration configuration = new Configuration();
-		configuration.setBoolean(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true);
-		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().setTaskConfiguration(configuration).build();
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build();
 		mockEnvironment.addOutputs(Arrays.asList(partitions));
 		mockEnvironment.addInputs(Arrays.asList(gates));
 		StreamTask task = new MockStreamTaskBuilder(mockEnvironment).build();
 		try {
-			verifyResults(gates, partitions, false);
+			verifyResults(gates, partitions, false, false);
 
 			task.beforeInvoke();
 
-			verifyResults(gates, partitions, true);
+			verifyResults(gates, partitions, false, true);
+		} finally {
+			task.cleanUpInvoke();
+		}
+	}
+
+	@Test
+	public void testBeforeInvokeWithChannelStates() throws Exception {
+		int numWriters = 2;
+		int numGates = 2;
+		RecoveryResultPartition[] partitions = new RecoveryResultPartition[numWriters];
+		for (int i = 0; i < numWriters; i++) {
+			partitions[i] = new RecoveryResultPartition();
+		}
+		RecoveryInputGate[] gates = new RecoveryInputGate[numGates];
+		for (int i = 0; i < numGates; i++) {
+			gates[i] = new RecoveryInputGate(partitions);
+		}
+
+		ChannelStateReader reader = new ResultPartitionTest.FiniteChannelStateReader(1, new int[] {0});
+		TaskStateManager taskStateManager = new TaskStateManagerImpl(
+			new JobID(),
+			new ExecutionAttemptID(),
+			new TestTaskLocalStateStore(),
+			null,
+			NoOpCheckpointResponder.INSTANCE,
+			reader);
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().setTaskStateManager(taskStateManager).build();
+		mockEnvironment.addOutputs(Arrays.asList(partitions));
+		mockEnvironment.addInputs(Arrays.asList(gates));
+		StreamTask task = new MockStreamTaskBuilder(mockEnvironment).build();
+		try {
+			verifyResults(gates, partitions, false, false);
+
+			task.beforeInvoke();
+
+			verifyResults(gates, partitions, true, false);
 
 			// execute the partition request mail inserted after input recovery completes
 			task.mailboxProcessor.drain();
@@ -991,13 +1027,13 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
-	private void verifyResults(RecoveryInputGate[] gates, RecoveryResultPartition[] partitions, boolean expected) {
+	private void verifyResults(RecoveryInputGate[] gates, RecoveryResultPartition[] partitions, boolean recoveryExpected, boolean requestExpected) {
 		for (RecoveryResultPartition resultPartition : partitions) {
-			assertEquals(expected, resultPartition.isStateRecovered());
+			assertEquals(recoveryExpected, resultPartition.isStateRecovered());
 		}
 		for (RecoveryInputGate inputGate : gates) {
-			assertEquals(expected, inputGate.isStateRecovered());
-			assertFalse(inputGate.isPartitionRequested());
+			assertEquals(recoveryExpected, inputGate.isStateRecovered());
+			assertEquals(requestExpected, inputGate.isPartitionRequested());
 		}
 	}
 
