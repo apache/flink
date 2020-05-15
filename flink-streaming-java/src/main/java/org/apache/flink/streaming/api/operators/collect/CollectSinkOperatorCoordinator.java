@@ -148,7 +148,7 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 				request.getVersion(),
 				// this lastCheckpointedOffset is OK
 				// because client will only expose results to the users when the checkpointed offset increases
-				0,
+				-1,
 				Collections.emptyList(),
 				// just a random serializer, we're serializing no results
 				LongSerializer.INSTANCE));

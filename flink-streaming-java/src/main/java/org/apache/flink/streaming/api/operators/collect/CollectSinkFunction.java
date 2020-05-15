@@ -83,10 +83,11 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p>Sink will check the validity of the request. If <code>version</code> mismatches or <code>offset</code>
  * is smaller than expected, sink will send back the current <code>version</code> and
- * <code>lastCheckpointedOffset</code> with an empty result list to indicate an invalid request.
+ * <code>lastCheckpointedOffset</code> with an empty result list.
  *
  * <p>If the request is valid, sink prepares some results starting from <code>offset</code> and sends them
- * back to the client with <code>lastCheckpointedOffset</code>.
+ * back to the client with <code>lastCheckpointedOffset</code>. If there is currently no results starting from
+ * <code>offset</code>, sink will not wait but will instead send back an empty result list.
  *
  * <p>For client who wants exactly-once semantics, when receiving the response, the client will check for
  * the following conditions:

@@ -58,7 +58,7 @@ public class CollectSinkOperatorCoordinatorTest {
 		CollectCoordinationRequest request = new CollectCoordinationRequest("version", 123);
 		CollectCoordinationResponse response =
 			(CollectCoordinationResponse) coordinator.handleCoordinationRequest(request).get();
-		assertResponseEquals(request, response, Collections.emptyList());
+		assertResponseEquals(request, response, -1, Collections.emptyList());
 
 		coordinator.close();
 	}
@@ -79,12 +79,12 @@ public class CollectSinkOperatorCoordinatorTest {
 		CollectCoordinationRequest request = new CollectCoordinationRequest("version1", 123);
 		CollectCoordinationResponse response =
 			(CollectCoordinationResponse) coordinator.handleCoordinationRequest(request).get();
-		assertResponseEquals(request, response, expected.get(0));
+		assertResponseEquals(request, response, 0, expected.get(0));
 
 		// a normal response
 		request = new CollectCoordinationRequest("version2", 456);
 		response = (CollectCoordinationResponse) coordinator.handleCoordinationRequest(request).get();
-		assertResponseEquals(request, response, expected.get(1));
+		assertResponseEquals(request, response, 0, expected.get(1));
 
 		// server closes here
 		request = new CollectCoordinationRequest("version3", 789);
@@ -99,12 +99,12 @@ public class CollectSinkOperatorCoordinatorTest {
 
 		// check failed request
 		response = (CollectCoordinationResponse) responseFuture.get();
-		assertResponseEquals(request, response, Collections.emptyList());
+		assertResponseEquals(request, response, -1, Collections.emptyList());
 
 		// a normal response
 		request = new CollectCoordinationRequest("version4", 101112);
 		response = (CollectCoordinationResponse) coordinator.handleCoordinationRequest(request).get();
-		assertResponseEquals(request, response, expected.get(0));
+		assertResponseEquals(request, response, 0, expected.get(0));
 
 		server.close();
 		coordinator.close();
@@ -114,13 +114,14 @@ public class CollectSinkOperatorCoordinatorTest {
 	private void assertResponseEquals(
 			CollectCoordinationRequest request,
 			CollectCoordinationResponse response,
-			List<Row> expected) throws Exception {
+			long expectedLastCheckpointedOffset,
+			List<Row> expectedResults) throws Exception {
 		Assert.assertEquals(request.getVersion(), response.getVersion());
-		Assert.assertEquals(0, response.getLastCheckpointedOffset());
+		Assert.assertEquals(expectedLastCheckpointedOffset, response.getLastCheckpointedOffset());
 		List<Row> results = response.getResults(serializer);
-		Assert.assertEquals(expected.size(), results.size());
+		Assert.assertEquals(expectedResults.size(), results.size());
 		for (int i = 0; i < results.size(); i++) {
-			Row expectedRow = expected.get(i);
+			Row expectedRow = expectedResults.get(i);
 			Row actualRow = results.get(i);
 			Assert.assertEquals(expectedRow.getArity(), actualRow.getArity());
 			for (int j = 0; j < actualRow.getArity(); j++) {
