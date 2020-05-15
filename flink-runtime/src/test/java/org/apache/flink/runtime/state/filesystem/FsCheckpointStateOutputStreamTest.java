@@ -24,7 +24,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
-import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -70,13 +69,13 @@ import static org.mockito.Mockito.when;
 @RunWith(Parameterized.class)
 public class FsCheckpointStateOutputStreamTest {
 
-	@Parameterized.Parameters(name = "scope = {0}")
-	public static List<CheckpointedStateScope> parameters() {
-		return Arrays.asList(CheckpointedStateScope.values());
+	@Parameterized.Parameters(name = "relativePaths = {0}")
+	public static List<Boolean> parameters() {
+		return Arrays.asList(true, false);
 	}
 
 	@Parameterized.Parameter
-	public CheckpointedStateScope scope;
+	public boolean relativePaths;
 
 	@Rule
 	public final TemporaryFolder tempDir = new TemporaryFolder();
@@ -85,17 +84,17 @@ public class FsCheckpointStateOutputStreamTest {
 	public void testWrongParameters() throws Exception {
 		// this should fail
 		new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-			Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), 4000, 5000, scope);
+			Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), 4000, 5000, relativePaths);
 	}
 
 	@Test
 	public void testEmptyState() throws Exception {
 		FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
 				new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-						Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), 1024, 512, scope);
+						Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), 1024, 512, relativePaths);
 
 		StreamStateHandle handle = stream.closeAndGetHandle();
-		assertTrue(handle == null);
+		assertNull(handle);
 	}
 
 	@Test
@@ -122,7 +121,7 @@ public class FsCheckpointStateOutputStreamTest {
 	public void testGetPos() throws Exception {
 		FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
 				new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-						Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), 31, 17, scope);
+						Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), 31, 17, relativePaths);
 
 		for (int i = 0; i < 64; ++i) {
 			Assert.assertEquals(i, stream.getPos());
@@ -134,7 +133,7 @@ public class FsCheckpointStateOutputStreamTest {
 		// ----------------------------------------------------
 
 		stream = new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-				Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), 31, 17, scope);
+				Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), 31, 17, relativePaths);
 
 		byte[] data = "testme!".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
@@ -165,7 +164,7 @@ public class FsCheckpointStateOutputStreamTest {
 			fs,
 			4,
 			0,
-			scope);
+			relativePaths);
 
 		// this should create the underlying file stream
 		stream.write(new byte[] {1, 2, 3, 4, 5});
@@ -195,7 +194,7 @@ public class FsCheckpointStateOutputStreamTest {
 			fs,
 			4,
 			0,
-			scope);
+			relativePaths);
 
 		// this should create the underlying file stream
 		stream.write(new byte[] {1, 2, 3, 4, 5});
@@ -215,7 +214,7 @@ public class FsCheckpointStateOutputStreamTest {
 	private void runTest(int numBytes, int bufferSize, int threshold, boolean expectFile) throws Exception {
 		FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
 			new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-					Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), bufferSize, threshold, scope);
+					Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), bufferSize, threshold, relativePaths);
 
 		Random rnd = new Random();
 		byte[] original = new byte[numBytes];
@@ -264,7 +263,7 @@ public class FsCheckpointStateOutputStreamTest {
 	@Test
 	public void testWriteFailsFastWhenClosed() throws Exception {
 		FsCheckpointStateOutputStream stream = new FsCheckpointStateOutputStream(
-				Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), 1024, 512, scope);
+				Path.fromLocalFile(tempDir.newFolder()), FileSystem.getLocalFileSystem(), 1024, 512, relativePaths);
 
 		assertFalse(stream.isClosed());
 
@@ -303,7 +302,7 @@ public class FsCheckpointStateOutputStreamTest {
 		final Path basePath = Path.fromLocalFile(directory);
 
 		final Supplier<CheckpointStateOutputStream> factory = () ->
-				new FsCheckpointStateOutputStream(basePath, FileSystem.getLocalFileSystem(), 1024, 15, scope);
+				new FsCheckpointStateOutputStream(basePath, FileSystem.getLocalFileSystem(), 1024, 15, relativePaths);
 
 		CheckpointStateOutputStream stream1 = factory.get();
 		CheckpointStateOutputStream stream2 = factory.get();
@@ -372,10 +371,10 @@ public class FsCheckpointStateOutputStreamTest {
 		FileSystem fs = spy(FileSystem.getLocalFileSystem());
 
 		FsCheckpointStateOutputStream stream1 = new FsCheckpointStateOutputStream(
-				Path.fromLocalFile(directory), fs, 1024, 1, scope);
+				Path.fromLocalFile(directory), fs, 1024, 1, relativePaths);
 
 		FsCheckpointStateOutputStream stream2 = new FsCheckpointStateOutputStream(
-				Path.fromLocalFile(directory), fs, 1024, 1, scope);
+				Path.fromLocalFile(directory), fs, 1024, 1, relativePaths);
 
 		stream1.write(new byte[61]);
 		stream2.write(new byte[61]);

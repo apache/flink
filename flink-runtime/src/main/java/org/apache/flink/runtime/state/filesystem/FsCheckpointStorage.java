@@ -26,7 +26,6 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
-import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 
 import javax.annotation.Nullable;
@@ -176,8 +175,7 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 				taskOwnedStateDirectory,
 				fileSystem,
 				writeBufferSize,
-				fileSizeThreshold,
-				CheckpointedStateScope.SHARED);
+				fileSizeThreshold);
 	}
 
 	@Override
