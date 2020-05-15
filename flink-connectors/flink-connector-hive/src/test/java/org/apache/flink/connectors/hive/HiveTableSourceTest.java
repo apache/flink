@@ -550,7 +550,7 @@ public class HiveTableSourceTest {
 		hiveShell.execute("CREATE TABLE source_db." + tblName + " (" +
 				"  a INT," +
 				"  b CHAR(1) " +
-				") TBLPROPERTIES (" +
+				") stored as parquet TBLPROPERTIES (" +
 				"  'streaming-source.enable'='true'," +
 				"  'streaming-source.monitor-interval'='100ms'" +
 				")");

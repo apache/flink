@@ -18,6 +18,8 @@
 
 package org.apache.flink.connectors.hive;
 
+import java.util.Arrays;
+
 /**
  * {@link ConsumeOrder} defines the orders to continuously consume stream source.
  */
@@ -36,6 +38,7 @@ public enum ConsumeOrder {
 	PARTITION_TIME_ORDER("partition-time");
 
 	private final String order;
+
 	ConsumeOrder(String order) {
 		this.order = order;
 	}
@@ -49,11 +52,12 @@ public enum ConsumeOrder {
 	 * Get {@link ConsumeOrder} from consume order string.
 	 */
 	public static ConsumeOrder getConsumeOrder(String consumeOrderStr) {
-		for (ConsumeOrder consumeOrder : ConsumeOrder.values()) {
-			if (consumeOrder.order.equals(consumeOrderStr)) {
+		for (ConsumeOrder consumeOrder : values()) {
+			if (consumeOrder.order.equalsIgnoreCase(consumeOrderStr)) {
 				return consumeOrder;
 			}
 		}
-		return null;
+		throw new IllegalArgumentException(
+				"Illegal value: " + consumeOrderStr + ", only " + Arrays.toString(values()) + " are supported.");
 	}
 }

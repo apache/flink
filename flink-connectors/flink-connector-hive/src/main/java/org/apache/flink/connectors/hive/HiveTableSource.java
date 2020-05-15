@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveContinuousMonitoringFunction;
@@ -56,7 +57,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TimeUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -223,25 +223,16 @@ public class HiveTableSource implements
 			StreamExecutionEnvironment execEnv,
 			TypeInformation<RowData> typeInfo,
 			HiveTableInputFormat inputFormat) {
-		final Map<String, String> properties = catalogTable.getOptions();
+		Configuration configuration = new Configuration();
+		catalogTable.getOptions().forEach(configuration::setString);
 
-		String consumeOrderStr = properties.getOrDefault(
-				STREAMING_SOURCE_CONSUME_ORDER.key(),
-				STREAMING_SOURCE_CONSUME_ORDER.defaultValue());
+		String consumeOrderStr = configuration.get(STREAMING_SOURCE_CONSUME_ORDER);
 		ConsumeOrder consumeOrder = ConsumeOrder.getConsumeOrder(consumeOrderStr);
-		String consumeOffset = properties.getOrDefault(
-				STREAMING_SOURCE_CONSUME_START_OFFSET.key(),
-				STREAMING_SOURCE_CONSUME_START_OFFSET.defaultValue());
-		String extractorKind = properties.getOrDefault(
-				PARTITION_TIME_EXTRACTOR_KIND.key(),
-				PARTITION_TIME_EXTRACTOR_KIND.defaultValue());
-		String extractorClass = properties.get(PARTITION_TIME_EXTRACTOR_CLASS.key());
-		String extractorPattern = properties.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key());
-
-		String monitorIntervalStr = properties.get(STREAMING_SOURCE_MONITOR_INTERVAL.key());
-		Duration monitorInterval = monitorIntervalStr != null ?
-				TimeUtils.parseDuration(monitorIntervalStr) :
-				STREAMING_SOURCE_MONITOR_INTERVAL.defaultValue();
+		String consumeOffset = configuration.get(STREAMING_SOURCE_CONSUME_START_OFFSET);
+		String extractorKind = configuration.get(PARTITION_TIME_EXTRACTOR_KIND);
+		String extractorClass = configuration.get(PARTITION_TIME_EXTRACTOR_CLASS);
+		String extractorPattern = configuration.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN);
+		Duration monitorInterval = configuration.get(STREAMING_SOURCE_MONITOR_INTERVAL);
 
 		HiveContinuousMonitoringFunction monitoringFunction = new HiveContinuousMonitoringFunction(
 				hiveShim,
@@ -272,33 +263,21 @@ public class HiveTableSource implements
 			TypeInformation<RowData> typeInfo,
 			HiveTableInputFormat inputFormat,
 			HiveTablePartition hiveTable) {
-		HiveTableFileInputFormat fileInputFormat = new HiveTableFileInputFormat(
-				inputFormat,
-				hiveTable);
-		fileInputFormat.setFilePath(getFilePath());
+		HiveTableFileInputFormat fileInputFormat = new HiveTableFileInputFormat(inputFormat, hiveTable);
 
-		final Map<String, String> properties = catalogTable.getOptions();
-
-		String consumeOrderStr = properties.getOrDefault(
-				STREAMING_SOURCE_CONSUME_ORDER.key(),
-				STREAMING_SOURCE_CONSUME_ORDER.defaultValue());
+		Configuration configuration = new Configuration();
+		catalogTable.getOptions().forEach(configuration::setString);
+		String consumeOrderStr = configuration.get(STREAMING_SOURCE_CONSUME_ORDER);
 		ConsumeOrder consumeOrder = ConsumeOrder.getConsumeOrder(consumeOrderStr);
 		if (consumeOrder != ConsumeOrder.CREATE_TIME_ORDER) {
-			throw new UnsupportedOperationException("Unsupported consumer order: " + consumeOrder);
+			throw new UnsupportedOperationException(
+					"Only " + ConsumeOrder.CREATE_TIME_ORDER + " is supported for non partition table.");
 		}
 
-		String consumeOffset = properties.getOrDefault(
-				STREAMING_SOURCE_CONSUME_START_OFFSET.key(),
-				STREAMING_SOURCE_CONSUME_START_OFFSET.defaultValue());
-		long currentReadTime = Long.MIN_VALUE;
-		if (consumeOffset != null) {
-			currentReadTime = toMills(consumeOffset);
-		}
+		String consumeOffset = configuration.get(STREAMING_SOURCE_CONSUME_START_OFFSET);
+		long currentReadTime = toMills(consumeOffset);
 
-		String monitorIntervalStr = properties.get(STREAMING_SOURCE_MONITOR_INTERVAL.key());
-		Duration monitorInterval = monitorIntervalStr != null ?
-				TimeUtils.parseDuration(monitorIntervalStr) :
-				STREAMING_SOURCE_MONITOR_INTERVAL.defaultValue();
+		Duration monitorInterval = configuration.get(STREAMING_SOURCE_MONITOR_INTERVAL);
 
 		ContinuousFileMonitoringFunction<RowData> monitoringFunction =
 				new ContinuousFileMonitoringFunction<>(
@@ -480,21 +459,6 @@ public class HiveTableSource implements
 			partitionColValues.put(partitionColName, partitionObject);
 		}
 		return new HiveTablePartition(sd, partitionColValues, tableProps);
-	}
-
-	private String getFilePath() {
-		// Please note that the following directly accesses Hive metastore, which is only a temporary workaround.
-		// Ideally, we need to go thru Catalog API to get all info we need here, which requires some major
-		// refactoring. We will postpone this until we merge Blink to Flink.
-		try (HiveMetastoreClientWrapper client = HiveMetastoreClientFactory
-				.create(new HiveConf(jobConf, HiveConf.class), hiveVersion)) {
-			String dbName = tablePath.getDatabaseName();
-			String tableName = tablePath.getObjectName();
-			Table hiveTable = client.getTable(dbName, tableName);
-			return hiveTable.getSd().getLocation();
-		} catch (TException e) {
-			throw new FlinkHiveException("Failed to get table from hive metaStore", e);
-		}
 	}
 
 	private static List<String> partitionSpecToValues(Map<String, String> spec, List<String> partitionColNames) {

@@ -252,9 +252,7 @@ public class HiveContinuousMonitoringFunction
 			this.distinctPartitions.addAll(this.distinctPartsState.get().iterator().next());
 		} else {
 			LOG.info("No state to restore for the {}.", getClass().getSimpleName());
-			if (consumeOffset != null) {
-				this.currentReadTime = toMills(consumeOffset);
-			}
+			this.currentReadTime = toMills(consumeOffset);
 		}
 	}
 

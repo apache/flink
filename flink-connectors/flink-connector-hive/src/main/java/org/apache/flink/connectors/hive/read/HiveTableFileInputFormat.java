@@ -33,17 +33,21 @@ import java.net.URI;
 
 /**
  * A {@link FileInputFormat} that wraps a {@link HiveTableInputFormat}.
+ *
+ * <p>We only use a {@link HiveTableInputFormat} to read the data of a {@link FileInputSplit}.
+ * `createInputSplits`, `getInputSplitAssigner` will use {@link FileInputFormat}'s logic.
  */
 public class HiveTableFileInputFormat extends FileInputFormat<RowData> {
 
-	private HiveTableInputFormat inputFormat;
-	private HiveTablePartition hiveTablePartition;
+	private final HiveTableInputFormat inputFormat;
+	private final HiveTablePartition hiveTablePartition;
 
 	public HiveTableFileInputFormat(
 			HiveTableInputFormat inputFormat,
 			HiveTablePartition hiveTablePartition) {
 		this.inputFormat = inputFormat;
 		this.hiveTablePartition = hiveTablePartition;
+		setFilePath(hiveTablePartition.getStorageDescriptor().getLocation());
 	}
 
 	@Override
@@ -70,31 +74,31 @@ public class HiveTableFileInputFormat extends FileInputFormat<RowData> {
 
 	@Override
 	public void configure(Configuration parameters) {
-		inputFormat.configure(parameters);
 		super.configure(parameters);
+		inputFormat.configure(parameters);
 	}
 
 	@Override
 	public void close() throws IOException {
-		inputFormat.close();
 		super.close();
+		inputFormat.close();
 	}
 
 	@Override
 	public void setRuntimeContext(RuntimeContext t) {
-		inputFormat.setRuntimeContext(t);
 		super.setRuntimeContext(t);
+		inputFormat.setRuntimeContext(t);
 	}
 
 	@Override
 	public void openInputFormat() throws IOException {
-		inputFormat.openInputFormat();
 		super.openInputFormat();
+		inputFormat.openInputFormat();
 	}
 
 	@Override
 	public void closeInputFormat() throws IOException {
-		inputFormat.closeInputFormat();
 		super.closeInputFormat();
+		inputFormat.closeInputFormat();
 	}
 }
