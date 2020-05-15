@@ -48,8 +48,10 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource("table1", tableSource1)
-    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource("table2", tableSource2)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal("table1", tableSource1)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal("table2", tableSource2)
 
     val table1 = tableEnv.scan("table1").where($"amount" > 2)
     val table2 = tableEnv.scan("table2").where($"amount" > 2)
@@ -81,7 +83,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -101,7 +104,8 @@ class TableSourceTest extends TableTestBase {
     val (tableSource, tableName) = csvTable
     val util = batchTestUtil()
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery = s"SELECT `last`, floor(id), score * 2 FROM $tableName"
 
@@ -120,7 +124,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -136,7 +141,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -159,7 +165,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
         .scan(tableName)
@@ -186,7 +193,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -212,7 +220,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
         .scan(tableName)
@@ -233,7 +242,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
         .scan(tableName)
@@ -260,7 +270,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
     val func = Func0
     tableEnv.registerFunction("func0", func)
 
@@ -291,7 +302,8 @@ class TableSourceTest extends TableTestBase {
     val util = streamTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -311,7 +323,8 @@ class TableSourceTest extends TableTestBase {
     val (tableSource, tableName) = csvTable
     val util = streamTestUtil()
 
-    util.tableEnv.registerTableSource(tableName, tableSource)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery = s"SELECT `last`, floor(id), score * 2 FROM $tableName"
 
@@ -330,7 +343,8 @@ class TableSourceTest extends TableTestBase {
     val util = streamTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -346,7 +360,8 @@ class TableSourceTest extends TableTestBase {
     val util = streamTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -469,7 +484,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery =
       s"""

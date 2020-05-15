@@ -53,7 +53,7 @@ class TableScanITCase extends BatchTestBase {
     val returnType = Types.STRING
 
     val tableSource = new TestTableSourceWithTime(true, schema, returnType, data, null, "ptime")
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     checkResult(
       s"SELECT name FROM $tableName",
@@ -81,7 +81,7 @@ class TableScanITCase extends BatchTestBase {
       fieldNames)
 
     val tableSource = new TestTableSourceWithTime(true, schema, rowType, data, "rtime", null)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     checkResult(
       s"SELECT * FROM $tableName",

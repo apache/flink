@@ -93,7 +93,7 @@ public interface TableEnvironmentInternal extends TableEnvironment {
 	 * @param name        The name under which the {@link TableSource} is registered.
 	 * @param tableSource The {@link TableSource} to register.
 	 */
-	void registerTableSource(String name, TableSource<?> tableSource);
+	void registerTableSourceInternal(String name, TableSource<?> tableSource);
 
 	/**
 	 * Registers an external {@link TableSink} with already configured field names and field types in
@@ -107,5 +107,5 @@ public interface TableEnvironmentInternal extends TableEnvironment {
 	 * @param name The name under which the {@link TableSink} is registered.
 	 * @param configuredSink The configured {@link TableSink} to register.
 	 */
-	void registerTableSink(String name, TableSink<?> configuredSink);
+	void registerTableSinkInternal(String name, TableSink<?> configuredSink);
 }

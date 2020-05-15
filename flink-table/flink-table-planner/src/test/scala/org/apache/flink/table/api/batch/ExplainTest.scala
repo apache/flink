@@ -136,13 +136,13 @@ class ExplainTest
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "sourceTable", CommonTestData.getCsvTableSource)
 
     val fieldNames = Array("d", "e")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "targetTable", sink.configure(fieldNames, fieldTypes))
 
     tEnv.sqlUpdate("insert into targetTable select first, id from sourceTable")
@@ -157,15 +157,15 @@ class ExplainTest
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "sourceTable", CommonTestData.getCsvTableSource)
 
     val fieldNames = Array("d", "e")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "targetTable1", sink.configure(fieldNames, fieldTypes))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "targetTable2", sink.configure(fieldNames, fieldTypes))
 
     tEnv.sqlUpdate("insert into targetTable1 select first, id from sourceTable")

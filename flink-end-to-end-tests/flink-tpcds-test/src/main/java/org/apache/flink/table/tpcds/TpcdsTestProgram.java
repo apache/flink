@@ -93,7 +93,7 @@ public class TpcdsTestProgram {
 
 			//register sink table
 			String sinkTableName = QUERY_PREFIX + queryId + "_sinkTable";
-			((TableEnvironmentInternal) tableEnvironment).registerTableSink(sinkTableName,
+			((TableEnvironmentInternal) tableEnvironment).registerTableSinkInternal(sinkTableName,
 					new CsvTableSink(
 						sinkTablePath + FILE_SEPARATOR + queryId + RESULT_SUFFIX,
 						COL_DELIMITER,

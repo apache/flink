@@ -72,13 +72,13 @@ class ExplainTest extends AbstractTestBase {
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "sourceTable", CommonTestData.getCsvTableSource)
 
     val fieldNames = Array("d", "e")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "targetTable", sink.configure(fieldNames, fieldTypes))
 
     tEnv.sqlUpdate("INSERT INTO targetTable SELECT first, id FROM sourceTable")
@@ -94,15 +94,15 @@ class ExplainTest extends AbstractTestBase {
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "sourceTable", CommonTestData.getCsvTableSource)
 
     val fieldNames = Array("d", "e")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "targetTable1", sink.configure(fieldNames, fieldTypes))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "targetTable2", sink.configure(fieldNames, fieldTypes))
 
     tEnv.sqlUpdate("INSERT INTO targetTable1 SELECT first, id FROM sourceTable")

@@ -323,21 +323,6 @@ abstract class TableEnvImpl(
       false)
   }
 
-  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
-    validateTableSource(tableSource)
-    registerTableSourceInternal(name, tableSource)
-  }
-
-  override def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
-    // validate
-    if (configuredSink.getTableSchema.getFieldNames.length == 0) {
-      throw new TableException("Field names must not be empty.")
-    }
-
-    validateTableSink(configuredSink)
-    registerTableSinkInternal(name, configuredSink)
-  }
-
   override def fromTableSource(source: TableSource[_]): Table = {
     createTable(new TableSourceQueryOperation(source, isBatchTable))
   }
@@ -360,10 +345,11 @@ abstract class TableEnvImpl(
     */
   protected def validateTableSink(tableSink: TableSink[_]): Unit
 
-  private def registerTableSourceInternal(
+  override def registerTableSourceInternal(
       name: String,
       tableSource: TableSource[_])
     : Unit = {
+    validateTableSource(tableSource)
     val unresolvedIdentifier = UnresolvedIdentifier.of(name)
     val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
     // check if a table (source or sink) is registered
@@ -395,10 +381,16 @@ abstract class TableEnvImpl(
     }
   }
 
-  private def registerTableSinkInternal(
+  override def registerTableSinkInternal(
       name: String,
       tableSink: TableSink[_])
     : Unit = {
+    // validate
+    if (tableSink.getTableSchema.getFieldNames.length == 0) {
+      throw new TableException("Field names must not be empty.")
+    }
+
+    validateTableSink(tableSink)
     val unresolvedIdentifier = UnresolvedIdentifier.of(name)
     val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
     // check if a table (source or sink) is registered

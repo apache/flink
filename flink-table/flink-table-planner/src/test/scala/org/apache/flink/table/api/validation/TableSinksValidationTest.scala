@@ -35,7 +35,7 @@ class TableSinksValidationTest extends TableTestBase {
     val util = streamTestUtil()
 
     val t = util.addTable[(Int, Long, String)]("MyTable", 'id, 'num, 'text)
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "testSink", new TestAppendSink)
 
     t.groupBy('text)
@@ -52,7 +52,7 @@ class TableSinksValidationTest extends TableTestBase {
     val fieldNames = Array("a", "b", "c")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT, Types.LONG)
     // table name already registered
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "TargetTable",
       new UnsafeMemoryAppendTableSink().configure(fieldNames, fieldTypes))
   }
@@ -65,7 +65,7 @@ class TableSinksValidationTest extends TableTestBase {
     val fieldNames = Array("a", "b", "c")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.LONG)
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "TargetTable",
       new UnsafeMemoryAppendTableSink().configure(fieldNames, fieldTypes))
   }

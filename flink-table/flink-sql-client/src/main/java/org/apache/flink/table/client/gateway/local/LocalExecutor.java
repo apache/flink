@@ -628,7 +628,7 @@ public class LocalExecutor implements Executor {
 		try {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			context.wrapClassLoader(() -> {
-				((TableEnvironmentInternal) context.getTableEnvironment()).registerTableSink(tableName, result.getTableSink());
+				((TableEnvironmentInternal) context.getTableEnvironment()).registerTableSinkInternal(tableName, result.getTableSink());
 				table.insertInto(tableName);
 			});
 			pipeline = context.createPipeline(jobName);

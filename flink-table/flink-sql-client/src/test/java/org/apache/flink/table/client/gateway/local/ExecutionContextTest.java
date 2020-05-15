@@ -244,7 +244,7 @@ public class ExecutionContextTest {
 			new String[]{"integerField", "stringField", "rowtimeField", "integerField0", "stringField0", "rowtimeField0"},
 			tableEnv.from("TemporalTableUsage").getSchema().getFieldNames());
 
-		// Please delete this test after removing registerTableSource in SQL-CLI.
+		// Please delete this test after removing registerTableSourceInternal in SQL-CLI.
 		TableSchema tableSchema = tableEnv.from("EnrichmentSource").getSchema();
 		LogicalType timestampType = tableSchema.getFieldDataTypes()[2].getLogicalType();
 		assertTrue(timestampType instanceof TimestampType);

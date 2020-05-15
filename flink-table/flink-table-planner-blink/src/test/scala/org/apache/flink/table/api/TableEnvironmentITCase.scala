@@ -616,7 +616,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val sourceType = Types.STRING
     val tableSource = new TestTableSourceWithTime(true, schema, sourceType, data, null, "pt")
     // TODO refactor this after FLINK-16160 is finished
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource("T", tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("T", tableSource)
 
     val tableResult = tEnv.executeSql("select * from T")
     assertTrue(tableResult.getJobClient.isPresent)

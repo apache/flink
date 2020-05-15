@@ -65,7 +65,7 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(env);
 		ParquetTableSource tableSource = createParquetTableSource(testPath);
-		((TableEnvironmentInternal) batchTableEnvironment).registerTableSource("ParquetTable", tableSource);
+		((TableEnvironmentInternal) batchTableEnvironment).registerTableSourceInternal("ParquetTable", tableSource);
 		String query =
 			"SELECT foo " +
 			"FROM ParquetTable";
@@ -82,7 +82,7 @@ public class ParquetTableSourceITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment batchTableEnvironment = BatchTableEnvironment.create(env);
 		ParquetTableSource tableSource = createParquetTableSource(testPath);
-		((TableEnvironmentInternal) batchTableEnvironment).registerTableSource("ParquetTable", tableSource);
+		((TableEnvironmentInternal) batchTableEnvironment).registerTableSourceInternal("ParquetTable", tableSource);
 		String query =
 			"SELECT foo " +
 			"FROM ParquetTable WHERE foo >= 1 AND bar.spam >= 30 AND CARDINALITY(arr) >= 1 AND arr[1] <= 50";

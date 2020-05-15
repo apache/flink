@@ -43,7 +43,7 @@ class TableSourceITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource("csvTable", csvTable)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("csvTable", csvTable)
     val results = tEnv.sqlQuery(
       "SELECT id, `first`, `last`, score FROM csvTable").collect()
 
@@ -67,7 +67,7 @@ class TableSourceITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource("csvTable", csvTable)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("csvTable", csvTable)
     val results = tEnv.sqlQuery(
       "SELECT id, `first`, `last`, score FROM csvTable").collect()
 
@@ -84,7 +84,7 @@ class TableSourceITCase(
     val tableEnv = BatchTableEnvironment.create(env, config)
     val nestedTable = CommonTestData.getNestedTableSource
 
-    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "NestedPersons", nestedTable)
 
     val result = tableEnv.sqlQuery("SELECT NestedPersons.firstName, NestedPersons.lastName," +

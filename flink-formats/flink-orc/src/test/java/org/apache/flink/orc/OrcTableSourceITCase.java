@@ -55,7 +55,7 @@ public class OrcTableSourceITCase extends MultipleProgramsTestBase {
 			.path(getPath(TEST_FILE_FLAT))
 			.forOrcSchema(TEST_SCHEMA_FLAT)
 			.build();
-		((TableEnvironmentInternal) tEnv).registerTableSource("OrcTable", orc);
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal("OrcTable", orc);
 
 		String query =
 			"SELECT COUNT(*), " +
@@ -90,7 +90,7 @@ public class OrcTableSourceITCase extends MultipleProgramsTestBase {
 			.path(getPath(TEST_FILE_FLAT))
 			.forOrcSchema(TEST_SCHEMA_FLAT)
 			.build();
-		((TableEnvironmentInternal) tEnv).registerTableSource("OrcTable", orc);
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal("OrcTable", orc);
 
 		String query =
 			"SELECT " +

@@ -122,7 +122,7 @@ class LegacyTableSinkITCase extends BatchTestBase {
         .field("b", DataTypes.DOUBLE())
         .build()
     val sink = new TestingUpsertTableSink(Array(0), TimeZone.getDefault)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "testSink", sink.configure(schema.getFieldNames, schema.getFieldTypes))
     registerCollection("MyTable", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
     sink
@@ -174,7 +174,7 @@ class LegacyTableSinkITCase extends BatchTestBase {
         .field("b", DataTypes.DOUBLE())
         .build()
     val sink = new TestingRetractTableSink(TimeZone.getDefault)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "testSink", sink.configure(schema.getFieldNames, schema.getFieldTypes))
     registerCollection("MyTable", simpleData2, simpleType2, "a, b", nullableOfSimpleData2)
     sink

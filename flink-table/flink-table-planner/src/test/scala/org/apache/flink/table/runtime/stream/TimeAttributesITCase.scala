@@ -176,7 +176,7 @@ class TimeAttributesITCase extends AbstractTestBase {
   def testTableSink(): Unit = {
     MemoryTableSourceSinkUtil.clear()
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "testSink",
       (new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink).configure(
         Array[String]("rowtime", "floorDay", "ceilDay"),
@@ -549,7 +549,8 @@ class TimeAttributesITCase extends AbstractTestBase {
       fieldNames)
 
     val tableSource = new TestTableSourceWithTime(schema, rowType, rows, "rowtime", "proctime")
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource("testTable", tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal("testTable", tableSource)
 
     val result = tEnv
       .scan("testTable")

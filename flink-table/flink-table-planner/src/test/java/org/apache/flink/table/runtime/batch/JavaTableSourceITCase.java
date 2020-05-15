@@ -53,7 +53,7 @@ public class JavaTableSourceITCase extends TableProgramsCollectionTestBase {
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 		BatchTableSource csvTable = CommonTestData.getCsvTableSource();
 
-		((TableEnvironmentInternal) tableEnv).registerTableSource("persons", csvTable);
+		((TableEnvironmentInternal) tableEnv).registerTableSourceInternal("persons", csvTable);
 
 		Table result = tableEnv.scan("persons")
 			.select($("id"), $("first"), $("last"), $("score"));
@@ -79,7 +79,7 @@ public class JavaTableSourceITCase extends TableProgramsCollectionTestBase {
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 		BatchTableSource csvTable = CommonTestData.getCsvTableSource();
 
-		((TableEnvironmentInternal) tableEnv).registerTableSource("persons", csvTable);
+		((TableEnvironmentInternal) tableEnv).registerTableSourceInternal("persons", csvTable);
 
 		Table result = tableEnv
 			.sqlQuery("SELECT `last`, FLOOR(id), score * 2 FROM persons WHERE score < 20");

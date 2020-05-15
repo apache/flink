@@ -428,23 +428,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	@Override
-	public void registerTableSource(String name, TableSource<?> tableSource) {
-		// only accept StreamTableSource and LookupableTableSource here
-		// TODO should add a validation, while StreamTableSource is in flink-table-api-java-bridge module now
-		registerTableSourceInternal(name, tableSource);
-	}
-
-	@Override
-	public void registerTableSink(String name, TableSink<?> configuredSink) {
-		// validate
-		if (configuredSink.getTableSchema().getFieldCount() == 0) {
-			throw new TableException("Table schema cannot be empty.");
-		}
-
-		registerTableSinkInternal(name, configuredSink);
-	}
-
-	@Override
 	public Table scan(String... tablePath) {
 		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(tablePath);
 		return scanInternal(unresolvedIdentifier)
@@ -1172,7 +1155,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		}
 	}
 
-	private void registerTableSourceInternal(String name, TableSource<?> tableSource) {
+	@Override
+	public void registerTableSourceInternal(String name, TableSource<?> tableSource) {
 		validateTableSource(tableSource);
 		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(name));
 		Optional<CatalogBaseTable> table = getTemporaryTable(objectIdentifier);
@@ -1202,7 +1186,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		}
 	}
 
-	private void registerTableSinkInternal(String name, TableSink<?> tableSink) {
+	@Override
+	public void registerTableSinkInternal(String name, TableSink<?> tableSink) {
 		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(name));
 		Optional<CatalogBaseTable> table = getTemporaryTable(objectIdentifier);
 

@@ -54,7 +54,7 @@ class TableSinkITCase(
     val tEnv = BatchTableEnvironment.create(env, config)
     env.setParallelism(4)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "testSink",
       new CsvTableSink(path, "|").configure(
         Array[String]("c", "b"), Array[TypeInformation[_]](Types.STRING, Types.LONG)))
@@ -85,7 +85,7 @@ class TableSinkITCase(
     val fieldNames = Array("c", "b")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.LONG)
     val sink = new UnsafeMemoryOutputFormatTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "testSink", sink.configure(fieldNames, fieldTypes))
 
     val input = CollectionDataSets.get3TupleDataSet(env)

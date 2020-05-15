@@ -138,7 +138,7 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
       Array(Types.INT, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "deepNested", "nested", "name"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestNestedProjectableTableSource(true, tableSchema, returnType, Seq()))
 

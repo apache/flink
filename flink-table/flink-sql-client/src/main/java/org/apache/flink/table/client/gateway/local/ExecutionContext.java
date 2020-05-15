@@ -582,9 +582,9 @@ public class ExecutionContext<ClusterID> {
 			}
 		});
 		// register table sources
-		tableSources.forEach(((TableEnvironmentInternal) tableEnv)::registerTableSource);
+		tableSources.forEach(((TableEnvironmentInternal) tableEnv)::registerTableSourceInternal);
 		// register table sinks
-		tableSinks.forEach(((TableEnvironmentInternal) tableEnv)::registerTableSink);
+		tableSinks.forEach(((TableEnvironmentInternal) tableEnv)::registerTableSinkInternal);
 
 		//--------------------------------------------------------------------------------------------------------------
 		// Step.4 Register temporal tables.

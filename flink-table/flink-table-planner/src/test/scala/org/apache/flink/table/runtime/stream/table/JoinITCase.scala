@@ -83,7 +83,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val leftTable = env.fromCollection(data1).toTable(tEnv, 'a, 'b)
     val rightTable = env.fromCollection(data2).toTable(tEnv, 'bb, 'c)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       new TestUpsertSink(Array("a,b"), false).configure(
         Array[String]("a", "b", "c"),
@@ -142,7 +142,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     val leftTable = env.fromCollection(data1).toTable(tEnv, 'a, 'b)
     val rightTable = env.fromCollection(data2).toTable(tEnv, 'bb, 'c, 'd)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "retractSink",
       new TestRetractSink().configure(
         Array[String]("a", "b", "c", "d"),

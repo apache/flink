@@ -53,7 +53,7 @@ class TableSourceITCase extends StreamingTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "val", "rtime"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
 
@@ -87,7 +87,7 @@ class TableSourceITCase extends StreamingTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "val", "rtime"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
 
@@ -120,7 +120,7 @@ class TableSourceITCase extends StreamingTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "val", "rtime"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
 
@@ -153,7 +153,7 @@ class TableSourceITCase extends StreamingTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rtime", "val", "name"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
 
@@ -182,7 +182,7 @@ class TableSourceITCase extends StreamingTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rtime", "val", "name"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
 
@@ -216,7 +216,7 @@ class TableSourceITCase extends StreamingTestBase {
       Array("p-rtime", "p-id", "p-name", "p-val"))
     val mapping = Map("rtime" -> "p-rtime", "id" -> "p-id", "val" -> "p-val", "name" -> "p-name")
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(
         false, tableSchema, returnType, data, "rtime", "ptime", mapping))
@@ -279,7 +279,7 @@ class TableSourceITCase extends StreamingTestBase {
       Array(Types.LONG, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "deepNested", "nested", "name"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestNestedProjectableTableSource(false, tableSchema, returnType, data))
 

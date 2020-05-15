@@ -61,7 +61,7 @@ class TableITCase(tableEnvName: String) {
           StreamExecutionEnvironment.getExecutionEnvironment, settings)
       case _ => throw new UnsupportedOperationException("unsupported tableEnvName: " + tableEnvName)
     }
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "MyTable", getPersonCsvTableSource)
   }
 

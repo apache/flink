@@ -53,7 +53,7 @@ object BatchTableEnvUtil {
     val id = new AbstractID().toString
     sink.init(typeSerializer.asInstanceOf[TypeSerializer[T]], id)
     val sinkName = UUID.randomUUID().toString
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(sinkName, sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(sinkName, sink)
 
     val res = TableEnvUtil.execInsertTableAndWaitResult(table, s"`$sinkName`")
     val accResult: JArrayList[Array[Byte]] = res.getAccumulatorResult(id)

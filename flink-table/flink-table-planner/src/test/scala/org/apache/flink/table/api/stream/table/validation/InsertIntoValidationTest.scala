@@ -41,7 +41,7 @@ class InsertIntoValidationTest {
     val fieldNames = Array("d", "f")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.LONG)
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "targetTable", sink.configure(fieldNames, fieldTypes))
 
     // must fail because table sink has too few fields.
@@ -65,7 +65,7 @@ class InsertIntoValidationTest {
     val fieldNames = Array("d", "e", "f")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT, Types.LONG)
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "targetTable", sink.configure(fieldNames, fieldTypes))
 
     // must fail because field types of table sink are incompatible.

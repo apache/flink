@@ -67,7 +67,7 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rowtime", "val", "name"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "rowTimeT",
       new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
@@ -84,7 +84,7 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rowtime", "val", "name"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "rowTimeT",
       new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
@@ -101,7 +101,7 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rowtime", "val", "name"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "rowTimeT",
       new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
@@ -126,7 +126,7 @@ class TableSourceTest extends TableTestBase {
       Array(Types.INT, Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "val", "name"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "procTimeT",
       new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), proctime = "pTime"))
 
@@ -143,7 +143,7 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "val", "rtime"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
@@ -160,7 +160,7 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name", "val", "rtime"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
@@ -177,7 +177,7 @@ class TableSourceTest extends TableTestBase {
       Array("id", "rtime", "val", "name"))
 
     val util = streamTestUtil()
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
@@ -193,7 +193,7 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rtime", "val", "name"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
@@ -209,7 +209,7 @@ class TableSourceTest extends TableTestBase {
         .asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "rtime", "val", "name"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
@@ -227,7 +227,7 @@ class TableSourceTest extends TableTestBase {
       Array("p-rtime", "p-id", "p-name", "p-val"))
     val mapping = Map("rtime" -> "p-rtime", "id" -> "p-id", "val" -> "p-val", "name" -> "p-name")
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(
         false, tableSchema, returnType, Seq(), "rtime", "ptime", mapping))
@@ -260,7 +260,7 @@ class TableSourceTest extends TableTestBase {
       Array(Types.INT, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "deepNested", "nested", "name"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestNestedProjectableTableSource(false, tableSchema, returnType, Seq()))
 
@@ -283,7 +283,7 @@ class TableSourceTest extends TableTestBase {
       Array(Types.INT, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "name"))
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSource(false, tableSchema, returnType, Seq(), null, null))
 

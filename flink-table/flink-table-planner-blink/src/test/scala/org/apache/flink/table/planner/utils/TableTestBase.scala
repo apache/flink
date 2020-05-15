@@ -240,7 +240,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def addTableSource(
       name: String,
       tableSource: TableSource[_]): Table = {
-    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(name, tableSource)
+    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      name, tableSource)
     getTableEnv.from(name)
   }
 
@@ -331,7 +332,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       targetPath: String,
       extraDetails: ExplainDetail*): Unit = {
     val stmtSet = getTableEnv.createStatementSet()
-    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(targetPath, sink)
+    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
     stmtSet.addInsert(targetPath, table)
     verifyExplain(stmtSet, extraDetails: _*)
   }
@@ -540,7 +541,7 @@ abstract class TableTestUtil(
       name: String,
       tableSource: TableSource[_],
       statistic: FlinkStatistic): Table = {
-    // TODO RichTableSourceQueryOperation should be deleted and use registerTableSource method
+    // TODO RichTableSourceQueryOperation should be deleted and use registerTableSourceInternal method
     //  instead of registerTable method here after unique key in TableSchema is ready
     //  and setting catalog statistic to TableSourceTable in DatabaseCalciteSchema is ready
     val identifier = ObjectIdentifier.of(
@@ -589,7 +590,7 @@ abstract class TableTestUtil(
       targetPath: String,
       extraDetails: ExplainDetail*): Unit = {
     val stmtSet = tableEnv.createStatementSet()
-    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(targetPath, sink)
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
     stmtSet.addInsert(targetPath, table)
     verifyPlan(stmtSet, extraDetails: _*)
   }

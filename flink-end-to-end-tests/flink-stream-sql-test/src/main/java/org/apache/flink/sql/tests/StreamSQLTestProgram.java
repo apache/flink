@@ -109,8 +109,8 @@ public class StreamSQLTestProgram {
 
 		final StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv, settings);
 
-		((TableEnvironmentInternal) tEnv).registerTableSource("table1", new GeneratorTableSource(10, 100, 60, 0));
-		((TableEnvironmentInternal) tEnv).registerTableSource("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal("table1", new GeneratorTableSource(10, 100, 60, 0));
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
 
 		int overWindowSizeSeconds = 1;
 		int tumbleWindowSizeSeconds = 10;

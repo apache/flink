@@ -62,9 +62,9 @@ public class BatchSQLTestProgram {
 			.inBatchMode()
 			.build());
 
-		((TableEnvironmentInternal) tEnv).registerTableSource("table1", new GeneratorTableSource(10, 100, 60, 0));
-		((TableEnvironmentInternal) tEnv).registerTableSource("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
-		((TableEnvironmentInternal) tEnv).registerTableSink("sinkTable",
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal("table1", new GeneratorTableSource(10, 100, 60, 0));
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
+		((TableEnvironmentInternal) tEnv).registerTableSinkInternal("sinkTable",
 			new CsvTableSink(outputPath)
 				.configure(new String[]{"f0", "f1"}, new TypeInformation[]{Types.INT, Types.SQL_TIMESTAMP}));
 

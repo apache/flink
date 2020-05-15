@@ -46,7 +46,7 @@ class TableSourceITCase extends BatchTestBase {
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
       Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "MyTable", new TestProjectableTableSource(
       true,
       tableSchema,
@@ -124,7 +124,7 @@ class TableSourceITCase extends BatchTestBase {
       Array(Types.LONG, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "deepNested", "nested", "name"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestNestedProjectableTableSource(true, tableSchema, returnType, data))
 

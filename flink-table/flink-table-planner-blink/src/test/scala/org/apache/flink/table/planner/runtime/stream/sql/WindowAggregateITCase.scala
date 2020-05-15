@@ -230,7 +230,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val fieldNames = fieldTypes.indices.map("f" + _).toArray
 
     val sink = new TestingUpsertTableSink(Array(0, 1)).configure(fieldNames, fieldTypes)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink("MySink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     execInsertTableAndWaitResult(result, "MySink")
 
     val expected = Seq(

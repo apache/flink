@@ -41,7 +41,7 @@ class TableSourceITCase extends AbstractTestBase {
     val tEnv = StreamTableEnvironment.create(env, settings)
     StreamITCase.testResults = mutable.MutableList()
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource("persons", csvTable)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("persons", csvTable)
 
     tEnv.sqlQuery(
       "SELECT id, `first`, `last`, score FROM persons WHERE id < 4 ")

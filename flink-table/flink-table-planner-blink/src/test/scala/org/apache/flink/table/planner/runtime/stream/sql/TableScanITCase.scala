@@ -60,7 +60,7 @@ class TableScanITCase extends StreamingTestBase {
     val returnType = Types.STRING
 
     val tableSource = new TestTableSourceWithTime(false, schema, returnType, data, null, "ptime")
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery = s"SELECT name FROM $tableName"
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -95,7 +95,7 @@ class TableScanITCase extends StreamingTestBase {
       rowtime = "rowtime",
       mapping = mapping,
       existingTs = "ts")
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery =
       s"""
@@ -137,7 +137,7 @@ class TableScanITCase extends StreamingTestBase {
       fieldNames)
 
     val tableSource = new TestPreserveWMTableSource(schema, rowType, data, "rtime")
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
     val sqlQuery = s"SELECT id, name FROM $tableName"
     val sink = new TestingAppendSink
 

@@ -42,7 +42,7 @@ class TableSourceValidationTest extends TableTestBase {
       Array("id", "name", "val", "rtime"))
 
     val util = streamTestUtil()
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestProjectableTableSourceWithoutExplainSourceOverride(
         tableSchema, returnType, Seq(), "rtime", "ptime"))
@@ -60,7 +60,8 @@ class TableSourceValidationTest extends TableTestBase {
     val tableSource = TestFilterableTableSourceWithoutExplainSourceOverride()
     val util = batchTestUtil()
 
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource("T", tableSource)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal("T", tableSource)
 
     val t = util.tableEnv
       .scan("T")

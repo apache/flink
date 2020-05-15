@@ -68,7 +68,7 @@ class TableSinkITCase extends AbstractTestBase {
     val fieldNames = Array("d", "e", "t")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.SQL_TIMESTAMP, Types.LONG)
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "targetTable", sink.configure(fieldNames, fieldTypes))
 
     input.toTable(tEnv, 'a, 'b, 'c, 't.rowtime)
@@ -100,7 +100,7 @@ class TableSinkITCase extends AbstractTestBase {
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "csvSink",
       new CsvTableSink(path).configure(
         Array[String]("nullableCol", "c", "b"),
@@ -137,7 +137,7 @@ class TableSinkITCase extends AbstractTestBase {
         .assignAscendingTimestamps(_._1.toLong)
         .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "appendSink",
       new TestAppendSink().configure(
         Array[String]("t", "icnt", "nsum"),
@@ -166,7 +166,7 @@ class TableSinkITCase extends AbstractTestBase {
     val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "appendSink",
       new TestAppendSink().configure(
         Array[String]("c", "g"),
@@ -189,7 +189,7 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "retractSink",
       new TestRetractSink().configure(
         Array[String]("len", "icnt", "nsum"),
@@ -222,7 +222,7 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "retractSink",
       new TestRetractSink().configure(
         Array[String]("t", "icnt", "nsum"),
@@ -258,7 +258,7 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       new TestUpsertSink(Array("cnt", "cTrue"), false).configure(
         Array[String]("cnt", "lencnt", "cTrue"),
@@ -295,7 +295,7 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       new TestUpsertSink(Array("wend", "num"), true).configure(
         Array[String]("num", "wend", "icnt"),
@@ -335,7 +335,7 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       new TestUpsertSink(Array("wstart", "wend", "num"), true).configure(
         Array[String]("wstart", "wend", "num", "icnt"),
@@ -375,7 +375,7 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       new TestUpsertSink(null, true).configure(
         Array[String]("wend", "cnt"),
@@ -414,7 +414,7 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       new TestUpsertSink(null, true).configure(
         Array[String]("num", "cnt"),

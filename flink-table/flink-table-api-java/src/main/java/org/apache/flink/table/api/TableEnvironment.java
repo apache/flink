@@ -874,7 +874,7 @@ public interface TableEnvironment {
 	 * <pre>
 	 * {@code
 	 *   // register the configured table sink into which the result is inserted.
-	 *   tEnv.registerTableSink("sinkTable", configuredSink);
+	 *   tEnv.registerTableSinkInternal("sinkTable", configuredSink);
 	 *   Table sourceTable = ...
 	 *   String tableName = sourceTable.toString();
 	 *   // sourceTable is not registered to the table environment

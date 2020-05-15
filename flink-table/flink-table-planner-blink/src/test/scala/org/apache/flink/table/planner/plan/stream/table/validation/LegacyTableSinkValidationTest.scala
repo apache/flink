@@ -63,7 +63,7 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     .select('len, 'id.count, 'num.sum)
     val schema = result.getSchema
     sink.configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink("testSink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", sink)
     tEnv.insertInto("testSink", result)
     // must fail because table is updating table without full key
     env.execute()

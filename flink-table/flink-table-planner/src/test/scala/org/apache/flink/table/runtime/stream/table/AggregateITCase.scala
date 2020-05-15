@@ -269,7 +269,7 @@ class AggregateITCase extends StreamingWithStateTestBase {
     data.+=((4, 3L, "C"))
     data.+=((5, 3L, "C"))
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "testSink",
       new TestUpsertSink(Array("c"), false).configure(
         Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG)))

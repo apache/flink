@@ -75,7 +75,7 @@ class PartitionableSinkITCase extends AbstractTestBase {
       .field("b", DataTypes.BIGINT())
       .field("c", DataTypes.STRING())
       .build()
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       name, new CollectionTableSource(data, 100, tableSchema))
   }
 
@@ -122,7 +122,7 @@ class PartitionableSinkITCase extends AbstractTestBase {
       rowType: RowTypeInfo = type3,
       partitionColumns: Array[String] = Array[String]("a")): TestSink = {
     val testSink = new TestSink(rowType, partitionColumns)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(tableName, testSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, testSink)
     testSink
   }
 

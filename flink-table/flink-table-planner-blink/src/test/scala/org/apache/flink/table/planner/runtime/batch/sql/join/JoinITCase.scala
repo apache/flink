@@ -101,7 +101,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   def testLongHashJoinGenerator(): Unit = {
     if (expectedJoinType == HashJoin) {
       val sink = (new CollectRowTableSink).configure(Array("c"), Array(Types.STRING))
-      tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink("outputTable", sink)
+      tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("outputTable", sink)
       val stmtSet = tEnv.createStatementSet()
       val table = tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e")
       stmtSet.addInsert("outputTable", table)

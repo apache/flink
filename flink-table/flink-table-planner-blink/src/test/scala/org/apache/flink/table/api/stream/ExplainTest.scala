@@ -105,13 +105,13 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt > 10")
     val upsertSink1 = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink1", upsertSink1)
     stmtSet.addInsert("upsertSink1", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt < 10")
     val upsertSink2 = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink2", upsertSink2)
     stmtSet.addInsert("upsertSink2", table2)
 
@@ -148,7 +148,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
         |GROUP BY id1, TUMBLE(ts, INTERVAL '8' SECOND)
       """.stripMargin)
     val appendSink1 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "appendSink1", appendSink1)
     stmtSet.addInsert("appendSink1", table1)
 
@@ -159,7 +159,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
         |GROUP BY id1, HOP(ts, INTERVAL '12' SECOND, INTERVAL '6' SECOND)
       """.stripMargin)
     val appendSink2 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSink(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "appendSink2", appendSink2)
     stmtSet.addInsert("appendSink2", table2)
 
