@@ -51,6 +51,8 @@ public class HBaseReadWriteHelper {
 	private final int rowKeyType;
 
 	private final int fieldLength;
+
+	// charset is not serializable
 	private final Charset charset;
 
 	// row which is returned

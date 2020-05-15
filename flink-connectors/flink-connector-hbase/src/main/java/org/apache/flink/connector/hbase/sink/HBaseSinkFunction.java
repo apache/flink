@@ -19,17 +19,13 @@
 package org.apache.flink.connector.hbase.sink;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
-import org.apache.flink.connector.hbase.util.HBaseReadWriteHelper;
-import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -40,8 +36,6 @@ import org.apache.hadoop.hbase.client.BufferedMutator;
 import org.apache.hadoop.hbase.client.BufferedMutatorParams;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,10 +48,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-
 /**
- * The upsert sink for HBase.
+ * The sink function for HBase.
  *
  * <p>This class leverage {@link BufferedMutator} to buffer multiple
  * {@link org.apache.hadoop.hbase.client.Mutation Mutations} before sending the requests to cluster.
@@ -65,22 +57,20 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * {@code bufferFlushMaxMutations} and {@code bufferFlushIntervalMillis}.</p>
  */
 @Internal
-public class HBaseUpsertSinkFunction
-		extends RichSinkFunction<Tuple2<Boolean, Row>>
+public class HBaseSinkFunction<T>
+		extends RichSinkFunction<T>
 		implements CheckpointedFunction, BufferedMutator.ExceptionListener {
 
 	private static final long serialVersionUID = 1L;
-	private static final Logger LOG = LoggerFactory.getLogger(HBaseUpsertSinkFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(HBaseSinkFunction.class);
 
 	private final String hTableName;
-	private final HBaseTableSchema schema;
 	private final byte[] serializedConfig;
 
 	private final long bufferFlushMaxSizeInBytes;
 	private final long bufferFlushMaxMutations;
 	private final long bufferFlushIntervalMillis;
-
-	private transient HBaseReadWriteHelper helper;
+	private final HBaseMutationConverter<T> mutationConverter;
 
 	private transient Connection connection;
 	private transient BufferedMutator mutator;
@@ -99,18 +89,17 @@ public class HBaseUpsertSinkFunction
 	 */
 	private final AtomicReference<Throwable> failureThrowable = new AtomicReference<>();
 
-	public HBaseUpsertSinkFunction(
+	public HBaseSinkFunction(
 			String hTableName,
-			HBaseTableSchema schema,
 			org.apache.hadoop.conf.Configuration conf,
+			HBaseMutationConverter<T> mutationConverter,
 			long bufferFlushMaxSizeInBytes,
 			long bufferFlushMaxMutations,
 			long bufferFlushIntervalMillis) {
-		checkArgument(schema.getRowKeyName().isPresent(), "HBaseUpsertSinkFunction requires rowkey is set.");
 		this.hTableName = hTableName;
-		this.schema = schema;
 		// Configuration is not serializable
 		this.serializedConfig = HBaseConfigurationUtil.serializeConfiguration(conf);
+		this.mutationConverter = mutationConverter;
 		this.bufferFlushMaxSizeInBytes = bufferFlushMaxSizeInBytes;
 		this.bufferFlushMaxMutations = bufferFlushMaxMutations;
 		this.bufferFlushIntervalMillis = bufferFlushIntervalMillis;
@@ -121,7 +110,7 @@ public class HBaseUpsertSinkFunction
 		LOG.info("start open ...");
 		org.apache.hadoop.conf.Configuration config = prepareRuntimeConfiguration();
 		try {
-			this.helper = new HBaseReadWriteHelper(schema);
+			this.mutationConverter.open();
 			this.numPendingRequests = new AtomicLong(0);
 
 			if (null == connection) {
@@ -181,17 +170,12 @@ public class HBaseUpsertSinkFunction
 		}
 	}
 
+	@SuppressWarnings("rawtypes")
 	@Override
-	public void invoke(Tuple2<Boolean, Row> value, Context context) throws Exception {
+	public void invoke(T value, Context context) throws Exception {
 		checkErrorAndRethrow();
 
-		if (value.f0) {
-			Put put = helper.createPutMutation(value.f1);
-			mutator.mutate(put);
-		} else {
-			Delete delete = helper.createDeleteMutation(value.f1);
-			mutator.mutate(delete);
-		}
+		mutator.mutate(mutationConverter.convertToMutation(value));
 
 		// flush when the buffer number of mutations greater than the configured max size.
 		if (bufferFlushMaxMutations > 0 && numPendingRequests.incrementAndGet() >= bufferFlushMaxMutations) {

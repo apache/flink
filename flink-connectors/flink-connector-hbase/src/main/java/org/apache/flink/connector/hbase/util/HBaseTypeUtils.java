@@ -20,6 +20,7 @@ package org.apache.flink.connector.hbase.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.hadoop.hbase.util.Bytes;
 
@@ -29,6 +30,9 @@ import java.nio.charset.Charset;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Arrays;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 
 /**
  * A utility class to process data exchange with HBase type system.
@@ -46,7 +50,7 @@ public class HBaseTypeUtils {
 			case 0: // byte[]
 				return value;
 			case 1: // String
-				return new String(value, stringCharset);
+				return Arrays.equals(EMPTY_BYTES, value) ? null : new String(value, stringCharset);
 			case 2: // byte
 				return value[0];
 			case 3:
@@ -161,6 +165,49 @@ public class HBaseTypeUtils {
 			return 13;
 		} else {
 			return -1;
+		}
+	}
+
+	/**
+	 * Checks whether the given {@link LogicalType} is supported in HBase connector.
+	 */
+	public static boolean isSupportedType(LogicalType type) {
+		// ordered by type root definition
+		switch (type.getTypeRoot()) {
+			case CHAR:
+			case VARCHAR:
+			case BOOLEAN:
+			case BINARY:
+			case VARBINARY:
+			case DECIMAL:
+			case TINYINT:
+			case SMALLINT:
+			case INTEGER:
+			case DATE:
+			case TIME_WITHOUT_TIME_ZONE:
+			case INTERVAL_YEAR_MONTH:
+			case BIGINT:
+			case INTERVAL_DAY_TIME:
+			case FLOAT:
+			case DOUBLE:
+				return true;
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				return getPrecision(type) <= 3;
+			case TIMESTAMP_WITH_TIME_ZONE:
+			case ARRAY:
+			case MULTISET:
+			case MAP:
+			case ROW:
+			case STRUCTURED_TYPE:
+			case DISTINCT_TYPE:
+			case RAW:
+			case NULL:
+			case SYMBOL:
+			case UNRESOLVED:
+				return false;
+			default:
+				throw new IllegalArgumentException();
 		}
 	}
 }
