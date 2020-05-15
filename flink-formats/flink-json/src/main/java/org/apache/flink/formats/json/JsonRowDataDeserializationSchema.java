@@ -56,6 +56,7 @@ import java.time.temporal.TemporalQueries;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
@@ -128,6 +129,25 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	@Override
 	public TypeInformation<RowData> getProducedType() {
 		return resultTypeInfo;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		JsonRowDataDeserializationSchema that = (JsonRowDataDeserializationSchema) o;
+		return failOnMissingField == that.failOnMissingField &&
+				ignoreParseErrors == that.ignoreParseErrors &&
+				resultTypeInfo.equals(that.resultTypeInfo);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(failOnMissingField, ignoreParseErrors, resultTypeInfo);
 	}
 
 	// -------------------------------------------------------------------------------------

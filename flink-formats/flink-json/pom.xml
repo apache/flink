@@ -100,6 +100,15 @@ under the License.
 			<artifactId>scala-compiler</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- JSON RowData format factory testing -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
 	</dependencies>
 
 	<profiles>
