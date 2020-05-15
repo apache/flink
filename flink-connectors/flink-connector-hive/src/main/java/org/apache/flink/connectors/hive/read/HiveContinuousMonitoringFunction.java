@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.connectors.hive.ConsumeOrder;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.HiveTableSource;
 import org.apache.flink.connectors.hive.JobConfWrapper;
@@ -88,6 +87,9 @@ public class HiveContinuousMonitoringFunction
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveContinuousMonitoringFunction.class);
 
+	private static final String CREATE_TIME_ORDER = "create-time";
+	private static final String PARTITION_TIME_ORDER = "partition-time";
+
 	/** The parallelism of the downstream readers. */
 	private final int readerParallelism;
 
@@ -107,7 +109,7 @@ public class HiveContinuousMonitoringFunction
 	private final DataType[] fieldTypes;
 
 	// consumer variables
-	private final ConsumeOrder consumeOrder;
+	private final String consumeOrder;
 	private final String consumeOffset;
 
 	// extractor variables
@@ -144,7 +146,7 @@ public class HiveContinuousMonitoringFunction
 			ObjectPath tablePath,
 			CatalogTable catalogTable,
 			int readerParallelism,
-			ConsumeOrder consumeOrder,
+			String consumeOrder,
 			String consumeOffset,
 			String extractorKind,
 			String extractorClass,
@@ -252,7 +254,9 @@ public class HiveContinuousMonitoringFunction
 			this.distinctPartitions.addAll(this.distinctPartsState.get().iterator().next());
 		} else {
 			LOG.info("No state to restore for the {}.", getClass().getSimpleName());
-			this.currentReadTime = toMills(consumeOffset);
+			if (consumeOffset != null) {
+				this.currentReadTime = toMills(consumeOffset);
+			}
 		}
 	}
 

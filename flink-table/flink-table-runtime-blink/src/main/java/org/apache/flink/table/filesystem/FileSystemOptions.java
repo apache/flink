@@ -33,10 +33,7 @@ public class FileSystemOptions {
 			key("streaming-source.enable")
 					.booleanType()
 					.defaultValue(false)
-					.withDescription("Enable streaming source or not.\n" +
-							"NOTES: For non-partition table, please make sure that " +
-							"each file should be put atomically into the target directory, " +
-							"otherwise the reader may get incomplete data.");
+					.withDescription("Enable streaming source or not.");
 
 	public static final ConfigOption<Duration> STREAMING_SOURCE_MONITOR_INTERVAL =
 			key("streaming-source.monitor-interval")
@@ -53,8 +50,7 @@ public class FileSystemOptions {
 							" create-time compare partition/file creation time, this is not the" +
 							" partition create time in Hive metaStore, but the folder/file create" +
 							" time in filesystem;" +
-							" partition-time compare time represented by partition name.\n" +
-							"For non-partition table, this value should always be 'create-time'.");
+							" partition-time compare time represented by partition name.");
 
 	public static final ConfigOption<String> STREAMING_SOURCE_CONSUME_START_OFFSET =
 			key("streaming-source.consume-start-offset")

@@ -20,21 +20,16 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveContinuousMonitoringFunction;
-import org.apache.flink.connectors.hive.read.HiveTableFileInputFormat;
 import org.apache.flink.connectors.hive.read.HiveTableInputFormat;
 import org.apache.flink.connectors.hive.read.TimestampedHiveInputSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
-import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
-import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -62,6 +57,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TimeUtils;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -86,7 +82,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.filesystem.DefaultPartTimeExtractor.toMills;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
@@ -178,10 +173,10 @@ public class HiveTableSource implements
 
 		if (isStreamingSource()) {
 			if (catalogTable.getPartitionKeys().isEmpty()) {
-				return createStreamSourceForNonPartitionTable(execEnv, typeInfo, inputFormat, allHivePartitions.get(0));
-			} else {
-				return createStreamSourceForPartitionTable(execEnv, typeInfo, inputFormat);
+				throw new UnsupportedOperationException(
+						"Non-partition table does not support streaming read now.");
 			}
+			return createStreamSource(execEnv, typeInfo, inputFormat);
 		} else {
 			return createBatchSource(execEnv, typeInfo, inputFormat);
 		}
@@ -226,20 +221,28 @@ public class HiveTableSource implements
 		return source.name(explainSource());
 	}
 
-	private DataStream<RowData> createStreamSourceForPartitionTable(
+	private DataStream<RowData> createStreamSource(
 			StreamExecutionEnvironment execEnv,
 			TypeInformation<RowData> typeInfo,
 			HiveTableInputFormat inputFormat) {
-		Configuration configuration = new Configuration();
-		catalogTable.getOptions().forEach(configuration::setString);
+		final Map<String, String> properties = catalogTable.getOptions();
 
-		String consumeOrderStr = configuration.get(STREAMING_SOURCE_CONSUME_ORDER);
-		ConsumeOrder consumeOrder = ConsumeOrder.getConsumeOrder(consumeOrderStr);
-		String consumeOffset = configuration.get(STREAMING_SOURCE_CONSUME_START_OFFSET);
-		String extractorKind = configuration.get(PARTITION_TIME_EXTRACTOR_KIND);
-		String extractorClass = configuration.get(PARTITION_TIME_EXTRACTOR_CLASS);
-		String extractorPattern = configuration.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN);
-		Duration monitorInterval = configuration.get(STREAMING_SOURCE_MONITOR_INTERVAL);
+		String consumeOrder = properties.getOrDefault(
+				STREAMING_SOURCE_CONSUME_ORDER.key(),
+				STREAMING_SOURCE_CONSUME_ORDER.defaultValue());
+		String consumeOffset = properties.getOrDefault(
+				STREAMING_SOURCE_CONSUME_START_OFFSET.key(),
+				STREAMING_SOURCE_CONSUME_START_OFFSET.defaultValue());
+		String extractorKind = properties.getOrDefault(
+				PARTITION_TIME_EXTRACTOR_KIND.key(),
+				PARTITION_TIME_EXTRACTOR_KIND.defaultValue());
+		String extractorClass = properties.get(PARTITION_TIME_EXTRACTOR_CLASS.key());
+		String extractorPattern = properties.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key());
+
+		String monitorIntervalStr = properties.get(STREAMING_SOURCE_MONITOR_INTERVAL.key());
+		Duration monitorInterval = monitorIntervalStr != null ?
+				TimeUtils.parseDuration(monitorIntervalStr) :
+				STREAMING_SOURCE_MONITOR_INTERVAL.defaultValue();
 
 		HiveContinuousMonitoringFunction monitoringFunction = new HiveContinuousMonitoringFunction(
 				hiveShim,
@@ -260,45 +263,6 @@ public class HiveTableSource implements
 		String sourceName = "HiveMonitoringFunction";
 		SingleOutputStreamOperator<RowData> source = execEnv
 				.addSource(monitoringFunction, sourceName)
-				.transform("Split Reader: " + sourceName, typeInfo, factory);
-
-		return new DataStreamSource<>(source);
-	}
-
-	private DataStream<RowData> createStreamSourceForNonPartitionTable(
-			StreamExecutionEnvironment execEnv,
-			TypeInformation<RowData> typeInfo,
-			HiveTableInputFormat inputFormat,
-			HiveTablePartition hiveTable) {
-		HiveTableFileInputFormat fileInputFormat = new HiveTableFileInputFormat(inputFormat, hiveTable);
-
-		Configuration configuration = new Configuration();
-		catalogTable.getOptions().forEach(configuration::setString);
-		String consumeOrderStr = configuration.get(STREAMING_SOURCE_CONSUME_ORDER);
-		ConsumeOrder consumeOrder = ConsumeOrder.getConsumeOrder(consumeOrderStr);
-		if (consumeOrder != ConsumeOrder.CREATE_TIME_ORDER) {
-			throw new UnsupportedOperationException(
-					"Only " + ConsumeOrder.CREATE_TIME_ORDER + " is supported for non partition table.");
-		}
-
-		String consumeOffset = configuration.get(STREAMING_SOURCE_CONSUME_START_OFFSET);
-		long currentReadTime = toMills(consumeOffset);
-
-		Duration monitorInterval = configuration.get(STREAMING_SOURCE_MONITOR_INTERVAL);
-
-		ContinuousFileMonitoringFunction<RowData> monitoringFunction =
-				new ContinuousFileMonitoringFunction<>(
-						fileInputFormat,
-						FileProcessingMode.PROCESS_CONTINUOUSLY,
-						execEnv.getParallelism(),
-						monitorInterval.toMillis(),
-						currentReadTime);
-
-		ContinuousFileReaderOperatorFactory<RowData, TimestampedFileInputSplit> factory =
-				new ContinuousFileReaderOperatorFactory<>(fileInputFormat);
-
-		String sourceName = "HiveFileMonitoringFunction";
-		SingleOutputStreamOperator<RowData> source = execEnv.addSource(monitoringFunction, sourceName)
 				.transform("Split Reader: " + sourceName, typeInfo, factory);
 
 		return new DataStreamSource<>(source);
