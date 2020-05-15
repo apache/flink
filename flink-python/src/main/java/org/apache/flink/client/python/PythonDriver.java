@@ -20,16 +20,25 @@ package org.apache.flink.client.python;
 
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
+import org.apache.flink.util.NetUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import py4j.CallbackClient;
+import py4j.Gateway;
 import py4j.GatewayServer;
 
 import java.io.File;
-import java.net.InetAddress;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * A main class used to launch Python applications. It executes python as a
@@ -38,7 +47,7 @@ import java.util.UUID;
 public final class PythonDriver {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonDriver.class);
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws ExecutionException, InterruptedException {
 		// the python job needs at least 2 args.
 		// e.g. py a.py ...
 		// e.g. pym a.b -pyfs a.zip ...
@@ -95,23 +104,36 @@ public final class PythonDriver {
 	 *
 	 * @return The created GatewayServer
 	 */
-	static GatewayServer startGatewayServer() {
-		InetAddress localhost = InetAddress.getLoopbackAddress();
-		GatewayServer gatewayServer = new GatewayServer.GatewayServerBuilder()
-			.javaPort(0)
-			.javaAddress(localhost)
-			.build();
-		Thread thread = new Thread(gatewayServer::start);
+	static GatewayServer startGatewayServer() throws InterruptedException, ExecutionException {
+		CompletableFuture<GatewayServer> gatewayServerFuture = new CompletableFuture<>();
+		Thread thread = new Thread(() -> {
+			try {
+				int freePort = NetUtils.getAvailablePort();
+				GatewayServer server = new GatewayServer.GatewayServerBuilder()
+					.gateway(new Gateway(new ConcurrentHashMap<String, Object>(), new CallbackClient(freePort)))
+					.javaPort(0)
+					.build();
+				CallbackClient callbackClient = (CallbackClient) server.getCallbackClient();
+				// The Java API of py4j does not provide approach to set "daemonize_connections" parameter.
+				// Use reflect to daemonize the connection thread.
+				Field executor = CallbackClient.class.getDeclaredField("executor");
+				executor.setAccessible(true);
+				((ScheduledExecutorService) executor.get(callbackClient)).shutdown();
+				executor.set(callbackClient, Executors.newScheduledThreadPool(1, Thread::new));
+				Method setupCleaner = CallbackClient.class.getDeclaredMethod("setupCleaner");
+				setupCleaner.setAccessible(true);
+				setupCleaner.invoke(callbackClient);
+				gatewayServerFuture.complete(server);
+				server.start(true);
+			} catch (Throwable e) {
+				gatewayServerFuture.completeExceptionally(e);
+			}
+		});
 		thread.setName("py4j-gateway");
 		thread.setDaemon(true);
 		thread.start();
-		try {
-			thread.join();
-		} catch (InterruptedException e) {
-			LOG.error("The gateway server thread join failed.", e);
-			System.exit(1);
-		}
-		return gatewayServer;
+		thread.join();
+		return gatewayServerFuture.get();
 	}
 
 	/**
