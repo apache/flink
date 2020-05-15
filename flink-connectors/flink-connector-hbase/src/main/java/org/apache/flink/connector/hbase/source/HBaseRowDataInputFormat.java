@@ -18,15 +18,11 @@
 
 package org.apache.flink.connector.hbase.source;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.hbase.util.HBaseReadWriteHelper;
+import org.apache.flink.connector.hbase.util.HBaseSerde;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.data.RowData;
 
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
@@ -42,32 +38,29 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link Row}
+ * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link RowData}
  */
-@Internal
-public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implements ResultTypeQueryable<Row> {
-
+public class HBaseRowDataInputFormat extends AbstractTableInputFormat<RowData> {
 	private static final long serialVersionUID = 1L;
-
-	private static final Logger LOG = LoggerFactory.getLogger(HBaseRowInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(HBaseRowDataInputFormat.class);
 
 	private final String tableName;
-	private final HBaseTableSchema schema;
+	private final HBaseSerde serde;
 
 	private transient org.apache.hadoop.conf.Configuration conf;
-	private transient HBaseReadWriteHelper readHelper;
 
-	public HBaseRowInputFormat(org.apache.hadoop.conf.Configuration conf, String tableName, HBaseTableSchema schema) {
+	public HBaseRowDataInputFormat(
+			org.apache.hadoop.conf.Configuration conf,
+			String tableName,
+			HBaseTableSchema schema) {
 		this.tableName = tableName;
 		this.conf = conf;
-		this.schema = schema;
+		this.serde = new HBaseSerde(schema);
 	}
 
 	@Override
 	public void configure(Configuration parameters) {
 		LOG.info("Initializing HBase configuration.");
-		// prepare hbase read helper
-		this.readHelper = new HBaseReadWriteHelper(schema);
 		connectToTable();
 		if (table != null) {
 			scan = getScanner();
@@ -76,7 +69,7 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 
 	@Override
 	protected Scan getScanner() {
-		return readHelper.createScan();
+		return serde.createScan();
 	}
 
 	@Override
@@ -85,8 +78,8 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 	}
 
 	@Override
-	protected Row mapResultToOutType(Result res) {
-		return readHelper.parseToRow(res);
+	protected RowData mapResultToOutType(Result res) {
+		return serde.convertToRow(res);
 	}
 
 	private void connectToTable() {
@@ -105,20 +98,5 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 			LOG.error("Exception while creating connection to HBase.", ioe);
 			throw new RuntimeException("Cannot create connection to HBase.", ioe);
 		}
-	}
-
-	@Override
-	public TypeInformation<Row> getProducedType() {
-		// split the fieldNames
-		String[] famNames = schema.getFamilyNames();
-		TypeInformation<?>[] typeInfos = new TypeInformation[famNames.length];
-		int i = 0;
-		for (String family : famNames) {
-			typeInfos[i] = new RowTypeInfo(
-				schema.getQualifierTypes(family),
-				schema.getQualifierNames(family));
-			i++;
-		}
-		return new RowTypeInfo(typeInfos, famNames);
 	}
 }

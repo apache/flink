@@ -26,8 +26,6 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -36,7 +34,6 @@ import java.util.List;
 /**
  * Abstract IT case class for HBase.
  */
-@RunWith(Parameterized.class)
 public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 
 	protected static final String TEST_TABLE_1 = "testTable1";
@@ -66,15 +63,14 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 
 	private static final byte[][] SPLIT_KEYS = new byte[][]{Bytes.toBytes(4)};
 
-	@Parameterized.Parameter
-	public PlannerType planner;
+
 	protected EnvironmentSettings streamSettings;
 	protected EnvironmentSettings batchSettings;
 
-	@Parameterized.Parameters(name = "planner = {0}")
-	public static PlannerType[] getPlanner() {
-		return new PlannerType[]{PlannerType.BLINK_PLANNER, PlannerType.OLD_PLANNER};
-	}
+	/**
+	 * Gets the planner type to execute.
+	 */
+	protected abstract PlannerType planner();
 
 	@BeforeClass
 	public static void activateHBaseCluster() throws IOException {
@@ -86,14 +82,14 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 	public void before() {
 		EnvironmentSettings.Builder streamBuilder = EnvironmentSettings.newInstance().inStreamingMode();
 		EnvironmentSettings.Builder batchBuilder = EnvironmentSettings.newInstance().inBatchMode();
-		if (PlannerType.BLINK_PLANNER.equals(planner)) {
+		if (PlannerType.BLINK_PLANNER.equals(planner())) {
 			this.streamSettings = streamBuilder.useBlinkPlanner().build();
 			this.batchSettings = batchBuilder.useBlinkPlanner().build();
-		} else if (PlannerType.OLD_PLANNER.equals(planner)) {
+		} else if (PlannerType.OLD_PLANNER.equals(planner())) {
 			this.streamSettings = streamBuilder.useOldPlanner().build();
 			this.batchSettings = batchBuilder.useOldPlanner().build();
 		} else {
-			throw new IllegalArgumentException("Unsupported planner name " + planner);
+			throw new IllegalArgumentException("Unsupported planner name " + planner());
 		}
 	}
 

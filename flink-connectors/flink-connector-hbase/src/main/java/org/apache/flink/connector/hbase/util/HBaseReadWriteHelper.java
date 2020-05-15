@@ -28,6 +28,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 
+import java.io.Serializable;
 import java.nio.charset.Charset;
 
 /**
@@ -36,7 +37,9 @@ import java.nio.charset.Charset;
  * to HBase table, and supports converting the HBase {@link Result} to Flink {@link Row}.
  */
 @Internal
-public class HBaseReadWriteHelper {
+public class HBaseReadWriteHelper implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	// family keys
 	private final byte[][] families;

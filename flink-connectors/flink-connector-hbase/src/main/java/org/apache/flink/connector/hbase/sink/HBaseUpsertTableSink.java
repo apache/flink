@@ -92,10 +92,10 @@ public class HBaseUpsertTableSink implements UpsertStreamTableSink<Row> {
 		Configuration hbaseClientConf = HBaseConfiguration.create();
 		hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, hbaseOptions.getZkQuorum());
 		hbaseOptions.getZkNodeParent().ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
-		HBaseUpsertSinkFunction sinkFunction = new HBaseUpsertSinkFunction(
+		HBaseSinkFunction sinkFunction = new HBaseSinkFunction(
 			hbaseOptions.getTableName(),
-			hbaseTableSchema,
 			hbaseClientConf,
+			new LegacyMutationConverter(hbaseTableSchema),
 			writeOptions.getBufferFlushMaxSizeInBytes(),
 			writeOptions.getBufferFlushMaxRows(),
 			writeOptions.getBufferFlushIntervalMillis());
