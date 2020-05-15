@@ -170,6 +170,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		private Path statePath;
 
+		private String relativeStatePath;
+
 		private volatile boolean closed;
 
 		private final CheckpointedStateScope scope;
@@ -332,10 +334,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 								if (efs != null) {
 									return new FileStateHandle(statePath, size);
 								} else {
-									String relativePathStr = statePath.toUri().toString().substring(basePath.toUri().toString().length());
 									return new RelativeFileStateHandle(
 										statePath,
-										relativePathStr,
+										relativeStatePath,
 										size);
 								}
 							} else {
@@ -367,7 +368,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		}
 
 		private Path createStatePath() {
-			return new Path(basePath, UUID.randomUUID().toString());
+			final String fileName = UUID.randomUUID().toString();
+			relativeStatePath = fileName;
+			return new Path(basePath, fileName);
 		}
 
 		private void createStream() throws IOException {
