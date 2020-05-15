@@ -41,9 +41,14 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.filesystem.FileSystemLookupFunction;
+import org.apache.flink.table.filesystem.FileSystemOptions;
+import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sources.LimitableTableSource;
+import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.PartitionableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -92,7 +97,8 @@ public class HiveTableSource implements
 		StreamTableSource<RowData>,
 		PartitionableTableSource,
 		ProjectableTableSource<RowData>,
-		LimitableTableSource<RowData> {
+		LimitableTableSource<RowData>,
+		LookupableTableSource<RowData> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HiveTableSource.class);
 
@@ -109,6 +115,7 @@ public class HiveTableSource implements
 	private int[] projectedFields;
 	private boolean isLimitPushDown = false;
 	private long limit = -1L;
+	private Duration hiveTableCacheTTL;
 
 	public HiveTableSource(
 			JobConf jobConf, ReadableConfig flinkConf, ObjectPath tablePath, CatalogTable catalogTable) {
@@ -280,19 +287,20 @@ public class HiveTableSource implements
 
 	@Override
 	public DataType getProducedDataType() {
+		return getProducedTableSchema().toRowDataType().bridgedTo(RowData.class);
+	}
+
+	private TableSchema getProducedTableSchema() {
 		TableSchema fullSchema = getTableSchema();
-		DataType type;
 		if (projectedFields == null) {
-			type = fullSchema.toRowDataType();
+			return fullSchema;
 		} else {
 			String[] fullNames = fullSchema.getFieldNames();
 			DataType[] fullTypes = fullSchema.getFieldDataTypes();
-			type = TableSchema.builder().fields(
+			return TableSchema.builder().fields(
 					Arrays.stream(projectedFields).mapToObj(i -> fullNames[i]).toArray(String[]::new),
-					Arrays.stream(projectedFields).mapToObj(i -> fullTypes[i]).toArray(DataType[]::new))
-					.build().toRowDataType();
+					Arrays.stream(projectedFields).mapToObj(i -> fullTypes[i]).toArray(DataType[]::new)).build();
 		}
-		return type.bridgedTo(RowData.class);
 	}
 
 	@Override
@@ -366,6 +374,10 @@ public class HiveTableSource implements
 			List<String> partitionColNames = catalogTable.getPartitionKeys();
 			Table hiveTable = client.getTable(dbName, tableName);
 			Properties tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable);
+			String ttlStr = tableProps.getProperty(FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.key());
+			hiveTableCacheTTL = ttlStr != null ?
+					TimeUtils.parseDuration(ttlStr) :
+					FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.defaultValue();
 			if (partitionColNames != null && partitionColNames.size() > 0) {
 				final String defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
 						HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
@@ -480,5 +492,28 @@ public class HiveTableSource implements
 			explain += String.format(", LimitPushDown %s, Limit %d", isLimitPushDown, limit);
 		}
 		return TableConnectorUtils.generateRuntimeName(getClass(), getTableSchema().getFieldNames()) + explain;
+	}
+
+	@Override
+	public TableFunction<RowData> getLookupFunction(String[] lookupKeys) {
+		List<HiveTablePartition> allPartitions = initAllPartitions();
+		TableSchema producedSchema = getProducedTableSchema();
+		return new FileSystemLookupFunction<>(
+				getInputFormat(allPartitions, flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER)),
+				lookupKeys,
+				producedSchema.getFieldNames(),
+				producedSchema.getFieldDataTypes(),
+				hiveTableCacheTTL
+		);
+	}
+
+	@Override
+	public AsyncTableFunction<RowData> getAsyncLookupFunction(String[] lookupKeys) {
+		throw new UnsupportedOperationException("Hive table doesn't support async lookup");
+	}
+
+	@Override
+	public boolean isAsyncEnabled() {
+		return false;
 	}
 }

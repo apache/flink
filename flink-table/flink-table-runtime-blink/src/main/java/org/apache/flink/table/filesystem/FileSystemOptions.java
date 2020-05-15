@@ -88,4 +88,11 @@ public class FileSystemOptions {
 							" If timestamp in partition is year, month, day, hour," +
 							" can configure: '$year-$month-$day $hour:00:00'." +
 							" If timestamp in partition is dt and hour, can configure: '$dt $hour:00:00'.");
+
+	public static final ConfigOption<Duration> LOOKUP_JOIN_CACHE_TTL =
+			key("lookup.join.cache.ttl")
+					.durationType()
+					.defaultValue(Duration.ofMinutes(60))
+					.withDescription("The cache TTL (e.g. 10min) for the build table in lookup join. " +
+							"By default the TTL is 60 minutes.");
 }
