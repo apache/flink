@@ -93,16 +93,19 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
 	@Override
 	public boolean hasInflightData(long checkpointId, int channelIndex) {
-		return activeHandler.hasInflightData(checkpointId, channelIndex);
+		// should only be called for unaligned checkpoint
+		return unalignedHandler.hasInflightData(checkpointId, channelIndex);
 	}
 
 	@Override
 	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
-		return activeHandler.getAllBarriersReceivedFuture(checkpointId);
+		// should only be called for unaligned checkpoint
+		return unalignedHandler.getAllBarriersReceivedFuture(checkpointId);
 	}
 
 	@Override
 	public Optional<BufferReceivedListener> getBufferReceivedListener() {
+		// should only be used for handling unaligned checkpoints
 		return unalignedHandler.getBufferReceivedListener();
 	}
 
