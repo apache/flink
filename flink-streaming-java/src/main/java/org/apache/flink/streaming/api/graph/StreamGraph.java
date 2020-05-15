@@ -42,7 +42,6 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.operators.CoordinatedOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
@@ -273,25 +272,27 @@ public class StreamGraph implements Pipeline {
 		sources.add(vertexID);
 	}
 
-	public <IN, OUT> void addSink(Integer vertexID,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		StreamOperatorFactory<OUT> operatorFactory,
-		TypeInformation<IN> inTypeInfo,
-		TypeInformation<OUT> outTypeInfo,
-		String operatorName) {
+	public <IN, OUT> void addSink(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName) {
 		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName, null);
 		sinks.add(vertexID);
 	}
 
-	public <IN, OUT> void addOperator(Integer vertexID,
-									  @Nullable String slotSharingGroup,
-									  @Nullable String coLocationGroup,
-									  StreamOperatorFactory<OUT> operatorFactory,
-									  TypeInformation<IN> inTypeInfo,
-									  TypeInformation<OUT> outTypeInfo,
-									  String operatorName,
-									  Function<Tuple2<String, OperatorID>, OperatorCoordinator.Provider> operatorCoordinatorFactory) {
+	public <IN, OUT> void addOperator(
+			Integer vertexID,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<OUT> operatorFactory,
+			TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo,
+			String operatorName,
+			Function<Tuple2<String, OperatorID>, OperatorCoordinator.Provider> operatorCoordinatorFactory) {
 		Class<? extends AbstractInvokable> invokableClass =
 				operatorFactory.isStreamSource() ? SourceStreamTask.class : OneInputStreamTask.class;
 		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo,
