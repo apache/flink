@@ -53,6 +53,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
@@ -365,7 +366,9 @@ public class FsCheckpointStateOutputStreamTest {
 		final File directory = tempDir.newFolder();
 
 		// prevent creation of files in that directory
-		assertTrue(directory.setWritable(false, true));
+		// this operation does not work reliably on Windows, so we use an "assume" to skip the test
+		// is this prerequisite operation is not supported.
+		assumeTrue(directory.setWritable(false, true));
 		checkDirectoryNotWritable(directory);
 
 		FileSystem fs = spy(FileSystem.getLocalFileSystem());
