@@ -18,11 +18,8 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StreamStateHandle;
-
-import java.io.IOException;
 
 
 /**
@@ -41,16 +38,6 @@ public class RelativeFileStateHandle extends FileStateHandle {
 		long stateSize) {
 		super(path, stateSize);
 		this.relativePath = relativePath;
-	}
-
-	@Override
-	public FSDataInputStream openInputStream() throws IOException {
-		try {
-			return super.openInputStream();
-		} catch (IOException e) {
-			System.out.println(e.getMessage());
-			throw e;
-		}
 	}
 
 	@Override
@@ -73,12 +60,17 @@ public class RelativeFileStateHandle extends FileStateHandle {
 			return true;
 		}
 
-		if (! (o instanceof RelativeFileStateHandle)) {
+		if (!(o instanceof RelativeFileStateHandle)) {
 			return false;
 		}
 
 		RelativeFileStateHandle other = (RelativeFileStateHandle) o;
-		return getFilePath().equals(other.getFilePath()) && relativePath.equals(other.relativePath);
+		return super.equals(o) && relativePath.equals(other.relativePath);
+	}
+
+	@Override
+	public int hashCode() {
+		return 17 * super.hashCode() + relativePath.hashCode();
 	}
 }
 
