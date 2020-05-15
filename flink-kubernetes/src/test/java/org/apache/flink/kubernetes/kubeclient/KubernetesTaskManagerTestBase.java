@@ -28,8 +28,6 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 
-import org.junit.Before;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -88,10 +86,8 @@ public class KubernetesTaskManagerTestBase extends KubernetesTestBase {
 		this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_NODE_SELECTOR, nodeSelector);
 	}
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
-
+	@Override
+	protected void onSetup() throws Exception {
 		taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(flinkConfig);
 		containeredTaskManagerParameters = ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
 		kubernetesTaskManagerParameters = new KubernetesTaskManagerParameters(

@@ -38,7 +38,6 @@ import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -66,9 +65,9 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 
 	private KubernetesClusterDescriptor descriptor;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
 
 		descriptor = new KubernetesClusterDescriptor(flinkConfig, flinkKubeClient);
 	}

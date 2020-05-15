@@ -81,7 +81,6 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -122,9 +121,9 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 		flinkConfig.setString(TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
 	}
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	public void onSetup() throws Exception {
+		super.onSetup();
 
 		final Deployment mockDeployment = new DeploymentBuilder()
 			.editOrNewMetadata()
