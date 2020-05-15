@@ -247,6 +247,12 @@ public class DataTypesTest {
 				.expectConversionClass(Integer[][].class),
 
 			TestSpec
+				.forDataType(ARRAY(ARRAY(INT().notNull())).bridgedTo(int[][].class))
+				.expectLogicalType(new ArrayType(new ArrayType(new IntType(false))))
+				.expectConversionClass(int[][].class)
+				.expectChildren(DataTypes.ARRAY(INT().notNull()).bridgedTo(int[].class)),
+
+			TestSpec
 				.forDataType(MULTISET(MULTISET(INT())))
 				.expectLogicalType(new MultisetType(new MultisetType(new IntType())))
 				.expectConversionClass(Map.class),
@@ -365,7 +371,9 @@ public class DataTypesTest {
 
 			assertThat(dataType, hasLogicalType(testSpec.expectedLogicalType));
 
-			assertThat(toDataType(testSpec.expectedLogicalType), equalTo(dataType));
+			assertThat(
+				toDataType(testSpec.expectedLogicalType).bridgedTo(dataType.getConversionClass()),
+				equalTo(dataType));
 
 			assertThat(toLogicalType(dataType), equalTo(testSpec.expectedLogicalType));
 		}
@@ -376,6 +384,14 @@ public class DataTypesTest {
 		if (testSpec.expectedConversionClass != null) {
 			final DataType dataType = testSpec.typeFactory.createDataType(testSpec.abstractDataType);
 			assertThat(dataType, hasConversionClass(testSpec.expectedConversionClass));
+		}
+	}
+
+	@Test
+	public void testChildren() {
+		if (testSpec.expectedChildren != null) {
+			final DataType dataType = testSpec.typeFactory.createDataType(testSpec.abstractDataType);
+			assertThat(dataType.getChildren(), equalTo(testSpec.expectedChildren));
 		}
 	}
 
@@ -406,6 +422,8 @@ public class DataTypesTest {
 
 		private @Nullable Class<?> expectedConversionClass;
 
+		private @Nullable List<DataType> expectedChildren;
+
 		private @Nullable String expectedUnresolvedString;
 
 		private @Nullable DataType expectedResolvedDataType;
@@ -429,6 +447,11 @@ public class DataTypesTest {
 
 		TestSpec expectConversionClass(Class<?> expectedConversionClass) {
 			this.expectedConversionClass = expectedConversionClass;
+			return this;
+		}
+
+		TestSpec expectChildren(DataType... expectedChildren) {
+			this.expectedChildren = Arrays.asList(expectedChildren);
 			return this;
 		}
 
