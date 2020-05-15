@@ -269,7 +269,14 @@ public class Bucket<IN, BucketID> {
 			}
 		}
 
-		return new BucketState<>(bucketId, bucketPath, inProgressFileCreationTime, inProgressResumable, pendingPartsPerCheckpoint);
+		// It's important to create a defensive copy here! Otherwise, later calls to
+		// onSuccessfulCompletionOfCheckpoint would change a BucketState that we already gave out.
+		final NavigableMap<Long, List<CommitRecoverable>> copiedPendingPartsPerCheckpoint = new TreeMap<>();
+		for (Map.Entry<Long, List<CommitRecoverable>> checkpoint : pendingPartsPerCheckpoint.entrySet()) {
+			copiedPendingPartsPerCheckpoint.put(checkpoint.getKey(), new ArrayList<>(checkpoint.getValue()));
+		}
+
+		return new BucketState<>(bucketId, bucketPath, inProgressFileCreationTime, inProgressResumable, copiedPendingPartsPerCheckpoint);
 	}
 
 	private void prepareBucketForCheckpointing(long checkpointId) throws IOException {
