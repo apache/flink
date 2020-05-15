@@ -72,21 +72,24 @@ public class YARNITCase extends YarnTestBase {
 	public void testPerJobModeWithEnableSystemClassPathIncludeUserJar() throws Exception {
 		runTest(() -> deployPerJob(
 			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.FIRST),
-			getTestingJobGraph()));
+			getTestingJobGraph(),
+			true));
 	}
 
 	@Test
 	public void testPerJobModeWithDisableSystemClassPathIncludeUserJar() throws Exception {
 		runTest(() -> deployPerJob(
 			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED),
-			getTestingJobGraph()));
+			getTestingJobGraph(),
+			true));
 	}
 
 	@Test
 	public void testPerJobModeWithDistributedCache() throws Exception {
 		runTest(() -> deployPerJob(
 			createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED),
-			YarnTestCacheJob.getDistributedCacheJobGraph(tmp.newFolder())));
+			YarnTestCacheJob.getDistributedCacheJobGraph(tmp.newFolder()),
+			true));
 	}
 
 	@Test
@@ -98,11 +101,13 @@ public class YARNITCase extends YarnTestBase {
 		final Configuration flinkConfig = createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED);
 		flinkConfig.set(YarnConfigOptions.PROVIDED_LIB_DIRS, Collections.singletonList(remoteLib.toString()));
 
-		runTest(() -> deployPerJob(flinkConfig, getTestingJobGraph()));
+		runTest(() -> deployPerJob(flinkConfig, getTestingJobGraph(), false));
 	}
 
-	private void deployPerJob(Configuration configuration, JobGraph jobGraph) throws Exception {
-		try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor(configuration)) {
+	private void deployPerJob(Configuration configuration, JobGraph jobGraph, boolean withDist) throws Exception {
+		try (final YarnClusterDescriptor yarnClusterDescriptor = withDist
+				? createYarnClusterDescriptor(configuration)
+				: createYarnClusterDescriptorWithoutLibDir(configuration)) {
 
 			final int masterMemory = yarnClusterDescriptor.getFlinkConfiguration().get(JobManagerOptions.TOTAL_PROCESS_MEMORY).getMebiBytes();
 			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()

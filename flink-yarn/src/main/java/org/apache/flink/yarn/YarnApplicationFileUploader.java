@@ -73,16 +73,22 @@ class YarnApplicationFileUploader implements AutoCloseable {
 
 	private final Path applicationDir;
 
+	/**
+	 * All files in the provided lib directories.
+	 * The key is the remote path to the file relative to the provided dir
+	 * and value is remote FileStatus.
+ 	 */
 	private final Map<String, FileStatus> providedSharedLibs;
 
 	private final Map<String, LocalResource> localResources;
 
-	// list of remote paths (uploaded resources will be added)
-	private final List<Path> remotePaths;
-	// ship list that enables reuse of resources for task manager containers
-	private final List<YarnLocalResourceDescriptor> envShipResourceList;
-	// number of replications of a remote file to be created
 	private final int fileReplication;
+
+	private final List<Path> remotePaths;
+
+	private final List<YarnLocalResourceDescriptor> envShipResourceList;
+
+	private YarnLocalResourceDescriptor flinkDist;
 
 	private YarnApplicationFileUploader(
 			final FileSystem fileSystem,
@@ -158,16 +164,6 @@ class YarnApplicationFileUploader implements AutoCloseable {
 				.fromFileStatus(key, fileStatus, LocalResourceVisibility.APPLICATION);
 			addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
 			localResources.put(key, descriptor.toLocalResource());
-			return descriptor;
-		}
-
-		final FileStatus fileStatus = providedSharedLibs.get(resourcePath.getName());
-		if (fileStatus != null) {
-			LOG.debug("Using provided file {} instead of the local {}", fileStatus.getPath(), resourcePath);
-
-			final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
-				.fromFileStatus(fileStatus.getPath().getName(), fileStatus, LocalResourceVisibility.PUBLIC);
-			addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
 			return descriptor;
 		}
 
@@ -289,6 +285,20 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		return classPaths;
 	}
 
+	public YarnLocalResourceDescriptor uploadFlinkDist(final Path localJarPath) throws IOException {
+		if (flinkDist != null) {
+			return flinkDist;
+		}
+
+		flinkDist = registerSingleLocalResource(
+				localJarPath.getName(),
+				localJarPath,
+				"",
+				true,
+				false);
+		return flinkDist;
+	}
+
 	/**
 	 * Register all the files in the provided lib directories as Yarn local resources with PUBLIC visibility, which
 	 * means that they will be cached in the nodes and reused by different applications.
@@ -300,19 +310,22 @@ class YarnApplicationFileUploader implements AutoCloseable {
 
 		final ArrayList<String> classPaths = new ArrayList<>();
 		providedSharedLibs.forEach(
-			(fileName, fileStatus) -> {
-				localResources.put(
-					fileName,
-					Utils.registerLocalResource(
-						fileStatus.getPath(),
-						fileStatus.getLen(),
-						fileStatus.getModificationTime(),
-						LocalResourceVisibility.PUBLIC));
+				(fileName, fileStatus) -> {
+					final Path filePath = fileStatus.getPath();
+					LOG.debug("Using remote file {} to register local resource", filePath);
 
-				if (!isFlinkDistJar(fileName)) {
-					classPaths.add(fileName);
-				}
-			});
+					final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
+							.fromFileStatus(fileName, fileStatus, LocalResourceVisibility.PUBLIC);
+					localResources.put(fileName, descriptor.toLocalResource());
+					remotePaths.add(filePath);
+					envShipResourceList.add(descriptor);
+
+					if (!isFlinkDistJar(fileName) && !isPlugin(fileStatus.getPath())) {
+						classPaths.add(fileName);
+					} else if (isFlinkDistJar(fileName)) {
+						flinkDist = descriptor;
+					}
+				});
 		return classPaths;
 	}
 
@@ -367,6 +380,18 @@ class YarnApplicationFileUploader implements AutoCloseable {
 		return fileName.startsWith("flink-dist") && fileName.endsWith("jar");
 	}
 
+	private static boolean isPlugin(Path path) {
+		Path parent = path.getParent();
+		while (parent != null) {
+			if (parent.getName().equals("plugins")) {
+				return true;
+			}
+			parent = parent.getParent();
+		}
+
+		return false;
+	}
+
 	static Path getApplicationDirPath(final Path homeDir, final ApplicationId applicationId) {
 		return new Path(checkNotNull(homeDir), ".flink/" + checkNotNull(applicationId) + '/');
 	}
@@ -391,9 +416,12 @@ class YarnApplicationFileUploader implements AutoCloseable {
 						final RemoteIterator<LocatedFileStatus> iterable = fileSystem.listFiles(path, true);
 						while (iterable.hasNext()) {
 							final LocatedFileStatus locatedFileStatus = iterable.next();
-							final String fileName = locatedFileStatus.getPath().getName();
 
-							final FileStatus prevMapping = allFiles.put(fileName, locatedFileStatus);
+							final String name = path.getParent().toUri()
+									.relativize(locatedFileStatus.getPath().toUri())
+									.toString();
+
+							final FileStatus prevMapping = allFiles.put(name, locatedFileStatus);
 							if (prevMapping != null) {
 								throw new IOException(
 									"Two files with the same filename exist in the shared libs: " +

@@ -330,6 +330,12 @@ public abstract class YarnTestBase extends TestLogger {
 
 	@Nonnull
 	YarnClusterDescriptor createYarnClusterDescriptor(org.apache.flink.configuration.Configuration flinkConfiguration) {
+		final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptorWithoutLibDir(flinkConfiguration);
+		yarnClusterDescriptor.addShipFiles(Collections.singletonList(flinkLibFolder));
+		return yarnClusterDescriptor;
+	}
+
+	YarnClusterDescriptor createYarnClusterDescriptorWithoutLibDir(org.apache.flink.configuration.Configuration flinkConfiguration) {
 		final YarnClusterDescriptor yarnClusterDescriptor = YarnTestUtils.createClusterDescriptorWithLogging(
 				tempConfPathForSecureRun.getAbsolutePath(),
 				flinkConfiguration,
@@ -337,7 +343,6 @@ public abstract class YarnTestBase extends TestLogger {
 				yarnClient,
 				true);
 		yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.toURI()));
-		yarnClusterDescriptor.addShipFiles(Collections.singletonList(flinkLibFolder));
 		return yarnClusterDescriptor;
 	}
 
