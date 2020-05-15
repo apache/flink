@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.core.fs.EntropyInjectingFileSystem;
 import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -85,6 +84,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	/** Cached handle to the file system for file operations. */
 	private final FileSystem filesystem;
 
+	/** Whether the file system dynamically injects entropy into the file paths. */
+	private final boolean entropyInjecting;
+
 	/**
 	 * Creates a new stream factory that stores its checkpoint data in the file system and location
 	 * defined by the given Path.
@@ -124,6 +126,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		this.sharedStateDirectory = checkNotNull(sharedStateDirectory);
 		this.fileStateThreshold = fileStateSizeThreshold;
 		this.writeBufferSize = writeBufferSize;
+		this.entropyInjecting = EntropyInjector.isEntropyInjecting(fileSystem);
 	}
 
 	// ------------------------------------------------------------------------
@@ -133,7 +136,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		Path target = scope == CheckpointedStateScope.EXCLUSIVE ? checkpointDirectory : sharedStateDirectory;
 		int bufferSize = Math.max(writeBufferSize, fileStateThreshold);
 
-		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold, scope);
+		final boolean absolutePath = entropyInjecting || scope == CheckpointedStateScope.SHARED;
+		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold, !absolutePath);
 	}
 
 	// ------------------------------------------------------------------------
@@ -153,7 +157,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	 * A {@link CheckpointStreamFactory.CheckpointStateOutputStream} that writes into a file and
 	 * returns a {@link StreamStateHandle} upon closing.
 	 */
-	public static final class FsCheckpointStateOutputStream
+	public static class FsCheckpointStateOutputStream
 			extends CheckpointStreamFactory.CheckpointStateOutputStream {
 
 		private final byte[] writeBuffer;
@@ -174,14 +178,22 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		private volatile boolean closed;
 
-		private final CheckpointedStateScope scope;
+		private final boolean allowRelativePaths;
+
+		public FsCheckpointStateOutputStream(
+				Path basePath,
+				FileSystem fs,
+				int bufferSize,
+				int localStateThreshold) {
+			this(basePath, fs, bufferSize, localStateThreshold, false);
+		}
 
 		public FsCheckpointStateOutputStream(
 					Path basePath,
 					FileSystem fs,
 					int bufferSize,
 					int localStateThreshold,
-					CheckpointedStateScope scope) {
+					boolean allowRelativePaths) {
 
 			if (bufferSize < localStateThreshold) {
 				throw new IllegalArgumentException();
@@ -191,7 +203,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			this.fs = fs;
 			this.writeBuffer = new byte[bufferSize];
 			this.localStateThreshold = localStateThreshold;
-			this.scope = scope;
+			this.allowRelativePaths = allowRelativePaths;
 		}
 
 		@Override
@@ -328,20 +340,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 							outStream.close();
 
-							if (CheckpointedStateScope.EXCLUSIVE.equals(scope)) {
-								EntropyInjectingFileSystem efs = EntropyInjector.getEntropyFs(fs);
-								// currently, do not use relative state handle for entropy file system
-								if (efs != null) {
-									return new FileStateHandle(statePath, size);
-								} else {
-									return new RelativeFileStateHandle(
-										statePath,
-										relativeStatePath,
-										size);
-								}
-							} else {
-								return new FileStateHandle(statePath, size);
-							}
+							return allowRelativePaths
+									? new RelativeFileStateHandle(statePath, relativeStatePath, size)
+									: new FileStateHandle(statePath, size);
 						} catch (Exception exception) {
 							try {
 								if (statePath != null) {
