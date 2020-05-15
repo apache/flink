@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.plugin;
 
+import org.apache.flink.core.plugin.DefaultPluginManager;
 import org.apache.flink.core.plugin.DirectoryBasedPluginFinder;
 import org.apache.flink.core.plugin.PluginDescriptor;
 import org.apache.flink.core.plugin.PluginFinder;
@@ -43,9 +44,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Test for {@link PluginManager}.
+ * Test for {@link DefaultPluginManager}.
  */
-public class PluginManagerTest extends PluginTestBase {
+public class DefaultPluginManagerTest extends PluginTestBase {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -84,7 +85,7 @@ public class PluginManagerTest extends PluginTestBase {
 	public void testPluginLoading() {
 
 		String[] parentPatterns = { TestSpi.class.getName(), OtherTestSpi.class.getName() };
-		final PluginManager pluginManager = new PluginManager(descriptors, PARENT_CLASS_LOADER, parentPatterns);
+		final PluginManager pluginManager = new DefaultPluginManager(descriptors, PARENT_CLASS_LOADER, parentPatterns);
 		final List<TestSpi> serviceImplList = Lists.newArrayList(pluginManager.load(TestSpi.class));
 		Assert.assertEquals(2, serviceImplList.size());
 
