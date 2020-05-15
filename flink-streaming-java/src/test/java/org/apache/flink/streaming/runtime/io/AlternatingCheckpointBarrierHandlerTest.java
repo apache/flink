@@ -128,6 +128,27 @@ public class AlternatingCheckpointBarrierHandlerTest {
 	}
 
 	@Test
+	public void testOutOfOrderBarrier() throws Exception {
+		SingleInputGate inputGate = new SingleInputGateBuilder().setNumberOfChannels(2).build();
+		inputGate.setInputChannels(new TestInputChannel(inputGate, 0), new TestInputChannel(inputGate, 1));
+		TestInvokable target = new TestInvokable();
+		CheckpointBarrierAligner alignedHandler = new CheckpointBarrierAligner("test", new InputGate[]{inputGate, inputGate}, singletonMap(inputGate, 0), target);
+		CheckpointBarrierUnaligner unalignedHandler = new CheckpointBarrierUnaligner(new int[]{inputGate.getNumberOfInputChannels()}, ChannelStateWriter.NO_OP, "test", target);
+		AlternatingCheckpointBarrierHandler barrierHandler = new AlternatingCheckpointBarrierHandler(alignedHandler, unalignedHandler, target);
+
+		long checkpointId = 10;
+		long outOfOrderSavepointId = 5;
+		long initialAlignedCheckpointId = alignedHandler.getLatestCheckpointId();
+
+		barrierHandler.processBarrier(new CheckpointBarrier(checkpointId, 0, new CheckpointOptions(CHECKPOINT, CheckpointStorageLocationReference.getDefault())), 0);
+		barrierHandler.processBarrier(new CheckpointBarrier(outOfOrderSavepointId, 0, new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault())), 1);
+
+		assertEquals(checkpointId, barrierHandler.getLatestCheckpointId());
+		assertInflightDataEquals(unalignedHandler, barrierHandler, checkpointId, inputGate.getNumberOfInputChannels());
+		assertEquals(initialAlignedCheckpointId, alignedHandler.getLatestCheckpointId());
+	}
+
+	@Test
 	public void testEndOfPartition() throws Exception {
 		int totalChannels = 5;
 		int closedChannels = 2;
