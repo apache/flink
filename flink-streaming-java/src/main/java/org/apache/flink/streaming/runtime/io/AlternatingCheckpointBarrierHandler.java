@@ -36,6 +36,7 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	private final CheckpointBarrierAligner alignedHandler;
 	private final CheckpointBarrierUnaligner unalignedHandler;
 	private CheckpointBarrierHandler activeHandler;
+	private long lastSeenBarrierId;
 
 	AlternatingCheckpointBarrierHandler(CheckpointBarrierAligner alignedHandler, CheckpointBarrierUnaligner unalignedHandler, AbstractInvokable invokable) {
 		super(invokable);
@@ -55,6 +56,10 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
 	@Override
 	public void processBarrier(CheckpointBarrier receivedBarrier, int channelIndex) throws Exception {
+		if (receivedBarrier.getId() < lastSeenBarrierId) {
+			return;
+		}
+		lastSeenBarrierId = receivedBarrier.getId();
 		CheckpointBarrierHandler previousHandler = activeHandler;
 		activeHandler = receivedBarrier.isCheckpoint() ? unalignedHandler : alignedHandler;
 		abortPreviousIfNeeded(receivedBarrier, previousHandler);
