@@ -690,8 +690,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		// The files need to be shipped and added to classpath.
 		Set<File> systemShipFiles = new HashSet<>(shipFiles.size());
-		// The files only need to be shipped.
-		Set<File> shipOnlyFiles = new HashSet<>();
 		for (File file : shipFiles) {
 			systemShipFiles.add(file.getAbsoluteFile());
 		}
@@ -700,11 +698,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		if (logConfigFilePath != null) {
 			systemShipFiles.add(new File(logConfigFilePath));
 		}
-
-		addLibFoldersToShipFiles(systemShipFiles);
-
-		// Plugin files only need to be shipped and should not be added to classpath.
-		addPluginsFoldersToShipFiles(shipOnlyFiles);
 
 		// Set-up ApplicationSubmissionContext for the application
 
@@ -762,6 +755,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			jobGraph.writeUserArtifactEntriesToConfiguration();
 		}
 
+		if (providedLibDirs == null || providedLibDirs.isEmpty()) {
+			addLibFoldersToShipFiles(systemShipFiles);
+		}
+
 		// Register all files in provided lib dirs as local resources with public visibility
 		// and upload the remaining dependencies as local resources with APPLICATION visibility.
 		final List<String> systemClassPaths = fileUploader.registerProvidedLocalResources();
@@ -771,9 +768,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		systemClassPaths.addAll(uploadedDependencies);
 
 		// upload and register ship-only files
-		fileUploader.registerMultipleLocalResources(
-			shipOnlyFiles.stream().map(e -> new Path(e.toURI())).collect(Collectors.toSet()),
-			Path.CUR_DIR);
+		// Plugin files only need to be shipped and should not be added to classpath.
+		if (providedLibDirs == null || providedLibDirs.isEmpty()) {
+			Set<File> shipOnlyFiles = new HashSet<>();
+			addPluginsFoldersToShipFiles(shipOnlyFiles);
+			fileUploader.registerMultipleLocalResources(
+					shipOnlyFiles.stream().map(e -> new Path(e.toURI())).collect(Collectors.toSet()),
+					Path.CUR_DIR);
+		}
 
 		// Upload and register user jars
 		final List<String> userClassPaths = fileUploader.registerMultipleLocalResources(
@@ -801,14 +803,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 
 		// Setup jar for ApplicationMaster
-		final YarnLocalResourceDescriptor localResourceDescFlinkJar = fileUploader.registerSingleLocalResource(
-			flinkJarPath.getName(),
-			flinkJarPath,
-			"",
-			true,
-			false);
-
-		classPathBuilder.append(flinkJarPath.getName()).append(File.pathSeparator);
+		final YarnLocalResourceDescriptor localResourceDescFlinkJar = fileUploader.uploadFlinkDist(flinkJarPath);
+		classPathBuilder.append(localResourceDescFlinkJar.getResourceKey()).append(File.pathSeparator);
 
 		// write job graph to tmp file and add it to local resource
 		// TODO: server use user main method to generate job graph
