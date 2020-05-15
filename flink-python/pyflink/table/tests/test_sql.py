@@ -21,8 +21,10 @@ import subprocess
 import unittest
 
 from pyflink.find_flink_home import _find_flink_source_root
+
 from pyflink.java_gateway import get_gateway
-from pyflink.table import DataTypes, ResultKind
+
+from pyflink.table import DataTypes
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase
 
@@ -55,62 +57,6 @@ class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
 
         expected = ['2,Hi,Hello', '3,Hello,Hello']
         self.assert_equals(actual, expected)
-
-    def test_execute_sql(self):
-        t_env = self.t_env
-        table_result = t_env.execute_sql("create table tbl"
-                                         "("
-                                         "   a bigint,"
-                                         "   b int,"
-                                         "   c varchar"
-                                         ") with ("
-                                         "  'connector' = 'COLLECTION',"
-                                         "   'is-bounded' = 'false'"
-                                         ")")
-        self.assertIsNone(table_result.get_job_client())
-        self.assertIsNotNone(table_result.get_table_schema())
-        self.assertEquals(table_result.get_table_schema().get_field_names(), ["result"])
-        self.assertIsNotNone(table_result.get_result_kind())
-        self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS)
-        table_result.print()
-
-        table_result = t_env.execute_sql("alter table tbl set ('k1' = 'a', 'k2' = 'b')")
-        self.assertIsNone(table_result.get_job_client())
-        self.assertIsNotNone(table_result.get_table_schema())
-        self.assertEquals(table_result.get_table_schema().get_field_names(), ["result"])
-        self.assertIsNotNone(table_result.get_result_kind())
-        self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS)
-        table_result.print()
-
-        field_names = ["k1", "k2", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.INT(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "sinks",
-            source_sink_utils.TestAppendSink(field_names, field_types))
-        table_result = t_env.execute_sql("insert into sinks select * from tbl")
-        self.assertIsNotNone(table_result.get_job_client())
-        self.assertIsNotNone(table_result.get_table_schema())
-        self.assertEquals(table_result.get_table_schema().get_field_names(),
-                          ["default_catalog.default_database.sinks"])
-        self.assertIsNotNone(table_result.get_result_kind())
-        self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
-        job_status = table_result.get_job_client().get_job_status().result()
-        self.assertFalse(job_status.is_globally_terminal_state())
-        self.assertFalse(job_status.is_terminal_state())
-        job_execution_result = table_result.get_job_client().get_job_execution_result(
-            get_gateway().jvm.Thread.currentThread().getContextClassLoader()).result()
-        self.assertIsNotNone(job_execution_result.get_job_id())
-        self.assertIsNotNone(job_execution_result.get_job_execution_result())
-        self.assertTrue(job_execution_result.is_job_execution_result())
-        table_result.print()
-
-        table_result = t_env.execute_sql("drop table tbl")
-        self.assertIsNone(table_result.get_job_client())
-        self.assertIsNotNone(table_result.get_table_schema())
-        self.assertEquals(table_result.get_table_schema().get_field_names(), ["result"])
-        self.assertIsNotNone(table_result.get_result_kind())
-        self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS)
-        table_result.print()
 
     def test_sql_update(self):
         t_env = self.t_env

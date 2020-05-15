@@ -61,47 +61,43 @@ Important classes of Flink Table API:
 from __future__ import absolute_import
 
 from pyflink.table.environment_settings import EnvironmentSettings
-from pyflink.table.explain_detail import ExplainDetail
-from pyflink.table.result_kind import ResultKind
-from pyflink.table.sinks import CsvTableSink, TableSink, WriteMode
-from pyflink.table.sources import CsvTableSource, TableSource
 from pyflink.table.sql_dialect import SqlDialect
-from pyflink.table.statement_set import StatementSet
-from pyflink.table.table import GroupWindowedTable, GroupedTable, OverWindowedTable, Table, \
+from pyflink.table.table import Table, GroupedTable, GroupWindowedTable, OverWindowedTable, \
     WindowGroupedTable
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import (TableEnvironment, StreamTableEnvironment,
                                              BatchTableEnvironment)
-from pyflink.table.table_result import TableResult
-from pyflink.table.table_schema import TableSchema
+from pyflink.table.sinks import TableSink, CsvTableSink, WriteMode
+from pyflink.table.sources import TableSource, CsvTableSource
 from pyflink.table.types import DataTypes, UserDefinedType, Row
+from pyflink.table.table_schema import TableSchema
 from pyflink.table.udf import FunctionContext, ScalarFunction
+from pyflink.table.explain_detail import ExplainDetail
+from pyflink.table.statement_set import StatementSet
 
 __all__ = [
+    'TableEnvironment',
+    'StreamTableEnvironment',
     'BatchTableEnvironment',
+    'EnvironmentSettings',
+    'Table',
+    'GroupedTable',
+    'GroupWindowedTable',
+    'OverWindowedTable',
+    'WindowGroupedTable',
+    'TableConfig',
+    'TableSink',
+    'TableSource',
+    'WriteMode',
     'CsvTableSink',
     'CsvTableSource',
     'DataTypes',
-    'EnvironmentSettings',
-    'ExplainDetail',
-    'FunctionContext',
-    'GroupWindowedTable',
-    'GroupedTable',
-    'OverWindowedTable',
-    'ResultKind',
+    'UserDefinedType',
     'Row',
+    'TableSchema',
+    'FunctionContext',
     'ScalarFunction',
     'SqlDialect',
-    'StatementSet',
-    'StreamTableEnvironment',
-    'Table',
-    'TableConfig',
-    'TableEnvironment',
-    'TableResult',
-    'TableSchema',
-    'TableSink',
-    'TableSource',
-    'UserDefinedType',
-    'WindowGroupedTable',
-    'WriteMode'
+    'ExplainDetail',
+    'StatementSet'
 ]
