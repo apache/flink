@@ -24,10 +24,10 @@ import org.apache.flink.core.fs.Path;
 import java.io.IOException;
 
 /**
- * The {@link Bucket} uses the {@link PartFileWriter} to write element to a part file.
+ * The {@link Bucket} uses the {@link InProgressFileWriter} to write element to a part file.
  */
 @Internal
-interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
+interface InProgressFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 
 	/**
 	 * Write a element to the part file.
@@ -58,32 +58,32 @@ interface PartFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * An interface for factories that create the different {@link PartFileWriter writers}.
+	 * An interface for factories that create the different {@link InProgressFileWriter writers}.
 	 */
-	interface PartFileFactory<IN, BucketID> {
+	interface BucketWriter<IN, BucketID> {
 
 		/**
-		 * Used to create a new {@link PartFileWriter}.
+		 * Used to create a new {@link InProgressFileWriter}.
 		 * @param bucketID the id of the bucket this writer is writing to.
 		 * @param path the path this writer will write to.
 		 * @param creationTime the creation time of the file.
-		 * @return the new {@link PartFileWriter}
+		 * @return the new {@link InProgressFileWriter}
 		 * @throws IOException Thrown if creating a writer fails.
 		 */
-		PartFileWriter<IN, BucketID> openNew(
+		InProgressFileWriter<IN, BucketID> openNewInProgressFile(
 			final BucketID bucketID,
 			final Path path,
 			final long creationTime) throws IOException;
 
 		/**
-		 * Used to resume a {@link PartFileWriter} from a {@link InProgressFileRecoverable}.
+		 * Used to resume a {@link InProgressFileWriter} from a {@link InProgressFileRecoverable}.
 		 * @param bucketID the id of the bucket this writer is writing to.
 		 * @param inProgressFileSnapshot the state of the part file.
 		 * @param creationTime the creation time of the file.
-		 * @return the resumed {@link PartFileWriter}
+		 * @return the resumed {@link InProgressFileWriter}
 		 * @throws IOException Thrown if resuming a writer fails.
 		 */
-		PartFileWriter<IN, BucketID> resumeFrom(
+		InProgressFileWriter<IN, BucketID> resumeInProgressFileFrom(
 			final BucketID bucketID,
 			final InProgressFileRecoverable inProgressFileSnapshot,
 			final long creationTime) throws IOException;

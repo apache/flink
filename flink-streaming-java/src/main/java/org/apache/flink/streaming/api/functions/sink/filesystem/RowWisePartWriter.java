@@ -28,7 +28,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * A {@link PartFileWriter} for row-wise formats that use an {@link Encoder}.
+ * A {@link InProgressFileWriter} for row-wise formats that use an {@link Encoder}.
  * This also implements the {@link PartFileInfo}.
  */
 @Internal
@@ -66,7 +66,7 @@ final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWri
 		}
 
 		@Override
-		public PartFileWriter<IN, BucketID> resumeFrom(
+		public InProgressFileWriter<IN, BucketID> resumeFrom(
 				final BucketID bucketId,
 				final RecoverableFsDataOutputStream stream,
 				final RecoverableWriter.ResumeRecoverable resumable,
@@ -79,7 +79,7 @@ final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWri
 		}
 
 		@Override
-		public PartFileWriter<IN, BucketID> openNew(
+		public InProgressFileWriter<IN, BucketID> openNew(
 				final BucketID bucketId,
 				final RecoverableFsDataOutputStream stream,
 				final Path path,

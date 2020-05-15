@@ -29,15 +29,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class WriterProperties {
 
-	private final SimpleVersionedSerializer<? extends PartFileWriter.InProgressFileRecoverable> inProgressFileRecoverableSerializer;
+	private final SimpleVersionedSerializer<? extends InProgressFileWriter.InProgressFileRecoverable> inProgressFileRecoverableSerializer;
 
-	private final SimpleVersionedSerializer<? extends PartFileWriter.PendingFileRecoverable> pendingFileRecoverableSerializer;
+	private final SimpleVersionedSerializer<? extends InProgressFileWriter.PendingFileRecoverable> pendingFileRecoverableSerializer;
 
 	private final boolean supportsResume;
 
 	public WriterProperties(
-			SimpleVersionedSerializer<? extends PartFileWriter.InProgressFileRecoverable> inProgressFileRecoverableSerializer,
-			SimpleVersionedSerializer<? extends PartFileWriter.PendingFileRecoverable> pendingFileRecoverableSerializer,
+			SimpleVersionedSerializer<? extends InProgressFileWriter.InProgressFileRecoverable> inProgressFileRecoverableSerializer,
+			SimpleVersionedSerializer<? extends InProgressFileWriter.PendingFileRecoverable> pendingFileRecoverableSerializer,
 			boolean supportsResume) {
 		this.inProgressFileRecoverableSerializer = checkNotNull(inProgressFileRecoverableSerializer);
 		this.pendingFileRecoverableSerializer = checkNotNull(pendingFileRecoverableSerializer);
@@ -49,16 +49,16 @@ public class WriterProperties {
 	}
 
 	/**
-	 * @return the serializer for the {@link PartFileWriter.PendingFileRecoverable}.
+	 * @return the serializer for the {@link InProgressFileWriter.PendingFileRecoverable}.
 	 */
-	SimpleVersionedSerializer<? extends PartFileWriter.PendingFileRecoverable> getPendingFileRecoverableSerializer() {
+	SimpleVersionedSerializer<? extends InProgressFileWriter.PendingFileRecoverable> getPendingFileRecoverableSerializer() {
 		return pendingFileRecoverableSerializer;
 	}
 
 	/**
-	 * @return the serializer for the {@link PartFileWriter.InProgressFileRecoverable}.
+	 * @return the serializer for the {@link InProgressFileWriter.InProgressFileRecoverable}.
 	 */
-	SimpleVersionedSerializer<? extends PartFileWriter.InProgressFileRecoverable> getInProgressFileRecoverableSerializer() {
+	SimpleVersionedSerializer<? extends InProgressFileWriter.InProgressFileRecoverable> getInProgressFileRecoverableSerializer() {
 		return inProgressFileRecoverableSerializer;
 	}
 }

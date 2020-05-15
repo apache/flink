@@ -23,7 +23,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
  * @param <IN> the element type.
  * @param <BucketID> the bucket id type.
  */
-public abstract class AbstractPartFileWriter<IN, BucketID> implements PartFileWriter<IN, BucketID>{
+public abstract class AbstractPartFileWriter<IN, BucketID> implements InProgressFileWriter<IN, BucketID> {
 
 	private final BucketID bucketID;
 

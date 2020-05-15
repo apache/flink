@@ -65,7 +65,7 @@ public class BucketStateSerializerTest {
 	public void testSerializationEmpty() throws IOException {
 		final File testFolder = tempFolder.newFolder();
 		final FileSystem fs = FileSystem.get(testFolder.toURI());
-		final PartFileWriter.PartFileFactory<String, String> partFileFactory =
+		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(fs.createRecoverableWriter(), new SimpleStringEncoder());
 
 		final Path testBucket = new Path(testFolder.getPath(), "test");
@@ -87,12 +87,12 @@ public class BucketStateSerializerTest {
 
 		final Path testBucket = new Path(testFolder.getPath(), "test");
 
-		final PartFileWriter.PartFileFactory<String, String> partFileFactory =
+		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(fs.createRecoverableWriter(), new SimpleStringEncoder());
-		final PartFileWriter<String, String> partFileWriter = partFileFactory.openNew("test", testBucket, System.currentTimeMillis());
+		final InProgressFileWriter<String, String> partFileWriter = partFileFactory.openNewInProgressFile("test", testBucket, System.currentTimeMillis());
 		partFileWriter.write(IN_PROGRESS_CONTENT, System.currentTimeMillis());
 
-		final PartFileWriter.InProgressFileRecoverable current = partFileWriter.persist();
+		final InProgressFileWriter.InProgressFileRecoverable current = partFileWriter.persist();
 
 		final BucketState<String> bucketState = new BucketState<>(
 				"test", testBucket, Long.MAX_VALUE, current, new HashMap<>());
@@ -115,20 +115,20 @@ public class BucketStateSerializerTest {
 
 		final File testFolder = tempFolder.newFolder();
 		final FileSystem fs = FileSystem.get(testFolder.toURI());
-		final PartFileWriter.PartFileFactory<String, String> partFileFactory =
+		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(fs.createRecoverableWriter(), new SimpleStringEncoder());
 
 		final Path bucketPath = new Path(testFolder.getPath());
 
 		// pending for checkpoints
-		final Map<Long, List<PartFileWriter.PendingFileRecoverable>> pendingFileRecoverableList = new HashMap<>();
+		final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> pendingFileRecoverableList = new HashMap<>();
 		for (int i = 0; i < noOfTasks; i++) {
-			final List<PartFileWriter.PendingFileRecoverable> pendingFileRecoverables = new ArrayList<>();
+			final List<InProgressFileWriter.PendingFileRecoverable> pendingFileRecoverables = new ArrayList<>();
 			for (int j = 0; j < 2 + i; j++) {
 				final Path part = new Path(bucketPath, "part-" + i + '-' + j);
 
-				final PartFileWriter<String, String> partFileWriter =
-					partFileFactory.openNew("", part, System.currentTimeMillis());
+				final InProgressFileWriter<String, String> partFileWriter =
+					partFileFactory.openNewInProgressFile("", part, System.currentTimeMillis());
 				partFileWriter.write(PENDING_CONTENT, System.currentTimeMillis());
 				pendingFileRecoverables.add(partFileWriter.closeForCommit());
 			}
@@ -137,10 +137,10 @@ public class BucketStateSerializerTest {
 
 		// in-progress
 		final Path testBucket = new Path(bucketPath, "test-2");
-		final PartFileWriter<String, String> partFileWriter = partFileFactory.openNew("test-2", testBucket, System.currentTimeMillis());
+		final InProgressFileWriter<String, String> partFileWriter = partFileFactory.openNewInProgressFile("test-2", testBucket, System.currentTimeMillis());
 		partFileWriter.write(IN_PROGRESS_CONTENT, System.currentTimeMillis());
 
-		final PartFileWriter.InProgressFileRecoverable current = partFileWriter.persist();
+		final InProgressFileWriter.InProgressFileRecoverable current = partFileWriter.persist();
 
 		final BucketState<String> bucketState = new BucketState<>(
 				"test-2",
@@ -165,20 +165,20 @@ public class BucketStateSerializerTest {
 
 		final File testFolder = tempFolder.newFolder();
 		final FileSystem fs = FileSystem.get(testFolder.toURI());
-		final PartFileWriter.PartFileFactory<String, String> partFileFactory =
+		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(fs.createRecoverableWriter(), new SimpleStringEncoder());
 
 		final Path bucketPath = new Path(testFolder.getPath());
 
 		// pending for checkpoints
-		final Map<Long, List<PartFileWriter.PendingFileRecoverable>> pendingFileRecoverablesList = new HashMap<>();
+		final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> pendingFileRecoverablesList = new HashMap<>();
 		for (int i = 0; i < noOfTasks; i++) {
-			final List<PartFileWriter.PendingFileRecoverable> pendingFileRecoverables = new ArrayList<>();
+			final List<InProgressFileWriter.PendingFileRecoverable> pendingFileRecoverables = new ArrayList<>();
 			for (int j = 0; j < 2 + i; j++) {
 				final Path part = new Path(bucketPath, "test-" + i + '-' + j);
 
-				final PartFileWriter<String, String> partFileWriter =
-					partFileFactory.openNew("", part, System.currentTimeMillis());
+				final InProgressFileWriter<String, String> partFileWriter =
+					partFileFactory.openNewInProgressFile("", part, System.currentTimeMillis());
 				partFileWriter.write(PENDING_CONTENT, System.currentTimeMillis());
 				pendingFileRecoverables.add(partFileWriter.closeForCommit());
 			}
@@ -212,7 +212,7 @@ public class BucketStateSerializerTest {
 
 		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializerV1, bucketState);
 
-		final PartFileWriter.PartFileFactory<String, String> partFileFactory =
+		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(writer, new SimpleStringEncoder());
 		final SimpleVersionedSerializer<BucketState<String>> serializerV2 = getBucketStateSerializer(partFileFactory);
 
@@ -245,7 +245,7 @@ public class BucketStateSerializerTest {
 		// to simulate that everything is over for file.
 		stream.close();
 
-		final PartFileWriter.PartFileFactory<String, String> partFileFactory =
+		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(writer, new SimpleStringEncoder());
 		final SimpleVersionedSerializer<BucketState<String>> serializerV2 = getBucketStateSerializer(partFileFactory);
 
@@ -292,7 +292,7 @@ public class BucketStateSerializerTest {
 
 		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializerV1, bucketState);
 
-		final PartFileWriter.PartFileFactory<String, String> partFileFactory =
+		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(writer, new SimpleStringEncoder());
 		final SimpleVersionedSerializer<BucketState<String>> serializerV2 = getBucketStateSerializer(partFileFactory);
 
@@ -335,7 +335,7 @@ public class BucketStateSerializerTest {
 
 		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializerV1, bucketState);
 
-		final PartFileWriter.PartFileFactory<String, String>  partFileFactory =
+		final InProgressFileWriter.BucketWriter<String, String> partFileFactory =
 			new RowWisePartWriter.Factory(writer, new SimpleStringEncoder());
 		final SimpleVersionedSerializer<BucketState<String>> serializerV2 = getBucketStateSerializer(partFileFactory);
 
@@ -374,18 +374,18 @@ public class BucketStateSerializerTest {
 		final Path bucketPath,
 		final Path testBucket,
 		final BucketState<String> bucketState,
-		final PartFileWriter.PartFileFactory<String, String> partFileFactory) throws IOException {
+		final InProgressFileWriter.BucketWriter<String, String> partFileFactory) throws IOException {
 
 		final FileSystem fs = FileSystem.get(bucketPath.toUri());
 
 		Assert.assertEquals(bucketPath, bucketState.getBucketPath());
 
-		final Map<Long, List<PartFileWriter.PendingFileRecoverable>> pendingFileRecoverables = bucketState.getPendingFileRecoverablesPerCheckpoint();
+		final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> pendingFileRecoverables = bucketState.getPendingFileRecoverablesPerCheckpoint();
 		Assert.assertEquals(5L, pendingFileRecoverables.size());
 
 		// recover and commit
-		for (Map.Entry<Long, List<PartFileWriter.PendingFileRecoverable>> entry: pendingFileRecoverables.entrySet()) {
-			for (PartFileWriter.PendingFileRecoverable recoverable: entry.getValue()) {
+		for (Map.Entry<Long, List<InProgressFileWriter.PendingFileRecoverable>> entry: pendingFileRecoverables.entrySet()) {
+			for (InProgressFileWriter.PendingFileRecoverable recoverable: entry.getValue()) {
 				partFileFactory.recoverPendingFile(recoverable).commit();
 			}
 		}
@@ -416,19 +416,19 @@ public class BucketStateSerializerTest {
 		final int noOfTasks,
 		final Path bucketPath,
 		final BucketState<String> bucketState,
-		final PartFileWriter.PartFileFactory<String, String> partFileFactory) throws IOException {
+		final InProgressFileWriter.BucketWriter<String, String> partFileFactory) throws IOException {
 
 		final FileSystem fs = FileSystem.get(bucketPath.toUri());
 
 		Assert.assertEquals(bucketPath, bucketState.getBucketPath());
 		Assert.assertNull(bucketState.getInProgressFileRecoverable());
 
-		final Map<Long, List<PartFileWriter.PendingFileRecoverable>> recoveredRecoverables = bucketState.getPendingFileRecoverablesPerCheckpoint();
+		final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> recoveredRecoverables = bucketState.getPendingFileRecoverablesPerCheckpoint();
 		Assert.assertEquals(5L, recoveredRecoverables.size());
 
 		// recover and commit
-		for (Map.Entry<Long, List<PartFileWriter.PendingFileRecoverable>> entry: recoveredRecoverables.entrySet()) {
-			for (PartFileWriter.PendingFileRecoverable recoverable: entry.getValue()) {
+		for (Map.Entry<Long, List<InProgressFileWriter.PendingFileRecoverable>> entry: recoveredRecoverables.entrySet()) {
+			for (InProgressFileWriter.PendingFileRecoverable recoverable: entry.getValue()) {
 				partFileFactory.recoverPendingFile(recoverable).commit();
 			}
 		}
@@ -462,7 +462,7 @@ public class BucketStateSerializerTest {
 			SimpleVersionedStringSerializer.INSTANCE);
 	}
 
-	private static SimpleVersionedSerializer<BucketState<String>> getBucketStateSerializer(final PartFileWriter.PartFileFactory writer) {
+	private static SimpleVersionedSerializer<BucketState<String>> getBucketStateSerializer(final InProgressFileWriter.BucketWriter writer) {
 		return new BucketStateSerializer(
 			writer.getProperties().getInProgressFileRecoverableSerializer(),
 			writer.getProperties().getPendingFileRecoverableSerializer(),

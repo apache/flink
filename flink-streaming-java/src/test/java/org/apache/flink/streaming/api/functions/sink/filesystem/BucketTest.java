@@ -201,7 +201,7 @@ public class BucketTest {
 		return new TypeSafeMatcher<Bucket<String, String>>() {
 			@Override
 			protected boolean matchesSafely(Bucket<String, String> bucket) {
-				final PartFileWriter<String, String> inProgressPart = bucket.getInProgressPart();
+				final InProgressFileWriter<String, String> inProgressPart = bucket.getInProgressPart();
 				return isNull == (inProgressPart == null);
 			}
 
@@ -417,7 +417,7 @@ public class BucketTest {
 	}
 
 	private Bucket<String, String> getRestoredBucketWithOnlyPendingParts(final BaseStubWriter writer, final int numberOfPendingParts) throws IOException {
-		final Map<Long, List<PartFileWriter.PendingFileRecoverable>> completePartsPerCheckpoint =
+		final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> completePartsPerCheckpoint =
 				createPendingPartsPerCheckpoint(numberOfPendingParts);
 
 		final BucketState<String> initStateWithOnlyInProgressFile =
@@ -435,10 +435,10 @@ public class BucketTest {
 			initStateWithOnlyInProgressFile, OutputFileConfig.builder().build());
 	}
 
-	private Map<Long, List<PartFileWriter.PendingFileRecoverable>> createPendingPartsPerCheckpoint(int noOfCheckpoints) {
-		final Map<Long, List<PartFileWriter.PendingFileRecoverable>> pendingCommittablesPerCheckpoint = new HashMap<>();
+	private Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> createPendingPartsPerCheckpoint(int noOfCheckpoints) {
+		final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> pendingCommittablesPerCheckpoint = new HashMap<>();
 		for (int checkpointId = 0; checkpointId < noOfCheckpoints; checkpointId++) {
-			final List<PartFileWriter.PendingFileRecoverable> pending = new ArrayList<>();
+			final List<InProgressFileWriter.PendingFileRecoverable> pending = new ArrayList<>();
 			pending.add(new OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverable(new NoOpRecoverable()));
 			pendingCommittablesPerCheckpoint.put((long) checkpointId, pending);
 		}

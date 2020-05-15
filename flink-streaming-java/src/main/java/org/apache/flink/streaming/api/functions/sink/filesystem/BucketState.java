@@ -46,24 +46,24 @@ class BucketState<BucketID> {
 	private final long inProgressFileCreationTime;
 
 	/**
-	 * A {@link PartFileWriter.InProgressFileRecoverable} for the currently open
+	 * A {@link InProgressFileWriter.InProgressFileRecoverable} for the currently open
 	 * part file, or null if there is no currently open part file.
 	 */
 	@Nullable
-	private final PartFileWriter.InProgressFileRecoverable inProgressFileRecoverable;
+	private final InProgressFileWriter.InProgressFileRecoverable inProgressFileRecoverable;
 
 	/**
 	 * The {@link RecoverableWriter.CommitRecoverable files} pending to be
 	 * committed, organized by checkpoint id.
 	 */
-	private final Map<Long, List<PartFileWriter.PendingFileRecoverable>> pendingFileRecoverablesPerCheckpoint;
+	private final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> pendingFileRecoverablesPerCheckpoint;
 
 	BucketState(
 			final BucketID bucketId,
 			final Path bucketPath,
 			final long inProgressFileCreationTime,
-			@Nullable final PartFileWriter.InProgressFileRecoverable inProgressFileRecoverable,
-			final Map<Long, List<PartFileWriter.PendingFileRecoverable>> pendingFileRecoverablesPerCheckpoint
+			@Nullable final InProgressFileWriter.InProgressFileRecoverable inProgressFileRecoverable,
+			final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> pendingFileRecoverablesPerCheckpoint
 	) {
 		this.bucketId = Preconditions.checkNotNull(bucketId);
 		this.bucketPath = Preconditions.checkNotNull(bucketPath);
@@ -89,11 +89,11 @@ class BucketState<BucketID> {
 	}
 
 	@Nullable
-	PartFileWriter.InProgressFileRecoverable getInProgressFileRecoverable() {
+	InProgressFileWriter.InProgressFileRecoverable getInProgressFileRecoverable() {
 		return inProgressFileRecoverable;
 	}
 
-	Map<Long, List<PartFileWriter.PendingFileRecoverable>> getPendingFileRecoverablesPerCheckpoint() {
+	Map<Long, List<InProgressFileWriter.PendingFileRecoverable>> getPendingFileRecoverablesPerCheckpoint() {
 		return pendingFileRecoverablesPerCheckpoint;
 	}
 

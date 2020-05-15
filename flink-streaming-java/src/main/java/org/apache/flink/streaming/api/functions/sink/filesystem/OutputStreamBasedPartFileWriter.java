@@ -70,7 +70,7 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 		return currentPartStream.getPos();
 	}
 
-	abstract static class OutputStreamBasedPartFileFactory<IN, BucketID> implements PartFileFactory<IN, BucketID> {
+	abstract static class OutputStreamBasedPartFileFactory<IN, BucketID> implements BucketWriter<IN, BucketID> {
 
 		private final RecoverableWriter recoverableWriter;
 
@@ -79,12 +79,12 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 		}
 
 		@Override
-		public PartFileWriter<IN, BucketID> openNew(final BucketID bucketID, final Path path, final long creationTime) throws IOException {
+		public InProgressFileWriter<IN, BucketID> openNewInProgressFile(final BucketID bucketID, final Path path, final long creationTime) throws IOException {
 			return openNew(bucketID, recoverableWriter.open(path), path, creationTime);
 		}
 
 		@Override
-		public PartFileWriter<IN, BucketID> resumeFrom(final BucketID bucketID, final InProgressFileRecoverable inProgressFileRecoverable, final long creationTime) throws IOException {
+		public InProgressFileWriter<IN, BucketID> resumeInProgressFileFrom(final BucketID bucketID, final InProgressFileRecoverable inProgressFileRecoverable, final long creationTime) throws IOException {
 			final OutputStreamBasedInProgressFileRecoverable outputStreamBasedInProgressRecoverable = (OutputStreamBasedInProgressFileRecoverable) inProgressFileRecoverable;
 			return resumeFrom(
 				bucketID,
@@ -122,13 +122,13 @@ public abstract class OutputStreamBasedPartFileWriter<IN, BucketID> extends Abst
 					recoverableWriter.supportsResume());
 		}
 
-		public abstract PartFileWriter<IN, BucketID> openNew(
+		public abstract InProgressFileWriter<IN, BucketID> openNew(
 			final BucketID bucketId,
 			final RecoverableFsDataOutputStream stream,
 			final Path path,
 			final long creationTime) throws IOException;
 
-		public abstract PartFileWriter<IN, BucketID> resumeFrom(
+		public abstract InProgressFileWriter<IN, BucketID> resumeFrom(
 			final BucketID bucketId,
 			final RecoverableFsDataOutputStream stream,
 			final RecoverableWriter.ResumeRecoverable resumable,

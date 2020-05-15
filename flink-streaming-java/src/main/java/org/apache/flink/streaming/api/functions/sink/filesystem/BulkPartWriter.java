@@ -28,7 +28,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * A {@link PartFileWriter} for bulk-encoding formats that use an {@link BulkPartWriter}.
+ * A {@link InProgressFileWriter} for bulk-encoding formats that use an {@link BulkPartWriter}.
  * This also implements the {@link PartFileInfo}.
  */
 @Internal
@@ -78,7 +78,7 @@ final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter
 		}
 
 		@Override
-		public PartFileWriter<IN, BucketID> resumeFrom(
+		public InProgressFileWriter<IN, BucketID> resumeFrom(
 				final BucketID bucketId,
 				final RecoverableFsDataOutputStream stream,
 				final RecoverableWriter.ResumeRecoverable resumable,
@@ -92,7 +92,7 @@ final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter
 		}
 
 		@Override
-		public PartFileWriter<IN, BucketID> openNew(
+		public InProgressFileWriter<IN, BucketID> openNew(
 				final BucketID bucketId,
 				final RecoverableFsDataOutputStream stream,
 				final Path path,
