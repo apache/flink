@@ -65,7 +65,7 @@ public interface HadoopPathBasedBulkWriter<T> extends BulkWriter<T> {
 		 * @param inProgressFilePath The intermediate path to write to before committing.
 		 * @return The created writer.
 		 */
-		HadoopPathBasedBulkWriter<T> create(Path targetFilePath, Path inProgressFilePath);
+		HadoopPathBasedBulkWriter<T> create(Path targetFilePath, Path inProgressFilePath) throws IOException;
 
 	}
 }
