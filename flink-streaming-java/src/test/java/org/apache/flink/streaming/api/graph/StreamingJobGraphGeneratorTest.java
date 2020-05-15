@@ -251,7 +251,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	}
 
 	@Test
-	public void testOperatorCoordinatorAddedToJobVerted() {
+	public void testOperatorCoordinatorAddedToJobVertex() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Integer> stream =
 				env.continuousSource(new MockSource(Boundedness.BOUNDED, 1), "TestingSource");
