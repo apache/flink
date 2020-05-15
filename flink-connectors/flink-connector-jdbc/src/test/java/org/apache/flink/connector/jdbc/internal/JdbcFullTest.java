@@ -57,7 +57,8 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_BOOKS_S
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOKS;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStatement;
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 
@@ -77,8 +78,8 @@ public class JdbcFullTest extends JdbcDataTestBase {
 	}
 
 	@Test
-	public void testEnrichedClassCastException() throws Exception {
-		String expectedMsg = "java.lang.String cannot be cast to java.lang.Double, field index: 3, field value: 11.11.";
+	public void testEnrichedClassCastException() {
+		String expectedMsg = "field index: 3, field value: 11.11.";
 		try {
 			JdbcBatchingOutputFormat jdbcOutputFormat = JdbcBatchingOutputFormat.builder()
 				.setOptions(JdbcOptions.builder()
@@ -100,8 +101,8 @@ public class JdbcFullTest extends JdbcDataTestBase {
 			jdbcOutputFormat.writeRecord(Tuple2.of(true, inputRow));
 			jdbcOutputFormat.close();
 		} catch (Exception e) {
-			assertTrue(e instanceof RuntimeException && e.getCause() instanceof ClassCastException);
-			assertEquals(expectedMsg, e.getCause().getMessage());
+			assertTrue(findThrowable(e, ClassCastException.class).isPresent());
+			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
 		}
 	}
 
