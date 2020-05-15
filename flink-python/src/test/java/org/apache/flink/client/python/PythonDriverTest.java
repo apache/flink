@@ -28,13 +28,14 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Tests for the {@link PythonDriver}.
  */
 public class PythonDriverTest {
 	@Test
-	public void testStartGatewayServer() {
+	public void testStartGatewayServer() throws ExecutionException, InterruptedException {
 		GatewayServer gatewayServer = PythonDriver.startGatewayServer();
 		try {
 			Socket socket = new Socket("localhost", gatewayServer.getListeningPort());
