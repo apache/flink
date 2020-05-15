@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 
+import static java.util.Collections.emptyList;
 import static org.apache.flink.runtime.state.CheckpointedStateScope.EXCLUSIVE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -150,6 +151,12 @@ class ChannelStateCheckpointWriter {
 	}
 
 	private void finishWriteAndResult() throws IOException {
+		if (inputChannelOffsets.isEmpty() && resultSubpartitionOffsets.isEmpty()) {
+			dataStream.close();
+			result.inputChannelStateHandles.complete(emptyList());
+			result.resultSubpartitionStateHandles.complete(emptyList());
+			return;
+		}
 		dataStream.flush();
 		StreamStateHandle underlying = checkpointStream.closeAndGetHandle();
 		complete(
