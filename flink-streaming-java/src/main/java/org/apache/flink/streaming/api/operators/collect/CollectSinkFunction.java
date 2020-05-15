@@ -48,10 +48,10 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -137,7 +137,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 
 	private transient ListState<IN> bufferedResultsState;
 	private transient ListState<Long> offsetState;
-	private transient Map<Long, Long> uncompletedCheckpointMap;
+	private transient SortedMap<Long, Long> uncompletedCheckpointMap;
 
 	public CollectSinkFunction(
 			TypeSerializer<IN> serializer,
@@ -185,7 +185,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		}
 		lastCheckpointedOffset = offset;
 
-		uncompletedCheckpointMap = new HashMap<>();
+		uncompletedCheckpointMap = new TreeMap<>();
 	}
 
 	@Override
@@ -266,7 +266,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) {
 		lastCheckpointedOffset = uncompletedCheckpointMap.get(checkpointId);
-		uncompletedCheckpointMap.remove(checkpointId);
+		uncompletedCheckpointMap.headMap(checkpointId + 1).clear();
 	}
 
 	public void setOperatorEventGateway(OperatorEventGateway eventGateway) {
