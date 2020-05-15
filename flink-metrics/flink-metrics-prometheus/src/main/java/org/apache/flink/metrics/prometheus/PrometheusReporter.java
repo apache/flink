@@ -31,6 +31,8 @@ import io.prometheus.client.exporter.HTTPServer;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus.
@@ -45,6 +47,9 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
 	private HTTPServer httpServer;
 	private int port;
 
+	private Map<String, String> labels;
+	private static final String ARG_LABEL = "labels";
+
 	@VisibleForTesting
 	int getPort() {
 		Preconditions.checkState(httpServer != null, "Server has not been initialized.");
@@ -55,6 +60,7 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
 	public void open(MetricConfig config) {
 		super.open(config);
 
+		labels = parseLabels(config.getString(ARG_LABEL, ""));
 		String portsConfig = config.getString(ARG_PORT, DEFAULT_PORT);
 		Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
 
@@ -64,7 +70,7 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
 				// internally accesses CollectorRegistry.defaultRegistry
 				httpServer = new HTTPServer(port);
 				this.port = port;
-				log.info("Started PrometheusReporter HTTP server on port {}.", port);
+				log.info("Started PrometheusReporter HTTP server with {port:{}, labels:{}}", port, labels);
 				break;
 			} catch (IOException ioe) { //assume port conflict
 				log.debug("Could not start PrometheusReporter HTTP server on port {}.", port, ioe);
@@ -76,6 +82,18 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
 	}
 
 	@Override
+	protected void resolveDimensions(List<String> dimensionKeys, List<String> dimensionValues) {
+		super.resolveDimensions(dimensionKeys, dimensionValues);
+
+		if (!labels.isEmpty()) {
+			labels.forEach((k, v) -> {
+				dimensionKeys.add(k);
+				dimensionValues.add(v);
+			});
+		}
+	}
+
+	@Override
 	public void close() {
 		if (httpServer != null) {
 			httpServer.stop();
@@ -83,5 +101,4 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
 
 		super.close();
 	}
-
 }
