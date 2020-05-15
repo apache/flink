@@ -24,7 +24,7 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 
 /**
  * The DataStreamSource represents the starting point of a DataStream.
@@ -39,7 +39,7 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 	public DataStreamSource(StreamExecutionEnvironment environment,
 			TypeInformation<T> outTypeInfo, StreamSource<T, ?> operator,
 			boolean isParallel, String sourceName) {
-		super(environment, new SourceTransformation<>(sourceName, operator, outTypeInfo, environment.getParallelism()));
+		super(environment, new LegacySourceTransformation<>(sourceName, operator, outTypeInfo, environment.getParallelism()));
 
 		this.isParallel = isParallel;
 		if (!isParallel) {
@@ -58,7 +58,7 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 			TypeInformation<T> outTypeInfo,
 			String sourceName) {
 		super(environment,
-				new SourceTransformation<>(
+				new LegacySourceTransformation<>(
 						sourceName,
 						new SourceOperatorFactory<>(source),
 						outTypeInfo,

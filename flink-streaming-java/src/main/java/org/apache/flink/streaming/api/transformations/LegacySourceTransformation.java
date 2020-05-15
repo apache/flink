@@ -37,19 +37,19 @@ import java.util.Collections;
  * @param <T> The type of the elements that this source produces
  */
 @Internal
-public class SourceTransformation<T> extends PhysicalTransformation<T> {
+public class LegacySourceTransformation<T> extends PhysicalTransformation<T> {
 
 	private final StreamOperatorFactory<T> operatorFactory;
 
 	/**
-	 * Creates a new {@code SourceTransformation} from the given operator.
+	 * Creates a new {@code LegacySourceTransformation} from the given operator.
 	 *
-	 * @param name The name of the {@code SourceTransformation}, this will be shown in Visualizations and the Log
+	 * @param name The name of the {@code LegacySourceTransformation}, this will be shown in Visualizations and the Log
 	 * @param operator The {@code StreamSource} that is the operator of this Transformation
-	 * @param outputType The type of the elements produced by this {@code SourceTransformation}
-	 * @param parallelism The parallelism of this {@code SourceTransformation}
+	 * @param outputType The type of the elements produced by this {@code LegacySourceTransformation}
+	 * @param parallelism The parallelism of this {@code LegacySourceTransformation}
 	 */
-	public SourceTransformation(
+	public LegacySourceTransformation(
 			String name,
 			StreamSource<T, ?> operator,
 			TypeInformation<T> outputType,
@@ -57,7 +57,7 @@ public class SourceTransformation<T> extends PhysicalTransformation<T> {
 		this(name, SimpleOperatorFactory.of(operator), outputType, parallelism);
 	}
 
-	public SourceTransformation(
+	public LegacySourceTransformation(
 			String name,
 			StreamOperatorFactory<T> operatorFactory,
 			TypeInformation<T> outputType,
@@ -72,7 +72,7 @@ public class SourceTransformation<T> extends PhysicalTransformation<T> {
 	}
 
 	/**
-	 * Returns the {@code StreamOperatorFactory} of this {@code SourceTransformation}.
+	 * Returns the {@code StreamOperatorFactory} of this {@code LegacySourceTransformation}.
 	 */
 	public StreamOperatorFactory<T> getOperatorFactory() {
 		return operatorFactory;

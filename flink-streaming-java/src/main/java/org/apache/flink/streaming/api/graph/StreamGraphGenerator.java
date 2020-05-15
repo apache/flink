@@ -43,7 +43,7 @@ import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SelectTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
-import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.SplitTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
@@ -254,8 +254,8 @@ public class StreamGraphGenerator {
 			transformedIds = transformTwoInputTransform((TwoInputTransformation<?, ?, ?>) transform);
 		} else if (transform instanceof AbstractMultipleInputTransformation<?>) {
 			transformedIds = transformMultipleInputTransform((AbstractMultipleInputTransformation<?>) transform);
-		} else if (transform instanceof SourceTransformation<?>) {
-			transformedIds = transformSource((SourceTransformation<?>) transform);
+		} else if (transform instanceof LegacySourceTransformation<?>) {
+			transformedIds = transformSource((LegacySourceTransformation<?>) transform);
 		} else if (transform instanceof SinkTransformation<?>) {
 			transformedIds = transformSink((SinkTransformation<?>) transform);
 		} else if (transform instanceof UnionTransformation<?>) {
@@ -572,9 +572,9 @@ public class StreamGraphGenerator {
 	}
 
 	/**
-	 * Transforms a {@code SourceTransformation}.
+	 * Transforms a {@code LegacySourceTransformation}.
 	 */
-	private <T> Collection<Integer> transformSource(SourceTransformation<T> source) {
+	private <T> Collection<Integer> transformSource(LegacySourceTransformation<T> source) {
 		String slotSharingGroup = determineSlotSharingGroup(source.getSlotSharingGroup(), Collections.emptyList());
 
 		streamGraph.addSource(source.getId(),
@@ -596,7 +596,7 @@ public class StreamGraphGenerator {
 	}
 
 	/**
-	 * Transforms a {@code SourceTransformation}.
+	 * Transforms a {@code LegacySourceTransformation}.
 	 */
 	private <T> Collection<Integer> transformSink(SinkTransformation<T> sink) {
 
