@@ -21,7 +21,13 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+
+import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * A {@link Transformation} that creates a physical operation. It enables setting {@link ChainingStrategy}.
@@ -50,4 +56,19 @@ public abstract class PhysicalTransformation<T> extends Transformation<T> {
 	 * Sets the chaining strategy of this {@code Transformation}.
 	 */
 	public abstract void setChainingStrategy(ChainingStrategy strategy);
+
+	/**
+	 * Get an optional {@link org.apache.flink.runtime.operators.coordination.OperatorCoordinator.Provider Provider}
+	 * of the {@link OperatorCoordinator}.
+	 *
+	 * <p>The input parameters of the coordinator provider factory is following:
+	 * First Parameter: name of the operator, type: String.
+	 * Second parameter: the operator id, type: {@link OperatorID}.
+	 *
+	 * @return The {@link org.apache.flink.runtime.operators.coordination.OperatorCoordinator.Provider Provider} of
+	 * the {@link OperatorCoordinator}.
+	 */
+	public Optional<Function<Tuple2<String, OperatorID>, OperatorCoordinator.Provider>> getOperatorCoordinatorProviderFactory() {
+		return Optional.empty();
+	}
 }

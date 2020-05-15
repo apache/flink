@@ -25,7 +25,10 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -36,6 +39,8 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -73,6 +78,7 @@ public class StreamNode implements Serializable {
 	private List<StreamEdge> outEdges = new ArrayList<StreamEdge>();
 
 	private final Class<? extends AbstractInvokable> jobVertexClass;
+	private final Function<Tuple2<String, OperatorID>, OperatorCoordinator.Provider> coordinatorProviderFactory;
 
 	private InputFormat<?, ?> inputFormat;
 	private OutputFormat<?> outputFormat;
@@ -90,18 +96,18 @@ public class StreamNode implements Serializable {
 			List<OutputSelector<?>> outputSelector,
 			Class<? extends AbstractInvokable> jobVertexClass) {
 		this(id, slotSharingGroup, coLocationGroup, SimpleOperatorFactory.of(operator),
-				operatorName, outputSelector, jobVertexClass);
+				operatorName, outputSelector, jobVertexClass, null);
 	}
 
 	public StreamNode(
-		Integer id,
-		@Nullable String slotSharingGroup,
-		@Nullable String coLocationGroup,
-		StreamOperatorFactory<?> operatorFactory,
-		String operatorName,
-		List<OutputSelector<?>> outputSelector,
-		Class<? extends AbstractInvokable> jobVertexClass) {
-
+			Integer id,
+			@Nullable String slotSharingGroup,
+			@Nullable String coLocationGroup,
+			StreamOperatorFactory<?> operatorFactory,
+			String operatorName,
+			List<OutputSelector<?>> outputSelector,
+			Class<? extends AbstractInvokable> jobVertexClass,
+			Function<Tuple2<String, OperatorID>, OperatorCoordinator.Provider> coordinatorProviderFactory) {
 		this.id = id;
 		this.operatorName = operatorName;
 		this.operatorFactory = operatorFactory;
@@ -109,6 +115,7 @@ public class StreamNode implements Serializable {
 		this.jobVertexClass = jobVertexClass;
 		this.slotSharingGroup = slotSharingGroup;
 		this.coLocationGroup = coLocationGroup;
+		this.coordinatorProviderFactory = coordinatorProviderFactory;
 	}
 
 	public void addInEdge(StreamEdge inEdge) {
@@ -334,6 +341,10 @@ public class StreamNode implements Serializable {
 
 	public void setUserHash(String userHash) {
 		this.userHash = userHash;
+	}
+
+	public Optional<Function<Tuple2<String, OperatorID>, OperatorCoordinator.Provider>> getCoordinatorProviderFactory() {
+		return Optional.ofNullable(coordinatorProviderFactory);
 	}
 
 	@Override

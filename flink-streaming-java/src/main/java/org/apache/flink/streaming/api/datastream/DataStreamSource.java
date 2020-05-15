@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 
 /**
  * The DataStreamSource represents the starting point of a DataStream.
@@ -58,7 +59,7 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 			TypeInformation<T> outTypeInfo,
 			String sourceName) {
 		super(environment,
-				new LegacySourceTransformation<>(
+				new SourceTransformation<>(
 						sourceName,
 						new SourceOperatorFactory<>(source),
 						outTypeInfo,
