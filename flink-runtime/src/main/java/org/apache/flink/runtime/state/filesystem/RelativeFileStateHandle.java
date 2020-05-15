@@ -23,9 +23,9 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 
 
 /**
- * {@link StreamStateHandle} for state that was written to a file stream.
- * The differences between {@link FileStateHandle} and {@link RelativeFileStateHandle} is that, {@link RelativeFileStateHandle}
- * contains relativePath for the given handle.
+ * A {@link StreamStateHandle} for state that was written to a file stream.
+ * The differences between {@link FileStateHandle} and {@link RelativeFileStateHandle} is that
+ * {@link RelativeFileStateHandle} contains relativePath for the given handle.
  */
 public class RelativeFileStateHandle extends FileStateHandle {
 	private static final long serialVersionUID = 1L;
@@ -33,26 +33,18 @@ public class RelativeFileStateHandle extends FileStateHandle {
 	private final String relativePath;
 
 	public RelativeFileStateHandle(
-		Path path,
-		String relativePath,
-		long stateSize) {
+			Path path,
+			String relativePath,
+			long stateSize) {
 		super(path, stateSize);
 		this.relativePath = relativePath;
-	}
-
-	@Override
-	public void discardState() throws Exception {
-		super.discardState();
 	}
 
 	public String getRelativePath() {
 		return relativePath;
 	}
 
-	@Override
-	public String toString() {
-		return String.format("RelativeFileStateHandle State: %s, %s [%d bytes]", getFilePath(), relativePath, getStateSize());
-	}
+	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean equals(Object o) {
@@ -71,6 +63,11 @@ public class RelativeFileStateHandle extends FileStateHandle {
 	@Override
 	public int hashCode() {
 		return 17 * super.hashCode() + relativePath.hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return String.format("RelativeFileStateHandle State: %s, %s [%d bytes]", getFilePath(), relativePath, getStateSize());
 	}
 }
 
