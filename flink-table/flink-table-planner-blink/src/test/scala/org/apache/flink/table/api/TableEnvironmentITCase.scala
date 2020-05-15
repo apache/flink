@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecutionEnvironment}
-import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
 import org.apache.flink.table.api.java.StreamTableEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment, _}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
@@ -31,16 +31,13 @@ import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, rep
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks, TestTableSourceWithTime}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, TestLogger}
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
-
 import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assert, Before, Rule, Test}
-
 import _root_.java.io.{File, FileFilter}
 import _root_.java.lang.{Long => JLong}
 import _root_.java.util
@@ -619,7 +616,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     val sourceType = Types.STRING
     val tableSource = new TestTableSourceWithTime(true, schema, sourceType, data, null, "pt")
     // TODO refactor this after FLINK-16160 is finished
-    tEnv.registerTableSource("T", tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("T", tableSource)
 
     val tableResult = tEnv.executeSql("select * from T")
     assertTrue(tableResult.getJobClient.isPresent)

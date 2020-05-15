@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{ExplainDetail, TableException}
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
-
 import org.junit.Test
 
 class LegacySinkTest extends TableTestBase {
@@ -53,13 +53,15 @@ class LegacySinkTest extends TableTestBase {
     util.tableEnv.createTemporaryView("TempTable", table)
 
     val retractSink = util.createRetractTableSink(Array("cnt"), Array(LONG))
-    util.tableEnv.registerTableSink("retractSink1", retractSink)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "retractSink1", retractSink)
     stmtSet.addInsert("retractSink1", table)
 
     val table2 = util.tableEnv.sqlQuery(
       "SELECT cnt, SUM(cnt) OVER (ORDER BY PROCTIME()) FROM TempTable")
     val retractSink2 = util.createRetractTableSink(Array("cnt", "total"), Array(LONG, LONG))
-    util.tableEnv.registerTableSink("retractSink2", retractSink2)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "retractSink2", retractSink2)
     stmtSet.addInsert("retractSink2", table2)
 
     thrown.expect(classOf[TableException])
@@ -141,12 +143,14 @@ class LegacySinkTest extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable WHERE b < 4")
     val retractSink = util.createRetractTableSink(Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.registerTableSink("retractSink", retractSink)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "retractSink", retractSink)
     stmtSet.addInsert("retractSink", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable WHERE b >= 4 AND b < 6")
     val upsertSink = util.createUpsertTableSink(Array(), Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.registerTableSink("upsertSink", upsertSink)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table2)
 
     util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -161,12 +165,14 @@ class LegacySinkTest extends TableTestBase {
     val table1 = util.tableEnv.sqlQuery(
       "SELECT cnt, COUNT(b) AS frequency FROM TempTable WHERE b < 4 GROUP BY cnt")
     val upsertSink1 = util.createUpsertTableSink(Array(0), Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.registerTableSink("upsertSink1", upsertSink1)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "upsertSink1", upsertSink1)
     stmtSet.addInsert("upsertSink1", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable WHERE b >= 4 AND b < 6")
     val upsertSink2 = util.createUpsertTableSink(Array(), Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.registerTableSink("upsertSink2", upsertSink2)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "upsertSink2", upsertSink2)
     stmtSet.addInsert("upsertSink2", table2)
 
     util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
@@ -183,7 +189,8 @@ class LegacySinkTest extends TableTestBase {
     util.tableEnv.registerTable("TempTable", table)
 
     val appendSink = util.createAppendTableSink(Array("a", "b"), Array(INT, LONG))
-    util.tableEnv.registerTableSink("appendSink", appendSink)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "appendSink", appendSink)
     stmtSet.addInsert("appendSink", table)
 
     val table1 = util.tableEnv.sqlQuery(
@@ -192,12 +199,14 @@ class LegacySinkTest extends TableTestBase {
 
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable1")
     val retractSink = util.createRetractTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.registerTableSink("retractSink", retractSink)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "retractSink", retractSink)
     stmtSet.addInsert("retractSink", table2)
 
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable1")
     val upsertSink = util.createUpsertTableSink(Array(), Array("total_min"), Array(INT))
-    util.tableEnv.registerTableSink("upsertSink", upsertSink)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "upsertSink", upsertSink)
     stmtSet.addInsert("upsertSink", table3)
 
     util.verifyPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)

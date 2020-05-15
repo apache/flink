@@ -323,44 +323,6 @@ abstract class TableEnvImpl(
       false)
   }
 
-  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
-    validateTableSource(tableSource)
-    registerTableSourceInternal(name, tableSource)
-  }
-
-  override def registerTableSink(
-    name: String,
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]],
-    tableSink: TableSink[_]): Unit = {
-
-    if (fieldNames == null) {
-      throw new TableException("fieldNames must not be null.")
-    }
-    if (fieldTypes == null) {
-      throw new TableException("fieldTypes must not be null.")
-    }
-    if (fieldNames.length == 0) {
-      throw new TableException("fieldNames must not be empty.")
-    }
-    if (fieldNames.length != fieldTypes.length) {
-      throw new TableException("Same number of field names and types required.")
-    }
-
-    val configuredSink = tableSink.configure(fieldNames, fieldTypes)
-    registerTableSinkInternal(name, configuredSink)
-  }
-
-  override def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
-    // validate
-    if (configuredSink.getTableSchema.getFieldNames.length == 0) {
-      throw new TableException("Field names must not be empty.")
-    }
-
-    validateTableSink(configuredSink)
-    registerTableSinkInternal(name, configuredSink)
-  }
-
   override def fromTableSource(source: TableSource[_]): Table = {
     createTable(new TableSourceQueryOperation(source, isBatchTable))
   }
@@ -383,10 +345,11 @@ abstract class TableEnvImpl(
     */
   protected def validateTableSink(tableSink: TableSink[_]): Unit
 
-  private def registerTableSourceInternal(
+  override def registerTableSourceInternal(
       name: String,
       tableSource: TableSource[_])
     : Unit = {
+    validateTableSource(tableSource)
     val unresolvedIdentifier = UnresolvedIdentifier.of(name)
     val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
     // check if a table (source or sink) is registered
@@ -418,10 +381,16 @@ abstract class TableEnvImpl(
     }
   }
 
-  private def registerTableSinkInternal(
+  override def registerTableSinkInternal(
       name: String,
       tableSink: TableSink[_])
     : Unit = {
+    // validate
+    if (tableSink.getTableSchema.getFieldNames.length == 0) {
+      throw new TableException("Field names must not be empty.")
+    }
+
+    validateTableSink(tableSink)
     val unresolvedIdentifier = UnresolvedIdentifier.of(name)
     val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
     // check if a table (source or sink) is registered

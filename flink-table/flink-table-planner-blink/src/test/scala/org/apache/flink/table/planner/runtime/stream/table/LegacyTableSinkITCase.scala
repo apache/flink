@@ -30,12 +30,12 @@ import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTes
 import org.apache.flink.table.sinks._
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.Test
-
 import java.io.File
 import java.util.TimeZone
+
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
 import scala.collection.JavaConverters._
 
@@ -56,7 +56,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(4)
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "csvSink",
       new CsvTableSink(path).configure(
         Array[String]("nullableCol", "c", "b"),
@@ -96,7 +96,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val sink = new TestingAppendTableSink(TimeZone.getDefault)
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "appendSink",
       sink.configure(
         Array[String]("t", "icnt", "nsum"),
@@ -130,7 +130,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     tEnv.registerTable("src", t)
 
     val sink = new TestingAppendTableSink()
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "appendSink",
       sink.configure(
         Array[String]("t", "item"),
@@ -158,7 +158,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val sink = new TestingAppendTableSink
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "appendSink",
       sink.configure(
         Array[String]("c", "g"),
@@ -185,7 +185,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .toTable(tEnv, 'id, 'num, 'text)
 
     val sink = new TestingRetractTableSink()
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "retractSink",
       sink.configure(
         Array[String]("len", "icnt", "nsum"),
@@ -221,7 +221,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val sink = new TestingRetractTableSink(TimeZone.getDefault)
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "retractSink",
       sink.configure(
         Array[String]("t", "icnt", "nsum"),
@@ -264,7 +264,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       Array[TypeInformation[_]](Types.LONG, Types.DECIMAL(), Types.BOOLEAN))
     sink.expectedKeys = Some(Array("cnt", "cTrue"))
     sink.expectedIsAppendOnly = Some(false)
-    tEnv.registerTableSink("upsertSink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("upsertSink", sink)
 
     val table = t.select('id, 'num, 'text.charLength() as 'len, ('id > 0) as 'cTrue)
       .groupBy('len, 'cTrue)
@@ -303,7 +303,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       Array[TypeInformation[_]](Types.LONG, Types.SQL_TIMESTAMP, Types.LONG))
     sink.expectedKeys = Some(Array("wend", "num"))
     sink.expectedIsAppendOnly = Some(true)
-    tEnv.registerTableSink("upsertSink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("upsertSink", sink)
 
     val table = t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w, 'num)
@@ -344,7 +344,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     val sink = new TestingUpsertTableSink(Array(0, 1, 2), TimeZone.getDefault)
     sink.expectedKeys = Some(Array("wend", "num"))
     sink.expectedIsAppendOnly = Some(true)
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       sink.configure(
         Array[String]("wstart", "wend", "num", "icnt"),
@@ -388,7 +388,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
 
     val sink = new TestingUpsertTableSink(Array(0), TimeZone.getDefault)
     sink.expectedIsAppendOnly = Some(true)
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       sink.configure(
         Array[String]("wend", "cnt"),
@@ -431,7 +431,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
 
     val sink = new TestingUpsertTableSink(Array(0), TimeZone.getDefault)
     sink.expectedIsAppendOnly = Some(true)
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       sink.configure(
         Array[String]("num", "cnt"),
@@ -476,7 +476,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
 
     val sink = new TestingUpsertTableSink(Array(0))
     sink.expectedIsAppendOnly = Some(false)
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "upsertSink",
       sink.configure(
         Array[String]("num", "cnt"),

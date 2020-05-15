@@ -21,10 +21,10 @@ package org.apache.flink.table.api.batch
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
-
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
@@ -106,12 +106,12 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt > 10")
     val sink1 = util.createCollectTableSink(Array("a", "cnt"), Array(INT, LONG))
-    util.tableEnv.registerTableSink("sink1", sink1)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink1", sink1)
     stmtSet.addInsert("sink1", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt < 10")
     val sink2 = util.createCollectTableSink(Array("a", "cnt"), Array(INT, LONG))
-    util.tableEnv.registerTableSink("sink2", sink2)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table2)
 
     util.verifyExplain(stmtSet, extraDetails: _*)

@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => Scala
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableImpl}
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
 import org.apache.flink.table.api.java.internal.{StreamTableEnvironmentImpl => JavaStreamTableEnvImpl}
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.internal.{StreamTableEnvironmentImpl => ScalaStreamTableEnvImpl}
@@ -61,7 +61,6 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
-
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.parser.SqlParserPos
@@ -70,7 +69,6 @@ import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
-
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
 
@@ -242,7 +240,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def addTableSource(
       name: String,
       tableSource: TableSource[_]): Table = {
-    getTableEnv.registerTableSource(name, tableSource)
+    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      name, tableSource)
     getTableEnv.from(name)
   }
 
@@ -333,7 +332,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       targetPath: String,
       extraDetails: ExplainDetail*): Unit = {
     val stmtSet = getTableEnv.createStatementSet()
-    getTableEnv.registerTableSink(targetPath, sink)
+    getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
     stmtSet.addInsert(targetPath, table)
     verifyExplain(stmtSet, extraDetails: _*)
   }
@@ -542,8 +541,8 @@ abstract class TableTestUtil(
       name: String,
       tableSource: TableSource[_],
       statistic: FlinkStatistic): Table = {
-    // TODO RichTableSourceQueryOperation should be deleted and use registerTableSource method
-    //  instead of registerTable method here after unique key in TableSchema is ready
+    // TODO RichTableSourceQueryOperation should be deleted and use registerTableSourceInternal
+    //  method instead of registerTable method here after unique key in TableSchema is ready
     //  and setting catalog statistic to TableSourceTable in DatabaseCalciteSchema is ready
     val identifier = ObjectIdentifier.of(
       testingTableEnv.getCurrentCatalog,
@@ -591,7 +590,7 @@ abstract class TableTestUtil(
       targetPath: String,
       extraDetails: ExplainDetail*): Unit = {
     val stmtSet = tableEnv.createStatementSet()
-    tableEnv.registerTableSink(targetPath, sink)
+    tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
     stmtSet.addInsert(targetPath, table)
     verifyPlan(stmtSet, extraDetails: _*)
   }

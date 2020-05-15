@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
 import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -33,7 +33,6 @@ import org.apache.flink.table.planner.sinks.CollectTableSink
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.util.AbstractID
-
 import _root_.java.util.{UUID, ArrayList => JArrayList}
 
 import _root_.scala.collection.JavaConversions._
@@ -54,7 +53,7 @@ object BatchTableEnvUtil {
     val id = new AbstractID().toString
     sink.init(typeSerializer.asInstanceOf[TypeSerializer[T]], id)
     val sinkName = UUID.randomUUID().toString
-    tEnv.registerTableSink(sinkName, sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(sinkName, sink)
 
     val res = TableEnvUtil.execInsertTableAndWaitResult(table, s"`$sinkName`")
     val accResult: JArrayList[Array[Byte]] = res.getAccumulatorResult(id)

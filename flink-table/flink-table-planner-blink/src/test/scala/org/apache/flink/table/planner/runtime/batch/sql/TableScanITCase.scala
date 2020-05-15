@@ -26,10 +26,10 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.{TestTableSourceWithTime, WithoutTimeAttributesTableSource}
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
-
 import org.junit.Test
-
 import java.lang.{Integer => JInt}
+
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
 class TableScanITCase extends BatchTestBase {
 
@@ -53,7 +53,7 @@ class TableScanITCase extends BatchTestBase {
     val returnType = Types.STRING
 
     val tableSource = new TestTableSourceWithTime(true, schema, returnType, data, null, "ptime")
-    tEnv.registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     checkResult(
       s"SELECT name FROM $tableName",
@@ -81,7 +81,7 @@ class TableScanITCase extends BatchTestBase {
       fieldNames)
 
     val tableSource = new TestTableSourceWithTime(true, schema, rowType, data, "rtime", null)
-    tEnv.registerTableSource(tableName, tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     checkResult(
       s"SELECT * FROM $tableName",

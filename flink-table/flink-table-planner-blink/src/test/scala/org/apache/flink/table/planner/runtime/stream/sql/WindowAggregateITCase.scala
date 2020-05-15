@@ -31,14 +31,14 @@ import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWat
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
 import java.math.BigDecimal
 import java.util.concurrent.TimeUnit
+
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
 @RunWith(classOf[Parameterized])
 class WindowAggregateITCase(mode: StateBackendMode)
@@ -230,7 +230,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val fieldNames = fieldTypes.indices.map("f" + _).toArray
 
     val sink = new TestingUpsertTableSink(Array(0, 1)).configure(fieldNames, fieldTypes)
-    tEnv.registerTableSink("MySink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     execInsertTableAndWaitResult(result, "MySink")
 
     val expected = Seq(

@@ -28,11 +28,12 @@ import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileIn
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 import org.junit.{Before, Test}
-
 import java.io.FileWriter
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JDecimal}
 import java.time.{Instant, LocalDateTime, ZoneId}
+
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
 import scala.collection.mutable
 
@@ -45,7 +46,8 @@ class TableSourceITCase extends BatchTestBase {
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
       Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
-    tEnv.registerTableSource("MyTable", new TestProjectableTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "MyTable", new TestProjectableTableSource(
       true,
       tableSchema,
       new RowTypeInfo(
@@ -122,7 +124,7 @@ class TableSourceITCase extends BatchTestBase {
       Array(Types.LONG, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "deepNested", "nested", "name"))
 
-    tEnv.registerTableSource(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestNestedProjectableTableSource(true, tableSchema, returnType, data))
 

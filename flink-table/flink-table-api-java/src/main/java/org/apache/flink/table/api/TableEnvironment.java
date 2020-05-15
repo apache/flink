@@ -21,7 +21,6 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
@@ -546,55 +545,6 @@ public interface TableEnvironment {
 	void createTemporaryView(String path, Table view);
 
 	/**
-	 * Registers an external {@link TableSource} in this {@link TableEnvironment}'s catalog.
-	 * Registered tables can be referenced in SQL queries.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again one can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name        The name under which the {@link TableSource} is registered.
-	 * @param tableSource The {@link TableSource} to register.
-	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
-	 */
-	@Deprecated
-	void registerTableSource(String name, TableSource<?> tableSource);
-
-	/**
-	 * Registers an external {@link TableSink} with given field names and types in this
-	 * {@link TableEnvironment}'s catalog.
-	 * Registered sink tables can be referenced in SQL DML statements.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again one can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name The name under which the {@link TableSink} is registered.
-	 * @param fieldNames The field names to register with the {@link TableSink}.
-	 * @param fieldTypes The field types to register with the {@link TableSink}.
-	 * @param tableSink The {@link TableSink} to register.
-	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
-	 */
-	@Deprecated
-	void registerTableSink(String name, String[] fieldNames, TypeInformation<?>[] fieldTypes, TableSink<?> tableSink);
-
-	/**
-	 * Registers an external {@link TableSink} with already configured field names and field types in
-	 * this {@link TableEnvironment}'s catalog.
-	 * Registered sink tables can be referenced in SQL DML statements.
-	 *
-	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
-	 * be inaccessible in the current session. To make the permanent object available again one can drop the
-	 * corresponding temporary object.
-	 *
-	 * @param name The name under which the {@link TableSink} is registered.
-	 * @param configuredSink The configured {@link TableSink} to register.
-	 * @deprecated Use {@link #connect(ConnectorDescriptor)} instead.
-	 */
-	@Deprecated
-	void registerTableSink(String name, TableSink<?> configuredSink);
-
-	/**
 	 * Scans a registered table and returns the resulting {@link Table}.
 	 *
 	 * <p>A table to scan must be registered in the {@link TableEnvironment}. It can be either directly
@@ -924,7 +874,7 @@ public interface TableEnvironment {
 	 * <pre>
 	 * {@code
 	 *   // register the configured table sink into which the result is inserted.
-	 *   tEnv.registerTableSink("sinkTable", configuredSink);
+	 *   tEnv.registerTableSinkInternal("sinkTable", configuredSink);
 	 *   Table sourceTable = ...
 	 *   String tableName = sourceTable.toString();
 	 *   // sourceTable is not registered to the table environment

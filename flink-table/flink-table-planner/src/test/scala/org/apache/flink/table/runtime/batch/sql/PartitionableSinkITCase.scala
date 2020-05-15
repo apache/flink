@@ -31,6 +31,7 @@ import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.scala.BatchTableEnvironment
 import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory.TestCollectionInputFormat
@@ -40,7 +41,6 @@ import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{Before, Rule, Test}
@@ -75,7 +75,8 @@ class PartitionableSinkITCase extends AbstractTestBase {
       .field("b", DataTypes.BIGINT())
       .field("c", DataTypes.STRING())
       .build()
-    tEnv.registerTableSource(name, new CollectionTableSource(data, 100, tableSchema))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      name, new CollectionTableSource(data, 100, tableSchema))
   }
 
   @Test
@@ -121,7 +122,7 @@ class PartitionableSinkITCase extends AbstractTestBase {
       rowType: RowTypeInfo = type3,
       partitionColumns: Array[String] = Array[String]("a")): TestSink = {
     val testSink = new TestSink(rowType, partitionColumns)
-    tEnv.registerTableSink(tableName, testSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, testSink)
     testSink
   }
 

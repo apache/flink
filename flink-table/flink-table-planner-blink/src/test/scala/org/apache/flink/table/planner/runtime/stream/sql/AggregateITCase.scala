@@ -39,14 +39,14 @@ import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => mLocalTime}
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.types.{Row, RowKind}
-
 import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
 import java.lang.{Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
+
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
 import scala.collection.{Seq, mutable}
 import scala.util.Random
@@ -1241,7 +1241,7 @@ class AggregateITCase(
 
     val tableSink = new TestingUpsertTableSink(Array(0)).configure(
       Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
-    tEnv.registerTableSink("testSink", tableSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", tableSink)
 
     execInsertSqlAndWaitResult(
       """

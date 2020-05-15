@@ -20,6 +20,7 @@ package org.apache.flink.table.api.batch
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.internal.BatchTableEnvironmentImpl
 import org.apache.flink.table.api.{Table, Types}
@@ -27,7 +28,6 @@ import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.table.utils.TableTestUtil.{batchTableNode, readFromResource, replaceStageId}
 import org.apache.flink.test.util.MultipleProgramsTestBase
-
 import org.junit.Assert.assertEquals
 import org.junit._
 
@@ -136,12 +136,14 @@ class ExplainTest
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
-    tEnv.registerTableSource("sourceTable", CommonTestData.getCsvTableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "sourceTable", CommonTestData.getCsvTableSource)
 
     val fieldNames = Array("d", "e")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "targetTable", sink.configure(fieldNames, fieldTypes))
 
     tEnv.sqlUpdate("insert into targetTable select first, id from sourceTable")
 
@@ -155,13 +157,16 @@ class ExplainTest
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
-    tEnv.registerTableSource("sourceTable", CommonTestData.getCsvTableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "sourceTable", CommonTestData.getCsvTableSource)
 
     val fieldNames = Array("d", "e")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING(), Types.INT())
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.registerTableSink("targetTable1", sink.configure(fieldNames, fieldTypes))
-    tEnv.registerTableSink("targetTable2", sink.configure(fieldNames, fieldTypes))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "targetTable1", sink.configure(fieldNames, fieldTypes))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "targetTable2", sink.configure(fieldNames, fieldTypes))
 
     tEnv.sqlUpdate("insert into targetTable1 select first, id from sourceTable")
     tEnv.sqlUpdate("insert into targetTable2 select last, id from sourceTable")

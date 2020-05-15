@@ -58,7 +58,7 @@ import java.util.Arrays;
  * hSrc.addColumn("fam1", "col2", Integer.class);
  * hSrc.addColumn("fam2", "col1", String.class);
  *
- * tableEnv.registerTableSource("hTable", hSrc);
+ * tableEnv.registerTableSourceInternal("hTable", hSrc);
  * Table res = tableEnv.sqlQuery(
  *   "SELECT t.fam2.col1, SUM(t.fam1.col2) FROM hTable AS t " +
  *   "WHERE t.rowkey LIKE 'flink%' GROUP BY t.fam2.col1");

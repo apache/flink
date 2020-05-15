@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType}
-
 import org.junit.Test
 
 class LegacySinkTest extends TableTestBase {
@@ -52,11 +52,11 @@ class LegacySinkTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(sum_a) AS total_min FROM table1")
 
     val sink1 = util.createCollectTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.registerTableSink("sink1", sink1)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink1", sink1)
     stmtSet.addInsert("sink1", table2)
 
     val sink2 = util.createCollectTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.registerTableSink("sink2", sink2)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
     stmtSet.addInsert("sink2", table3)
 
     util.verifyPlan(stmtSet)

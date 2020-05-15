@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.types.Row;
@@ -463,7 +464,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		DataStreamSource<Row> source = env.fromCollection(rowCollection);
 
 		tEnv.createTemporaryView("testFlinkTable", source);
-		tEnv.registerTableSink(
+		((TableEnvironmentInternal) tEnv).registerTableSinkInternal(
 			"cassandraTable",
 			new CassandraAppendTableSink(builder, injectTableName(INSERT_DATA_QUERY)).configure(
 				new String[]{"f0", "f1", "f2"},

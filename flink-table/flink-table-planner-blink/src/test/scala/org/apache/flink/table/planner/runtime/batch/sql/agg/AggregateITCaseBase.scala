@@ -852,7 +852,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
 //        "7499,ALLEN,SALESMAN,7698,1981-02-20,1600.00,300.00,30$" +
 //        "7521,WARD,SALESMAN,7698,1981-02-22,1250.00,500.00,30",
 //      "csv-test", "tmp")
-//    tEnv.registerTableSource("emp",
+//    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("emp",
 //      CsvTableSource.builder()
 //        .path(csvPath)
 //        .fields(Array("empno", "ename", "job", "mgr", "hiredate", "sal", "comm", "deptno"),

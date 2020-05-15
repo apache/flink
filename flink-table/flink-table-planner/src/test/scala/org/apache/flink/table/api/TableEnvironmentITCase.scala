@@ -25,7 +25,7 @@ import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecutionEnvironment}
 import org.apache.flink.table.api.TableEnvironmentITCase.getPersonCsvTableSource
-import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
 import org.apache.flink.table.api.java.StreamTableEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment}
 import org.apache.flink.table.runtime.utils.StreamITCase
@@ -42,7 +42,6 @@ import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
-
 import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
 import _root_.java.lang.{Long => JLong}
 import _root_.java.util
@@ -79,7 +78,8 @@ class TableEnvironmentITCase(tableEnvName: String) {
           StreamExecutionEnvironment.getExecutionEnvironment, settings)
       case _ => throw new UnsupportedOperationException("unsupported tableEnvName: " + tableEnvName)
     }
-    tEnv.registerTableSource("MyTable", getPersonCsvTableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "MyTable", getPersonCsvTableSource)
   }
 
   @After
@@ -161,7 +161,8 @@ class TableEnvironmentITCase(tableEnvName: String) {
     }
     val streamEnv = StreamExecutionEnvironment.getExecutionEnvironment
     val streamTableEnv = StreamTableEnvironment.create(streamEnv, settings)
-    streamTableEnv.registerTableSource("MyTable", getPersonCsvTableSource)
+    streamTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "MyTable", getPersonCsvTableSource)
     val sink1Path = registerCsvTableSink(streamTableEnv, Array("first"), Array(STRING), "MySink1")
     checkEmptyFile(sink1Path)
     StreamITCase.clear
@@ -198,7 +199,8 @@ class TableEnvironmentITCase(tableEnvName: String) {
     }
     val streamEnv = StreamExecutionEnvironment.getExecutionEnvironment
     val streamTableEnv = StreamTableEnvironment.create(streamEnv, settings)
-    streamTableEnv.registerTableSource("MyTable", getPersonCsvTableSource)
+    streamTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "MyTable", getPersonCsvTableSource)
     val sink1Path = registerCsvTableSink(streamTableEnv, Array("first"), Array(STRING), "MySink1")
     checkEmptyFile(sink1Path)
     StreamITCase.clear
@@ -233,7 +235,8 @@ class TableEnvironmentITCase(tableEnvName: String) {
     }
     val streamEnv = ScalaStreamExecutionEnvironment.getExecutionEnvironment
     val streamTableEnv = ScalaStreamTableEnvironment.create(streamEnv, settings)
-    streamTableEnv.registerTableSource("MyTable", getPersonCsvTableSource)
+    streamTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "MyTable", getPersonCsvTableSource)
     val sink1Path = registerCsvTableSink(streamTableEnv, Array("first"), Array(STRING), "MySink1")
     checkEmptyFile(sink1Path)
     StreamITCase.clear
@@ -280,7 +283,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     val sinkPath = resultFile.getAbsolutePath
     val configuredSink = new TestingOverwritableTableSink(sinkPath)
       .configure(Array("first"), Array(STRING))
-    tEnv.registerTableSink("MySink", configuredSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", configuredSink)
 
     checkEmptyFile(sinkPath)
     val tableResult1 = tEnv.executeSql("insert overwrite MySink select first from MyTable")
@@ -335,7 +338,8 @@ class TableEnvironmentITCase(tableEnvName: String) {
     }
     val streamEnv = StreamExecutionEnvironment.getExecutionEnvironment
     val streamTableEnv = StreamTableEnvironment.create(streamEnv, settings)
-    streamTableEnv.registerTableSource("MyTable", getPersonCsvTableSource)
+    streamTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "MyTable", getPersonCsvTableSource)
     val sink1Path = registerCsvTableSink(streamTableEnv, Array("first"), Array(STRING), "MySink1")
     checkEmptyFile(sink1Path)
     StreamITCase.clear
@@ -383,7 +387,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     val sinkPath = resultFile.getAbsolutePath
     val configuredSink = new TestingOverwritableTableSink(sinkPath)
       .configure(Array("first"), Array(STRING))
-    tEnv.registerTableSink("MySink", configuredSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", configuredSink)
 
     checkEmptyFile(sinkPath)
     val tableResult1 = tEnv.sqlQuery("select first from MyTable").executeInsert("MySink", true)
@@ -435,13 +439,15 @@ class TableEnvironmentITCase(tableEnvName: String) {
     val sink1Path = _tempFolder.newFile().getAbsolutePath
     val configuredSink1 = new TestingOverwritableTableSink(sink1Path)
       .configure(Array("first"), Array(STRING))
-    tEnv.registerTableSink("MySink1", configuredSink1)
+    tEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("MySink1", configuredSink1)
     checkEmptyFile(sink1Path)
 
     val sink2Path = _tempFolder.newFile().getAbsolutePath
     val configuredSink2 = new TestingOverwritableTableSink(sink2Path)
       .configure(Array("last"), Array(STRING))
-    tEnv.registerTableSink("MySink2", configuredSink2)
+    tEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("MySink2", configuredSink2)
     checkEmptyFile(sink2Path)
 
     val stmtSet = tEnv.createStatementSet()
@@ -524,7 +530,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
     val schema = new TableSchema(Array("name", "pt"), Array(Types.STRING, Types.SQL_TIMESTAMP()))
     val sourceType = Types.STRING
     val tableSource = new TestTableSourceWithTime(schema, sourceType, data, null, "pt")
-    tEnv.registerTableSource("T", tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("T", tableSource)
 
     val tableResult = tEnv.executeSql("select * from T")
     assertTrue(tableResult.getJobClient.isPresent)
@@ -553,7 +559,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
 
     val configuredSink = new CsvTableSink(path, ",", 1, WriteMode.OVERWRITE)
       .configure(fieldNames, fieldTypes)
-    tEnv.registerTableSink(tableName, configuredSink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, configuredSink)
 
     path
   }

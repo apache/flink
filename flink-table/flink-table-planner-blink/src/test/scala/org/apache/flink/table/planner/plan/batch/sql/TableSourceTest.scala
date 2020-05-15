@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Types, ValidationException}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.utils._
@@ -36,7 +37,8 @@ class TableSourceTest extends TableTestBase {
 
   @Before
   def setup(): Unit = {
-    util.tableEnv.registerTableSource("ProjectableTable", new TestProjectableTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
+      "ProjectableTable", new TestProjectableTableSource(
       true,
       tableSchema,
       new RowTypeInfo(
@@ -102,7 +104,7 @@ class TableSourceTest extends TableTestBase {
       Array(Types.INT, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       Array("id", "deepNested", "nested", "name"))
 
-    util.tableEnv.registerTableSource(
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       "T",
       new TestNestedProjectableTableSource(true, tableSchema, returnType, Seq()))
 

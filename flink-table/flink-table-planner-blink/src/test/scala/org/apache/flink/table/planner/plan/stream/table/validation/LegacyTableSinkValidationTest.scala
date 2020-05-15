@@ -21,12 +21,12 @@ package org.apache.flink.table.planner.plan.stream.table.validation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, ValidationException}
 import org.apache.flink.table.planner.runtime.utils.{TableEnvUtil, TestData, TestingAppendSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestBase, TableTestUtil}
 import org.apache.flink.types.Row
-
 import org.junit.Test
 
 class LegacyTableSinkValidationTest extends TableTestBase {
@@ -63,7 +63,7 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     .select('len, 'id.count, 'num.sum)
     val schema = result.getSchema
     sink.configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.registerTableSink("testSink", sink)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", sink)
     tEnv.insertInto("testSink", result)
     // must fail because table is updating table without full key
     env.execute()

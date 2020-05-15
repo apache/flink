@@ -27,6 +27,8 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.sources.TableSource;
 
 import java.util.List;
 
@@ -38,7 +40,7 @@ import java.util.List;
  * By then, these methods can be moved into TableEnvironmentImpl.
  */
 @Internal
-interface TableEnvironmentInternal extends TableEnvironment {
+public interface TableEnvironmentInternal extends TableEnvironment {
 
 	/**
 	 * Return a {@link Parser} that provides methods for parsing a SQL string.
@@ -79,4 +81,31 @@ interface TableEnvironmentInternal extends TableEnvironment {
 	 */
 	String explainInternal(List<Operation> operations, ExplainDetail... extraDetails);
 
+
+	/**
+	 * Registers an external {@link TableSource} in this {@link TableEnvironment}'s catalog.
+	 * Registered tables can be referenced in SQL queries.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again one can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param name        The name under which the {@link TableSource} is registered.
+	 * @param tableSource The {@link TableSource} to register.
+	 */
+	void registerTableSourceInternal(String name, TableSource<?> tableSource);
+
+	/**
+	 * Registers an external {@link TableSink} with already configured field names and field types in
+	 * this {@link TableEnvironment}'s catalog.
+	 * Registered sink tables can be referenced in SQL DML statements.
+	 *
+	 * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it will
+	 * be inaccessible in the current session. To make the permanent object available again one can drop the
+	 * corresponding temporary object.
+	 *
+	 * @param name The name under which the {@link TableSink} is registered.
+	 * @param configuredSink The configured {@link TableSink} to register.
+	 */
+	void registerTableSinkInternal(String name, TableSink<?> configuredSink);
 }

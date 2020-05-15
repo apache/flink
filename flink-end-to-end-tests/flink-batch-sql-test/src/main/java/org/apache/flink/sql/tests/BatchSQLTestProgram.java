@@ -28,6 +28,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.sinks.CsvTableSink;
 import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.types.DataType;
@@ -61,9 +62,9 @@ public class BatchSQLTestProgram {
 			.inBatchMode()
 			.build());
 
-		tEnv.registerTableSource("table1", new GeneratorTableSource(10, 100, 60, 0));
-		tEnv.registerTableSource("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
-		tEnv.registerTableSink("sinkTable",
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal("table1", new GeneratorTableSource(10, 100, 60, 0));
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
+		((TableEnvironmentInternal) tEnv).registerTableSinkInternal("sinkTable",
 			new CsvTableSink(outputPath)
 				.configure(new String[]{"f0", "f1"}, new TypeInformation[]{Types.INT, Types.SQL_TIMESTAMP}));
 
