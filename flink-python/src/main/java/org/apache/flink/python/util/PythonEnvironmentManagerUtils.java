@@ -37,6 +37,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_WORKING_DIR;
+
 /**
  * Utils used to prepare the python environment.
  */
@@ -171,6 +173,9 @@ public class PythonEnvironmentManagerUtils {
 			Map<String, String> environmentVariables,
 			boolean logDetails) throws IOException {
 		ProcessBuilder pb = new ProcessBuilder(commands);
+		if (environmentVariables.containsKey(PYTHON_WORKING_DIR)) {
+			pb.directory(new File(environmentVariables.get(PYTHON_WORKING_DIR)));
+		}
 		pb.environment().putAll(environmentVariables);
 		pb.redirectErrorStream(true);
 		Process p = pb.start();
