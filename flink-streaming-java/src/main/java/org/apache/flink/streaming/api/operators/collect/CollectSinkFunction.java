@@ -169,30 +169,25 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 	public void initializeState(FunctionInitializationContext context) throws Exception {
 		initBuffer();
 
-		bufferedResultsLock.lock();
-		try {
-			bufferedResultsState =
-				context.getOperatorStateStore().getListState(
-					new ListStateDescriptor<>("bufferedResultsState", serializer));
-			bufferedResults.clear();
-			for (IN result : bufferedResultsState.get()) {
-				bufferedResults.add(result);
-			}
-
-			offsetState = context.getOperatorStateStore().getListState(
-				new ListStateDescriptor<>("offsetState", Long.class));
-			offset = 0;
-			// there must be only 1 element in this state when restoring
-			for (long value : offsetState.get()) {
-				offset = value;
-			}
-			lastCheckpointedOffset = offset;
-
-			LOG.info("Initializing collect sink statee with offset = " + lastCheckpointedOffset +
-				", num buffered results = " + bufferedResults.size());
-		} finally {
-			bufferedResultsLock.unlock();
+		bufferedResultsState =
+			context.getOperatorStateStore().getListState(
+				new ListStateDescriptor<>("bufferedResultsState", serializer));
+		bufferedResults.clear();
+		for (IN result : bufferedResultsState.get()) {
+			bufferedResults.add(result);
 		}
+
+		offsetState = context.getOperatorStateStore().getListState(
+			new ListStateDescriptor<>("offsetState", Long.class));
+		offset = 0;
+		// there must be only 1 element in this state when restoring
+		for (long value : offsetState.get()) {
+			offset = value;
+		}
+		lastCheckpointedOffset = offset;
+
+		LOG.info("Initializing collect sink statee with offset = " + lastCheckpointedOffset +
+			", num buffered results = " + bufferedResults.size());
 
 		uncompletedCheckpointMap = new TreeMap<>();
 	}

@@ -71,8 +71,8 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 
 	@Override
 	public void close() throws Exception {
+		closeConnection();
 		this.executorService.shutdown();
-		closeConnection(socket);
 	}
 
 	@Override
@@ -81,10 +81,6 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 			event instanceof CollectSinkAddressEvent, "Operator event must be a CollectSinkAddressEvent");
 		address = ((CollectSinkAddressEvent) event).getAddress();
 		LOG.info("Received sink socket server address: " + address);
-
-		// this event is sent when the sink function starts, so we remove the old socket if it is present
-		closeConnection(socket);
-		socket = null;
 	}
 
 	@Override
@@ -93,32 +89,27 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 			request instanceof CollectCoordinationRequest,
 			"Coordination request must be a CollectCoordinationRequest");
 
+		CollectCoordinationRequest collectRequest = (CollectCoordinationRequest) request;
 		CompletableFuture<CoordinationResponse> responseFuture = new CompletableFuture<>();
-		executorService.submit(() -> handleRequestImpl((CollectCoordinationRequest) request, responseFuture));
+
+		if (address == null) {
+			completeWithEmptyResponse(collectRequest, responseFuture);
+			return responseFuture;
+		}
+
+		executorService.submit(() -> handleRequestImpl(collectRequest, responseFuture, address));
 		return responseFuture;
 	}
 
 	private void handleRequestImpl(
 			CollectCoordinationRequest request,
-			CompletableFuture<CoordinationResponse> responseFuture) {
-		// we back up the address object here to avoid concurrent modifying from `handleEventFromOperator`.
-		// it's ok if this address becomes invalid in the following code,
-		// if this happens, the coordinator will just return an empty result
-		InetSocketAddress address = this.address;
-		// we also back up socket with the same purpose as address
-		Socket socket = this.socket;
-
-		if (address == null) {
-			completeWithEmptyResponse(request, responseFuture);
-			return;
-		}
-
+			CompletableFuture<CoordinationResponse> responseFuture,
+			InetSocketAddress sinkAddress) {
 		try {
 			if (socket == null) {
-				socket = new Socket(address.getAddress(), address.getPort());
+				socket = new Socket(sinkAddress.getAddress(), sinkAddress.getPort());
 				socket.setKeepAlive(true);
 				socket.setTcpNoDelay(true);
-				this.socket = socket;
 
 				inStream = new DataInputViewStreamWrapper(socket.getInputStream());
 				outStream = new DataOutputViewStreamWrapper(socket.getOutputStream());
@@ -141,10 +132,7 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 			// we catch every exception here because socket might suddenly becomes null if the sink fails
 			// and we do not want the coordinator to fail
 			LOG.warn("Collect sink coordinator encounters an exception", e);
-			// we need to close two sockets, because socket of local variable may become invalid
-			closeConnection(socket);
-			closeConnection(this.socket);
-			this.socket = null;
+			closeConnection();
 			completeWithEmptyResponse(request, responseFuture);
 		}
 	}
@@ -168,7 +156,7 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 		}
 	}
 
-	private void closeConnection(Socket socket) {
+	private void closeConnection() {
 		if (socket != null) {
 			try {
 				socket.close();
@@ -176,14 +164,13 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 				LOG.warn("Failed to close sink socket server connection", e);
 			}
 		}
+		socket = null;
 	}
 
 	@Override
 	public void subtaskFailed(int subtask) {
 		// subtask failed, the socket server does not exist anymore
 		address = null;
-		closeConnection(socket);
-		socket = null;
 	}
 
 	@Override

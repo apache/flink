@@ -62,6 +62,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 	private static final int MAX_RESULTS_PER_BATCH = 3;
 	private static final String ACCUMULATOR_NAME = "tableCollectAccumulator";
 	private static final long TIME_OUT_MILLIS = 10000;
+	private static final int MAX_RETIRES = 100;
 
 	private static final TypeSerializer<Row> serializer =
 		new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO).createSerializer(new ExecutionConfig());
@@ -103,17 +104,17 @@ public class CollectSinkFunctionTest extends TestLogger {
 			function.invoke(Row.of(i), null);
 		}
 
-		CollectCoordinationResponse<Row> response = sendRequest("", 0);
+		CollectCoordinationResponse<Row> response = sendRequestAndGetValidResponse("", 0);
 		Assert.assertEquals(0, response.getLastCheckpointedOffset());
 		String version = response.getVersion();
 
-		response = sendRequest(version, 0);
+		response = sendRequestAndGetValidResponse(version, 0);
 		assertResponseEquals(response, version, 0, Arrays.asList(0, 1, 2));
 
-		response = sendRequest(version, 4);
+		response = sendRequestAndGetValidResponse(version, 4);
 		assertResponseEquals(response, version, 0, Arrays.asList(4, 5));
 
-		response = sendRequest(version, 6);
+		response = sendRequestAndGetValidResponse(version, 6);
 		assertResponseEquals(response, version, 0, Collections.emptyList());
 
 		for (int i = 6; i < 10; i++) {
@@ -121,23 +122,23 @@ public class CollectSinkFunctionTest extends TestLogger {
 		}
 
 		// invalid request
-		response = sendRequest(version, 5);
+		response = sendRequestAndGetValidResponse(version, 5);
 		assertResponseEquals(response, version, 0, Collections.emptyList());
 
-		response = sendRequest(version, 6);
+		response = sendRequestAndGetValidResponse(version, 6);
 		assertResponseEquals(response, version, 0, Arrays.asList(6, 7, 8));
 
-		response = sendRequest(version, 6);
+		response = sendRequestAndGetValidResponse(version, 6);
 		assertResponseEquals(response, version, 0, Arrays.asList(6, 7, 8));
 
-		response = sendRequest(version, 12);
+		response = sendRequestAndGetValidResponse(version, 12);
 		assertResponseEquals(response, version, 0, Collections.emptyList());
 
 		for (int i = 10; i < 16; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
-		response = sendRequest(version, 12);
+		response = sendRequestAndGetValidResponse(version, 12);
 		assertResponseEquals(response, version, 0, Arrays.asList(12, 13, 14));
 
 		finishJob();
@@ -153,37 +154,37 @@ public class CollectSinkFunctionTest extends TestLogger {
 			function.invoke(Row.of(i), null);
 		}
 
-		CollectCoordinationResponse<Row> response = sendRequest("", 0);
+		CollectCoordinationResponse<Row> response = sendRequestAndGetValidResponse("", 0);
 		Assert.assertEquals(0, response.getLastCheckpointedOffset());
 		String version = response.getVersion();
 
-		response = sendRequest(version, 0);
+		response = sendRequestAndGetValidResponse(version, 0);
 		assertResponseEquals(response, version, 0, Arrays.asList(0, 1));
 
 		for (int i = 2; i < 6; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
-		response = sendRequest(version, 3);
+		response = sendRequestAndGetValidResponse(version, 3);
 		assertResponseEquals(response, version, 0, Arrays.asList(3, 4, 5));
 
 		checkpointFunction(1);
 
 		// checkpoint hasn't finished yet
-		response = sendRequest(version, 4);
+		response = sendRequestAndGetValidResponse(version, 4);
 		assertResponseEquals(response, version, 0, Arrays.asList(4, 5));
 
 		checkpointComplete(1);
 
 		// checkpoint finished
-		response = sendRequest(version, 4);
+		response = sendRequestAndGetValidResponse(version, 4);
 		assertResponseEquals(response, version, 3, Arrays.asList(4, 5));
 
 		for (int i = 6; i < 9; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
-		response = sendRequest(version, 6);
+		response = sendRequestAndGetValidResponse(version, 6);
 		assertResponseEquals(response, version, 3, Arrays.asList(6, 7, 8));
 
 		closeFuntionAbnormally();
@@ -194,14 +195,14 @@ public class CollectSinkFunctionTest extends TestLogger {
 			function.invoke(Row.of(i), null);
 		}
 
-		response = sendRequest(version, 4);
+		response = sendRequestAndGetValidResponse(version, 4);
 		Assert.assertEquals(3, response.getLastCheckpointedOffset());
 		version = response.getVersion();
 
-		response = sendRequest(version, 4);
+		response = sendRequestAndGetValidResponse(version, 4);
 		assertResponseEquals(response, version, 3, Arrays.asList(4, 5, 9));
 
-		response = sendRequest(version, 6);
+		response = sendRequestAndGetValidResponse(version, 6);
 		assertResponseEquals(response, version, 3, Arrays.asList(9, 10, 11));
 
 		checkpointFunction(2);
@@ -209,18 +210,18 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 		function.invoke(Row.of(12), null);
 
-		response = sendRequest(version, 7);
+		response = sendRequestAndGetValidResponse(version, 7);
 		assertResponseEquals(response, version, 6, Arrays.asList(10, 11, 12));
 
 		closeFuntionAbnormally();
 
 		openFunctionWithState();
 
-		response = sendRequest(version, 7);
+		response = sendRequestAndGetValidResponse(version, 7);
 		Assert.assertEquals(6, response.getLastCheckpointedOffset());
 		version = response.getVersion();
 
-		response = sendRequest(version, 7);
+		response = sendRequestAndGetValidResponse(version, 7);
 		assertResponseEquals(response, version, 6, Arrays.asList(10, 11));
 
 		response = sendRequest(version, 9);
@@ -230,7 +231,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 			function.invoke(Row.of(i), null);
 		}
 
-		response = sendRequest(version, 9);
+		response = sendRequestAndGetValidResponse(version, 9);
 		assertResponseEquals(response, version, 6, Arrays.asList(13, 14, 15));
 
 		checkpointFunction(3);
@@ -240,18 +241,18 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 		openFunctionWithState();
 
-		response = sendRequest(version, 12);
+		response = sendRequestAndGetValidResponse(version, 12);
 		Assert.assertEquals(9, response.getLastCheckpointedOffset());
 		version = response.getVersion();
 
-		response = sendRequest(version, 12);
+		response = sendRequestAndGetValidResponse(version, 12);
 		assertResponseEquals(response, version, 9, Collections.singletonList(16));
 
 		for (int i = 17; i < 20; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
-		response = sendRequest(version, 12);
+		response = sendRequestAndGetValidResponse(version, 12);
 		assertResponseEquals(response, version, 9, Arrays.asList(16, 17, 18));
 
 		// this checkpoint will not complete
@@ -261,18 +262,18 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 		openFunctionWithState();
 
-		response = sendRequest(version, 12);
+		response = sendRequestAndGetValidResponse(version, 12);
 		Assert.assertEquals(9, response.getLastCheckpointedOffset());
 		version = response.getVersion();
 
-		response = sendRequest(version, 12);
+		response = sendRequestAndGetValidResponse(version, 12);
 		assertResponseEquals(response, version, 9, Collections.singletonList(16));
 
 		for (int i = 20; i < 23; i++) {
 			function.invoke(Row.of(i), null);
 		}
 
-		response = sendRequest(version, 12);
+		response = sendRequestAndGetValidResponse(version, 12);
 		assertResponseEquals(response, version, 9, Arrays.asList(16, 20, 21));
 
 		finishJob();
@@ -390,6 +391,19 @@ public class CollectSinkFunctionTest extends TestLogger {
 			.handleCoordinationRequest(request).get(TIME_OUT_MILLIS, TimeUnit.MILLISECONDS));
 	}
 
+	private CollectCoordinationResponse<Row> sendRequestAndGetValidResponse(
+			String version,
+			long offset) throws Exception {
+		CollectCoordinationResponse<Row> response;
+		for (int i = 0; i < MAX_RETIRES; i++) {
+			response = sendRequest(version, offset);
+			if (response.getLastCheckpointedOffset() >= 0) {
+				return response;
+			}
+		}
+		throw new RuntimeException("Too many retries in sendRequestAndGetValidResponse");
+	}
+
 	@SuppressWarnings("unchecked")
 	private Tuple2<Long, CollectCoordinationResponse> getAccumualtorResults() throws Exception {
 		Accumulator accumulator = runtimeContext.getAccumulator(ACCUMULATOR_NAME);
@@ -491,6 +505,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 							Collections.shuffle(checkpointedData);
 							data = new LinkedList<>(checkpointedData);
 
+							closeFuntionAbnormally();
 							openFunction();
 						}
 
