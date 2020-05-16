@@ -40,6 +40,7 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,7 +84,8 @@ public class AvroRowDataDeSerializationSchemaTest {
 			FIELD("timestamp3", TIMESTAMP(3)),
 			FIELD("timestamp9", TIMESTAMP(9)),
 			FIELD("map", MAP(STRING(), BIGINT())),
-			FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))));
+			FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))),
+			FIELD("map2array", MAP(STRING(), ARRAY(INT()))));
 		final RowType rowType = (RowType) dataType.getLogicalType();
 		final TypeInformation<RowData> typeInfo = new RowDataTypeInfo(rowType);
 
@@ -124,6 +126,13 @@ public class AvroRowDataDeSerializationSchemaTest {
 		innerMap.put("inner_key2", 234);
 		map2map.put("outer_key", innerMap);
 		record.put(14, map2map);
+
+		List<Integer> list1 = Arrays.asList(1, 2, 3, 4, 5, 6);
+		List<Integer> list2 = Arrays.asList(11, 22, 33, 44, 55);
+		Map<String, List<Integer>> map2list = new HashMap<>();
+		map2list.put("list1", list1);
+		map2list.put("list2", list2);
+		record.put(15, map2list);
 
 		AvroRowDataSerializationSchema serializationSchema = new AvroRowDataSerializationSchema(rowType);
 		serializationSchema.open(null);
