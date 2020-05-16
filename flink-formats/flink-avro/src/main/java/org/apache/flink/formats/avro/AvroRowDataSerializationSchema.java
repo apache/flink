@@ -144,13 +144,13 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 	 * Runtime converter that converts objects of Flink Table & SQL internal data structures
 	 * to corresponding Avro data structures.
 	 */
-	private interface SerializationRuntimeConverter extends Serializable {
+	interface SerializationRuntimeConverter extends Serializable {
 		Object convert(Object object);
 	}
 
-	private SerializationRuntimeConverter createRowConverter(RowType rowType) {
+	static SerializationRuntimeConverter createRowConverter(RowType rowType) {
 		final SerializationRuntimeConverter[] fieldConverters = rowType.getChildren().stream()
-			.map(this::createConverter)
+			.map(AvroRowDataSerializationSchema::createConverter)
 			.toArray(SerializationRuntimeConverter[]::new);
 		final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
 		final LogicalType[] fieldTypes = rowType.getFields().stream()
@@ -168,7 +168,7 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 		};
 	}
 
-	private SerializationRuntimeConverter createConverter(LogicalType type) {
+	private static SerializationRuntimeConverter createConverter(LogicalType type) {
 		switch (type.getTypeRoot()) {
 			case NULL:
 				return object -> null;
@@ -205,7 +205,7 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 		}
 	}
 
-	private SerializationRuntimeConverter createArrayConverter(ArrayType arrayType) {
+	private static SerializationRuntimeConverter createArrayConverter(ArrayType arrayType) {
 		final SerializationRuntimeConverter elementConverter = createConverter(arrayType.getElementType());
 		final LogicalType elementType = arrayType.getElementType();
 
@@ -219,7 +219,7 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 		};
 	}
 
-	private SerializationRuntimeConverter createMapConverter(LogicalType type) {
+	private static SerializationRuntimeConverter createMapConverter(LogicalType type) {
 		LogicalType valueType = extractValueTypeToAvroMap(type);
 		final SerializationRuntimeConverter valueConverter = createConverter(valueType);
 

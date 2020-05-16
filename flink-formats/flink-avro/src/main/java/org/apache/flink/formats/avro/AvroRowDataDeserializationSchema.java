@@ -188,14 +188,14 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 	 * internal data structures.
 	 */
 	@FunctionalInterface
-	private interface DeserializationRuntimeConverter extends Serializable {
+	interface DeserializationRuntimeConverter extends Serializable {
 		Object convert(Object object);
 	}
 
-	private DeserializationRuntimeConverter createRowConverter(RowType rowType) {
+	static DeserializationRuntimeConverter createRowConverter(RowType rowType) {
 		final DeserializationRuntimeConverter[] fieldConverters = rowType.getFields().stream()
 			.map(RowType.RowField::getType)
-			.map(this::createNullableConverter)
+			.map(AvroRowDataDeserializationSchema::createNullableConverter)
 			.toArray(DeserializationRuntimeConverter[]::new);
 		final int arity = rowType.getFieldCount();
 
@@ -212,7 +212,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 	/**
 	 * Creates a runtime converter which is null safe.
 	 */
-	private DeserializationRuntimeConverter createNullableConverter(LogicalType type) {
+	private static DeserializationRuntimeConverter createNullableConverter(LogicalType type) {
 		final DeserializationRuntimeConverter converter = createConverter(type);
 		return avroObject -> {
 			if (avroObject == null) {
@@ -225,7 +225,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 	/**
 	 * Creates a runtime converter which assuming input object is not null.
 	 */
-	private DeserializationRuntimeConverter createConverter(LogicalType type) {
+	private static DeserializationRuntimeConverter createConverter(LogicalType type) {
 		switch (type.getTypeRoot()) {
 			case NULL:
 				return avroObject -> null;
@@ -240,17 +240,17 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 			case DOUBLE: // double
 				return avroObject -> avroObject;
 			case DATE:
-				return this::convertToDate;
+				return AvroRowDataDeserializationSchema::convertToDate;
 			case TIME_WITHOUT_TIME_ZONE:
-				return this::convertToTime;
+				return AvroRowDataDeserializationSchema::convertToTime;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return this::convertToTimestamp;
+				return AvroRowDataDeserializationSchema::convertToTimestamp;
 			case CHAR:
 			case VARCHAR:
 				return avroObject -> StringData.fromString(avroObject.toString());
 			case BINARY:
 			case VARBINARY:
-				return this::convertToBytes;
+				return AvroRowDataDeserializationSchema::convertToBytes;
 			case DECIMAL:
 				return createDecimalConverter((DecimalType) type);
 			case ARRAY:
@@ -266,7 +266,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 		}
 	}
 
-	private DeserializationRuntimeConverter createDecimalConverter(DecimalType decimalType) {
+	private static DeserializationRuntimeConverter createDecimalConverter(DecimalType decimalType) {
 		final int precision = decimalType.getPrecision();
 		final int scale = decimalType.getScale();
 		return avroObject -> {
@@ -284,7 +284,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 		};
 	}
 
-	private DeserializationRuntimeConverter createArrayConverter(ArrayType arrayType) {
+	private static DeserializationRuntimeConverter createArrayConverter(ArrayType arrayType) {
 		final DeserializationRuntimeConverter elementConverter = createNullableConverter(arrayType.getElementType());
 		final Class<?> elementClass = LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
 
@@ -299,7 +299,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 		};
 	}
 
-	private DeserializationRuntimeConverter createMapConverter(LogicalType type) {
+	private static DeserializationRuntimeConverter createMapConverter(LogicalType type) {
 		final DeserializationRuntimeConverter keyConverter = createConverter(
 				DataTypes.STRING().getLogicalType());
 		final DeserializationRuntimeConverter valueConverter = createConverter(
@@ -317,7 +317,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 		};
 	}
 
-	private TimestampData convertToTimestamp(Object object) {
+	private static TimestampData convertToTimestamp(Object object) {
 		final long millis;
 		if (object instanceof Long) {
 			millis = (Long) object;
@@ -329,7 +329,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 		return toTimestampData(millis);
 	}
 
-	private int convertToDate(Object object) {
+	private static int convertToDate(Object object) {
 		if (object instanceof Integer) {
 			return (Integer) object;
 		} else {
@@ -343,7 +343,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 		return TimestampData.fromTimestamp(new Timestamp(timeZoneMills));
 	}
 
-	private int convertToTime(Object object) {
+	private static int convertToTime(Object object) {
 		final int millis;
 		if (object instanceof Integer) {
 			millis = (Integer) object;
@@ -355,7 +355,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 		return millis;
 	}
 
-	private byte[] convertToBytes(Object object) {
+	private static byte[] convertToBytes(Object object) {
 		if (object instanceof GenericFixed) {
 			return ((GenericFixed) object).bytes();
 		} else if (object instanceof ByteBuffer) {
