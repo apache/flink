@@ -35,9 +35,6 @@ public class FailoverStrategyLoader {
 	/** Config name for the {@link RestartAllStrategy}. */
 	public static final String FULL_RESTART_STRATEGY_NAME = "full";
 
-	/** Config name for the {@link RestartIndividualStrategy}. */
-	public static final String INDIVIDUAL_RESTART_STRATEGY_NAME = "individual";
-
 	// ------------------------------------------------------------------------
 
 	/**
@@ -58,9 +55,6 @@ public class FailoverStrategyLoader {
 			switch (strategyParam.toLowerCase()) {
 				case FULL_RESTART_STRATEGY_NAME:
 					return new RestartAllStrategy.Factory();
-
-				case INDIVIDUAL_RESTART_STRATEGY_NAME:
-					return new RestartIndividualStrategy.Factory();
 
 				default:
 					// we could interpret the parameter as a factory class name and instantiate that
