@@ -43,7 +43,7 @@ import java.util
  * @param catalogTable Catalog table where this table source table comes from
  * @param dynamicOptions The dynamic hinted options
  * @param extraDigests The extra digests which will be added into `getQualifiedName`
-  *                    as a part of table digest
+ *                     as a part of table digest
  */
 class TableSourceTable(
     relOptSchema: RelOptSchema,
@@ -76,5 +76,28 @@ class TableSourceTable(
     }
     extraDigests.foreach(builder.add)
     builder.build()
+  }
+
+  /**
+   * Creates a copy of this table with specified digest.
+   *
+   * @param newTableSource tableSource to replace
+   * @param newRowType new row type
+   * @return added TableSourceTable instance with specified digest
+   */
+  def copy(
+      newTableSource: DynamicTableSource,
+      newRowType: RelDataType,
+      newExtraDigests: Array[String]): TableSourceTable = {
+    new TableSourceTable(
+      relOptSchema,
+      tableIdentifier,
+      newRowType,
+      statistic,
+      newTableSource,
+      isStreamingMode,
+      catalogTable,
+      dynamicOptions,
+      newExtraDigests ++ newExtraDigests)
   }
 }

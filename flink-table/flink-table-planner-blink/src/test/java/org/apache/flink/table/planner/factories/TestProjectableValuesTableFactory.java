@@ -318,8 +318,7 @@ public class TestProjectableValuesTableFactory implements DynamicTableSourceFact
 				Preconditions.checkArgument(projection.length == 1);
 				int index = projection[0];
 				this.projectedFields[i] = index;
-				String fieldName = rowType.getFieldNames().get(index);
-				fields[i] = DataTypes.FIELD(fieldName, dataType.getFieldDataTypes().get(fieldName));
+				fields[i] = DataTypes.FIELD(rowType.getFieldNames().get(index), dataType.getChildren().get(index));
 			}
 			this.physicalRowDataType = DataTypes.ROW(fields);
 		}
