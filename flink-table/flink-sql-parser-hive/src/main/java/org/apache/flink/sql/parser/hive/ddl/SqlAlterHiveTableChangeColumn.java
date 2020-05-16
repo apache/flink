@@ -18,22 +18,19 @@
 
 package org.apache.flink.sql.parser.hive.ddl;
 
+import org.apache.flink.sql.parser.ddl.SqlChangeColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.hive.impl.ParseException;
 
-import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_COLUMN;
-
 /**
  * ALTER DDL to change a column's name, type, position, etc.
  */
-public class SqlAlterHiveTableChangeColumn extends SqlAlterHiveTableColumn {
+public class SqlAlterHiveTableChangeColumn extends SqlChangeColumn {
 
 	public static final String CHANGE_COL_OLD_NAME = "change.column.old.name";
 	public static final String CHANGE_COL_NEW_NAME = "change.column.new.name";
@@ -42,55 +39,42 @@ public class SqlAlterHiveTableChangeColumn extends SqlAlterHiveTableColumn {
 	public static final String CHANGE_COL_FIRST = "change.column.first";
 	public static final String CHANGE_COL_AFTER = "change.column.after";
 
-	private final SqlIdentifier oldName;
-	private final SqlTableColumn newColumn;
-	private final boolean first;
-	private final SqlIdentifier after;
+	private final SqlTableColumn origNewColumn;
+	private final boolean cascade;
 
-	public SqlAlterHiveTableChangeColumn(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partSpec, boolean cascade,
+	public SqlAlterHiveTableChangeColumn(SqlParserPos pos, SqlIdentifier tableName, boolean cascade,
 			SqlIdentifier oldName, SqlTableColumn newColumn, boolean first, SqlIdentifier after) throws ParseException {
-		super(CHANGE_COLUMN, pos, tableName, partSpec, new SqlNodeList(pos), cascade);
-		this.newColumn = HiveDDLUtils.deepCopyTableColumn(newColumn);
+		super(pos, tableName, oldName, newColumn, after, first, new SqlNodeList(pos));
+		this.origNewColumn = HiveDDLUtils.deepCopyTableColumn(newColumn);
 		HiveDDLUtils.convertDataTypes(newColumn);
-		// set old column name
-		getPropertyList().add(HiveDDLUtils.toTableOption(
-				CHANGE_COL_OLD_NAME, oldName.getSimple(), oldName.getParserPosition()));
-		this.oldName = oldName;
-		// set new column name, type and comment
-		SqlIdentifier newName = newColumn.getName();
-		getPropertyList().add(HiveDDLUtils.toTableOption(
-				CHANGE_COL_NEW_NAME, newName.getSimple(), newName.getParserPosition()));
-		SqlDataTypeSpec newType = newColumn.getType();
-		getPropertyList().add(HiveDDLUtils.toTableOption(
-				CHANGE_COL_NEW_TYPE, toTypeString(newType), newType.getParserPosition()));
-		if (newColumn.getComment().isPresent()) {
-			SqlCharStringLiteral comment = newColumn.getComment().get();
-			getPropertyList().add(HiveDDLUtils.toTableOption(CHANGE_COL_COMMENT, comment, comment.getParserPosition()));
+		this.cascade = cascade;
+		// set ALTER OP
+		getProperties().add(HiveDDLUtils.toTableOption(
+				SqlAlterHiveTable.ALTER_TABLE_OP, SqlAlterHiveTable.AlterTableOp.ALTER_COLUMNS.name(), pos));
+		// set cascade
+		if (cascade) {
+			getProperties().add(HiveDDLUtils.toTableOption(SqlAlterHiveTable.ALTER_COL_CASCADE, "true", pos));
 		}
-		// set whether first
-		if (first) {
-			getPropertyList().add(HiveDDLUtils.toTableOption(CHANGE_COL_FIRST, "true", pos));
-		}
-		this.first = first;
-		// set after
-		if (after != null) {
-			getPropertyList().add(HiveDDLUtils.toTableOption(CHANGE_COL_AFTER, after.getSimple(), after.getParserPosition()));
-		}
-		this.after = after;
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
+		writer.keyword("ALTER TABLE");
+		tableIdentifier.unparse(writer, leftPrec, rightPrec);
+		SqlNodeList partitionSpec = getPartitionSpec();
+		if (partitionSpec != null && partitionSpec.size() > 0) {
+			writer.keyword("PARTITION");
+			partitionSpec.unparse(writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
+		}
 		writer.keyword("CHANGE COLUMN");
-		oldName.unparse(writer, leftPrec, rightPrec);
-		newColumn.unparse(writer, leftPrec, rightPrec);
-		if (first) {
+		getOldName().unparse(writer, leftPrec, rightPrec);
+		origNewColumn.unparse(writer, leftPrec, rightPrec);
+		if (isFirst()) {
 			writer.keyword("FIRST");
 		}
-		if (after != null) {
+		if (getAfter() != null) {
 			writer.keyword("AFTER");
-			after.unparse(writer, leftPrec, rightPrec);
+			getAfter().unparse(writer, leftPrec, rightPrec);
 		}
 		if (cascade) {
 			writer.keyword("CASCADE");

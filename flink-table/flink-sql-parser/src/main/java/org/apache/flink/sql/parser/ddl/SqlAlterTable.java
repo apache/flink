@@ -29,6 +29,8 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
+import javax.annotation.Nullable;
+
 import java.util.LinkedHashMap;
 
 import static java.util.Objects.requireNonNull;
@@ -41,12 +43,21 @@ public abstract class SqlAlterTable extends SqlCall {
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER TABLE", SqlKind.ALTER_TABLE);
 
 	protected final SqlIdentifier tableIdentifier;
+	protected final SqlNodeList partitionSpec;
+
+	public SqlAlterTable(
+			SqlParserPos pos,
+			SqlIdentifier tableName,
+			@Nullable SqlNodeList partitionSpec) {
+		super(pos);
+		this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
+		this.partitionSpec = partitionSpec;
+	}
 
 	public SqlAlterTable(
 			SqlParserPos pos,
 			SqlIdentifier tableName) {
-		super(pos);
-		this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
+		this(pos, tableName, null);
 	}
 
 	@Override
@@ -77,7 +88,7 @@ public abstract class SqlAlterTable extends SqlCall {
 	 * Returns the partition spec if the ALTER should be applied to partitions, and null otherwise.
 	 */
 	public SqlNodeList getPartitionSpec() {
-		return null;
+		return partitionSpec;
 	}
 
 	/**

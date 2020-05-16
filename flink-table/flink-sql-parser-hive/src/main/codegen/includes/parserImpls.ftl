@@ -1137,13 +1137,22 @@ SqlAlterTable SqlAlterTable() :
         )
     |
         <ADD> <COLUMNS>
-        { return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, partitionSpec, false); }
+        {
+            EnsureAlterTableOnly(partitionSpec, "Add columns");
+            return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, false);
+        }
     |
         <REPLACE> <COLUMNS>
-        { return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, partitionSpec, true); }
+        {
+            EnsureAlterTableOnly(partitionSpec, "Replace columns");
+            return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, true);
+        }
     |
         <CHANGE> [ <COLUMN> ]
-        { return SqlAlterHiveTableChangeColumn(startPos, tableIdentifier, partitionSpec); }
+        {
+            EnsureAlterTableOnly(partitionSpec, "Change column");
+            return SqlAlterHiveTableChangeColumn(startPos, tableIdentifier);
+        }
     |
         <SET>
         (
@@ -1174,7 +1183,7 @@ SqlAlterTable SqlAlterTable() :
     )
 }
 
-SqlAlterTable SqlAlterHiveTableAddReplaceColumn(SqlParserPos startPos, SqlIdentifier tableIdentifier, SqlNodeList partitionSpec, boolean replace) :
+SqlAlterTable SqlAlterHiveTableAddReplaceColumn(SqlParserPos startPos, SqlIdentifier tableIdentifier, boolean replace) :
 {
   SqlNodeList colList;
   boolean cascade = false;
@@ -1190,7 +1199,7 @@ SqlAlterTable SqlAlterHiveTableAddReplaceColumn(SqlParserPos startPos, SqlIdenti
     )*
   <RPAREN>
   [
-    <CASCADE> { cascade = true; EnsureAlterTableOnly(partitionSpec, "Add/replace columns cascade"); }
+    <CASCADE> { cascade = true; }
     |
     <RESTRICT>
   ]
@@ -1198,14 +1207,13 @@ SqlAlterTable SqlAlterHiveTableAddReplaceColumn(SqlParserPos startPos, SqlIdenti
     colList = new SqlNodeList(cols, startPos.plus(getPos()));
     return new SqlAlterHiveTableAddReplaceColumn(startPos.plus(getPos()),
                                                  tableIdentifier,
-                                                 partitionSpec,
                                                  cascade,
                                                  colList,
                                                  replace);
   }
 }
 
-SqlAlterTable SqlAlterHiveTableChangeColumn(SqlParserPos startPos, SqlIdentifier tableIdentifier, SqlNodeList partitionSpec) :
+SqlAlterTable SqlAlterHiveTableChangeColumn(SqlParserPos startPos, SqlIdentifier tableIdentifier) :
 {
   boolean cascade = false;
   SqlIdentifier oldName;
@@ -1226,13 +1234,12 @@ SqlAlterTable SqlAlterHiveTableChangeColumn(SqlParserPos startPos, SqlIdentifier
   [ <FIRST> { first = true; } ]
   [ <AFTER> { after = SimpleIdentifier(); } ]
   [
-    <CASCADE> { cascade = true; EnsureAlterTableOnly(partitionSpec, "Change columns cascade"); }
+    <CASCADE> { cascade = true; }
     |
     <RESTRICT>
   ]
   { return new SqlAlterHiveTableChangeColumn(startPos.plus(getPos()),
                                              tableIdentifier,
-                                             partitionSpec,
                                              cascade,
                                              oldName,
                                              new SqlTableColumn(newName, newType, null, comment, newName.getParserPosition()),

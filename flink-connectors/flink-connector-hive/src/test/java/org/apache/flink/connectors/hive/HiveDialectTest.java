@@ -287,7 +287,6 @@ public class HiveDialectTest {
 		FieldSchema newField = hiveTable.getSd().getCols().get(3);
 		assertEquals("x1", newField.getName());
 		assertEquals("string", newField.getType());
-		assertEquals("new x col", newField.getComment());
 
 		tableEnv.executeSql("alter table tbl1 change column y y int first");
 		hiveTable = hiveCatalog.getHiveTable(tablePath);
@@ -379,27 +378,6 @@ public class HiveDialectTest {
 		partition = hiveCatalog.getHivePartition(hiveTable, spec1);
 		assertEquals(LazyBinarySerDe.class.getName(), partition.getSd().getSerdeInfo().getSerializationLib());
 		assertEquals("\n", partition.getSd().getSerdeInfo().getParameters().get(serdeConstants.LINE_DELIM));
-
-		// replace columns
-		tableEnv.executeSql("alter table tbl partition (p1=1000,p2='2020-05-01') replace columns (x1 int,y1 varchar(100))");
-		partition = hiveCatalog.getHivePartition(hiveTable, spec1);
-		assertEquals("x1", partition.getSd().getCols().get(0).getName());
-		assertEquals("int", partition.getSd().getCols().get(0).getType());
-		assertEquals("y1", partition.getSd().getCols().get(1).getName());
-		assertEquals("varchar(100)", partition.getSd().getCols().get(1).getType());
-
-		// add columns
-		tableEnv.executeSql("alter table tbl partition (p1=2000,p2='2020-01-01') add columns (z decimal)");
-		partition = hiveCatalog.getHivePartition(hiveTable, spec2);
-		assertEquals(3, partition.getSd().getColsSize());
-		assertEquals("z", partition.getSd().getCols().get(2).getName());
-		assertEquals("decimal(10,0)", partition.getSd().getCols().get(2).getType());
-
-		// change column
-		tableEnv.executeSql("alter table tbl partition (p1=2000,p2='2020-01-01') change column z z1 double first");
-		partition = hiveCatalog.getHivePartition(hiveTable, spec2);
-		assertEquals("z1", partition.getSd().getCols().get(0).getName());
-		assertEquals("double", partition.getSd().getCols().get(0).getType());
 	}
 
 	@Test

@@ -321,8 +321,6 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 				.ok("ALTER TABLE `TBL` CHANGE COLUMN `C` `C1`  STRUCT< `F0` TIMESTAMP, `F1` ARRAY< CHAR(5) > > RESTRICT");
 		sql("alter table tbl change column c c decimal(5,2) comment 'new comment' first cascade")
 				.ok("ALTER TABLE `TBL` CHANGE COLUMN `C` `C`  DECIMAL(5, 2)  COMMENT 'new comment' FIRST CASCADE");
-		sql("alter table tbl partition (p1=1,p2=2) change c c1 array<map<int,double>> after col")
-				.ok("ALTER TABLE `TBL` PARTITION (`P1` = 1, `P2` = 2) CHANGE COLUMN `C` `C1`  ARRAY< MAP< INTEGER, DOUBLE > > AFTER `COL` RESTRICT");
 	}
 
 	@Test
@@ -338,10 +336,6 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"  `A`  CHAR(100),\n" +
 						"  `B`  TINYINT  COMMENT 'tiny comment',\n" +
 						"  `C`  SMALLINT\n" +
-						") RESTRICT");
-		sql("alter table tbl partition (p=1) replace columns (a array<decimal>)")
-				.ok("ALTER TABLE `TBL` PARTITION (`P` = 1) REPLACE COLUMNS (\n" +
-						"  `A`  ARRAY< DECIMAL >\n" +
 						") RESTRICT");
 	}
 }

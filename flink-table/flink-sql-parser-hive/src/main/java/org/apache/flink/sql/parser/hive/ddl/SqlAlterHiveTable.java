@@ -32,6 +32,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 public abstract class SqlAlterHiveTable extends SqlAlterTableProperties {
 
 	public static final String ALTER_TABLE_OP = "alter.table.op";
+	public static final String ALTER_COL_CASCADE = "alter.column.cascade";
 
 	public SqlAlterHiveTable(AlterTableOp op, SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
 		super(pos, tableName, propertyList);
@@ -57,8 +58,6 @@ public abstract class SqlAlterHiveTable extends SqlAlterTableProperties {
 		CHANGE_SERDE_PROPS,
 		CHANGE_FILE_FORMAT,
 		CHANGE_LOCATION,
-		CHANGE_COLUMN,
-		ADD_COLUMNS,
-		REPLACE_COLUMNS
+		ALTER_COLUMNS
 	}
 }

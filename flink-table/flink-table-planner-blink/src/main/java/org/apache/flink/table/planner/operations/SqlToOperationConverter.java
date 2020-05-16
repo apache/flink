@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.sql.parser.ddl.SqlAddReplaceColumns;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
@@ -25,6 +26,7 @@ import org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableProperties;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableRename;
+import org.apache.flink.sql.parser.ddl.SqlChangeColumn;
 import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
@@ -97,6 +99,7 @@ import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.StringUtils;
@@ -284,6 +287,18 @@ public class SqlToOperationConverter {
 			return new AlterTableDropConstraintOperation(
 					tableIdentifier,
 					constraintName);
+		} else if (sqlAlterTable instanceof SqlAddReplaceColumns) {
+			return OperationConverterUtils.convertAddReplaceColumns(
+					tableIdentifier,
+					(SqlAddReplaceColumns) sqlAlterTable,
+					(CatalogTable) baseTable,
+					flinkPlanner.getOrCreateSqlValidator());
+		} else if (sqlAlterTable instanceof SqlChangeColumn) {
+			return OperationConverterUtils.convertChangeColumn(
+					tableIdentifier,
+					(SqlChangeColumn) sqlAlterTable,
+					(CatalogTable) baseTable,
+					flinkPlanner.getOrCreateSqlValidator());
 		} else {
 			throw new ValidationException(
 					String.format("[%s] needs to implement",
@@ -309,7 +324,7 @@ public class SqlToOperationConverter {
 		if (baseTable instanceof CatalogTable) {
 			CatalogTable oldTable = (CatalogTable) baseTable;
 			Map<String, String> newProperties = new HashMap<>(oldTable.getProperties());
-			newProperties.putAll(extractProperties(alterTableProperties.getPropertyList()));
+			newProperties.putAll(OperationConverterUtils.extractProperties(alterTableProperties.getPropertyList()));
 			CatalogTable newTable = new CatalogTableImpl(
 					oldTable.getSchema(),
 					oldTable.getPartitionKeys(),
@@ -667,14 +682,5 @@ public class SqlToOperationConverter {
 		// transform to a relational tree
 		RelRoot relational = planner.rel(validated);
 		return new PlannerQueryOperation(relational.project());
-	}
-
-	private static Map<String, String> extractProperties(SqlNodeList propList) {
-		Map<String, String> properties = new HashMap<>();
-		if (propList != null) {
-			propList.getList().forEach(p ->
-					properties.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
-		}
-		return properties;
 	}
 }

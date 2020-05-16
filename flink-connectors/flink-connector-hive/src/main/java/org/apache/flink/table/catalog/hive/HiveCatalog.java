@@ -96,8 +96,6 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,22 +113,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_COL_CASCADE;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_TABLE_OP;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.REPLACE_COLUMNS;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableAddReplaceColumn.ADD_REPLACE_COL_COMMENT_FORMAT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableAddReplaceColumn.ADD_REPLACE_COL_NAMES;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableAddReplaceColumn.ADD_REPLACE_COL_TYPES;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableChangeColumn.CHANGE_COL_AFTER;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableChangeColumn.CHANGE_COL_COMMENT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableChangeColumn.CHANGE_COL_FIRST;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableChangeColumn.CHANGE_COL_NEW_NAME;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableChangeColumn.CHANGE_COL_NEW_TYPE;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableChangeColumn.CHANGE_COL_OLD_NAME;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableColumn.ALTER_COL_CASCADE;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_COLS;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_CONSTRAINT_TRAITS;
@@ -141,7 +127,6 @@ import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositi
 import static org.apache.flink.table.utils.PartitionPathUtils.unescapePathName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A catalog implementation for Hive.
@@ -157,14 +142,6 @@ public class HiveCatalog extends AbstractCatalog {
 	// because Hive's Function object doesn't have properties or other place to store the flag for Flink functions.
 	private static final String FLINK_FUNCTION_PREFIX = "flink:";
 	private static final String FLINK_PYTHON_FUNCTION_PREFIX = FLINK_FUNCTION_PREFIX + "python:";
-
-	private static final Pattern DECIMAL_PATTERN = Pattern.compile("^decimal(\\((\\d+),\\s*(\\d+)\\))?$");
-	private static final Pattern CHAR_PATTERN = Pattern.compile("^char\\((\\d+)\\)$");
-	private static final Pattern VARCHAR_PATTERN = Pattern.compile("^varchar\\((\\d+)\\)$");
-	private static final Pattern TIMESTAMP_PATTERN = Pattern.compile("^timestamp(\\((\\d+)\\))?$");
-	private static final Pattern ARRAY_PATTERN = Pattern.compile("^array<(.+)>$");
-	private static final Pattern MAP_PATTERN = Pattern.compile("^map<(.+)>$");
-	private static final Pattern STRUCT_PATTERN = Pattern.compile("^row<(.+)>$");
 
 	private final HiveConf hiveConf;
 	private final String hiveVersion;
@@ -521,7 +498,13 @@ public class HiveCatalog extends AbstractCatalog {
 				// the alter operation isn't encoded as properties
 				hiveTable = alterTableViaCatalogBaseTable(tablePath, newCatalogTable, hiveTable);
 			} else {
-				alterTableViaProperties(op, hiveTable, hiveTable.getParameters(), newCatalogTable.getProperties(), hiveTable.getSd());
+				alterTableViaProperties(
+						op,
+						hiveTable,
+						(CatalogTable) newCatalogTable,
+						hiveTable.getParameters(),
+						newCatalogTable.getProperties(),
+						hiveTable.getSd());
 			}
 		}
 
@@ -964,7 +947,13 @@ public class HiveCatalog extends AbstractCatalog {
 			if (op == null) {
 				throw new CatalogException(ALTER_TABLE_OP + " is missing for alter table operation");
 			}
-			alterTableViaProperties(op, null, hivePartition.getParameters(), newPartition.getProperties(), hivePartition.getSd());
+			alterTableViaProperties(
+					op,
+					null,
+					null,
+					hivePartition.getParameters(),
+					newPartition.getProperties(),
+					hivePartition.getSd());
 			client.alter_partition(
 				tablePath.getDatabaseName(),
 				tablePath.getObjectName(),
@@ -1511,8 +1500,13 @@ public class HiveCatalog extends AbstractCatalog {
 		return newHiveTable;
 	}
 
-	private void alterTableViaProperties(AlterTableOp alterOp, Table hiveTable, Map<String, String> oldProps,
-			Map<String, String> newProps, StorageDescriptor sd) {
+	private void alterTableViaProperties(
+			AlterTableOp alterOp,
+			Table hiveTable,
+			CatalogTable catalogTable,
+			Map<String, String> oldProps,
+			Map<String, String> newProps,
+			StorageDescriptor sd) {
 		switch (alterOp) {
 			case CHANGE_TBL_PROPS:
 				oldProps.putAll(newProps);
@@ -1527,53 +1521,25 @@ public class HiveCatalog extends AbstractCatalog {
 			case CHANGE_SERDE_PROPS:
 				HiveTableUtil.extractRowFormat(sd, newProps);
 				break;
-			case ADD_COLUMNS:
-			case REPLACE_COLUMNS:
-				boolean cascade = Boolean.parseBoolean(newProps.remove(ALTER_COL_CASCADE));
-				ensureCascadeOnPartitionedTable(hiveTable, cascade);
-				String[] names = newProps.remove(ADD_REPLACE_COL_NAMES).split(HiveDDLUtils.COL_DELIMITER);
-				String[] types = newProps.remove(ADD_REPLACE_COL_TYPES).split(HiveDDLUtils.COL_DELIMITER);
-				checkArgument(names.length == types.length);
-				List<FieldSchema> columns = new ArrayList<>(names.length);
-				for (int i = 0; i < names.length; i++) {
-					String comment = newProps.remove(String.format(ADD_REPLACE_COL_COMMENT_FORMAT, i));
-					columns.add(new FieldSchema(names[i], calTypeStrToHiveTypeInfo(types[i].toLowerCase()).getTypeName(), comment));
+			case ALTER_COLUMNS:
+				if (hiveTable == null) {
+					throw new CatalogException("ALTER COLUMNS cannot be done with ALTER PARTITION");
 				}
-				addReplaceColumns(sd, columns, alterOp == REPLACE_COLUMNS);
+
+				alterColumns(hiveTable.getSd(), catalogTable);
+				boolean cascade = Boolean.parseBoolean(newProps.remove(ALTER_COL_CASCADE));
 				if (cascade) {
+					if (!isTablePartitioned(hiveTable)) {
+						throw new CatalogException("ALTER COLUMNS CASCADE for non-partitioned table");
+					}
 					try {
 						for (CatalogPartitionSpec spec : listPartitions(new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()))) {
 							Partition partition = getHivePartition(hiveTable, spec);
-							addReplaceColumns(partition.getSd(), columns, alterOp == REPLACE_COLUMNS);
+							alterColumns(partition.getSd(), catalogTable);
 							client.alter_partition(hiveTable.getDbName(), hiveTable.getTableName(), partition);
 						}
 					} catch (Exception e) {
 						throw new CatalogException("Failed to cascade add/replace columns to partitions", e);
-					}
-				}
-				break;
-			case CHANGE_COLUMN:
-				cascade = Boolean.parseBoolean(newProps.remove(ALTER_COL_CASCADE));
-				ensureCascadeOnPartitionedTable(hiveTable, cascade);
-				String oldName = newProps.remove(CHANGE_COL_OLD_NAME).toLowerCase();
-				String newName = newProps.remove(CHANGE_COL_NEW_NAME).toLowerCase();
-				String newType = newProps.remove(CHANGE_COL_NEW_TYPE).toLowerCase();
-				String colComment = newProps.remove(CHANGE_COL_COMMENT);
-				boolean first = Boolean.parseBoolean(newProps.remove(CHANGE_COL_FIRST));
-				String after = newProps.remove(CHANGE_COL_AFTER);
-				if (after != null) {
-					after = after.toLowerCase();
-				}
-				changeColumn(oldName, newName, newType, colComment, first, after, sd);
-				if (cascade) {
-					try {
-						for (CatalogPartitionSpec spec : listPartitions(new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()))) {
-							Partition partition = getHivePartition(hiveTable, spec);
-							changeColumn(oldName, newName, newType, colComment, first, after, partition.getSd());
-							client.alter_partition(hiveTable.getDbName(), hiveTable.getTableName(), partition);
-						}
-					} catch (Exception e) {
-						throw new CatalogException("Failed to cascade change column to partitions", e);
 					}
 				}
 				break;
@@ -1582,160 +1548,9 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private static void ensureCascadeOnPartitionedTable(Table hiveTable, boolean cascade) {
-		if (cascade) {
-			if (hiveTable == null) {
-				throw new CatalogException("Alter columns cascade for a partition");
-			}
-			if (!isTablePartitioned(hiveTable)) {
-				throw new CatalogException("Alter columns cascade for non-partitioned table");
-			}
-		}
-	}
-
-	private static void changeColumn(String oldName, String newName, String newType, String comment, boolean first,
-			String after, StorageDescriptor sd) {
-		if (first && after != null) {
-			throw new CatalogException("Both first and after specified for CHANGE COLUMN");
-		}
-		TypeInfo newTypeInfo = calTypeStrToHiveTypeInfo(newType);
-		List<String> oldNames = getFieldNames(sd.getCols());
-		int oldIndex = oldNames.indexOf(oldName);
-		if (oldIndex < 0) {
-			throw new CatalogException(String.format("Old column %s not found for CHANGE COLUMN", oldName));
-		}
-		FieldSchema newField = new FieldSchema(newName, newTypeInfo.getTypeName(), comment);
-		if ((!first && after == null) || oldName.equals(after)) {
-			sd.getCols().set(oldIndex, newField);
-		} else {
-			// need change column position
-			sd.getCols().remove(oldIndex);
-			if (first) {
-				sd.getCols().add(0, newField);
-			} else {
-				int newIndex = oldNames.indexOf(after);
-				if (newIndex < 0) {
-					throw new CatalogException(String.format("After column %s not found for CHANGE COLUMN", after));
-				}
-				sd.getCols().add(++newIndex, newField);
-			}
-		}
-	}
-
-	private static void addReplaceColumns(StorageDescriptor sd, List<FieldSchema> columns, boolean replace) {
-		if (replace) {
-			sd.setCols(columns);
-		} else {
-			sd.getCols().addAll(columns);
-		}
-	}
-
-	private static TypeInfo calTypeStrToHiveTypeInfo(String typeStr) {
-		typeStr = typeStr.trim();
-		if (typeStr.endsWith("not null")) {
-			typeStr = typeStr.substring(0, typeStr.length() - "not null".length());
-		}
-		if (typeStr.equals("tinyint")) {
-			return TypeInfoFactory.byteTypeInfo;
-		}
-		if (typeStr.equals("smallint")) {
-			return TypeInfoFactory.shortTypeInfo;
-		}
-		if (typeStr.equals("integer")) {
-			return TypeInfoFactory.intTypeInfo;
-		}
-		if (typeStr.equals("bigint")) {
-			return TypeInfoFactory.longTypeInfo;
-		}
-		if (typeStr.equals("float")) {
-			return TypeInfoFactory.floatTypeInfo;
-		}
-		if (typeStr.equals("double")) {
-			return TypeInfoFactory.doubleTypeInfo;
-		}
-		Matcher matcher = DECIMAL_PATTERN.matcher(typeStr);
-		if (matcher.find()) {
-			int precision = matcher.group(2) == null ? 10 : Integer.parseInt(matcher.group(2));
-			int scale = matcher.group(3) == null ? 0 : Integer.parseInt(matcher.group(3));
-			return TypeInfoFactory.getDecimalTypeInfo(precision, scale);
-		}
-		if (typeStr.equals("string")) {
-			return TypeInfoFactory.stringTypeInfo;
-		}
-		matcher = CHAR_PATTERN.matcher(typeStr);
-		if (matcher.find()) {
-			return TypeInfoFactory.getCharTypeInfo(Integer.parseInt(matcher.group(1)));
-		}
-		matcher = VARCHAR_PATTERN.matcher(typeStr);
-		if (matcher.find()) {
-			return TypeInfoFactory.getVarcharTypeInfo(Integer.parseInt(matcher.group(1)));
-		}
-		if (typeStr.equals("date")) {
-			return TypeInfoFactory.dateTypeInfo;
-		}
-		matcher = TIMESTAMP_PATTERN.matcher(typeStr);
-		if (matcher.find()) {
-			if (matcher.group(2) != null) {
-				int precision = Integer.parseInt(matcher.group(2));
-				checkArgument(precision == 9, "Timestamp of Hive table should always have precision 9");
-			}
-			return TypeInfoFactory.timestampTypeInfo;
-		}
-		if (typeStr.equals("boolean")) {
-			return TypeInfoFactory.booleanTypeInfo;
-		}
-		if (typeStr.startsWith("varbinary")) {
-			return TypeInfoFactory.binaryTypeInfo;
-		}
-		matcher = ARRAY_PATTERN.matcher(typeStr);
-		if (matcher.find()) {
-			return TypeInfoFactory.getListTypeInfo(calTypeStrToHiveTypeInfo(matcher.group(1)));
-		}
-		matcher = MAP_PATTERN.matcher(typeStr);
-		if (matcher.find()) {
-			List<String> keyValTypes = extractNestedTypes(matcher.group(1));
-			checkArgument(keyValTypes.size() == 2, "Invalid map type: " + typeStr);
-			return TypeInfoFactory.getMapTypeInfo(
-					calTypeStrToHiveTypeInfo(keyValTypes.get(0)), calTypeStrToHiveTypeInfo(keyValTypes.get(1)));
-		}
-		matcher = STRUCT_PATTERN.matcher(typeStr);
-		if (matcher.find()) {
-			List<String> fields = extractNestedTypes(matcher.group(1));
-			checkArgument(!fields.isEmpty(), "Invalid struct type: " + typeStr);
-			List<String> names = new ArrayList<>(fields.size());
-			List<TypeInfo> types = new ArrayList<>(fields.size());
-			for (String field : fields) {
-				field = field.trim();
-				int index = field.indexOf(" ");
-				names.add(field.substring(1, index - 1));
-				types.add(calTypeStrToHiveTypeInfo(field.substring(index + 1)));
-			}
-			return TypeInfoFactory.getStructTypeInfo(names, types);
-		}
-		throw new CatalogException("Unsupported calcite type string: " + typeStr);
-	}
-
-	private static List<String> extractNestedTypes(String typeStr) {
-		List<String> res = new ArrayList<>();
-		int openBrackets = 0;
-		int begin = 0;
-		int end = 0;
-		while (end < typeStr.length()) {
-			char current = typeStr.charAt(end++);
-			if (current == ',' && openBrackets == 0) {
-				res.add(typeStr.substring(begin, end - 1));
-				begin = end;
-			} else if (current == '<' || current == '(') {
-				openBrackets++;
-			} else if (current == '>' || current == ')') {
-				checkState(openBrackets > 0, "Illegal type string " + typeStr);
-				openBrackets--;
-			}
-		}
-		checkState(openBrackets == 0, "Unclosed brackets: " + typeStr);
-		if (end > begin) {
-			res.add(typeStr.substring(begin, end));
-		}
-		return res;
+	private static void alterColumns(StorageDescriptor sd, CatalogTable catalogTable) {
+		List<FieldSchema> allCols = HiveTableUtil.createHiveColumns(catalogTable.getSchema());
+		List<FieldSchema> nonPartCols = allCols.subList(0, allCols.size() - catalogTable.getPartitionKeys().size());
+		sd.setCols(nonPartCols);
 	}
 }
