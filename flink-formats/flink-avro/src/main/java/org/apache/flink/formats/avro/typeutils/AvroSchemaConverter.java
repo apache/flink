@@ -25,11 +25,14 @@ import org.apache.flink.formats.avro.AvroRowDeserializationSchema;
 import org.apache.flink.formats.avro.AvroRowSerializationSchema;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -41,8 +44,6 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 
 import java.util.List;
-
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
 
 /**
  * Converts an Avro schema into Flink's type information. It uses {@link RowTypeInfo} for representing
@@ -177,7 +178,7 @@ public class AvroSchemaConverter {
 		return convertToSchema(logicalType, 0);
 	}
 
-	private static Schema convertToSchema(LogicalType logicalType, int rowTypeCounter) {
+	public static Schema convertToSchema(LogicalType logicalType, int rowTypeCounter) {
 		switch (logicalType.getTypeRoot()) {
 			case NULL:
 				return SchemaBuilder.builder().nullType();
@@ -202,10 +203,8 @@ public class AvroSchemaConverter {
 				final TimestampType timestampType = (TimestampType) logicalType;
 				int precision = timestampType.getPrecision();
 				org.apache.avro.LogicalType avroLogicalType;
-				if (precision == 3) {
+				if (precision <= 3) {
 					avroLogicalType = LogicalTypes.timestampMillis();
-				} else if (precision == 9) {
-					avroLogicalType = LogicalTypes.timestampMicros();
 				} else {
 					throw new IllegalArgumentException("Avro Timestamp does not support Timestamp with precision: " +
 						precision +
@@ -240,23 +239,18 @@ public class AvroSchemaConverter {
 						.noDefault();
 				}
 				return builder.endRecord();
+			case MULTISET:
 			case MAP:
-				MapType mapType = (MapType) logicalType;
-				if (!hasFamily(mapType.getKeyType(), LogicalTypeFamily.CHARACTER_STRING)) {
-					throw new IllegalArgumentException(
-						"Avro assumes map keys are strings, " + mapType.getKeyType() +
-							" type as key type is not supported.");
-				}
 				return SchemaBuilder
 					.builder()
-					.nullable() // will be UNION of Array and null
+					.nullable()
 					.map()
-					.values(convertToSchema(mapType.getValueType(), rowTypeCounter));
+					.values(convertToSchema(extractValueTypeToAvroMap(logicalType), rowTypeCounter));
 			case ARRAY:
 				ArrayType arrayType = (ArrayType) logicalType;
 				return SchemaBuilder
 					.builder()
-					.nullable() // wil be union of array and null
+					.nullable()
 					.array()
 					.items(convertToSchema(arrayType.getElementType(), rowTypeCounter));
 			case RAW:
@@ -268,9 +262,30 @@ public class AvroSchemaConverter {
 					.longType().and()
 					.doubleType()
 					.endUnion();
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			default:
 				throw new UnsupportedOperationException("Unsupported to derive Schema for type: " + logicalType);
 		}
+	}
+
+	public static LogicalType extractValueTypeToAvroMap(LogicalType type) {
+		LogicalType keyType;
+		LogicalType valueType;
+		if (type instanceof MapType) {
+			MapType mapType = (MapType) type;
+			keyType = mapType.getKeyType();
+			valueType = mapType.getValueType();
+		} else {
+			MultisetType multisetType = (MultisetType) type;
+			keyType = multisetType.getElementType();
+			valueType = new IntType();
+		}
+		if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
+			throw new UnsupportedOperationException(
+					"Avro format doesn't support non-string as key type of map. " +
+							"The key type is: " + keyType.asSummaryString());
+		}
+		return valueType;
 	}
 
 	private static SchemaBuilder.BaseTypeBuilder<Schema> getNullableBuilder(LogicalType logicalType) {

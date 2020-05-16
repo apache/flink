@@ -27,10 +27,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeFamily;
-import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.avro.Schema;
@@ -51,6 +48,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import static org.apache.flink.formats.avro.typeutils.AvroSchemaConverter.extractValueTypeToAvroMap;
 
 /**
  * Serialization schema that serializes {@link RowData} into Avro bytes.
@@ -189,9 +188,8 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 			case BINARY:
 			case VARBINARY:
 				return object -> ByteBuffer.wrap((byte[]) object);
-			case TIMESTAMP_WITH_TIME_ZONE:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return object -> ((TimestampData) object).getMillisecond();
+				return object -> ((TimestampData) object).toTimestamp().getTime();
 			case DECIMAL:
 				return object -> ByteBuffer.wrap(((DecimalData) object).toUnscaledBytes());
 			case ARRAY:
@@ -200,7 +198,7 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 				return createRowConverter((RowType) type);
 			case MAP:
 			case MULTISET:
-				return createMapConverter((MapType) type);
+				return createMapConverter(type);
 			case RAW:
 			default:
 				throw new UnsupportedOperationException("Unsupported type: " + type);
@@ -221,15 +219,9 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 		};
 	}
 
-	private SerializationRuntimeConverter createMapConverter(MapType mapType) {
-		final LogicalType keyType = mapType.getKeyType();
-		final LogicalType valueType = mapType.getValueType();
-		if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
-			throw new UnsupportedOperationException(
-				"Avro format doesn't support non-string as key type of map. " +
-					"The map type is: " + mapType.asSummaryString());
-		}
-		final SerializationRuntimeConverter valueConverter = createConverter(mapType.getValueType());
+	private SerializationRuntimeConverter createMapConverter(LogicalType type) {
+		LogicalType valueType = extractValueTypeToAvroMap(type);
+		final SerializationRuntimeConverter valueConverter = createConverter(valueType);
 
 		return object -> {
 			final MapData mapData = (MapData) object;

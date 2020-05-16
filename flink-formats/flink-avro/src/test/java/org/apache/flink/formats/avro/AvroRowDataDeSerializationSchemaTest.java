@@ -19,21 +19,26 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.avro.generated.JodaTimeRecord;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
-import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.IndexedRecord;
-import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -74,15 +79,15 @@ public class AvroRowDataDeSerializationSchemaTest {
 			FIELD("int", INT()),
 			FIELD("bigint", BIGINT()),
 			FIELD("float", FLOAT()),
-			FIELD("double",DOUBLE()),
+			FIELD("double", DOUBLE()),
 			FIELD("name", STRING()),
 			FIELD("bytes", BYTES()),
-			FIELD("decimal", DECIMAL(9, 6)),
+			FIELD("decimal", DECIMAL(19, 6)),
 			FIELD("doubles", ARRAY(DOUBLE())),
 			FIELD("time", TIME(0)),
 			FIELD("date", DATE()),
 			FIELD("timestamp3", TIMESTAMP(3)),
-			FIELD("timestamp9", TIMESTAMP(9)),
+			FIELD("timestamp3_2", TIMESTAMP(3)),
 			FIELD("map", MAP(STRING(), BIGINT())),
 			FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))),
 			FIELD("map2array", MAP(STRING(), ARRAY(INT()))));
@@ -99,10 +104,8 @@ public class AvroRowDataDeSerializationSchemaTest {
 		record.put(5, "hello avro");
 		record.put(6, ByteBuffer.wrap(new byte[]{1, 2, 4, 5, 6, 7, 8, 12}));
 
-		ByteBuffer byteBuffer = ByteBuffer.wrap(DecimalData.fromBigDecimal(
-			BigDecimal.valueOf(123456789, 6), 9, 6)
-			.toUnscaledBytes());
-		record.put(7, byteBuffer);
+		record.put(7, ByteBuffer.wrap(
+				BigDecimal.valueOf(123456789, 6).unscaledValue().toByteArray()));
 
 		List<Double> doubles = new ArrayList<>();
 		doubles.add(1.2);
@@ -113,7 +116,7 @@ public class AvroRowDataDeSerializationSchemaTest {
 		record.put(9, 18397);
 		record.put(10, 10087);
 		record.put(11, 1589530213123L);
-		record.put(12, 1589530213123000000L);
+		record.put(12, 1589530213122L);
 
 		Map<String, Long> map = new HashMap<>();
 		map.put("flink", 12L);
@@ -141,7 +144,7 @@ public class AvroRowDataDeSerializationSchemaTest {
 		deserializationSchema.open(null);
 
 		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-		DatumWriter<IndexedRecord> datumWriter = new SpecificDatumWriter<>(schema);
+		GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(schema);
 		Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
 		datumWriter.write(record, encoder);
 		encoder.flush();
@@ -151,5 +154,41 @@ public class AvroRowDataDeSerializationSchemaTest {
 		byte[] output = serializationSchema.serialize(rowData);
 
 		assertArrayEquals(input, output);
+	}
+
+	@Test
+	public void testSpecificType() throws Exception {
+		JodaTimeRecord record = new JodaTimeRecord();
+		record.setTypeTimestampMillis(DateTime.parse("2010-06-30T01:20:20"));
+		record.setTypeDate(LocalDate.parse("2014-03-01"));
+		record.setTypeTimeMillis(LocalTime.parse("12:12:12"));
+		SpecificDatumWriter<JodaTimeRecord> datumWriter = new SpecificDatumWriter<>(JodaTimeRecord.class);
+		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+		Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
+		datumWriter.write(record, encoder);
+		encoder.flush();
+		byte[] input = byteArrayOutputStream.toByteArray();
+
+		DataType dataType = ROW(
+				FIELD("type_timestamp_millis", TIMESTAMP(3)),
+				FIELD("type_date", DATE()),
+				FIELD("type_time_millis", TIME(3)));
+		final RowType rowType = (RowType) dataType.getLogicalType();
+		final TypeInformation<RowData> typeInfo = new RowDataTypeInfo(rowType);
+		AvroRowDataSerializationSchema serializationSchema = new AvroRowDataSerializationSchema(rowType);
+		serializationSchema.open(null);
+		AvroRowDataDeserializationSchema deserializationSchema =
+				new AvroRowDataDeserializationSchema(rowType, typeInfo);
+		deserializationSchema.open(null);
+
+		RowData rowData = deserializationSchema.deserialize(input);
+		byte[] output = serializationSchema.serialize(rowData);
+		RowData rowData2 = deserializationSchema.deserialize(output);
+		Assert.assertEquals(rowData, rowData2);
+		Assert.assertEquals("2010-06-30T01:20:20", rowData.getTimestamp(0, 3).toString());
+		Assert.assertEquals("2014-03-01", DataFormatConverters.LocalDateConverter.INSTANCE.toExternal(
+				rowData.getInt(1)).toString());
+		Assert.assertEquals("12:12:12", DataFormatConverters.LocalTimeConverter.INSTANCE.toExternal(
+				rowData.getInt(2)).toString());
 	}
 }

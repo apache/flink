@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
@@ -32,10 +33,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeFamily;
-import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.apache.avro.Schema;
@@ -54,10 +52,13 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import static org.apache.flink.formats.avro.typeutils.AvroSchemaConverter.extractValueTypeToAvroMap;
 
 /**
  * Deserialization schema from Avro bytes to {@link RowData}.
@@ -242,7 +243,6 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 				return this::convertToDate;
 			case TIME_WITHOUT_TIME_ZONE:
 				return this::convertToTime;
-			case TIMESTAMP_WITH_TIME_ZONE:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return this::convertToTimestamp;
 			case CHAR:
@@ -259,7 +259,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 				return createRowConverter((RowType) type);
 			case MAP:
 			case MULTISET:
-				return createMapConverter((MapType) type);
+				return createMapConverter(type);
 			case RAW:
 			default:
 				throw new UnsupportedOperationException("Unsupported type: " + type);
@@ -267,6 +267,8 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 	}
 
 	private DeserializationRuntimeConverter createDecimalConverter(DecimalType decimalType) {
+		final int precision = decimalType.getPrecision();
+		final int scale = decimalType.getScale();
 		return avroObject -> {
 			final byte[] bytes;
 			if (avroObject instanceof GenericFixed) {
@@ -278,7 +280,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 			} else {
 				bytes = (byte[]) avroObject;
 			}
-			return DecimalData.fromUnscaledBytes(bytes, decimalType.getPrecision(), decimalType.getScale());
+			return DecimalData.fromUnscaledBytes(bytes, precision, scale);
 		};
 	}
 
@@ -297,15 +299,11 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 		};
 	}
 
-	private DeserializationRuntimeConverter createMapConverter(MapType mapType) {
-		LogicalType keyType = mapType.getKeyType();
-		if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
-			throw new UnsupportedOperationException(
-				"Avro format doesn't support non-string as key type of map. " +
-					"The map type is: " + mapType.asSummaryString());
-		}
-		final DeserializationRuntimeConverter keyConverter = createConverter(keyType);
-		final DeserializationRuntimeConverter valueConverter = createConverter(mapType.getValueType());
+	private DeserializationRuntimeConverter createMapConverter(LogicalType type) {
+		final DeserializationRuntimeConverter keyConverter = createConverter(
+				DataTypes.STRING().getLogicalType());
+		final DeserializationRuntimeConverter valueConverter = createConverter(
+				extractValueTypeToAvroMap(type));
 
 		return avroObject -> {
 			final Map<?, ?> map = (Map<?, ?>) avroObject;
@@ -328,20 +326,21 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 			final DateTime value = (DateTime) object;
 			millis = value.toDate().getTime();
 		}
-		return TimestampData.fromEpochMillis(millis);
+		return toTimestampData(millis);
 	}
 
 	private int convertToDate(Object object) {
-		final long millis;
 		if (object instanceof Integer) {
-			final Integer value = (Integer) object;
-			millis = (long) value * MILLIS_PER_DAY;
+			return (Integer) object;
 		} else {
 			// use 'provided' Joda time
 			final LocalDate value = (LocalDate) object;
-			millis = value.toDate().getTime();
+			return (int) (toTimestampData(value.toDate().getTime()).getMillisecond() / MILLIS_PER_DAY);
 		}
-		return (int) (millis / MILLIS_PER_DAY);
+	}
+
+	private static TimestampData toTimestampData(long timeZoneMills) {
+		return TimestampData.fromTimestamp(new Timestamp(timeZoneMills));
 	}
 
 	private int convertToTime(Object object) {
