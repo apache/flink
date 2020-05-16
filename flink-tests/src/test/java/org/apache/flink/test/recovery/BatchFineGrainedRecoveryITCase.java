@@ -91,7 +91,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import static org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME;
+import static org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 

@@ -25,7 +25,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.failover.AdaptedRestartPipelinedRegionStrategyNG;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -57,8 +56,7 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
 
 	/**
 	 * Tests that {@link CheckpointCoordinator#abortPendingCheckpoints(CheckpointException)}
-	 * called by {@link AdaptedRestartPipelinedRegionStrategyNG} could handle
-	 * the {@code currentPeriodicTrigger} null situation well.
+	 * called on job failover could handle the {@code currentPeriodicTrigger} null case well.
 	 */
 	@Test
 	public void testAbortPendingCheckpointsWithTriggerValidation() {
