@@ -37,23 +37,21 @@ import java.util.List;
  */
 public class SqlAlterHivePartitionRename extends SqlAlterTable {
 
-	private final SqlNodeList partSpec;
 	private final SqlNodeList newPartSpec;
 
 	public SqlAlterHivePartitionRename(SqlParserPos pos, SqlIdentifier tableName,
 			SqlNodeList partSpec, SqlNodeList newPartSpec) throws ParseException {
-		super(pos, tableName);
+		super(pos, tableName, partSpec);
 		if (partSpec == null || newPartSpec == null) {
 			throw new ParseException("Both old and new partition spec have to be specified");
 		}
-		this.partSpec = partSpec;
 		this.newPartSpec = newPartSpec;
 	}
 
 	@Nonnull
 	@Override
 	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(tableIdentifier, partSpec, newPartSpec);
+		return ImmutableNullableList.of(tableIdentifier, getPartitionSpec(), newPartSpec);
 	}
 
 	@Override
@@ -64,12 +62,6 @@ public class SqlAlterHivePartitionRename extends SqlAlterTable {
 		writer.newlineAndIndent();
 		writer.keyword("PARTITION");
 		newPartSpec.unparse(writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
-	}
-
-	@Override
-	public SqlNodeList getPartitionSpec() {
-		// must be full spec for renaming
-		return partSpec;
 	}
 
 	public SqlNodeList getNewPartSpec() {

@@ -31,20 +31,12 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableO
  */
 public class SqlAlterHiveTableLocation extends SqlAlterHiveTable {
 
-	private final SqlNodeList partitionSpec;
 	private final SqlCharStringLiteral location;
 
 	public SqlAlterHiveTableLocation(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partitionSpec,
 			SqlCharStringLiteral location) {
-		super(CHANGE_LOCATION, pos, tableName, createPropList(location));
-		this.partitionSpec = partitionSpec;
+		super(CHANGE_LOCATION, pos, tableName, partitionSpec, createPropList(location));
 		this.location = location;
-	}
-
-	@Override
-	public SqlNodeList getPartitionSpec() {
-		// must be full spec for changing location
-		return partitionSpec;
 	}
 
 	@Override

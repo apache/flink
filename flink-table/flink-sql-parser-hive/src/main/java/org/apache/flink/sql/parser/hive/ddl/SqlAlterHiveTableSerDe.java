@@ -36,13 +36,12 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableO
  */
 public class SqlAlterHiveTableSerDe extends SqlAlterHiveTable {
 
-	private final SqlNodeList partitionSpec;
 	private final SqlCharStringLiteral serdeLib;
 	private final SqlNodeList origSerDeProps;
 
 	public SqlAlterHiveTableSerDe(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partitionSpec,
 			SqlNodeList propertyList, SqlCharStringLiteral serdeLib) throws ParseException {
-		super(CHANGE_SERDE_PROPS, pos, tableName, HiveDDLUtils.checkReservedTableProperties(propertyList));
+		super(CHANGE_SERDE_PROPS, pos, tableName, partitionSpec, HiveDDLUtils.checkReservedTableProperties(propertyList));
 		// remove the last property which is the ALTER_TABLE_OP
 		origSerDeProps = new SqlNodeList(propertyList.getList().subList(0, propertyList.size() - 1),
 				propertyList.getParserPosition());
@@ -52,12 +51,6 @@ public class SqlAlterHiveTableSerDe extends SqlAlterHiveTable {
 					HiveTableRowFormat.SERDE_LIB_CLASS_NAME, serdeLib, serdeLib.getParserPosition()));
 		}
 		this.serdeLib = serdeLib;
-		this.partitionSpec = partitionSpec;
-	}
-
-	@Override
-	public SqlNodeList getPartitionSpec() {
-		return partitionSpec;
 	}
 
 	@Override

@@ -30,19 +30,11 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableO
  */
 public class SqlAlterHiveTableFileFormat extends SqlAlterHiveTable {
 
-	private final SqlNodeList partSpec;
 	private final SqlIdentifier format;
 
 	public SqlAlterHiveTableFileFormat(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partSpec, SqlIdentifier format) {
-		super(CHANGE_FILE_FORMAT, pos, tableName, createPropList(format));
-		this.partSpec = partSpec;
+		super(CHANGE_FILE_FORMAT, pos, tableName, partSpec, createPropList(format));
 		this.format = format;
-	}
-
-	@Override
-	public SqlNodeList getPartitionSpec() {
-		// can be partial spec in which case all partitions matching the spec will be updated
-		return partSpec;
 	}
 
 	@Override

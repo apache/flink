@@ -37,7 +37,7 @@ public class SqlAlterHiveTableProps extends SqlAlterHiveTable {
 
 	public SqlAlterHiveTableProps(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList)
 			throws ParseException {
-		super(CHANGE_TBL_PROPS, pos, tableName, HiveDDLUtils.checkReservedTableProperties(propertyList));
+		super(CHANGE_TBL_PROPS, pos, tableName, null, HiveDDLUtils.checkReservedTableProperties(propertyList));
 		// remove the last property which is the ALTER_TABLE_OP
 		this.origProps = new SqlNodeList(propertyList.getList().subList(0, propertyList.size() - 1),
 				propertyList.getParserPosition());

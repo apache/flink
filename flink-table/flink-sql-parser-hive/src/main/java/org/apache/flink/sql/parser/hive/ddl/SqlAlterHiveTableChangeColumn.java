@@ -32,13 +32,6 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  */
 public class SqlAlterHiveTableChangeColumn extends SqlChangeColumn {
 
-	public static final String CHANGE_COL_OLD_NAME = "change.column.old.name";
-	public static final String CHANGE_COL_NEW_NAME = "change.column.new.name";
-	public static final String CHANGE_COL_NEW_TYPE = "change.column.new.type";
-	public static final String CHANGE_COL_COMMENT = "change.column.comment";
-	public static final String CHANGE_COL_FIRST = "change.column.first";
-	public static final String CHANGE_COL_AFTER = "change.column.after";
-
 	private final SqlTableColumn origNewColumn;
 	private final boolean cascade;
 

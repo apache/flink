@@ -34,8 +34,9 @@ public abstract class SqlAlterHiveTable extends SqlAlterTableProperties {
 	public static final String ALTER_TABLE_OP = "alter.table.op";
 	public static final String ALTER_COL_CASCADE = "alter.column.cascade";
 
-	public SqlAlterHiveTable(AlterTableOp op, SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
-		super(pos, tableName, propertyList);
+	public SqlAlterHiveTable(AlterTableOp op, SqlParserPos pos, SqlIdentifier tableName,
+			SqlNodeList partSpec, SqlNodeList propertyList) {
+		super(pos, tableName, partSpec, propertyList);
 		propertyList.add(HiveDDLUtils.toTableOption(ALTER_TABLE_OP, op.name(), pos));
 	}
 
