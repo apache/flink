@@ -102,6 +102,7 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 	@Override
 	public DynamicTableSource createDynamicTableSource(Context context) {
 		TableFactoryHelper helper = createTableFactoryHelper(this, context);
+		helper.validate();
 		String hTableName = helper.getOptions().get(TABLE_NAME);
 		// create default configuration from current runtime env (`hbase-site.xml` in classpath) first,
 		Configuration hbaseClientConf = HBaseConfiguration.create();
@@ -123,6 +124,7 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 	@Override
 	public DynamicTableSink createDynamicTableSink(Context context) {
 		TableFactoryHelper helper = createTableFactoryHelper(this, context);
+		helper.validate();
 		HBaseOptions.Builder hbaseOptionsBuilder = HBaseOptions.builder();
 		hbaseOptionsBuilder.setTableName(helper.getOptions().get(TABLE_NAME));
 		hbaseOptionsBuilder.setZkQuorum(helper.getOptions().get(ZOOKEEPER_QUORUM));

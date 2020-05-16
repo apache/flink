@@ -37,8 +37,11 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.ExceptionUtils;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -58,6 +61,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Unit test for {@link HBaseDynamicTableFactory}.
@@ -73,6 +77,9 @@ public class HBaseDynamicTableFactoryTest {
 	private static final String COL3 = "c3";
 	private static final String COL4 = "c4";
 	private static final String ROWKEY = "rowkey";
+
+	@Rule
+	public final ExpectedException thrown = ExpectedException.none();
 
 	@SuppressWarnings("rawtypes")
 	@Test
@@ -180,6 +187,36 @@ public class HBaseDynamicTableFactoryTest {
 			.build();
 		HBaseWriteOptions actualWriteOptions = hbaseSink.getWriteOptions();
 		assertEquals(expectedWriteOptions, actualWriteOptions);
+	}
+
+	@Test
+	public void testUnknownOption() {
+		Map<String, String> options = getAllOptions();
+		options.put("sink.unknown.key", "unknown-value");
+		TableSchema schema = TableSchema.builder()
+			.field(ROWKEY, STRING())
+			.field(FAMILY1, ROW(
+				FIELD(COL1, DOUBLE()),
+				FIELD(COL2, INT())))
+			.build();
+
+		try {
+			createTableSource(schema, options);
+			fail("Should fail");
+		} catch (Exception e) {
+			assertTrue(ExceptionUtils
+				.findThrowableWithMessage(e, "Unsupported options:\n\nsink.unknown.key")
+				.isPresent());
+		}
+
+		try {
+			createTableSink(schema, options);
+			fail("Should fail");
+		} catch (Exception e) {
+			assertTrue(ExceptionUtils
+				.findThrowableWithMessage(e, "Unsupported options:\n\nsink.unknown.key")
+				.isPresent());
+		}
 	}
 
 	private Map<String, String> getAllOptions() {
