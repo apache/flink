@@ -229,7 +229,11 @@ SqlCreate SqlCreateTemporary(Span s, boolean replace) :
 {
   [ <TEMPORARY>   {isTemporary = true;} ]
 
-  create = SqlCreateTable(s, isTemporary)
+  (
+    create = SqlCreateFunction(s, isTemporary)
+    |
+    create = SqlCreateTable(s, isTemporary)
+  )
   {
     return create;
   }
@@ -956,5 +960,133 @@ void TableApiIdentifierSegment(List<String> names, List<SqlParserPos> positions)
         if (positions != null) {
             positions.add(pos);
         }
+    }
+}
+
+/**
+ * Hive syntax:
+ *
+ * CREATE [TEMPORARY] FUNCTION [db_name.]function_name AS class_name
+ *   [USING JAR|FILE|ARCHIVE 'file_uri' [, JAR|FILE|ARCHIVE 'file_uri'] ];
+ */
+SqlCreate SqlCreateFunction(Span s, boolean isTemporary) :
+{
+    SqlIdentifier functionIdentifier = null;
+    SqlCharStringLiteral functionClassName = null;
+}
+{
+    <FUNCTION>
+
+    functionIdentifier = CompoundIdentifier()
+
+    <AS> <QUOTED_STRING> {
+        functionClassName = createStringLiteral(token.image, getPos());
+    }
+    {
+        return new SqlCreateFunction(s.pos(), functionIdentifier, functionClassName, null,
+                false, isTemporary, false);
+    }
+}
+
+/**
+ * Hive syntax:
+ *
+ * DROP [TEMPORARY] FUNCTION [IF EXISTS] function_name;
+ */
+SqlDrop SqlDropFunction(Span s, boolean replace) :
+{
+    SqlIdentifier functionIdentifier = null;
+    boolean ifExists = false;
+    boolean isTemporary = false;
+}
+{
+    [ <TEMPORARY> {isTemporary = true;} ]
+    <FUNCTION>
+
+    [ LOOKAHEAD(2) <IF> <EXISTS> { ifExists = true; } ]
+
+    functionIdentifier = CompoundIdentifier()
+
+    {
+        return new SqlDropFunction(s.pos(), functionIdentifier, ifExists, isTemporary, false);
+    }
+}
+
+/**
+ * Hive syntax:
+ *
+ * SHOW FUNCTIONS [LIKE "<pattern>"];
+ */
+SqlShowFunctions SqlShowFunctions() :
+{
+    SqlParserPos pos;
+}
+{
+    <SHOW> <FUNCTIONS> { pos = getPos();}
+    {
+        return new SqlShowFunctions(pos, null);
+    }
+}
+
+/**
+* Parse a "Show Catalogs" metadata query command.
+*/
+SqlShowCatalogs SqlShowCatalogs() :
+{
+}
+{
+    <SHOW> <CATALOGS>
+    {
+        return new SqlShowCatalogs(getPos());
+    }
+}
+
+SqlDescribeCatalog SqlDescribeCatalog() :
+{
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
+}
+{
+    <DESCRIBE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlDescribeCatalog(pos, catalogName);
+    }
+}
+
+SqlUseCatalog SqlUseCatalog() :
+{
+    SqlIdentifier catalogName;
+    SqlParserPos pos;
+}
+{
+    <USE> <CATALOG> { pos = getPos();}
+    catalogName = SimpleIdentifier()
+    {
+        return new SqlUseCatalog(pos, catalogName);
+    }
+}
+
+/**
+* Parses a create catalog statement.
+* CREATE CATALOG catalog_name [WITH (property_name=property_value, ...)];
+*/
+SqlCreate SqlCreateCatalog(Span s, boolean replace) :
+{
+    SqlParserPos startPos;
+    SqlIdentifier catalogName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <CATALOG> { startPos = getPos(); }
+    catalogName = SimpleIdentifier()
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+    {
+        return new SqlCreateCatalog(startPos.plus(getPos()),
+            catalogName,
+            propertyList);
     }
 }

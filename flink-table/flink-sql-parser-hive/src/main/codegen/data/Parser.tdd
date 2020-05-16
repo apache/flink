@@ -492,12 +492,16 @@
   # Example: SqlShowDatabases(), SqlShowTables().
   statementParserMethods: [
     "RichSqlInsert()"
+    "SqlShowCatalogs()"
+    "SqlDescribeCatalog()"
+    "SqlUseCatalog()"
     "SqlShowDatabases()"
     "SqlUseDatabase()"
     "SqlAlterDatabase()"
     "SqlDescribeDatabase()"
     "SqlShowTables()"
     "SqlRichDescribeTable()"
+    "SqlShowFunctions()"
   ]
 
   # List of methods for parsing custom literals.
@@ -533,6 +537,7 @@
   createStatementParserMethods: [
     "SqlCreateDatabase"
     "SqlCreateTemporary"
+    "SqlCreateCatalog"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.
@@ -540,6 +545,7 @@
   dropStatementParserMethods: [
     "SqlDropTable"
     "SqlDropDatabase"
+    "SqlDropFunction"
   ]
 
   # Binary operators tokens

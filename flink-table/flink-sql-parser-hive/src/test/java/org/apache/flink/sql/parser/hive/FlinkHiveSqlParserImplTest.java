@@ -221,4 +221,47 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"(SELECT *\n" +
 						"FROM `SRC`)");
 	}
+
+	@Test
+	public void testCreateFunction() {
+		sql("create function func as 'class.name'").ok("CREATE FUNCTION `FUNC` AS 'class.name'");
+		sql("create temporary function func as 'class.name'").ok("CREATE TEMPORARY FUNCTION `FUNC` AS 'class.name'");
+	}
+
+	@Test
+	public void testDropFunction() {
+		sql("drop function if exists func").ok("DROP FUNCTION IF EXISTS `FUNC`");
+		sql("drop temporary function func").ok("DROP TEMPORARY FUNCTION `FUNC`");
+	}
+
+	@Test
+	public void testShowFunctions() {
+		// TODO: support SHOW FUNCTIONS LIKE 'regex_pattern'
+		sql("show functions").ok("SHOW FUNCTIONS");
+	}
+
+	@Test
+	public void testCreateCatalog() {
+		sql("create catalog cat")
+				.ok("CREATE CATALOG `CAT`");
+		sql("create catalog cat with ('k1'='v1')")
+				.ok("CREATE CATALOG `CAT` WITH (\n" +
+						"  'k1' = 'v1'\n" +
+						")");
+	}
+
+	@Test
+	public void testShowCatalogs() {
+		sql("show catalogs").ok("SHOW CATALOGS");
+	}
+
+	@Test
+	public void testUseCatalog() {
+		sql("use catalog cat").ok("USE CATALOG `CAT`");
+	}
+
+	@Test
+	public void testDescribeCatalog() {
+		sql("describe catalog cat").ok("DESCRIBE CATALOG `CAT`");
+	}
 }

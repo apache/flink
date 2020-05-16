@@ -42,6 +42,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe;
 import org.junit.After;
@@ -54,6 +55,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
+import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
+import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -220,6 +223,32 @@ public class HiveDialectTest {
 
 	private static void waitForJobFinish(TableResult tableResult) throws Exception {
 		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+	}
+
+	@Test
+	public void testFunction() throws Exception {
+		// create function
+		tableEnv.executeSql(String.format("create function my_abs as '%s'", GenericUDFAbs.class.getName()));
+		List<Row> functions = Lists.newArrayList(tableEnv.executeSql("show functions").collect());
+		assertTrue(functions.toString().contains("my_abs"));
+		// call the function
+		tableEnv.executeSql("create table src(x int)");
+		waitForJobFinish(tableEnv.executeSql("insert into src values (1),(-1)"));
+		assertEquals("[1, 1]", queryResult(tableEnv.sqlQuery("select my_abs(x) from src")).toString());
+		// drop the function
+		tableEnv.executeSql("drop function my_abs");
+		assertFalse(hiveCatalog.functionExists(new ObjectPath("default", "my_abs")));
+		tableEnv.executeSql("drop function if exists foo");
+	}
+
+	@Test
+	public void testCatalog() {
+		List<Row> catalogs = Lists.newArrayList(tableEnv.executeSql("show catalogs").collect());
+		assertEquals(2, catalogs.size());
+		tableEnv.executeSql("use catalog " + DEFAULT_BUILTIN_CATALOG);
+		List<Row> databases = Lists.newArrayList(tableEnv.executeSql("show databases").collect());
+		assertEquals(1, databases.size());
+		assertEquals(DEFAULT_BUILTIN_DATABASE, databases.get(0).toString());
 	}
 
 	private static String locationPath(String locationURI) throws URISyntaxException {
