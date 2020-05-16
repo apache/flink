@@ -38,6 +38,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.client.SqlClientException;
@@ -388,13 +389,13 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
-	public void executeSql(String sessionId, String ddl) throws SqlExecutionException {
+	public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tEnv = context.getTableEnvironment();
 		try {
-			context.wrapClassLoader(() -> tEnv.executeSql(ddl));
+			return context.wrapClassLoader(() -> tEnv.executeSql(statement));
 		} catch (Exception e) {
-			throw new SqlExecutionException("Could not execute statement: " + ddl, e);
+			throw new SqlExecutionException("Could not execute statement: " + statement, e);
 		}
 	}
 
