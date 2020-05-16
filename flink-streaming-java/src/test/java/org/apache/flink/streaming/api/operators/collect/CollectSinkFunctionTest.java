@@ -80,12 +80,8 @@ public class CollectSinkFunctionTest extends TestLogger {
 		ioManager = new IOManagerAsync();
 		runtimeContext = new MockStreamingRuntimeContext(false, 1, 0, ioManager);
 		gateway = new MockOperatorEventGateway();
-		function = new CollectSinkFunction<>(serializer, MAX_RESULTS_PER_BATCH, ACCUMULATOR_NAME);
 		coordinator = new CollectSinkOperatorCoordinator();
 		coordinator.start();
-
-		function.setRuntimeContext(runtimeContext);
-		function.setOperatorEventGateway(gateway);
 
 		// only used in checkpointed tests
 		functionInitializationContext = new MockFunctionInitializationContext();
@@ -151,8 +147,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 	@Test
 	public void testCheckpointProtocol() throws Exception {
-		function.initializeState(functionInitializationContext);
-		openFunction();
+		openFunctionWithState();
 		for (int i = 0; i < 2; i++) {
 			// CollectSinkFunction never use context when invoked
 			function.invoke(Row.of(i), null);
@@ -193,7 +188,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 		closeFuntionAbnormally();
 
-		restartFunction();
+		openFunctionWithState();
 
 		for (int i = 9; i < 12; i++) {
 			function.invoke(Row.of(i), null);
@@ -219,7 +214,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 		closeFuntionAbnormally();
 
-		restartFunction();
+		openFunctionWithState();
 
 		response = sendRequest(version, 7);
 		Assert.assertEquals(6, response.getLastCheckpointedOffset());
@@ -243,7 +238,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 		closeFuntionAbnormally();
 
-		restartFunction();
+		openFunctionWithState();
 
 		response = sendRequest(version, 12);
 		Assert.assertEquals(9, response.getLastCheckpointedOffset());
@@ -264,7 +259,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 		closeFuntionAbnormally();
 
-		restartFunction();
+		openFunctionWithState();
 
 		response = sendRequest(version, 12);
 		Assert.assertEquals(9, response.getLastCheckpointedOffset());
@@ -344,14 +339,21 @@ public class CollectSinkFunctionTest extends TestLogger {
 	}
 
 	private void openFunction() throws Exception {
+		function = new CollectSinkFunction<>(serializer, MAX_RESULTS_PER_BATCH, ACCUMULATOR_NAME);
+		function.setRuntimeContext(runtimeContext);
+		function.setOperatorEventGateway(gateway);
 		function.open(new Configuration());
 		coordinator.handleEventFromOperator(0, gateway.getNextEvent());
 	}
 
-	private void restartFunction() throws Exception {
+	private void openFunctionWithState() throws Exception {
 		functionInitializationContext.getOperatorStateStore().revertToLastSuccessCheckpoint();
+		function = new CollectSinkFunction<>(serializer, MAX_RESULTS_PER_BATCH, ACCUMULATOR_NAME);
+		function.setRuntimeContext(runtimeContext);
+		function.setOperatorEventGateway(gateway);
 		function.initializeState(functionInitializationContext);
-		openFunction();
+		function.open(new Configuration());
+		coordinator.handleEventFromOperator(0, gateway.getNextEvent());
 	}
 
 	private void checkpointFunction(long checkpointId) throws Exception {
@@ -475,7 +477,6 @@ public class CollectSinkFunctionTest extends TestLogger {
 			Random random = new Random();
 
 			try {
-				function.initializeState(functionInitializationContext);
 				openFunction();
 
 				while (data.size() > 0) {
@@ -490,7 +491,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 							Collections.shuffle(checkpointedData);
 							data = new LinkedList<>(checkpointedData);
 
-							restartFunction();
+							openFunction();
 						}
 
 						failedBefore = true;
@@ -533,8 +534,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 			Random random = new Random();
 
 			try {
-				function.initializeState(functionInitializationContext);
-				openFunction();
+				openFunctionWithState();
 
 				while (data.size() > 0) {
 					ListIterator<CheckpointCountdown> iterator = checkpointCountdowns.listIterator();
@@ -578,7 +578,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 						data = new LinkedList<>(checkpointedData);
 
 						closeFuntionAbnormally();
-						restartFunction();
+						openFunctionWithState();
 					}
 
 					if (random.nextBoolean()) {

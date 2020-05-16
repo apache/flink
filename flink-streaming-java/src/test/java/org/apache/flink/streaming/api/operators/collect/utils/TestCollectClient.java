@@ -103,7 +103,7 @@ public class TestCollectClient<T> extends Thread {
 		}
 		if (retryCount > MAX_RETRY_COUNT) {
 			// not to block the tests
-			// throw new RuntimeException("Too many retries in TestCollectClient");
+			throw new RuntimeException("Too many retries in TestCollectClient");
 		}
 
 		if (INIT_VERSION.equals(version)) {
