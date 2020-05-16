@@ -228,4 +228,9 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 	public InputChannel getChannel(int channelIndex) {
 		return inputGate.getChannel(channelIndex);
 	}
+
+	@VisibleForTesting
+	CheckpointBarrierHandler getCheckpointBarrierHandler() {
+		return barrierHandler;
+	}
 }

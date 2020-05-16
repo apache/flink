@@ -33,8 +33,16 @@ import java.util.concurrent.ExecutorService;
  * Mock {@link IndexedInputGate}.
  */
 public class MockIndexedInputGate extends IndexedInputGate {
+	private final int gateIndex;
+	private final int numberOfInputChannels;
 
 	public MockIndexedInputGate() {
+		this(0, 1);
+	}
+
+	public MockIndexedInputGate(int gateIndex, int numberOfInputChannels) {
+		this.gateIndex = gateIndex;
+		this.numberOfInputChannels = numberOfInputChannels;
 	}
 
 	@Override
@@ -56,7 +64,7 @@ public class MockIndexedInputGate extends IndexedInputGate {
 
 	@Override
 	public int getNumberOfInputChannels() {
-		return 1;
+		return numberOfInputChannels;
 	}
 
 	@Override
@@ -93,6 +101,6 @@ public class MockIndexedInputGate extends IndexedInputGate {
 
 	@Override
 	public int getGateIndex() {
-		return 0;
+		return gateIndex;
 	}
 }
