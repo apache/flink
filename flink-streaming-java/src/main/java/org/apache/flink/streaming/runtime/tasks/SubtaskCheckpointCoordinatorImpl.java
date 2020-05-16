@@ -164,7 +164,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			takeSnapshotSync(snapshotFutures, metadata, metrics, options, operatorChain, isCanceled);
 			finishAndReportAsync(snapshotFutures, metadata, metrics, options);
 		} catch (Exception ex) {
-			cleanup(snapshotFutures, metadata, metrics);
+			cleanup(snapshotFutures, metadata, metrics, ex);
 			throw ex;
 		}
 	}
@@ -186,7 +186,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	private void cleanup(
 			Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
 			CheckpointMetaData metadata,
-			CheckpointMetrics metrics) throws Exception {
+			CheckpointMetrics metrics,
+			Exception ex) {
 
 		channelStateWriter.abort(metadata.getCheckpointId(), ex);
 		for (OperatorSnapshotFutures operatorSnapshotResult : operatorSnapshotsInProgress.values()) {
