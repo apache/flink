@@ -217,6 +217,14 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 		}
 	}
 
+	// Postgres jdbc driver maps several alias to real type, we use real type rather than alias:
+	// smallint <=> int2
+	// integer <=> int4
+	// int <=> int4
+	// bigint <=> int8
+	// float <=> float8
+	// boolean <=> bool
+	// decimal <=> numeric
 	public static final String PG_BYTEA = "bytea";
 	public static final String PG_BYTEA_ARRAY = "_bytea";
 	public static final String PG_SMALLINT = "int2";
@@ -227,8 +235,6 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 	public static final String PG_BIGINT_ARRAY = "_int8";
 	public static final String PG_REAL = "float4";
 	public static final String PG_REAL_ARRAY = "_float4";
-	public static final String PG_DECIMAL = "decimal";
-	public static final String PG_DECIMAL_ARRAY = "_decimal";
 	public static final String PG_DOUBLE_PRECISION = "float8";
 	public static final String PG_DOUBLE_PRECISION_ARRAY = "_float8";
 	public static final String PG_NUMERIC = "numeric";
@@ -258,6 +264,8 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 		int precision = metadata.getPrecision(colIndex);
 		int scale = metadata.getScale(colIndex);
 
+		// pg types that gets replaced by jdbc driver:
+	    // - decimal => numeric
 		switch (pgType) {
 			case PG_BOOLEAN:
 				return DataTypes.BOOLEAN();
@@ -287,14 +295,12 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 				return DataTypes.DOUBLE();
 			case PG_DOUBLE_PRECISION_ARRAY:
 				return DataTypes.ARRAY(DataTypes.DOUBLE());
-			case PG_DECIMAL:
 			case PG_NUMERIC:
 				// see SPARK-26538: handle numeric without explicit precision and scale.
 				if (precision > 0) {
 					return DataTypes.DECIMAL(precision, metadata.getScale(colIndex));
 				}
 				return DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18);
-			case PG_DECIMAL_ARRAY:
 			case PG_NUMERIC_ARRAY:
 				// see SPARK-26538: handle numeric without explicit precision and scale.
 				if (precision > 0) {

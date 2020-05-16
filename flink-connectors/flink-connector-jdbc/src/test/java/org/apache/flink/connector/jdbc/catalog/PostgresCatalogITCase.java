@@ -88,7 +88,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 		List<Row> results = Lists.newArrayList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE_PRIMITIVE_TYPE)).execute().collect());
 
-		assertEquals("[1,[50],3,4,5.5,6.6,7.70000,true,a,b,c  ,d,2016-06-22T19:10:25,2015-01-01,00:51:03,500.000000000000000000]", results.toString());
+		assertEquals("[1,[50],3,4,5.5,6.6,7.70000,8.8,true,a,b,c  ,d,2016-06-22T19:10:25,2015-01-01,00:51:03,500.000000000000000000]", results.toString());
 	}
 
 	@Test
@@ -107,6 +107,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 				"[6.6, 7.7, 8.8]," +
 				"[7.70000, 8.80000, 9.90000]," +
 				"[8.800000000000000000, 9.900000000000000000, 10.100000000000000000]," +
+				"[9.90, 10.10, 11.11]," +
 				"[true, false, true]," +
 				"[a, b, c]," +
 				"[b, c, d]," +
