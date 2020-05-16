@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.format.SinkFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -29,6 +30,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import java.util.Set;
 import java.util.function.Supplier;
@@ -76,7 +78,8 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
 
 	@Override
 	public DynamicTableSink createDynamicTableSink(Context context) {
-		ElasticsearchValidationUtils.validatePrimaryKey(context.getCatalogTable().getSchema());
+		TableSchema tableSchema = context.getCatalogTable().getSchema();
+		ElasticsearchValidationUtils.validatePrimaryKey(tableSchema);
 
 		final FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 
@@ -96,7 +99,7 @@ public class Elasticsearch7DynamicSinkFactory implements DynamicTableSinkFactory
 		return new Elasticsearch7DynamicSink(
 			format,
 			config,
-			context.getCatalogTable().getSchema());
+			TableSchemaUtils.getPhysicalSchema(tableSchema));
 	}
 
 	private void validateOptions(Elasticsearch7Configuration config, Configuration originalConfiguration) {

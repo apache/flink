@@ -29,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.common.xcontent.XContentType;
 
@@ -77,6 +78,7 @@ class RowElasticsearchSinkFunction implements ElasticsearchSinkFunction<RowData>
 			case UPDATE_AFTER:
 				processUpsert(element, indexer);
 				break;
+			case UPDATE_BEFORE:
 			case DELETE:
 				processDelete(element, indexer);
 				break;
@@ -88,13 +90,23 @@ class RowElasticsearchSinkFunction implements ElasticsearchSinkFunction<RowData>
 	private void processUpsert(RowData row, RequestIndexer indexer) {
 		final byte[] document = serializationSchema.serialize(row);
 		final String key = createKey.apply(row);
-		final UpdateRequest updateRequest = requestFactory.createUpdateRequest(
-			indexGenerator.generate(row),
-			docType,
-			key,
-			contentType,
-			document);
-		indexer.add(updateRequest);
+		if (key != null) {
+			final UpdateRequest updateRequest = requestFactory.createUpdateRequest(
+				indexGenerator.generate(row),
+				docType,
+				key,
+				contentType,
+				document);
+			indexer.add(updateRequest);
+		} else {
+			final IndexRequest indexRequest = requestFactory.createIndexRequest(
+				indexGenerator.generate(row),
+				docType,
+				key,
+				contentType,
+				document);
+			indexer.add(indexRequest);
+		}
 	}
 
 	private void processDelete(RowData row, RequestIndexer indexer) {

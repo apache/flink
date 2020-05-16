@@ -44,15 +44,6 @@ final class Elasticsearch7Configuration extends ElasticsearchConfiguration {
 			.collect(Collectors.toList());
 	}
 
-	/**
-	 * Parse Hosts String to list.
-	 *
-	 * <p>Hosts String format was given as following:
-	 *
-	 * <pre>
-	 *     connector.hosts = http://host_name:9092;http://host_name:9093
-	 * </pre>
-	 */
 	private static HttpHost validateAndParseHostsString(String host) {
 		try {
 			HttpHost httpHost = HttpHost.create(host);

@@ -81,8 +81,8 @@ class ElasticsearchValidationUtils {
 						String.format(
 							"The table has a primary key on columns of illegal types: %s.\n" +
 								" Elasticsearch sink does not support primary keys on columns of types: %s.",
-							ILLEGAL_PRIMARY_KEY_TYPES,
-							illegalTypes));
+							illegalTypes,
+							ILLEGAL_PRIMARY_KEY_TYPES));
 				}
 			}
 		);

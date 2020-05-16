@@ -97,17 +97,17 @@ public class ElasticsearchOptions {
 			.noDefaultValue()
 			.withDescription("Bulk flush interval");
 	public static final ConfigOption<BackOffType> BULK_FLUSH_BACKOFF_TYPE_OPTION =
-		ConfigOptions.key("sink.bulk-flush.backoff.type")
+		ConfigOptions.key("sink.bulk-flush.back-off.strategy")
 			.enumType(BackOffType.class)
 			.defaultValue(BackOffType.DISABLED)
 			.withDescription("Backoff strategy");
 	public static final ConfigOption<Integer> BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION =
-		ConfigOptions.key("sink.bulk-flush.backoff.max-retries")
+		ConfigOptions.key("sink.bulk-flush.back-off.max-retries")
 			.intType()
 			.noDefaultValue()
 			.withDescription("Maximum number of retries.");
 	public static final ConfigOption<Duration> BULK_FLUSH_BACKOFF_DELAY_OPTION =
-		ConfigOptions.key("sink.bulk-flush.backoff.delay")
+		ConfigOptions.key("sink.bulk-flush.back-off.delay")
 			.durationType()
 			.noDefaultValue()
 			.withDescription("Delay between each backoff attempt.");
@@ -125,7 +125,9 @@ public class ElasticsearchOptions {
 		ConfigOptions.key("format")
 			.stringType()
 			.defaultValue("json")
-			.withDescription("Prefix string to be added to every REST communication.");
+			.withDescription("Elasticsearch connector requires to specify a format.\n" +
+				"The format must produce a valid json document. \n" +
+				"By default uses built-in 'json' format. Please refer to Table Formats section for more details.");
 
 	private ElasticsearchOptions() {
 	}
