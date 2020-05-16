@@ -226,10 +226,16 @@ public class HiveDialectTest {
 	}
 
 	@Test
-	public void testFunction() {
+	public void testFunction() throws Exception {
+		// create function
 		tableEnv.executeSql(String.format("create function my_abs as '%s'", GenericUDFAbs.class.getName()));
 		List<Row> functions = Lists.newArrayList(tableEnv.executeSql("show functions").collect());
 		assertTrue(functions.toString().contains("my_abs"));
+		// call the function
+		tableEnv.executeSql("create table src(x int)");
+		waitForJobFinish(tableEnv.executeSql("insert into src values (1),(-1)"));
+		assertEquals("[1, 1]", queryResult(tableEnv.sqlQuery("select my_abs(x) from src")).toString());
+		// drop the function
 		tableEnv.executeSql("drop function my_abs");
 		assertFalse(hiveCatalog.functionExists(new ObjectPath("default", "my_abs")));
 		tableEnv.executeSql("drop function if exists foo");

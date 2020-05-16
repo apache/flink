@@ -963,6 +963,12 @@ void TableApiIdentifierSegment(List<String> names, List<SqlParserPos> positions)
     }
 }
 
+/**
+ * Hive syntax:
+ *
+ * CREATE [TEMPORARY] FUNCTION [db_name.]function_name AS class_name
+ *   [USING JAR|FILE|ARCHIVE 'file_uri' [, JAR|FILE|ARCHIVE 'file_uri'] ];
+ */
 SqlCreate SqlCreateFunction(Span s, boolean isTemporary) :
 {
     SqlIdentifier functionIdentifier = null;
@@ -982,6 +988,11 @@ SqlCreate SqlCreateFunction(Span s, boolean isTemporary) :
     }
 }
 
+/**
+ * Hive syntax:
+ *
+ * DROP [TEMPORARY] FUNCTION [IF EXISTS] function_name;
+ */
 SqlDrop SqlDropFunction(Span s, boolean replace) :
 {
     SqlIdentifier functionIdentifier = null;
@@ -1001,6 +1012,11 @@ SqlDrop SqlDropFunction(Span s, boolean replace) :
     }
 }
 
+/**
+ * Hive syntax:
+ *
+ * SHOW FUNCTIONS [LIKE "<pattern>"];
+ */
 SqlShowFunctions SqlShowFunctions() :
 {
     SqlParserPos pos;
