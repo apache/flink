@@ -122,7 +122,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
-			"'sink.bulk-flush.backoff.max-retries' must be at least 1. Got: 0");
+			"'sink.bulk-flush.back-off.max-retries' must be at least 1. Got: 0");
 		sinkFactory.createDynamicTableSink(
 			context()
 				.withSchema(TableSchema.builder()
@@ -162,7 +162,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
-			"Invalid value for option 'sink.bulk-flush.backoff.delay'.");
+			"Invalid value for option 'sink.bulk-flush.back-off.delay'.");
 		sinkFactory.createDynamicTableSink(
 			context()
 				.withSchema(TableSchema.builder()
@@ -183,9 +183,9 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
 			"The table has a primary key on columns of illegal types: " +
-				"[ARRAY, MAP, MULTISET, STRUCTURED_TYPE, ROW, RAW, BINARY, VARBINARY].\n" +
+				"[ARRAY, MAP, MULTISET, ROW, RAW, VARBINARY].\n" +
 				" Elasticsearch sink does not support primary keys on columns of types: " +
-				"[ARRAY, MAP, MULTISET, ROW, RAW, VARBINARY].");
+				"[ARRAY, MAP, MULTISET, STRUCTURED_TYPE, ROW, RAW, BINARY, VARBINARY].");
 		sinkFactory.createDynamicTableSink(
 			context()
 				.withSchema(TableSchema.builder()
