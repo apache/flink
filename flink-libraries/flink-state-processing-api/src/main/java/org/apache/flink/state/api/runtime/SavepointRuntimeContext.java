@@ -31,8 +31,6 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -227,17 +225,6 @@ public final class SavepointRuntimeContext implements RuntimeContext {
 
 		registeredDescriptors.add(stateProperties);
 		return keyedStateStore.getAggregatingState(stateProperties);
-	}
-
-	@Override
-	@Deprecated
-	public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
-		if (!stateRegistrationAllowed) {
-			throw new RuntimeException(REGISTRATION_EXCEPTION_MSG);
-		}
-
-		registeredDescriptors.add(stateProperties);
-		return keyedStateStore.getFoldingState(stateProperties);
 	}
 
 	@Override

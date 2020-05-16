@@ -787,7 +787,7 @@ public class OperatorStateBackendTest {
 		ListStateDescriptor<MutableType> stateDescriptor1 =
 				new ListStateDescriptor<>("test1", new JavaSerializer<MutableType>());
 
-		ListState<MutableType> listState1 = operatorStateBackend.getOperatorState(stateDescriptor1);
+		ListState<MutableType> listState1 = operatorStateBackend.getListState(stateDescriptor1);
 
 		listState1.add(MutableType.of(42));
 		listState1.add(MutableType.of(4711));
@@ -841,7 +841,7 @@ public class OperatorStateBackendTest {
 		ListStateDescriptor<MutableType> stateDescriptor1 =
 				new ListStateDescriptor<>("test1", new JavaSerializer<MutableType>());
 
-		ListState<MutableType> listState1 = operatorStateBackend.getOperatorState(stateDescriptor1);
+		ListState<MutableType> listState1 = operatorStateBackend.getListState(stateDescriptor1);
 
 		listState1.add(MutableType.of(42));
 		listState1.add(MutableType.of(4711));

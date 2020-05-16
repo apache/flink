@@ -1389,19 +1389,6 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 		}
 
 		@Override
-		public <T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception {
-			// return empty state for the legacy 1.2 Kafka consumer state
-			return new TestingListState<>();
-		}
-
-		// ------------------------------------------------------------------------
-
-		@Override
-		public <S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
 		public <K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) throws Exception {
 			throw new UnsupportedOperationException();
 		}
