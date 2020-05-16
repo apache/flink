@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.client.cli.utils.ParserUtils;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ViewEntry;
@@ -31,6 +32,7 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
@@ -91,9 +93,9 @@ public class CliClientTest extends TestLogger {
 
 	@Test
 	public void testSqlCompletion() throws IOException {
-		verifySqlCompletion("", 0, Arrays.asList("SELECT", "QUIT;", "RESET;"), Collections.emptyList());
-		verifySqlCompletion("SELEC", 5, Collections.singletonList("SELECT"), Collections.singletonList("QUIT;"));
-		verifySqlCompletion("SELE", 0, Collections.singletonList("SELECT"), Collections.singletonList("QUIT;"));
+		verifySqlCompletion("", 0, Arrays.asList("SOURCE", "QUIT;", "RESET;"), Collections.emptyList());
+		verifySqlCompletion("SOUR", 5, Collections.singletonList("SOURCE"), Collections.singletonList("QUIT;"));
+		verifySqlCompletion("SOUR", 0, Collections.singletonList("SOURCE"), Collections.singletonList("QUIT;"));
 		verifySqlCompletion("QU", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
 		verifySqlCompletion("qu", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
 		verifySqlCompletion("  qu", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
@@ -374,8 +376,8 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
-		public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
-			return null;
+		public List<Operation> parse(String sessionId, String statement) throws SqlExecutionException {
+			return ParserUtils.parse(statement);
 		}
 
 		@Override
@@ -384,6 +386,11 @@ public class CliClientTest extends TestLogger {
 			receivedStatement = statement;
 			receivedPosition = position;
 			return Arrays.asList("HintA", "Hint B");
+		}
+
+		@Override
+		public TableResult executeSql(String sessionId, String stmt) throws SqlExecutionException {
+			return null;
 		}
 
 		@Override

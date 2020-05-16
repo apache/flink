@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
@@ -252,7 +253,7 @@ public class CliClient {
 	// --------------------------------------------------------------------------------------------
 
 	private Optional<SqlCommandCall> parseCommand(String line) {
-		final Optional<SqlCommandCall> parsedLine = SqlCommandParser.parse(line);
+		final Optional<SqlCommandCall> parsedLine = SqlCommandParser.parse(s -> executor.parse(sessionId, s), line);
 		if (!parsedLine.isPresent()) {
 			printError(CliStrings.MESSAGE_UNKNOWN_SQL);
 		}
@@ -517,7 +518,8 @@ public class CliClient {
 	private void callExplain(SqlCommandCall cmdCall) {
 		final String explanation;
 		try {
-			explanation = executor.explainStatement(sessionId, cmdCall.operands[0]);
+			TableResult tableResult = executor.executeSql(sessionId, cmdCall.operands[0]);
+			explanation = tableResult.collect().next().getField(0).toString();
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;

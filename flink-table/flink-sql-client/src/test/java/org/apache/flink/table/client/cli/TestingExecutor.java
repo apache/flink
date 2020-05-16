@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.client.cli.utils.ParserUtils;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
@@ -27,6 +28,7 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.SupplierWithException;
@@ -189,13 +191,18 @@ class TestingExecutor implements Executor {
 	}
 
 	@Override
-	public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
+	public List<Operation> parse(String sessionId, String statement) throws SqlExecutionException {
+		return ParserUtils.parse(statement);
 	}
 
 	@Override
 	public List<String> completeStatement(String sessionId, String statement, int position) {
 		throw new UnsupportedOperationException("Not implemented.");
+	}
+
+	@Override
+	public TableResult executeSql(String sessionId, String stmt) throws SqlExecutionException {
+		return null;
 	}
 
 	@Override

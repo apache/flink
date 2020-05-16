@@ -55,6 +55,7 @@ import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -79,7 +80,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -457,13 +457,12 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
-	public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
+	public List<Operation> parse(String sessionId, String statement) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tableEnv = context.getTableEnvironment();
 		// translate
 		try {
-			final Table table = createTable(context, tableEnv, statement);
-			return context.wrapClassLoader((Supplier<String>) table::explain);
+			return context.wrapClassLoader(() -> ((TableEnvironmentInternal) tableEnv).getParser().parse(statement));
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);
@@ -484,6 +483,19 @@ public class LocalExecutor implements Executor {
 				LOG.debug("Could not complete statement at " + position + ":" + statement, t);
 			}
 			return Collections.emptyList();
+		}
+	}
+
+	@Override
+	public TableResult executeSql(String sessionId, String stmt) throws SqlExecutionException {
+		final ExecutionContext<?> context = getExecutionContext(sessionId);
+		final TableEnvironment tableEnv = context.getTableEnvironment();
+
+		try {
+			return context.wrapClassLoader(() -> tableEnv.executeSql(stmt));
+		} catch (Throwable t) {
+			// catch everything such that the query does not crash the executor
+			throw new SqlExecutionException("Failed to execute statement.", t);
 		}
 	}
 

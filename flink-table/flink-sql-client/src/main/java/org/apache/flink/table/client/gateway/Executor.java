@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.config.entries.ViewEntry;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.types.Row;
 
 import java.util.List;
@@ -166,14 +167,19 @@ public interface Executor {
 	TableSchema getTableSchema(String sessionId, String name) throws SqlExecutionException;
 
 	/**
-	 * Returns a string-based explanation about AST and execution plan of the given statement.
+	 * Returns a list of {@link Operation}s for the given statement.
 	 */
-	String explainStatement(String sessionId, String statement) throws SqlExecutionException;
+	List<Operation> parse(String sessionId, String statement) throws SqlExecutionException;
 
 	/**
 	 * Returns a list of completion hints for the given statement at the given position.
 	 */
 	List<String> completeStatement(String sessionId, String statement, int position);
+
+	/**
+	 * Execute a statement and return the {@link TableResult}.
+	 */
+	TableResult executeSql(String sessionId, String stmt) throws SqlExecutionException;
 
 	/**
 	 * Submits a Flink SQL query job (detached) and returns the result descriptor.
