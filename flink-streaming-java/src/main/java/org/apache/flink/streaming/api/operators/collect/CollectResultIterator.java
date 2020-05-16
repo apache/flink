@@ -16,64 +16,60 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.collect;
+package org.apache.flink.streaming.api.operators.collect;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.CloseableIterator;
 
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * An iterator which iterates through the results of a SELECT query.
+ * An iterator which iterates through the results of a query job.
  */
-public class SelectResultIterator implements CloseableIterator<Row> {
+public class CollectResultIterator<T> implements Iterator<T>, AutoCloseable {
 
-	private final SelectResultFetcher fetcher;
-	private final LinkedList<Row> bufferedResults;
+	private final CollectResultFetcher<T> fetcher;
+	private T bufferedResult;
 
-	public SelectResultIterator(
+	public CollectResultIterator(
 			CompletableFuture<OperatorID> operatorIdFuture,
-			TypeSerializer<Row> serializer,
+			TypeSerializer<T> serializer,
 			String accumulatorName) {
-		this.fetcher = new SelectResultFetcher(operatorIdFuture, serializer, accumulatorName);
-		this.bufferedResults = new LinkedList<>();
+		this.fetcher = new CollectResultFetcher<>(operatorIdFuture, serializer, accumulatorName);
+		this.bufferedResult = null;
 	}
 
 	@VisibleForTesting
-	public SelectResultIterator(
+	public CollectResultIterator(
 			CompletableFuture<OperatorID> operatorIdFuture,
-			TypeSerializer<Row> serializer,
+			TypeSerializer<T> serializer,
 			String accumulatorName,
 			int retryMillis) {
-		this.fetcher = new SelectResultFetcher(operatorIdFuture, serializer, accumulatorName, retryMillis);
-		this.bufferedResults = new LinkedList<>();
+		this.fetcher = new CollectResultFetcher<>(operatorIdFuture, serializer, accumulatorName, retryMillis);
+		this.bufferedResult = null;
 	}
 
 	@Override
 	public boolean hasNext() {
 		// we have to make sure that the next result exists
 		// it is possible that there is no more result but the job is still running
-		if (bufferedResults.isEmpty()) {
-			bufferedResults.addAll(fetcher.nextBatch());
+		if (bufferedResult == null) {
+			bufferedResult = fetcher.next();
 		}
-		return !bufferedResults.isEmpty();
+		return bufferedResult != null;
 	}
 
 	@Override
-	public Row next() {
-		if (bufferedResults.isEmpty()) {
-			bufferedResults.addAll(fetcher.nextBatch());
+	public T next() {
+		if (bufferedResult == null) {
+			bufferedResult = fetcher.next();
 		}
-		if (bufferedResults.isEmpty()) {
-			return null;
-		} else {
-			return bufferedResults.removeFirst();
-		}
+		T ret = bufferedResult;
+		bufferedResult = null;
+		return ret;
 	}
 
 	@Override

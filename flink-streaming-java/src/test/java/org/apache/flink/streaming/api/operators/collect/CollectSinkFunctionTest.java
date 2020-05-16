@@ -17,25 +17,24 @@
 
 package org.apache.flink.streaming.api.operators.collect;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.api.operators.collect.utils.CollectRequestSender;
 import org.apache.flink.streaming.api.operators.collect.utils.MockFunctionInitializationContext;
 import org.apache.flink.streaming.api.operators.collect.utils.MockFunctionSnapshotContext;
 import org.apache.flink.streaming.api.operators.collect.utils.MockOperatorEventGateway;
-import org.apache.flink.streaming.api.operators.collect.utils.TestCollectClient;
+import org.apache.flink.streaming.api.operators.collect.utils.TestJobClient;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
-import org.apache.flink.types.Row;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -47,11 +46,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -64,10 +65,12 @@ public class CollectSinkFunctionTest extends TestLogger {
 	private static final long TIME_OUT_MILLIS = 10000;
 	private static final int MAX_RETIRES = 100;
 
-	private static final TypeSerializer<Row> serializer =
-		new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO).createSerializer(new ExecutionConfig());
+	private static final JobID TEST_JOB_ID = new JobID();
+	private static final OperatorID TEST_OPERATOR_ID = new OperatorID();
 
-	private CollectSinkFunction<Row> function;
+	private static final TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
+
+	private CollectSinkFunction<Integer> function;
 	private CollectSinkOperatorCoordinator coordinator;
 	private MockFunctionInitializationContext functionInitializationContext;
 	private boolean jobFinished;
@@ -101,10 +104,10 @@ public class CollectSinkFunctionTest extends TestLogger {
 		openFunction();
 		for (int i = 0; i < 6; i++) {
 			// CollectSinkFunction never use context when invoked
-			function.invoke(Row.of(i), null);
+			function.invoke(i, null);
 		}
 
-		CollectCoordinationResponse<Row> response = sendRequestAndGetValidResponse("", 0);
+		CollectCoordinationResponse<Integer> response = sendRequestAndGetValidResponse("", 0);
 		Assert.assertEquals(0, response.getLastCheckpointedOffset());
 		String version = response.getVersion();
 
@@ -118,7 +121,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 		assertResponseEquals(response, version, 0, Collections.emptyList());
 
 		for (int i = 6; i < 10; i++) {
-			function.invoke(Row.of(i), null);
+			function.invoke(i, null);
 		}
 
 		// invalid request
@@ -135,7 +138,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 		assertResponseEquals(response, version, 0, Collections.emptyList());
 
 		for (int i = 10; i < 16; i++) {
-			function.invoke(Row.of(i), null);
+			function.invoke(i, null);
 		}
 
 		response = sendRequestAndGetValidResponse(version, 12);
@@ -151,10 +154,10 @@ public class CollectSinkFunctionTest extends TestLogger {
 		openFunctionWithState();
 		for (int i = 0; i < 2; i++) {
 			// CollectSinkFunction never use context when invoked
-			function.invoke(Row.of(i), null);
+			function.invoke(i, null);
 		}
 
-		CollectCoordinationResponse<Row> response = sendRequestAndGetValidResponse("", 0);
+		CollectCoordinationResponse<Integer> response = sendRequestAndGetValidResponse("", 0);
 		Assert.assertEquals(0, response.getLastCheckpointedOffset());
 		String version = response.getVersion();
 
@@ -162,7 +165,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 		assertResponseEquals(response, version, 0, Arrays.asList(0, 1));
 
 		for (int i = 2; i < 6; i++) {
-			function.invoke(Row.of(i), null);
+			function.invoke(i, null);
 		}
 
 		response = sendRequestAndGetValidResponse(version, 3);
@@ -181,7 +184,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 		assertResponseEquals(response, version, 3, Arrays.asList(4, 5));
 
 		for (int i = 6; i < 9; i++) {
-			function.invoke(Row.of(i), null);
+			function.invoke(i, null);
 		}
 
 		response = sendRequestAndGetValidResponse(version, 6);
@@ -192,7 +195,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 		openFunctionWithState();
 
 		for (int i = 9; i < 12; i++) {
-			function.invoke(Row.of(i), null);
+			function.invoke(i, null);
 		}
 
 		response = sendRequestAndGetValidResponse(version, 4);
@@ -208,7 +211,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 		checkpointFunction(2);
 		checkpointComplete(2);
 
-		function.invoke(Row.of(12), null);
+		function.invoke(12, null);
 
 		response = sendRequestAndGetValidResponse(version, 7);
 		assertResponseEquals(response, version, 6, Arrays.asList(10, 11, 12));
@@ -228,7 +231,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 		assertResponseEquals(response, version, 6, Collections.emptyList());
 
 		for (int i = 13; i < 17; i++) {
-			function.invoke(Row.of(i), null);
+			function.invoke(i, null);
 		}
 
 		response = sendRequestAndGetValidResponse(version, 9);
@@ -249,7 +252,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 		assertResponseEquals(response, version, 9, Collections.singletonList(16));
 
 		for (int i = 17; i < 20; i++) {
-			function.invoke(Row.of(i), null);
+			function.invoke(i, null);
 		}
 
 		response = sendRequestAndGetValidResponse(version, 12);
@@ -270,7 +273,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 		assertResponseEquals(response, version, 9, Collections.singletonList(16));
 
 		for (int i = 20; i < 23; i++) {
-			function.invoke(Row.of(i), null);
+			function.invoke(i, null);
 		}
 
 		response = sendRequestAndGetValidResponse(version, 12);
@@ -290,13 +293,9 @@ public class CollectSinkFunctionTest extends TestLogger {
 				expected.add(i);
 			}
 			UncheckpointedDataFeeder feeder = new UncheckpointedDataFeeder(expected);
-			TestCollectClient<Row> client = new TestCollectClient<>(
-				serializer,
-				new TestCollectRequestSender(),
-				() -> jobFinished);
 
-			runFunctionWithClient(feeder, client);
-			assertResultsEqualAfterSort(expected, client.getResults());
+			List<Integer> actual = runFunctionRandomTest(feeder);
+			assertResultsEqualAfterSort(expected, actual);
 
 			after();
 			before();
@@ -312,23 +311,22 @@ public class CollectSinkFunctionTest extends TestLogger {
 				expected.add(i);
 			}
 			CheckpointedDataFeeder feeder = new CheckpointedDataFeeder(expected);
-			TestCollectClient<Row> client = new TestCollectClient<>(
-				serializer,
-				new TestCollectRequestSender(),
-				() -> jobFinished);
 
-			runFunctionWithClient(feeder, client);
-			assertResultsEqualAfterSort(expected, client.getResults());
+			List<Integer> actual = runFunctionRandomTest(feeder);
+			assertResultsEqualAfterSort(expected, actual);
 
 			after();
 			before();
 		}
 	}
 
-	private void runFunctionWithClient(Thread feeder, Thread client) throws Exception {
+	private List<Integer> runFunctionRandomTest(Thread feeder) throws Exception {
+		CollectClient client = new CollectClient();
+
 		Thread.UncaughtExceptionHandler exceptionHandler = (t, e) -> {
 			feeder.interrupt();
 			client.interrupt();
+			e.printStackTrace();
 		};
 		feeder.setUncaughtExceptionHandler(exceptionHandler);
 		client.setUncaughtExceptionHandler(exceptionHandler);
@@ -337,6 +335,8 @@ public class CollectSinkFunctionTest extends TestLogger {
 		client.start();
 		feeder.join();
 		client.join();
+
+		return client.results;
 	}
 
 	private void openFunction() throws Exception {
@@ -382,7 +382,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 	}
 
 	@SuppressWarnings("unchecked")
-	private CollectCoordinationResponse<Row> sendRequest(
+	private CollectCoordinationResponse<Integer> sendRequest(
 			String version,
 			long offset) throws Exception {
 		CollectCoordinationRequest request = new CollectCoordinationRequest(version, offset);
@@ -391,10 +391,10 @@ public class CollectSinkFunctionTest extends TestLogger {
 			.handleCoordinationRequest(request).get(TIME_OUT_MILLIS, TimeUnit.MILLISECONDS));
 	}
 
-	private CollectCoordinationResponse<Row> sendRequestAndGetValidResponse(
+	private CollectCoordinationResponse<Integer> sendRequestAndGetValidResponse(
 			String version,
 			long offset) throws Exception {
-		CollectCoordinationResponse<Row> response;
+		CollectCoordinationResponse<Integer> response;
 		for (int i = 0; i < MAX_RETIRES; i++) {
 			response = sendRequest(version, offset);
 			if (response.getLastCheckpointedOffset() >= 0) {
@@ -416,28 +416,23 @@ public class CollectSinkFunctionTest extends TestLogger {
 	}
 
 	private void assertResponseEquals(
-			CollectCoordinationResponse<Row> response,
+			CollectCoordinationResponse<Integer> response,
 			String version,
 			long lastCheckpointedOffset,
 			List<Integer> expected) throws IOException {
 		Assert.assertEquals(version, response.getVersion());
 		Assert.assertEquals(lastCheckpointedOffset, response.getLastCheckpointedOffset());
-		List<Row> results = response.getResults(serializer);
+		List<Integer> results = response.getResults(serializer);
 		assertResultsEqual(expected, results);
 	}
 
-	private void assertResultsEqual(List<Integer> expected, List<Row> actual) {
-		Assert.assertEquals(expected.size(), actual.size());
-		for (int i = 0; i < expected.size(); i++) {
-			Row row = actual.get(i);
-			Assert.assertEquals(1, row.getArity());
-			Assert.assertEquals(expected.get(i), row.getField(0));
-		}
+	private void assertResultsEqual(List<Integer> expected, List<Integer> actual) {
+		Assert.assertArrayEquals(expected.toArray(new Integer[0]), actual.toArray(new Integer[0]));
 	}
 
-	private void assertResultsEqualAfterSort(List<Integer> expected, List<Row> actual) {
+	private void assertResultsEqualAfterSort(List<Integer> expected, List<Integer> actual) {
 		Collections.sort(expected);
-		actual.sort(Comparator.comparingInt(row -> (int) row.getField(0)));
+		Collections.sort(actual);
 		assertResultsEqual(expected, actual);
 	}
 
@@ -450,25 +445,12 @@ public class CollectSinkFunctionTest extends TestLogger {
 		Tuple2<Long, CollectCoordinationResponse> accResults = getAccumualtorResults();
 		long offset = accResults.f0;
 		CollectCoordinationResponse response = accResults.f1;
-		List<Row> actualResults = response.getResults(serializer);
+		List<Integer> actualResults = response.getResults(serializer);
 
 		Assert.assertEquals(expectedOffset, offset);
 		Assert.assertEquals(expectedVersion, response.getVersion());
 		Assert.assertEquals(expectedLastCheckpointedOffset, response.getLastCheckpointedOffset());
 		assertResultsEqual(expectedResults, actualResults);
-	}
-
-	private class TestCollectRequestSender implements CollectRequestSender<Row> {
-
-		@Override
-		public CollectCoordinationResponse<Row> sendRequest(String version, long offset) throws Exception {
-			return CollectSinkFunctionTest.this.sendRequest(version, offset);
-		}
-
-		@Override
-		public Tuple2<Long, CollectCoordinationResponse> getAccumulatorResults() throws Exception {
-			return CollectSinkFunctionTest.this.getAccumualtorResults();
-		}
 	}
 
 	/**
@@ -496,7 +478,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 				while (data.size() > 0) {
 					int size = Math.min(data.size(), random.nextInt(MAX_RESULTS_PER_BATCH * 3) + 1);
 					for (int i = 0; i < size; i++) {
-						function.invoke(Row.of(data.removeFirst()), null);
+						function.invoke(data.removeFirst(), null);
 					}
 
 					if (!failedBefore && data.size() < checkpointedData.size() / 2) {
@@ -519,7 +501,6 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 				finishJob();
 			} catch (Exception e) {
-				e.printStackTrace();
 				throw new RuntimeException(e);
 			}
 		}
@@ -571,7 +552,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 						// with 60% chance we add some data
 						int size = Math.min(data.size(), random.nextInt(MAX_RESULTS_PER_BATCH * 3) + 1);
 						for (int i = 0; i < size; i++) {
-							function.invoke(Row.of(data.removeFirst()), null);
+							function.invoke(data.removeFirst(), null);
 						}
 					} else if (r < 9) {
 						// with 30% chance we make a checkpoint
@@ -603,7 +584,6 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 				finishJob();
 			} catch (Exception e) {
-				e.printStackTrace();
 				throw new RuntimeException(e);
 			}
 		}
@@ -627,6 +607,64 @@ public class CollectSinkFunctionTest extends TestLogger {
 				return countdown == 0;
 			}
 			return false;
+		}
+	}
+
+	private class CollectClient extends Thread {
+
+		private List<Integer> results;
+		private CollectResultIterator<Integer> iterator;
+
+		private CollectClient() {
+			this.results = new ArrayList<>();
+
+			this.iterator = new CollectResultIterator<>(
+				CompletableFuture.completedFuture(TEST_OPERATOR_ID),
+				serializer,
+				ACCUMULATOR_NAME,
+				0
+			);
+
+			TestJobClient.JobInfoProvider infoProvider = new TestJobClient.JobInfoProvider() {
+
+				@Override
+				public boolean isJobFinished() {
+					return jobFinished;
+				}
+
+				@Override
+				public Map<String, OptionalFailure<Object>> getAccumulatorResults() {
+					Map<String, OptionalFailure<Object>> accumulatorResults = new HashMap<>();
+					accumulatorResults.put(
+						ACCUMULATOR_NAME,
+						OptionalFailure.of(runtimeContext.getAccumulator(ACCUMULATOR_NAME).getLocalValue()));
+					return accumulatorResults;
+				}
+			};
+
+			TestJobClient jobClient = new TestJobClient(
+				TEST_JOB_ID,
+				TEST_OPERATOR_ID,
+				coordinator,
+				infoProvider);
+
+			iterator.setJobClient(jobClient);
+		}
+
+		@Override
+		public void run() {
+			Random random = new Random();
+
+			while (iterator.hasNext()) {
+				results.add(iterator.next());
+				if (random.nextBoolean()) {
+					try {
+						Thread.sleep(5);
+					} catch (InterruptedException e) {
+						// ignore
+					}
+				}
+			}
 		}
 	}
 }

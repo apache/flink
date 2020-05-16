@@ -16,17 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.collect;
+package org.apache.flink.streaming.api.operators.collect;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.table.planner.collect.utils.TestingCoordinationRequestHandler;
-import org.apache.flink.table.planner.collect.utils.TestingJobClient;
-import org.apache.flink.types.Row;
+import org.apache.flink.streaming.api.operators.collect.utils.TestCoordinationRequestHandler;
+import org.apache.flink.streaming.api.operators.collect.utils.TestJobClient;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -35,20 +33,22 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Tests for {@link SelectResultIterator}.
+ * Tests for {@link CollectResultIterator}.
  */
-public class SelectResultIteratorTest extends TestLogger {
+public class CollectResultIteratorTest extends TestLogger {
 
 	private static final OperatorID TEST_OPERATOR_ID = new OperatorID();
 	private static final JobID TEST_JOB_ID = new JobID();
 	private static final String ACCUMULATOR_NAME = "accumulatorName";
-	private static final TypeSerializer<Row> SERIALIZER = getSerializer();
 
 	@Test
-	public void testCheckpointed() throws Exception {
+	public void testIteratorWithCheckpointAndFailure() throws Exception {
+		TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
+
 		// run this random test multiple times
 		for (int testCount = 100; testCount > 0; testCount--) {
 			List<Integer> expected = new ArrayList<>();
@@ -56,38 +56,46 @@ public class SelectResultIteratorTest extends TestLogger {
 				expected.add(i);
 			}
 
-			SelectResultIterator iterator = new SelectResultIterator(
+			CollectResultIterator<Integer> iterator = new CollectResultIterator<>(
 				CompletableFuture.completedFuture(TEST_OPERATOR_ID),
-				SERIALIZER,
+				serializer,
 				ACCUMULATOR_NAME,
 				0);
-			TestingJobClient jobClient = new TestingJobClient(
+
+			TestCoordinationRequestHandler<Integer> handler = new TestCoordinationRequestHandler<>(
+				expected, serializer, ACCUMULATOR_NAME);
+
+			TestJobClient.JobInfoProvider infoProvider = new TestJobClient.JobInfoProvider() {
+
+				@Override
+				public boolean isJobFinished() {
+					return handler.isClosed();
+				}
+
+				@Override
+				public Map<String, OptionalFailure<Object>> getAccumulatorResults() {
+					return handler.getAccumulatorResults();
+				}
+			};
+
+			TestJobClient jobClient = new TestJobClient(
 				TEST_JOB_ID,
 				TEST_OPERATOR_ID,
-				new TestingCoordinationRequestHandler(expected, SERIALIZER, ACCUMULATOR_NAME));
+				handler,
+				infoProvider);
 			iterator.setJobClient(jobClient);
 
-			List<Row> actual = new ArrayList<>();
+			List<Integer> actual = new ArrayList<>();
 			while (iterator.hasNext()) {
 				actual.add(iterator.next());
 			}
 			Assert.assertEquals(expected.size(), actual.size());
 
-			List<Integer> actualExtracted = new ArrayList<>();
-			for (Row row : actual) {
-				Assert.assertEquals(1, row.getArity());
-				actualExtracted.add((Integer) row.getField(0));
-			}
-
 			Collections.sort(expected);
-			Collections.sort(actualExtracted);
-			Assert.assertArrayEquals(expected.toArray(new Integer[0]), actualExtracted.toArray(new Integer[0]));
+			Collections.sort(actual);
+			Assert.assertArrayEquals(expected.toArray(new Integer[0]), actual.toArray(new Integer[0]));
 
 			iterator.close();
 		}
-	}
-
-	private static TypeSerializer<Row> getSerializer() {
-		return new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO).createSerializer(new ExecutionConfig());
 	}
 }

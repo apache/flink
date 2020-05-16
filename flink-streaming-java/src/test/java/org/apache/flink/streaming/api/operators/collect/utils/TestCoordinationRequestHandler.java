@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.collect.utils;
+package org.apache.flink.streaming.api.operators.collect.utils;
 
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -27,8 +27,8 @@ import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.streaming.api.operators.collect.CollectCoordinationRequest;
 import org.apache.flink.streaming.api.operators.collect.CollectCoordinationResponse;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkFunction;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.OptionalFailure;
+
 import org.junit.Assert;
 
 import java.io.IOException;
@@ -46,22 +46,22 @@ import java.util.concurrent.CompletableFuture;
 /**
  * A {@link CoordinationRequestHandler} to test fetching SELECT query results.
  */
-public class TestingCoordinationRequestHandler implements CoordinationRequestHandler {
+public class TestCoordinationRequestHandler<T> implements CoordinationRequestHandler {
 
 	private static final int BATCH_SIZE = 3;
 
-	private final TypeSerializer<Row> serializer;
+	private final TypeSerializer<T> serializer;
 	private final String accumulatorName;
 
 	private int checkpointCountDown;
 
-	private LinkedList<Integer> data;
-	private List<Integer> checkpointingData;
-	private List<Integer> checkpointedData;
+	private LinkedList<T> data;
+	private List<T> checkpointingData;
+	private List<T> checkpointedData;
 
-	private LinkedList<Integer> buffered;
-	private List<Integer> checkpointingBuffered;
-	private List<Integer> checkpointedBuffered;
+	private LinkedList<T> buffered;
+	private List<T> checkpointingBuffered;
+	private List<T> checkpointedBuffered;
 
 	private String version;
 
@@ -74,9 +74,9 @@ public class TestingCoordinationRequestHandler implements CoordinationRequestHan
 	private Random random;
 	private boolean closed;
 
-	public TestingCoordinationRequestHandler(
-			List<Integer> data,
-			TypeSerializer<Row> serializer,
+	public TestCoordinationRequestHandler(
+			List<T> data,
+			TypeSerializer<T> serializer,
 			String accumulatorName) {
 		this.serializer = serializer;
 		this.accumulatorName = accumulatorName;
@@ -156,16 +156,16 @@ public class TestingCoordinationRequestHandler implements CoordinationRequestHan
 
 		Assert.assertTrue(offset <= collectRequest.getOffset());
 
-		List<Row> subList = Collections.emptyList();
+		List<T> subList = Collections.emptyList();
 		if (collectRequest.getVersion().equals(version)) {
 			while (buffered.size() > 0 && collectRequest.getOffset() > offset) {
 				buffered.removeFirst();
 				offset++;
 			}
-			Iterator<Integer> iterator = buffered.iterator();
 			subList = new ArrayList<>();
+			Iterator<T> iterator = buffered.iterator();
 			for (int i = 0; i < BATCH_SIZE && iterator.hasNext(); i++) {
-				subList.add(Row.of(iterator.next()));
+				subList.add(iterator.next());
 			}
 		}
 
@@ -197,11 +197,7 @@ public class TestingCoordinationRequestHandler implements CoordinationRequestHan
 	}
 
 	private void buildAccumulatorResults() {
-		List<Row> finalResults = new ArrayList<>();
-		for (int value : buffered) {
-			finalResults.add(Row.of(value));
-		}
-
+		List<T> finalResults = new ArrayList<>(buffered);
 		SerializedListAccumulator<byte[]> listAccumulator = new SerializedListAccumulator<>();
 		try {
 			byte[] serializedResult =

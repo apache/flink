@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.collect.utils;
+package org.apache.flink.streaming.api.operators.collect.utils;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -25,7 +25,9 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandler;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.util.OptionalFailure;
 
 import org.junit.Assert;
 
@@ -37,19 +39,25 @@ import java.util.concurrent.CompletableFuture;
 /**
  * A {@link JobClient} to test fetching SELECT query results.
  */
-public class TestingJobClient implements JobClient, CoordinationRequestGateway {
+public class TestJobClient implements JobClient, CoordinationRequestGateway {
 
 	private final JobID jobId;
 	private final OperatorID operatorId;
-	private final TestingCoordinationRequestHandler handler;
+	private final CoordinationRequestHandler handler;
+	private final JobInfoProvider infoProvider;
 
 	private JobStatus jobStatus;
 	private JobExecutionResult jobExecutionResult;
 
-	public TestingJobClient(JobID jobId, OperatorID operatorId, TestingCoordinationRequestHandler handler) {
+	public TestJobClient(
+			JobID jobId,
+			OperatorID operatorId,
+			CoordinationRequestHandler handler,
+			JobInfoProvider infoProvider) {
 		this.jobId = jobId;
 		this.operatorId = operatorId;
 		this.handler = handler;
+		this.infoProvider = infoProvider;
 
 		this.jobStatus = JobStatus.RUNNING;
 		this.jobExecutionResult = null;
@@ -93,18 +101,30 @@ public class TestingJobClient implements JobClient, CoordinationRequestGateway {
 
 	@Override
 	public CompletableFuture<CoordinationResponse> sendCoordinationRequest(OperatorID operatorId, CoordinationRequest request) {
-		if (handler.isClosed()) {
-			throw new RuntimeException("Handler closed");
+		if (jobStatus.isGloballyTerminalState()) {
+			throw new RuntimeException("Job terminated");
 		}
 
 		Assert.assertEquals(this.operatorId, operatorId);
-		CoordinationResponse response = handler.handleCoordinationRequest(request).getNow(null);
+		CoordinationResponse response;
+		try {
+			response = handler.handleCoordinationRequest(request).get();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 
-		if (handler.isClosed()) {
+		if (infoProvider.isJobFinished()) {
 			jobStatus = JobStatus.FINISHED;
-			jobExecutionResult = new JobExecutionResult(jobId, 0, handler.getAccumulatorResults());
+			jobExecutionResult = new JobExecutionResult(jobId, 0, infoProvider.getAccumulatorResults());
 		}
 
 		return CompletableFuture.completedFuture(response);
+	}
+
+	public interface JobInfoProvider {
+
+		boolean isJobFinished();
+
+		Map<String, OptionalFailure<Object>> getAccumulatorResults();
 	}
 }
