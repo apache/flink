@@ -18,33 +18,35 @@
 
 package org.apache.flink.table.runtime.connector.sink;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter;
+import org.apache.flink.table.data.conversion.DataStructureConverter;
 
 import javax.annotation.Nullable;
 
 /**
- * This class wraps a {@link DataFormatConverter} so it can be used in
- * a {@link DynamicTableSink} as a {@link DynamicTableSink.DataStructureConverter}.
+ * Implementation of {@link DynamicTableSink.DataStructureConverter}.
+ *
+ * <p>It wraps the internal {@link DataStructureConverter}.
  */
-public final class DataFormatConverterWrapper implements DynamicTableSink.DataStructureConverter {
+@Internal
+class DataStructureConverterWrapper implements DynamicTableSink.DataStructureConverter {
 
 	private static final long serialVersionUID = 1L;
 
-	private final DataFormatConverter<Object, Object> formatConverter;
+	private final DataStructureConverter<Object, Object> structureConverter;
 
-	public DataFormatConverterWrapper(DataFormatConverter<Object, Object> formatConverter) {
-		this.formatConverter = formatConverter;
+	DataStructureConverterWrapper(DataStructureConverter<Object, Object> structureConverter) {
+		this.structureConverter = structureConverter;
 	}
 
 	@Override
 	public void open(Context context) {
-		// do nothing
+		structureConverter.open(context.getClassLoader());
 	}
 
-	@Nullable
 	@Override
-	public Object toExternal(@Nullable Object internalStructure) {
-		return formatConverter.toExternal(internalStructure);
+	public @Nullable Object toExternal(@Nullable Object internalStructure) {
+		return structureConverter.toExternalOrNull(internalStructure);
 	}
 }

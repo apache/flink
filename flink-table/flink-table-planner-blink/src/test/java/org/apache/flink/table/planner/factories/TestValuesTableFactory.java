@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
@@ -376,6 +377,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				.createTypeInformation(physicalRowDataType)
 				.createSerializer(new ExecutionConfig());
 			DataStructureConverter converter = runtimeProviderContext.createDataStructureConverter(physicalRowDataType);
+			converter.open(RuntimeConverter.Context.create(TestValuesTableFactory.class.getClassLoader()));
 			Collection<RowData> values = convertToRowData(data, converter);
 
 			if (runtimeSource.equals("SourceFunction")) {
