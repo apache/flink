@@ -32,23 +32,25 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 @SuppressWarnings("unchecked")
 public class CollectSinkOperatorFactory extends SimpleUdfStreamOperatorFactory<Object> implements CoordinatedOperatorFactory<Object> {
 
-	private final CollectSinkOperator operator;
+	private static final long serialVersionUID = 1L;
+
+	private final CollectSinkOperator<?> operator;
 
 	private OperatorEventDispatcher operatorEventDispatcher;
 
-	public CollectSinkOperatorFactory(CollectSinkOperator operator) {
+	public CollectSinkOperatorFactory(CollectSinkOperator<?> operator) {
 		super(operator);
 		this.operator = operator;
 	}
 
 	@Override
-	public StreamOperator createStreamOperator(StreamOperatorParameters parameters) {
+	public <T extends StreamOperator<Object>> T  createStreamOperator(StreamOperatorParameters<Object> parameters) {
 		OperatorEventGateway operatorEventGateway = operatorEventDispatcher.registerEventHandler(
 			parameters.getStreamConfig().getOperatorID(),
 			operator);
 		operator.setOperatorEventGateway(operatorEventGateway);
 		operator.setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
-		return operator;
+		return (T) operator;
 	}
 
 	@Override
