@@ -36,7 +36,7 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], ne
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedValue, deepNested.nested2.flag AS nestedFlag, deepNested.nested2.num AS nestedNum])
-+- TableSourceScan(table=[[default_catalog, default_database, T, project(id, deepNested, nested), project(id, deepNested, nested)]], fields=[id, deepNested, nested])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested, nested]]], fields=[id, deepNested, nested])
 ]]>
     </Resource>
   </TestCase>
@@ -76,7 +76,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, T, project(), project()]], fields=[])
+   +- TableSourceScan(table=[[default_catalog, default_database, T, project=[]]], fields=[])
 ]]>
     </Resource>
   </TestCase>

@@ -99,7 +99,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 
 		// project push down does not change the statistic, we can reuse origin statistic
 		TableSourceTable newTableSourceTable = oldTableSourceTable.copy(
-				newTableSource, newRowType, new String[] { ("project(" + String.join(", ", fieldNames) + ")") });
+				newTableSource, newRowType, new String[] { ("project=[" + String.join(", ", fieldNames) + "]") });
 
 		LogicalTableScan newScan = new LogicalTableScan(
 				scan.getCluster(), scan.getTraitSet(), scan.getHints(), newTableSourceTable);
