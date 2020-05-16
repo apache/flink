@@ -33,9 +33,9 @@ public class SpendReport {
 		ExecutionEnvironment env   = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
-		((TableEnvironmentInternal) tEnv).registerTableSource(
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal(
 				"transactions", new BoundedTransactionTableSource());
-		((TableEnvironmentInternal) tEnv).registerTableSink(
+		((TableEnvironmentInternal) tEnv).registerTableSinkInternal(
 				"spend_report", new SpendReportTableSink());
 		tEnv.registerFunction("truncateDateToHour", new TruncateDateToHour());
 
