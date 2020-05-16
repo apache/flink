@@ -329,6 +329,14 @@ public final class CatalogManager {
 		return Optional.empty();
 	}
 
+	/**
+	 * Retrieves a partition with a fully qualified table path and partition spec.
+	 * If the path is not yet fully qualified use{@link #qualifyIdentifier(UnresolvedIdentifier)} first.
+	 *
+	 * @param tableIdentifier full path of the table to retrieve
+	 * @param partitionSpec full partition spec
+	 * @return partition in the table.
+	 */
 	public Optional<CatalogPartition> getPartition(ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
 		Catalog catalog = catalogs.get(tableIdentifier.getCatalogName());
 		if (catalog != null) {

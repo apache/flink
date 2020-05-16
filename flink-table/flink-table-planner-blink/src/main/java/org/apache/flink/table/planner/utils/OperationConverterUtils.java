@@ -57,9 +57,15 @@ public class OperationConverterUtils {
 	private OperationConverterUtils() {
 	}
 
-	public static Operation convertAddReplaceColumns(ObjectIdentifier tableIdentifier,
-			SqlAddReplaceColumns addReplaceColumns, CatalogTable catalogTable, SqlValidator sqlValidator) {
-		// verify partitions columns appear last in the schema
+	public static Operation convertAddReplaceColumns(
+			ObjectIdentifier tableIdentifier,
+			SqlAddReplaceColumns addReplaceColumns,
+			CatalogTable catalogTable,
+			SqlValidator sqlValidator) {
+		// This is only used by the Hive dialect at the moment. In Hive, only non-partition columns can be
+		// added/replaced and users will only define non-partition columns in the new column list. Therefore, we require
+		// that partitions columns must appear last in the schema (which is inline with Hive). Otherwise, we won't be
+		// able to determine the column positions after the non-partition columns are replaced.
 		TableSchema oldSchema = catalogTable.getSchema();
 		int numPartCol = catalogTable.getPartitionKeys().size();
 		Set<String> lastCols = oldSchema.getTableColumns()
@@ -102,8 +108,11 @@ public class OperationConverterUtils {
 		);
 	}
 
-	public static Operation convertChangeColumn(ObjectIdentifier tableIdentifier,
-			SqlChangeColumn changeColumn, CatalogTable catalogTable, SqlValidator sqlValidator) {
+	public static Operation convertChangeColumn(
+			ObjectIdentifier tableIdentifier,
+			SqlChangeColumn changeColumn,
+			CatalogTable catalogTable,
+			SqlValidator sqlValidator) {
 		String oldName = changeColumn.getOldName().getSimple();
 		if (catalogTable.getPartitionKeys().indexOf(oldName) >= 0) {
 			// disallow changing partition columns

@@ -58,9 +58,9 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogPartition;
+import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.CatalogViewImpl;
 import org.apache.flink.table.catalog.FunctionLanguage;
@@ -253,7 +253,7 @@ public class SqlToOperationConverter {
 		} else if (sqlAlterTable instanceof SqlAlterTableProperties) {
 			return convertAlterTableProperties(
 					tableIdentifier,
-					baseTable,
+					(CatalogTable) baseTable,
 					(SqlAlterTableProperties) sqlAlterTable);
 		} else if (sqlAlterTable instanceof SqlAlterTableAddConstraint) {
 			SqlTableConstraint constraint = ((SqlAlterTableAddConstraint) sqlAlterTable)
@@ -306,7 +306,7 @@ public class SqlToOperationConverter {
 		}
 	}
 
-	private Operation convertAlterTableProperties(ObjectIdentifier tableIdentifier, CatalogBaseTable baseTable,
+	private Operation convertAlterTableProperties(ObjectIdentifier tableIdentifier, CatalogTable oldTable,
 			SqlAlterTableProperties alterTableProperties) {
 		LinkedHashMap<String, String> partitionKVs = alterTableProperties.getPartitionKVs();
 		// it's altering partitions
@@ -315,24 +315,18 @@ public class SqlToOperationConverter {
 			CatalogPartition catalogPartition = catalogManager.getPartition(tableIdentifier, partitionSpec)
 					.orElseThrow(() -> new ValidationException(String.format("Partition %s of table %s doesn't exist",
 							partitionSpec.getPartitionSpec(), tableIdentifier)));
-			Map<String, String> props = catalogPartition.getProperties();
-			alterTableProperties.getPropertyList().getList().forEach(p ->
-					props.put(((SqlTableOption) p).getKeyString(), ((SqlTableOption) p).getValueString()));
-			return new AlterPartitionPropertiesOperation(tableIdentifier, partitionSpec, catalogPartition);
-		}
-		// it's altering a table
-		if (baseTable instanceof CatalogTable) {
-			CatalogTable oldTable = (CatalogTable) baseTable;
-			Map<String, String> newProperties = new HashMap<>(oldTable.getProperties());
+			Map<String, String> newProps = new HashMap<>(catalogPartition.getProperties());
+			newProps.putAll(OperationConverterUtils.extractProperties(alterTableProperties.getPropertyList()));
+			return new AlterPartitionPropertiesOperation(
+					tableIdentifier,
+					partitionSpec,
+					new CatalogPartitionImpl(newProps, catalogPartition.getComment()));
+		} else {
+			// it's altering a table
+			Map<String, String> newProperties = new HashMap<>(oldTable.getOptions());
 			newProperties.putAll(OperationConverterUtils.extractProperties(alterTableProperties.getPropertyList()));
-			CatalogTable newTable = new CatalogTableImpl(
-					oldTable.getSchema(),
-					oldTable.getPartitionKeys(),
-					newProperties,
-					oldTable.getComment());
-			return new AlterTablePropertiesOperation(tableIdentifier, newTable);
+			return new AlterTablePropertiesOperation(tableIdentifier, oldTable.copy(newProperties));
 		}
-		throw new ValidationException("Unsupported CatalogBaseTable type: " + baseTable.getClass().getName());
 	}
 
 	/** Convert CREATE FUNCTION statement. */
