@@ -65,6 +65,9 @@ public class Buckets<IN, BucketID> {
 
 	private final RollingPolicy<IN, BucketID> rollingPolicy;
 
+	@Nullable
+	private final BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener;
+
 	// --------------------------- runtime fields -----------------------------
 
 	private final int subtaskIndex;
@@ -98,6 +101,7 @@ public class Buckets<IN, BucketID> {
 			final BucketFactory<IN, BucketID> bucketFactory,
 			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
+			@Nullable final BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener,
 			final int subtaskIndex,
 			final OutputFileConfig outputFileConfig) throws IOException {
 
@@ -106,6 +110,7 @@ public class Buckets<IN, BucketID> {
 		this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
 		this.partFileWriterFactory = Preconditions.checkNotNull(partFileWriterFactory);
 		this.rollingPolicy = Preconditions.checkNotNull(rollingPolicy);
+		this.bucketLifeCycleListener = bucketLifeCycleListener;
 		this.subtaskIndex = subtaskIndex;
 
 		this.outputFileConfig = Preconditions.checkNotNull(outputFileConfig);
@@ -219,6 +224,10 @@ public class Buckets<IN, BucketID> {
 				// We've dealt with all the pending files and the writer for this bucket is not currently open.
 				// Therefore this bucket is currently inactive and we can remove it from our state.
 				activeBucketIt.remove();
+
+				if (bucketLifeCycleListener != null) {
+					bucketLifeCycleListener.bucketInactive(bucket);
+				}
 			}
 		}
 	}
@@ -295,6 +304,10 @@ public class Buckets<IN, BucketID> {
 					rollingPolicy,
 					outputFileConfig);
 			activeBuckets.put(bucketId, bucket);
+
+			if (bucketLifeCycleListener != null) {
+				bucketLifeCycleListener.bucketCreated(bucket);
+			}
 		}
 		return bucket;
 	}
