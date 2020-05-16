@@ -68,6 +68,13 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		.defaultValue("/hbase")
 		.withDescription("Optional. The root dir in Zookeeper for HBase cluster, default value is '/hbase'");
 
+	private static final ConfigOption<String> NULL_STRING_LITERAL = ConfigOptions
+		.key("null-string-literal")
+		.stringType()
+		.defaultValue("null")
+		.withDescription("Optional. Representation for null values for string fields. (\"null\" by default). " +
+			"HBase connector encode/decode empty bytes as null values except string types.");
+
 	private static final ConfigOption<MemorySize> SINK_BUFFER_FLUSH_MAX_SIZE = ConfigOptions
 		.key("sink.buffer-flush.max-size")
 		.memoryType()
@@ -87,7 +94,7 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 	private static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL = ConfigOptions
 		.key("sink.buffer-flush.interval")
 		.durationType()
-		.defaultValue(Duration.ZERO)
+		.noDefaultValue()
 		.withDescription("Optional. Writing option, sets a flush interval flushing " +
 			"buffered requesting if the interval passes, in milliseconds. Default value is '0s', " +
 			"which means no asynchronous flush thread will be scheduled.");
@@ -101,13 +108,16 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, helper.getOptions().get(ZOOKEEPER_QUORUM));
 		hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, helper.getOptions().get(ZOOKEEPER_ZNODE_PARENT));
 
+		String nullStringLiteral = helper.getOptions().get(NULL_STRING_LITERAL);
+
 		TableSchema tableSchema = context.getCatalogTable().getSchema();
 		HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
 
 		return new HBaseDynamicTableSource(
 			hbaseClientConf,
 			hTableName,
-			hbaseSchema);
+			hbaseSchema,
+			nullStringLiteral);
 	}
 
 	@Override
@@ -120,9 +130,12 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 
 		HBaseWriteOptions.Builder writeBuilder = HBaseWriteOptions.builder();
 		writeBuilder.setBufferFlushMaxSizeInBytes(helper.getOptions().get(SINK_BUFFER_FLUSH_MAX_SIZE).getBytes());
-		writeBuilder.setBufferFlushIntervalMillis(helper.getOptions().get(SINK_BUFFER_FLUSH_INTERVAL).toMillis());
+		helper.getOptions().getOptional(SINK_BUFFER_FLUSH_INTERVAL)
+			.ifPresent(v -> writeBuilder.setBufferFlushIntervalMillis(v.toMillis()));
 		helper.getOptions().getOptional(SINK_BUFFER_FLUSH_MAX_ROWS)
 			.ifPresent(writeBuilder::setBufferFlushMaxRows);
+
+		String nullStringLiteral = helper.getOptions().get(NULL_STRING_LITERAL);
 
 		TableSchema tableSchema = context.getCatalogTable().getSchema();
 		HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
@@ -130,7 +143,8 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		return new HBaseDynamicTableSink(
 			hbaseSchema,
 			hbaseOptionsBuilder.build(),
-			writeBuilder.build());
+			writeBuilder.build(),
+			nullStringLiteral);
 	}
 
 	@Override
@@ -150,6 +164,7 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 	public Set<ConfigOption<?>> optionalOptions() {
 		Set<ConfigOption<?>> set = new HashSet<>();
 		set.add(ZOOKEEPER_ZNODE_PARENT);
+		set.add(NULL_STRING_LITERAL);
 		set.add(SINK_BUFFER_FLUSH_MAX_SIZE);
 		set.add(SINK_BUFFER_FLUSH_MAX_ROWS);
 		set.add(SINK_BUFFER_FLUSH_INTERVAL);

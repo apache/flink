@@ -30,6 +30,7 @@ import java.nio.charset.Charset;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Arrays;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 
@@ -49,7 +50,7 @@ public class HBaseTypeUtils {
 			case 0: // byte[]
 				return value;
 			case 1: // String
-				return new String(value, stringCharset);
+				return Arrays.equals(EMPTY_BYTES, value) ? null : new String(value, stringCharset);
 			case 2: // byte
 				return value[0];
 			case 3:

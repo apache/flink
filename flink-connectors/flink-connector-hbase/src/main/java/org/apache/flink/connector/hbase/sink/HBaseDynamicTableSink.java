@@ -42,14 +42,17 @@ public class HBaseDynamicTableSink implements DynamicTableSink {
 	private final HBaseTableSchema hbaseTableSchema;
 	private final HBaseOptions hbaseOptions;
 	private final HBaseWriteOptions writeOptions;
+	private final String nullStringLiteral;
 
 	public HBaseDynamicTableSink(
 			HBaseTableSchema hbaseTableSchema,
 			HBaseOptions hbaseOptions,
-			HBaseWriteOptions writeOptions) {
+			HBaseWriteOptions writeOptions,
+			String nullStringLiteral) {
 		this.hbaseTableSchema = hbaseTableSchema;
 		this.hbaseOptions = hbaseOptions;
 		this.writeOptions = writeOptions;
+		this.nullStringLiteral = nullStringLiteral;
 	}
 
 	@Override
@@ -60,7 +63,7 @@ public class HBaseDynamicTableSink implements DynamicTableSink {
 		HBaseSinkFunction<RowData> sinkFunction = new HBaseSinkFunction<>(
 			hbaseOptions.getTableName(),
 			hbaseClientConf,
-			new RowDataToMutationConverter(hbaseTableSchema),
+			new RowDataToMutationConverter(hbaseTableSchema, nullStringLiteral),
 			writeOptions.getBufferFlushMaxSizeInBytes(),
 			writeOptions.getBufferFlushMaxRows(),
 			writeOptions.getBufferFlushIntervalMillis());
@@ -81,7 +84,7 @@ public class HBaseDynamicTableSink implements DynamicTableSink {
 
 	@Override
 	public DynamicTableSink copy() {
-		return new HBaseDynamicTableSink(hbaseTableSchema, hbaseOptions, writeOptions);
+		return new HBaseDynamicTableSink(hbaseTableSchema, hbaseOptions, writeOptions, nullStringLiteral);
 	}
 
 	@Override

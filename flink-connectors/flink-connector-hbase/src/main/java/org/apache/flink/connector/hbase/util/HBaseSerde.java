@@ -26,6 +26,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Put;
@@ -37,18 +38,21 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Utilities for HBase serialization and deserialization.
  */
-public class HBaseSerde implements Serializable {
+public class HBaseSerde {
 
-	private static final long serialVersionUID = 1L;
 	private static final byte[] EMPTY_BYTES = new byte[]{};
+
+	private final byte[] nullStringBytes;
 
 	// row key index in output row
 	private final int rowkeyIndex;
@@ -68,7 +72,7 @@ public class HBaseSerde implements Serializable {
 	private final FieldEncoder[][] qualifierEncoders;
 	private final FieldDecoder[][] qualifierDecoders;
 
-	public HBaseSerde(HBaseTableSchema hbaseSchema) {
+	public HBaseSerde(HBaseTableSchema hbaseSchema, final String nullStringLiteral) {
 		this.families = hbaseSchema.getFamilyKeys();
 		this.rowkeyIndex = hbaseSchema.getRowKeyIndex();
 		LogicalType rowkeyType = hbaseSchema.getRowKeyDataType().map(DataType::getLogicalType).orElse(null);
@@ -76,6 +80,7 @@ public class HBaseSerde implements Serializable {
 		// field length need take row key into account if it exists.
 		checkArgument(rowkeyIndex != -1 && rowkeyType != null, "row key is not set.");
 		this.fieldLength = families.length + 1;
+		this.nullStringBytes = nullStringLiteral.getBytes(StandardCharsets.UTF_8);
 
 		// prepare output rows
 		this.reusedRow = new GenericRowData(fieldLength);
@@ -94,11 +99,11 @@ public class HBaseSerde implements Serializable {
 			DataType[] dataTypes = hbaseSchema.getQualifierDataTypes(familyNames[f]);
 			this.qualifierEncoders[f] = Arrays.stream(dataTypes)
 				.map(DataType::getLogicalType)
-				.map(HBaseSerde::createNullableFieldEncoder)
+				.map(t -> createNullableFieldEncoder(t, nullStringBytes))
 				.toArray(FieldEncoder[]::new);
 			this.qualifierDecoders[f] = Arrays.stream(dataTypes)
 				.map(DataType::getLogicalType)
-				.map(HBaseSerde::createNullableFieldDecoder)
+				.map(t -> createNullableFieldDecoder(t, nullStringBytes))
 				.toArray(FieldDecoder[]::new);
 			this.reusedFamilyRows[f] = new GenericRowData(dataTypes.length);
 		}
@@ -218,16 +223,28 @@ public class HBaseSerde implements Serializable {
 		byte[] encode(RowData row, int pos);
 	}
 
-	private static FieldEncoder createNullableFieldEncoder(LogicalType fieldType) {
+	private static FieldEncoder createNullableFieldEncoder(LogicalType fieldType, final byte[] nullStringBytes) {
 		final FieldEncoder encoder = createFieldEncoder(fieldType);
 		if (fieldType.isNullable()) {
-			return (row, pos) -> {
-				if (row.isNullAt(pos)) {
-					return EMPTY_BYTES;
-				} else {
-					return encoder.encode(row, pos);
-				}
-			};
+			if (hasFamily(fieldType, LogicalTypeFamily.CHARACTER_STRING)) {
+				// special logic for null string values, because HBase can store empty bytes for string
+				return (row, pos) -> {
+					if (row.isNullAt(pos)) {
+						return nullStringBytes;
+					} else {
+						return encoder.encode(row, pos);
+					}
+				};
+			} else {
+				// encode empty bytes for null values
+				return (row, pos) -> {
+					if (row.isNullAt(pos)) {
+						return EMPTY_BYTES;
+					} else {
+						return encoder.encode(row, pos);
+					}
+				};
+			}
 		} else {
 			return encoder;
 		}
@@ -299,16 +316,26 @@ public class HBaseSerde implements Serializable {
 		@Nullable Object decode(byte[] value);
 	}
 
-	private static FieldDecoder createNullableFieldDecoder(LogicalType fieldType) {
+	private static FieldDecoder createNullableFieldDecoder(LogicalType fieldType, final byte[] nullStringBytes) {
 		final FieldDecoder decoder = createFieldDecoder(fieldType);
 		if (fieldType.isNullable()) {
-			return value -> {
-				if (value == null || value.length == 0) {
-					return null;
-				} else {
-					return decoder.decode(value);
-				}
-			};
+			if (hasFamily(fieldType, LogicalTypeFamily.CHARACTER_STRING)) {
+				return value -> {
+					if (value == null || Arrays.equals(value, nullStringBytes)) {
+						return null;
+					} else {
+						return decoder.decode(value);
+					}
+				};
+			} else {
+				return value -> {
+					if (value == null || value.length == 0) {
+						return null;
+					} else {
+						return decoder.decode(value);
+					}
+				};
+			}
 		} else {
 			return decoder;
 		}

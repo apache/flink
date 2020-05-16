@@ -45,22 +45,28 @@ public class HBaseRowDataInputFormat extends AbstractTableInputFormat<RowData> {
 	private static final Logger LOG = LoggerFactory.getLogger(HBaseRowDataInputFormat.class);
 
 	private final String tableName;
-	private final HBaseSerde serde;
+	private final HBaseTableSchema schema;
+	private final String nullStringLiteral;
+
+	private transient HBaseSerde serde;
 
 	private transient org.apache.hadoop.conf.Configuration conf;
 
 	public HBaseRowDataInputFormat(
 			org.apache.hadoop.conf.Configuration conf,
 			String tableName,
-			HBaseTableSchema schema) {
+			HBaseTableSchema schema,
+			String nullStringLiteral) {
 		this.tableName = tableName;
 		this.conf = conf;
-		this.serde = new HBaseSerde(schema);
+		this.schema = schema;
+		this.nullStringLiteral = nullStringLiteral;
 	}
 
 	@Override
 	public void configure(Configuration parameters) {
 		LOG.info("Initializing HBase configuration.");
+		this.serde = new HBaseSerde(schema, nullStringLiteral);
 		connectToTable();
 		if (table != null) {
 			scan = getScanner();

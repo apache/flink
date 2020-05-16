@@ -31,10 +31,18 @@ import org.apache.hadoop.hbase.client.Mutation;
 public class RowDataToMutationConverter implements HBaseMutationConverter<RowData> {
 	private static final long serialVersionUID = 1L;
 
-	private final HBaseSerde serde;
+	private final HBaseTableSchema schema;
+	private final String nullStringLiteral;
+	private transient HBaseSerde serde;
 
-	public RowDataToMutationConverter(HBaseTableSchema schema) {
-		this.serde = new HBaseSerde(schema);
+	public RowDataToMutationConverter(HBaseTableSchema schema, final String nullStringLiteral) {
+		this.schema = schema;
+		this.nullStringLiteral = nullStringLiteral;
+	}
+
+	@Override
+	public void open() {
+		this.serde = new HBaseSerde(schema, nullStringLiteral);
 	}
 
 	@Override

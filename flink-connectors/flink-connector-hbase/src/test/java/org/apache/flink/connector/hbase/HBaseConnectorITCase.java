@@ -126,13 +126,16 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			hbaseTable.addColumn(FAMILY3, F3COL1, Double.class);
 			hbaseTable.addColumn(FAMILY3, F3COL2, Boolean.class);
 			hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
+			hbaseTable.setRowKey("rowkey", Integer.class);
 			((TableEnvironmentInternal) tEnv).registerTableSourceInternal("hTable", hbaseTable);
 		} else {
 			tEnv.executeSql(
 					"CREATE TABLE hTable (" +
 					" family1 ROW<col1 INT>," +
 					" family2 ROW<col1 STRING, col2 BIGINT>," +
-					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>" +
+					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>," +
+					" rowkey INT," +
+					" PRIMARY KEY (rowkey) NOT ENFORCED" +
 					") WITH (" +
 					" 'connector' = 'hbase-1.4'," +
 					" 'table-name' = '" + TEST_TABLE_1 + "'," +
@@ -175,13 +178,16 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			hbaseTable.addColumn(FAMILY3, F3COL1, Double.class);
 			hbaseTable.addColumn(FAMILY3, F3COL2, Boolean.class);
 			hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
+			hbaseTable.setRowKey("rowkey", Integer.class);
 			((TableEnvironmentInternal) tEnv).registerTableSourceInternal("hTable", hbaseTable);
 		} else {
 			tEnv.executeSql(
 					"CREATE TABLE hTable (" +
 					" family1 ROW<col1 INT>," +
 					" family2 ROW<col1 STRING, col2 BIGINT>," +
-					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>" +
+					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>," +
+					" rowkey INT," +
+					" PRIMARY KEY (rowkey) NOT ENFORCED" +
 					") WITH (" +
 					" 'connector' = 'hbase-1.4'," +
 					" 'table-name' = '" + TEST_TABLE_1 + "'," +
@@ -217,6 +223,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		if (isLegacyConnector) {
 			HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE_1);
 			// shuffle order of column registration
+			hbaseTable.setRowKey("rowkey", Integer.class);
 			hbaseTable.addColumn(FAMILY2, F2COL1, String.class);
 			hbaseTable.addColumn(FAMILY3, F3COL1, Double.class);
 			hbaseTable.addColumn(FAMILY1, F1COL1, Integer.class);
@@ -227,6 +234,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		} else {
 			tEnv.executeSql(
 					"CREATE TABLE hTable (" +
+					" rowkey INT PRIMARY KEY," +
 					" family2 ROW<col1 STRING, col2 BIGINT>," +
 					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>," +
 					" family1 ROW<col1 INT>" +
@@ -241,14 +249,14 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
 		List<Row> results = collectBatchResult(table);
 		String expected =
-			"Hello-1,100,1.01,false,Welt-1,10\n" +
-				"Hello-2,200,2.02,true,Welt-2,20\n" +
-				"Hello-3,300,3.03,false,Welt-3,30\n" +
-				"null,400,4.04,true,Welt-4,40\n" +
-				"Hello-5,500,5.05,false,Welt-5,50\n" +
-				"Hello-6,600,6.06,true,Welt-6,60\n" +
-				"Hello-7,700,7.07,false,Welt-7,70\n" +
-				"null,800,8.08,true,Welt-8,80\n";
+			"1,Hello-1,100,1.01,false,Welt-1,10\n" +
+				"2,Hello-2,200,2.02,true,Welt-2,20\n" +
+				"3,Hello-3,300,3.03,false,Welt-3,30\n" +
+				"4,null,400,4.04,true,Welt-4,40\n" +
+				"5,Hello-5,500,5.05,false,Welt-5,50\n" +
+				"6,Hello-6,600,6.06,true,Welt-6,60\n" +
+				"7,Hello-7,700,7.07,false,Welt-7,70\n" +
+				"8,null,800,8.08,true,Welt-8,80\n";
 
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
@@ -262,11 +270,13 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), TEST_TABLE_1);
 			hbaseTable.addColumn(FAMILY2, F2COL1, byte[].class);
 			hbaseTable.addColumn(FAMILY2, F2COL2, byte[].class);
+			hbaseTable.setRowKey("rowkey", Integer.class);
 			((TableEnvironmentInternal) tEnv).registerTableSourceInternal("hTable", hbaseTable);
 		} else {
 			tEnv.executeSql(
 					"CREATE TABLE hTable (" +
-					" family2 ROW<col1 BYTES, col2 BYTES>" +
+					" family2 ROW<col1 BYTES, col2 BYTES>," +
+					" rowkey INT" + // no primary key syntax
 					") WITH (" +
 					" 'connector' = 'hbase-1.4'," +
 					" 'table-name' = '" + TEST_TABLE_1 + "'," +
@@ -373,7 +383,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		} else {
 			tEnv.executeSql(
 					"CREATE TABLE hbase (" +
-					" family1 ROW<col1 INT>" +
+					" family1 ROW<col1 INT>," +
 					" family2 ROW<col1 STRING, col2 BIGINT>," +
 					" rk INT," +
 					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>" +
@@ -406,10 +416,10 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
 			((TableEnvironmentInternal) batchTableEnv).registerTableSourceInternal("hTable", hbaseTable);
 		} else {
-			tEnv.executeSql(
+			batchTableEnv.executeSql(
 					"CREATE TABLE hTable (" +
 					" rowkey INT," +
-					" family1 ROW<col1 INT>" +
+					" family1 ROW<col1 INT>," +
 					" family2 ROW<col1 STRING, col2 BIGINT>," +
 					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>" +
 					") WITH (" +
@@ -433,14 +443,14 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
 		List<Row> results = collectBatchResult(table);
 		String expected =
-			"1,10,Hello-1,100,1.01,false,Welt-1\n" +
+				"1,10,Hello-1,100,1.01,false,Welt-1\n" +
 				"2,20,Hello-2,200,2.02,true,Welt-2\n" +
 				"3,30,Hello-3,300,3.03,false,Welt-3\n" +
-				"4,40,,400,4.04,true,Welt-4\n" +
+				"4,40,null,400,4.04,true,Welt-4\n" +
 				"5,50,Hello-5,500,5.05,false,Welt-5\n" +
 				"6,60,Hello-6,600,6.06,true,Welt-6\n" +
 				"7,70,Hello-7,700,7.07,false,Welt-7\n" +
-				"8,80,,800,8.08,true,Welt-8\n";
+				"8,80,null,800,8.08,true,Welt-8\n";
 
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
@@ -515,11 +525,11 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 				"1,10,Hello-1,100,1.01,false,Welt-1,2019-08-18 19:00:00.0,2019-08-18,19:00:00\n" +
 				"2,20,Hello-2,200,2.02,true,Welt-2,2019-08-18 19:01:00.0,2019-08-18,19:01:00\n" +
 				"3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18 19:02:00.0,2019-08-18,19:02:00\n" +
-				"4,40,,400,4.04,true,Welt-4,2019-08-18 19:03:00.0,2019-08-18,19:03:00\n" +
+				"4,40,null,400,4.04,true,Welt-4,2019-08-18 19:03:00.0,2019-08-18,19:03:00\n" +
 				"5,50,Hello-5,500,5.05,false,Welt-5,2019-08-19 19:10:00.0,2019-08-19,19:10:00\n" +
 				"6,60,Hello-6,600,6.06,true,Welt-6,2019-08-19 19:20:00.0,2019-08-19,19:20:00\n" +
 				"7,70,Hello-7,700,7.07,false,Welt-7,2019-08-19 19:30:00.0,2019-08-19,19:30:00\n" +
-				"8,80,,800,8.08,true,Welt-8,2019-08-19 19:40:00.0,2019-08-19,19:40:00\n";
+				"8,80,null,800,8.08,true,Welt-8,2019-08-19 19:40:00.0,2019-08-19,19:40:00\n";
 
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
@@ -567,8 +577,8 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		} else {
 			streamTableEnv.executeSql(
 					"CREATE TABLE hbaseLookup (" +
-					" family1 ROW<col1 INT>" +
-					" rowkey INT," +
+					" family1 ROW<col1 INT>," +
+					" rk INT," +
 					" family2 ROW<col1 STRING, col2 BIGINT>," +
 					" family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 STRING>" +
 					") WITH (" +

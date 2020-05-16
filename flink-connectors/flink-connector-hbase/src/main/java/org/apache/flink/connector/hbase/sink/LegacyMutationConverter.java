@@ -31,9 +31,16 @@ import org.apache.hadoop.hbase.client.Mutation;
 public class LegacyMutationConverter implements HBaseMutationConverter<Tuple2<Boolean, Row>> {
 	private static final long serialVersionUID = 7358222494016900667L;
 
-	private final HBaseReadWriteHelper helper;
+	private final HBaseTableSchema schema;
+
+	private transient HBaseReadWriteHelper helper;
 
 	public LegacyMutationConverter(HBaseTableSchema schema) {
+		this.schema = schema;
+	}
+
+	@Override
+	public void open() {
 		this.helper = new HBaseReadWriteHelper(schema);
 	}
 

@@ -110,6 +110,7 @@ public class HBaseSinkFunction<T>
 		LOG.info("start open ...");
 		org.apache.hadoop.conf.Configuration config = prepareRuntimeConfiguration();
 		try {
+			this.mutationConverter.open();
 			this.numPendingRequests = new AtomicLong(0);
 
 			if (null == connection) {

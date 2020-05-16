@@ -34,6 +34,11 @@ import java.io.Serializable;
 public interface HBaseMutationConverter<T> extends Serializable {
 
 	/**
+	 * Initialization method for the function. It is called once before conversion method.
+	 */
+	void open();
+
+	/**
 	 * Converts the input record into HBase {@link Mutation}. A mutation can be a
 	 * {@link Put} or {@link Delete}.
 	 */

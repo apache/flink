@@ -41,16 +41,22 @@ public class HBaseDynamicTableSource implements ScanTableSource, LookupTableSour
 	private final Configuration conf;
 	private final String tableName;
 	private final HBaseTableSchema hbaseSchema;
+	private final String nullStringLiteral;
 
-	public HBaseDynamicTableSource(Configuration conf, String tableName, HBaseTableSchema hbaseSchema) {
+	public HBaseDynamicTableSource(
+			Configuration conf,
+			String tableName,
+			HBaseTableSchema hbaseSchema,
+			String nullStringLiteral) {
 		this.conf = conf;
 		this.tableName = tableName;
 		this.hbaseSchema = hbaseSchema;
+		this.nullStringLiteral = nullStringLiteral;
 	}
 
 	@Override
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanTableSource.Context runtimeProviderContext) {
-		return InputFormatProvider.of(new HBaseRowDataInputFormat(conf, tableName, hbaseSchema));
+		return InputFormatProvider.of(new HBaseRowDataInputFormat(conf, tableName, hbaseSchema, nullStringLiteral));
 	}
 
 	@Override
@@ -78,7 +84,7 @@ public class HBaseDynamicTableSource implements ScanTableSource, LookupTableSour
 
 	@Override
 	public DynamicTableSource copy() {
-		return new HBaseDynamicTableSource(conf, tableName, hbaseSchema);
+		return new HBaseDynamicTableSource(conf, tableName, hbaseSchema, nullStringLiteral);
 	}
 
 	@Override
