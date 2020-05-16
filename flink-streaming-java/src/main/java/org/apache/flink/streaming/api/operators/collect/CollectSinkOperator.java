@@ -41,10 +41,8 @@ public class CollectSinkOperator<IN> extends StreamSink<IN> implements OperatorE
 	public CollectSinkOperator(
 			TypeSerializer<IN> serializer,
 			int maxResultsPerBatch,
-			String finalResultListAccumulatorName,
-			String finalResultOffsetAccumulatorName) {
-		super(new CollectSinkFunction<>(
-			serializer, maxResultsPerBatch, finalResultListAccumulatorName, finalResultOffsetAccumulatorName));
+			String accumulatorName) {
+		super(new CollectSinkFunction<>(serializer, maxResultsPerBatch, accumulatorName));
 		this.sinkFunction = (CollectSinkFunction<IN>) getUserFunction();
 		this.operatorIdFuture = new CompletableFuture<>();
 	}

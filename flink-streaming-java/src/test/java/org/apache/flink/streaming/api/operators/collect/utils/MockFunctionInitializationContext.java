@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.operators.collect.utils;
 
 import org.apache.flink.api.common.state.KeyedStateStore;
-import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 
 /**
@@ -26,7 +25,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
  */
 public class MockFunctionInitializationContext implements FunctionInitializationContext {
 
-	private final OperatorStateStore operatorStateStore;
+	private final MockOperatorStateStore operatorStateStore;
 
 	public MockFunctionInitializationContext() {
 		operatorStateStore = new MockOperatorStateStore();
@@ -38,7 +37,7 @@ public class MockFunctionInitializationContext implements FunctionInitialization
 	}
 
 	@Override
-	public OperatorStateStore getOperatorStateStore() {
+	public MockOperatorStateStore getOperatorStateStore() {
 		return operatorStateStore;
 	}
 

@@ -20,8 +20,6 @@ package org.apache.flink.streaming.api.operators.collect.utils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.operators.collect.CollectCoordinationResponse;
 
-import java.util.List;
-
 /**
  * Testing interface for sending collect requests.
  */
@@ -29,5 +27,5 @@ public interface CollectRequestSender<T> {
 
 	CollectCoordinationResponse<T> sendRequest(String version, long offset) throws Exception;
 
-	Tuple2<List<T>, Long> getAccumulatorResults() throws Exception;
+	Tuple2<Long, CollectCoordinationResponse> getAccumulatorResults() throws Exception;
 }

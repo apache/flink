@@ -21,8 +21,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.operators.collect.CollectCoordinationResponse;
 
-import org.junit.Assert;
-
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -34,6 +33,7 @@ import java.util.function.BooleanSupplier;
 public class TestCollectClient<T> extends Thread {
 
 	private static final String INIT_VERSION = "";
+	private static final int MAX_RETRY_COUNT = 100;
 
 	private final TypeSerializer<T> serializer;
 	private final CollectRequestSender<T> sender;
@@ -41,6 +41,11 @@ public class TestCollectClient<T> extends Thread {
 
 	private final LinkedList<T> uncheckpointedResults;
 	private final LinkedList<T> checkpointedResults;
+
+	private String version;
+	private long offset;
+	private long lastCheckpointedOffset;
+	private int retryCount;
 
 	public TestCollectClient(
 			TypeSerializer<T> serializer,
@@ -55,59 +60,28 @@ public class TestCollectClient<T> extends Thread {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void run() {
 		Random random = new Random();
 
-		String version = INIT_VERSION;
-		long offset = 0;
-		long lastCheckpointedOffset = 0;
+		version = INIT_VERSION;
+		offset = 0;
+		lastCheckpointedOffset = 0;
+		retryCount = 0;
 
 		try {
 			while (!jobFinishedChecker.getAsBoolean()) {
-
 				if (random.nextBoolean()) {
 					Thread.sleep(random.nextInt(10));
 				}
-
 				CollectCoordinationResponse<T> response = sender.sendRequest(version, offset);
-				String responseVersion = response.getVersion();
-				long responseLastCheckpointedOffset = response.getLastCheckpointedOffset();
-				List<T> responseResults = response.getResults(serializer);
-
-				if (INIT_VERSION.equals(version)) {
-					// first response, update version accordingly
-					version = responseVersion;
-				} else {
-					if (responseLastCheckpointedOffset > lastCheckpointedOffset) {
-						// a new checkpoint happens
-						int newCheckpointedNum = (int) (responseLastCheckpointedOffset - lastCheckpointedOffset);
-						for (int i = 0; i < newCheckpointedNum; i++) {
-							checkpointedResults.add(uncheckpointedResults.removeFirst());
-						}
-						lastCheckpointedOffset = responseLastCheckpointedOffset;
-					}
-
-					if (version.equals(responseVersion)) {
-						// normal results
-						if (responseResults.size() > 0) {
-							uncheckpointedResults.addAll(responseResults);
-							offset += responseResults.size();
-						}
-					} else {
-						// sink has restarted
-						version = responseVersion;
-						offset = lastCheckpointedOffset;
-						uncheckpointedResults.clear();
-					}
-				}
+				dealWithResponse(response, offset);
 			}
 
+			Tuple2<Long, CollectCoordinationResponse> accResults = sender.getAccumulatorResults();
+			dealWithResponse(accResults.f1, accResults.f0);
 			checkpointedResults.addAll(uncheckpointedResults);
-
-			Tuple2<List<T>, Long> accResults = sender.getAccumulatorResults();
-			checkpointedResults.addAll(accResults.f0.subList((int) (offset - accResults.f1), accResults.f0.size()));
 		} catch (Exception e) {
-			Assert.fail("Exception occurs in TestCollectClient");
 			e.printStackTrace();
 			throw new RuntimeException(e);
 		}
@@ -115,5 +89,53 @@ public class TestCollectClient<T> extends Thread {
 
 	public List<T> getResults() {
 		return checkpointedResults;
+	}
+
+	private void dealWithResponse(CollectCoordinationResponse<T> response, long responseOffset) throws IOException {
+		String responseVersion = response.getVersion();
+		long responseLastCheckpointedOffset = response.getLastCheckpointedOffset();
+		List<T> responseResults = response.getResults(serializer);
+
+		if (responseResults.isEmpty()) {
+			retryCount++;
+		} else {
+			retryCount = 0;
+		}
+		if (retryCount > MAX_RETRY_COUNT) {
+			// not to block the tests
+			// throw new RuntimeException("Too many retries in TestCollectClient");
+		}
+
+		if (INIT_VERSION.equals(version)) {
+			// first response, update version accordingly
+			version = responseVersion;
+		} else {
+			if (responseLastCheckpointedOffset > lastCheckpointedOffset) {
+				// a new checkpoint happens
+				int newCheckpointedNum = (int) (responseLastCheckpointedOffset - lastCheckpointedOffset);
+				for (int i = 0; i < newCheckpointedNum; i++) {
+					T result = uncheckpointedResults.removeFirst();
+					checkpointedResults.add(result);
+				}
+				lastCheckpointedOffset = responseLastCheckpointedOffset;
+			}
+
+			if (!version.equals(responseVersion)) {
+				// sink has restarted
+				int removeNum = (int) (offset - lastCheckpointedOffset);
+				for (int i = 0; i < removeNum; i++) {
+					uncheckpointedResults.removeLast();
+				}
+				version = responseVersion;
+				offset = lastCheckpointedOffset;
+			}
+
+			if (responseResults.size() > 0) {
+				int addStart = (int) (offset - responseOffset);
+				List<T> resultsToAdd = responseResults.subList(addStart, responseResults.size());
+				uncheckpointedResults.addAll(resultsToAdd);
+				offset += resultsToAdd.size();
+			}
+		}
 	}
 }

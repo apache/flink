@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -34,10 +35,14 @@ import java.util.Set;
  */
 public class MockOperatorStateStore implements OperatorStateStore {
 
-	private Map<String, ListState> stateMap;
+	private Map<String, TestUtils.MockListState> currentStateMap;
+	private Map<String, TestUtils.MockListState> lastSuccessStateMap;
+	private Map<Long, Map<String, TestUtils.MockListState>> historyStateMap;
 
 	public MockOperatorStateStore() {
-		this.stateMap = new HashMap<>();
+		this.currentStateMap = new HashMap<>();
+		this.lastSuccessStateMap = new HashMap<>();
+		this.historyStateMap = new HashMap<>();
 	}
 
 	@Override
@@ -49,8 +54,8 @@ public class MockOperatorStateStore implements OperatorStateStore {
 	@SuppressWarnings("unchecked")
 	public <S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
 		String name = stateDescriptor.getName();
-		stateMap.putIfAbsent(name, new TestUtils.MockListState());
-		return stateMap.get(name);
+		currentStateMap.putIfAbsent(name, new TestUtils.MockListState());
+		return currentStateMap.get(name);
 	}
 
 	@Override
@@ -76,5 +81,29 @@ public class MockOperatorStateStore implements OperatorStateStore {
 	@Override
 	public <T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception {
 		throw new UnsupportedOperationException();
+	}
+
+	public void checkpointBegin(long checkpointId) {
+		Map<String, TestUtils.MockListState> copiedStates = Collections.unmodifiableMap(copyStates(currentStateMap));
+		historyStateMap.put(checkpointId, copiedStates);
+	}
+
+	public void checkpointSuccess(long checkpointId) {
+		lastSuccessStateMap = historyStateMap.get(checkpointId);
+	}
+
+	public void revertToLastSuccessCheckpoint() {
+		this.currentStateMap = copyStates(lastSuccessStateMap);
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, TestUtils.MockListState> copyStates(Map<String, TestUtils.MockListState> stateMap) {
+		Map<String, TestUtils.MockListState> copiedStates = new HashMap<>();
+		for (Map.Entry<String, TestUtils.MockListState> entry : stateMap.entrySet()) {
+			TestUtils.MockListState copiedState = new TestUtils.MockListState();
+			copiedState.addAll(entry.getValue().getBackingList());
+			copiedStates.put(entry.getKey(), copiedState);
+		}
+		return copiedStates;
 	}
 }
