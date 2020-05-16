@@ -248,17 +248,6 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 		return new KafkaPartitionDiscoverer(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks, properties);
 	}
 
-	// ------------------------------------------------------------------------
-	//  Timestamp-based startup
-	// ------------------------------------------------------------------------
-
-	@Override
-	public FlinkKafkaConsumerBase<T> setStartFromTimestamp(long startupOffsetsTimestamp) {
-		// the purpose of this override is just to publicly expose the method for Kafka 0.10+;
-		// the base class doesn't publicly expose it since not all Kafka versions support the functionality
-		return super.setStartFromTimestamp(startupOffsetsTimestamp);
-	}
-
 	@Override
 	protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(
 		Collection<KafkaTopicPartition> partitions,
