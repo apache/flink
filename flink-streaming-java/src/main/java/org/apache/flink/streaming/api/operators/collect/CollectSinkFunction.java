@@ -404,8 +404,8 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 
 		private void close() {
 			running = false;
+			closeServerSocket();
 			closeCurrentConnection();
-			closeServer();
 		}
 
 		private InetSocketAddress getServerSocketAddress() {
@@ -453,7 +453,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 			}
 		}
 
-		private void closeServer() {
+		private void closeServerSocket() {
 			try {
 				serverSocket.close();
 			} catch (Exception e) {

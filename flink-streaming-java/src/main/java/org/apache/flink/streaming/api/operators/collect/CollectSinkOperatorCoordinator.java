@@ -107,6 +107,12 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 			CollectCoordinationRequest request,
 			CompletableFuture<CoordinationResponse> responseFuture,
 			InetSocketAddress sinkAddress) {
+		if (sinkAddress == null) {
+			closeConnection();
+			completeWithEmptyResponse(request, responseFuture);
+			return;
+		}
+
 		try {
 			if (socket == null) {
 				socket = new Socket(sinkAddress.getAddress(), sinkAddress.getPort());

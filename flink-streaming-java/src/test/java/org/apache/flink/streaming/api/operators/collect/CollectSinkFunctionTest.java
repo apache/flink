@@ -589,6 +589,9 @@ public class CollectSinkFunctionTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Countdown for a checkpoint which will succeed in the future.
+	 */
 	private static class CheckpointCountdown {
 
 		private long id;
@@ -610,6 +613,9 @@ public class CollectSinkFunctionTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * A thread collecting results with the collecting iterator.
+	 */
 	private class CollectClient extends Thread {
 
 		private List<Integer> results;

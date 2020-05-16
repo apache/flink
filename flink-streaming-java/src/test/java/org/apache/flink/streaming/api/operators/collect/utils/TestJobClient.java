@@ -121,6 +121,9 @@ public class TestJobClient implements JobClient, CoordinationRequestGateway {
 		return CompletableFuture.completedFuture(response);
 	}
 
+	/**
+	 * Interface to provide job related info for {@link TestJobClient}.
+	 */
 	public interface JobInfoProvider {
 
 		boolean isJobFinished();
