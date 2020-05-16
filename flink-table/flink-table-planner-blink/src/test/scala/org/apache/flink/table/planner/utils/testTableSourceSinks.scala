@@ -267,7 +267,7 @@ class TestPreserveWMTableSource[T](
 
 }
 
-class TestProjectableTableSource(
+class TestLegacyProjectableTableSource(
     isBounded: Boolean,
     tableSchema: TableSchema,
     returnType: TypeInformation[Row],
@@ -314,7 +314,7 @@ class TestProjectableTableSource(
       pRow
     }
 
-    new TestProjectableTableSource(
+    new TestLegacyProjectableTableSource(
       isBounded,
       tableSchema,
       projectedReturnType,
@@ -388,8 +388,8 @@ class TestNestedProjectableTableSource(
   }
 }
 
-/** Table source factory to find and create [[TestProjectableTableSource]]. */
-class TestProjectableTableSourceFactory extends StreamTableSourceFactory[Row] {
+/** Table source factory to find and create [[TestLegacyProjectableTableSource]]. */
+class TestLegacyProjectableTableSourceFactory extends StreamTableSourceFactory[Row] {
   override def createStreamTableSource(properties: JMap[String, String])
   : StreamTableSource[Row] = {
     val descriptorProps = new DescriptorProperties()
@@ -403,7 +403,7 @@ class TestProjectableTableSourceFactory extends StreamTableSourceFactory[Row] {
       .filter(c => !c.isGenerated)
       .foreach(c => schemaBuilder.field(c.getName, c.getType))
     val rowTypeInfo = schemaBuilder.build().toRowType
-    new TestProjectableTableSource(isBounded, tableSchema, rowTypeInfo, Seq())
+    new TestLegacyProjectableTableSource(isBounded, tableSchema, rowTypeInfo, Seq())
   }
 
   override def requiredContext(): JMap[String, String] = {

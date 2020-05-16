@@ -98,6 +98,6 @@ class TableSourceTable(
       isStreamingMode,
       catalogTable,
       dynamicOptions,
-      newExtraDigests ++ newExtraDigests)
+      extraDigests ++ newExtraDigests)
   }
 }

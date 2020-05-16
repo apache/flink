@@ -18,220 +18,76 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink}
-import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestStreamTableSource, TestTableSourceSinks}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink, TestingRetractSink}
+import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Before, Test}
+
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
-
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
-
-import scala.collection.mutable
 
 class TableSourceITCase extends StreamingTestBase {
 
-  @Test
-  def testProjectWithoutRowtimeProctime(): Unit = {
-    val data = Seq(
-      Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
-      Row.of(new JInt(2), "Bob", new JLong(20L), new JLong(2)),
-      Row.of(new JInt(3), "Mike", new JLong(30L), new JLong(2)),
-      Row.of(new JInt(4), "Liz", new JLong(40L), new JLong(2001)))
+  @Before
+  override def before(): Unit = {
+    super.before()
+    val myTableDataId = TestValuesTableFactory.registerData(TestData.smallData3)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MyTable (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$myTableDataId'
+         |)
+         |""".stripMargin)
 
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.STRING, Types.LONG, Types.LONG)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "name", "val", "rtime"))
-
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
-
-    val result = tEnv.sqlQuery("SELECT name, val, id FROM T").toAppendStream[Row]
-    val sink = new TestingAppendSink
-    result.addSink(sink)
-    env.execute()
-
-    val expected = Seq(
-      "Mary,10,1",
-      "Bob,20,2",
-      "Mike,30,3",
-      "Liz,40,4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    val filterableTableDataId = TestValuesTableFactory.registerData(
+      TestFilterableTableSource.defaultRows)
+    // TODO: [FLINK-17425] support filter pushdown for TestValuesTableSource
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE FilterableTable (
+         |  name STRING,
+         |  id BIGINT,
+         |  amount INT,
+         |  price DOUBLE
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$filterableTableDataId'
+         |)
+         |""".stripMargin)
   }
 
   @Test
-  def testProjectWithoutProctime(): Unit = {
-    val data = Seq(
-      Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
-      Row.of(new JInt(2), "Bob", new JLong(20L), new JLong(2)),
-      Row.of(new JInt(3), "Mike", new JLong(30L), new JLong(2)),
-      Row.of(new JInt(4), "Liz", new JLong(40L), new JLong(2001)))
-
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(
-        Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.STRING, Types.LONG, Types.LONG)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "name", "val", "rtime"))
-
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
-
-    val result = tEnv.sqlQuery("SELECT rtime, name, id FROM T").toAppendStream[Row]
+  def testSimpleProject(): Unit = {
+    val result = tEnv.sqlQuery("SELECT a, c FROM MyTable").toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = Seq(
-      "1970-01-01T00:00:00.001,Mary,1",
-      "1970-01-01T00:00:00.002,Bob,2",
-      "1970-01-01T00:00:00.002,Mike,3",
-      "1970-01-01T00:00:02.001,Liz,4")
+      "1,Hi",
+      "2,Hello",
+      "3,Hello world")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
-  def testProjectWithoutRowtime(): Unit = {
-    val data = Seq(
-      Row.of(new JInt(1), "Mary", new JLong(10L), new JLong(1)),
-      Row.of(new JInt(2), "Bob", new JLong(20L), new JLong(2)),
-      Row.of(new JInt(3), "Mike", new JLong(30L), new JLong(2)),
-      Row.of(new JInt(4), "Liz", new JLong(40L), new JLong(2001)))
-
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.STRING, Types.LONG, Types.LONG)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "name", "val", "rtime"))
-
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
-
-    val sqlQuery = "SELECT name, id FROM T"
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    val sink = new TestingAppendSink
-    result.addSink(sink)
+  def testProjectWithoutInputRef(): Unit = {
+    val result = tEnv.sqlQuery("SELECT COUNT(*) FROM MyTable").toRetractStream[Row]
+    val sink = new TestingRetractSink()
+    result.addSink(sink).setParallelism(result.parallelism)
     env.execute()
 
-    val expected = Seq(
-      "Mary,1",
-      "Bob,2",
-      "Mike,3",
-      "Liz,4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-  def testProjectOnlyProctime(): Unit = {
-    val data = Seq(
-      Row.of(new JInt(1), new JLong(1), new JLong(10L), "Mary"),
-      Row.of(new JInt(2), new JLong(2L), new JLong(20L), "Bob"),
-      Row.of(new JInt(3), new JLong(2L), new JLong(30L), "Mike"),
-      Row.of(new JInt(4), new JLong(2001L), new JLong(30L), "Liz"))
-
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "rtime", "val", "name"))
-
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
-
-    val sqlQuery = "SELECT COUNT(1) FROM T WHERE ptime > 0"
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-    val sink = new TestingAppendSink
-    result.addSink(sink)
-    env.execute()
-
-    val expected = Seq("4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-  def testProjectOnlyRowtime(): Unit = {
-    val data = Seq(
-      Row.of(new JInt(1), new JLong(1), new JLong(10L), "Mary"),
-      Row.of(new JInt(2), new JLong(2L), new JLong(20L), "Bob"),
-      Row.of(new JInt(3), new JLong(2L), new JLong(30L), "Mike"),
-      Row.of(new JInt(4), new JLong(2001L), new JLong(30L), "Liz"))
-
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "rtime", "val", "name"))
-
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(false, tableSchema, returnType, data, "rtime", "ptime"))
-
-    val result = tEnv.sqlQuery("SELECT rtime FROM T").toAppendStream[Row]
-    val sink = new TestingAppendSink
-    result.addSink(sink)
-    env.execute()
-
-    val expected = Seq(
-      "1970-01-01 00:00:00.001",
-      "1970-01-01 00:00:00.002",
-      "1970-01-01 00:00:00.002",
-      "1970-01-01 00:00:02.001")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-  @Test
-  def testProjectWithMapping(): Unit = {
-    val data = Seq(
-      Row.of(new JLong(1), new JInt(1), "Mary", new JLong(10)),
-      Row.of(new JLong(2), new JInt(2), "Bob", new JLong(20)),
-      Row.of(new JLong(2), new JInt(3), "Mike", new JLong(30)),
-      Row.of(new JLong(2001), new JInt(4), "Liz", new JLong(40)))
-
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.LONG, Types.INT, Types.STRING, Types.LONG)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("p-rtime", "p-id", "p-name", "p-val"))
-    val mapping = Map("rtime" -> "p-rtime", "id" -> "p-id", "val" -> "p-val", "name" -> "p-name")
-
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(
-        false, tableSchema, returnType, data, "rtime", "ptime", mapping))
-
-    val result = tEnv.sqlQuery("SELECT name, rtime, val FROM T").toAppendStream[Row]
-    val sink = new TestingAppendSink
-    result.addSink(sink)
-    env.execute()
-
-    val expected = Seq(
-      "Mary,1970-01-01T00:00:00.001,10",
-      "Bob,1970-01-01T00:00:00.002,20",
-      "Mike,1970-01-01T00:00:00.002,30",
-      "Liz,1970-01-01T00:00:02.001,40")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    val expected = Seq("3")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
@@ -259,60 +115,54 @@ class TableSourceITCase extends StreamingTestBase {
         Row.of("Betty", new JInt(30000)),
         "Liz"))
 
-    val nested1 = new RowTypeInfo(
-      Array(Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
-      Array("name", "value")
-    )
-    val nested2 = new RowTypeInfo(
-      Array(Types.INT, Types.BOOLEAN).asInstanceOf[Array[TypeInformation[_]]],
-      Array("num", "flag")
-    )
-    val deepNested = new RowTypeInfo(
-      Array(nested1, nested2).asInstanceOf[Array[TypeInformation[_]]],
-      Array("nested1", "nested2")
-    )
-    val tableSchema = new TableSchema(
-      Array("id", "deepNested", "nested", "name"),
-      Array(Types.LONG, deepNested, nested1, Types.STRING))
+    val dataId = TestValuesTableFactory.registerData(data)
 
-    val returnType = new RowTypeInfo(
-      Array(Types.LONG, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "deepNested", "nested", "name"))
+    // TODO: [FLINK-17428] support nested project for TestValuesTableSource
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |  id BIGINT,
+         |  deepNested ROW<
+         |     nested1 ROW<name STRING, `value` INT>,
+         |     nested2 ROW<num INT, flag BOOLEAN>
+         |   >,
+         |   nested ROW<name STRING, `value` INT>,
+         |   name STRING,
+         |   lower_name AS LOWER(name)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
 
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestNestedProjectableTableSource(false, tableSchema, returnType, data))
-
-    val sqlQuery =
+    val query =
       """
         |SELECT id,
         |    deepNested.nested1.name AS nestedName,
         |    nested.`value` AS nestedValue,
         |    deepNested.nested2.flag AS nestedFlag,
-        |    deepNested.nested2.num AS nestedNum
+        |    deepNested.nested2.num AS nestedNum,
+        |    lower_name
         |FROM T
       """.stripMargin
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
     val expected = Seq(
-      "1,Sarah,10000,true,1000",
-      "2,Rob,20000,false,2000",
-      "3,Mike,30000,true,3000")
+      "1,Sarah,10000,true,1000,mary",
+      "2,Rob,20000,false,2000,bob",
+      "3,Mike,30000,true,3000,liz")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testTableSourceWithFilterable(): Unit = {
-    TestFilterableTableSource.createTemporaryTable(
-      tEnv,
-      TestFilterableTableSource.defaultSchema,
-      "MyTable")
-
-    val sqlQuery = "SELECT id, name FROM MyTable WHERE amount > 4 AND price < 9"
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val query = "SELECT id, name FROM FilterableTable WHERE amount > 4 AND price < 9"
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -322,147 +172,125 @@ class TableSourceITCase extends StreamingTestBase {
   }
 
   @Test
-  def testTableSourceWithPartitionable(): Unit = {
-    TestPartitionableSourceFactory.createTemporaryTable(tEnv, "PartitionableTable", true)
-
-    val sqlQuery = "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A'"
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+  def testTableSourceWithFunctionFilterable(): Unit = {
+    val query = "SELECT id, name FROM FilterableTable " +
+      "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'"
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq("3,John,A,2", "4,nosharp,A,2")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-  @Test
-  def testCsvTableSource(): Unit = {
-    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "persons")
-    val sink = new TestingAppendSink()
-    tEnv.sqlQuery(
-      "SELECT id, `first`, `last`, score FROM persons WHERE id < 4 ")
-      .toAppendStream[Row]
-      .addSink(sink)
-
-    env.execute()
-
-    val expected = mutable.MutableList(
-      "1,Mike,Smith,12.3",
-      "2,Bob,Taylor,45.6",
-      "3,Sam,Miller,7.89")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-  @Test
-  def testLookupJoinCsvTemporalTable(): Unit = {
-    TestTableSourceSinks.createOrdersCsvTemporaryTable(tEnv, "orders")
-    TestTableSourceSinks.createRatesCsvTemporaryTable(tEnv, "rates")
-
-    val sql =
-      """
-        |SELECT o.amount, o.currency, r.rate
-        |FROM (SELECT *, PROCTIME() as proc FROM orders) AS o
-        |JOIN rates FOR SYSTEM_TIME AS OF o.proc AS r
-        |ON o.currency = r.currency
-      """.stripMargin
-
-    val sink = new TestingAppendSink()
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
-
-    env.execute()
-
-    val expected = Seq(
-      "2,Euro,119",
-      "1,US Dollar,102",
-      "50,Yen,1",
-      "3,Euro,119",
-      "5,US Dollar,102"
-    )
+    val expected = Seq("5,Record_5")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testInputFormatSource(): Unit = {
-    val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c"),
-      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
-    TestInputFormatTableSource.createTemporaryTable(
-      tEnv, tableSchema, TestData.smallData3, "MyInputFormatTable")
-    val sink = new TestingAppendSink()
-    tEnv.sqlQuery("SELECT a, c FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
+    val dataId = TestValuesTableFactory.registerData(TestData.smallData3)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MyInputFormatTable (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'runtime-source' = 'InputFormat'
+         |)
+         |""".stripMargin
+    )
 
+    val result = tEnv.sqlQuery("SELECT a, c FROM MyInputFormatTable").toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
-    val expected = Seq(
-      "1,Hi",
-      "2,Hello",
-      "3,Hello world"
-    )
+    val expected = Seq("1,Hi", "2,Hello", "3,Hello world")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
-  def testDecimalSource(): Unit = {
-    val tableSchema = TableSchema.builder().fields(
-      Array("a", "b", "c", "d"),
-      Array(
-        DataTypes.INT(),
-        DataTypes.DECIMAL(5, 2),
-        DataTypes.VARCHAR(5),
-        DataTypes.CHAR(5))).build()
-
-    val data = Seq(
-      row(1, new java.math.BigDecimal(5.1), "1", "1"),
-      row(2, new java.math.BigDecimal(6.1), "12", "12"),
-      row(3, new java.math.BigDecimal(7.1), "123", "123")
+  def testAllDataTypes(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(TestData.fullDataTypesData)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE T (
+         |  `a` BOOLEAN,
+         |  `b` TINYINT,
+         |  `c` SMALLINT,
+         |  `d` INT,
+         |  `e` BIGINT,
+         |  `f` FLOAT,
+         |  `g` DOUBLE,
+         |  `h` DECIMAL(5, 2),
+         |  `i` VARCHAR(5),
+         |  `j` CHAR(5),
+         |  `k` DATE,
+         |  `l` TIME(0),
+         |  `m` TIMESTAMP(9),
+         |  `n` TIMESTAMP(9) WITH LOCAL TIME ZONE,
+         |  `o` ARRAY<BIGINT>,
+         |  `p` ROW<f1 BIGINT, f2 STRING, f3 DOUBLE>,
+         |  `q` MAP<STRING, INT>
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId'
+         |)
+         |""".stripMargin
     )
 
-    TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable", data.seq)
-
-    val sink = new TestingAppendSink()
-    tEnv.sqlQuery("SELECT a, b, c, d FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
-
+    val result = tEnv.sqlQuery("SELECT * FROM T").toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
     env.execute()
 
     val expected = Seq(
-      "1,5.10,1,1",
-      "2,6.10,12,12",
-      "3,7.10,123,123"
+      "true,127,32767,2147483647,9223372036854775807,-1.123,-1.123,5.10,1,1,1969-01-01," +
+        "00:00:00.123,1969-01-01T00:00:00.123456789,1969-01-01T00:00:00.123456789Z," +
+        "[1, 2, 3],1,a,2.3,{k1=1}",
+      "false,-128,-32768,-2147483648,-9223372036854775808,3.4,3.4,6.10,12,12,1970-09-30," +
+        "01:01:01.123,1970-09-30T01:01:01.123456,1970-09-30T01:01:01.123456Z," +
+        "[4, 5],null,b,4.56,{k4=4, k2=2}",
+      "true,0,0,0,0,0.12,0.12,7.10,123,123,1990-12-24," +
+        "08:10:24.123,1990-12-24T08:10:24.123,1990-12-24T08:10:24.123Z," +
+        "[6, null, 7],3,null,7.86,{k3=null}",
+      "false,5,4,123,1234,1.2345,1.2345,8.12,1234,1234,2020-05-01," +
+        "23:23:23,2020-05-01T23:23:23,2020-05-01T23:23:23Z," +
+        "[8],4,c,null,{null=3}",
+      "null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
-  /**
-    * StreamTableSource must use type info in DataStream, so it will loose precision.
-    * Just support default precision decimal.
-    */
   @Test
-  def testLegacyDecimalSourceUsingStreamTableSource(): Unit = {
-    val tableSchema = new TableSchema(
-      Array("a", "b", "c"),
-      Array(
-        Types.INT(),
-        Types.DECIMAL(),
-        Types.STRING()
-      ))
+  def testChangelogSource(): Unit = {
+    val dataId = TestValuesTableFactory.registerChangelogData(TestData.userChangelog)
+    val ddl =
+      s"""
+         |CREATE TABLE user_logs (
+         |  user_id STRING,
+         |  user_name STRING,
+         |  email STRING,
+         |  balance DECIMAL(18,2),
+         |  balance2 AS balance * 2
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '$dataId',
+         | 'changelog-mode' = 'I,UA,UB,D'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
 
-    val data = Seq(
-      row(1, new java.math.BigDecimal(5.1), "1"),
-      row(2, new java.math.BigDecimal(6.1), "12"),
-      row(3, new java.math.BigDecimal(7.1), "123")
-    )
-
-    TestStreamTableSource.createTemporaryTable(tEnv, tableSchema, "MyInputFormatTable", data)
-    val sink = new TestingAppendSink()
-    tEnv.sqlQuery("SELECT a, b, c FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
-
+    val result = tEnv.sqlQuery("SELECT * FROM user_logs").toRetractStream[Row]
+    val sink = new TestingRetractSink()
+    result.addSink(sink).setParallelism(result.parallelism)
     env.execute()
 
     val expected = Seq(
-      "1,5.099999999999999645,1",
-      "2,6.099999999999999645,12",
-      "3,7.099999999999999645,123"
-    )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+      "user1,Tom,tom123@gmail.com,8.10,16.20",
+      "user3,Bailey,bailey@qq.com,9.99,19.98",
+      "user4,Tina,tina@gmail.com,11.30,22.60")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 }
