@@ -641,7 +641,7 @@ public class CliClient {
 
 	private void callCreateFunction(SqlCommandCall cmdCall) {
 		try {
-			executor.createFunction(sessionId, cmdCall.operands[0]);
+			executor.executeSql(sessionId, cmdCall.operands[0]);
 			printInfo(CliStrings.MESSAGE_FUNCTION_CREATED);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
@@ -650,7 +650,7 @@ public class CliClient {
 
 	private void callDropFunction(SqlCommandCall cmdCall) {
 		try {
-			executor.dropFunction(sessionId, cmdCall.operands[0]);
+			executor.executeSql(sessionId, cmdCall.operands[0]);
 			printInfo(CliStrings.MESSAGE_FUNCTION_REMOVED);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
@@ -659,7 +659,7 @@ public class CliClient {
 
 	private void callAlterFunction(SqlCommandCall cmdCall) {
 		try {
-			executor.alterFunction(sessionId, cmdCall.operands[0]);
+			executor.executeSql(sessionId, cmdCall.operands[0]);
 			printInfo(CliStrings.MESSAGE_ALTER_FUNCTION_SUCCEEDED);
 		} catch (SqlExecutionException e) {
 			printExecutionException(CliStrings.MESSAGE_ALTER_FUNCTION_FAILED, e);

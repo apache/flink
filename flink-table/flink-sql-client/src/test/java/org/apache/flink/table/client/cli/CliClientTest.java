@@ -339,17 +339,7 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
-		public void createFunction(String sessionId, String ddl) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public void dropFunction(String sessionId, String ddl) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public void alterFunction(String sessionId, String ddl) throws SqlExecutionException {
+		public void executeSql(String sessionId, String ddl) throws SqlExecutionException {
 
 		}
 

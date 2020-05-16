@@ -142,6 +142,8 @@ public class SqlCommandParserTest {
 				new SqlCommandCall(SqlCommand.CREATE_FUNCTION, new String[] {"CREATE FUNCTION catalog1.db1.func1 as 'class_name'"}));
 		testValidSqlCommand("CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
 				new SqlCommandCall(SqlCommand.CREATE_FUNCTION, new String[] {"CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"}));
+		testValidSqlCommand("CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
+				new SqlCommandCall(SqlCommand.CREATE_FUNCTION, new String[] {"CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"}));
 		// Test drop function.
 		testInvalidSqlCommand("DROP FUNCTION");
 		testInvalidSqlCommand("DROP FUNCTIONS");

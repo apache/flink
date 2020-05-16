@@ -1175,9 +1175,9 @@ public class LocalExecutorITCase extends TestLogger {
 		try {
 			// Test create table with simple name.
 			executor.useCatalog(sessionId, "catalog1");
-			executor.createFunction(sessionId, String.format(ddlTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "", "", "func1"));
 			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
-			executor.createFunction(sessionId, String.format(ddlTemplate, "TEMPORARY", "IF NOT EXISTS", "func2"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "TEMPORARY", "IF NOT EXISTS", "func2"));
 			assertThat(executor.listFunctions(sessionId), hasItems("func1", "func2"));
 
 			// Test create function with full qualified name.
@@ -1212,61 +1212,61 @@ public class LocalExecutorITCase extends TestLogger {
 			// arguments: [TEMPORARY|TEMPORARY SYSTEM], [IF EXISTS], func_name
 			final String dropTemplate = "drop %s function %s %s";
 			// Test drop function.
-			executor.createFunction(sessionId, String.format(createTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
 			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
-			executor.dropFunction(sessionId, String.format(dropTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func1"));
 			assertThat(executor.listFunctions(sessionId), not(hasItems("func1")));
 
 			// Test drop function if exists.
-			executor.createFunction(sessionId, String.format(createTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
 			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
-			executor.dropFunction(sessionId, String.format(dropTemplate, "", "IF EXISTS", "func1"));
+			executor.executeSql(sessionId, String.format(dropTemplate, "", "IF EXISTS", "func1"));
 			assertThat(executor.listFunctions(sessionId), not(hasItems("func1")));
 
 			// Test drop function with full qualified name.
-			executor.createFunction(sessionId, String.format(createTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
 			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
-			executor.dropFunction(sessionId, String.format(dropTemplate, "", "IF EXISTS", "catalog1.`default`.func1"));
+			executor.executeSql(sessionId, String.format(dropTemplate, "", "IF EXISTS", "catalog1.`default`.func1"));
 			assertThat(executor.listFunctions(sessionId), not(hasItems("func1")));
 
 			// Test drop function with db and function name.
-			executor.createFunction(sessionId, String.format(createTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
 			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
-			executor.dropFunction(sessionId, String.format(dropTemplate, "", "IF EXISTS", "`default`.func1"));
+			executor.executeSql(sessionId, String.format(dropTemplate, "", "IF EXISTS", "`default`.func1"));
 			assertThat(executor.listFunctions(sessionId), not(hasItems("func1")));
 
 			// Test drop function that does not exist.
-			executor.createFunction(sessionId, String.format(createTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
 			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
 			try {
-				executor.dropFunction(sessionId, String.format(dropTemplate, "", "IF EXISTS", "catalog2.`default`.func1"));
+				executor.executeSql(sessionId, String.format(dropTemplate, "", "IF EXISTS", "catalog2.`default`.func1"));
 				fail("unexpected");
 			} catch (Exception e) {
 				assertThat(e.getCause().getMessage(), is("Catalog catalog2 does not exist"));
 			}
 			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
-			executor.dropFunction(sessionId, String.format(dropTemplate, "", "", "`default`.func1"));
+			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "`default`.func1"));
 
 			// Test drop function with properties changed.
-			executor.createFunction(sessionId, String.format(createTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
 			// Change the session property to trigger `new ExecutionContext`.
 			executor.setSessionProperty(sessionId, "execution.restart-strategy.failure-rate-interval", "12345");
-			executor.createFunction(sessionId, String.format(createTemplate, "", "", "func2"));
+			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func2"));
 			assertThat(executor.listFunctions(sessionId), hasItems("func1", "func2"));
-			executor.dropFunction(sessionId, String.format(dropTemplate, "", "", "func1"));
-			executor.dropFunction(sessionId, String.format(dropTemplate, "", "", "func2"));
+			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func2"));
 			assertThat(executor.listFunctions(sessionId), not(hasItems("func1", "func2")));
 
 			// Test drop function with properties reset.
 			// Reset the session properties.
-			executor.createFunction(sessionId, String.format(createTemplate, "", "", "func1"));
-			executor.createFunction(sessionId, String.format(createTemplate, "", "", "func2"));
+			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func2"));
 			executor.resetSessionProperties(sessionId);
-			executor.createFunction(sessionId, String.format(createTemplate, "", "", "func3"));
+			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func3"));
 			assertThat(executor.listFunctions(sessionId), hasItems("func1", "func2", "func3"));
-			executor.dropFunction(sessionId, String.format(dropTemplate, "", "", "func1"));
-			executor.dropFunction(sessionId, String.format(dropTemplate, "", "", "func2"));
-			executor.dropFunction(sessionId, String.format(dropTemplate, "", "", "func3"));
+			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func2"));
+			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func3"));
 			assertThat(executor.listFunctions(sessionId), not(hasItems("func1", "func2", "func3")));
 		} finally {
 			executor.closeSession(sessionId);
@@ -1287,14 +1287,14 @@ public class LocalExecutorITCase extends TestLogger {
 			// arguments: [TEMPORARY|TEMPORARY SYSTEM], [IF EXISTS], func_name, func_class
 			final String alterTemplate = "alter %s function %s %s AS %s";
 			// Test alter function.
-			executor.createFunction(sessionId, String.format(createTemplate, "", "", "func1"));
+			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
 			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
-			executor.alterFunction(sessionId, String.format(alterTemplate, "", "IF EXISTS", "`default`.func1", "'newClass'"));
+			executor.executeSql(sessionId, String.format(alterTemplate, "", "IF EXISTS", "`default`.func1", "'newClass'"));
 			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
 
 			// Test alter non temporary function with TEMPORARY keyword.
 			try {
-				executor.alterFunction(sessionId, String.format(alterTemplate, "TEMPORARY", "IF EXISTS", "`default`.func2", "'func3'"));
+				executor.executeSql(sessionId, String.format(alterTemplate, "TEMPORARY", "IF EXISTS", "`default`.func2", "'func3'"));
 				fail("unexpected exception");
 			} catch (Exception var1) {
 				assertThat(var1.getCause().getMessage(), is("Alter temporary catalog function is not supported"));

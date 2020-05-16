@@ -134,19 +134,9 @@ public interface Executor {
 	List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException;
 
 	/**
-	 * Creates a function with a DDL statement.
+	 * Executes a SQL DDL statement.
 	 */
-	void createFunction(String sessionId, String ddl) throws SqlExecutionException;
-
-	/**
-	 * Drops a function with a DDL statement.
-	 */
-	void dropFunction(String sessionId, String ddl) throws SqlExecutionException;
-
-	/**
-	 * Alters a function with a DDL statement.
-	 */
-	void alterFunction(String sessionId, String ddl) throws SqlExecutionException;
+	void executeSql(String sessionId, String ddl) throws SqlExecutionException;
 
 	/**
 	 * Lists all functions known to the executor.
