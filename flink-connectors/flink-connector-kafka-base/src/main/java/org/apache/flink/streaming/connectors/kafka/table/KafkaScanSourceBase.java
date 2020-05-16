@@ -32,7 +32,6 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -113,28 +112,6 @@ public abstract class KafkaScanSourceBase implements ScanTableSource {
 		this.startupTimestampMillis = startupTimestampMillis;
 	}
 
-	/**
-	 * Creates a generic Kafka {@link StreamTableSource}.
-	 *
-	 * @param outputDataType        Source output data type
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
-	 */
-	protected KafkaScanSourceBase(
-			DataType outputDataType,
-			String topic,
-			Properties properties,
-			ScanFormat<DeserializationSchema<RowData>> scanFormat) {
-		this(
-			outputDataType,
-			topic,
-			properties,
-			scanFormat,
-			StartupMode.GROUP_OFFSETS,
-			Collections.emptyMap(),
-			DEFAULT_STARTUP_TIMESTAMP_MILLIS);
-	}
-
 	@Override
 	public ChangelogMode getChangelogMode() {
 		return this.scanFormat.getChangelogMode();
@@ -143,28 +120,11 @@ public abstract class KafkaScanSourceBase implements ScanTableSource {
 	@Override
 	public ScanRuntimeProvider getScanRuntimeProvider(Context runtimeProviderContext) {
 		DeserializationSchema<RowData> deserializationSchema =
-				getDeserializationSchema(runtimeProviderContext);
+				this.scanFormat.createScanFormat(runtimeProviderContext, this.outputDataType);
 		// Version-specific Kafka consumer
 		FlinkKafkaConsumerBase<RowData> kafkaConsumer =
 				getKafkaConsumer(topic, properties, deserializationSchema);
-		return SourceFunctionProvider.of(kafkaConsumer, true);
-	}
-
-	/**
-	 * Returns the properties for the Kafka consumer.
-	 *
-	 * @return properties for the Kafka consumer.
-	 */
-	public Properties getProperties() {
-		return properties;
-	}
-
-	/**
-	 * Returns the deserialization schema.
-	 */
-	public DeserializationSchema<RowData> getDeserializationSchema(
-			Context runtimeProviderContext){
-		return this.scanFormat.createScanFormat(runtimeProviderContext, this.outputDataType);
+		return SourceFunctionProvider.of(kafkaConsumer, false);
 	}
 
 	@Override
@@ -233,22 +193,22 @@ public abstract class KafkaScanSourceBase implements ScanTableSource {
 		FlinkKafkaConsumerBase<RowData> kafkaConsumer =
 				createKafkaConsumer(topic, properties, deserializationSchema);
 		switch (startupMode) {
-		case EARLIEST:
-			kafkaConsumer.setStartFromEarliest();
-			break;
-		case LATEST:
-			kafkaConsumer.setStartFromLatest();
-			break;
-		case GROUP_OFFSETS:
-			kafkaConsumer.setStartFromGroupOffsets();
-			break;
-		case SPECIFIC_OFFSETS:
-			kafkaConsumer.setStartFromSpecificOffsets(specificStartupOffsets);
-			break;
-		case TIMESTAMP:
-			kafkaConsumer.setStartFromTimestamp(startupTimestampMillis);
-			break;
-		}
+			case EARLIEST:
+				kafkaConsumer.setStartFromEarliest();
+				break;
+			case LATEST:
+				kafkaConsumer.setStartFromLatest();
+				break;
+			case GROUP_OFFSETS:
+				kafkaConsumer.setStartFromGroupOffsets();
+				break;
+			case SPECIFIC_OFFSETS:
+				kafkaConsumer.setStartFromSpecificOffsets(specificStartupOffsets);
+				break;
+			case TIMESTAMP:
+				kafkaConsumer.setStartFromTimestamp(startupTimestampMillis);
+				break;
+			}
 		return kafkaConsumer;
 	}
 }

@@ -68,22 +68,6 @@ public class KafkaScanSource extends KafkaScanSourceBase {
 			startupTimestampMillis);
 	}
 
-	/**
-	 * Creates a Kafka 0.10 {@link StreamTableSource}.
-	 *
-	 * @param outputDataType Source output data type
-	 * @param topic          Kafka topic to consume
-	 * @param properties     Properties for the Kafka consumer
-	 * @param scanFormat     Scan format for decoding records from Kafka
-	 */
-	public KafkaScanSource(
-			DataType outputDataType,
-			String topic,
-			Properties properties,
-			ScanFormat<DeserializationSchema<RowData>> scanFormat) {
-		super(outputDataType, topic, properties, scanFormat);
-	}
-
 	@Override
 	protected FlinkKafkaConsumerBase<RowData> createKafkaConsumer(
 			String topic,
@@ -106,6 +90,6 @@ public class KafkaScanSource extends KafkaScanSourceBase {
 
 	@Override
 	public String asSummaryString() {
-		return "Kafka universal scan source";
+		return "Kafka";
 	}
 }

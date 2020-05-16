@@ -18,11 +18,24 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
 import org.apache.flink.streaming.connectors.kafka.Kafka010TableSink;
 import org.apache.flink.streaming.connectors.kafka.Kafka010TableSource;
 import org.apache.flink.streaming.connectors.kafka.Kafka010TableSourceSinkFactory;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.table.connector.format.ScanFormat;
+import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
+
+import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
 
 /**
  * Test for {@link Kafka010TableSource} and {@link Kafka010TableSink} created
@@ -45,12 +58,36 @@ public class Kafka010SourceSinkFactoryTest extends KafkaSourceSinkFactoryTestBas
 	}
 
 	@Override
-	protected Class<?> getExpectedScanSourceClass() {
-		return Kafka010ScanSource.class;
+	protected KafkaScanSourceBase getExpectedScanSource(
+			DataType producedDataType,
+			String topic,
+			Properties properties,
+			ScanFormat<DeserializationSchema<RowData>> scanFormat,
+			StartupMode startupMode,
+			Map<KafkaTopicPartition, Long> specificStartupOffsets,
+			long startupTimestamp) {
+		return new Kafka010ScanSource(
+				producedDataType,
+				topic,
+				properties,
+				scanFormat,
+				startupMode,
+				specificStartupOffsets,
+				startupTimestamp);
 	}
 
 	@Override
-	protected Class<?> getExpectedSinkClass() {
-		return Kafka010Sink.class;
+	protected KafkaSinkBase getExpectedSink(
+			DataType consumedDataType,
+			String topic,
+			Properties properties,
+			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+			SinkFormat<SerializationSchema<RowData>> sinkFormat) {
+		return new Kafka010Sink(
+				consumedDataType,
+				topic,
+				properties,
+				partitioner,
+				sinkFormat);
 	}
 }

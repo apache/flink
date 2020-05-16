@@ -45,7 +45,6 @@ import java.util.Set;
 
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PROPS_BOOTSTRAP_SERVERS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PROPS_GROUP_ID;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PROPS_ZK_CONNECT;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_MODE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
@@ -57,7 +56,8 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.get
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.validateTableOptions;
 
 /**
- * Factory for creating configured instances of {@link KafkaScanSourceBase}.
+ * Factory for creating configured instances of
+ * {@link KafkaScanSourceBase} and {@link KafkaSinkBase}.
  */
 public abstract class KafkaSourceSinkFactoryBase implements
 		DynamicTableSourceFactory,
@@ -74,7 +74,7 @@ public abstract class KafkaSourceSinkFactoryBase implements
 				DeserializationFormatFactory.class,
 				FactoryUtil.FORMAT);
 		// Validate the option data type.
-		helper.validateExcept(KafkaOptions.PROPERTIES);
+		helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
 		// Validate the option values.
 		validateTableOptions(tableOptions);
 
@@ -101,7 +101,7 @@ public abstract class KafkaSourceSinkFactoryBase implements
 				SerializationFormatFactory.class,
 				FactoryUtil.FORMAT);
 		// Validate the option data type.
-		helper.validateExcept(KafkaOptions.PROPERTIES);
+		helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
 		// Validate the option values.
 		validateTableOptions(tableOptions);
 
@@ -110,7 +110,7 @@ public abstract class KafkaSourceSinkFactoryBase implements
 				consumedDataType,
 				topic,
 				getKafkaProperties(context.getCatalogTable().getOptions()),
-				getFlinkKafkaPartitioner(tableOptions),
+				getFlinkKafkaPartitioner(tableOptions, context.getClassLoader()),
 				sinkFormat);
 	}
 
@@ -163,7 +163,6 @@ public abstract class KafkaSourceSinkFactoryBase implements
 	public Set<ConfigOption<?>> optionalOptions() {
 		final Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(PROPS_GROUP_ID);
-		options.add(PROPS_ZK_CONNECT);
 		options.add(SCAN_STARTUP_MODE);
 		options.add(SCAN_STARTUP_SPECIFIC_OFFSETS);
 		options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);

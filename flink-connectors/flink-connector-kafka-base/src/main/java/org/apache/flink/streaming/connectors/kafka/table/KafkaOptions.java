@@ -64,22 +64,16 @@ public class KafkaOptions {
 			.noDefaultValue()
 			.withDescription("Required consumer group in Kafka consumer, no need for Kafka producer");
 
-	public static final ConfigOption<String> PROPS_ZK_CONNECT = ConfigOptions
-			.key("properties.zookeeper.connect")
-			.stringType()
-			.noDefaultValue()
-			.withDescription("Optional ZooKeeper connection string");
-
 	// --------------------------------------------------------------------------------------------
 	// Scan specific options
 	// --------------------------------------------------------------------------------------------
 
 	public static final ConfigOption<String> SCAN_STARTUP_MODE = ConfigOptions
-			.key("scan.startup-mode")
+			.key("scan.startup.mode")
 			.stringType()
 			.defaultValue("group-offsets")
 			.withDescription("Optional startup mode for Kafka consumer, valid enumerations are "
-					+ "\"earliest-offset\", \"latest-offset\", \"group-offsets\"\n"
+					+ "\"earliest-offset\", \"latest-offset\", \"group-offsets\", \"timestamp\"\n"
 					+ "or \"specific-offsets\"");
 
 	public static final ConfigOption<String> SCAN_STARTUP_SPECIFIC_OFFSETS = ConfigOptions
@@ -91,7 +85,8 @@ public class KafkaOptions {
 	public static final ConfigOption<Long> SCAN_STARTUP_TIMESTAMP_MILLIS = ConfigOptions
 			.key("scan.startup.timestamp-millis")
 			.longType()
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("Optional timestamp used in case of \"timestamp\" startup mode");
 
 	// --------------------------------------------------------------------------------------------
 	// Sink specific options
@@ -134,7 +129,7 @@ public class KafkaOptions {
 			SINK_PARTITIONER_VALUE_ROUND_ROBIN));
 
 	// Prefix for Kafka specific properties.
-	public static final String PROPERTIES = "properties";
+	public static final String PROPERTIES_PREFIX = "properties.";
 
 	// Other keywords.
 	private static final String PARTITION = "partition";
@@ -254,10 +249,10 @@ public class KafkaOptions {
 
 		if (hasKafkaClientProperties(tableOptions)) {
 			tableOptions.keySet().stream()
-					.filter(key -> key.startsWith(PROPERTIES + '.'))
+					.filter(key -> key.startsWith(PROPERTIES_PREFIX))
 					.forEach(key -> {
 						final String value = tableOptions.get(key);
-						final String subKey = key.substring((PROPERTIES + '.').length());
+						final String subKey = key.substring((PROPERTIES_PREFIX).length());
 						kafkaProperties.put(subKey, value);
 					});
 		}
@@ -268,7 +263,9 @@ public class KafkaOptions {
 	 * The partitioner can be either "fixed", "round-robin" or a customized partitioner full class name.
 	 */
 	@SuppressWarnings("unchecked")
-	public static Optional<FlinkKafkaPartitioner<RowData>> getFlinkKafkaPartitioner(ReadableConfig tableOptions) {
+	public static Optional<FlinkKafkaPartitioner<RowData>> getFlinkKafkaPartitioner(
+			ReadableConfig tableOptions,
+			ClassLoader classLoader) {
 		return tableOptions.getOptional(SINK_PARTITIONER)
 				.flatMap((String partitioner) -> {
 					switch (partitioner) {
@@ -279,7 +276,7 @@ public class KafkaOptions {
 					// Default fallback to full class name of the partitioner.
 					default:
 						final Class<? extends FlinkKafkaPartitioner> partitionerClass =
-								getPartitionerClass(partitioner);
+								getPartitionerClass(partitioner, classLoader);
 						return Optional.of((FlinkKafkaPartitioner<RowData>) InstantiationUtil.instantiate(partitionerClass));
 					}
 				});
@@ -338,17 +335,17 @@ public class KafkaOptions {
 
 	/** Decides if the table options contains Kafka client properties that start with prefix 'properties'. */
 	private static boolean hasKafkaClientProperties(Map<String, String> tableOptions) {
-		return tableOptions.keySet().stream().anyMatch(k -> k.startsWith(PROPERTIES));
+		return tableOptions.keySet().stream().anyMatch(k -> k.startsWith(PROPERTIES_PREFIX));
 	}
 
 	/**
 	 * Returns a class value with the given class name.
 	 */
 	@SuppressWarnings("unchecked")
-	private static <T> Class<T> getPartitionerClass(String name) {
+	private static <T> Class<T> getPartitionerClass(String name, ClassLoader classLoader) {
 		final Class<?> clazz;
 		try {
-			clazz = Class.forName(name, true, Thread.currentThread().getContextClassLoader());
+			clazz = Class.forName(name, true, classLoader);
 			if (!FlinkKafkaPartitioner.class.isAssignableFrom(clazz)) {
 				throw new ValidationException(
 						String.format("Sink partitioner class '%s' should extend from the required class %s",
@@ -356,8 +353,9 @@ public class KafkaOptions {
 								FlinkKafkaPartitioner.class.getName()));
 			}
 			return (Class<T>) clazz;
-		} catch (Exception e) {
-			throw new ValidationException("Could not get class '" + name, e);
+		} catch (ClassNotFoundException e) {
+			throw new ValidationException(
+					String.format("Could not find partitioner class '%s'", name), e);
 		}
 	}
 
