@@ -28,14 +28,14 @@ import org.apache.flink.table.delegation.Parser;
  */
 public class SqlParserHelper {
 	// return the sql parser instance hold by this table evn.
-	final TableEnvironment tableEnv;
+	private final TableEnvironment tableEnv;
 
 	public SqlParserHelper() {
 		tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
 	}
 
 	/**
-	 * prepare some tables for testing
+	 * prepare some tables for testing.
 	 */
 	public void registerTables() {
 		tableEnv.executeSql("create table MyTable (a int, b bigint, c varchar(32)) " +
