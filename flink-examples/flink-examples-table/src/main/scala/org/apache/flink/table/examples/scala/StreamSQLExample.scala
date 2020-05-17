@@ -61,7 +61,7 @@ object StreamSQLExample {
       StreamTableEnvironment.create(env, settings)
     } else {
       System.err.println("The planner is incorrect. Please run 'StreamSQLExample --planner <planner>', " +
-        "where planner (it is either flink or blink, and the default is flink) indicates whether the " +
+        "where planner (it is either flink or blink, and the default is blink) indicates whether the " +
         "example uses flink planner or blink planner.")
       return
     }
