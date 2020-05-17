@@ -26,7 +26,7 @@ import java.io.IOException;
  * The {@link Bucket} uses the {@link InProgressFileWriter} to write element to a part file.
  */
 @Internal
-public interface InProgressFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
+interface InProgressFileWriter<IN, BucketID> extends PartFileInfo<BucketID> {
 
 	/**
 	 * Write a element to the part file.

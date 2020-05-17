@@ -45,7 +45,6 @@ under the License.
 		<module>flink-csv</module>
 		<module>flink-orc</module>
 		<module>flink-orc-nohive</module>
-		<module>flink-hadoop-bulk</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up

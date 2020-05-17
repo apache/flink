@@ -98,19 +98,31 @@ public class StreamingFileSink<IN>
 
 	private final long bucketCheckInterval;
 
-	private final BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder;
+	private final StreamingFileSink.BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder;
 
 	// --------------------------- runtime fields -----------------------------
 
 	private transient StreamingFileSinkHelper<IN> helper;
 
 	/**
-	 * Creates a new {@code StreamingFileSink} that writes files to the given base directory
-	 * with the give buckets properties.
+	 * Creates a new {@code StreamingFileSink} that writes files in row-based format to the given base directory.
 	 */
 	protected StreamingFileSink(
-		BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
-		long bucketCheckInterval) {
+		final RowFormatBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
+		final long bucketCheckInterval) {
+
+		Preconditions.checkArgument(bucketCheckInterval > 0L);
+
+		this.bucketsBuilder = Preconditions.checkNotNull(bucketsBuilder);
+		this.bucketCheckInterval = bucketCheckInterval;
+	}
+
+	/**
+	 * Creates a new {@code StreamingFileSink} that writes files in bulk-encoded format to the given base directory.
+	 */
+	protected StreamingFileSink(
+		final BulkFormatBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
+		final long bucketCheckInterval) {
 
 		Preconditions.checkArgument(bucketCheckInterval > 0L);
 
