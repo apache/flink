@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka;
+package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.table.descriptors.KafkaValidator;
 
@@ -24,6 +24,11 @@ import org.apache.flink.table.descriptors.KafkaValidator;
  * IT cases for Kafka 0.11 for Table API & SQL.
  */
 public class Kafka011TableITCase extends KafkaTableTestBase {
+
+	@Override
+	public String factoryIdentifier() {
+		return Kafka011DynamicTableFactory.IDENTIFIER;
+	}
 
 	@Override
 	public String kafkaVersion() {

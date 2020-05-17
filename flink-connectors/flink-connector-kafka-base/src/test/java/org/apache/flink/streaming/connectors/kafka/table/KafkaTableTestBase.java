@@ -16,48 +16,63 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka;
+package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.streaming.connectors.kafka.KafkaTestBase;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
-import org.apache.flink.types.Row;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
 /**
  * Basic Tests for Kafka connector for Table API & SQL.
  */
+@RunWith(Parameterized.class)
 public abstract class KafkaTableTestBase extends KafkaTestBase {
 
+	@Parameterized.Parameter
+	public boolean isLegacyConnector;
+
+	@Parameterized.Parameter(1)
+	public int topicID;
+
+	@Parameterized.Parameters(name = "legacy = {0}, topicId = {1}")
+	public static Object[] parameters() {
+		return new Object[][]{
+				new Object[]{true, 0},
+				new Object[]{false, 1}
+		};
+	}
+
+	public abstract String factoryIdentifier();
+
+	// Used for legacy planner.
 	public abstract String kafkaVersion();
 
 	@Test
 	public void testKafkaSourceSink() throws Exception {
-		final String topic = "tstopic";
+		final String topic = "tstopic" + topicID;
 		createTestTopic(topic, 1, 1);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(
 			env,
 			EnvironmentSettings.newInstance()
-				// watermark is only supported in blink planner
+				// Watermark is only supported in blink planner
 				.useBlinkPlanner()
 				.inStreamingMode()
 				.build()
@@ -69,55 +84,54 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		String groupId = standardProps.getProperty("group.id");
 		String bootstraps = standardProps.getProperty("bootstrap.servers");
 
-		// TODO: use DDL to register Kafka once FLINK-15282 is fixed.
-		//  we have to register into Catalog manually because it will use Calcite's ParameterScope
-		TableSchema schema = TableSchema.builder()
-			.field("computed-price", DataTypes.DECIMAL(38, 18), "price + 1.0")
-			.field("price", DataTypes.DECIMAL(38, 18))
-			.field("currency", DataTypes.STRING())
-			.field("log_ts", DataTypes.TIMESTAMP(3))
-			.field("ts", DataTypes.TIMESTAMP(3), "log_ts + INTERVAL '1' SECOND")
-			.watermark("ts", "ts", DataTypes.TIMESTAMP(3))
-			.build();
-		Map<String, String> properties = new HashMap<>();
-		properties.put("connector.type", "kafka");
-		properties.put("connector.topic", topic);
-		properties.put("connector.version", kafkaVersion());
-		properties.put("connector.properties.bootstrap.servers", bootstraps);
-		properties.put("connector.properties.group.id", groupId);
-		properties.put("connector.startup-mode", "earliest-offset");
-		properties.put("format.type", "json");
-		properties.put("update-mode", "append");
+		final String createTable;
+		if (!isLegacyConnector) {
+			createTable = String.format(
+					"create table kafka (\n" +
+					"  `computed-price` as price + 1.0,\n" +
+					"  price decimal(38, 18),\n" +
+					"  currency string,\n" +
+					"  log_ts timestamp(3),\n" +
+					"  ts as log_ts + INTERVAL '1' SECOND,\n" +
+					"  watermark for ts as ts\n" +
+					") with (\n" +
+					"  'connector' = '%s',\n" +
+					"  'topic' = '%s',\n" +
+					"  'properties.bootstrap.servers' = '%s',\n" +
+					"  'properties.group.id' = '%s',\n" +
+					"  'scan.startup.mode' = 'earliest-offset',\n" +
+					"  'format' = 'json'\n" +
+					")",
+				factoryIdentifier(),
+				topic,
+				bootstraps,
+				groupId);
+		} else {
+			createTable = String.format(
+					"create table kafka (\n" +
+					"  `computed-price` as price + 1.0,\n" +
+					"  price decimal(38, 18),\n" +
+					"  currency string,\n" +
+					"  log_ts timestamp(3),\n" +
+					"  ts as log_ts + INTERVAL '1' SECOND,\n" +
+					"  watermark for ts as ts\n" +
+					") with (\n" +
+					"  'connector.type' = 'kafka',\n" +
+					"  'connector.version' = '%s',\n" +
+					"  'connector.topic' = '%s',\n" +
+					"  'connector.properties.bootstrap.servers' = '%s',\n" +
+					"  'connector.properties.group.id' = '%s',\n" +
+					"  'connector.startup-mode' = 'earliest-offset',\n" +
+					"  'format.type' = 'json',\n" +
+					"  'update-mode' = 'append'\n" +
+					")",
+				kafkaVersion(),
+				topic,
+				bootstraps,
+				groupId);
+		}
 
-		CatalogTableImpl catalogTable = new CatalogTableImpl(
-			schema,
-			properties,
-			"comment"
-		);
-		tEnv.getCatalog(tEnv.getCurrentCatalog()).get().createTable(
-			ObjectPath.fromString(tEnv.getCurrentDatabase() + "." + "kafka"),
-			catalogTable,
-			true);
-
-		// TODO: use the following DDL instead of the preceding code to register Kafka
-//		String ddl = "CREATE TABLE kafka (\n" +
-//			"  computed-price as price + 1.0,\n" +
-//			"  price DECIMAL(38, 18),\n" +
-//			"  currency STRING,\n" +
-//			"  log_ts TIMESTAMP(3),\n" +
-//			"  ts AS log_ts + INTERVAL '1' SECOND,\n" +
-//			"  WATERMARK FOR ts AS ts\n" +
-//			") with (\n" +
-//			"  'connector.type' = 'kafka',\n" +
-//			"  'connector.topic' = '" + topic + "',\n" +
-//			"  'connector.version' = 'universal',\n" +
-//			"  'connector.properties.bootstrap.servers' = '" + bootstraps + "',\n" +
-//			"  'connector.properties.group.id' = '" + groupId + "', \n" +
-//			"  'connector.startup-mode' = 'earliest-offset',  \n" +
-//			"  'format.type' = 'json',\n" +
-//			"  'update-mode' = 'append'\n" +
-//			")";
-//		tEnv.sqlUpdate(ddl);
+		tEnv.executeSql(createTable);
 
 		String initialValues = "INSERT INTO kafka\n" +
 			"SELECT CAST(price AS DECIMAL(10, 2)), currency, CAST(ts AS TIMESTAMP(3))\n" +
@@ -140,7 +154,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 			"FROM kafka\n" +
 			"GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)";
 
-		DataStream<Row> result = tEnv.toAppendStream(tEnv.sqlQuery(query), Row.class);
+		DataStream<RowData> result = tEnv.toAppendStream(tEnv.sqlQuery(query), RowData.class);
 		TestingSinkFunction sink = new TestingSinkFunction(2);
 		result.addSink(sink).setParallelism(1);
 
@@ -156,8 +170,8 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		}
 
 		List<String> expected = Arrays.asList(
-			"2019-12-12 00:00:05.000,2019-12-12 00:00:04.004,3,50.00",
-			"2019-12-12 00:00:10.000,2019-12-12 00:00:06.006,2,5.33");
+			"+I(2019-12-12 00:00:05.000,2019-12-12 00:00:04.004,3,50.00)",
+			"+I(2019-12-12 00:00:10.000,2019-12-12 00:00:06.006,2,5.33)");
 
 		assertEquals(expected, TestingSinkFunction.rows);
 
@@ -166,7 +180,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
-	private static final class TestingSinkFunction implements SinkFunction<Row> {
+	private static final class TestingSinkFunction implements SinkFunction<RowData> {
 
 		private static final long serialVersionUID = 455430015321124493L;
 		private static List<String> rows = new ArrayList<>();
@@ -179,7 +193,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		}
 
 		@Override
-		public void invoke(Row value, Context context) throws Exception {
+		public void invoke(RowData value, Context context) throws Exception {
 			rows.add(value.toString());
 			if (rows.size() >= expectedSize) {
 				// job finish
