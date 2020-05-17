@@ -61,6 +61,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -501,8 +502,14 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		final ExecutionJobVertex vertexWithCoordinator = getJobVertex(scheduler, testVertexId);
 		assertNotNull("vertex for coordinator not found", vertexWithCoordinator);
 
-		final OperatorCoordinator coordinator = vertexWithCoordinator.getOperatorCoordinator(testOperatorId);
-		assertNotNull("vertex does not contain coordinator", coordinator);
+		final Optional<OperatorCoordinatorHolder> coordinatorOptional = vertexWithCoordinator
+				.getOperatorCoordinators()
+				.stream()
+				.filter((holder) -> holder.getOperatorId().equals(testOperatorId))
+				.findFirst();
+		assertTrue("vertex does not contain coordinator", coordinatorOptional.isPresent());
+
+		final OperatorCoordinator coordinator = coordinatorOptional.get().getCoordinator();
 		assertThat(coordinator, instanceOf(TestingOperatorCoordinator.class));
 
 		return (TestingOperatorCoordinator) coordinator;
