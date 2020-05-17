@@ -47,7 +47,6 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -974,11 +973,6 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 					return null;
 				}
 			};
-		}
-
-		@Override
-		public void setOperatorEventDispatcher(OperatorEventDispatcher operatorEventDispatcher) {
-
 		}
 
 		@Override
