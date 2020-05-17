@@ -119,7 +119,7 @@ Flink 自带的[默认 flink-conf.yaml](#flink-confyaml-中的默认配置) 文�
 
 尽管网络内存的配置参数没有发生太多变化，我们仍建议您检查其配置结果。
 网络内存的大小可能会受到其他内存部分大小变化的影响，例如总内存变化时，根据占比计算出的网络内存也可能发生变化。
-请参考[内存模型详解](mem_detail.html)。
+请参考[内存模型详解](mem_setup.html)。
 
 容器切除（Cut-Off）内存相关的配置参数（`containerized.heap-cutoff-ratio` 和 `containerized.heap-cutoff-min`）将不再对进程生效。
 
@@ -153,7 +153,7 @@ Flink 在 Mesos 上还有另一个具有同样语义的配置参数 `mesos.resou
 或 [FsStateBackend](../state/state_backends.html#fsstatebackend)），那么它同样需要使用 JVM 堆内存。
 
 Flink 现在总是会预留一部分 JVM 堆内存供框架使用（[`taskmanager.memory.framework.heap.size`](../config.html#taskmanager-memory-framework-heap-size)）。
-请参考[框架内存](mem_detail.html#框架内存)。
+请参考[框架内存](mem_setup.html#框架内存)。
 
 ## 托管内存
 
@@ -201,7 +201,7 @@ Flink 现在总是会预留一部分 JVM 堆内存供框架使用（[`taskmanage
 * 任务堆外内存（[`taskmanager.memory.task.off-heap.size`](../config.html#taskmanager-memory-task-off-heap-size)）
 * 框架堆外内存（[`taskmanager.memory.framework.off-heap.size`](../config.html#taskmanager-memory-framework-off-heap-size)）
 * JVM Metaspace（[`taskmanager.memory.jvm-metaspace.size`](../config.html#taskmanager-memory-jvm-metaspace-size)）
-* JVM 开销（请参考[内存模型详解](mem_detail.html)）
+* JVM 开销（请参考[内存模型详解](mem_setup_tm.html#detailed-memory-model)）
 
 <span class="label label-info">提示</span> JobManager 进程仍保留了容器切除内存，相关配置项和此前一样仍对 JobManager 生效。
 

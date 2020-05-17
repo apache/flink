@@ -316,7 +316,7 @@ docker-compose up -d taskmanager
 
 When the Master is notified about the new TaskManager, it schedules the tasks of the 
 recovering Job to the newly available TaskSlots. Upon restart, the tasks recover their state from
-the last successful [checkpoint]({{ site.baseurl }}/internals/stream_checkpointing.html) that was taken
+the last successful [checkpoint]({{ site.baseurl }}/training/fault_tolerance.html) that was taken
 before the failure and switch to the `RUNNING` state.
 
 The Job will quickly process the full backlog of input events (accumulated during the outage) 
@@ -806,7 +806,7 @@ You might have noticed that the *Click Event Count* application was always start
 and `--event-time` program arguments. By omitting these in the command of the *client* container in the 
 `docker-compose.yaml`, you can change the behavior of the Job.
 
-* `--checkpointing` enables [checkpoint]({{ site.baseurl }}/internals/stream_checkpointing.html), 
+* `--checkpointing` enables [checkpoint]({{ site.baseurl }}/training/fault_tolerance.html), 
 which is Flink's fault-tolerance mechanism. If you run without it and go through 
 [failure and recovery](#observing-failure--recovery), you should will see that data is actually 
 lost.
