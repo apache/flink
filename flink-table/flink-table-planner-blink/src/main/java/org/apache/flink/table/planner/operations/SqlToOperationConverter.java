@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.sql.parser.ddl.SqlAddPartitions;
 import org.apache.flink.sql.parser.ddl.SqlAddReplaceColumns;
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
 import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
@@ -38,6 +39,7 @@ import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateView;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropFunction;
+import org.apache.flink.sql.parser.ddl.SqlDropPartitions;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
@@ -84,6 +86,7 @@ import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
@@ -101,6 +104,7 @@ import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
+import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
@@ -126,6 +130,7 @@ import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -363,6 +368,23 @@ public class SqlToOperationConverter {
 					(SqlChangeColumn) sqlAlterTable,
 					(CatalogTable) baseTable,
 					flinkPlanner.getOrCreateSqlValidator());
+		} else if (sqlAlterTable instanceof SqlAddPartitions) {
+			List<CatalogPartitionSpec> specs = new ArrayList<>();
+			List<CatalogPartition> partitions = new ArrayList<>();
+			SqlAddPartitions addPartitions = (SqlAddPartitions) sqlAlterTable;
+			for (int i = 0; i < addPartitions.getPartSpecs().size(); i++) {
+				specs.add(new CatalogPartitionSpec(addPartitions.getPartitionKVs(i)));
+				Map<String, String> props = OperationConverterUtils.extractProperties(addPartitions.getPartProps().get(i));
+				partitions.add(new CatalogPartitionImpl(props, null));
+			}
+			return new AddPartitionsOperation(tableIdentifier, addPartitions.ifNotExists(), specs, partitions);
+		} else if (sqlAlterTable instanceof SqlDropPartitions) {
+			SqlDropPartitions dropPartitions = (SqlDropPartitions) sqlAlterTable;
+			List<CatalogPartitionSpec> specs = new ArrayList<>();
+			for (int i = 0; i < dropPartitions.getPartSpecs().size(); i++) {
+				specs.add(new CatalogPartitionSpec(dropPartitions.getPartitionKVs(i)));
+			}
+			return new DropPartitionsOperation(tableIdentifier, dropPartitions.ifExists(), specs);
 		} else {
 			throw new ValidationException(
 					String.format("[%s] needs to implement",

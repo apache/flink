@@ -24,6 +24,7 @@
   # Please keep the import classes in alphabetical order if new class is added.
   imports: [
     "org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAddHivePartitions"
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseLocation"
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner"
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseProps"
@@ -65,6 +66,7 @@
     "org.apache.flink.sql.parser.ddl.SqlCreateView"
     "org.apache.flink.sql.parser.ddl.SqlDropDatabase"
     "org.apache.flink.sql.parser.ddl.SqlDropFunction"
+    "org.apache.flink.sql.parser.ddl.SqlDropPartitions"
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlDropView"
     "org.apache.flink.sql.parser.ddl.SqlTableColumn"

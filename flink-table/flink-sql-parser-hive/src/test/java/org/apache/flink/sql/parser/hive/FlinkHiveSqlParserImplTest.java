@@ -383,4 +383,31 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"SELECT `C1`, `C2`\n" +
 						"FROM `TBL`");
 	}
+
+	@Test
+	public void testAddPartition() {
+		sql("alter table tbl add partition (p1=1,p2='a') location '/part1/location'")
+				.ok("ALTER TABLE `TBL`\n" +
+						"ADD\n" +
+						"PARTITION (`P1` = 1, `P2` = 'a') WITH ('hive.location-uri' = '/part1/location')");
+		sql("alter table tbl add if not exists partition (p=1) partition (p=2) location '/part2/location'")
+				.ok("ALTER TABLE `TBL`\n" +
+						"ADD IF NOT EXISTS\n" +
+						"PARTITION (`P` = 1)\n" +
+						"PARTITION (`P` = 2) WITH ('hive.location-uri' = '/part2/location')");
+	}
+
+	@Test
+	public void testDropPartition() {
+		sql("alter table tbl drop if exists partition (p=1)")
+				.ok("ALTER TABLE `TBL`\n" +
+						"DROP IF EXISTS\n" +
+						"PARTITION (`P` = 1)");
+		sql("alter table tbl drop partition (p1='a',p2=1), partition(p1='b',p2=2)")
+				.ok("ALTER TABLE `TBL`\n" +
+						"DROP\n" +
+						"PARTITION (`P1` = 'a', `P2` = 1)\n" +
+						"PARTITION (`P1` = 'b', `P2` = 2)");
+		// TODO: support IGNORE PROTECTION, PURGE
+	}
 }

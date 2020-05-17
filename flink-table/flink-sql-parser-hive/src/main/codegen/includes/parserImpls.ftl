@@ -1136,10 +1136,30 @@ SqlAlterTable SqlAlterTable() :
             }
         )
     |
-        <ADD> <COLUMNS>
+        <ADD>
+        (
+            <COLUMNS>
+            {
+                EnsureAlterTableOnly(partitionSpec, "Add columns");
+                return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, false);
+            }
+        |
+            [ <IF> <NOT> <EXISTS> { ifNotExists = true; } ]
+            {
+                EnsureAlterTableOnly(partitionSpec, "Add partitions");
+                return SqlAddHivePartitions(startPos, tableIdentifier, ifNotExists);
+            }
+        )
         {
             EnsureAlterTableOnly(partitionSpec, "Add columns");
             return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, false);
+        }
+    |
+        <DROP>
+        [ <IF> <EXISTS> { ifExists = true; } ]
+        {
+            EnsureAlterTableOnly(partitionSpec, "Drop partitions");
+            return SqlDropPartitions(startPos, tableIdentifier, ifExists);
         }
     |
         <REPLACE> <COLUMNS>
@@ -1367,4 +1387,61 @@ SqlAlterView SqlAlterView() :
         return new SqlAlterViewAs(startPos.plus(getPos()), viewName, newQuery);
       }
   )
+}
+
+/**
+ * Hive syntax:
+ *
+ * ALTER TABLE table_name ADD [IF NOT EXISTS]
+ *     PARTITION partition_spec [LOCATION 'location'][PARTITION partition_spec [LOCATION 'location']][...];
+ */
+SqlAlterTable SqlAddHivePartitions(SqlParserPos startPos, SqlIdentifier tableIdentifier, boolean ifNotExists) :
+{
+  List<SqlNodeList> partSpecs = new ArrayList();
+  List<SqlCharStringLiteral> partLocations = new ArrayList();
+  SqlNodeList partSpec;
+  SqlCharStringLiteral partLocation;
+}
+{
+  (
+    <PARTITION>
+    {
+      partSpec = new SqlNodeList(getPos());
+      partLocation = null;
+      PartitionSpecCommaList(new SqlNodeList(getPos()), partSpec);
+    }
+    [ <LOCATION> <QUOTED_STRING> { partLocation = createStringLiteral(token.image, getPos()); } ]
+    { partSpecs.add(partSpec); partLocations.add(partLocation); }
+  )+
+  { return new SqlAddHivePartitions(startPos.plus(getPos()), tableIdentifier, ifNotExists, partSpecs, partLocations); }
+}
+
+/**
+ * Hive syntax:
+ *
+ * ALTER TABLE table_name DROP [IF EXISTS] PARTITION partition_spec[, PARTITION partition_spec, ...]
+ *    [IGNORE PROTECTION] [PURGE];
+ */
+SqlAlterTable SqlDropPartitions(SqlParserPos startPos, SqlIdentifier tableIdentifier, boolean ifExists) :
+{
+  List<SqlNodeList> partSpecs = new ArrayList();
+  SqlNodeList partSpec;
+}
+{
+  <PARTITION>
+  {
+    partSpec = new SqlNodeList(getPos());
+    PartitionSpecCommaList(new SqlNodeList(getPos()), partSpec);
+    partSpecs.add(partSpec);
+  }
+  (
+    <COMMA>
+    <PARTITION>
+    {
+      partSpec = new SqlNodeList(getPos());
+      PartitionSpecCommaList(new SqlNodeList(getPos()), partSpec);
+      partSpecs.add(partSpec);
+    }
+  )*
+  { return new SqlDropPartitions(startPos.plus(getPos()), tableIdentifier, ifExists, partSpecs); }
 }
