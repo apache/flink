@@ -24,7 +24,6 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -60,7 +59,6 @@ import org.junit.Test;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -302,8 +300,7 @@ public class HiveDialectTest {
 
 		// add/replace columns cascade
 		tableEnv.executeSql("create table tbl2 (x int) partitioned by (dt date,id bigint)");
-		ObjectPath tablePath2 = new ObjectPath("default", "tbl2");
-		// TODO: use DDL to add partitions once we support it
+		tableEnv.executeSql("alter table tbl2 add partition (dt='2020-01-23',id=1) partition (dt='2020-04-24',id=2)");
 		CatalogPartitionSpec partitionSpec1 = new CatalogPartitionSpec(new LinkedHashMap<String, String>() {{
 			put("dt", "2020-01-23");
 			put("id", "1");
@@ -312,9 +309,8 @@ public class HiveDialectTest {
 			put("dt", "2020-04-24");
 			put("id", "2");
 		}});
-		hiveCatalog.createPartition(tablePath2, partitionSpec1, new CatalogPartitionImpl(Collections.emptyMap(), null), false);
-		hiveCatalog.createPartition(tablePath2, partitionSpec2, new CatalogPartitionImpl(Collections.emptyMap(), null), false);
 		tableEnv.executeSql("alter table tbl2 replace columns (ti tinyint,d decimal) cascade");
+		ObjectPath tablePath2 = new ObjectPath("default", "tbl2");
 		hiveTable = hiveCatalog.getHiveTable(tablePath2);
 		Partition hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec1);
 		assertEquals(2, hivePartition.getSd().getColsSize());
@@ -344,7 +340,7 @@ public class HiveDialectTest {
 	@Test
 	public void testAlterPartition() throws Exception {
 		tableEnv.executeSql("create table tbl (x tinyint,y string) partitioned by (p1 bigint,p2 date)");
-		// TODO: use DDL to add partitions once we support it
+		tableEnv.executeSql("alter table tbl add partition (p1=1000,p2='2020-05-01') partition (p1=2000,p2='2020-01-01')");
 		CatalogPartitionSpec spec1 = new CatalogPartitionSpec(new LinkedHashMap<String, String>() {{
 			put("p1", "1000");
 			put("p2", "2020-05-01");
@@ -354,8 +350,6 @@ public class HiveDialectTest {
 			put("p2", "2020-01-01");
 		}});
 		ObjectPath tablePath = new ObjectPath("default", "tbl");
-		hiveCatalog.createPartition(tablePath, spec1, new CatalogPartitionImpl(Collections.emptyMap(), null), false);
-		hiveCatalog.createPartition(tablePath, spec2, new CatalogPartitionImpl(Collections.emptyMap(), null), false);
 
 		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
 
@@ -436,6 +430,29 @@ public class HiveDialectTest {
 		List<Row> databases = Lists.newArrayList(tableEnv.executeSql("show databases").collect());
 		assertEquals(1, databases.size());
 		assertEquals(DEFAULT_BUILTIN_DATABASE, databases.get(0).toString());
+	}
+
+	@Test
+	public void testAddDropPartitions() throws Exception {
+		tableEnv.executeSql("create table tbl (x int,y binary) partitioned by (dt date,country string)");
+		tableEnv.executeSql("alter table tbl add partition (dt='2020-04-30',country='china') partition (dt='2020-04-30',country='us')");
+
+		ObjectPath tablePath = new ObjectPath("default", "tbl");
+		assertEquals(2, hiveCatalog.listPartitions(tablePath).size());
+
+		String partLocation = warehouse + "/part3_location";
+		tableEnv.executeSql(String.format(
+				"alter table tbl add partition (dt='2020-05-01',country='belgium') location '%s'", partLocation));
+		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
+		CatalogPartitionSpec spec = new CatalogPartitionSpec(new LinkedHashMap<String, String>() {{
+			put("dt", "2020-05-01");
+			put("country", "belgium");
+		}});
+		Partition hivePartition = hiveCatalog.getHivePartition(hiveTable, spec);
+		assertEquals(partLocation, locationPath(hivePartition.getSd().getLocation()));
+
+		tableEnv.executeSql("alter table tbl drop partition (dt='2020-04-30',country='china'),partition (dt='2020-05-01',country='belgium')");
+		assertEquals(1, hiveCatalog.listPartitions(tablePath).size());
 	}
 
 	private static String locationPath(String locationURI) throws URISyntaxException {
