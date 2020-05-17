@@ -39,6 +39,8 @@ import static org.junit.Assert.fail;
  */
 public class ChannelStateWriteRequestExecutorImplTest {
 
+	private static final String TASK_NAME = "test task";
+
 	@Test(expected = IllegalStateException.class)
 	public void testCloseAfterSubmit() throws Exception {
 		testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submit);
@@ -61,7 +63,7 @@ public class ChannelStateWriteRequestExecutorImplTest {
 
 	private void testCloseAfterSubmit(BiConsumerWithException<ChannelStateWriteRequestExecutor, ChannelStateWriteRequest, Exception> requestFun) throws Exception {
 		WorkerClosingDeque closingDeque = new WorkerClosingDeque();
-		ChannelStateWriteRequestExecutorImpl worker = new ChannelStateWriteRequestExecutorImpl(NO_OP, closingDeque);
+		ChannelStateWriteRequestExecutorImpl worker = new ChannelStateWriteRequestExecutorImpl(TASK_NAME, NO_OP, closingDeque);
 		closingDeque.setWorker(worker);
 		TestWriteRequest request = new TestWriteRequest();
 		requestFun.accept(worker, request);
@@ -73,7 +75,7 @@ public class ChannelStateWriteRequestExecutorImplTest {
 		TestWriteRequest request = new TestWriteRequest();
 		LinkedBlockingDeque<ChannelStateWriteRequest> deque = new LinkedBlockingDeque<>();
 		try {
-			submitAction.accept(new ChannelStateWriteRequestExecutorImpl(NO_OP, deque), request);
+			submitAction.accept(new ChannelStateWriteRequestExecutorImpl(TASK_NAME, NO_OP, deque), request);
 		} catch (IllegalStateException e) {
 			// expected: executor not started;
 			return;
@@ -91,7 +93,7 @@ public class ChannelStateWriteRequestExecutorImplTest {
 		LinkedBlockingDeque<ChannelStateWriteRequest> deque = new LinkedBlockingDeque<>();
 		deque.add(request);
 		TestRequestDispatcher requestProcessor = new TestRequestDispatcher();
-		ChannelStateWriteRequestExecutorImpl worker = new ChannelStateWriteRequestExecutorImpl(requestProcessor, deque);
+		ChannelStateWriteRequestExecutorImpl worker = new ChannelStateWriteRequestExecutorImpl(TASK_NAME, requestProcessor, deque);
 
 		worker.close();
 		worker.run();
@@ -105,7 +107,7 @@ public class ChannelStateWriteRequestExecutorImplTest {
 	public void testIgnoresInterruptsWhileRunning() throws Exception {
 		TestRequestDispatcher requestProcessor = new TestRequestDispatcher();
 		LinkedBlockingDeque<ChannelStateWriteRequest> deque = new LinkedBlockingDeque<>();
-		try (ChannelStateWriteRequestExecutorImpl worker = new ChannelStateWriteRequestExecutorImpl(requestProcessor, deque)) {
+		try (ChannelStateWriteRequestExecutorImpl worker = new ChannelStateWriteRequestExecutorImpl(TASK_NAME, requestProcessor, deque)) {
 			worker.start();
 			worker.getThread().interrupt();
 			worker.submit(new TestWriteRequest());
@@ -119,7 +121,7 @@ public class ChannelStateWriteRequestExecutorImplTest {
 	@Test
 	public void testCanBeClosed() throws IOException {
 		TestRequestDispatcher requestProcessor = new TestRequestDispatcher();
-		try (ChannelStateWriteRequestExecutorImpl worker = new ChannelStateWriteRequestExecutorImpl(requestProcessor)) {
+		try (ChannelStateWriteRequestExecutorImpl worker = new ChannelStateWriteRequestExecutorImpl(TASK_NAME, requestProcessor)) {
 			worker.start();
 		}
 	}
@@ -134,7 +136,7 @@ public class ChannelStateWriteRequestExecutorImplTest {
 			}
 		};
 		LinkedBlockingDeque<ChannelStateWriteRequest> deque = new LinkedBlockingDeque<>(Arrays.asList(new TestWriteRequest()));
-		ChannelStateWriteRequestExecutorImpl worker = new ChannelStateWriteRequestExecutorImpl(throwingRequestProcessor, deque);
+		ChannelStateWriteRequestExecutorImpl worker = new ChannelStateWriteRequestExecutorImpl(TASK_NAME, throwingRequestProcessor, deque);
 		worker.run();
 		try {
 			worker.close();

@@ -46,6 +46,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class ChannelStateWriterImplTest {
 	private static final long CHECKPOINT_ID = 42L;
+	private static final String TASK_NAME = "test";
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testAddEventBuffer() throws Exception {
@@ -122,7 +123,11 @@ public class ChannelStateWriterImplTest {
 	public void testBuffersRecycledOnError() throws Exception {
 		unwrappingError(TestException.class, () -> {
 			NetworkBuffer buffer = getBuffer();
-			try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl(new ConcurrentHashMap<>(), failingWorker(), 5)) {
+			try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl(
+					TASK_NAME,
+					new ConcurrentHashMap<>(),
+					failingWorker(),
+					5)) {
 				writer.open();
 				callAddInputData(writer, buffer);
 			} finally {
@@ -179,7 +184,7 @@ public class ChannelStateWriterImplTest {
 	@Test(expected = TestException.class)
 	public void testRethrowOnNextCall() throws Exception {
 		SyncChannelStateWriteRequestExecutor worker = new SyncChannelStateWriteRequestExecutor();
-		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(new ConcurrentHashMap<>(), worker, 5);
+		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(TASK_NAME, new ConcurrentHashMap<>(), worker, 5);
 		writer.open();
 		worker.setThrown(new TestException());
 		unwrappingError(TestException.class, () -> callStart(writer));
@@ -203,7 +208,7 @@ public class ChannelStateWriterImplTest {
 	@Test(expected = IllegalStateException.class)
 	public void testStartNotOpened() throws Exception {
 		unwrappingError(IllegalStateException.class, () -> {
-			try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl(getStreamFactoryFactory())) {
+			try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl(TASK_NAME, getStreamFactoryFactory())) {
 				callStart(writer);
 			}
 		});
@@ -269,7 +274,7 @@ public class ChannelStateWriterImplTest {
 	private void runWithSyncWorker(BiConsumerWithException<ChannelStateWriter, SyncChannelStateWriteRequestExecutor, Exception> testFn) throws Exception {
 		try (
 				SyncChannelStateWriteRequestExecutor worker = new SyncChannelStateWriteRequestExecutor();
-				ChannelStateWriterImpl writer = new ChannelStateWriterImpl(new ConcurrentHashMap<>(), worker, 5)
+				ChannelStateWriterImpl writer = new ChannelStateWriterImpl(TASK_NAME, new ConcurrentHashMap<>(), worker, 5)
 		) {
 			writer.open();
 			testFn.accept(writer, worker);
@@ -278,7 +283,7 @@ public class ChannelStateWriterImplTest {
 	}
 
 	private ChannelStateWriterImpl openWriter() {
-		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(getStreamFactoryFactory());
+		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(TASK_NAME, getStreamFactoryFactory());
 		writer.open();
 		return writer;
 	}
