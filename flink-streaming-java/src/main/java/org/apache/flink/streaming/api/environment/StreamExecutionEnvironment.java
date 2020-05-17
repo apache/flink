@@ -1613,6 +1613,7 @@ public class StreamExecutionEnvironment {
 	 * 		type of the returned stream
 	 * @return the data stream constructed
 	 */
+	@PublicEvolving
 	public <OUT> DataStreamSource<OUT> continuousSource(Source<OUT, ?, ?> source, String sourceName) {
 		return continuousSource(source, sourceName, null);
 	}
@@ -1630,6 +1631,7 @@ public class StreamExecutionEnvironment {
 	 * 		the user defined type information for the stream
 	 * @return the data stream constructed
 	 */
+	@PublicEvolving
 	public <OUT> DataStreamSource<OUT> continuousSource(
 			Source<OUT, ?, ?> source,
 			String sourceName,
