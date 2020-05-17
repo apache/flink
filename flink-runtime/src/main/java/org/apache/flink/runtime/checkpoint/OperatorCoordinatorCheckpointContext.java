@@ -24,51 +24,41 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * An {@link OperatorCoordinator} and its contextual information needed to trigger and
  * acknowledge a checkpoint.
  */
-public final class OperatorCoordinatorCheckpointContext {
+public interface OperatorCoordinatorCheckpointContext {
 
-	private final OperatorCoordinator coordinator;
+	// ------------------------------------------------------------------------
+	//  properties
+	// ------------------------------------------------------------------------
 
-	private final OperatorID operatorId;
+	OperatorCoordinator coordinator();
 
-	private final int maxParallelism;
+	OperatorID operatorId();
 
-	private final int currentParallelism;
+	int maxParallelism();
 
-	public OperatorCoordinatorCheckpointContext(
-			OperatorCoordinator coordinator,
-			OperatorID operatorId,
-			int maxParallelism,
-			int currentParallelism) {
+	int currentParallelism();
 
-		this.coordinator = checkNotNull(coordinator);
-		this.operatorId = checkNotNull(operatorId);
-		this.maxParallelism = maxParallelism;
-		this.currentParallelism = currentParallelism;
-	}
+	// ------------------------------------------------------------------------
+	//  checkpoint triggering callbacks
+	// ------------------------------------------------------------------------
 
-	public OperatorCoordinator coordinator() {
-		return coordinator;
-	}
+	void onCallTriggerCheckpoint(long checkpointId);
 
-	public OperatorID operatorId() {
-		return operatorId;
-	}
+	void onCheckpointStateFutureComplete(long checkpointId);
 
-	public int maxParallelism() {
-		return maxParallelism;
-	}
+	void afterSourceBarrierInjection(long checkpointId);
 
-	public int currentParallelism() {
-		return currentParallelism;
-	}
+	void abortCurrentTriggering();
 
-	public static Collection<OperatorID> getIds(Collection<OperatorCoordinatorCheckpointContext> infos) {
+	// ------------------------------------------------------------------------
+	//  utils
+	// ------------------------------------------------------------------------
+
+	static Collection<OperatorID> getIds(Collection<OperatorCoordinatorCheckpointContext> infos) {
 		return infos.stream()
 			.map(OperatorCoordinatorCheckpointContext::operatorId)
 			.collect(Collectors.toList());
