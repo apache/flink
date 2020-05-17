@@ -226,6 +226,7 @@ object FlinkStreamRuleSets {
     */
   private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
     // scan optimization
+    PushProjectIntoTableSourceScanRule.INSTANCE,
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
 

@@ -25,12 +25,16 @@ import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.planner.factories.TestProjectableValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit._
+
+import scala.collection.Seq
 
 class CalcITCase extends StreamingTestBase {
 
@@ -282,5 +286,75 @@ class CalcITCase extends StreamingTestBase {
     sink.getAppendResults.foreach( result =>
       assertEquals(expected, result)
     )
+  }
+
+  @Test
+  def testSimpleProject(): Unit = {
+    val myTableDataId = TestProjectableValuesTableFactory.registerData(TestData.smallData3)
+    val ddl =
+      s"""
+         |CREATE TABLE SimpleTable (
+         |  a int,
+         |  b bigint,
+         |  c string
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin
+    tEnv.executeSql(ddl)
+
+    val result = tEnv.sqlQuery( "select a, c from SimpleTable").toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("1,Hi","2,Hello", "3,Hello world")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testNestedProject(): Unit = {
+    val data = Seq(
+      row(1, row(row("HI", 11), row(111, true)), row("hi", 1111), "tom"),
+      row(2, row(row("HELLO", 22), row(222, false)), row("hello", 2222), "mary"),
+      row(3, row(row("HELLO WORLD", 33), row(333, true)), row("hello world", 3333), "benji")
+    )
+    val myTableDataId = TestProjectableValuesTableFactory.registerData(data)
+    val ddl =
+      s"""
+         |CREATE TABLE NestedTable (
+         |  id int,
+         |  deepNested row<nested1 row<name string, `value` int>,
+         |                 nested2 row<num int, flag boolean>>,
+         |  nested row<name string, `value` int>,
+         |  name string
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'nested-projection-supported' = 'false',
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin
+    tEnv.executeSql(ddl)
+
+    val sqlQuery =
+      """
+        |select id,
+        |    deepNested.nested1.name AS nestedName,
+        |    nested.`value` AS nestedValue,
+        |    deepNested.nested2.flag AS nestedFlag,
+        |    deepNested.nested2.num AS nestedNum
+        |from NestedTable
+        |""".stripMargin
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected =
+      List("1,HI,1111,true,111","2,HELLO,2222,false,222", "3,HELLO WORLD,3333,true,333")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

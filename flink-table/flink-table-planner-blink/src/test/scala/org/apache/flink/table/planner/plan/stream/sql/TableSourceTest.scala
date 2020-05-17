@@ -18,92 +18,50 @@
 
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
-import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.utils._
-import org.apache.flink.types.Row
-import org.junit.{Before, Test}
+
+import org.junit.Test
 
 class TableSourceTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
-  private val tableSchema = TableSchema.builder().fields(
-    Array("a", "b", "c"),
-    Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
-
-  @Before
-  def setup(): Unit = {
-    TestFilterableTableSource.createTemporaryTable(
-      util.tableEnv,
-      TestFilterableTableSource.defaultSchema,
-      "FilterableTable")
-
-    TestPartitionableSourceFactory.createTemporaryTable(util.tableEnv, "PartitionableTable", false)
-  }
-
-  @Test
-  def testBoundedStreamTableSource(): Unit = {
-    TestTableSource.createTemporaryTable(util.tableEnv, isBounded = true, tableSchema, "MyTable")
-    util.verifyPlan("SELECT * FROM MyTable")
-  }
-
-  @Test
-  def testUnboundedStreamTableSource(): Unit = {
-    TestTableSource.createTemporaryTable(util.tableEnv, isBounded = false, tableSchema, "MyTable")
-    util.verifyPlan("SELECT * FROM MyTable")
-  }
-
-  @Test
-  def testTableSourceWithLongRowTimeField(): Unit = {
-    val tableSchema = new TableSchema(
-      Array("id", "rowtime", "val", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "rowtime", "val", "name"))
-
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "rowTimeT",
-      new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
-
-    util.verifyPlan("SELECT rowtime, id, name, val FROM rowTimeT")
-  }
-
   @Test
   def testTableSourceWithTimestampRowTimeField(): Unit = {
-    val tableSchema = new TableSchema(
-      Array("id", "rowtime", "val", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.STRING)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "rowtime", "val", "name"))
-
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "rowTimeT",
-      new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
+    val ddl =
+      s"""
+         |CREATE TABLE rowTimeT (
+         |  id int,
+         |  rowtime timestamp(3),
+         |  val bigint,
+         |  name varchar(32),
+         |  watermark for rowtime as rowtime
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
 
     util.verifyPlan("SELECT rowtime, id, name, val FROM rowTimeT")
   }
 
   @Test
   def testRowTimeTableSourceGroupWindow(): Unit = {
-    val tableSchema = new TableSchema(
-      Array("id", "rowtime", "val", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.STRING)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "rowtime", "val", "name"))
-
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "rowTimeT",
-      new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
+    val ddl =
+      s"""
+         |CREATE TABLE rowTimeT (
+         |  id int,
+         |  rowtime timestamp(3),
+         |  val bigint,
+         |  name varchar(32),
+         |  watermark for rowtime as rowtime
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
 
     val sqlQuery =
       """
@@ -119,150 +77,143 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testProcTimeTableSourceSimple(): Unit = {
-    val tableSchema = new TableSchema(
-      Array("id", "pTime", "val", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "val", "name"))
-
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "procTimeT",
-      new TestTableSourceWithTime[Row](false, tableSchema, returnType, Seq(), proctime = "pTime"))
+    val ddl =
+      s"""
+         |CREATE TABLE procTimeT (
+         |  id int,
+         |  val bigint,
+         |  name varchar(32),
+         |  pTime as PROCTIME(),
+         |  watermark for pTime as pTime
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
 
     util.verifyPlan("SELECT pTime, id, name, val FROM procTimeT")
   }
 
   @Test
   def testProjectWithRowtimeProctime(): Unit = {
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.STRING, Types.LONG, Types.LONG)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "name", "val", "rtime"))
-
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |  id int,
+         |  rtime timestamp(3),
+         |  val bigint,
+         |  name varchar(32),
+         |  ptime as PROCTIME(),
+         |  watermark for ptime as ptime
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
 
     util.verifyPlan("SELECT name, val, id FROM T")
   }
 
   @Test
   def testProjectWithoutRowtime(): Unit = {
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.STRING, Types.LONG, Types.LONG)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "name", "val", "rtime"))
-
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |  id int,
+         |  rtime timestamp(3),
+         |  val bigint,
+         |  name varchar(32),
+         |  ptime as PROCTIME(),
+         |  watermark for rtime as rtime
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
 
     util.verifyPlan("SELECT ptime, name, val, id FROM T")
   }
 
   def testProjectWithoutProctime(): Unit = {
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "rtime", "val", "name"))
-
-    val util = streamTestUtil()
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |  id int,
+         |  rtime timestamp(3),
+         |  val bigint,
+         |  name varchar(32),
+         |  ptime as PROCTIME(),
+         |  watermark for rtime as rtime
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
 
     util.verifyPlan("select name, val, rtime, id from T")
   }
 
   def testProjectOnlyProctime(): Unit = {
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "rtime", "val", "name"))
-
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |  id int,
+         |  rtime timestamp(3),
+         |  val bigint,
+         |  name varchar(32),
+         |  ptime as PROCTIME(),
+         |  watermark for ptime as ptime
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
 
     util.verifyPlan("SELECT ptime FROM T")
   }
 
   def testProjectOnlyRowtime(): Unit = {
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "rtime", "val", "name"))
-
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(false, tableSchema, returnType, Seq(), "rtime", "ptime"))
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |  id int,
+         |  rtime timestamp(3),
+         |  val bigint,
+         |  name varchar(32),
+         |  ptime as PROCTIME(),
+         |  watermark for rtime as rtime
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
 
     util.verifyPlan("SELECT rtime FROM T")
   }
 
   @Test
-  def testProjectWithMapping(): Unit = {
-    val tableSchema = new TableSchema(
-      Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.LONG, Types.INT, Types.STRING, Types.LONG)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("p-rtime", "p-id", "p-name", "p-val"))
-    val mapping = Map("rtime" -> "p-rtime", "id" -> "p-id", "val" -> "p-val", "name" -> "p-name")
-
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(
-        false, tableSchema, returnType, Seq(), "rtime", "ptime", mapping))
-
-    util.verifyPlan("SELECT name, rtime, val FROM T")
-  }
-
-  @Test
   def testNestedProject(): Unit = {
-    val nested1 = new RowTypeInfo(
-      Array(Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
-      Array("name", "value")
-    )
-
-    val nested2 = new RowTypeInfo(
-      Array(Types.INT, Types.BOOLEAN).asInstanceOf[Array[TypeInformation[_]]],
-      Array("num", "flag")
-    )
-
-    val deepNested = new RowTypeInfo(
-      Array(nested1, nested2).asInstanceOf[Array[TypeInformation[_]]],
-      Array("nested1", "nested2")
-    )
-
-    val tableSchema = new TableSchema(
-      Array("id", "deepNested", "nested", "name"),
-      Array(Types.INT, deepNested, nested1, Types.STRING))
-
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "deepNested", "nested", "name"))
-
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestNestedProjectableTableSource(false, tableSchema, returnType, Seq()))
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |  id int,
+         |  deepNested row<nested1 row<name string, `value` int>,
+         |                 nested2 row<num int, flag boolean>>,
+         |  nested row<name string, `value` int>,
+         |  name string
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'nested-projection-supported' = 'false',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
 
     val sqlQuery =
       """
@@ -278,106 +229,18 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testProjectWithoutInputRef(): Unit = {
-    val tableSchema = new TableSchema(Array("id", "name"), Array(Types.INT, Types.STRING))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "name"))
-
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
-      "T",
-      new TestProjectableTableSource(false, tableSchema, returnType, Seq(), null, null))
+    val ddl =
+      s"""
+         |CREATE TABLE T (
+         |  id int,
+         |  name varchar(32)
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'bounded' = 'false'
+         |)
+       """.stripMargin
+    util.tableEnv.executeSql(ddl)
 
     util.verifyPlan("SELECT COUNT(1) FROM T")
-  }
-
-  @Test
-  def testFilterCanPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2")
-  }
-
-  @Test
-  def testFilterCannotPushDown(): Unit = {
-    // TestFilterableTableSource only accept predicates with `amount`
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE price > 10")
-  }
-
-  @Test
-  def testFilterPartialPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND price > 10")
-  }
-
-  @Test
-  def testFilterFullyPushDown(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND amount < 10")
-  }
-
-  @Test
-  def testFilterCannotPushDown2(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR price > 10")
-  }
-
-  @Test
-  def testFilterCannotPushDown3(): Unit = {
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 OR amount < 10")
-  }
-
-  @Test
-  def testFilterPushDownUnconvertedExpression(): Unit = {
-    val sqlQuery =
-      """
-        |SELECT * FROM FilterableTable WHERE
-        |    amount > 2 AND id < 100 AND CAST(amount AS BIGINT) > 10
-      """.stripMargin
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
-  def testFilterPushDownWithUdf(): Unit = {
-    util.addFunction("myUdf", Func1)
-    util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
-  }
-
-  @Test
-  def testPartitionTableSource(): Unit = {
-    util.verifyPlan("SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
-  }
-
-  @Test
-  def testPartitionTableSourceWithUdf(): Unit = {
-    util.addFunction("MyUdf", Func1)
-    util.verifyPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
-  }
-
-  @Test
-  def testTimeLiteralExpressionPushDown(): Unit = {
-    val schema = TableSchema.builder()
-      .field("id", DataTypes.INT)
-      .field("dv", DataTypes.DATE)
-      .field("tv", DataTypes.TIME)
-      .field("tsv", DataTypes.TIMESTAMP(3))
-      .build()
-
-    val row = new Row(4)
-    row.setField(0, 1)
-    row.setField(1, DateTimeTestUtil.localDate("2017-01-23"))
-    row.setField(2, DateTimeTestUtil.localTime("14:23:02"))
-    row.setField(3, DateTimeTestUtil.localDateTime("2017-01-24 12:45:01.234"))
-
-    TestFilterableTableSource.createTemporaryTable(
-      util.tableEnv,
-      schema,
-      "FilterableTable1",
-      isBounded = false,
-      List(row),
-      List("dv", "tv", "tsv"))
-
-    val sqlQuery =
-      s"""
-         |SELECT id FROM FilterableTable1 WHERE
-         |  tv > TIME '14:25:02' AND
-         |  dv > DATE '2017-02-03' AND
-         |  tsv > TIMESTAMP '2017-02-03 14:25:02.000'
-      """.stripMargin
-    util.verifyPlan(sqlQuery)
   }
 }
