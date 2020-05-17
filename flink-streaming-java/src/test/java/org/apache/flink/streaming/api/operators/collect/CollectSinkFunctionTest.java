@@ -408,7 +408,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 	}
 
 	@SuppressWarnings("unchecked")
-	private Tuple2<Long, CollectCoordinationResponse> getAccumualtorResults() throws Exception {
+	private Tuple2<Long, CollectCoordinationResponse<Integer>> getAccumualtorResults() throws Exception {
 		Accumulator accumulator = runtimeContext.getAccumulator(ACCUMULATOR_NAME);
 		ArrayList<byte[]> accLocalValue = ((SerializedListAccumulator) accumulator).getLocalValue();
 		List<byte[]> serializedResults =
@@ -439,15 +439,14 @@ public class CollectSinkFunctionTest extends TestLogger {
 		assertResultsEqual(expected, actual);
 	}
 
-	@SuppressWarnings("unchecked")
 	private void assertAccumulatorResult(
 			long expectedOffset,
 			String expectedVersion,
 			long expectedLastCheckpointedOffset,
 			List<Integer> expectedResults) throws Exception {
-		Tuple2<Long, CollectCoordinationResponse> accResults = getAccumualtorResults();
+		Tuple2<Long, CollectCoordinationResponse<Integer>> accResults = getAccumualtorResults();
 		long offset = accResults.f0;
-		CollectCoordinationResponse response = accResults.f1;
+		CollectCoordinationResponse<Integer> response = accResults.f1;
 		List<Integer> actualResults = response.getResults(serializer);
 
 		Assert.assertEquals(expectedOffset, offset);
@@ -673,6 +672,12 @@ public class CollectSinkFunctionTest extends TestLogger {
 						// ignore
 					}
 				}
+			}
+
+			try {
+				iterator.close();
+			} catch (Exception e) {
+				throw new RuntimeException(e);
 			}
 		}
 	}

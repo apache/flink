@@ -307,12 +307,12 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		return baos.toByteArray();
 	}
 
-	public static Tuple2<Long, CollectCoordinationResponse> deserializeAccumulatorResult(
+	public static <T> Tuple2<Long, CollectCoordinationResponse<T>> deserializeAccumulatorResult(
 			byte[] serializedAccResults) throws IOException {
 		ByteArrayInputStream bais = new ByteArrayInputStream(serializedAccResults);
 		DataInputViewStreamWrapper wrapper = new DataInputViewStreamWrapper(bais);
 		long token = wrapper.readLong();
-		CollectCoordinationResponse finalResponse = new CollectCoordinationResponse(wrapper);
+		CollectCoordinationResponse<T> finalResponse = new CollectCoordinationResponse<>(wrapper);
 		return Tuple2.of(token, finalResponse);
 	}
 

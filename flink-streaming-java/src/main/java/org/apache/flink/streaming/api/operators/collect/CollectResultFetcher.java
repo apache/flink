@@ -91,6 +91,11 @@ public class CollectResultFetcher<T> {
 
 		this.jobTerminated = false;
 		this.closed = false;
+
+		// in case that user neither reads all data nor closes the iterator
+		// this is only an insurance,
+		// it's the user's responsibility to close the iterator if he does not need it anymore
+		Runtime.getRuntime().addShutdownHook(new Thread(this::close));
 	}
 
 	public void setJobClient(JobClient jobClient) {
@@ -101,57 +106,58 @@ public class CollectResultFetcher<T> {
 		this.gateway = (CoordinationRequestGateway) jobClient;
 	}
 
-	@SuppressWarnings("unchecked")
 	public T next() {
 		if (closed) {
 			return null;
 		}
 
-		T res = buffer.next();
-		if (res != null) {
-			// we still have user-visible results, just use them
-			return res;
-		} else if (jobTerminated) {
-			// no user-visible results, but job has terminated, we have to return
-			return null;
-		}
+		// this is to avoid sleeping before first try
+		boolean beforeFirstTry = true;
+		do {
+			T res = buffer.next();
+			if (res != null) {
+				// we still have user-visible results, just use them
+				return res;
+			} else if (jobTerminated) {
+				// no user-visible results, but job has terminated, we have to return
+				return null;
+			} else if (!beforeFirstTry) {
+				// no results but job is still running, sleep before retry
+				sleepBeforeRetry();
+			}
+			beforeFirstTry = false;
 
-		// we're going to fetch some more
-		while (true) {
 			if (isJobTerminated()) {
 				// job terminated, read results from accumulator
 				jobTerminated = true;
-				Tuple2<Long, CollectCoordinationResponse> accResults = getAccumulatorResults();
-				if (accResults != null) {
+				try {
+					Tuple2<Long, CollectCoordinationResponse<T>> accResults = getAccumulatorResults();
 					buffer.dealWithResponse(accResults.f1, accResults.f0);
+				} catch (IOException e) {
+					close();
+					throw new RuntimeException(
+						"Failed to deal with final accumulator results, final batch of results are lost", e);
 				}
 				buffer.complete();
 			} else {
 				// job still running, try to fetch some results
+				long requestOffset = buffer.offset;
 				CollectCoordinationResponse<T> response;
 				try {
-					response = sendRequest(buffer.version, buffer.offset);
+					response = sendRequest(buffer.version, requestOffset);
 				} catch (Exception e) {
 					LOG.warn("An exception occurs when fetching query results", e);
-					sleepBeforeRetry();
 					continue;
 				}
-				buffer.dealWithResponse(response);
+				// the response will contain data (if any) starting exactly from requested offset
+				try {
+					buffer.dealWithResponse(response, requestOffset);
+				} catch (IOException e) {
+					close();
+					throw new RuntimeException("Failed to deal with response from sink", e);
+				}
 			}
-
-			// try to return results after fetching
-			res = buffer.next();
-			if (res != null) {
-				// ok, we have results this time
-				return res;
-			} else if (jobTerminated) {
-				// still no results, but job has terminated, we have to return
-				return null;
-			} else {
-				// still no results, but job is still running, retry
-				sleepBeforeRetry();
-			}
-		}
+		} while (true);
 	}
 
 	public void close() {
@@ -166,6 +172,8 @@ public class CollectResultFetcher<T> {
 	@Override
 	protected void finalize() throws Throwable {
 		// in case that user neither reads all data nor closes the iterator
+		// this is only an insurance,
+		// it's the user's responsibility to close the iterator if he does not need it anymore
 		close();
 	}
 
@@ -179,11 +187,10 @@ public class CollectResultFetcher<T> {
 		Preconditions.checkNotNull(operatorId, "Unknown operator ID. This is a bug.");
 
 		CollectCoordinationRequest request = new CollectCoordinationRequest(version, offset);
-		return (CollectCoordinationResponse) gateway.sendCoordinationRequest(operatorId, request).get();
+		return (CollectCoordinationResponse<T>) gateway.sendCoordinationRequest(operatorId, request).get();
 	}
 
-	@Nullable
-	private Tuple2<Long, CollectCoordinationResponse> getAccumulatorResults() {
+	private Tuple2<Long, CollectCoordinationResponse<T>> getAccumulatorResults() throws IOException {
 		checkJobClientConfigured();
 
 		JobExecutionResult executionResult;
@@ -192,13 +199,13 @@ public class CollectResultFetcher<T> {
 			executionResult = jobClient.getJobExecutionResult(getClass().getClassLoader()).get(
 				DEFAULT_ACCUMULATOR_GET_MILLIS, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException | ExecutionException | TimeoutException e) {
-			throw new RuntimeException("Failed to fetch job execution result", e);
+			throw new IOException("Failed to fetch job execution result", e);
 		}
 
 		ArrayList<byte[]> accResults = executionResult.getAccumulatorResult(accumulatorName);
 		if (accResults == null) {
 			// job terminates abnormally
-			return null;
+			throw new IOException("Job terminated abnormally, no job execution result can be fetched");
 		}
 
 		try {
@@ -208,7 +215,7 @@ public class CollectResultFetcher<T> {
 			return CollectSinkFunction.deserializeAccumulatorResult(serializedResult);
 		} catch (ClassNotFoundException | IOException e) {
 			// this is impossible
-			throw new RuntimeException("Failed to deserialize accumulator results", e);
+			throw new IOException("Failed to deserialize accumulator results", e);
 		}
 	}
 
@@ -256,6 +263,7 @@ public class CollectResultFetcher<T> {
 
 	private void checkJobClientConfigured() {
 		Preconditions.checkNotNull(jobClient, "Job client must be configured before first use.");
+		Preconditions.checkNotNull(gateway, "Coordination request gateway must be configured before first use.");
 	}
 
 	/**
@@ -301,19 +309,10 @@ public class CollectResultFetcher<T> {
 			return ret;
 		}
 
-		private void dealWithResponse(CollectCoordinationResponse<T> response) {
-			dealWithResponse(response, offset);
-		}
-
-		private void dealWithResponse(CollectCoordinationResponse<T> response, long responseOffset) {
+		private void dealWithResponse(CollectCoordinationResponse<T> response, long responseOffset) throws IOException {
 			String responseVersion = response.getVersion();
 			long responseLastCheckpointedOffset = response.getLastCheckpointedOffset();
-			List<T> results;
-			try {
-				results = response.getResults(serializer);
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
+			List<T> results = response.getResults(serializer);
 
 			// we first check version in the response to decide whether we should throw away dirty results
 			if (!version.equals(responseVersion)) {
