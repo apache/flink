@@ -88,19 +88,19 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 			Statement stat = conn.createStatement()) {
 			stat.executeUpdate("CREATE TABLE " + LOOKUP_TABLE + " (" +
 					"id1 INT NOT NULL DEFAULT 0," +
-					"id2 INT NOT NULL DEFAULT 0," +
+					"id2 VARCHAR(20) NOT NULL," +
 					"comment1 VARCHAR(1000)," +
 					"comment2 VARCHAR(1000))");
 
 			Object[][] data = new Object[][] {
-					new Object[] {1, 1, "11-c1-v1", "11-c2-v1"},
-					new Object[] {1, 1, "11-c1-v2", "11-c2-v2"},
-					new Object[] {2, 3, null, "23-c2"},
-					new Object[] {2, 5, "25-c1", "25-c2"},
-					new Object[] {3, 8, "38-c1", "38-c2"}
+					new Object[] {1, "1", "11-c1-v1", "11-c2-v1"},
+					new Object[] {1, "1", "11-c1-v2", "11-c2-v2"},
+					new Object[] {2, "3", null, "23-c2"},
+					new Object[] {2, "5", "25-c1", "25-c2"},
+					new Object[] {3, "8", "38-c1", "38-c2"}
 			};
 			boolean[] surroundedByQuotes = new boolean[] {
-				false, false, true, true
+				false, true, true, true
 			};
 
 			StringBuilder sqlQueryBuilder = new StringBuilder(
@@ -168,12 +168,12 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 
 	private void useLegacyTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) throws Exception {
 		Table t = tEnv.fromDataStream(env.fromCollection(Arrays.asList(
-			new Tuple2<>(1, 1),
-			new Tuple2<>(1, 1),
-			new Tuple2<>(2, 3),
-			new Tuple2<>(2, 5),
-			new Tuple2<>(3, 5),
-			new Tuple2<>(3, 8)
+			new Tuple2<>(1, "1"),
+			new Tuple2<>(1, "1"),
+			new Tuple2<>(2, "3"),
+			new Tuple2<>(2, "5"),
+			new Tuple2<>(3, "5"),
+			new Tuple2<>(3, "8")
 		)), $("id1"), $("id2"));
 
 		tEnv.registerTable("T", t);
@@ -184,7 +184,7 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 				.build())
 			.setSchema(TableSchema.builder().fields(
 				new String[]{"id1", "id2", "comment1", "comment2"},
-				new DataType[]{DataTypes.INT(), DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()})
+				new DataType[]{DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()})
 				.build());
 		if (useCache) {
 			builder.setLookupOptions(JdbcLookupOptions.builder()
@@ -203,12 +203,12 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 
 	private void useDynamicTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) throws Exception {
 		Table t = tEnv.fromDataStream(env.fromCollection(Arrays.asList(
-			new Tuple2<>(1, 1),
-			new Tuple2<>(1, 1),
-			new Tuple2<>(2, 3),
-			new Tuple2<>(2, 5),
-			new Tuple2<>(3, 5),
-			new Tuple2<>(3, 8)
+			new Tuple2<>(1, "1"),
+			new Tuple2<>(1, "1"),
+			new Tuple2<>(2, "3"),
+			new Tuple2<>(2, "5"),
+			new Tuple2<>(3, "5"),
+			new Tuple2<>(3, "8")
 		)), $("id1"), $("id2"), $("proctime").proctime());
 
 		tEnv.createTemporaryView("T", t);
@@ -217,7 +217,7 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 		tEnv.sqlUpdate(
 			String.format("create table lookup (" +
 				"  id1 INT," +
-				"  id2 INT," +
+				"  id2 VARCHAR," +
 				"  comment1 VARCHAR," +
 				"  comment2 VARCHAR" +
 				") with(" +

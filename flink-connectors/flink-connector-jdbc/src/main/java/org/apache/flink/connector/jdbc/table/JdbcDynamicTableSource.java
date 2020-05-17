@@ -33,8 +33,6 @@ import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -115,11 +113,7 @@ public class JdbcDynamicTableSource implements ScanTableSource, LookupTableSourc
 				" BETWEEN ? AND ?";
 		}
 		builder.setQuery(query);
-		final RowType rowType = RowType.of(
-			Arrays.stream(schema.getFieldDataTypes())
-				.map(DataType::getLogicalType)
-				.toArray(LogicalType[]::new),
-			schema.getFieldNames());
+		final RowType rowType = (RowType) schema.toRowDataType().getLogicalType();
 		builder.setRowConverter(dialect.getRowConverter(rowType));
 		builder.setRowDataTypeInfo((TypeInformation<RowData>) runtimeProviderContext
 			.createTypeInformation(schema.toRowDataType()));

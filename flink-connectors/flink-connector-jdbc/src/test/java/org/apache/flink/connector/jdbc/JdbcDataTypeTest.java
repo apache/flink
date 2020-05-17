@@ -117,12 +117,12 @@ public class JdbcDataTypeTest {
 			createTestItem("mysql", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
 					"The MySQL dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE."),
 
-			createTestItem("postgresql", "BINARY", "The Postgres dialect doesn't support type: BINARY(1)."),
-			createTestItem("postgresql", "VARBINARY(10)", "The Postgres dialect doesn't support type: VARBINARY(10)."),
+			createTestItem("postgresql", "BINARY", "The PostgreSQL dialect doesn't support type: BINARY(1)."),
+			createTestItem("postgresql", "VARBINARY(10)", "The PostgreSQL dialect doesn't support type: VARBINARY(10)."),
 			createTestItem("postgresql", "TIMESTAMP(9) WITHOUT TIME ZONE",
-					"The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by Postgres dialect."),
+					"The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by PostgreSQL dialect."),
 			createTestItem("postgresql", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
-					"The Postgres dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE.")
+					"The PostgreSQL dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE.")
 		);
 	}
 

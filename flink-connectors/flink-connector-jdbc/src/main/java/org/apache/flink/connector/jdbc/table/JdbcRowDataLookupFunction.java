@@ -24,15 +24,13 @@ import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
 import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
-import org.apache.flink.connector.jdbc.utils.JdbcTypeUtil;
-import org.apache.flink.connector.jdbc.utils.JdbcUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
@@ -69,12 +67,12 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 	private final String username;
 	private final String password;
 	private final DataType[] keyTypes;
-	private final int[] keySqlTypes;
 	private final long cacheMaxSize;
 	private final long cacheExpireMs;
 	private final int maxRetryTimes;
 	private final JdbcDialect jdbcDialect;
 	private final JdbcRowConverter jdbcRowConverter;
+	private final JdbcRowConverter lookupKeyRowConverter;
 
 	private transient Connection dbConn;
 	private transient PreparedStatement statement;
@@ -106,14 +104,12 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 		this.cacheMaxSize = lookupOptions.getCacheMaxSize();
 		this.cacheExpireMs = lookupOptions.getCacheExpireMs();
 		this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
-		this.keySqlTypes = Arrays.stream(keyTypes)
-			.map(TypeConversions::fromDataTypeToLegacyInfo)
-			.mapToInt(JdbcTypeUtil::typeInformationToSqlType).toArray();
 		this.query = options.getDialect().getSelectFromStatement(
 			options.getTableName(), fieldNames, keyNames);
 		this.jdbcDialect = JdbcDialects.get(dbURL)
 			.orElseThrow(() -> new UnsupportedOperationException(String.format("Unknown dbUrl:%s", dbURL)));
 		this.jdbcRowConverter = jdbcDialect.getRowConverter(rowType);
+		this.lookupKeyRowConverter = jdbcDialect.getRowConverter(RowType.of(Arrays.stream(keyTypes).map(DataType::getLogicalType).toArray(LogicalType[]::new)));
 	}
 
 	@Override
@@ -151,18 +147,16 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 		for (int retry = 1; retry <= maxRetryTimes; retry++) {
 			try {
 				statement.clearParameters();
-				for (int i = 0; i < keys.length; i++) {
-					JdbcUtils.setField(statement, keySqlTypes[i], keys[i], i);
-				}
+				statement = lookupKeyRowConverter.toExternal(keyRow, statement);
 				try (ResultSet resultSet = statement.executeQuery()) {
 					if (cache == null) {
 						while (resultSet.next()) {
-							collect(convertToRowFromResultSet(resultSet));
+							collect(jdbcRowConverter.toInternal(resultSet));
 						}
 					} else {
 						ArrayList<RowData> rows = new ArrayList<>();
 						while (resultSet.next()) {
-							RowData row = convertToRowFromResultSet(resultSet);
+							RowData row = jdbcRowConverter.toInternal(resultSet);
 							rows.add(row);
 							collect(row);
 						}
@@ -184,10 +178,6 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 				}
 			}
 		}
-	}
-
-	private RowData convertToRowFromResultSet(ResultSet resultSet) throws SQLException {
-		return jdbcRowConverter.toInternal(resultSet);
 	}
 
 	private void establishConnection() throws SQLException, ClassNotFoundException {

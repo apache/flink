@@ -84,7 +84,7 @@ public class PostgresDialect extends AbstractDialect {
 
 	@Override
 	public String dialectName() {
-		return "Postgres";
+		return "PostgreSQL";
 	}
 
 	@Override

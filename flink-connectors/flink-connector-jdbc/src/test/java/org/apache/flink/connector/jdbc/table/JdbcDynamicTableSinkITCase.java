@@ -252,8 +252,8 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				"'connector' = 'jdbc'," +
 				"'url'='" + DB_URL + "'," +
 				"'table-name' = '" + OUTPUT_TABLE3 + "'," +
-				"'sink.flush.max-rows' = '2'," +
-				"'sink.flush.interval' = '3'," +
+				"'sink.buffer-flush.max-rows' = '2'," +
+				"'sink.buffer-flush.interval' = '3'," +
 				"'sink.max-retries' = '4'" +
 				")");
 

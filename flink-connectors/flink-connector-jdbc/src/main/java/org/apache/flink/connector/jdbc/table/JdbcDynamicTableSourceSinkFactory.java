@@ -130,14 +130,14 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 		.withDescription("the max retry times if lookup database failed.");
 
 	// write config options
-	private static final ConfigOption<Integer> SINK_FLUSH_MAX_ROWS = ConfigOptions
-		.key("sink.flush.max-rows")
+	private static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS = ConfigOptions
+		.key("sink.buffer-flush.max-rows")
 		.intType()
 		.defaultValue(5000)
 		.withDescription("the flush max size (includes all append, upsert and delete records), over this number" +
 			" of records, will flush data. The default value is 5000.");
-	private static final ConfigOption<Long> SINK_FLUSH_INTERVAL = ConfigOptions
-		.key("sink.flush.interval")
+	private static final ConfigOption<Long> SINK_BUFFER_FLUSH_INTERVAL = ConfigOptions
+		.key("sink.buffer-flush.interval")
 		.longType()
 		.defaultValue(0L)
 		.withDescription("the flush interval mills, over this time, asynchronous threads will flush data. The " +
@@ -161,7 +161,7 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 		return new JdbcDynamicTableSink(
 			jdbcOptions,
 			getJdbcExecutionOptions(config),
-			getJdbcDmlOptions(jdbcOptions, context.getCatalogTable().getSchema()),
+			getJdbcDmlOptions(jdbcOptions, physicalSchema),
 			physicalSchema);
 	}
 
@@ -220,8 +220,8 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 
 	private JdbcExecutionOptions getJdbcExecutionOptions(ReadableConfig config) {
 		final JdbcExecutionOptions.Builder builder = new JdbcExecutionOptions.Builder();
-		builder.withBatchSize(config.get(SINK_FLUSH_MAX_ROWS));
-		builder.withBatchIntervalMs(config.get(SINK_FLUSH_INTERVAL));
+		builder.withBatchSize(config.get(SINK_BUFFER_FLUSH_MAX_ROWS));
+		builder.withBatchIntervalMs(config.get(SINK_BUFFER_FLUSH_INTERVAL));
 		builder.withMaxRetries(config.get(SINK_MAX_RETRIES));
 		return builder.build();
 	}
@@ -266,8 +266,8 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 		optionalOptions.add(LOOKUP_CACHE_MAX_ROWS);
 		optionalOptions.add(LOOKUP_CACHE_TTL);
 		optionalOptions.add(LOOKUP_MAX_RETRIES);
-		optionalOptions.add(SINK_FLUSH_MAX_ROWS);
-		optionalOptions.add(SINK_FLUSH_INTERVAL);
+		optionalOptions.add(SINK_BUFFER_FLUSH_MAX_ROWS);
+		optionalOptions.add(SINK_BUFFER_FLUSH_INTERVAL);
 		optionalOptions.add(SINK_MAX_RETRIES);
 		return optionalOptions;
 	}

@@ -41,7 +41,7 @@ public class PostgresRowConverter extends AbstractJdbcRowConverter {
 
 	@Override
 	public String converterName() {
-		return "Postgres";
+		return "PostgreSQL";
 	}
 
 	public PostgresRowConverter(RowType rowType) {

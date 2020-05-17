@@ -207,7 +207,8 @@ public class JdbcRowDataOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 	 * Uses {@link JdbcUtils#setRecordToStatement}
 	 */
 	private static JdbcStatementBuilder<RowData> createRowDataJdbcStatementBuilder(JdbcDialect dialect, LogicalType[] types) {
-		return (st, record) -> dialect.getRowConverter(RowType.of(types)).toExternal(record, st);
+		final JdbcRowConverter converter = dialect.getRowConverter(RowType.of(types));
+		return (st, record) -> converter.toExternal(record, st);
 	}
 
 	private static RowData getPrimaryKey(RowData row, FieldGetter[] fieldGetters) {

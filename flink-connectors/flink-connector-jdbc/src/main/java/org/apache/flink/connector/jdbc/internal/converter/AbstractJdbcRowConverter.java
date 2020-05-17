@@ -96,7 +96,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 	@FunctionalInterface
 	interface JdbcDeserializationConverter extends Serializable {
 		/**
-		 * convert a jdbc field to java object, the field could be a simple type or array type.
+		 * Convert a jdbc field object of {@link ResultSet} to the internal data structure object.
 		 * @param jdbcField
 		 */
 		Object deserialize(Object jdbcField) throws SQLException;
@@ -132,30 +132,25 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 			case NULL:
 				return v -> null;
 			case BOOLEAN:
-				return v -> (boolean) v;
 			case TINYINT:
-				return v -> (byte) v;
+			case FLOAT:
+			case DOUBLE:
+			case INTEGER:
+			case INTERVAL_YEAR_MONTH:
+			case BIGINT:
+			case INTERVAL_DAY_TIME:
+				return v -> v;
 			case SMALLINT:
 				// Converter for small type that casts value to int and then return short value, since
 				// JDBC 1.0 use int type for small values.
 				return v -> (Integer.valueOf(v.toString())).shortValue();
-			case INTEGER:
-			case INTERVAL_YEAR_MONTH:
-				return v -> (int) v;
-			case BIGINT:
-			case INTERVAL_DAY_TIME:
-				return v -> (long) v;
 			case DATE:
 				return v -> (int) (((Date) v).toLocalDate().toEpochDay());
 			case TIME_WITHOUT_TIME_ZONE:
-				return v -> ((Time) v).toLocalTime().toSecondOfDay() * 1000;
+				return v -> (int) (((Time) v).toLocalTime().toNanoOfDay() / 1_000_000L);
 			case TIMESTAMP_WITH_TIME_ZONE:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return v -> TimestampData.fromTimestamp((Timestamp) v);
-			case FLOAT:
-				return v -> (float) v;
-			case DOUBLE:
-				return v -> (double) v;
 			case CHAR:
 			case VARCHAR:
 				return v -> StringData.fromString((String) v);
@@ -167,14 +162,13 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 				final int scale = ((DecimalType) type).getScale();
 				return v -> DecimalData.fromBigDecimal((BigDecimal) v, precision, scale);
 			case ARRAY:
-				final JdbcDeserializationConverter arrayConverter = createToInternalArrayConverter((ArrayType) type);
-				return v -> arrayConverter.deserialize(v);
+				return createToInternalArrayConverter((ArrayType) type);
 			case ROW:
 			case MAP:
 			case MULTISET:
 			case RAW:
 			default:
-				throw new UnsupportedOperationException("Not support to parse type: " + type);
+				throw new UnsupportedOperationException("Unsupported type:" + type);
 		}
 	}
 
@@ -240,21 +234,21 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 					statement.setDate(index + 1, Date.valueOf(LocalDate.ofEpochDay(val.getInt(index))));
 			case TIME_WITHOUT_TIME_ZONE:
 				return (val, index, statement) ->
-					statement.setTime(index + 1, Time.valueOf(LocalTime.ofSecondOfDay(val.getInt(index) / 1000L)));
+					statement.setTime(index + 1, Time.valueOf(LocalTime.ofNanoOfDay(val.getInt(index) * 1_000_000L)));
 			case TIMESTAMP_WITH_TIME_ZONE:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				final int timestampPrecision = ((TimestampType) type).getPrecision();
 				return (val, index, statement) ->
-					statement.setTimestamp(index + 1, val
-						.getTimestamp(index, timestampPrecision)
-						.toTimestamp());
+					statement.setTimestamp(
+						index + 1,
+						val.getTimestamp(index, timestampPrecision).toTimestamp());
 			case DECIMAL:
 				final int decimalPrecision = ((DecimalType) type).getPrecision();
 				final int decimalScale = ((DecimalType) type).getScale();
 				return (val, index, statement) ->
-					statement.setBigDecimal(index + 1, val
-						.getDecimal(index, decimalPrecision, decimalScale)
-						.toBigDecimal());
+					statement.setBigDecimal(
+						index + 1,
+						val.getDecimal(index, decimalPrecision, decimalScale).toBigDecimal());
 			case ARRAY:
 				//note: dialect need implements the conversion from ArrayData to JDBC Array if the dialect supports array.
 				return (val, index, statement) -> {
@@ -266,7 +260,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 			case ROW:
 			case RAW:
 			default:
-				throw new UnsupportedOperationException("Not support to parse type: " + type);
+				throw new UnsupportedOperationException("Unsupported type: " + type);
 		}
 	}
 }
