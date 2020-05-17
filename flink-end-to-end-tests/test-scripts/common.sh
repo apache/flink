@@ -24,11 +24,21 @@ if [[ -z $FLINK_DIR ]]; then
     exit 1
 fi
 
+case "$(uname -s)" in
+    Linux*)     OS_TYPE=linux;;
+    Darwin*)    OS_TYPE=mac;;
+    CYGWIN*)    OS_TYPE=cygwin;;
+    MINGW*)     OS_TYPE=mingw;;
+    *)          OS_TYPE="UNKNOWN:${unameOut}"
+esac
+
 export EXIT_CODE=0
 
 echo "Flink dist directory: $FLINK_DIR"
 
 FLINK_VERSION=$(cat ${END_TO_END_DIR}/pom.xml | sed -n 's/.*<version>\(.*\)<\/version>/\1/p')
+
+NODENAME=`hostname -f`
 
 USE_SSL=OFF # set via set_conf_ssl(), reset via revert_default_config()
 TEST_ROOT=`pwd -P`
@@ -120,6 +130,27 @@ function create_ha_config() {
 EOL
 }
 
+function get_node_ip {
+    local ip_addr
+
+    if [[ ${OS_TYPE} == "linux" ]]; then
+        ip_addr=$(hostname -I)
+    elif [[ ${OS_TYPE} == "mac" ]]; then
+        ip_addr=$(
+            ifconfig |
+            grep -E "([0-9]{1,3}\.){3}[0-9]{1,3}" | # grep IPv4 addresses only
+            grep -v 127.0.0.1 |                     # do not use 127.0.0.1 (to be consistent with hostname -I)
+            awk '{ print $2 }' |                    # extract ip from row
+            paste -sd " " -                         # combine everything to one line
+        )
+    else
+        echo "Warning: Unsupported OS_TYPE '${OS_TYPE}' for 'get_node_ip'. Falling back to 'hostname -I' (linux)"
+        ip_addr=$(hostname -I)
+    fi
+
+    echo ${ip_addr}
+}
+
 function set_conf_ssl {
 
     # clean up the dir that will be used for SSL certificates and trust stores
@@ -128,22 +159,24 @@ function set_conf_ssl {
        rm -rf "${TEST_DATA_DIR}/ssl"
     fi
     mkdir -p "${TEST_DATA_DIR}/ssl"
-    NODENAME=`hostname -f`
     SANSTRING="dns:${NODENAME}"
     for NODEIP in `hostname -I | cut -d' ' -f1` ; do
         SANSTRING="${SANSTRING},ip:${NODEIP}"
     done
 
     # create certificates
-    keytool -genkeypair -alias ca -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -dname "CN=Sample CA" -storepass password -keypass password -keyalg RSA -ext bc=ca:true
+    keytool -genkeypair -alias ca -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -dname "CN=Sample CA" -storepass password -keypass password -keyalg RSA -ext bc=ca:true -storetype PKCS12
     keytool -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -storepass password -alias ca -exportcert > "${TEST_DATA_DIR}/ssl/ca.cer"
     keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/ca.truststore" -alias ca -storepass password -noprompt -file "${TEST_DATA_DIR}/ssl/ca.cer"
 
-    keytool -genkeypair -alias node -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -dname "CN=${NODENAME}" -ext SAN=${SANSTRING} -storepass password -keypass password -keyalg RSA
+    keytool -genkeypair -alias node -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -dname "CN=${NODENAME}" -ext SAN=${SANSTRING} -storepass password -keypass password -keyalg RSA -storetype PKCS12
     keytool -certreq -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -alias node -file "${TEST_DATA_DIR}/ssl/node.csr"
     keytool -gencert -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -storepass password -alias ca -ext SAN=${SANSTRING} -infile "${TEST_DATA_DIR}/ssl/node.csr" -outfile "${TEST_DATA_DIR}/ssl/node.cer"
     keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -file "${TEST_DATA_DIR}/ssl/ca.cer" -alias ca -noprompt
     keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -file "${TEST_DATA_DIR}/ssl/node.cer" -alias node -noprompt
+
+    # keystore is converted into a pem format to use it as node.pem with curl in Flink REST API queries, see also $CURL_SSL_ARGS
+    openssl pkcs12 -passin pass:password -in "${TEST_DATA_DIR}/ssl/node.keystore" -out "${TEST_DATA_DIR}/ssl/node.pem" -nodes
 
     # adapt config
     # (here we rely on security.ssl.enabled enabling SSL for all components and internal as well as
@@ -188,30 +221,40 @@ function start_local_zk {
     done < <(grep "^server\." "${FLINK_DIR}/conf/zoo.cfg")
 }
 
+function query_running_tms {
+  local QUERY_URL
+  local CURL_SSL_ARGS
+  if [ "x$USE_SSL" = "xON" ]; then
+    QUERY_URL="https://${NODENAME}:8081/taskmanagers"
+    CURL_SSL_ARGS="--cacert ${TEST_DATA_DIR}/ssl/node.pem"
+  else
+    QUERY_URL="http://${NODENAME}:8081/taskmanagers"
+    CURL_SSL_ARGS=""
+  fi
+  curl ${CURL_SSL_ARGS} -s "${QUERY_URL}"
+}
+
 function start_cluster {
   "$FLINK_DIR"/bin/start-cluster.sh
 
   # wait at most 10 seconds until the dispatcher is up
-  local QUERY_URL
-  if [ "x$USE_SSL" = "xON" ]; then
-    QUERY_URL="http://localhost:8081/taskmanagers"
-  else
-    QUERY_URL="https://localhost:8081/taskmanagers"
-  fi
-  for i in {1..10}; do
+  local TIMEOUT=10
+  for i in $(seq 1 ${TIMEOUT}); do
     # without the || true this would exit our script if the JobManager is not yet up
-    QUERY_RESULT=$(curl "$QUERY_URL" 2> /dev/null || true)
+    QUERY_RESULT=$(query_running_tms 2> /dev/null || true)
 
     # ensure the taskmanagers field is there at all and is not empty
     if [[ ${QUERY_RESULT} =~ \{\"taskmanagers\":\[.+\]\} ]]; then
 
       echo "Dispatcher REST endpoint is up."
-      break
+      return
     fi
 
     echo "Waiting for dispatcher REST endpoint to come up..."
     sleep 1
   done
+  echo "Dispatcher REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function check_logs_for_errors {
@@ -287,17 +330,20 @@ function stop_cluster {
 }
 
 function wait_job_running {
-  for i in {1..10}; do
+  local TIMEOUT=10
+  for i in $(seq 1 ${TIMEOUT}); do
     JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list | grep "$1")
 
     if [[ "$JOB_LIST_RESULT" == "" ]]; then
       echo "Job ($1) is not yet running."
     else
       echo "Job ($1) is running."
-      break
+      return
     fi
     sleep 1
   done
+  echo "Job ($1) has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
 }
 
 function wait_job_terminal_state {
