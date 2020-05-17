@@ -80,21 +80,20 @@ public class BucketStateSerializerTest {
 
 	private static java.nio.file.Path getResourcePath(
 			String scenarioName,
-			int version) throws IOException {
-		java.nio.file.Path basePath = Paths.get("src/test/resources/")
+			int version) {
+		return Paths.get("src/test/resources/")
 			.resolve("bucket-state-migration-test")
 			.resolve(scenarioName + "-v" + version);
-		return basePath;
 	}
 
 	private static java.nio.file.Path getSnapshotPath(
 			String scenarioName,
-			int version) throws IOException {
+			int version) {
 		java.nio.file.Path basePath = getResourcePath(scenarioName, version);
 		return basePath.resolve("snapshot");
 	}
 
-	private static java.nio.file.Path getOutputPath(String scenarioName, int version) throws IOException {
+	private static java.nio.file.Path getOutputPath(String scenarioName, int version) {
 		java.nio.file.Path basePath = getResourcePath(scenarioName, version);
 		return basePath.resolve("bucket");
 	}
