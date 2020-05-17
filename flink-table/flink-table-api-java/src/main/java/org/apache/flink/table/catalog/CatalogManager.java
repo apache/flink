@@ -172,6 +172,24 @@ public final class CatalogManager {
 	}
 
 	/**
+	 * Unregisters a catalog under the given name. The catalog name must be existed.
+	 *
+	 * @param catalogName name under which to unregister the given catalog
+	 * @throws CatalogException if the unregistration of the catalog under the given name failed
+	 */
+	public void unregisterCatalog(String catalogName) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "Catalog name cannot be null or empty.");
+
+		if (!catalogs.containsKey(catalogName)) {
+			throw new CatalogException(format("Catalog %s does not exist.", catalogName));
+		}
+
+		Catalog catalog = catalogs.get(catalogName);
+		catalog.close();
+		catalogs.remove(catalogName);
+	}
+
+	/**
 	 * Gets a catalog by name.
 	 *
 	 * @param catalogName name of the catalog to retrieve

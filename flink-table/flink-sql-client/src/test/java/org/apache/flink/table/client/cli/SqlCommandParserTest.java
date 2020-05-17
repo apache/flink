@@ -90,6 +90,8 @@ public class SqlCommandParserTest {
 			new SqlCommandCall(SqlCommand.CREATE_CATALOG, new String[]{"create CATALOG c1"}));
 		testValidSqlCommand("create CATALOG c1 WITH ('k'='v')",
 			new SqlCommandCall(SqlCommand.CREATE_CATALOG, new String[]{"create CATALOG c1 WITH ('k'='v')"}));
+		testValidSqlCommand("drop CATALOG c1",
+			new SqlCommandCall(SqlCommand.DROP_CATALOG, new String[]{"drop CATALOG c1"}));
 		testValidSqlCommand("USE CATALOG default", new SqlCommandCall(SqlCommand.USE_CATALOG, new String[]{"default"}));
 		testValidSqlCommand("use default", new SqlCommandCall(SqlCommand.USE, new String[] {"default"}));
 		testInvalidSqlCommand("use catalog");

@@ -115,6 +115,10 @@ public final class SqlCommandParser {
 			"(CREATE\\s+CATALOG\\s+.*)",
 			SINGLE_OPERAND),
 
+		DROP_CATALOG(
+			"(DROP\\s+CATALOG\\s+.*)",
+			SINGLE_OPERAND),
+
 		DESC(
 			"DESC\\s+(.*)",
 			SINGLE_OPERAND),

@@ -79,6 +79,19 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
     }
 }
 
+SqlDrop SqlDropCatalog(Span s, boolean replace) :
+{
+    SqlIdentifier catalogName = null;
+}
+{
+    <CATALOG>
+    catalogName = CompoundIdentifier()
+
+    {
+        return new SqlDropCatalog(s.pos(), catalogName);
+    }
+}
+
 /**
 * Parse a "Show DATABASES" metadata query command.
 */
@@ -1302,6 +1315,8 @@ SqlDrop SqlDropExtended(Span s, boolean replace) :
         <TEMPORARY> { isTemporary = true; }
     ]
     (
+        drop = SqlDropCatalog(s, replace)
+        |
         drop = SqlDropTable(s, replace, isTemporary)
         |
         drop = SqlDropView(s, replace, isTemporary)
