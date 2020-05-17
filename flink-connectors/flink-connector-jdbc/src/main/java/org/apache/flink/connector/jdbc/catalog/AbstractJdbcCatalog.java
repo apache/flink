@@ -20,6 +20,7 @@ package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.AbstractCatalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
@@ -50,11 +51,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -116,6 +124,34 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 		return baseUrl;
 	}
 
+	// ------ retrieve PK constraint ------
+
+	protected UniqueConstraint getPrimaryKey(DatabaseMetaData metaData, String schema, String table) throws SQLException {
+
+		// According to the Javadoc of java.sql.DatabaseMetaData#getPrimaryKeys,
+		// the returned primary key columns are ordered by COLUMN_NAME, not by KEY_SEQ.
+		// We need to sort them based on the KEY_SEQ value.
+		ResultSet rs = metaData.getPrimaryKeys(null, schema, table);
+
+		List<Map.Entry<Integer, String>> columnsWithIndex = null;
+		String pkName = null;
+		while (rs.next()) {
+			String columnName = rs.getString("COLUMN_NAME");
+			pkName = rs.getString("PK_NAME");
+			int keySeq = rs.getInt("KEY_SEQ");
+			if (columnsWithIndex == null) {
+				columnsWithIndex = new ArrayList<>();
+			}
+			columnsWithIndex.add(new AbstractMap.SimpleEntry<>(Integer.valueOf(keySeq), columnName));
+		}
+		if (columnsWithIndex != null) {
+			// sort columns by KEY_SEQ
+			columnsWithIndex.sort(Comparator.comparingInt(Map.Entry::getKey));
+			List<String> cols = columnsWithIndex.stream().map(Map.Entry::getValue).collect(Collectors.toList());
+			return UniqueConstraint.primaryKey(pkName, cols);
+		}
+		return null;
+	}
 
 	// ------ table factory ------
 
