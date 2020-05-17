@@ -152,7 +152,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	}
 
 	private ChannelStateWriter openChannelStateWriter() {
-		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(this.checkpointStorage);
+		ChannelStateWriterImpl writer = new ChannelStateWriterImpl(taskName, checkpointStorage);
 		writer.open();
 		return writer;
 	}

@@ -58,6 +58,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 	private static final Logger LOG = LoggerFactory.getLogger(ChannelStateWriterImpl.class);
 	private static final int DEFAULT_MAX_CHECKPOINTS = 5; // currently, only single in-flight checkpoint is supported
 
+	private final String taskName;
 	private final ChannelStateWriteRequestExecutor executor;
 	private final ConcurrentMap<Long, ChannelStateWriteResult> results;
 	private final int maxCheckpoints;
@@ -65,26 +66,31 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 	/**
 	 * Creates a {@link ChannelStateWriterImpl} with {@link #DEFAULT_MAX_CHECKPOINTS} as {@link #maxCheckpoints}.
 	 */
-	public ChannelStateWriterImpl(CheckpointStorageWorkerView streamFactoryResolver) {
-		this(streamFactoryResolver, DEFAULT_MAX_CHECKPOINTS);
+	public ChannelStateWriterImpl(String taskName, CheckpointStorageWorkerView streamFactoryResolver) {
+		this(taskName, streamFactoryResolver, DEFAULT_MAX_CHECKPOINTS);
 	}
 
 	/**
 	 * Creates a {@link ChannelStateWriterImpl} with {@link ChannelStateSerializerImpl default} {@link ChannelStateSerializer},
 	 * and a {@link ChannelStateWriteRequestExecutorImpl}.
-	 *
-	 * @param maxCheckpoints        maximum number of checkpoints to be written currently or finished but not taken yet.
+	 *  @param taskName
 	 * @param streamFactoryResolver a factory to obtain output stream factory for a given checkpoint
+	 * @param maxCheckpoints        maximum number of checkpoints to be written currently or finished but not taken yet.
 	 */
-	ChannelStateWriterImpl(CheckpointStorageWorkerView streamFactoryResolver, int maxCheckpoints) {
+	ChannelStateWriterImpl(String taskName, CheckpointStorageWorkerView streamFactoryResolver, int maxCheckpoints) {
 		this(
+			taskName,
 			new ConcurrentHashMap<>(maxCheckpoints),
-			new ChannelStateWriteRequestExecutorImpl(new ChannelStateWriteRequestDispatcherImpl(streamFactoryResolver, new ChannelStateSerializerImpl())),
-			maxCheckpoints
-		);
+			new ChannelStateWriteRequestExecutorImpl(taskName, new ChannelStateWriteRequestDispatcherImpl(streamFactoryResolver, new ChannelStateSerializerImpl())),
+			maxCheckpoints);
 	}
 
-	ChannelStateWriterImpl(ConcurrentMap<Long, ChannelStateWriteResult> results, ChannelStateWriteRequestExecutor executor, int maxCheckpoints) {
+	ChannelStateWriterImpl(
+			String taskName,
+			ConcurrentMap<Long, ChannelStateWriteResult> results,
+			ChannelStateWriteRequestExecutor executor,
+			int maxCheckpoints) {
+		this.taskName = taskName;
 		this.results = results;
 		this.maxCheckpoints = maxCheckpoints;
 		this.executor = executor;
@@ -93,7 +99,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 	@Override
 	public void start(long checkpointId, CheckpointOptions checkpointOptions) {
 		results.keySet().forEach(oldCheckpointId -> abort(oldCheckpointId, new Exception("Starting new checkpoint " + checkpointId)));
-		LOG.debug("start checkpoint {} ({})", checkpointId, checkpointOptions);
+		LOG.debug("{} starting checkpoint {} ({})", taskName, checkpointId, checkpointOptions);
 		ChannelStateWriteResult result = new ChannelStateWriteResult();
 		ChannelStateWriteResult put = results.computeIfAbsent(checkpointId, id -> {
 			Preconditions.checkState(results.size() < maxCheckpoints, "results.size() > maxCheckpoints", results.size(), maxCheckpoints);
@@ -105,32 +111,42 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 
 	@Override
 	public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, CloseableIterator<Buffer> iterator) {
-		LOG.debug("add input data, checkpoint id: {}, channel: {}, startSeqNum: {}", checkpointId, info, startSeqNum);
+		LOG.debug(
+			"{} adding input data, checkpoint id: {}, channel: {}, startSeqNum: {}",
+			taskName,
+			checkpointId,
+			info,
+			startSeqNum);
 		enqueue(write(checkpointId, info, iterator), false);
 	}
 
 	@Override
 	public void addOutputData(long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {
-		LOG.debug("add output data, checkpoint id: {}, channel: {}, startSeqNum: {}, num buffers: {}",
-			checkpointId, info, startSeqNum, data == null ? 0 : data.length);
+		LOG.debug(
+			"{} adding output data, checkpoint id: {}, channel: {}, startSeqNum: {}, num buffers: {}",
+			taskName,
+			checkpointId,
+			info,
+			startSeqNum,
+			data == null ? 0 : data.length);
 		enqueue(write(checkpointId, info, checkBufferType(data)), false);
 	}
 
 	@Override
 	public void finishInput(long checkpointId) {
-		LOG.debug("finish input data, checkpoint id: {}", checkpointId);
+		LOG.debug("{} finishing input data, checkpoint id: {}", taskName, checkpointId);
 		enqueue(completeInput(checkpointId), false);
 	}
 
 	@Override
 	public void finishOutput(long checkpointId) {
-		LOG.debug("finish output data, checkpoint id: {}", checkpointId);
+		LOG.debug("{} finishing output data, checkpoint id: {}", taskName, checkpointId);
 		enqueue(completeOutput(checkpointId), false);
 	}
 
 	@Override
 	public void abort(long checkpointId, Throwable cause) {
-		LOG.debug("abort, checkpoint id: {}", checkpointId);
+		LOG.debug("{} aborting, checkpoint id: {}", taskName, checkpointId);
 		enqueue(ChannelStateWriteRequest.abort(checkpointId, cause), true); // abort already started
 		enqueue(ChannelStateWriteRequest.abort(checkpointId, cause), false); // abort enqueued but not started
 		results.remove(checkpointId);
@@ -138,7 +154,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 
 	@Override
 	public ChannelStateWriteResult getWriteResult(long checkpointId) {
-		LOG.debug("requested write result, checkpoint id: {}", checkpointId);
+		LOG.debug("{} requested write result, checkpoint id: {}", taskName, checkpointId);
 		ChannelStateWriteResult result = results.get(checkpointId);
 		Preconditions.checkArgument(result != null, "channel state write result not found for checkpoint id " + checkpointId);
 		return result;
@@ -146,6 +162,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 
 	@Override
 	public void stop(long checkpointId) {
+		LOG.debug("{} stopping checkpoint id: {}", taskName, checkpointId);
 		results.remove(checkpointId);
 	}
 
