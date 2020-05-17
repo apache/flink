@@ -545,13 +545,17 @@ public class CheckpointCoordinator {
 
 						if (throwable == null && checkpoint != null && !checkpoint.isDiscarded()) {
 							// no exception, no discarding, everything is OK
+							final long checkpointId = checkpoint.getCheckpointId();
 							snapshotTaskState(
 								timestamp,
-								checkpoint.getCheckpointId(),
+								checkpointId,
 								checkpoint.getCheckpointStorageLocation(),
 								request.props,
 								executions,
 								request.advanceToEndOfTime);
+
+							coordinatorsToCheckpoint.forEach((ctx) -> ctx.afterSourceBarrierInjection(checkpointId));
+
 							onTriggerSuccess();
 						} else {
 								// the initialization might not be finished yet
@@ -777,6 +781,8 @@ public class CheckpointCoordinator {
 		throwable = ExceptionUtils.stripCompletionException(throwable);
 
 		try {
+			coordinatorsToCheckpoint.forEach(OperatorCoordinatorCheckpointContext::abortCurrentTriggering);
+
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
 				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
 				LOG.warn(

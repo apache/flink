@@ -32,7 +32,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
@@ -563,11 +563,7 @@ public class PendingCheckpointTest {
 	}
 
 	private static OperatorCoordinatorCheckpointContext createOperatorCoordinator() {
-		return new OperatorCoordinatorCheckpointContext(
-				new MockOperatorCoordinator(),
-				new OperatorID(),
-				256,
-				50);
+		return new MockOperatorCoordinatorCheckpointContext();
 	}
 
 	@SuppressWarnings("unchecked")

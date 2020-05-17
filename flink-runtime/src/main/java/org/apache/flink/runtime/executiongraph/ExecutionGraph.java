@@ -64,7 +64,6 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
@@ -569,13 +568,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private Collection<OperatorCoordinatorCheckpointContext> buildOpCoordinatorCheckpointContexts() {
 		final ArrayList<OperatorCoordinatorCheckpointContext> contexts = new ArrayList<>();
 		for (final ExecutionJobVertex vertex : verticesInCreationOrder) {
-			for (final OperatorCoordinatorHolder coordinator : vertex.getOperatorCoordinators()) {
-				contexts.add(new OperatorCoordinatorCheckpointContext(
-						coordinator,
-						coordinator.getOperatorId(),
-						vertex.getMaxParallelism(),
-						vertex.getParallelism()));
-			}
+			contexts.addAll(vertex.getOperatorCoordinators());
 		}
 		contexts.trimToSize();
 		return contexts;

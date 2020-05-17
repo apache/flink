@@ -505,11 +505,11 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		final Optional<OperatorCoordinatorHolder> coordinatorOptional = vertexWithCoordinator
 				.getOperatorCoordinators()
 				.stream()
-				.filter((holder) -> holder.getOperatorId().equals(testOperatorId))
+				.filter((holder) -> holder.operatorId().equals(testOperatorId))
 				.findFirst();
 		assertTrue("vertex does not contain coordinator", coordinatorOptional.isPresent());
 
-		final OperatorCoordinator coordinator = coordinatorOptional.get().getCoordinator();
+		final OperatorCoordinator coordinator = coordinatorOptional.get().coordinator();
 		assertThat(coordinator, instanceOf(TestingOperatorCoordinator.class));
 
 		return (TestingOperatorCoordinator) coordinator;

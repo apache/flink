@@ -58,7 +58,17 @@ final class OperatorCoordinatorCheckpoints {
 		final Collection<CompletableFuture<CoordinatorSnapshot>> individualSnapshots = new ArrayList<>(coordinators.size());
 
 		for (final OperatorCoordinatorCheckpointContext coordinator : coordinators) {
-			individualSnapshots.add(triggerCoordinatorCheckpoint(coordinator, checkpointId));
+			final CompletableFuture<CoordinatorSnapshot> checkpointFuture = triggerCoordinatorCheckpoint(coordinator, checkpointId);
+			coordinator.onCallTriggerCheckpoint(checkpointId);
+
+			individualSnapshots.add(checkpointFuture);
+			checkpointFuture.whenComplete((ignored, failure) -> {
+				if (failure != null) {
+					coordinator.abortCurrentTriggering();
+				} else {
+					coordinator.onCheckpointStateFutureComplete(checkpointId);
+				}
+			});
 		}
 
 		return FutureUtils.combineAll(individualSnapshots).thenApply(AllCoordinatorSnapshots::new);
