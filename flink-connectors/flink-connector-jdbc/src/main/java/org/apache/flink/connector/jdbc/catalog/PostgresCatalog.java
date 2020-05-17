@@ -21,6 +21,7 @@ package org.apache.flink.connector.jdbc.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
@@ -36,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -180,6 +182,8 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 
 		String dbUrl = baseUrl + tablePath.getDatabaseName();
 		try (Connection conn = DriverManager.getConnection(dbUrl, username, pwd)) {
+			DatabaseMetaData metaData = conn.getMetaData();
+			UniqueConstraint pk = getPrimaryKey(metaData, pgPath.getPgSchemaName(), pgPath.getPgTableName());
 
 			PreparedStatement ps = conn.prepareStatement(
 				String.format("SELECT * FROM %s;", pgPath.getFullPath()));
@@ -192,9 +196,17 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 			for (int i = 1; i <= rsmd.getColumnCount(); i++) {
 				names[i - 1] = rsmd.getColumnName(i);
 				types[i - 1] = fromJDBCType(rsmd, i);
+				if (rsmd.isNullable(i) == ResultSetMetaData.columnNoNulls) {
+					types[i - 1] = types[i - 1].notNull();
+				}
 			}
 
-			TableSchema tableSchema = new TableSchema.Builder().fields(names, types).build();
+			TableSchema.Builder tableBuilder = new TableSchema.Builder()
+				.fields(names, types);
+			if (pk != null) {
+				tableBuilder.primaryKey(pk.getName(), pk.getColumns().toArray(new String[0]));
+			}
+			TableSchema tableSchema = tableBuilder.build();
 
 			Map<String, String> props = new HashMap<>();
 			props.put(CONNECTOR.key(), IDENTIFIER);

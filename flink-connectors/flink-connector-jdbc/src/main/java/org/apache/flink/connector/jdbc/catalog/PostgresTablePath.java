@@ -64,6 +64,14 @@ public class PostgresTablePath {
 		return String.format("%s.%s", pgSchemaName, pgTableName);
 	}
 
+	public String getPgTableName() {
+		return pgTableName;
+	}
+
+	public String getPgSchemaName() {
+		return pgSchemaName;
+	}
+
 	@Override
 	public String toString() {
 		return getFullPath();
