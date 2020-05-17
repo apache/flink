@@ -199,7 +199,7 @@ public final class ArrowUtils {
 		if (System.getProperty("io.netty.tryReflectionSetAccessible") == null) {
 			System.setProperty("io.netty.tryReflectionSetAccessible", "true");
 		} else if (!io.netty.util.internal.PlatformDependent.hasDirectBufferNoCleanerConstructor()) {
-			throw new RuntimeException("Vectorized Python UDF depends on " +
+			throw new RuntimeException("Arrow depends on " +
 				"DirectByteBuffer.<init>(long, int) which is not available. Please set the " +
 				"system property 'io.netty.tryReflectionSetAccessible' to 'true'.");
 		}
@@ -610,6 +610,7 @@ public final class ArrowUtils {
 	 * Convert Flink table to Pandas DataFrame.
 	 */
 	public static CustomIterator<byte[]> collectAsPandasDataFrame(Table table, int maxArrowBatchSize) throws Exception {
+		checkArrowUsable();
 		BufferAllocator allocator = getRootAllocator().newChildAllocator("collectAsPandasDataFrame", 0, Long.MAX_VALUE);
 		RowType rowType = (RowType) table.getSchema().toRowDataType().getLogicalType();
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
