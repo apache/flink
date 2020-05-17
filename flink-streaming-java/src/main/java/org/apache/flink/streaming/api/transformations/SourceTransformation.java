@@ -22,17 +22,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Optional;
-import java.util.function.Function;
 
 /**
  * A {@link PhysicalTransformation} for {@link Source}.
@@ -51,14 +46,10 @@ public class SourceTransformation<OUT> extends PhysicalTransformation<OUT> {
 	public SourceTransformation(
 			String name,
 			SourceOperatorFactory<OUT> sourceFactory,
-			TypeInformation<OUT> outputType, int parallelism) {
+			TypeInformation<OUT> outputType,
+			int parallelism) {
 		super(name, outputType, parallelism);
 		this.sourceFactory = sourceFactory;
-	}
-
-	@Override
-	public Optional<Function<Tuple2<String, OperatorID>, OperatorCoordinator.Provider>> getOperatorCoordinatorProviderFactory() {
-		return Optional.of((nameAndId) -> sourceFactory.getCoordinatorProvider(nameAndId.f0, nameAndId.f1));
 	}
 
 	/**

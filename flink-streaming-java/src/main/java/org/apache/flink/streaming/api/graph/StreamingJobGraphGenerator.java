@@ -1020,16 +1020,10 @@ public class StreamingJobGraphGenerator {
 				operatorHashes.add(new Tuple2<>(primaryHashBytes, legacyHash.get(currentNodeId)));
 			}
 
-			StreamNode streamNode = streamGraph.getStreamNode(currentNodeId);
-
-			if (streamNode.getCoordinatorProviderFactory().isPresent()) {
-				OperatorCoordinator.Provider provider =
-						streamNode
-								.getCoordinatorProviderFactory()
-								.get()
-								.apply(new Tuple2<>(operatorName, new OperatorID(getHash(currentNodeId))));
-				coordinatorProviders.add(provider);
-			}
+			streamGraph
+					.getStreamNode(currentNodeId)
+					.getCoordinatorProvider(operatorName, new OperatorID(getHash(currentNodeId)))
+					.map(coordinatorProviders::add);
 			return new OperatorID(primaryHashBytes);
 		}
 

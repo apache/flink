@@ -99,8 +99,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.areOperatorsChainable;
@@ -260,13 +258,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 				"AnyName",
 				new CoordinatedTransformOperatorFactory(),
 				BasicTypeInfo.INT_TYPE_INFO,
-				env.getParallelism()) {
-			@Override
-			public Optional<Function<Tuple2<String, OperatorID>, OperatorCoordinator.Provider>> getOperatorCoordinatorProviderFactory() {
-					return Optional.of((nameAndId) ->
-							((CoordinatedOperatorFactory) getOperatorFactory()).getCoordinatorProvider(nameAndId.f0, nameAndId.f1));
-			}
-		};
+				env.getParallelism());
 
 		new TestingSingleOutputStreamOperator<>(env, resultTransform).print();
 

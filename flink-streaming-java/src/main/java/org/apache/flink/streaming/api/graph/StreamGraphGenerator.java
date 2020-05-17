@@ -683,8 +683,7 @@ public class StreamGraphGenerator {
 				transform.getOperatorFactory(),
 				transform.getInputType(),
 				transform.getOutputType(),
-				transform.getName(),
-				transform.getOperatorCoordinatorProviderFactory().orElse(null));
+				transform.getName());
 
 		if (transform.getStateKeySelector() != null) {
 			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(executionConfig);
