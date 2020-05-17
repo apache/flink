@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.ddl.SqlAddPartitions;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import java.util.ArrayList;
@@ -37,9 +38,12 @@ import java.util.List;
  */
 public class SqlAddHivePartitions extends SqlAddPartitions {
 
+	private final List<SqlCharStringLiteral> partLocations;
+
 	public SqlAddHivePartitions(SqlParserPos pos, SqlIdentifier tableName, boolean ifNotExists,
 			List<SqlNodeList> partSpecs, List<SqlCharStringLiteral> partLocations) {
 		super(pos, tableName, ifNotExists, partSpecs, toProps(partLocations));
+		this.partLocations = partLocations;
 	}
 
 	private static List<SqlNodeList> toProps(List<SqlCharStringLiteral> partLocations) {
@@ -53,5 +57,29 @@ public class SqlAddHivePartitions extends SqlAddPartitions {
 			res.add(prop);
 		}
 		return res;
+	}
+
+	@Override
+	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+		writer.keyword("ALTER TABLE");
+		tableIdentifier.unparse(writer, leftPrec, rightPrec);
+		writer.newlineAndIndent();
+		writer.keyword("ADD");
+		if (ifNotExists()) {
+			writer.keyword("IF NOT EXISTS");
+		}
+		int opLeftPrec = getOperator().getLeftPrec();
+		int opRightPrec = getOperator().getRightPrec();
+		for (int i = 0; i < getPartSpecs().size(); i++) {
+			writer.newlineAndIndent();
+			SqlNodeList partSpec = getPartSpecs().get(i);
+			writer.keyword("PARTITION");
+			partSpec.unparse(writer, opLeftPrec, opRightPrec);
+			SqlCharStringLiteral location = partLocations.get(i);
+			if (location != null) {
+				writer.keyword("LOCATION");
+				location.unparse(writer, opLeftPrec, opRightPrec);
+			}
+		}
 	}
 }

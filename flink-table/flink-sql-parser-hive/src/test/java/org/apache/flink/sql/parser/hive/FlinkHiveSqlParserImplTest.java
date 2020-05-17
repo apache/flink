@@ -389,12 +389,12 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 		sql("alter table tbl add partition (p1=1,p2='a') location '/part1/location'")
 				.ok("ALTER TABLE `TBL`\n" +
 						"ADD\n" +
-						"PARTITION (`P1` = 1, `P2` = 'a') WITH ('hive.location-uri' = '/part1/location')");
+						"PARTITION (`P1` = 1, `P2` = 'a') LOCATION '/part1/location'");
 		sql("alter table tbl add if not exists partition (p=1) partition (p=2) location '/part2/location'")
 				.ok("ALTER TABLE `TBL`\n" +
 						"ADD IF NOT EXISTS\n" +
 						"PARTITION (`P` = 1)\n" +
-						"PARTITION (`P` = 2) WITH ('hive.location-uri' = '/part2/location')");
+						"PARTITION (`P` = 2) LOCATION '/part2/location'");
 	}
 
 	@Test
