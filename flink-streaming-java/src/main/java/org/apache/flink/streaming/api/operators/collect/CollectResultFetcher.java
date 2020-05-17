@@ -106,7 +106,7 @@ public class CollectResultFetcher<T> {
 		this.gateway = (CoordinationRequestGateway) jobClient;
 	}
 
-	public T next() {
+	public T next() throws IOException {
 		if (closed) {
 			return null;
 		}
@@ -130,14 +130,8 @@ public class CollectResultFetcher<T> {
 			if (isJobTerminated()) {
 				// job terminated, read results from accumulator
 				jobTerminated = true;
-				try {
-					Tuple2<Long, CollectCoordinationResponse<T>> accResults = getAccumulatorResults();
-					buffer.dealWithResponse(accResults.f1, accResults.f0);
-				} catch (IOException e) {
-					close();
-					throw new RuntimeException(
-						"Failed to deal with final accumulator results, final batch of results are lost", e);
-				}
+				Tuple2<Long, CollectCoordinationResponse<T>> accResults = getAccumulatorResults();
+				buffer.dealWithResponse(accResults.f1, accResults.f0);
 				buffer.complete();
 			} else {
 				// job still running, try to fetch some results
@@ -150,12 +144,7 @@ public class CollectResultFetcher<T> {
 					continue;
 				}
 				// the response will contain data (if any) starting exactly from requested offset
-				try {
-					buffer.dealWithResponse(response, requestOffset);
-				} catch (IOException e) {
-					close();
-					throw new RuntimeException("Failed to deal with response from sink", e);
-				}
+				buffer.dealWithResponse(response, requestOffset);
 			}
 		} while (true);
 	}

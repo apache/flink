@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 
@@ -57,7 +58,7 @@ public class CollectResultIterator<T> implements Iterator<T>, AutoCloseable {
 		// we have to make sure that the next result exists
 		// it is possible that there is no more result but the job is still running
 		if (bufferedResult == null) {
-			bufferedResult = fetcher.next();
+			bufferedResult = nextResultFromFetcher();
 		}
 		return bufferedResult != null;
 	}
@@ -65,7 +66,7 @@ public class CollectResultIterator<T> implements Iterator<T>, AutoCloseable {
 	@Override
 	public T next() {
 		if (bufferedResult == null) {
-			bufferedResult = fetcher.next();
+			bufferedResult = nextResultFromFetcher();
 		}
 		T ret = bufferedResult;
 		bufferedResult = null;
@@ -79,5 +80,14 @@ public class CollectResultIterator<T> implements Iterator<T>, AutoCloseable {
 
 	public void setJobClient(JobClient jobClient) {
 		fetcher.setJobClient(jobClient);
+	}
+
+	private T nextResultFromFetcher() {
+		try {
+			return fetcher.next();
+		} catch (IOException e) {
+			fetcher.close();
+			throw new RuntimeException("Failed to fetch next result", e);
+		}
 	}
 }
