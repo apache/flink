@@ -158,7 +158,7 @@ In most cases, users should only need to set the values `taskmanager.memory.proc
 
 For a detailed explanation of how these options interact,
 see the documentation on [TaskManager]({{site.baseurl}}/ops/memory/mem_setup_tm.html) and
-[JobManager]({{site.baseurl}}/ops/memory/mem_setup_jm.html) memory configurations.
+[JobManager]({{site.baseurl}}/ops/memory/mem_setup_master.html) memory configurations.
 
 {% include generated/common_memory_section.html %}
 

@@ -28,7 +28,7 @@ under the License.
 
 在该教程中，我们会从零开始，介绍如何创建一个Flink Python项目及运行Python Table API程序。
 
-关于Python执行环境的要求，请参考Python Table API[环境安装]({{ site.baseurl }}/dev/dev/table/python/installation.html)。
+关于Python执行环境的要求，请参考Python Table API[环境安装]({{ site.baseurl }}/dev/table/python/installation.html)。
 
 ## 创建一个Python Table API项目
 
