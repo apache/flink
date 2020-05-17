@@ -83,7 +83,6 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 
 		TableSourceTable oldTableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
 		DynamicTableSource newTableSource = oldTableSourceTable.tableSource().copy();
-		SupportsProjectionPushDown newProjectPushDownSource = (SupportsProjectionPushDown) newTableSource;
 
 		int[][] projectedFields = new int[usedFields.length][];
 		List<String> fieldNames = new ArrayList<>();
@@ -92,7 +91,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 			projectedFields[i] = new int[] { usedField };
 			fieldNames.add(scan.getRowType().getFieldNames().get(usedField));
 		}
-		newProjectPushDownSource.applyProjection(projectedFields);
+		((SupportsProjectionPushDown) newTableSource).applyProjection(projectedFields);
 		FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) oldTableSourceTable.getRelOptSchema().getTypeFactory();
 		RelDataType newRowType = flinkTypeFactory.projectStructType(oldTableSourceTable.getRowType(), usedFields);
 

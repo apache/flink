@@ -1283,7 +1283,8 @@ class CalcITCase extends BatchTestBase {
       s"""
          |CREATE TABLE NestedTable (
          |  id int,
-         |  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,
+         |  deepNested row<nested1 row<name string, `value` int>,
+         |                 nested2 row<num int, flag boolean>>,
          |  nested row<name string, `value` int>,
          |  name string
          |) WITH (

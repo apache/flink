@@ -233,7 +233,8 @@ class TableSourceTest extends TableTestBase {
       s"""
          |CREATE TABLE T (
          |  id int,
-         |  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,
+         |  deepNested row<nested1 row<name string, `value` int>,
+         |                 nested2 row<num int, flag boolean>>,
          |  nested row<name string, `value` int>,
          |  name string
          |) WITH (
