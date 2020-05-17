@@ -29,6 +29,8 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * An iterator which iterates through the results of a query job.
+ *
+ * <p>NOTE: After using this iterator, the close method MUST be called in order to release job related resources.
  */
 public class CollectResultIterator<T> implements Iterator<T>, AutoCloseable {
 

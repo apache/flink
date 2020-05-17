@@ -91,11 +91,6 @@ public class CollectResultFetcher<T> {
 
 		this.jobTerminated = false;
 		this.closed = false;
-
-		// in case that user neither reads all data nor closes the iterator
-		// this is only an insurance,
-		// it's the user's responsibility to close the iterator if he does not need it anymore
-		Runtime.getRuntime().addShutdownHook(new Thread(this::close));
 	}
 
 	public void setJobClient(JobClient jobClient) {
@@ -156,14 +151,6 @@ public class CollectResultFetcher<T> {
 
 		cancelJob();
 		closed = true;
-	}
-
-	@Override
-	protected void finalize() throws Throwable {
-		// in case that user neither reads all data nor closes the iterator
-		// this is only an insurance,
-		// it's the user's responsibility to close the iterator if he does not need it anymore
-		close();
 	}
 
 	@SuppressWarnings("unchecked")
