@@ -30,9 +30,8 @@ import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.SortedSet;
-import java.util.TreeSet;
 
 import static org.junit.Assert.assertEquals;
 
@@ -59,6 +58,7 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
 		executeAndVerify(env, stream1.union(stream2), 40);
 	}
 
+	@SuppressWarnings("serial")
 	private void executeAndVerify(StreamExecutionEnvironment env, DataStream<Integer> stream, int numRecords) throws Exception {
 		stream.addSink(new RichSinkFunction<Integer>() {
 			@Override
@@ -72,10 +72,10 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
 			}
 		});
 		List<Integer> result = env.execute().getAccumulatorResult("result");
-		SortedSet<Integer> resultSet = new TreeSet<>(result);
-		assertEquals(0, (int) resultSet.first());
-		assertEquals(numRecords - 1, (int) resultSet.last());
-		assertEquals(numRecords, resultSet.size());
+		Collections.sort(result);
+		assertEquals(numRecords, result.size());
+		assertEquals(0, (int) result.get(0));
+		assertEquals(numRecords - 1, (int) result.get(result.size() - 1));
 	}
 
 }

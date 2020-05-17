@@ -64,6 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SourceOperator<OUT, SplitT extends SourceSplit>
 		extends AbstractStreamOperator<OUT>
 		implements OperatorEventHandler, PushingAsyncDataInput<OUT> {
+	private static final long serialVersionUID = 1405537676017904695L;
 
 	// Package private for unit test.
 	static final ListStateDescriptor<byte[]> SPLITS_STATE_DESC =

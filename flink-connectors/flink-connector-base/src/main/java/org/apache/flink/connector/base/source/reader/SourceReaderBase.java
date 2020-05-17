@@ -82,7 +82,8 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	/** The last element to ensure it is fully handled. */
 	private SplitsRecordIterator<E> splitIter;
 
-	private volatile boolean noMoreSplitsAssignment;
+	/** Indicating whether the SourceReader will be assigned more splits or not.*/
+	private boolean noMoreSplitsAssignment;
 
 	public SourceReaderBase(
 			FutureNotifier futureNotifier,

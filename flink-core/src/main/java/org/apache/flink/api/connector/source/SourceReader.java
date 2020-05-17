@@ -20,7 +20,6 @@ package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -32,7 +31,7 @@ import java.util.concurrent.CompletableFuture;
  * @param <SplitT> The type of the the source splits.
  */
 @Public
-public interface SourceReader<T, SplitT extends SourceSplit> extends Serializable, AutoCloseable {
+public interface SourceReader<T, SplitT extends SourceSplit> extends AutoCloseable {
 
 	/**
 	 * Start the reader.

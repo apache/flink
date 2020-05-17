@@ -43,6 +43,8 @@ import java.util.List;
  * A {@link Source} class for unit test of base implementation of source connector.
  */
 public class MockBaseSource implements Source<Integer, MockSourceSplit, List<MockSourceSplit>> {
+	private static final long serialVersionUID = 4445067705639284175L;
+
 	private final int numSplits;
 	private final int numRecordsPerSplit;
 	private final int startingValue;
@@ -100,9 +102,6 @@ public class MockBaseSource implements Source<Integer, MockSourceSplit, List<Moc
 	public SplitEnumerator<MockSourceSplit, List<MockSourceSplit>> restoreEnumerator(
 			SplitEnumeratorContext<MockSourceSplit> enumContext,
 			List<MockSourceSplit> checkpoint) throws IOException {
-		FutureNotifier futureNotifier = new FutureNotifier();
-		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
-				new FutureCompletingBlockingQueue<>(futureNotifier);
 		return new MockSplitEnumerator(checkpoint, enumContext);
 	}
 
@@ -130,7 +129,7 @@ public class MockBaseSource implements Source<Integer, MockSourceSplit, List<Moc
 				try {
 					splitArray = InstantiationUtil.deserializeObject(serialized, getClass().getClassLoader());
 				} catch (ClassNotFoundException e) {
-					throw new RuntimeException("Failed to deserialize the source split.");
+					throw new IOException("Failed to deserialize the source split.");
 				}
 				return new ArrayList<>(Arrays.asList(splitArray));
 			}
