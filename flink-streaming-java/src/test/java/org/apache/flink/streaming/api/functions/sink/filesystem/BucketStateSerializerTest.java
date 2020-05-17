@@ -28,6 +28,7 @@ import org.apache.flink.util.FileUtils;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -63,7 +64,7 @@ public class BucketStateSerializerTest {
 
 	@Parameterized.Parameters(name = "Previous Version = {0}")
 	public static Collection<Integer> previousVersions() {
-		return Arrays.asList(2);
+		return Arrays.asList(1, 2);
 	}
 
 	@Parameterized.Parameter
@@ -99,6 +100,7 @@ public class BucketStateSerializerTest {
 	}
 
 	@Test
+	@Ignore
 	public void prepareDeserializationEmpty() throws IOException {
 
 		final String scenarioName = "empty";
@@ -137,6 +139,7 @@ public class BucketStateSerializerTest {
 	}
 
 	@Test
+	@Ignore
 	public void prepareDeserializationOnlyInProgress() throws IOException {
 
 		final String scenarioName = "only-in-progress";
@@ -190,6 +193,7 @@ public class BucketStateSerializerTest {
 	}
 
 	@Test
+	@Ignore
 	public void prepareDeserializationFull() throws IOException {
 
 		final String scenarioName = "full";
@@ -287,10 +291,8 @@ public class BucketStateSerializerTest {
 		}
 	}
 
-	/**
-	 * Test the case where we don't have an in-progress file.
-	 */
 	@Test
+	@Ignore
 	public void prepareDeserializationNullInProgress() throws IOException {
 
 		final String scenarioName = "null-in-progress";
@@ -306,7 +308,7 @@ public class BucketStateSerializerTest {
 
 		final Bucket<String, String> bucket =
 			createNewBucket(testBucketPath);
-		BucketState<String> bucketState = null ;
+		BucketState<String> bucketState = null;
 
 		for (int i = 0; i < noOfPendingCheckpoints; i++) {
 			bucket.write(PENDING_CONTENT, System.currentTimeMillis());
