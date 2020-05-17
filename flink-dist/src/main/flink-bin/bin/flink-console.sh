@@ -72,7 +72,7 @@ if [[ ${flock_exist} -eq 0 ]]; then
     flock 200
 fi
 # Remove the pid file when all the processes are dead
-if [ -f "$pid" ];then
+if [ -f "$pid" ]; then
     all_dead=0
     while read each_pid; do
         # Check whether the process is still running
