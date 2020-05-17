@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators.collect;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
@@ -37,7 +36,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -61,8 +59,12 @@ public class CollectResultFetcher<T> {
 
 	private ResultBuffer buffer;
 
+	@Nullable
 	private JobClient jobClient;
-	private boolean terminated;
+	@Nullable
+	private CoordinationRequestGateway gateway;
+
+	private boolean jobTerminated;
 	private boolean closed;
 
 	public CollectResultFetcher(
@@ -76,8 +78,7 @@ public class CollectResultFetcher<T> {
 			DEFAULT_RETRY_MILLIS);
 	}
 
-	@VisibleForTesting
-	public CollectResultFetcher(
+	CollectResultFetcher(
 			CompletableFuture<OperatorID> operatorIdFuture,
 			TypeSerializer<T> serializer,
 			String accumulatorName,
@@ -88,7 +89,8 @@ public class CollectResultFetcher<T> {
 
 		this.buffer = new ResultBuffer(serializer);
 
-		this.terminated = false;
+		this.jobTerminated = false;
+		this.closed = false;
 	}
 
 	public void setJobClient(JobClient jobClient) {
@@ -96,6 +98,7 @@ public class CollectResultFetcher<T> {
 			jobClient instanceof CoordinationRequestGateway,
 			"Job client must be a CoordinationRequestGateway. This is a bug.");
 		this.jobClient = jobClient;
+		this.gateway = (CoordinationRequestGateway) jobClient;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -108,7 +111,7 @@ public class CollectResultFetcher<T> {
 		if (res != null) {
 			// we still have user-visible results, just use them
 			return res;
-		} else if (terminated) {
+		} else if (jobTerminated) {
 			// no user-visible results, but job has terminated, we have to return
 			return null;
 		}
@@ -117,7 +120,7 @@ public class CollectResultFetcher<T> {
 		while (true) {
 			if (isJobTerminated()) {
 				// job terminated, read results from accumulator
-				terminated = true;
+				jobTerminated = true;
 				Tuple2<Long, CollectCoordinationResponse> accResults = getAccumulatorResults();
 				if (accResults != null) {
 					buffer.dealWithResponse(accResults.f1, accResults.f0);
@@ -141,7 +144,7 @@ public class CollectResultFetcher<T> {
 			if (res != null) {
 				// ok, we have results this time
 				return res;
-			} else if (terminated) {
+			} else if (jobTerminated) {
 				// still no results, but job has terminated, we have to return
 				return null;
 			} else {
@@ -171,7 +174,6 @@ public class CollectResultFetcher<T> {
 			String version,
 			long offset) throws InterruptedException, ExecutionException {
 		checkJobClientConfigured();
-		CoordinationRequestGateway gateway = (CoordinationRequestGateway) jobClient;
 
 		OperatorID operatorId = operatorIdFuture.getNow(null);
 		Preconditions.checkNotNull(operatorId, "Unknown operator ID. This is a bug.");
@@ -267,11 +269,15 @@ public class CollectResultFetcher<T> {
 		private final LinkedList<T> buffer;
 		private final TypeSerializer<T> serializer;
 
+		// for detailed explanation of the following 3 variables, see Java doc of CollectSinkFunction
+		// `version` is to check if the sink restarts
 		private String version;
+		// `offset` is the offset of the next result we want to fetch
 		private long offset;
-		private long lastCheckpointedOffset;
-		private long userHead;
-		private long userTail;
+
+		// userVisibleHead <= user visible results offset < userVisibleTail
+		private long userVisibleHead;
+		private long userVisibleTail;
 
 		private ResultBuffer(TypeSerializer<T> serializer) {
 			this.buffer = new LinkedList<>();
@@ -279,17 +285,17 @@ public class CollectResultFetcher<T> {
 
 			this.version = INIT_VERSION;
 			this.offset = 0;
-			this.lastCheckpointedOffset = 0;
-			this.userHead = 0;
-			this.userTail = 0;
+
+			this.userVisibleHead = 0;
+			this.userVisibleTail = 0;
 		}
 
 		private T next() {
-			if (userHead == userTail) {
+			if (userVisibleHead == userVisibleTail) {
 				return null;
 			}
 			T ret = buffer.removeFirst();
-			userHead++;
+			userVisibleHead++;
 
 			sanityCheck();
 			return ret;
@@ -306,8 +312,7 @@ public class CollectResultFetcher<T> {
 			try {
 				results = response.getResults(serializer);
 			} catch (IOException e) {
-				LOG.warn("An exception occurs when deserializing query results. Some results might be lost.", e);
-				results = Collections.emptyList();
+				throw new RuntimeException(e);
 			}
 
 			// we first check version in the response to decide whether we should throw away dirty results
@@ -321,11 +326,10 @@ public class CollectResultFetcher<T> {
 			}
 
 			// we now check if more results can be seen by the user
-			if (responseLastCheckpointedOffset > lastCheckpointedOffset) {
+			if (responseLastCheckpointedOffset > userVisibleTail) {
 				// lastCheckpointedOffset increases, this means that more results have been
 				// checkpointed, and we can give these results to the user
-				userTail += responseLastCheckpointedOffset - lastCheckpointedOffset;
-				lastCheckpointedOffset = responseLastCheckpointedOffset;
+				userVisibleTail = responseLastCheckpointedOffset;
 			}
 
 			if (!results.isEmpty()) {
@@ -340,16 +344,16 @@ public class CollectResultFetcher<T> {
 		}
 
 		private void complete() {
-			userTail = offset;
+			userVisibleTail = offset;
 		}
 
 		private void sanityCheck() {
 			Preconditions.checkState(
-				userHead <= userTail,
-				"userHead should not be larger than userTail. This is a bug.");
+				userVisibleHead <= userVisibleTail,
+				"userVisibleHead should not be larger than userVisibleTail. This is a bug.");
 			Preconditions.checkState(
-				userTail <= offset,
-				"userTail should not be larger than offset. This is a bug.");
+				userVisibleTail <= offset,
+				"userVisibleTail should not be larger than offset. This is a bug.");
 		}
 	}
 }
