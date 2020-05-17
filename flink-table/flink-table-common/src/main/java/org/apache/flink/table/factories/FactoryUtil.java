@@ -34,12 +34,14 @@ import org.apache.flink.table.connector.format.SinkFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -496,6 +498,25 @@ public final class FactoryUtil {
 							.sorted()
 							.collect(Collectors.joining("\n"))));
 			}
+		}
+
+		/**
+		 * Validates the options of the {@link DynamicTableFactory}. It checks for unconsumed option
+		 * keys while ignoring the options with given prefixes.
+		 *
+		 * <p>The option keys that have given prefix {@code prefixToSkip}
+		 * would just be skipped for validation.
+		 *
+		 * @param prefixesToSkip Set of option key prefixes to skip validation
+		 */
+		public void validateExcept(String... prefixesToSkip) {
+			Preconditions.checkArgument(prefixesToSkip.length > 0,
+					"Prefixes to skip can not be empty.");
+			final List<String> prefixesList = Arrays.asList(prefixesToSkip);
+			consumedOptionKeys.addAll(allOptions.keySet().stream()
+				.filter(key -> prefixesList.stream().anyMatch(key::startsWith))
+				.collect(Collectors.toSet()));
+			validate();
 		}
 
 		/**
