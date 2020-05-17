@@ -294,17 +294,6 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumerBase<T> {
 			PropertiesUtil.getLong(properties, ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, 5000) > 0;
 	}
 
-	// ------------------------------------------------------------------------
-	//  Timestamp-based startup
-	// ------------------------------------------------------------------------
-
-	@Override
-	public FlinkKafkaConsumerBase<T> setStartFromTimestamp(long startupOffsetsTimestamp) {
-		// the purpose of this override is just to publicly expose the method for Kafka 0.10+;
-		// the base class doesn't publicly expose it since not all Kafka versions support the functionality
-		return super.setStartFromTimestamp(startupOffsetsTimestamp);
-	}
-
 	@Override
 	protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(
 			Collection<KafkaTopicPartition> partitions,

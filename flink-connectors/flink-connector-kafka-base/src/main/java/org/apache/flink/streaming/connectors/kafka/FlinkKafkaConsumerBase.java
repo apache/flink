@@ -408,11 +408,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 *
 	 * @return The consumer object, to allow function chaining.
 	 */
-	// NOTE -
-	// This method is implemented in the base class because this is where the startup logging and verifications live.
-	// However, it is not publicly exposed since only newer Kafka versions support the functionality.
-	// Version-specific subclasses which can expose the functionality should override and allow public access.
-	protected FlinkKafkaConsumerBase<T> setStartFromTimestamp(long startupOffsetsTimestamp) {
+	public FlinkKafkaConsumerBase<T> setStartFromTimestamp(long startupOffsetsTimestamp) {
 		checkArgument(startupOffsetsTimestamp >= 0, "The provided value for the startup offsets timestamp is invalid.");
 
 		long currentTimestamp = System.currentTimeMillis();
