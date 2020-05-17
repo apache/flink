@@ -213,24 +213,6 @@ public class TestUtils {
 		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
 	}
 
-	static OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> createBucketStateMigrationTestSink(
-		final File outDir,
-		final int maxPartFileSize,
-		final int totalParallelism,
-		final int taskIdx,
-		final Encoder<Tuple2<String, Integer>> encoder,
-		final BucketAssigner<Tuple2<String, Integer>, String> bucketAssigner) throws Exception {
-
-		final StreamingFileSink<Tuple2<String, Integer>> sink =
-			new TestRowFormatBuilder(
-				new Path(outDir.toString()),
-				encoder,
-				bucketAssigner,
-				DefaultRollingPolicy.builder().withMaxPartSize(maxPartFileSize).build()).build();
-
-		return new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), MAX_PARALLELISM, totalParallelism, taskIdx);
-	}
-
 	static void checkLocalFs(File outDir, int expectedInProgress, int expectedCompleted) {
 		int inProgress = 0;
 		int finished = 0;
@@ -438,50 +420,12 @@ public class TestUtils {
 		}
 	}
 
-	static class TestRowFormatBuilder extends StreamingFileSink.RowFormatBuilder<Tuple2<String, Integer>, String, TestRowFormatBuilder> {
-
-		private final Path basePath;
-
-		private final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy;
-
-		private final Encoder<Tuple2<String, Integer>> encoder;
-
-		private final BucketAssigner<Tuple2<String, Integer>, String> bucketAssigner;
-
-		public TestRowFormatBuilder(
-			final Path basePath,
-			final Encoder<Tuple2<String, Integer>> encoder,
-			final BucketAssigner<Tuple2<String, Integer>, String> bucketAssigner,
-			final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy) {
-			super(basePath, encoder, bucketAssigner);
-			this.basePath = basePath;
-			this.encoder = encoder;
-			this.rollingPolicy = rollingPolicy;
-			this.bucketAssigner = bucketAssigner;
-		}
-
-		@Override
-		Buckets<Tuple2<String, Integer>, String> createBuckets(int subtaskIndex) {
-			return new Buckets<>(
-				basePath,
-				bucketAssigner,
-				new DefaultBucketFactoryImpl<>(),
-				new RowWisePartWriter.Factory<>(
-					new LocalRecoverableWriterForBucketStateMigrationTest(
-						new LocalFileSystem(), basePath.toString()), encoder),
-				rollingPolicy,
-				subtaskIndex,
-				OutputFileConfig.builder().build());
-		}
-	}
-
 	static class LocalRecoverableWriterForBucketStateMigrationTest extends LocalRecoverableWriter {
 
-		final String prefix;
+		final String prefix = "src/test/resources/";
 
-		public LocalRecoverableWriterForBucketStateMigrationTest(LocalFileSystem fs, String prefix) {
-			super(fs);
-			this.prefix = prefix;
+		LocalRecoverableWriterForBucketStateMigrationTest() {
+			super(new LocalFileSystem());
 		}
 
 		public RecoverableFsDataOutputStream open(Path filePath) throws IOException {
@@ -511,10 +455,12 @@ public class TestUtils {
 
 	static class FileForBucketSateMigrationTest extends File {
 
-		public FileForBucketSateMigrationTest(String pathname) {
+		FileForBucketSateMigrationTest(String pathname) {
 			super(pathname);
 		}
 
+		@Override
+		@Nonnull
 		public String getAbsolutePath() {
 			return getPath();
 		}
