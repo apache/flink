@@ -157,9 +157,9 @@ public class PostgresCatalogTestBase {
 	public static TestTable getPrimitiveTable() {
 		return new TestTable(
 			TableSchema.builder()
-				.field("int", DataTypes.INT())
+				.field("int", DataTypes.INT().notNull())
 				.field("bytea", DataTypes.BYTES())
-				.field("short", DataTypes.SMALLINT())
+				.field("short", DataTypes.SMALLINT().notNull())
 				.field("long", DataTypes.BIGINT())
 				.field("real", DataTypes.FLOAT())
 				.field("double_precision", DataTypes.DOUBLE())
@@ -175,6 +175,7 @@ public class PostgresCatalogTestBase {
 				.field("date", DataTypes.DATE())
 				.field("time", DataTypes.TIME(0))
 				.field("default_numeric", DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18))
+				.primaryKey("test_pk", new String[]{"int", "short"})
 				.build(),
 			"int integer, " +
 				"bytea bytea, " +
@@ -193,7 +194,8 @@ public class PostgresCatalogTestBase {
 //				"timestamptz timestamptz(4), " +
 				"date date," +
 				"time time(0), " +
-				"default_numeric numeric ",
+				"default_numeric numeric, " +
+				"CONSTRAINT test_pk PRIMARY KEY (int, short)",
 			"1," +
 				"'2'," +
 				"3," +
