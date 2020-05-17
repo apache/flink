@@ -399,11 +399,11 @@ public class FileSystemTableSink implements
 	/**
 	 * Table bucket assigner, wrap {@link PartitionComputer}.
 	 */
-	public static class TableBucketAssigner implements BucketAssigner<RowData, String> {
+	private static class TableBucketAssigner implements BucketAssigner<RowData, String> {
 
 		private final PartitionComputer<RowData> computer;
 
-		public TableBucketAssigner(PartitionComputer<RowData> computer) {
+		private TableBucketAssigner(PartitionComputer<RowData> computer) {
 			this.computer = computer;
 		}
 
@@ -426,13 +426,13 @@ public class FileSystemTableSink implements
 	/**
 	 * Table {@link RollingPolicy}, it extends {@link CheckpointRollingPolicy} for bulk writers.
 	 */
-	public static class TableRollingPolicy extends CheckpointRollingPolicy<RowData, String> {
+	private static class TableRollingPolicy extends CheckpointRollingPolicy<RowData, String> {
 
 		private final boolean rollOnCheckpoint;
 		private final long rollingFileSize;
 		private final long rollingTimeInterval;
 
-		public TableRollingPolicy(
+		private TableRollingPolicy(
 				boolean rollOnCheckpoint,
 				long rollingFileSize,
 				long rollingTimeInterval) {

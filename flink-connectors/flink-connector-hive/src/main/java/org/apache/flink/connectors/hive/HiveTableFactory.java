@@ -20,11 +20,13 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.sinks.OutputFormatTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
@@ -86,13 +88,16 @@ public class HiveTableFactory
 		boolean isGeneric = Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
 		if (!isGeneric) {
-			return new HiveTableSink(
-					context.isBounded(),
-					new JobConf(hiveConf),
-					context.getObjectIdentifier(),
-					table);
+			return createOutputFormatTableSink(context.getObjectIdentifier().toObjectPath(), table);
 		} else {
 			return TableFactoryUtil.findAndCreateTableSink(context);
 		}
+	}
+
+	/**
+	 * Creates and configures a {@link org.apache.flink.table.sinks.OutputFormatTableSink} using the given {@link CatalogTable}.
+	 */
+	private OutputFormatTableSink<Row> createOutputFormatTableSink(ObjectPath tablePath, CatalogTable table) {
+		return new HiveTableSink(new JobConf(hiveConf), tablePath, table);
 	}
 }
