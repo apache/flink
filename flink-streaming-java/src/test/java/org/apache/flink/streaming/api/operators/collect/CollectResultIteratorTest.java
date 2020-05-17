@@ -50,7 +50,7 @@ public class CollectResultIteratorTest extends TestLogger {
 		TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
 
 		// run this random test multiple times
-		for (int testCount = 100; testCount > 0; testCount--) {
+		for (int testCount = 1000; testCount > 0; testCount--) {
 			List<Integer> expected = new ArrayList<>();
 			for (int i = 0; i < 200; i++) {
 				expected.add(i);

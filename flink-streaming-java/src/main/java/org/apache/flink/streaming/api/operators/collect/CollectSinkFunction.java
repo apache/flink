@@ -79,7 +79,9 @@ import java.util.concurrent.locks.ReentrantLock;
  *         before this offset. Sink can safely throw these results away.</li>
  *     <li><strong>lastCheckpointedOffset</strong>:
  *         This is the value of <code>offset</code> when the checkpoint happens. This value will be
- *         restored from the checkpoint and set back to <code>offset</code> when the sink restarts.</li>
+ *         restored from the checkpoint and set back to <code>offset</code> when the sink restarts.
+ *         Clients who need exactly-once semantics need to rely on this value for the position to
+ *         revert when a failover happens.</li>
  * </ol>
  *
  * <p>Client will put <code>version</code> and <code>offset</code> into the request, indicating that
@@ -98,9 +100,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * <ol>
  *     <li>If the version mismatches, client knows that sink has restarted. It will throw away all uncheckpointed
  *         results after <code>lastCheckpointedOffset</code>.</li>
- *     <li>Otherwise the version matches. If <code>lastCheckpointedOffset</code> increases, client knows that
- *         a checkpoint happens. It can now move all results before this offset to a user-visible buffer. If
- *         the response also contains new results, client will now move these new results into uncheckpointed
+ *     <li>If <code>lastCheckpointedOffset</code> increases, client knows that
+ *         a checkpoint happens. It can now move all results before this offset to a user-visible buffer.</li>
+ *     <li>If the response also contains new results, client will now move these new results into uncheckpointed
  *         buffer.</li>
  * </ol>
  *

@@ -256,6 +256,10 @@ public class CollectResultFetcher<T> {
 		Preconditions.checkNotNull(jobClient, "Job client must be configured before first use.");
 	}
 
+	/**
+	 * A buffer which encapsulates the logic of dealing with the response from the {@link CollectSinkFunction}.
+	 * See Java doc of {@link CollectSinkFunction} for explanation of this communication protocol.
+	 */
 	private class ResultBuffer {
 
 		private static final String INIT_VERSION = "";
@@ -306,14 +310,9 @@ public class CollectResultFetcher<T> {
 				results = Collections.emptyList();
 			}
 
-			if (responseLastCheckpointedOffset > lastCheckpointedOffset) {
-				// a new checkpoint happens
-				userTail += responseLastCheckpointedOffset - lastCheckpointedOffset;
-				lastCheckpointedOffset = responseLastCheckpointedOffset;
-			}
-
+			// we first check version in the response to decide whether we should throw away dirty results
 			if (!version.equals(responseVersion)) {
-				// sink restarted
+				// sink restarted, we revert back to where the sink tells us
 				for (long i = 0; i < offset - responseLastCheckpointedOffset; i++) {
 					buffer.removeLast();
 				}
@@ -321,7 +320,16 @@ public class CollectResultFetcher<T> {
 				offset = responseLastCheckpointedOffset;
 			}
 
+			// we now check if more results can be seen by the user
+			if (responseLastCheckpointedOffset > lastCheckpointedOffset) {
+				// lastCheckpointedOffset increases, this means that more results have been
+				// checkpointed, and we can give these results to the user
+				userTail += responseLastCheckpointedOffset - lastCheckpointedOffset;
+				lastCheckpointedOffset = responseLastCheckpointedOffset;
+			}
+
 			if (!results.isEmpty()) {
+				// response contains some data, add them to buffer
 				int addStart = (int) (offset - responseOffset);
 				List<T> addedResults = results.subList(addStart, results.size());
 				buffer.addAll(addedResults);
@@ -336,8 +344,12 @@ public class CollectResultFetcher<T> {
 		}
 
 		private void sanityCheck() {
-			Preconditions.checkState(userHead <= userTail, "userHead should not be larger than userTail");
-			Preconditions.checkState(userTail <= offset, "userTail should not be larger than offset");
+			Preconditions.checkState(
+				userHead <= userTail,
+				"userHead should not be larger than userTail. This is a bug.");
+			Preconditions.checkState(
+				userTail <= offset,
+				"userTail should not be larger than offset. This is a bug.");
 		}
 	}
 }
