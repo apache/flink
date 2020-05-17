@@ -652,7 +652,7 @@ metrics.reporter.grph.protocol: TCP
 
 ### InfluxDB (org.apache.flink.metrics.influxdb.InfluxdbReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-influxdb-{{site.version}}.jar` into the `/lib` folder
+In order to use this reporter you must copy `/opt/flink-metrics-influxdb-{{site.version}}.jar` into the `plugins/influxdb` folder
 of your Flink distribution.
 
 Parameters:
@@ -663,7 +663,7 @@ Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporter.influxdb.class: org.apache.flink.metrics.influxdb.InfluxdbReporter
+metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
 metrics.reporter.influxdb.host: localhost
 metrics.reporter.influxdb.port: 8086
 metrics.reporter.influxdb.db: flink
