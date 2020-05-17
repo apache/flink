@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @param <V> type of the RunnableFuture
  */
-class ExceptionallyDoneFuture<V> implements RunnableFuture<V> {
+public class ExceptionallyDoneFuture<V> implements RunnableFuture<V> {
 
 	private final Throwable throwable;
 
