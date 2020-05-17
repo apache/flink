@@ -20,6 +20,7 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.SelectTableSink;
 import org.apache.flink.table.delegation.Parser;
@@ -45,7 +46,7 @@ public class PlannerMock implements Planner {
 	}
 
 	@Override
-	public SelectTableSink createSelectTableSink(TableSchema tableSchema) {
+	public SelectTableSink createSelectTableSink(TableConfig tableConfig, TableSchema tableSchema) {
 		return null;
 	}
 

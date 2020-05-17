@@ -687,7 +687,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	@Override
 	public TableResult executeInternal(QueryOperation operation) {
 		TableSchema tableSchema = operation.getTableSchema();
-		SelectTableSink tableSink = planner.createSelectTableSink(tableSchema);
+		SelectTableSink tableSink = planner.createSelectTableSink(tableConfig, tableSchema);
 		UnregisteredSinkModifyOperation<Row> sinkOperation = new UnregisteredSinkModifyOperation<>(
 				tableSink,
 				operation

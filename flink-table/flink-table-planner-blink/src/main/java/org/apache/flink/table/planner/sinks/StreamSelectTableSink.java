@@ -23,19 +23,21 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.experimental.CollectSink;
-import org.apache.flink.streaming.experimental.SocketStreamIterator;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
+import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.SelectTableSink;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
-import java.io.IOException;
-import java.net.InetAddress;
 import java.util.Iterator;
+import java.util.UUID;
 
 /**
  * A {@link SelectTableSink} for streaming select job.
@@ -46,23 +48,28 @@ import java.util.Iterator;
  * Once FLINK-16998 is finished, all kinds of changes will be supported.
  */
 public class StreamSelectTableSink implements AppendStreamTableSink<Row>, SelectTableSink {
+
 	private final TableSchema tableSchema;
-	private final TypeSerializer<Row> typeSerializer;
-	private final SocketStreamIterator<Row> iterator;
+	private final CollectSinkOperatorFactory<Row> factory;
+	private final CollectResultIterator<Row> iterator;
 
 	@SuppressWarnings("unchecked")
-	public StreamSelectTableSink(TableSchema tableSchema) {
+	public StreamSelectTableSink(TableConfig tableConfig, TableSchema tableSchema) {
 		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
 				SelectTableSinkSchemaConverter.changeDefaultConversionClass(tableSchema));
-		this.typeSerializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
-				.fromDataTypeToTypeInfo(this.tableSchema.toRowDataType())
-				.createSerializer(new ExecutionConfig());
-		try {
-			// socket server should be started before running the job
-			iterator = new SocketStreamIterator<>(0, InetAddress.getLocalHost(), typeSerializer);
-		} catch (IOException e) {
-			throw new TableException("Failed to get the address of the local host.");
-		}
+
+		TypeSerializer<Row> typeSerializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
+			.fromDataTypeToTypeInfo(this.tableSchema.toRowDataType())
+			.createSerializer(new ExecutionConfig());
+		int batchSize = tableConfig.getConfiguration().getInteger(
+			ExecutionConfigOptions.TABLE_EXEC_COLLECT_BATCH_SIZE);
+		int socketTimeout = tableConfig.getConfiguration().getInteger(
+			ExecutionConfigOptions.TABLE_EXEC_COLLECT_SOCKET_TIMEOUT);
+		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
+
+		this.factory = new CollectSinkOperatorFactory<>(typeSerializer, batchSize, accumulatorName, socketTimeout);
+		CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
+		this.iterator = new CollectResultIterator<>(operator.getOperatorIdFuture(), typeSerializer, accumulatorName);
 	}
 
 	@Override
@@ -77,14 +84,14 @@ public class StreamSelectTableSink implements AppendStreamTableSink<Row>, Select
 
 	@Override
 	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
-		return dataStream
-				.addSink(new CollectSink<>(iterator.getBindAddress(), iterator.getPort(), typeSerializer))
-				.name("Streaming select table sink")
-				.setParallelism(1);
+		CollectStreamSink<Row> sink = new CollectStreamSink<>(dataStream, factory);
+		dataStream.getExecutionEnvironment().addOperator(sink.getTransformation());
+		return sink.name("Streaming select table sink");
 	}
 
 	@Override
 	public void setJobClient(JobClient jobClient) {
+		iterator.setJobClient(jobClient);
 	}
 
 	@Override

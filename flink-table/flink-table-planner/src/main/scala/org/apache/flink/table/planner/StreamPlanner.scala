@@ -17,6 +17,7 @@
  */
 
 package org.apache.flink.table.planner
+
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -121,8 +122,10 @@ class StreamPlanner(
     }.filter(Objects.nonNull).asJava
   }
 
-  override def createSelectTableSink(tableSchema: TableSchema): SelectTableSink = {
-    new StreamSelectTableSink(tableSchema)
+  override def createSelectTableSink(
+      tableConfig: TableConfig,
+      tableSchema: TableSchema): SelectTableSink = {
+    new StreamSelectTableSink(tableConfig, tableSchema)
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {

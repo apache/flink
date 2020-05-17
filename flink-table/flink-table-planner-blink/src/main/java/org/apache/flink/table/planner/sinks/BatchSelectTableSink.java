@@ -19,28 +19,25 @@
 package org.apache.flink.table.planner.sinks;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
+import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.SelectTableSink;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.UUID;
 
 /**
  * A {@link SelectTableSink} for batch select job.
@@ -49,19 +46,28 @@ import java.util.concurrent.ExecutionException;
  * once FLINK-14807 is finished, the implementation should be changed.
  */
 public class BatchSelectTableSink implements StreamTableSink<Row>, SelectTableSink {
+
 	private final TableSchema tableSchema;
-	private final String accumulatorName;
-	private final TypeSerializer<Row> typeSerializer;
-	private JobClient jobClient;
+	private final CollectSinkOperatorFactory<Row> factory;
+	private final CollectResultIterator<Row> iterator;
 
 	@SuppressWarnings("unchecked")
-	public BatchSelectTableSink(TableSchema tableSchema) {
+	public BatchSelectTableSink(TableConfig tableConfig, TableSchema tableSchema) {
 		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
 				SelectTableSinkSchemaConverter.changeDefaultConversionClass(tableSchema));
-		this.accumulatorName = new AbstractID().toString();
-		this.typeSerializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
+
+		TypeSerializer<Row> typeSerializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
 				.fromDataTypeToTypeInfo(this.tableSchema.toRowDataType())
 				.createSerializer(new ExecutionConfig());
+		int batchSize = tableConfig.getConfiguration().getInteger(
+			ExecutionConfigOptions.TABLE_EXEC_COLLECT_BATCH_SIZE);
+		int socketTimeout = tableConfig.getConfiguration().getInteger(
+			ExecutionConfigOptions.TABLE_EXEC_COLLECT_SOCKET_TIMEOUT);
+		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
+
+		this.factory = new CollectSinkOperatorFactory<>(typeSerializer, batchSize, accumulatorName, socketTimeout);
+		CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
+		this.iterator = new CollectResultIterator<>(operator.getOperatorIdFuture(), typeSerializer, accumulatorName);
 	}
 
 	@Override
@@ -76,38 +82,18 @@ public class BatchSelectTableSink implements StreamTableSink<Row>, SelectTableSi
 
 	@Override
 	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
-		return dataStream.writeUsingOutputFormat(
-				new Utils.CollectHelper<>(accumulatorName, typeSerializer))
-				.name("Batch select table sink")
-				.setParallelism(1);
+		CollectStreamSink<Row> sink = new CollectStreamSink<>(dataStream, factory);
+		dataStream.getExecutionEnvironment().addOperator(sink.getTransformation());
+		return sink.name("Batch select table sink");
 	}
 
 	@Override
 	public void setJobClient(JobClient jobClient) {
-		this.jobClient = Preconditions.checkNotNull(jobClient, "jobClient should not be null");
+		iterator.setJobClient(jobClient);
 	}
 
 	@Override
 	public Iterator<Row> getResultIterator() {
-		Preconditions.checkNotNull(jobClient, "jobClient is null, please call setJobClient first.");
-		JobExecutionResult jobExecutionResult;
-		try {
-			jobExecutionResult = jobClient.getJobExecutionResult(
-					Thread.currentThread().getContextClassLoader())
-					.get();
-		} catch (InterruptedException | ExecutionException e) {
-			throw new TableException("Failed to get job execution result.", e);
-		}
-		ArrayList<byte[]> accResult = jobExecutionResult.getAccumulatorResult(accumulatorName);
-		if (accResult == null) {
-			throw new TableException("result is null.");
-		}
-		List<Row> rowList;
-		try {
-			rowList = SerializedListAccumulator.deserializeList(accResult, typeSerializer);
-		} catch (IOException | ClassNotFoundException e) {
-			throw new TableException("Failed to deserialize the result.", e);
-		}
-		return rowList.iterator();
+		return iterator;
 	}
 }

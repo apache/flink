@@ -80,8 +80,10 @@ class BatchPlanner(
     }
   }
 
-  override def createSelectTableSink(tableSchema: TableSchema): SelectTableSink = {
-    new BatchSelectTableSink(tableSchema)
+  override def createSelectTableSink(
+      tableConfig: TableConfig,
+      tableSchema: TableSchema): SelectTableSink = {
+    new BatchSelectTableSink(tableConfig, tableSchema)
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
