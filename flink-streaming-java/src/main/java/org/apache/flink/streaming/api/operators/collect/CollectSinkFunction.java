@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.operators.collect;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
@@ -78,7 +79,9 @@ import java.util.concurrent.locks.ReentrantLock;
  *         before this offset. Sink can safely throw these results away.</li>
  *     <li><strong>lastCheckpointedOffset</strong>:
  *         This is the value of <code>offset</code> when the checkpoint happens. This value will be
- *         restored from the checkpoint and set back to <code>offset</code> when the sink restarts.</li>
+ *         restored from the checkpoint and set back to <code>offset</code> when the sink restarts.
+ *         Clients who need exactly-once semantics need to rely on this value for the position to
+ *         revert when a failover happens.</li>
  * </ol>
  *
  * <p>Client will put <code>version</code> and <code>offset</code> into the request, indicating that
@@ -97,9 +100,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * <ol>
  *     <li>If the version mismatches, client knows that sink has restarted. It will throw away all uncheckpointed
  *         results after <code>lastCheckpointedOffset</code>.</li>
- *     <li>Otherwise the version matches. If <code>lastCheckpointedOffset</code> increases, client knows that
- *         a checkpoint happens. It can now move all results before this offset to a user-visible buffer. If
- *         the response also contains new results, client will now move these new results into uncheckpointed
+ *     <li>If <code>lastCheckpointedOffset</code> increases, client knows that
+ *         a checkpoint happens. It can now move all results before this offset to a user-visible buffer.</li>
+ *     <li>If the response also contains new results, client will now move these new results into uncheckpointed
  *         buffer.</li>
  * </ol>
  *
@@ -264,7 +267,9 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 			// put results not consumed by the client into the accumulator
 			// so that we do not block the closing procedure while not throwing results away
 			SerializedListAccumulator<byte[]> accumulator = new SerializedListAccumulator<>();
-			accumulator.add(serializeAccumulatorResult(), BytePrimitiveArraySerializer.INSTANCE);
+			accumulator.add(
+				serializeAccumulatorResult(offset, version, lastCheckpointedOffset, bufferedResults, serializer),
+				BytePrimitiveArraySerializer.INSTANCE);
 			getRuntimeContext().addAccumulator(accumulatorName, accumulator);
 		} finally {
 			bufferedResultsLock.unlock();
@@ -286,22 +291,28 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		this.eventGateway = eventGateway;
 	}
 
-	private byte[] serializeAccumulatorResult() throws IOException {
+	@VisibleForTesting
+	public static <T> byte[] serializeAccumulatorResult(
+			long offset,
+			String version,
+			long lastCheckpointedOffset,
+			List<T> bufferedResults,
+			TypeSerializer<T> serializer) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
 		wrapper.writeLong(offset);
-		CollectCoordinationResponse<IN> finalResponse =
+		CollectCoordinationResponse<T> finalResponse =
 			new CollectCoordinationResponse<>(version, lastCheckpointedOffset, bufferedResults, serializer);
 		finalResponse.serialize(wrapper);
 		return baos.toByteArray();
 	}
 
-	public static Tuple2<Long, CollectCoordinationResponse> deserializeAccumulatorResult(
+	public static <T> Tuple2<Long, CollectCoordinationResponse<T>> deserializeAccumulatorResult(
 			byte[] serializedAccResults) throws IOException {
 		ByteArrayInputStream bais = new ByteArrayInputStream(serializedAccResults);
 		DataInputViewStreamWrapper wrapper = new DataInputViewStreamWrapper(bais);
 		long token = wrapper.readLong();
-		CollectCoordinationResponse finalResponse = new CollectCoordinationResponse(wrapper);
+		CollectCoordinationResponse<T> finalResponse = new CollectCoordinationResponse<>(wrapper);
 		return Tuple2.of(token, finalResponse);
 	}
 
@@ -395,8 +406,8 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 
 		private void close() {
 			running = false;
+			closeServerSocket();
 			closeCurrentConnection();
-			closeServer();
 		}
 
 		private InetSocketAddress getServerSocketAddress() {
@@ -444,7 +455,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 			}
 		}
 
-		private void closeServer() {
+		private void closeServerSocket() {
 			try {
 				serverSocket.close();
 			} catch (Exception e) {

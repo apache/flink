@@ -45,6 +45,8 @@ import java.util.concurrent.CompletableFuture;
  */
 public class CollectSinkOperatorCoordinatorTest {
 
+	private static final int SOCKET_TIMEOUT_MILLIS = 1000;
+
 	private static final TypeSerializer<Row> serializer = new RowTypeInfo(
 		BasicTypeInfo.INT_TYPE_INFO,
 		BasicTypeInfo.STRING_TYPE_INFO
@@ -52,7 +54,7 @@ public class CollectSinkOperatorCoordinatorTest {
 
 	@Test
 	public void testNoAddress() throws Exception {
-		CollectSinkOperatorCoordinator coordinator = new CollectSinkOperatorCoordinator();
+		CollectSinkOperatorCoordinator coordinator = new CollectSinkOperatorCoordinator(SOCKET_TIMEOUT_MILLIS);
 		coordinator.start();
 
 		CollectCoordinationRequest request = new CollectCoordinationRequest("version", 123);
@@ -65,7 +67,7 @@ public class CollectSinkOperatorCoordinatorTest {
 
 	@Test
 	public void testServerFailure() throws Exception {
-		CollectSinkOperatorCoordinator coordinator = new CollectSinkOperatorCoordinator();
+		CollectSinkOperatorCoordinator coordinator = new CollectSinkOperatorCoordinator(SOCKET_TIMEOUT_MILLIS);
 		coordinator.start();
 
 		List<List<Row>> expected = Arrays.asList(

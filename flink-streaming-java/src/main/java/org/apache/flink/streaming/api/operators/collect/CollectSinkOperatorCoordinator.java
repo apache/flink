@@ -56,12 +56,18 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 
 	private static final Logger LOG = LoggerFactory.getLogger(CollectSinkOperatorCoordinator.class);
 
+	private final int socketTimeout;
+
 	private InetSocketAddress address;
 	private Socket socket;
 	private DataInputViewStreamWrapper inStream;
 	private DataOutputViewStreamWrapper outStream;
 
 	private ExecutorService executorService;
+
+	public CollectSinkOperatorCoordinator(int socketTimeout) {
+		this.socketTimeout = socketTimeout;
+	}
 
 	@Override
 	public void start() throws Exception {
@@ -107,12 +113,20 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 			CollectCoordinationRequest request,
 			CompletableFuture<CoordinationResponse> responseFuture,
 			InetSocketAddress sinkAddress) {
+		if (sinkAddress == null) {
+			closeConnection();
+			completeWithEmptyResponse(request, responseFuture);
+			return;
+		}
+
 		try {
 			if (socket == null) {
-				socket = new Socket(sinkAddress.getAddress(), sinkAddress.getPort());
+				socket = new Socket();
+				socket.setSoTimeout(socketTimeout);
 				socket.setKeepAlive(true);
 				socket.setTcpNoDelay(true);
 
+				socket.connect(sinkAddress);
 				inStream = new DataInputViewStreamWrapper(socket.getInputStream());
 				outStream = new DataOutputViewStreamWrapper(socket.getOutputStream());
 				LOG.info("Sink connection established");
@@ -200,9 +214,11 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 	public static class Provider implements OperatorCoordinator.Provider {
 
 		private final OperatorID operatorId;
+		private final int socketTimeout;
 
-		public Provider(OperatorID operatorId) {
+		public Provider(OperatorID operatorId, int socketTimeout) {
 			this.operatorId = operatorId;
+			this.socketTimeout = socketTimeout;
 		}
 
 		@Override
@@ -213,7 +229,7 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 		@Override
 		public OperatorCoordinator create(Context context) {
 			// we do not send operator event so we don't need a context
-			return new CollectSinkOperatorCoordinator();
+			return new CollectSinkOperatorCoordinator(socketTimeout);
 		}
 	}
 }
