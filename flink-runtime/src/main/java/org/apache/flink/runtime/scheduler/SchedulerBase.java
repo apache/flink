@@ -962,7 +962,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 			throw new FlinkException("Coordinator of operator " + operator + " does not exist");
 		}
 
-		final OperatorCoordinator coordinator = coordinatorHolder.getCoordinator();
+		final OperatorCoordinator coordinator = coordinatorHolder.coordinator();
 		if (coordinator instanceof CoordinationRequestHandler) {
 			return ((CoordinationRequestHandler) coordinator).handleCoordinationRequest(request);
 		} else {
@@ -1002,7 +1002,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap = new HashMap<>();
 		for (ExecutionJobVertex vertex : executionGraph.getAllVertices().values()) {
 			for (OperatorCoordinatorHolder holder : vertex.getOperatorCoordinators()) {
-				coordinatorMap.put(holder.getOperatorId(), holder);
+				coordinatorMap.put(holder.operatorId(), holder);
 			}
 		}
 		return coordinatorMap;
