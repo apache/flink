@@ -830,6 +830,20 @@ under the License.
 							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
+					<execution>
+						<id>plugins</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<descriptors>
+								<descriptor>src/main/assemblies/plugins.xml</descriptor>
+							</descriptors>
+							<finalName>flink-${project.version}-bin</finalName>
+							<appendAssemblyId>false</appendAssemblyId>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
