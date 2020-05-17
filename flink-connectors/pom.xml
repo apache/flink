@@ -58,6 +58,7 @@ under the License.
 		<module>flink-connector-kinesis</module>
 		<module>flink-sql-connector-elasticsearch7</module>
 		<module>flink-connector-base</module>
+		<module>flink-sql-connector-hbase</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
