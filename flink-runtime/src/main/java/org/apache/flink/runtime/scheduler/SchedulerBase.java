@@ -81,6 +81,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandler;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
@@ -169,7 +170,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	protected final ExecutionVertexVersioner executionVertexVersioner;
 
-	private final Map<OperatorID, OperatorCoordinator> coordinatorMap;
+	private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
 
 	private ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
 		"SchedulerBase is not initialized with proper main thread executor. " +
@@ -443,6 +444,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	@Override
 	public void setMainThreadExecutor(final ComponentMainThreadExecutor mainThreadExecutor) {
 		this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
+		initializeOperatorCoordinators(mainThreadExecutor);
 		executionGraph.start(mainThreadExecutor);
 	}
 
@@ -901,6 +903,21 @@ public abstract class SchedulerBase implements SchedulerNG {
 			.orElse("Unknown location");
 	}
 
+	// ------------------------------------------------------------------------
+	//  Operator Coordinators
+	//
+	//  Note: It may be worthwhile to move the OperatorCoordinators out
+	//        of the scheduler (have them owned by the JobMaster directly).
+	//        Then we could avoid routing these events through the scheduler and
+	//        doing this lazy initialization dance. However, this would require
+	//        that the Scheduler does not eagerly construct the CheckpointCoordinator
+	//        in the ExecutionGraph and does not eagerly restore the savepoint while
+	//        doing that. Because during savepoint restore, the OperatorCoordinators
+	//        (or at least their holders) already need to exist, to accept the restored
+	//        state. But some components they depend on (Scheduler and MainThreadExecutor)
+	//        are not fully usable and accessible at that point.
+	// ------------------------------------------------------------------------
+
 	@Override
 	public void deliverOperatorEventToCoordinator(
 			final ExecutionAttemptID taskExecutionId,
@@ -922,8 +939,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 			throw new TaskNotRunningException("Task is not known or in state running on the JobManager.");
 		}
 
-		final ExecutionJobVertex ejv = exec.getVertex().getJobVertex();
-		final OperatorCoordinator coordinator = ejv.getOperatorCoordinator(operatorId);
+		final OperatorCoordinatorHolder coordinator = coordinatorMap.get(operatorId);
 		if (coordinator == null) {
 			throw new FlinkException("No coordinator registered for operator " + operatorId);
 		}
@@ -932,7 +948,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 			coordinator.handleEventFromOperator(exec.getParallelSubtaskIndex(), evt);
 		} catch (Throwable t) {
 			ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-			failJob(t);
+			handleGlobalFailure(t);
 		}
 	}
 
@@ -940,20 +956,30 @@ public abstract class SchedulerBase implements SchedulerNG {
 	public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
 			OperatorID operator,
 			CoordinationRequest request) throws FlinkException {
-		OperatorCoordinator coordinator = coordinatorMap.get(operator);
+
+		final OperatorCoordinatorHolder coordinatorHolder = coordinatorMap.get(operator);
+		if (coordinatorHolder == null){
+			throw new FlinkException("Coordinator of operator " + operator + " does not exist");
+		}
+
+		final OperatorCoordinator coordinator = coordinatorHolder.getCoordinator();
 		if (coordinator instanceof CoordinationRequestHandler) {
 			return ((CoordinationRequestHandler) coordinator).handleCoordinationRequest(request);
-		} else if (coordinator != null) {
-			throw new FlinkException("Coordinator of operator " + operator + " cannot handle client event");
 		} else {
-			throw new FlinkException("Coordinator of operator " + operator + " does not exist");
+			throw new FlinkException("Coordinator of operator " + operator + " cannot handle client event");
+		}
+	}
+
+	private void initializeOperatorCoordinators(Executor mainThreadExecutor) {
+		for (OperatorCoordinatorHolder coordinatorHolder : getAllCoordinators()) {
+			coordinatorHolder.lazyInitialize(this, mainThreadExecutor);
 		}
 	}
 
 	private void startAllOperatorCoordinators() {
-		final Collection<OperatorCoordinator> coordinators = getAllCoordinators();
+		final Collection<OperatorCoordinatorHolder> coordinators = getAllCoordinators();
 		try {
-			for (OperatorCoordinator coordinator : coordinators) {
+			for (OperatorCoordinatorHolder coordinator : coordinators) {
 				coordinator.start();
 			}
 		}
@@ -968,15 +994,15 @@ public abstract class SchedulerBase implements SchedulerNG {
 		getAllCoordinators().forEach(IOUtils::closeQuietly);
 	}
 
-	private Collection<OperatorCoordinator> getAllCoordinators() {
+	private Collection<OperatorCoordinatorHolder> getAllCoordinators() {
 		return coordinatorMap.values();
 	}
 
-	private Map<OperatorID, OperatorCoordinator> createCoordinatorMap() {
-		Map<OperatorID, OperatorCoordinator> coordinatorMap = new HashMap<>();
+	private Map<OperatorID, OperatorCoordinatorHolder> createCoordinatorMap() {
+		Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap = new HashMap<>();
 		for (ExecutionJobVertex vertex : executionGraph.getAllVertices().values()) {
-			for (Map.Entry<OperatorID, OperatorCoordinator> entry : vertex.getOperatorCoordinatorMap().entrySet()) {
-				coordinatorMap.put(entry.getKey(), entry.getValue());
+			for (OperatorCoordinatorHolder holder : vertex.getOperatorCoordinators()) {
+				coordinatorMap.put(holder.getOperatorId(), holder);
 			}
 		}
 		return coordinatorMap;
