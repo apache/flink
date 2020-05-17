@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
+import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.descriptors.FileSystem;
 
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -46,7 +47,7 @@ public class HiveCatalogTest {
 
 	@Test
 	public void testCreateGenericTable() {
-		Table hiveTable = HiveCatalog.instantiateHiveTable(
+		Table hiveTable = HiveTableUtil.instantiateHiveTable(
 			new ObjectPath("test", "test"),
 			new CatalogTableImpl(
 				schema,
@@ -66,7 +67,7 @@ public class HiveCatalogTest {
 
 		map.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
 
-		Table hiveTable = HiveCatalog.instantiateHiveTable(
+		Table hiveTable = HiveTableUtil.instantiateHiveTable(
 			new ObjectPath("test", "test"),
 			new CatalogTableImpl(
 				schema,

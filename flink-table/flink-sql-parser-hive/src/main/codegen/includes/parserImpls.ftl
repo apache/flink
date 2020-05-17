@@ -771,9 +771,9 @@ SqlTypeNameSpec ExtendedSqlRowTypeName() :
 }
 
 /**
-* Parses a partition specifications statement for insert statement.
+* Parses a partition specifications statement that can contain both static and dynamic partitions.
 */
-void InsertPartitionSpec(SqlNodeList allPartKeys, SqlNodeList staticSpec) :
+void PartitionSpecCommaList(SqlNodeList allPartKeys, SqlNodeList staticSpec) :
 {
     SqlIdentifier key;
     SqlNode value;
@@ -861,7 +861,7 @@ SqlNode RichSqlInsert() :
         }
     ]
     [
-        <PARTITION> InsertPartitionSpec(allPartKeys, staticSpec)
+        <PARTITION> PartitionSpecCommaList(allPartKeys, staticSpec)
     ]
     source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
         return new RichSqlHiveInsert(s.end(source), keywordList, extendedKeywordList, table, source,
@@ -1089,4 +1089,176 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
             catalogName,
             propertyList);
     }
+}
+
+// make sure a feature only applies to table, not partitions
+void EnsureAlterTableOnly(SqlNodeList partitionSpec, String feature) :
+{
+}
+{
+  {
+    if (partitionSpec != null) {
+      throw new ParseException(feature + " is not applicable to partitions.");
+    }
+  }
+}
+
+SqlAlterTable SqlAlterTable() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier tableIdentifier;
+    SqlIdentifier newTableIdentifier = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNodeList partitionSpec = null;
+    boolean ifNotExists = false;
+    boolean ifExists = false;
+}
+{
+    <ALTER> <TABLE> { startPos = getPos(); }
+        tableIdentifier = CompoundIdentifier()
+    [ <PARTITION> { partitionSpec = new SqlNodeList(getPos()); PartitionSpecCommaList(new SqlNodeList(getPos()), partitionSpec); } ]
+    (
+        <RENAME> <TO>
+        (
+            <PARTITION>
+            {
+              SqlNodeList newPartSpec = new SqlNodeList(getPos());
+              PartitionSpecCommaList(new SqlNodeList(getPos()), newPartSpec);
+              return new SqlAlterHivePartitionRename(startPos.plus(getPos()), tableIdentifier, partitionSpec, newPartSpec);
+            }
+        |
+            newTableIdentifier = CompoundIdentifier()
+            {
+              return new SqlAlterTableRename(
+                          startPos.plus(getPos()),
+                          tableIdentifier,
+                          newTableIdentifier);
+            }
+        )
+    |
+        <ADD> <COLUMNS>
+        {
+            EnsureAlterTableOnly(partitionSpec, "Add columns");
+            return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, false);
+        }
+    |
+        <REPLACE> <COLUMNS>
+        {
+            EnsureAlterTableOnly(partitionSpec, "Replace columns");
+            return SqlAlterHiveTableAddReplaceColumn(startPos, tableIdentifier, true);
+        }
+    |
+        <CHANGE> [ <COLUMN> ]
+        {
+            EnsureAlterTableOnly(partitionSpec, "Change column");
+            return SqlAlterHiveTableChangeColumn(startPos, tableIdentifier);
+        }
+    |
+        <SET>
+        (
+            <TBLPROPERTIES>
+            { EnsureAlterTableOnly(partitionSpec, "Alter table properties"); }
+            propertyList = TableProperties()
+            {
+                return new SqlAlterHiveTableProps(
+                            startPos.plus(getPos()),
+                            tableIdentifier,
+                            propertyList);
+            }
+        |
+            <LOCATION> <QUOTED_STRING>
+            {
+              SqlCharStringLiteral location = createStringLiteral(token.image, getPos());
+              return new SqlAlterHiveTableLocation(startPos.plus(getPos()), tableIdentifier, partitionSpec, location);
+            }
+        |
+            <FILEFORMAT>
+            {
+                SqlIdentifier format = SimpleIdentifier();
+                return new SqlAlterHiveTableFileFormat(startPos.plus(getPos()), tableIdentifier, partitionSpec, format);
+            }
+        |
+            { return SqlAlterHiveTableSerDe(startPos, tableIdentifier, partitionSpec); }
+        )
+    )
+}
+
+SqlAlterTable SqlAlterHiveTableAddReplaceColumn(SqlParserPos startPos, SqlIdentifier tableIdentifier, boolean replace) :
+{
+  SqlNodeList colList;
+  boolean cascade = false;
+}
+{
+  <LPAREN>
+    {
+      List<SqlNode> cols = new ArrayList();
+    }
+    TableColumn2(cols)
+    (
+      <COMMA> TableColumn2(cols)
+    )*
+  <RPAREN>
+  [
+    <CASCADE> { cascade = true; }
+    |
+    <RESTRICT>
+  ]
+  {
+    colList = new SqlNodeList(cols, startPos.plus(getPos()));
+    return new SqlAlterHiveTableAddReplaceColumn(startPos.plus(getPos()),
+                                                 tableIdentifier,
+                                                 cascade,
+                                                 colList,
+                                                 replace);
+  }
+}
+
+SqlAlterTable SqlAlterHiveTableChangeColumn(SqlParserPos startPos, SqlIdentifier tableIdentifier) :
+{
+  boolean cascade = false;
+  SqlIdentifier oldName;
+  SqlIdentifier newName;
+  SqlDataTypeSpec newType;
+  SqlCharStringLiteral comment = null;
+  boolean first = false;
+  SqlIdentifier after = null;
+  SqlNodeList partSpec = null;
+}
+{
+  oldName = SimpleIdentifier()
+  newName = SimpleIdentifier()
+  newType = ExtendedDataType()
+  [ <COMMENT> <QUOTED_STRING> {
+      comment = createStringLiteral(token.image, getPos());
+  }]
+  [ <FIRST> { first = true; } ]
+  [ <AFTER> { after = SimpleIdentifier(); } ]
+  [
+    <CASCADE> { cascade = true; }
+    |
+    <RESTRICT>
+  ]
+  { return new SqlAlterHiveTableChangeColumn(startPos.plus(getPos()),
+                                             tableIdentifier,
+                                             cascade,
+                                             oldName,
+                                             new SqlTableColumn(newName, newType, null, comment, newName.getParserPosition()),
+                                             first,
+                                             after); }
+}
+
+SqlAlterTable SqlAlterHiveTableSerDe(SqlParserPos startPos, SqlIdentifier tableIdentifier, SqlNodeList partitionSpec) :
+{
+  SqlCharStringLiteral serdeLib = null;
+  SqlNodeList propertyList = null;
+}
+{
+  (
+    <SERDE> <QUOTED_STRING>
+    { serdeLib = createStringLiteral(token.image, getPos()); propertyList = new SqlNodeList(getPos()); }
+    [ <WITH> <SERDEPROPERTIES> { propertyList = TableProperties(); } ]
+    |
+    <SERDEPROPERTIES> { propertyList = TableProperties(); }
+  )
+  { return new SqlAlterHiveTableSerDe(startPos.plus(getPos()), tableIdentifier, partitionSpec, propertyList, serdeLib); }
 }

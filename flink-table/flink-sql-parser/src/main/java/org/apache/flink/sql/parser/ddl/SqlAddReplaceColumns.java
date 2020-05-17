@@ -25,46 +25,68 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.util.List;
 
-import static java.util.Objects.requireNonNull;
-
 /**
- * ALTER TABLE [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*).
+ * ALTER DDL to ADD or REPLACE columns for a table.
  */
-public class SqlAlterTableProperties extends SqlAlterTable {
+public class SqlAddReplaceColumns extends SqlAlterTable {
 
-	private final SqlNodeList propertyList;
+	private final SqlNodeList newColumns;
+	// Whether to replace all the existing columns. If false, new columns will be appended to the end of the schema.
+	private final boolean replace;
+	// properties that should be added to the table
+	private final SqlNodeList properties;
 
-	public SqlAlterTableProperties(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
-		this(pos, tableName, null, propertyList);
+	public SqlAddReplaceColumns(
+			SqlParserPos pos,
+			SqlIdentifier tableName,
+			SqlNodeList newColumns,
+			boolean replace,
+			@Nullable SqlNodeList properties) {
+		super(pos, tableName);
+		this.newColumns = newColumns;
+		this.replace = replace;
+		this.properties = properties;
 	}
 
-	public SqlAlterTableProperties(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partitionSpec, SqlNodeList propertyList) {
-		super(pos, tableName, partitionSpec);
-		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
+	public SqlNodeList getNewColumns() {
+		return newColumns;
 	}
 
+	public boolean isReplace() {
+		return replace;
+	}
+
+	public SqlNodeList getProperties() {
+		return properties;
+	}
+
+	@Nonnull
 	@Override
 	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(tableIdentifier, propertyList);
-	}
-
-	public SqlNodeList getPropertyList() {
-		return propertyList;
+		return ImmutableNullableList.of(tableIdentifier, partitionSpec, newColumns, properties);
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("SET");
-		SqlWriter.Frame withFrame = writer.startList("(", ")");
-		for (SqlNode property : propertyList) {
+		if (replace) {
+			writer.keyword("REPLACE");
+		} else {
+			writer.keyword("ADD");
+		}
+		writer.keyword("COLUMNS");
+		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
+		for (SqlNode column : newColumns) {
 			printIndent(writer);
-			property.unparse(writer, leftPrec, rightPrec);
+			column.unparse(writer, leftPrec, rightPrec);
 		}
 		writer.newlineAndIndent();
-		writer.endList(withFrame);
+		writer.endList(frame);
 	}
 
 	protected void printIndent(SqlWriter writer) {
@@ -72,9 +94,4 @@ public class SqlAlterTableProperties extends SqlAlterTable {
 		writer.newlineAndIndent();
 		writer.print("  ");
 	}
-
-	public String[] fullTableName() {
-		return tableIdentifier.names.toArray(new String[0]);
-	}
-
 }

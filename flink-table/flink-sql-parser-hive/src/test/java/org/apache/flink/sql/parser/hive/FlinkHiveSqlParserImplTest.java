@@ -264,4 +264,78 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 	public void testDescribeCatalog() {
 		sql("describe catalog cat").ok("DESCRIBE CATALOG `CAT`");
 	}
+
+	@Test
+	public void testAlterTableRename() {
+		sql("alter table tbl rename to tbl1").ok("ALTER TABLE `TBL` RENAME TO `TBL1`");
+	}
+
+	@Test
+	public void testAlterTableSerDe() {
+		sql("alter table tbl set serde 'serde.class' with serdeproperties ('field.delim'='\u0001')")
+				.ok("ALTER TABLE `TBL` SET SERDE 'serde.class' WITH SERDEPROPERTIES (\n" +
+						"  'field.delim' = u&'\\0001'\n" +
+						")");
+		sql("alter table tbl set serdeproperties('line.delim'='\n')")
+				.ok("ALTER TABLE `TBL` SET SERDEPROPERTIES (\n" +
+						"  'line.delim' = '\n" +
+						"'\n" +
+						")");
+	}
+
+	@Test
+	public void testAlterTableLocation() {
+		sql("alter table tbl set location '/new/table/path'")
+				.ok("ALTER TABLE `TBL` SET LOCATION '/new/table/path'");
+		sql("alter table tbl partition (p1=1,p2='a') set location '/new/partition/location'")
+				.ok("ALTER TABLE `TBL` PARTITION (`P1` = 1, `P2` = 'a') SET LOCATION '/new/partition/location'");
+	}
+
+	// TODO: support ALTER CLUSTERED BY, SKEWED, STORED AS DIRECTORIES, column constraints
+
+	@Test
+	public void testAlterPartitionRename() {
+		sql("alter table tbl partition (p=1) rename to partition (p=2)")
+				.ok("ALTER TABLE `TBL` PARTITION (`P` = 1)\n" +
+						"RENAME TO\n" +
+						"PARTITION (`P` = 2)");
+	}
+
+	// TODO: support EXCHANGE PARTITION, RECOVER PARTITIONS
+
+	// TODO: support (UN)ARCHIVE PARTITION
+
+	@Test
+	public void testAlterFileFormat() {
+		sql("alter table tbl set fileformat rcfile")
+				.ok("ALTER TABLE `TBL` SET FILEFORMAT `RCFILE`");
+		sql("alter table tbl partition (p=1) set fileformat sequencefile")
+				.ok("ALTER TABLE `TBL` PARTITION (`P` = 1) SET FILEFORMAT `SEQUENCEFILE`");
+	}
+
+	// TODO: support ALTER TABLE/PARTITION TOUCH, PROTECTION, COMPACT, CONCATENATE, UPDATE COLUMNS
+
+	@Test
+	public void testChangeColumn() {
+		sql("alter table tbl change c c1 struct<f0:timestamp,f1:array<char(5)>> restrict")
+				.ok("ALTER TABLE `TBL` CHANGE COLUMN `C` `C1`  STRUCT< `F0` TIMESTAMP, `F1` ARRAY< CHAR(5) > > RESTRICT");
+		sql("alter table tbl change column c c decimal(5,2) comment 'new comment' first cascade")
+				.ok("ALTER TABLE `TBL` CHANGE COLUMN `C` `C`  DECIMAL(5, 2)  COMMENT 'new comment' FIRST CASCADE");
+	}
+
+	@Test
+	public void testAddReplaceColumn() {
+		sql("alter table tbl add columns (a float,b timestamp,c binary) cascade")
+				.ok("ALTER TABLE `TBL` ADD COLUMNS (\n" +
+						"  `A`  FLOAT,\n" +
+						"  `B`  TIMESTAMP,\n" +
+						"  `C`  BINARY\n" +
+						") CASCADE");
+		sql("alter table tbl replace columns (a char(100),b tinyint comment 'tiny comment',c smallint) restrict")
+				.ok("ALTER TABLE `TBL` REPLACE COLUMNS (\n" +
+						"  `A`  CHAR(100),\n" +
+						"  `B`  TINYINT  COMMENT 'tiny comment',\n" +
+						"  `C`  SMALLINT\n" +
+						") RESTRICT");
+	}
 }

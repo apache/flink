@@ -27,6 +27,13 @@
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseLocation"
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner"
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseProps"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHivePartitionRename"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableAddReplaceColumn"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableChangeColumn"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableFileFormat"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableLocation"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableProps"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableSerDe"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableCreationContext"
@@ -502,6 +509,7 @@
     "SqlShowTables()"
     "SqlRichDescribeTable()"
     "SqlShowFunctions()"
+    "SqlAlterTable()"
   ]
 
   # List of methods for parsing custom literals.

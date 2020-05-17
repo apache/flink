@@ -16,7 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl;
+package org.apache.flink.sql.parser.hive.ddl;
+
+import org.apache.flink.sql.parser.ddl.SqlAlterTable;
+import org.apache.flink.sql.parser.hive.impl.ParseException;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -25,56 +28,43 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
+import javax.annotation.Nonnull;
+
 import java.util.List;
 
-import static java.util.Objects.requireNonNull;
-
 /**
- * ALTER TABLE [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*).
+ * ALTER TABLE DDL to change the specifications of a Hive partition.
  */
-public class SqlAlterTableProperties extends SqlAlterTable {
+public class SqlAlterHivePartitionRename extends SqlAlterTable {
 
-	private final SqlNodeList propertyList;
+	private final SqlNodeList newPartSpec;
 
-	public SqlAlterTableProperties(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
-		this(pos, tableName, null, propertyList);
+	public SqlAlterHivePartitionRename(SqlParserPos pos, SqlIdentifier tableName,
+			SqlNodeList partSpec, SqlNodeList newPartSpec) throws ParseException {
+		super(pos, tableName, partSpec);
+		if (partSpec == null || newPartSpec == null) {
+			throw new ParseException("Both old and new partition spec have to be specified");
+		}
+		this.newPartSpec = newPartSpec;
 	}
 
-	public SqlAlterTableProperties(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList partitionSpec, SqlNodeList propertyList) {
-		super(pos, tableName, partitionSpec);
-		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
-	}
-
+	@Nonnull
 	@Override
 	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(tableIdentifier, propertyList);
-	}
-
-	public SqlNodeList getPropertyList() {
-		return propertyList;
+		return ImmutableNullableList.of(tableIdentifier, getPartitionSpec(), newPartSpec);
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("SET");
-		SqlWriter.Frame withFrame = writer.startList("(", ")");
-		for (SqlNode property : propertyList) {
-			printIndent(writer);
-			property.unparse(writer, leftPrec, rightPrec);
-		}
 		writer.newlineAndIndent();
-		writer.endList(withFrame);
-	}
-
-	protected void printIndent(SqlWriter writer) {
-		writer.sep(",", false);
+		writer.keyword("RENAME TO");
 		writer.newlineAndIndent();
-		writer.print("  ");
+		writer.keyword("PARTITION");
+		newPartSpec.unparse(writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
 	}
 
-	public String[] fullTableName() {
-		return tableIdentifier.names.toArray(new String[0]);
+	public SqlNodeList getNewPartSpec() {
+		return newPartSpec;
 	}
-
 }

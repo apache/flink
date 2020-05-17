@@ -24,6 +24,8 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogPartitionImpl;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
@@ -37,13 +39,18 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.PrincipalType;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.io.RCFileInputFormat;
+import org.apache.hadoop.hive.ql.io.RCFileOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.columnar.LazyBinaryColumnarSerDe;
 import org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe;
 import org.junit.After;
 import org.junit.Assume;
@@ -53,6 +60,8 @@ import org.junit.Test;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
@@ -73,6 +82,7 @@ public class HiveDialectTest {
 	@Before
 	public void setup() {
 		hiveCatalog = HiveTestUtils.createHiveCatalog();
+		hiveCatalog.getHiveConf().setBoolVar(HiveConf.ConfVars.METASTORE_DISALLOW_INCOMPATIBLE_COL_TYPE_CHANGES, false);
 		hiveCatalog.open();
 		warehouse = hiveCatalog.getHiveConf().getVar(HiveConf.ConfVars.METASTOREWAREHOUSE);
 		tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
@@ -101,7 +111,7 @@ public class HiveDialectTest {
 		String db2Location = warehouse + "/db2_location";
 		tableEnv.executeSql(String.format("create database db2 location '%s' with dbproperties('k1'='v1')", db2Location));
 		db = hiveCatalog.getHiveDatabase("db2");
-		assertEquals(db2Location, new URI(db.getLocationUri()).getPath());
+		assertEquals(db2Location, locationPath(db.getLocationUri()));
 		assertEquals("v1", db.getParameters().get("k1"));
 	}
 
@@ -217,12 +227,157 @@ public class HiveDialectTest {
 		assertEquals("[1,0,static, 1,1,a, 1,2,b, 1,3,c, 2,0,static, 2,1,b, 3,0,static, 3,1,c]", results.toString());
 	}
 
-	private static List<Row> queryResult(org.apache.flink.table.api.Table table) {
-		return Lists.newArrayList(table.execute().collect());
+	@Test
+	public void testAlterTable() throws Exception {
+		tableEnv.executeSql("create table tbl (x int) tblproperties('k1'='v1')");
+		tableEnv.executeSql("alter table tbl rename to tbl1");
+
+		ObjectPath tablePath = new ObjectPath("default", "tbl1");
+
+		// change properties
+		tableEnv.executeSql("alter table tbl1 set tblproperties ('k2'='v2')");
+		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
+		assertEquals("v1", hiveTable.getParameters().get("k1"));
+		assertEquals("v2", hiveTable.getParameters().get("k2"));
+
+		// change location
+		String newLocation = warehouse + "/tbl1_new_location";
+		tableEnv.executeSql(String.format("alter table `default`.tbl1 set location '%s'", newLocation));
+		hiveTable = hiveCatalog.getHiveTable(tablePath);
+		assertEquals(newLocation, locationPath(hiveTable.getSd().getLocation()));
+
+		// change file format
+		tableEnv.executeSql("alter table tbl1 set fileformat orc");
+		hiveTable = hiveCatalog.getHiveTable(tablePath);
+		assertEquals(OrcSerde.class.getName(), hiveTable.getSd().getSerdeInfo().getSerializationLib());
+		assertEquals(OrcInputFormat.class.getName(), hiveTable.getSd().getInputFormat());
+		assertEquals(OrcOutputFormat.class.getName(), hiveTable.getSd().getOutputFormat());
+
+		// change serde
+		tableEnv.executeSql(String.format("alter table tbl1 set serde '%s' with serdeproperties('%s'='%s')",
+				LazyBinarySerDe.class.getName(), serdeConstants.FIELD_DELIM, "\u0001"));
+		hiveTable = hiveCatalog.getHiveTable(tablePath);
+		assertEquals(LazyBinarySerDe.class.getName(), hiveTable.getSd().getSerdeInfo().getSerializationLib());
+		assertEquals("\u0001", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.FIELD_DELIM));
+
+		// replace columns
+		tableEnv.executeSql("alter table tbl1 replace columns (t tinyint,s smallint,i int,b bigint,f float,d double,num decimal," +
+				"ts timestamp,dt date,str string,var varchar(10),ch char(123),bool boolean,bin binary)");
+		hiveTable = hiveCatalog.getHiveTable(tablePath);
+		assertEquals(14, hiveTable.getSd().getColsSize());
+		assertEquals("varchar(10)", hiveTable.getSd().getCols().get(10).getType());
+		assertEquals("char(123)", hiveTable.getSd().getCols().get(11).getType());
+
+		tableEnv.executeSql("alter table tbl1 replace columns (a array<array<int>>,s struct<f1:struct<f11:int,f12:binary>, f2:map<double,date>>," +
+				"m map<char(5),map<timestamp,decimal(20,10)>>)");
+		hiveTable = hiveCatalog.getHiveTable(tablePath);
+		assertEquals("array<array<int>>", hiveTable.getSd().getCols().get(0).getType());
+		assertEquals("struct<f1:struct<f11:int,f12:binary>,f2:map<double,date>>", hiveTable.getSd().getCols().get(1).getType());
+		assertEquals("map<char(5),map<timestamp,decimal(20,10)>>", hiveTable.getSd().getCols().get(2).getType());
+
+		// add columns
+		tableEnv.executeSql("alter table tbl1 add columns (x int,y int)");
+		hiveTable = hiveCatalog.getHiveTable(tablePath);
+		assertEquals(5, hiveTable.getSd().getColsSize());
+
+		// change column
+		tableEnv.executeSql("alter table tbl1 change column x x1 string comment 'new x col'");
+		hiveTable = hiveCatalog.getHiveTable(tablePath);
+		assertEquals(5, hiveTable.getSd().getColsSize());
+		FieldSchema newField = hiveTable.getSd().getCols().get(3);
+		assertEquals("x1", newField.getName());
+		assertEquals("string", newField.getType());
+
+		tableEnv.executeSql("alter table tbl1 change column y y int first");
+		hiveTable = hiveCatalog.getHiveTable(tablePath);
+		newField = hiveTable.getSd().getCols().get(0);
+		assertEquals("y", newField.getName());
+		assertEquals("int", newField.getType());
+
+		tableEnv.executeSql("alter table tbl1 change column x1 x2 timestamp after y");
+		hiveTable = hiveCatalog.getHiveTable(tablePath);
+		newField = hiveTable.getSd().getCols().get(1);
+		assertEquals("x2", newField.getName());
+		assertEquals("timestamp", newField.getType());
+
+		// add/replace columns cascade
+		tableEnv.executeSql("create table tbl2 (x int) partitioned by (dt date,id bigint)");
+		ObjectPath tablePath2 = new ObjectPath("default", "tbl2");
+		// TODO: use DDL to add partitions once we support it
+		CatalogPartitionSpec partitionSpec1 = new CatalogPartitionSpec(new LinkedHashMap<String, String>() {{
+			put("dt", "2020-01-23");
+			put("id", "1");
+		}});
+		CatalogPartitionSpec partitionSpec2 = new CatalogPartitionSpec(new LinkedHashMap<String, String>() {{
+			put("dt", "2020-04-24");
+			put("id", "2");
+		}});
+		hiveCatalog.createPartition(tablePath2, partitionSpec1, new CatalogPartitionImpl(Collections.emptyMap(), null), false);
+		hiveCatalog.createPartition(tablePath2, partitionSpec2, new CatalogPartitionImpl(Collections.emptyMap(), null), false);
+		tableEnv.executeSql("alter table tbl2 replace columns (ti tinyint,d decimal) cascade");
+		hiveTable = hiveCatalog.getHiveTable(tablePath2);
+		Partition hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec1);
+		assertEquals(2, hivePartition.getSd().getColsSize());
+		hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec2);
+		assertEquals(2, hivePartition.getSd().getColsSize());
+
+		tableEnv.executeSql("alter table tbl2 add columns (ch char(5),vch varchar(9)) cascade");
+		hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec1);
+		assertEquals(4, hivePartition.getSd().getColsSize());
+		hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec2);
+		assertEquals(4, hivePartition.getSd().getColsSize());
+
+		// change column cascade
+		tableEnv.executeSql("alter table tbl2 change column ch ch char(10) cascade");
+		hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec1);
+		assertEquals("char(10)", hivePartition.getSd().getCols().get(2).getType());
+		hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec2);
+		assertEquals("char(10)", hivePartition.getSd().getCols().get(2).getType());
+
+		tableEnv.executeSql("alter table tbl2 change column vch str string first cascade");
+		hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec1);
+		assertEquals("str", hivePartition.getSd().getCols().get(0).getName());
+		hivePartition = hiveCatalog.getHivePartition(hiveTable, partitionSpec2);
+		assertEquals("str", hivePartition.getSd().getCols().get(0).getName());
 	}
 
-	private static void waitForJobFinish(TableResult tableResult) throws Exception {
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+	@Test
+	public void testAlterPartition() throws Exception {
+		tableEnv.executeSql("create table tbl (x tinyint,y string) partitioned by (p1 bigint,p2 date)");
+		// TODO: use DDL to add partitions once we support it
+		CatalogPartitionSpec spec1 = new CatalogPartitionSpec(new LinkedHashMap<String, String>() {{
+			put("p1", "1000");
+			put("p2", "2020-05-01");
+		}});
+		CatalogPartitionSpec spec2 = new CatalogPartitionSpec(new LinkedHashMap<String, String>() {{
+			put("p1", "2000");
+			put("p2", "2020-01-01");
+		}});
+		ObjectPath tablePath = new ObjectPath("default", "tbl");
+		hiveCatalog.createPartition(tablePath, spec1, new CatalogPartitionImpl(Collections.emptyMap(), null), false);
+		hiveCatalog.createPartition(tablePath, spec2, new CatalogPartitionImpl(Collections.emptyMap(), null), false);
+
+		Table hiveTable = hiveCatalog.getHiveTable(tablePath);
+
+		// change location
+		String location = warehouse + "/new_part_location";
+		tableEnv.executeSql(String.format("alter table tbl partition (p1=1000,p2='2020-05-01') set location '%s'", location));
+		Partition partition = hiveCatalog.getHivePartition(hiveTable, spec1);
+		assertEquals(location, locationPath(partition.getSd().getLocation()));
+
+		// change file format
+		tableEnv.executeSql("alter table tbl partition (p1=2000,p2='2020-01-01') set fileformat rcfile");
+		partition = hiveCatalog.getHivePartition(hiveTable, spec2);
+		assertEquals(LazyBinaryColumnarSerDe.class.getName(), partition.getSd().getSerdeInfo().getSerializationLib());
+		assertEquals(RCFileInputFormat.class.getName(), partition.getSd().getInputFormat());
+		assertEquals(RCFileOutputFormat.class.getName(), partition.getSd().getOutputFormat());
+
+		// change serde
+		tableEnv.executeSql(String.format("alter table tbl partition (p1=1000,p2='2020-05-01') set serde '%s' with serdeproperties('%s'='%s')",
+				LazyBinarySerDe.class.getName(), serdeConstants.LINE_DELIM, "\n"));
+		partition = hiveCatalog.getHivePartition(hiveTable, spec1);
+		assertEquals(LazyBinarySerDe.class.getName(), partition.getSd().getSerdeInfo().getSerializationLib());
+		assertEquals("\n", partition.getSd().getSerdeInfo().getParameters().get(serdeConstants.LINE_DELIM));
 	}
 
 	@Test
@@ -253,5 +408,13 @@ public class HiveDialectTest {
 
 	private static String locationPath(String locationURI) throws URISyntaxException {
 		return new URI(locationURI).getPath();
+	}
+
+	private static List<Row> queryResult(org.apache.flink.table.api.Table table) {
+		return Lists.newArrayList(table.execute().collect());
+	}
+
+	private static void waitForJobFinish(TableResult tableResult) throws Exception {
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 	}
 }
