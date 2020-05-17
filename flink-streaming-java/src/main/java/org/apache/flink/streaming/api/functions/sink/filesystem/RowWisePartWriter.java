@@ -28,11 +28,11 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * A {@link InProgressFileWriter} for row-wise formats that use an {@link Encoder}.
+ * A {@link PartFileWriter} for row-wise formats that use an {@link Encoder}.
  * This also implements the {@link PartFileInfo}.
  */
 @Internal
-final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter<IN, BucketID> {
+final class RowWisePartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID> {
 
 	private final Encoder<IN> encoder;
 
@@ -46,7 +46,7 @@ final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWri
 	}
 
 	@Override
-	public void write(final IN element, final long currentTime) throws IOException {
+	void write(IN element, long currentTime) throws IOException {
 		encoder.encode(element, currentPartStream);
 		markWrite(currentTime);
 	}
@@ -56,21 +56,20 @@ final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWri
 	 * @param <IN> The type of input elements.
 	 * @param <BucketID> The type of ids for the buckets, as returned by the {@link BucketAssigner}.
 	 */
-	static class Factory<IN, BucketID> extends OutputStreamBasedPartFileWriter.OutputStreamBasedPartFileFactory<IN, BucketID> {
+	static class Factory<IN, BucketID> implements PartFileWriter.PartFileFactory<IN, BucketID> {
 
 		private final Encoder<IN> encoder;
 
-		Factory(final RecoverableWriter recoverableWriter, final Encoder<IN> encoder) {
-			super(recoverableWriter);
+		Factory(Encoder<IN> encoder) {
 			this.encoder = encoder;
 		}
 
 		@Override
-		public InProgressFileWriter<IN, BucketID> resumeFrom(
+		public PartFileWriter<IN, BucketID> resumeFrom(
 				final BucketID bucketId,
 				final RecoverableFsDataOutputStream stream,
 				final RecoverableWriter.ResumeRecoverable resumable,
-				final long creationTime) {
+				final long creationTime) throws IOException {
 
 			Preconditions.checkNotNull(stream);
 			Preconditions.checkNotNull(resumable);
@@ -79,11 +78,11 @@ final class RowWisePartWriter<IN, BucketID> extends OutputStreamBasedPartFileWri
 		}
 
 		@Override
-		public InProgressFileWriter<IN, BucketID> openNew(
+		public PartFileWriter<IN, BucketID> openNew(
 				final BucketID bucketId,
 				final RecoverableFsDataOutputStream stream,
 				final Path path,
-				final long creationTime) {
+				final long creationTime) throws IOException {
 
 			Preconditions.checkNotNull(stream);
 			Preconditions.checkNotNull(path);

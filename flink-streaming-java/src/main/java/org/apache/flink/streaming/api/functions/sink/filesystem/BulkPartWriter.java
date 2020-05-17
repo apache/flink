@@ -28,11 +28,11 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * A {@link InProgressFileWriter} for bulk-encoding formats that use an {@link BulkPartWriter}.
+ * A {@link PartFileWriter} for bulk-encoding formats that use an {@link BulkPartWriter}.
  * This also implements the {@link PartFileInfo}.
  */
 @Internal
-final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter<IN, BucketID>  {
+final class BulkPartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID> {
 
 	private final BulkWriter<IN> writer;
 
@@ -46,18 +46,18 @@ final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter
 	}
 
 	@Override
-	public void write(IN element, long currentTime) throws IOException {
+	void write(IN element, long currentTime) throws IOException {
 		writer.addElement(element);
 		markWrite(currentTime);
 	}
 
 	@Override
-	public InProgressFileRecoverable persist() {
+	RecoverableWriter.ResumeRecoverable persist() {
 		throw new UnsupportedOperationException("Bulk Part Writers do not support \"pause and resume\" operations.");
 	}
 
 	@Override
-	public PendingFileRecoverable closeForCommit() throws IOException {
+	RecoverableWriter.CommitRecoverable closeForCommit() throws IOException {
 		writer.flush();
 		writer.finish();
 		return super.closeForCommit();
@@ -68,17 +68,16 @@ final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter
 	 * @param <IN> The type of input elements.
 	 * @param <BucketID> The type of ids for the buckets, as returned by the {@link BucketAssigner}.
 	 */
-	static class Factory<IN, BucketID> extends OutputStreamBasedPartFileWriter.OutputStreamBasedPartFileFactory<IN, BucketID>{
+	static class Factory<IN, BucketID> implements PartFileWriter.PartFileFactory<IN, BucketID> {
 
 		private final BulkWriter.Factory<IN> writerFactory;
 
-		Factory(final RecoverableWriter recoverableWriter, BulkWriter.Factory<IN> writerFactory) throws IOException {
-			super(recoverableWriter);
+		Factory(BulkWriter.Factory<IN> writerFactory) {
 			this.writerFactory = writerFactory;
 		}
 
 		@Override
-		public InProgressFileWriter<IN, BucketID> resumeFrom(
+		public PartFileWriter<IN, BucketID> resumeFrom(
 				final BucketID bucketId,
 				final RecoverableFsDataOutputStream stream,
 				final RecoverableWriter.ResumeRecoverable resumable,
@@ -92,7 +91,7 @@ final class BulkPartWriter<IN, BucketID> extends OutputStreamBasedPartFileWriter
 		}
 
 		@Override
-		public InProgressFileWriter<IN, BucketID> openNew(
+		public PartFileWriter<IN, BucketID> openNew(
 				final BucketID bucketId,
 				final RecoverableFsDataOutputStream stream,
 				final Path path,
