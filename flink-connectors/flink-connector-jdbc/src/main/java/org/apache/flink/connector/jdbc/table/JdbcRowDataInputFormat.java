@@ -24,13 +24,11 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcToRowConverter;
+import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.split.JdbcParameterValuesProvider;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
@@ -57,10 +55,10 @@ import java.util.Arrays;
  * InputFormat for {@link JdbcDynamicTableSource}.
  */
 @Internal
-public class JdbcDynamicInputFormat extends RichInputFormat<RowData, InputSplit> implements ResultTypeQueryable<RowData> {
+public class JdbcRowDataInputFormat extends RichInputFormat<RowData, InputSplit> implements ResultTypeQueryable<RowData> {
 
 	private static final long serialVersionUID = 1L;
-	private static final Logger LOG = LoggerFactory.getLogger(JdbcDynamicInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JdbcRowDataInputFormat.class);
 
 	private JdbcConnectionOptions connectionOptions;
 	private int fetchSize;
@@ -69,22 +67,24 @@ public class JdbcDynamicInputFormat extends RichInputFormat<RowData, InputSplit>
 	private String queryTemplate;
 	private int resultSetType;
 	private int resultSetConcurrency;
-	private JdbcToRowConverter rowConverter;
+	private JdbcRowConverter rowConverter;
+	private TypeInformation<RowData> rowDataTypeInfo;
 
 	private transient Connection dbConn;
 	private transient PreparedStatement statement;
 	private transient ResultSet resultSet;
 	private transient boolean hasNext;
 
-	private JdbcDynamicInputFormat(
-		JdbcConnectionOptions connectionOptions,
-		int fetchSize,
-		Boolean autoCommit,
-		Object[][] parameterValues,
-		String queryTemplate,
-		int resultSetType,
-		int resultSetConcurrency,
-		JdbcToRowConverter rowConverter) {
+	private JdbcRowDataInputFormat(
+			JdbcConnectionOptions connectionOptions,
+			int fetchSize,
+			Boolean autoCommit,
+			Object[][] parameterValues,
+			String queryTemplate,
+			int resultSetType,
+			int resultSetConcurrency,
+			JdbcRowConverter rowConverter,
+			TypeInformation<RowData> rowDataTypeInfo) {
 		this.connectionOptions = connectionOptions;
 		this.fetchSize = fetchSize;
 		this.autoCommit = autoCommit;
@@ -93,6 +93,7 @@ public class JdbcDynamicInputFormat extends RichInputFormat<RowData, InputSplit>
 		this.resultSetType = resultSetType;
 		this.resultSetConcurrency = resultSetConcurrency;
 		this.rowConverter = rowConverter;
+		this.rowDataTypeInfo = rowDataTypeInfo;
 	}
 
 	@Override
@@ -228,7 +229,7 @@ public class JdbcDynamicInputFormat extends RichInputFormat<RowData, InputSplit>
 
 	@Override
 	public TypeInformation<RowData> getProducedType() {
-		return new GenericTypeInfo<RowData>(RowData.class);
+		return rowDataTypeInfo;
 	}
 
 	/**
@@ -298,7 +299,7 @@ public class JdbcDynamicInputFormat extends RichInputFormat<RowData, InputSplit>
 	}
 
 	/**
-	 * Builder for {@link JdbcDynamicInputFormat}.
+	 * Builder for {@link JdbcRowDataInputFormat}.
 	 */
 	public static class Builder {
 		private JdbcConnectionOptions.JdbcConnectionOptionsBuilder connOptionsBuilder;
@@ -306,8 +307,8 @@ public class JdbcDynamicInputFormat extends RichInputFormat<RowData, InputSplit>
 		private Boolean autoCommit;
 		private Object[][] parameterValues;
 		private String queryTemplate;
-		private RowTypeInfo rowTypeInfo;
-		private JdbcToRowConverter rowConverter;
+		private JdbcRowConverter rowConverter;
+		private TypeInformation<RowData> rowDataTypeInfo;
 		private int resultSetType = ResultSet.TYPE_FORWARD_ONLY;
 		private int resultSetConcurrency = ResultSet.CONCUR_READ_ONLY;
 
@@ -345,12 +346,12 @@ public class JdbcDynamicInputFormat extends RichInputFormat<RowData, InputSplit>
 			return this;
 		}
 
-		public Builder setRowTypeInfo(RowTypeInfo rowTypeInfo) {
-			this.rowTypeInfo = rowTypeInfo;
+		public Builder setRowDataTypeInfo(TypeInformation<RowData> rowDataTypeInfo) {
+			this.rowDataTypeInfo = rowDataTypeInfo;
 			return this;
 		}
 
-		public Builder setRowConverter(JdbcToRowConverter rowConverter) {
+		public Builder setRowConverter(JdbcRowConverter rowConverter) {
 			this.rowConverter = rowConverter;
 			return this;
 		}
@@ -377,7 +378,7 @@ public class JdbcDynamicInputFormat extends RichInputFormat<RowData, InputSplit>
 			return this;
 		}
 
-		public JdbcDynamicInputFormat build() {
+		public JdbcRowDataInputFormat build() {
 			if (this.queryTemplate == null) {
 				throw new IllegalArgumentException("No query supplied");
 			}
@@ -387,7 +388,7 @@ public class JdbcDynamicInputFormat extends RichInputFormat<RowData, InputSplit>
 			if (this.parameterValues == null) {
 				LOG.debug("No input splitting configured (data will be read with parallelism 1).");
 			}
-			return new JdbcDynamicInputFormat(
+			return new JdbcRowDataInputFormat(
 				connOptionsBuilder.build(),
 				this.fetchSize,
 				this.autoCommit,
@@ -395,8 +396,8 @@ public class JdbcDynamicInputFormat extends RichInputFormat<RowData, InputSplit>
 				this.queryTemplate,
 				this.resultSetType,
 				this.resultSetConcurrency,
-				this.rowConverter
-			);
+				this.rowConverter,
+				this.rowDataTypeInfo);
 		}
 	}
 }

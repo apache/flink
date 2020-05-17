@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
@@ -34,13 +35,16 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.util.Preconditions;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Factory for creating configured instances of {@link JdbcDynamicTableSource}
@@ -49,64 +53,60 @@ import java.util.Set;
 @Internal
 public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
-	public static final ConfigOption<String> IDENTIFIER = ConfigOptions
-		.key("connector")
-		.stringType()
-		.defaultValue("jdbc")
-		.withDescription("-- required: specify this table type is jdbc.");
+	public static final String IDENTIFIER = "jdbc";
 	public static final ConfigOption<String> URL = ConfigOptions
 		.key("url")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("-- required: the jdbc database url.");
-	public static final ConfigOption<String> TABLE = ConfigOptions
-		.key("table")
+		.withDescription("the jdbc database url.");
+	public static final ConfigOption<String> TABLE_NAME = ConfigOptions
+		.key("table-name")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("-- required: the jdbc table name.");
+		.withDescription("the jdbc table name.");
 	public static final ConfigOption<String> USERNAME = ConfigOptions
 		.key("username")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("-- optional: the jdbc user name.");
+		.withDescription("the jdbc user name.");
 	public static final ConfigOption<String> PASSWORD = ConfigOptions
 		.key("password")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("-- optional: the jdbc password.");
+		.withDescription("the jdbc password.");
 	private static final ConfigOption<String> DRIVER = ConfigOptions
 		.key("driver")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("-- optional: the class name of the JDBC driver to use to connect to this URL. " +
+		.withDescription("the class name of the JDBC driver to use to connect to this URL. " +
 			"If not set, it will automatically be derived from the URL.");
 
 	// read config options
-	private static final ConfigOption<String> READ_PARTITION_COLUMN = ConfigOptions
-		.key("read.partition.column")
+	private static final ConfigOption<String> SCAN_PARTITION_COLUMN = ConfigOptions
+		.key("scan.partition.column")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("-- optional: the column name used for partitioning the input.");
-	private static final ConfigOption<Integer> READ_PARTITION_NUM = ConfigOptions
-		.key("read.partition.num")
+		.withDescription("the column name used for partitioning the input.");
+	private static final ConfigOption<Integer> SCAN_PARTITION_NUM = ConfigOptions
+		.key("scan.partition.num")
 		.intType()
 		.noDefaultValue()
-		.withDescription("-- optional: the number of partitions.");
-	private static final ConfigOption<Long> READ_PARTITION_LOWER_BOUND = ConfigOptions
-		.key("read.partition.lower-bound")
+		.withDescription("the number of partitions.");
+	private static final ConfigOption<Long> SCAN_PARTITION_LOWER_BOUND = ConfigOptions
+		.key("scan.partition.lower-bound")
 		.longType()
 		.noDefaultValue()
-		.withDescription("-- optional: the smallest value of the first partition.");
-	private static final ConfigOption<Long> READ_PARTITION_UPPER_BOUND = ConfigOptions
-		.key("read.partition.upper-bound")
+		.withDescription("the smallest value of the first partition.");
+	private static final ConfigOption<Long> SCAN_PARTITION_UPPER_BOUND = ConfigOptions
+		.key("scan.partition.upper-bound")
 		.longType()
 		.noDefaultValue()
-		.withDescription("-- optional: the largest value of the last partition.");
-	private static final ConfigOption<Integer> READ_FETCH_SIZE = ConfigOptions
-		.key("read.fetch-size")
+		.withDescription("the largest value of the last partition.");
+	private static final ConfigOption<Integer> SCAN_FETCH_SIZE = ConfigOptions
+		.key("scan.fetch-size")
 		.intType()
 		.defaultValue(0)
-		.withDescription("-- optional, Gives the reader a hint as to the number of rows that should be fetched, from" +
+		.withDescription("gives the reader a hint as to the number of rows that should be fetched, from" +
 			" the database when reading per round trip. If the value specified is zero, then the hint is ignored. The" +
 			" default value is zero.");
 
@@ -115,63 +115,65 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 		.key("lookup.cache.max-rows")
 		.longType()
 		.defaultValue(-1L)
-		.withDescription("-- optional, max number of rows of lookup cache, over this value, the oldest rows will " +
+		.withDescription("the max number of rows of lookup cache, over this value, the oldest rows will " +
 			"be eliminated. \"cache.max-rows\" and \"cache.ttl\" options must all be specified if any of them is " +
 			"specified. Cache is not enabled as default.");
 	private static final ConfigOption<Duration> LOOKUP_CACHE_TTL = ConfigOptions
 		.key("lookup.cache.ttl")
 		.durationType()
 		.defaultValue(Duration.ofSeconds(10))
-		.withDescription("-- optional, the cache time to live.");
+		.withDescription("the cache time to live.");
 	private static final ConfigOption<Integer> LOOKUP_MAX_RETRIES = ConfigOptions
 		.key("lookup.max-retries")
 		.intType()
 		.defaultValue(3)
-		.withDescription("-- optional, max retry times if lookup database failed.");
+		.withDescription("the max retry times if lookup database failed.");
 
 	// write config options
-	private static final ConfigOption<Integer> WRITE_FLUSH_MAX_ROWS = ConfigOptions
-		.key("write.flush.max-rows")
+	private static final ConfigOption<Integer> SINK_FLUSH_MAX_ROWS = ConfigOptions
+		.key("sink.flush.max-rows")
 		.intType()
 		.defaultValue(5000)
-		.withDescription("-- optional, flush max size (includes all append, upsert and delete records), over this number" +
+		.withDescription("the flush max size (includes all append, upsert and delete records), over this number" +
 			" of records, will flush data. The default value is 5000.");
-	private static final ConfigOption<Long> WRITE_FLUSH_INTERVAL = ConfigOptions
-		.key("write.flush.interval")
+	private static final ConfigOption<Long> SINK_FLUSH_INTERVAL = ConfigOptions
+		.key("sink.flush.interval")
 		.longType()
 		.defaultValue(0L)
-		.withDescription("-- optional, flush interval mills, over this time, asynchronous threads will flush data. The " +
+		.withDescription("the flush interval mills, over this time, asynchronous threads will flush data. The " +
 			"default value is 0, which means no asynchronous flush thread will be scheduled.");
-	private static final ConfigOption<Integer> WRITE_MAX_RETRIES = ConfigOptions
-		.key("write.max-retries")
+	private static final ConfigOption<Integer> SINK_MAX_RETRIES = ConfigOptions
+		.key("sink.max-retries")
 		.intType()
 		.defaultValue(3)
-		.withDescription("-- optional, max retry times if writing records to database failed.");
+		.withDescription("the max retry times if writing records to database failed.");
 
 	@Override
 	public DynamicTableSink createDynamicTableSink(Context context) {
 		final FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+		final ReadableConfig config = helper.getOptions();
+
 		helper.validate();
-		final JdbcOptions jdbcOptions = getJdbcOptions(helper.getOptions());
-		final DataType rowDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
-		final TableSchema formatSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
-		final DataType[] fieldDataTypes = formatSchema.getFieldDataTypes();
+		validateConfigOptions(config);
+		JdbcOptions jdbcOptions = getJdbcOptions(config);
+		TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
 
 		return new JdbcDynamicTableSink(
 			jdbcOptions,
-			getJdbcExecutionOptions(helper.getOptions()),
+			getJdbcExecutionOptions(config),
 			getJdbcDmlOptions(jdbcOptions, context.getCatalogTable().getSchema()),
-			rowDataType,
-			fieldDataTypes);
+			physicalSchema);
 	}
 
 	@Override
 	public DynamicTableSource createDynamicTableSource(Context context) {
 		final FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
-		helper.validate();
-		TableSchema formatSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+		final ReadableConfig config = helper.getOptions();
 
-		int[] selectFields = new int[formatSchema.getFieldNames().length];
+		helper.validate();
+		validateConfigOptions(config);
+		TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+		int[] selectFields = new int[physicalSchema.getFieldNames().length];
 		for (int i = 0; i < selectFields.length; i++) {
 			selectFields[i] = i;
 		}
@@ -179,7 +181,7 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 			getJdbcOptions(helper.getOptions()),
 			getJdbcReadOptions(helper.getOptions()),
 			getJdbcLookupOptions(helper.getOptions()),
-			formatSchema,
+			physicalSchema,
 			selectFields);
 	}
 
@@ -187,7 +189,7 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 		final String url = readableConfig.get(URL);
 		final JdbcOptions.Builder builder = JdbcOptions.builder()
 			.setDBUrl(url)
-			.setTableName(readableConfig.get(TABLE))
+			.setTableName(readableConfig.get(TABLE_NAME))
 			.setDialect(JdbcDialects.get(url).get());
 
 		readableConfig.getOptional(DRIVER).ifPresent(builder::setDriverName);
@@ -197,41 +199,30 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 	}
 
 	private JdbcReadOptions getJdbcReadOptions(ReadableConfig readableConfig) {
-		final Optional<String> partitionColumnName = readableConfig.getOptional(READ_PARTITION_COLUMN);
-		final Optional<Long> partitionLower = readableConfig.getOptional(READ_PARTITION_LOWER_BOUND);
-		final Optional<Long> partitionUpper = readableConfig.getOptional(READ_PARTITION_UPPER_BOUND);
-		final Optional<Integer> numPartitions = readableConfig.getOptional(READ_PARTITION_NUM);
-
+		final Optional<String> partitionColumnName = readableConfig.getOptional(SCAN_PARTITION_COLUMN);
 		final JdbcReadOptions.Builder builder = JdbcReadOptions.builder();
 		if (partitionColumnName.isPresent()) {
 			builder.setPartitionColumnName(partitionColumnName.get());
-			builder.setPartitionLowerBound(partitionLower.get());
-			builder.setPartitionUpperBound(partitionUpper.get());
-			builder.setNumPartitions(numPartitions.get());
+			builder.setPartitionLowerBound(readableConfig.get(SCAN_PARTITION_LOWER_BOUND));
+			builder.setPartitionUpperBound(readableConfig.get(SCAN_PARTITION_UPPER_BOUND));
+			builder.setNumPartitions(readableConfig.get(SCAN_PARTITION_NUM));
 		}
-		readableConfig.getOptional(READ_FETCH_SIZE).ifPresent(builder::setFetchSize);
+		readableConfig.getOptional(SCAN_FETCH_SIZE).ifPresent(builder::setFetchSize);
 		return builder.build();
 	}
 
 	private JdbcLookupOptions getJdbcLookupOptions(ReadableConfig readableConfig) {
-		final JdbcLookupOptions.Builder builder = JdbcLookupOptions.builder();
-
-		readableConfig.getOptional(LOOKUP_CACHE_MAX_ROWS).ifPresent(builder::setCacheMaxSize);
-		readableConfig.getOptional(LOOKUP_CACHE_TTL).ifPresent(
-			s -> builder.setCacheExpireMs(s.toMillis()));
-		readableConfig.getOptional(LOOKUP_MAX_RETRIES).ifPresent(builder::setMaxRetryTimes);
-
-		return builder.build();
+		return new JdbcLookupOptions(
+			readableConfig.get(LOOKUP_CACHE_MAX_ROWS),
+			readableConfig.get(LOOKUP_CACHE_TTL).toMillis(),
+			readableConfig.get(LOOKUP_MAX_RETRIES));
 	}
 
-	private JdbcExecutionOptions getJdbcExecutionOptions(ReadableConfig readableConfig) {
+	private JdbcExecutionOptions getJdbcExecutionOptions(ReadableConfig config) {
 		final JdbcExecutionOptions.Builder builder = new JdbcExecutionOptions.Builder();
-		readableConfig.getOptional(WRITE_FLUSH_MAX_ROWS)
-			.ifPresent(builder::withBatchSize);
-		readableConfig.getOptional(WRITE_FLUSH_INTERVAL)
-			.ifPresent(builder::withBatchIntervalMs);
-		readableConfig.getOptional(WRITE_MAX_RETRIES)
-			.ifPresent(builder::withMaxRetries);
+		builder.withBatchSize(config.get(SINK_FLUSH_MAX_ROWS));
+		builder.withBatchIntervalMs(config.get(SINK_FLUSH_INTERVAL));
+		builder.withMaxRetries(config.get(SINK_MAX_RETRIES));
 		return builder.build();
 	}
 
@@ -250,14 +241,14 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 
 	@Override
 	public String factoryIdentifier() {
-		return IDENTIFIER.defaultValue();
+		return IDENTIFIER;
 	}
 
 	@Override
 	public Set<ConfigOption<?>> requiredOptions() {
 		Set<ConfigOption<?>> requiredOptions = new HashSet<>();
 		requiredOptions.add(URL);
-		requiredOptions.add(TABLE);
+		requiredOptions.add(TABLE_NAME);
 		return requiredOptions;
 	}
 
@@ -267,17 +258,63 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 		optionalOptions.add(DRIVER);
 		optionalOptions.add(USERNAME);
 		optionalOptions.add(PASSWORD);
-		optionalOptions.add(READ_PARTITION_COLUMN);
-		optionalOptions.add(READ_PARTITION_LOWER_BOUND);
-		optionalOptions.add(READ_PARTITION_UPPER_BOUND);
-		optionalOptions.add(READ_PARTITION_NUM);
-		optionalOptions.add(READ_FETCH_SIZE);
+		optionalOptions.add(SCAN_PARTITION_COLUMN);
+		optionalOptions.add(SCAN_PARTITION_LOWER_BOUND);
+		optionalOptions.add(SCAN_PARTITION_UPPER_BOUND);
+		optionalOptions.add(SCAN_PARTITION_NUM);
+		optionalOptions.add(SCAN_FETCH_SIZE);
 		optionalOptions.add(LOOKUP_CACHE_MAX_ROWS);
 		optionalOptions.add(LOOKUP_CACHE_TTL);
 		optionalOptions.add(LOOKUP_MAX_RETRIES);
-		optionalOptions.add(WRITE_FLUSH_MAX_ROWS);
-		optionalOptions.add(WRITE_FLUSH_INTERVAL);
-		optionalOptions.add(WRITE_MAX_RETRIES);
+		optionalOptions.add(SINK_FLUSH_MAX_ROWS);
+		optionalOptions.add(SINK_FLUSH_INTERVAL);
+		optionalOptions.add(SINK_MAX_RETRIES);
 		return optionalOptions;
+	}
+
+	private void validateConfigOptions(ReadableConfig config) {
+		config.getOptional(URL).orElseThrow(() -> new IllegalArgumentException(
+			String.format("Could not find required option: %s", URL.key())));
+		config.getOptional(TABLE_NAME).orElseThrow(() -> new IllegalArgumentException(
+			String.format("Could not find required option: %s", TABLE_NAME.key())));
+
+		String jdbcUrl = config.get(URL);
+		final Optional<JdbcDialect> dialect = JdbcDialects.get(jdbcUrl);
+		checkState(dialect.isPresent(), "Cannot handle such jdbc url: " + jdbcUrl);
+
+		if (config.getOptional(USERNAME).isPresent()) {
+			checkState(config.getOptional(PASSWORD).isPresent(),
+				"Database username must be provided when database password is provided");
+		}
+
+		checkAllOrNone(config, new ConfigOption[]{
+			SCAN_PARTITION_COLUMN,
+			SCAN_PARTITION_NUM,
+			SCAN_PARTITION_LOWER_BOUND,
+			SCAN_PARTITION_UPPER_BOUND
+		});
+
+		if (config.getOptional(SCAN_PARTITION_LOWER_BOUND).isPresent() &&
+			config.getOptional(SCAN_PARTITION_UPPER_BOUND).isPresent()) {
+			checkState(config.get(SCAN_PARTITION_LOWER_BOUND) <= config.get(SCAN_PARTITION_UPPER_BOUND),
+				String.format("%s must not be larger than %s", SCAN_PARTITION_LOWER_BOUND.key(), SCAN_PARTITION_UPPER_BOUND.key()));
+		}
+
+		checkAllOrNone(config, new ConfigOption[]{
+			LOOKUP_CACHE_MAX_ROWS,
+			LOOKUP_CACHE_TTL
+		});
+	}
+
+	private void checkAllOrNone(ReadableConfig config, ConfigOption<?>[] configOptions) {
+		int presentCount = 0;
+		for (ConfigOption configOption : configOptions) {
+			if (config.getOptional(configOption).isPresent()) {
+				presentCount++;
+			}
+		}
+		String[] propertyNames = Arrays.stream(configOptions).map(ConfigOption::key).toArray(String[]::new);
+		Preconditions.checkArgument(configOptions.length == presentCount || presentCount == 0,
+			"Either all or none of the following options should be provided:\n" + String.join("\n", propertyNames));
 	}
 }

@@ -18,13 +18,21 @@
 
 package org.apache.flink.connector.jdbc.internal.converter;
 
-import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 /**
- * Flink internal data structure to JDBC object converter for Postgres.
+ * Runtime converter that responsible to convert between JDBC object and Flink internal object for MySQL.
  */
-public class PostgresToJdbcConverter extends AbstractRowToJdbcConverter{
-	public PostgresToJdbcConverter(LogicalType[] externalTypes) {
-		super(externalTypes);
+public class MySQLRowConverter extends AbstractJdbcRowConverter {
+
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public String converterName() {
+		return "MySQL";
+	}
+
+	public MySQLRowConverter(RowType rowType) {
+		super(rowType);
 	}
 }

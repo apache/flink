@@ -102,7 +102,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
 				") WITH (" +
 				"  'connector'='jdbc'," +
 				"  'url'='" + DB_URL + "'," +
-				"  'table'='" + INPUT_TABLE + "'" +
+				"  'table-name'='" + INPUT_TABLE + "'" +
 				")"
 		);
 
@@ -119,7 +119,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
 	}
 
 	@Test
-	public void testJdbcLookUpSource() throws Exception {
+	public void testProject() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		EnvironmentSettings envSettings = EnvironmentSettings.newInstance()
 			.useBlinkPlanner()
@@ -139,19 +139,23 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
 				") WITH (" +
 				"  'connector'='jdbc'," +
 				"  'url'='" + DB_URL + "'," +
-				"  'table'='" + INPUT_TABLE + "'" +
+				"  'table-name'='" + INPUT_TABLE + "'," +
+				"  'scan.partition.column'='id'," +
+				"  'scan.partition.num'='2'," +
+				"  'scan.partition.lower-bound'='0'," +
+				"  'scan.partition.upper-bound'='100'" +
 				")"
 		);
 
 		StreamITCase.clear();
-		tEnv.toAppendStream(tEnv.sqlQuery("SELECT * FROM " + INPUT_TABLE), Row.class)
+		tEnv.toAppendStream(tEnv.sqlQuery("SELECT id,timestamp6_col,decimal_col FROM " + INPUT_TABLE), Row.class)
 			.addSink(new StreamITCase.StringSink<>());
 		env.execute();
 
 		List<String> expected =
 			Arrays.asList(
-				"1,2020-01-01T15:35:00.123456,2020-01-01T15:35:00.123456789,15:35,1.175E-37,1.79769E308,100.1234",
-				"2,2020-01-01T15:36:01.123456,2020-01-01T15:36:01.123456789,15:36:01,-1.175E-37,-1.79769E308,101.1234");
+				"1,2020-01-01T15:35:00.123456,100.1234",
+				"2,2020-01-01T15:36:01.123456,101.1234");
 		StreamITCase.compareWithList(expected);
 	}
 }

@@ -146,7 +146,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				") WITH (" +
 				"  'connector'='jdbc'," +
 				"  'url'='" + DB_URL + "'," +
-				"  'table'='" + OUTPUT_TABLE4 + "'" +
+				"  'table-name'='" + OUTPUT_TABLE4 + "'" +
 				")");
 
 		TableResult tableResult = tEnv.executeSql("INSERT INTO upsertSink SELECT CAST(1.0 as FLOAT)");
@@ -185,7 +185,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				") WITH (" +
 				"  'connector'='jdbc'," +
 				"  'url'='" + DB_URL + "'," +
-				"  'table'='" + OUTPUT_TABLE1 + "'" +
+				"  'table-name'='" + OUTPUT_TABLE1 + "'" +
 				")");
 
 		TableResult tableResult = tEnv.executeSql("INSERT INTO upsertSink \n" +
@@ -224,7 +224,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				") WITH (" +
 				"  'connector'='jdbc'," +
 				"  'url'='" + DB_URL + "'," +
-				"  'table'='" + OUTPUT_TABLE2 + "'" +
+				"  'table-name'='" + OUTPUT_TABLE2 + "'" +
 				")");
 
 		TableResult tableResult = tEnv.executeSql(
@@ -251,7 +251,10 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				") WITH ( " +
 				"'connector' = 'jdbc'," +
 				"'url'='" + DB_URL + "'," +
-				"'table' = '" + OUTPUT_TABLE3 + "'" +
+				"'table-name' = '" + OUTPUT_TABLE3 + "'," +
+				"'sink.flush.max-rows' = '2'," +
+				"'sink.flush.interval' = '3'," +
+				"'sink.max-retries' = '4'" +
 				")");
 
 		TableResult tableResult  = tEnv.executeSql("INSERT INTO USER_RESULT\n" +

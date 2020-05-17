@@ -20,7 +20,6 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
-import org.apache.flink.connector.jdbc.JdbcTestFixture;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.table.api.DataTypes;
@@ -49,6 +48,7 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.OUTPUT_TABLE_2;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOKS;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOKS_2;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
+import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertEquals;
@@ -56,11 +56,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test suite for {@link JdbcDynamicOutputFormat}.
+ * Test suite for {@link JdbcRowDataOutputFormat}.
  */
-public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
+public class JdbcRowDataOutputFormatTest extends JdbcDataTestBase {
 
-	private static JdbcDynamicOutputFormat outputFormat;
+	private static JdbcRowDataOutputFormat outputFormat;
 	private static String[] fieldNames = new String[] {"id", "title", "author", "price", "qty"};
 	private static DataType[] fieldDataTypes = new DataType[]{
 		DataTypes.INT(),
@@ -98,7 +98,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 				.withFieldNames(fieldNames)
 				.build();
 
-			outputFormat = JdbcDynamicOutputFormat.dynamicOutputFormatBuilder()
+			outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
 				.setJdbcOptions(jdbcOptions)
 				.setFieldDataTypes(fieldDataTypes)
 				.setJdbcDmlOptions(dmlOptions)
@@ -126,7 +126,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 				.withFieldNames(fieldNames)
 				.build();
 
-			outputFormat = JdbcDynamicOutputFormat.dynamicOutputFormatBuilder()
+			outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
 				.setJdbcOptions(jdbcOptions)
 				.setFieldDataTypes(fieldDataTypes)
 				.setJdbcDmlOptions(dmlOptions)
@@ -141,7 +141,6 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 
 	@Test
 	public void testIncompatibleTypes() {
-		String expectedMsg = "field index: 4, field value: +I(4,hello,world,0.99,imthewrongtype).";
 		try {
 			JdbcOptions jdbcOptions = JdbcOptions.builder()
 				.setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
@@ -154,7 +153,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 				.withFieldNames(fieldNames)
 				.build();
 
-			outputFormat = JdbcDynamicOutputFormat.dynamicOutputFormatBuilder()
+			outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
 				.setJdbcOptions(jdbcOptions)
 				.setFieldDataTypes(fieldDataTypes)
 				.setJdbcDmlOptions(dmlOptions)
@@ -170,13 +169,11 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 			outputFormat.close();
 		} catch (Exception e) {
 			assertTrue(findThrowable(e, ClassCastException.class).isPresent());
-			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
 		}
 	}
 
 	@Test
 	public void testExceptionOnInvalidType() {
-		String expectedMsg = "field index: 3, field value: +I(1001,Java public for dummies,Tan Ah Teck,0,11)";
 		try {
 			JdbcOptions jdbcOptions = JdbcOptions.builder()
 				.setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
@@ -189,7 +186,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 				.withFieldNames(fieldNames)
 				.build();
 
-			outputFormat = JdbcDynamicOutputFormat.dynamicOutputFormatBuilder()
+			outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
 				.setJdbcOptions(jdbcOptions)
 				.setFieldDataTypes(fieldDataTypes)
 				.setJdbcDmlOptions(dmlOptions)
@@ -199,13 +196,12 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 			setRuntimeContext(outputFormat, false);
 			outputFormat.open(0, 1);
 
-			JdbcTestFixture.TestEntry entry = TEST_DATA[0];
+			TestEntry entry = TEST_DATA[0];
 			RowData row = buildGenericData(entry.id, entry.title, entry.author, 0L, entry.qty);
 			outputFormat.writeRecord(row);
 			outputFormat.close();
 		} catch (Exception e) {
 			assertTrue(findThrowable(e, ClassCastException.class).isPresent());
-			assertTrue(findThrowableWithMessage(e, expectedMsg).isPresent());
 		}
 	}
 
@@ -224,7 +220,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 				.withFieldNames(fieldNames)
 				.build();
 
-			outputFormat = JdbcDynamicOutputFormat.dynamicOutputFormatBuilder()
+			outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
 				.setJdbcOptions(jdbcOptions)
 				.setFieldDataTypes(fieldDataTypes)
 				.setJdbcDmlOptions(dmlOptions)
@@ -234,7 +230,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 			setRuntimeContext(outputFormat, true);
 			outputFormat.open(0, 1);
 
-			JdbcTestFixture.TestEntry entry = TEST_DATA[0];
+			TestEntry entry = TEST_DATA[0];
 			RowData row = buildGenericData(entry.id, entry.title, entry.author, entry.price, entry.qty);
 
 			outputFormat.writeRecord(row);
@@ -260,7 +256,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 			.withFieldNames(fieldNames)
 			.build();
 
-		outputFormat = JdbcDynamicOutputFormat.dynamicOutputFormatBuilder()
+		outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
 			.setJdbcOptions(jdbcOptions)
 			.setFieldDataTypes(fieldDataTypes)
 			.setJdbcDmlOptions(dmlOptions)
@@ -273,7 +269,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 		setRuntimeContext(outputFormat, true);
 		outputFormat.open(0, 1);
 
-		for (JdbcTestFixture.TestEntry entry : TEST_DATA) {
+		for (TestEntry entry : TEST_DATA) {
 			outputFormat.writeRecord(buildGenericData(entry.id, entry.title, entry.author, entry.price, entry.qty));
 		}
 
@@ -314,7 +310,7 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 			.withBatchSize(3)
 			.build();
 
-		outputFormat = JdbcDynamicOutputFormat.dynamicOutputFormatBuilder()
+		outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
 			.setJdbcOptions(jdbcOptions)
 			.setFieldDataTypes(fieldDataTypes)
 			.setJdbcDmlOptions(dmlOptions)

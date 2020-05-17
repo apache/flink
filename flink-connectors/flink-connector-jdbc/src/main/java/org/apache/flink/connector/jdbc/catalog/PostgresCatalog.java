@@ -51,9 +51,10 @@ import java.util.Set;
 
 import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.IDENTIFIER;
 import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.PASSWORD;
-import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.TABLE;
+import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.TABLE_NAME;
 import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.URL;
 import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.USERNAME;
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 
 /**
  * Catalog for PostgreSQL.
@@ -196,9 +197,9 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 			TableSchema tableSchema = new TableSchema.Builder().fields(names, types).build();
 
 			Map<String, String> props = new HashMap<>();
-			props.put(IDENTIFIER.key(), IDENTIFIER.defaultValue());
+			props.put(CONNECTOR.key(), IDENTIFIER);
 			props.put(URL.key(), dbUrl);
-			props.put(TABLE.key(), pgPath.getFullPath());
+			props.put(TABLE_NAME.key(), pgPath.getFullPath());
 			props.put(USERNAME.key(), username);
 			props.put(PASSWORD.key(), pwd);
 

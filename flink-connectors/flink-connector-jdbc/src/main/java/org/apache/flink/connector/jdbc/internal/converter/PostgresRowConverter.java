@@ -33,50 +33,57 @@ import org.postgresql.util.PGobject;
 import java.lang.reflect.Array;
 
 /**
- * JDBC object to Flink internal data structure converter for Postgres.
+ * Runtime converter that responsible to convert between JDBC object and Flink internal object for Postgres.
  */
-public class PostgresToRowConverter extends AbstractJdbcToRowConverter {
+public class PostgresRowConverter extends AbstractJdbcRowConverter {
 
-	public PostgresToRowConverter(RowType rowType) {
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public String converterName() {
+		return "Postgres";
+	}
+
+	public PostgresRowConverter(RowType rowType) {
 		super(rowType);
 	}
 
 	@Override
-	public JdbcFieldConverter createConverter(LogicalType type) {
+	public JdbcDeserializationConverter createNullableInternalConverter(LogicalType type) {
 		LogicalTypeRoot root = type.getTypeRoot();
 
 		if (root == LogicalTypeRoot.ARRAY) {
 			ArrayType arrayType = (ArrayType) type;
-			return createArrayConverter(arrayType);
+			return createPostgresArrayConverter(arrayType);
 		} else {
 			return createPrimitiveConverter(type);
 		}
 	}
 
-	private JdbcFieldConverter createArrayConverter(ArrayType arrayType) {
+	private JdbcDeserializationConverter createPostgresArrayConverter(ArrayType arrayType) {
 		// PG's bytea[] is wrapped in PGobject, rather than primitive byte arrays
 		if (LogicalTypeChecks.hasFamily(arrayType.getElementType(), LogicalTypeFamily.BINARY_STRING)) {
 			final Class<?> elementClass = LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
-			final JdbcFieldConverter elementConverter = createConverter(arrayType.getElementType());
+			final JdbcDeserializationConverter elementConverter = createNullableInternalConverter(arrayType.getElementType());
 
 			return v -> {
 				PgArray pgArray = (PgArray) v;
 				Object[] in = (Object[]) pgArray.getArray();
 				final Object[] array = (Object[]) Array.newInstance(elementClass, in.length);
 				for (int i = 0; i < in.length; i++) {
-					array[i] = elementConverter.convert(((PGobject) in[i]).getValue().getBytes());
+					array[i] = elementConverter.deserialize(((PGobject) in[i]).getValue().getBytes());
 				}
 				return new GenericArrayData(array);
 			};
 		} else {
 			final Class<?> elementClass = LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
-			final JdbcFieldConverter elementConverter = createConverter(arrayType.getElementType());
+			final JdbcDeserializationConverter elementConverter = createNullableInternalConverter(arrayType.getElementType());
 			return v -> {
 				PgArray pgArray = (PgArray) v;
 				Object[] in = (Object[]) pgArray.getArray();
 				final Object[] array = (Object[]) Array.newInstance(elementClass, in.length);
 				for (int i = 0; i < in.length; i++) {
-					array[i] = elementConverter.convert(in[i]);
+					array[i] = elementConverter.deserialize(in[i]);
 				}
 				return new GenericArrayData(array);
 			};
@@ -84,8 +91,8 @@ public class PostgresToRowConverter extends AbstractJdbcToRowConverter {
 	}
 
 	// Have its own method so that Postgres can support primitives that super class doesn't support in the future
-	private JdbcFieldConverter createPrimitiveConverter(LogicalType type) {
-		return super.createConverter(type);
+	private JdbcDeserializationConverter createPrimitiveConverter(LogicalType type) {
+		return super.createNullableInternalConverter(type);
 	}
 
 }

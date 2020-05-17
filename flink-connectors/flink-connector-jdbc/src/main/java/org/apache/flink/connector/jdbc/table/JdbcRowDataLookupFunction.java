@@ -21,6 +21,7 @@ package org.apache.flink.connector.jdbc.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
+import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.utils.JdbcTypeUtil;
@@ -30,7 +31,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
@@ -58,9 +58,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A lookup function for {@link JdbcDynamicTableSource}.
  */
 @Internal
-public class JdbcDynamicLookupFunction extends TableFunction<RowData> {
+public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(JdbcDynamicLookupFunction.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JdbcRowDataLookupFunction.class);
 	private static final long serialVersionUID = 1L;
 
 	private final String query;
@@ -74,15 +74,23 @@ public class JdbcDynamicLookupFunction extends TableFunction<RowData> {
 	private final long cacheExpireMs;
 	private final int maxRetryTimes;
 	private final JdbcDialect jdbcDialect;
-	private final RowType rowType;
+	private final JdbcRowConverter jdbcRowConverter;
 
 	private transient Connection dbConn;
 	private transient PreparedStatement statement;
 	private transient Cache<RowData, List<RowData>> cache;
 
-	private JdbcDynamicLookupFunction(
-		JdbcOptions options, JdbcLookupOptions lookupOptions,
-		String[] fieldNames, DataType[] fieldTypes, String[] keyNames, RowType rowType) {
+	public JdbcRowDataLookupFunction(
+			JdbcOptions options,
+			JdbcLookupOptions lookupOptions,
+			String[] fieldNames,
+			DataType[] fieldTypes,
+			String[] keyNames,
+			RowType rowType) {
+		checkNotNull(options, "No JdbcOptions supplied.");
+		checkNotNull(fieldNames, "No fieldNames supplied.");
+		checkNotNull(fieldTypes, "No fieldTypes supplied.");
+		checkNotNull(keyNames, "No keyNames supplied.");
 		this.drivername = options.getDriverName();
 		this.dbURL = options.getDbURL();
 		this.username = options.getUsername().orElse(null);
@@ -105,11 +113,7 @@ public class JdbcDynamicLookupFunction extends TableFunction<RowData> {
 			options.getTableName(), fieldNames, keyNames);
 		this.jdbcDialect = JdbcDialects.get(dbURL)
 			.orElseThrow(() -> new UnsupportedOperationException(String.format("Unknown dbUrl:%s", dbURL)));
-		this.rowType = rowType;
-	}
-
-	public static Builder builder() {
-		return new Builder();
+		this.jdbcRowConverter = jdbcDialect.getRowConverter(rowType);
 	}
 
 	@Override
@@ -128,6 +132,10 @@ public class JdbcDynamicLookupFunction extends TableFunction<RowData> {
 		}
 	}
 
+	/**
+	 * This is a lookup method which is called by Flink framework in runtime.
+	 * @param keys lookup keys
+	 */
 	public void eval(Object... keys) {
 		RowData keyRow = GenericRowData.of(keys);
 		if (cache != null) {
@@ -179,7 +187,7 @@ public class JdbcDynamicLookupFunction extends TableFunction<RowData> {
 	}
 
 	private RowData convertToRowFromResultSet(ResultSet resultSet) throws SQLException {
-		return jdbcDialect.getInputConverter(rowType).toInternal(resultSet);
+		return jdbcRowConverter.toInternal(resultSet);
 	}
 
 	private void establishConnection() throws SQLException, ClassNotFoundException {
@@ -215,79 +223,6 @@ public class JdbcDynamicLookupFunction extends TableFunction<RowData> {
 			} finally {
 				dbConn = null;
 			}
-		}
-	}
-
-	/**
-	 * Builder for a {@link JdbcDynamicLookupFunction}.
-	 */
-	public static class Builder {
-		private JdbcOptions options;
-		private JdbcLookupOptions lookupOptions;
-		protected String[] fieldNames;
-		protected DataType[] fieldTypes;
-		protected String[] keyNames;
-
-		/**
-		 * required, jdbc options.
-		 */
-		public Builder setOptions(JdbcOptions options) {
-			this.options = options;
-			return this;
-		}
-
-		/**
-		 * optional, lookup related options.
-		 */
-		public Builder setLookupOptions(JdbcLookupOptions lookupOptions) {
-			this.lookupOptions = lookupOptions;
-			return this;
-		}
-
-		/**
-		 * required, field names of this jdbc table.
-		 */
-		public Builder setFieldNames(String[] fieldNames) {
-			this.fieldNames = fieldNames;
-			return this;
-		}
-
-		/**
-		 * required, field types of this jdbc table.
-		 */
-		public Builder setFieldTypes(DataType[] fieldTypes) {
-			this.fieldTypes = fieldTypes;
-			return this;
-		}
-
-		/**
-		 * required, key names to query this jdbc table.
-		 */
-		public Builder setKeyNames(String[] keyNames) {
-			this.keyNames = keyNames;
-			return this;
-		}
-
-		/**
-		 * Finalizes the configuration and checks validity.
-		 *
-		 * @return Configured JdbcLookupFunction
-		 */
-		public JdbcDynamicLookupFunction build() {
-			checkNotNull(options, "No JdbcOptions supplied.");
-			if (lookupOptions == null) {
-				lookupOptions = JdbcLookupOptions.builder().build();
-			}
-			checkNotNull(fieldNames, "No fieldNames supplied.");
-			checkNotNull(fieldTypes, "No fieldTypes supplied.");
-			checkNotNull(keyNames, "No keyNames supplied.");
-
-			RowType rowType = RowType.of(
-				Arrays.stream(fieldTypes).map(DataType::getLogicalType)
-					.toArray(LogicalType[]::new),
-				fieldNames);
-
-			return new JdbcDynamicLookupFunction(options, lookupOptions, fieldNames, fieldTypes, keyNames, rowType);
 		}
 	}
 }

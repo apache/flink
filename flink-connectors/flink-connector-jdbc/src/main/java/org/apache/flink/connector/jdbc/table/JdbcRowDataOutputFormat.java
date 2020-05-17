@@ -28,6 +28,7 @@ import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
+import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.internal.executor.InsertOrUpdateJdbcExecutor;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
@@ -35,8 +36,10 @@ import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.utils.JdbcUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.RowData.FieldGetter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
@@ -47,6 +50,7 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.function.Function;
 
+import static org.apache.flink.table.data.RowData.createFieldGetter;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -54,21 +58,39 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * OutputFormat for {@link JdbcDynamicTableSource}.
  */
 @Internal
-public class JdbcDynamicOutputFormat extends JdbcBatchingOutputFormat<RowData, RowData, JdbcBatchStatementExecutor<RowData>> {
-	private static final Logger LOG = LoggerFactory.getLogger(JdbcDynamicOutputFormat.class);
+public class JdbcRowDataOutputFormat extends JdbcBatchingOutputFormat<RowData, RowData, JdbcBatchStatementExecutor<RowData>> {
+
+	private static final long serialVersionUID = 1L;
+	private static final Logger LOG = LoggerFactory.getLogger(JdbcRowDataOutputFormat.class);
 
 	private JdbcBatchStatementExecutor<RowData> deleteExecutor;
 	private final JdbcDmlOptions dmlOptions;
 	private final LogicalType[] logicalTypes;
 
-	private JdbcDynamicOutputFormat(JdbcConnectionProvider connectionProvider, JdbcDmlOptions dmlOptions, JdbcExecutionOptions batchOptions, TypeInformation<RowData> rowDataTypeInfo, LogicalType[] logicalTypes) {
-		super(connectionProvider, batchOptions, ctx -> createUpsertRowExecutor(dmlOptions, ctx, rowDataTypeInfo, logicalTypes), RecordExtractor.identity());
+	private JdbcRowDataOutputFormat(
+			JdbcConnectionProvider connectionProvider,
+			JdbcDmlOptions dmlOptions,
+			JdbcExecutionOptions batchOptions,
+			TypeInformation<RowData> rowDataTypeInfo,
+			LogicalType[] logicalTypes) {
+		super(
+			connectionProvider,
+			batchOptions,
+			ctx -> createUpsertRowExecutor(dmlOptions, ctx, rowDataTypeInfo, logicalTypes),
+			RecordExtractor.identity());
 		this.dmlOptions = dmlOptions;
 		this.logicalTypes = logicalTypes;
 	}
 
-	private JdbcDynamicOutputFormat(JdbcConnectionProvider connectionProvider, JdbcDmlOptions dmlOptions, JdbcExecutionOptions batchOptions, TypeInformation<RowData> rowDataTypeInfo, LogicalType[] logicalTypes, String sql) {
-		super(connectionProvider, batchOptions,
+	private JdbcRowDataOutputFormat(
+			JdbcConnectionProvider connectionProvider,
+			JdbcDmlOptions dmlOptions,
+			JdbcExecutionOptions batchOptions,
+			TypeInformation<RowData> rowDataTypeInfo,
+			LogicalType[] logicalTypes,
+			String sql) {
+		super(connectionProvider,
+			batchOptions,
 			ctx -> createSimpleRowDataExecutor(dmlOptions.getDialect(), sql, logicalTypes, ctx, rowDataTypeInfo),
 			RecordExtractor.identity());
 		this.dmlOptions = dmlOptions;
@@ -77,8 +99,8 @@ public class JdbcDynamicOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
-		super.open(taskNumber, numTasks);
 		deleteExecutor = createDeleteExecutor();
+		super.open(taskNumber, numTasks);
 		try {
 			deleteExecutor.open(connection);
 		} catch (SQLException e) {
@@ -96,15 +118,18 @@ public class JdbcDynamicOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 	@Override
 	protected void addToBatch(RowData original, RowData extracted) throws SQLException {
 		switch (original.getRowKind()) {
-			case DELETE:
-				deleteExecutor.addToBatch(extracted);
-				break;
 			case INSERT:
 			case UPDATE_AFTER:
 				super.addToBatch(original, extracted);
 				break;
+			case DELETE:
+			case UPDATE_BEFORE:
+				deleteExecutor.addToBatch(extracted);
+				break;
 			default:
-				return;
+				throw new UnsupportedOperationException(
+					String.format("unknown row kind, the supported row kinds is: INSERT, UPDATE_BEFORE, UPDATE_AFTER," +
+						" DELETE, but get: %s.", original.getRowKind()));
 		}
 	}
 
@@ -130,12 +155,13 @@ public class JdbcDynamicOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 	}
 
 	private static JdbcBatchStatementExecutor<RowData> createKeyedRowExecutor(JdbcDialect dialect, int[] pkFields, LogicalType[] pkTypes, String sql, LogicalType[] logicalTypes) {
+		final JdbcRowConverter rowConverter = dialect.getRowConverter(RowType.of(logicalTypes));
+		final Function<RowData, RowData>  keyExtractor = createRowKeyExtractor(logicalTypes, pkFields);
 		return JdbcBatchStatementExecutor.keyed(
 			sql,
-			createRowKeyExtractor(pkFields, logicalTypes),
-			(st, record) -> dialect
-				.getOutputConverter(logicalTypes)
-				.toExternal(createRowKeyExtractor(pkFields, logicalTypes).apply(record), st));
+			keyExtractor,
+			(st, record) -> rowConverter
+				.toExternal(keyExtractor.apply(record), st));
 	}
 
 	private static JdbcBatchStatementExecutor<RowData> createUpsertRowExecutor(JdbcDmlOptions opt, RuntimeContext ctx, TypeInformation<RowData> rowDataTypeInfo, LogicalType[] logicalTypes) {
@@ -156,12 +182,16 @@ public class JdbcDynamicOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 					createRowDataJdbcStatementBuilder(dialect, pkTypes),
 					createRowDataJdbcStatementBuilder(dialect, logicalTypes),
 					createRowDataJdbcStatementBuilder(dialect, logicalTypes),
-					createRowKeyExtractor(pkFields, logicalTypes),
+					createRowKeyExtractor(logicalTypes, pkFields),
 					ctx.getExecutionConfig().isObjectReuseEnabled() ? typeSerializer::copy : r -> r));
 	}
 
-	private static Function<RowData, RowData> createRowKeyExtractor(int[] pkFields, LogicalType[] logicalTypes) {
-		return row -> getPrimaryKey(row, pkFields, logicalTypes);
+	private static Function<RowData, RowData> createRowKeyExtractor(LogicalType[] logicalTypes, int[] pkFields) {
+		final FieldGetter[] fieldGetters = new FieldGetter[pkFields.length];
+		for (int i = 0; i < pkFields.length; i++) {
+			fieldGetters[i] = createFieldGetter(logicalTypes[pkFields[i]], pkFields[i]);
+		}
+		return row -> getPrimaryKey(row, fieldGetters);
 	}
 
 	private static JdbcBatchStatementExecutor<RowData> createSimpleRowDataExecutor(JdbcDialect dialect, String sql, LogicalType[] fieldTypes, RuntimeContext ctx, TypeInformation<RowData> rowDataTypeInfo) {
@@ -177,13 +207,13 @@ public class JdbcDynamicOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 	 * Uses {@link JdbcUtils#setRecordToStatement}
 	 */
 	private static JdbcStatementBuilder<RowData> createRowDataJdbcStatementBuilder(JdbcDialect dialect, LogicalType[] types) {
-		return (st, record) -> dialect.getOutputConverter(types).toExternal(record, st);
+		return (st, record) -> dialect.getRowConverter(RowType.of(types)).toExternal(record, st);
 	}
 
-	private static RowData getPrimaryKey(RowData row, int[] pkFields, LogicalType[] logicalTypes) {
-		GenericRowData pkRow = new GenericRowData(pkFields.length);
-		for (int i = 0; i < pkFields.length; i++) {
-			pkRow.setField(i, RowData.get(row, pkFields[i], logicalTypes[pkFields[i]]));
+	private static RowData getPrimaryKey(RowData row, FieldGetter[] fieldGetters) {
+		GenericRowData pkRow = new GenericRowData(fieldGetters.length);
+		for (int i = 0; i < fieldGetters.length; i++) {
+			pkRow.setField(i, fieldGetters[i].getFieldOrNull(row));
 		}
 		return pkRow;
 	}
@@ -193,7 +223,7 @@ public class JdbcDynamicOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 	}
 
 	/**
-	 * Builder for {@link JdbcDynamicOutputFormat}.
+	 * Builder for {@link JdbcRowDataOutputFormat}.
 	 */
 	public static class DynamicOutputFormatBuilder {
 		private JdbcOptions jdbcOptions;
@@ -230,7 +260,7 @@ public class JdbcDynamicOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 			return this;
 		}
 
-		public JdbcDynamicOutputFormat build() {
+		public JdbcRowDataOutputFormat build() {
 			checkNotNull(jdbcOptions, "jdbc options can not be null");
 			checkNotNull(dmlOptions, "jdbc dml options can not be null");
 			checkNotNull(executionOptions, "jdbc execution options can not be null");
@@ -240,7 +270,7 @@ public class JdbcDynamicOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 				.toArray(LogicalType[]::new);
 			if (dmlOptions.getKeyFields().isPresent() && dmlOptions.getKeyFields().get().length > 0) {
 				//upsert query
-				return new JdbcDynamicOutputFormat(
+				return new JdbcRowDataOutputFormat(
 					new SimpleJdbcConnectionProvider(jdbcOptions),
 					dmlOptions,
 					executionOptions,
@@ -251,7 +281,7 @@ public class JdbcDynamicOutputFormat extends JdbcBatchingOutputFormat<RowData, R
 				final String sql = dmlOptions
 					.getDialect()
 					.getInsertIntoStatement(dmlOptions.getTableName(), dmlOptions.getFieldNames());
-				return new JdbcDynamicOutputFormat(
+				return new JdbcRowDataOutputFormat(
 					new SimpleJdbcConnectionProvider(jdbcOptions),
 					dmlOptions,
 					executionOptions,

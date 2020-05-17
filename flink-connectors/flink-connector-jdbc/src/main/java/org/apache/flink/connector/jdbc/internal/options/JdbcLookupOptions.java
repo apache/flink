@@ -32,7 +32,7 @@ public class JdbcLookupOptions implements Serializable {
 	private final long cacheExpireMs;
 	private final int maxRetryTimes;
 
-	private JdbcLookupOptions(long cacheMaxSize, long cacheExpireMs, int maxRetryTimes) {
+	public JdbcLookupOptions(long cacheMaxSize, long cacheExpireMs, int maxRetryTimes) {
 		this.cacheMaxSize = cacheMaxSize;
 		this.cacheExpireMs = cacheExpireMs;
 		this.maxRetryTimes = maxRetryTimes;

@@ -21,11 +21,18 @@ package org.apache.flink.connector.jdbc.internal.converter;
 import org.apache.flink.table.types.logical.RowType;
 
 /**
- * JDBC object to Flink internal data structure converter for Derby.
+ * Runtime converter that responsible to convert between JDBC object and Flink internal object for Derby.
  */
-public class DerbyToRowConverter extends AbstractJdbcToRowConverter {
+public class DerbyRowConverter extends AbstractJdbcRowConverter {
 
-	public DerbyToRowConverter(RowType rowType) {
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public String converterName() {
+		return "Derby";
+	}
+
+	public DerbyRowConverter(RowType rowType) {
 		super(rowType);
 	}
 }
