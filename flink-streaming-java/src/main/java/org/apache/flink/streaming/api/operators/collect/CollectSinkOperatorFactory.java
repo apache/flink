@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.collect;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
@@ -28,19 +29,25 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 /**
  * The Factory class for {@link CollectSinkOperator}.
  */
-@SuppressWarnings("unchecked")
-public class CollectSinkOperatorFactory extends SimpleUdfStreamOperatorFactory<Object> implements CoordinatedOperatorFactory<Object> {
+public class CollectSinkOperatorFactory<IN> extends SimpleUdfStreamOperatorFactory<Object> implements CoordinatedOperatorFactory<Object> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final CollectSinkOperator<?> operator;
+	private final CollectSinkOperator<IN> operator;
+	private final int socketTimeout;
 
-	public CollectSinkOperatorFactory(CollectSinkOperator<?> operator) {
-		super(operator);
-		this.operator = operator;
+	public CollectSinkOperatorFactory(
+			TypeSerializer<IN> serializer,
+			int maxResultsPerBatch,
+			String accumulatorName,
+			int socketTimeout) {
+		super(new CollectSinkOperator<>(serializer, maxResultsPerBatch, accumulatorName));
+		this.operator = (CollectSinkOperator<IN>) getOperator();
+		this.socketTimeout = socketTimeout;
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public <T extends StreamOperator<Object>> T  createStreamOperator(StreamOperatorParameters<Object> parameters) {
 		final OperatorID operatorId = parameters.getStreamConfig().getOperatorID();
 		final OperatorEventDispatcher eventDispatcher = parameters.getOperatorEventDispatcher();
@@ -55,6 +62,6 @@ public class CollectSinkOperatorFactory extends SimpleUdfStreamOperatorFactory<O
 	@Override
 	public OperatorCoordinator.Provider getCoordinatorProvider(String operatorName, OperatorID operatorID) {
 		operator.getOperatorIdFuture().complete(operatorID);
-		return new CollectSinkOperatorCoordinator.Provider(operatorID);
+		return new CollectSinkOperatorCoordinator.Provider(operatorID, socketTimeout);
 	}
 }

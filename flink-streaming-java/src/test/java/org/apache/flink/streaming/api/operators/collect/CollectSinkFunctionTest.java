@@ -62,7 +62,8 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 	private static final int MAX_RESULTS_PER_BATCH = 3;
 	private static final String ACCUMULATOR_NAME = "tableCollectAccumulator";
-	private static final long TIME_OUT_MILLIS = 10000;
+	private static final int FUTURE_TIMEOUT_MILLIS = 10000;
+	private static final int SOCKET_TIMEOUT_MILLIS = 1000;
 	private static final int MAX_RETIRES = 100;
 
 	private static final JobID TEST_JOB_ID = new JobID();
@@ -84,7 +85,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 		ioManager = new IOManagerAsync();
 		runtimeContext = new MockStreamingRuntimeContext(false, 1, 0, ioManager);
 		gateway = new MockOperatorEventGateway();
-		coordinator = new CollectSinkOperatorCoordinator();
+		coordinator = new CollectSinkOperatorCoordinator(SOCKET_TIMEOUT_MILLIS);
 		coordinator.start();
 
 		// only used in checkpointed tests
@@ -340,7 +341,8 @@ public class CollectSinkFunctionTest extends TestLogger {
 	}
 
 	private void openFunction() throws Exception {
-		function = new CollectSinkFunction<>(serializer, MAX_RESULTS_PER_BATCH, ACCUMULATOR_NAME);
+		function = new CollectSinkFunction<>(
+			serializer, MAX_RESULTS_PER_BATCH, ACCUMULATOR_NAME);
 		function.setRuntimeContext(runtimeContext);
 		function.setOperatorEventGateway(gateway);
 		function.open(new Configuration());
@@ -349,7 +351,8 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 	private void openFunctionWithState() throws Exception {
 		functionInitializationContext.getOperatorStateStore().revertToLastSuccessCheckpoint();
-		function = new CollectSinkFunction<>(serializer, MAX_RESULTS_PER_BATCH, ACCUMULATOR_NAME);
+		function = new CollectSinkFunction<>(
+			serializer, MAX_RESULTS_PER_BATCH, ACCUMULATOR_NAME);
 		function.setRuntimeContext(runtimeContext);
 		function.setOperatorEventGateway(gateway);
 		function.initializeState(functionInitializationContext);
@@ -388,7 +391,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 		CollectCoordinationRequest request = new CollectCoordinationRequest(version, offset);
 		// we add a timeout to not block the tests
 		return ((CollectCoordinationResponse) coordinator
-			.handleCoordinationRequest(request).get(TIME_OUT_MILLIS, TimeUnit.MILLISECONDS));
+			.handleCoordinationRequest(request).get(FUTURE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
 	}
 
 	private CollectCoordinationResponse<Integer> sendRequestAndGetValidResponse(
