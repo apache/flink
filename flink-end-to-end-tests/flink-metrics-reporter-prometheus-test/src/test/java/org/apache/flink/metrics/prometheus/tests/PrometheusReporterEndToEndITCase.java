@@ -128,18 +128,17 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
 	public static Collection<TestParams> testParameters() {
 		return Arrays.asList(
 			TestParams.from("Jar in 'lib'",
-				builder -> builder.copyJar(PROMETHEUS_JAR_PREFIX, JarLocation.OPT, JarLocation.LIB),
+				builder -> builder.moveJar(PROMETHEUS_JAR_PREFIX, JarLocation.PLUGINS, JarLocation.LIB),
 				REFLECTION),
 			TestParams.from("Jar in 'lib'",
-				builder -> builder.copyJar(PROMETHEUS_JAR_PREFIX, JarLocation.OPT, JarLocation.LIB),
+				builder -> builder.moveJar(PROMETHEUS_JAR_PREFIX, JarLocation.PLUGINS, JarLocation.LIB),
 				FACTORY),
 			TestParams.from("Jar in 'plugins'",
-				builder -> builder.copyJar(PROMETHEUS_JAR_PREFIX, JarLocation.OPT, JarLocation.PLUGINS),
+				builder -> {},
 				FACTORY),
 			TestParams.from("Jar in 'lib' and 'plugins'",
 				builder -> {
-					builder.copyJar(PROMETHEUS_JAR_PREFIX, JarLocation.OPT, JarLocation.LIB);
-					builder.copyJar(PROMETHEUS_JAR_PREFIX, JarLocation.OPT, JarLocation.PLUGINS);
+					builder.copyJar(PROMETHEUS_JAR_PREFIX, JarLocation.PLUGINS, JarLocation.LIB);
 				},
 				FACTORY)
 		);
