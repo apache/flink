@@ -21,18 +21,15 @@ package org.apache.flink.runtime.io.network.api.serialization;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
-import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.util.CloseableIterator;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
-import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER;
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.PARTIAL_RECORD;
-import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
 
 /**
  * @param <T> The type of the record to be deserialized.
@@ -76,14 +73,8 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 	}
 
 	@Override
-	public Optional<Buffer> getUnconsumedBuffer() throws IOException {
-		final Optional<MemorySegment> unconsumedSegment;
-		if (nonSpanningWrapper.hasRemaining()) {
-			unconsumedSegment = nonSpanningWrapper.getUnconsumedSegment();
-		} else {
-			unconsumedSegment = spanningWrapper.getUnconsumedSegment();
-		}
-		return unconsumedSegment.map(segment -> new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, DATA_BUFFER, segment.size()));
+	public CloseableIterator<Buffer> getUnconsumedBuffer() throws IOException {
+		return nonSpanningWrapper.hasRemaining() ? nonSpanningWrapper.getUnconsumedSegment() : spanningWrapper.getUnconsumedSegment();
 	}
 
 	@Override

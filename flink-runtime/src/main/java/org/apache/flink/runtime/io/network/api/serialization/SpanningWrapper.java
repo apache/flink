@@ -23,6 +23,8 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.StringUtils;
 
 import java.io.BufferedInputStream;
@@ -34,11 +36,11 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.Random;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static org.apache.flink.runtime.io.network.api.serialization.NonSpanningWrapper.singleBufferIterator;
 import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
 import static org.apache.flink.util.FileUtils.writeCompletely;
 import static org.apache.flink.util.IOUtils.closeAllQuietly;
@@ -165,15 +167,15 @@ final class SpanningWrapper {
 		}
 	}
 
-	Optional<MemorySegment> getUnconsumedSegment() throws IOException {
+	CloseableIterator<Buffer> getUnconsumedSegment() throws IOException {
 		if (isReadingLength()) {
-			return Optional.of(copyLengthBuffer());
+			return singleBufferIterator(copyLengthBuffer());
 		} else if (isAboveSpillingThreshold()) {
 			throw new UnsupportedOperationException("Unaligned checkpoint currently do not support spilled records.");
 		} else if (recordLength == -1) {
-			return Optional.empty(); // no remaining partial length or data
+			return CloseableIterator.empty(); // no remaining partial length or data
 		} else {
-			return Optional.of(copyDataBuffer());
+			return singleBufferIterator(copyDataBuffer());
 		}
 	}
 

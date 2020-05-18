@@ -216,6 +216,13 @@ public final class IOUtils {
 	}
 
 	/**
+	 * @see #closeAll(Iterable)
+	 */
+	public static void closeAll(AutoCloseable... closeables) throws Exception {
+		closeAll(asList(closeables));
+	}
+
+	/**
 	 * Closes all {@link AutoCloseable} objects in the parameter, suppressing exceptions. Exception will be emitted
 	 * after calling close() on every object.
 	 *
