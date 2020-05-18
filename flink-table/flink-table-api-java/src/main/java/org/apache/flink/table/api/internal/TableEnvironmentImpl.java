@@ -84,13 +84,13 @@ import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SelectSinkOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
-import org.apache.flink.table.operations.UnregisteredSinkModifyOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
@@ -689,24 +689,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
 	@Override
 	public TableResult executeInternal(QueryOperation operation) {
-		TableSchema tableSchema = operation.getTableSchema();
-		SelectTableSink tableSink = planner.createSelectTableSink(tableSchema);
-		UnregisteredSinkModifyOperation<Row> sinkOperation = new UnregisteredSinkModifyOperation<>(
-				tableSink,
-				operation
-		);
+		SelectSinkOperation sinkOperation = new SelectSinkOperation(operation);
 		List<Transformation<?>> transformations = translate(Collections.singletonList(sinkOperation));
 		Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, "collect");
 		try {
 			JobClient jobClient = execEnv.executeAsync(pipeline);
-			tableSink.setJobClient(jobClient);
+			SelectResultProvider resultProvider = sinkOperation.getSelectResultProvider();
+			resultProvider.setJobClient(jobClient);
 			return TableResultImpl.builder()
 					.jobClient(jobClient)
 					.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-					.tableSchema(tableSchema)
-					.data(tableSink.getResultIterator())
+					.tableSchema(operation.getTableSchema())
+					.data(resultProvider.getResultIterator())
 					.setPrintStyle(TableResultImpl.PrintStyle.tableau(
-							PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN))
+							PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, isStreamingMode))
 					.build();
 		} catch (Exception e) {
 			throw new TableException("Failed to execute sql", e);
@@ -1092,7 +1088,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 						headers,
 						types).build())
 				.data(Arrays.stream(rows).map(Row::of).collect(Collectors.toList()))
-				.setPrintStyle(TableResultImpl.PrintStyle.tableau(Integer.MAX_VALUE, ""))
+				.setPrintStyle(TableResultImpl.PrintStyle.tableau(Integer.MAX_VALUE, "", false))
 				.build();
 	}
 
