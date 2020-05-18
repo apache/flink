@@ -25,8 +25,8 @@ if [ -z "$HERE" ] ; then
 	exit 1  # fail
 fi
 
-source "${HERE}/ci/stage.sh"
-source "${HERE}/ci/maven-utils.sh"
+source "${HERE}/stage.sh"
+source "${HERE}/maven-utils.sh"
 
 ARTIFACTS_DIR="${HERE}/artifacts"
 
@@ -51,7 +51,7 @@ TRANSFER_UPLOAD_MAX_RETRIES=2
 # backoff algorithm should be too long for the last several retries.
 TRANSFER_UPLOAD_RETRY_DELAY=5
 
-LOG4J_PROPERTIES=${HERE}/ci/log4j-ci.properties
+LOG4J_PROPERTIES=${HERE}/log4j-ci.properties
 
 PYTHON_TEST="./flink-python/dev/lint-python.sh"
 PYTHON_PID="${ARTIFACTS_DIR}/watchdog.python.pid"

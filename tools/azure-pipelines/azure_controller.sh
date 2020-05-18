@@ -184,7 +184,7 @@ elif [ $STAGE != "$STAGE_CLEANUP" ]; then
     fi
 
 
-    TEST="$STAGE" "./tools/travis_watchdog.sh" 900
+    TEST="$STAGE" "./tools/ci/ci_controller.sh" 900
     EXIT_CODE=$?
 elif [ $STAGE == "$STAGE_CLEANUP" ]; then
     echo "Cleaning up $CACHE_BUILD_DIR"

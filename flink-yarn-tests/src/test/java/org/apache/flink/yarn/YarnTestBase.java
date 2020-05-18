@@ -1050,8 +1050,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 		// When we are on travis, we copy the temp files of JUnit (containing the MiniYARNCluster log files)
 		// to <flinkRoot>/target/flink-yarn-tests-*.
-		// The files from there are picked up by the ./tools/travis_watchdog.sh script
-		// to upload them to Amazon S3.
+		// The files from there are picked up by the tools/ci/* scripts to upload them.
 		if (isOnTravis()) {
 			File target = new File("../target" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
 			if (!target.mkdirs()) {
