@@ -19,11 +19,12 @@
 package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.test.util.TestBaseUtils
+
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized

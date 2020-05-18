@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.api.batch.table
 
-import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
-import org.apache.calcite.tools.RuleSets
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.PlannerConfig
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.CalciteConfigBuilder
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableFunc0, TableFunc1, TableTestBase}
+
+import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
+import org.apache.calcite.tools.RuleSets
 import org.junit.Test
 
 import scala.collection.JavaConversions._

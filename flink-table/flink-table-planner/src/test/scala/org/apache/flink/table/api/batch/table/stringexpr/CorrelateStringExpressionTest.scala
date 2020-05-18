@@ -22,8 +22,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet => JDataSet}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Expressions.$
-import org.apache.flink.table.api.{Expressions, Types}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Types, _}
 import org.apache.flink.table.utils.{PojoTableFunc, TableFunc2, _}
 import org.apache.flink.types.Row
 

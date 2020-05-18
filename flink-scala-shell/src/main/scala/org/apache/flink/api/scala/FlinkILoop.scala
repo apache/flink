@@ -18,13 +18,14 @@
 
 package org.apache.flink.api.scala
 
-import java.io.{BufferedReader, File, FileOutputStream}
 import org.apache.flink.api.java.{JarHelper, ScalaShellEnvironment, ScalaShellStreamEnvironment}
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvironment}
+import org.apache.flink.table.api.bridge.scala.{BatchTableEnvironment, StreamTableEnvironment}
 import org.apache.flink.util.AbstractID
+
+import java.io.{BufferedReader, File, FileOutputStream}
 
 import scala.tools.nsc.interpreter._
 
@@ -139,7 +140,8 @@ class FlinkILoop(
     "org.apache.flink.api.scala.utils._",
     "org.apache.flink.streaming.api.scala._",
     "org.apache.flink.streaming.api.windowing.time._",
-    "org.apache.flink.table.api.scala._",
+    "org.apache.flink.table.api._",
+    "org.apache.flink.table.api.bridge.scala._",
     "org.apache.flink.types.Row"
   )
 

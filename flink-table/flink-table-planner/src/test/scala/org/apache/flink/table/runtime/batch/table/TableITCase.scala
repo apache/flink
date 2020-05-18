@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, ResultKind, TableSchema}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.types.Row
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists

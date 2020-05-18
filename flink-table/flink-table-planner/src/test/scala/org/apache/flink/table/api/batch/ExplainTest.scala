@@ -20,14 +20,15 @@ package org.apache.flink.table.api.batch
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.bridge.scala.internal.BatchTableEnvironmentImpl
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.internal.BatchTableEnvironmentImpl
-import org.apache.flink.table.api.{Table, Types}
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.table.utils.TableTestUtil.{batchTableNode, readFromResource, replaceStageId}
 import org.apache.flink.test.util.MultipleProgramsTestBase
+
 import org.junit.Assert.assertEquals
 import org.junit._
 

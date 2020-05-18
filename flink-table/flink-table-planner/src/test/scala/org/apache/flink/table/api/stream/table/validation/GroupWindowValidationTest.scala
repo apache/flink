@@ -19,10 +19,10 @@
 package org.apache.flink.table.api.stream.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Session, Slide, Tumble, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.{CountMinMax, TableTestBase}
+
 import org.junit.Test
 
 class GroupWindowValidationTest extends TableTestBase {

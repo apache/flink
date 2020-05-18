@@ -22,18 +22,19 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{EnvironmentSettings, TableSchema, Types, ValidationException}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
 import org.apache.flink.table.utils.{TableTestBase, TestTableSourceWithTime}
 import org.apache.flink.types.Row
+
 import org.junit.Test
+
 import java.util
 import java.util.Collections
-
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
 class TableSourceValidationTest extends TableTestBase{
 

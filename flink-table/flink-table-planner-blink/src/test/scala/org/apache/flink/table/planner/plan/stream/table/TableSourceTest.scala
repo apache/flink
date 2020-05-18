@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.planner.plan.stream.table
 
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Over, Tumble}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Ignore, Test}

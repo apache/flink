@@ -20,19 +20,20 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, TestTableSourceWithTime, WithoutTimeAttributesTableSource}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
+
 import org.junit.Assert._
 import org.junit.Test
-import java.lang.{Integer => JInt, Long => JLong}
 
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import java.lang.{Integer => JInt, Long => JLong}
 
 class TableScanITCase extends StreamingTestBase {
 

@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
 
