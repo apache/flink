@@ -107,6 +107,10 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
           // fields are not expanded in "SELECT *"
           StructKind.PEEK_FIELDS_NO_EXPAND)
 
+      case LogicalTypeRoot.STRUCTURED_TYPE =>
+        val structuredType = t.asInstanceOf[StructuredType]
+        StructuredRelDataType.create(this, structuredType)
+
       case LogicalTypeRoot.ARRAY =>
         val arrayType = t.asInstanceOf[ArrayType]
         createArrayType(createFieldTypeFromLogicalType(arrayType.getElementType), -1)
@@ -326,6 +330,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
       case raw: RawRelDataType =>
         raw.createWithNullability(isNullable)
 
+      case structured: StructuredRelDataType =>
+        structured.createWithNullability(isNullable)
+
       case generic: GenericRelDataType =>
         new GenericRelDataType(generic.genericType, isNullable, typeSystem)
 
@@ -520,6 +527,9 @@ object FlinkTypeFactory {
 
       case ROW if relDataType.isInstanceOf[RelRecordType] =>
         toLogicalRowType(relDataType)
+
+      case STRUCTURED if relDataType.isInstanceOf[StructuredRelDataType] =>
+        relDataType.asInstanceOf[StructuredRelDataType].getStructuredType
 
       case MULTISET => new MultisetType(toLogicalType(relDataType.getComponentType))
 
