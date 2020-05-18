@@ -229,24 +229,45 @@ public class HiveTableSinkTest {
 	}
 
 	@Test(timeout = 120000)
+	public void testDefaultSerPartStreamingWrite() throws Exception {
+		testStreamingWrite(true, false, true, this::checkSuccessFiles);
+	}
+
+	@Test(timeout = 120000)
 	public void testPartStreamingWrite() throws Exception {
-		testStreamingWrite(true, (path) -> {
-			File basePath = new File(path, "d=2020-05-03");
-			Assert.assertEquals(5, basePath.list().length);
-			Assert.assertTrue(new File(new File(basePath, "e=7"), "_MY_SUCCESS").exists());
-			Assert.assertTrue(new File(new File(basePath, "e=8"), "_MY_SUCCESS").exists());
-			Assert.assertTrue(new File(new File(basePath, "e=9"), "_MY_SUCCESS").exists());
-			Assert.assertTrue(new File(new File(basePath, "e=10"), "_MY_SUCCESS").exists());
-			Assert.assertTrue(new File(new File(basePath, "e=11"), "_MY_SUCCESS").exists());
-		});
+		testStreamingWrite(true, false, false, this::checkSuccessFiles);
 	}
 
 	@Test(timeout = 120000)
 	public void testNonPartStreamingWrite() throws Exception {
-		testStreamingWrite(false, (p) -> {});
+		testStreamingWrite(false, false, false, (p) -> {});
 	}
 
-	private void testStreamingWrite(boolean part, Consumer<String> pathConsumer) throws Exception {
+	@Test(timeout = 120000)
+	public void testPartStreamingMrWrite() throws Exception {
+		testStreamingWrite(true, true, false, this::checkSuccessFiles);
+	}
+
+	@Test(timeout = 120000)
+	public void testNonPartStreamingMrWrite() throws Exception {
+		testStreamingWrite(false, true, false, (p) -> {});
+	}
+
+	private void checkSuccessFiles(String path) {
+		File basePath = new File(path, "d=2020-05-03");
+		Assert.assertEquals(5, basePath.list().length);
+		Assert.assertTrue(new File(new File(basePath, "e=7"), "_MY_SUCCESS").exists());
+		Assert.assertTrue(new File(new File(basePath, "e=8"), "_MY_SUCCESS").exists());
+		Assert.assertTrue(new File(new File(basePath, "e=9"), "_MY_SUCCESS").exists());
+		Assert.assertTrue(new File(new File(basePath, "e=10"), "_MY_SUCCESS").exists());
+		Assert.assertTrue(new File(new File(basePath, "e=11"), "_MY_SUCCESS").exists());
+	}
+
+	private void testStreamingWrite(
+			boolean part,
+			boolean useMr,
+			boolean defaultSer,
+			Consumer<String> pathConsumer) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.enableCheckpointing(100);
@@ -255,6 +276,13 @@ public class HiveTableSinkTest {
 		tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 		tEnv.useCatalog(hiveCatalog.getName());
 		tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+		if (useMr) {
+			tEnv.getConfig().getConfiguration().set(
+					HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER, true);
+		} else {
+			tEnv.getConfig().getConfiguration().set(
+					HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER, false);
+		}
 
 		try {
 			tEnv.executeSql("create database db1");
@@ -277,7 +305,8 @@ public class HiveTableSinkTest {
 					(part ? "" : ",d string,e string") +
 					") " +
 					(part ? "partitioned by (d string,e string) " : "") +
-					" stored as parquet TBLPROPERTIES (" +
+					(defaultSer ? "" : " stored as parquet") +
+					" TBLPROPERTIES (" +
 					"'" + PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key() + "'='$d $e:00:00'," +
 					"'" + SINK_PARTITION_COMMIT_DELAY.key() + "'='1h'," +
 					"'" + SINK_PARTITION_COMMIT_POLICY_KIND.key() + "'='metastore,success-file'," +

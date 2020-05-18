@@ -20,15 +20,17 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connectors.hive.write.HiveBulkWriterFactory;
 import org.apache.flink.connectors.hive.write.HiveOutputFormatFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
 import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
 import org.apache.flink.orc.OrcSplitReaderUtil;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.HadoopPathBasedBulkFormatBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.BulkFormatBuilder;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.BucketsBuilder;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -68,11 +70,14 @@ import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.orc.TypeDescription;
 import org.apache.thrift.TException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.table.filesystem.FileSystemTableFactory.SINK_ROLLING_POLICY_FILE_SIZE;
 import static org.apache.flink.table.filesystem.FileSystemTableFactory.SINK_ROLLING_POLICY_TIME_INTERVAL;
@@ -82,6 +87,9 @@ import static org.apache.flink.table.filesystem.FileSystemTableFactory.SINK_ROLL
  */
 public class HiveTableSink implements AppendStreamTableSink, PartitionableTableSink, OverwritableTableSink {
 
+	private static final Logger LOG = LoggerFactory.getLogger(HiveTableSink.class);
+
+	private final boolean userMrWriter;
 	private final boolean isBounded;
 	private final JobConf jobConf;
 	private final CatalogTable catalogTable;
@@ -95,7 +103,9 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 	private boolean overwrite = false;
 	private boolean dynamicGrouping = false;
 
-	public HiveTableSink(boolean isBounded, JobConf jobConf, ObjectIdentifier identifier, CatalogTable table) {
+	public HiveTableSink(
+			boolean userMrWriter, boolean isBounded, JobConf jobConf, ObjectIdentifier identifier, CatalogTable table) {
+		this.userMrWriter = userMrWriter;
 		this.isBounded = isBounded;
 		this.jobConf = jobConf;
 		this.identifier = identifier;
@@ -130,6 +140,11 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 					HiveReflectionUtils.getTableMetadata(hiveShim, table),
 					hiveShim,
 					isCompressed);
+			String extension = Utilities.getFileExtension(jobConf, isCompressed,
+					(HiveOutputFormat<?, ?>) hiveOutputFormatClz.newInstance());
+			extension = extension == null ? "" : extension;
+			OutputFileConfig outputFileConfig = OutputFileConfig.builder()
+					.withPartSuffix(extension).build();
 			if (isBounded) {
 				FileSystemOutputFormat.Builder<Row> builder = new FileSystemOutputFormat.Builder<>();
 				builder.setPartitionComputer(new HiveRowPartitionComputer(
@@ -150,17 +165,11 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 				builder.setStaticPartitions(staticPartitionSpec);
 				builder.setTempPath(new org.apache.flink.core.fs.Path(
 						toStagingDir(sd.getLocation(), jobConf)));
-				String extension = Utilities.getFileExtension(jobConf, isCompressed,
-						(HiveOutputFormat<?, ?>) hiveOutputFormatClz.newInstance());
-				extension = extension == null ? "" : extension;
-				OutputFileConfig outputFileConfig = new OutputFileConfig("", extension);
 				builder.setOutputFileConfig(outputFileConfig);
-
 				return dataStream
 						.writeUsingOutputFormat(builder.build())
 						.setParallelism(dataStream.getParallelism());
 			} else {
-				BulkWriter.Factory<RowData> bulkFactory = createBulkWriterFactory(partitionColumns, sd);
 				org.apache.flink.configuration.Configuration conf = new org.apache.flink.configuration.Configuration();
 				catalogTable.getOptions().forEach(conf::setString);
 				HiveRowDataPartitionComputer partComputer = new HiveRowDataPartitionComputer(
@@ -178,12 +187,26 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 						conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL));
 				InactiveBucketListener listener = new InactiveBucketListener();
 
-				BulkFormatBuilder<RowData, String, ?> builder = StreamingFileSink.forBulkFormat(
-						new org.apache.flink.core.fs.Path(sd.getLocation()),
-						new FileSystemTableSink.ProjectionBulkFactory(bulkFactory, partComputer))
-						.withBucketAssigner(assigner)
-						.withBucketLifeCycleListener(listener)
-						.withRollingPolicy(rollingPolicy);
+				Optional<BulkWriter.Factory<RowData>> bulkFactory = createBulkWriterFactory(partitionColumns, sd);
+				BucketsBuilder<RowData, ?, ? extends BucketsBuilder<RowData, ?, ?>> builder;
+				if (userMrWriter || !bulkFactory.isPresent()) {
+					HiveBulkWriterFactory hadoopBulkFactory = new HiveBulkWriterFactory(recordWriterFactory);
+					builder = new HadoopPathBasedBulkFormatBuilder<>(
+							new Path(sd.getLocation()), hadoopBulkFactory, jobConf, assigner)
+							.withRollingPolicy(rollingPolicy)
+							.withBucketLifeCycleListener(listener)
+							.withOutputFileConfig(outputFileConfig);
+					LOG.info("Hive streaming sink: Use MapReduce RecordWriter writer.");
+				} else {
+					builder = StreamingFileSink.forBulkFormat(
+							new org.apache.flink.core.fs.Path(sd.getLocation()),
+							new FileSystemTableSink.ProjectionBulkFactory(bulkFactory.get(), partComputer))
+							.withBucketAssigner(assigner)
+							.withBucketLifeCycleListener(listener)
+							.withRollingPolicy(rollingPolicy)
+							.withOutputFileConfig(outputFileConfig);
+					LOG.info("Hive streaming sink: Use native parquet&orc writer.");
+				}
 				return FileSystemTableSink.createStreamingSink(
 						conf,
 						new org.apache.flink.core.fs.Path(sd.getLocation()),
@@ -206,7 +229,7 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 		}
 	}
 
-	private BulkWriter.Factory<RowData> createBulkWriterFactory(String[] partitionColumns,
+	private Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(String[] partitionColumns,
 			StorageDescriptor sd) {
 		String serLib = sd.getSerdeInfo().getSerializationLib().toLowerCase();
 		int formatFieldCount = tableSchema.getFieldCount() - partitionColumns.length;
@@ -219,20 +242,16 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 		RowType formatType = RowType.of(formatTypes, formatNames);
 		Configuration formatConf = new Configuration(jobConf);
 		sd.getSerdeInfo().getParameters().forEach(formatConf::set);
-		BulkWriter.Factory<RowData> bulkFactory;
 		if (serLib.contains("parquet")) {
-			bulkFactory = ParquetRowDataBuilder.createWriterFactory(
-					formatType, formatConf, hiveVersion.startsWith("3."));
+			return Optional.of(ParquetRowDataBuilder.createWriterFactory(
+					formatType, formatConf, hiveVersion.startsWith("3.")));
 		} else if (serLib.contains("orc")) {
 			TypeDescription typeDescription = OrcSplitReaderUtil.logicalTypeToOrcType(formatType);
-			bulkFactory = hiveShim.createOrcBulkWriterFactory(
-					formatConf, typeDescription.toString(), formatTypes);
+			return Optional.of(hiveShim.createOrcBulkWriterFactory(
+					formatConf, typeDescription.toString(), formatTypes));
 		} else {
-			throw new UnsupportedOperationException(String.format(
-					"Only parquet or orc can support streaming writing, but now serialization lib is %s.",
-					serLib));
+			return Optional.empty();
 		}
-		return bulkFactory;
 	}
 
 	@Override
