@@ -133,7 +133,10 @@
 
 (defn- write-jstack!
   [pid out-path]
-  (c/exec :jstack :-l pid :> out-path))
+  (try
+    (c/exec :jstack :-l pid :> out-path)
+    (catch Exception e
+      (warn e "Failed to invoke jstack on pid" pid))))
 
 (defn dump-jstack-by-pattern!
   "Dumps the output of jstack for all JVMs that match one of the specified patterns."
