@@ -30,13 +30,19 @@ import java.util.Map;
  */
 public class DropCatalogOperation implements DropOperation {
 	private final String catalogName;
+	private final boolean ifExists;
 
-	public DropCatalogOperation(String catalogName) {
+	public DropCatalogOperation(String catalogName, boolean ifExists) {
 		this.catalogName = catalogName;
+		this.ifExists = ifExists;
 	}
 
 	public String getCatalogName() {
 		return catalogName;
+	}
+
+	public boolean isIfExists() {
+		return this.ifExists;
 	}
 
 	@Override

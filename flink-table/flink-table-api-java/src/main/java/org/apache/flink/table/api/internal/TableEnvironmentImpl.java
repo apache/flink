@@ -952,7 +952,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			DropCatalogOperation dropCatalogOperation = (DropCatalogOperation) operation;
 			String exMsg = getDDLOpExecuteErrorMsg(dropCatalogOperation.asSummaryString());
 			try {
-				catalogManager.unregisterCatalog(dropCatalogOperation.getCatalogName());
+				catalogManager.unregisterCatalog(dropCatalogOperation.getCatalogName(),
+					dropCatalogOperation.isIfExists());
 				return TableResultImpl.TABLE_RESULT_OK;
 			} catch (CatalogException e) {
 				throw new ValidationException(exMsg, e);

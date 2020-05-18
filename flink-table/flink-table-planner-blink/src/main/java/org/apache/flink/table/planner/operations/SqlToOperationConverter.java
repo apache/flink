@@ -455,7 +455,7 @@ public class SqlToOperationConverter {
 	/** Convert DROP CATALOG statement. */
 	private Operation convertDropCatalog(SqlDropCatalog sqlDropCatalog) {
 		String catalogName = sqlDropCatalog.catalogName();
-		return new DropCatalogOperation(catalogName);
+		return new DropCatalogOperation(catalogName, sqlDropCatalog.getIfExists());
 	}
 
 	/** Convert use database statement. */

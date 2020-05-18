@@ -38,10 +38,12 @@ public class SqlDropCatalog extends SqlDrop {
 	private static final SqlOperator OPERATOR = new SqlSpecialOperator("DROP CATALOG", SqlKind.OTHER_DDL);
 
 	private final SqlIdentifier catalogName;
+	private boolean ifExists;
 
-	public SqlDropCatalog(SqlParserPos pos, SqlIdentifier catalogName) {
+	public SqlDropCatalog(SqlParserPos pos, SqlIdentifier catalogName, boolean ifExists) {
 		super(OPERATOR, pos, false);
 		this.catalogName = catalogName;
+		this.ifExists = ifExists;
 	}
 
 	@Override
@@ -51,6 +53,10 @@ public class SqlDropCatalog extends SqlDrop {
 
 	public SqlIdentifier getCatalogName() {
 		return catalogName;
+	}
+
+	public boolean getIfExists() {
+		return this.ifExists;
 	}
 
 	@Override

@@ -82,13 +82,21 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
 SqlDrop SqlDropCatalog(Span s, boolean replace) :
 {
     SqlIdentifier catalogName = null;
+    boolean ifExists = false;
 }
 {
     <CATALOG>
+
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
+
     catalogName = CompoundIdentifier()
 
     {
-        return new SqlDropCatalog(s.pos(), catalogName);
+        return new SqlDropCatalog(s.pos(), catalogName, ifExists);
     }
 }
 
