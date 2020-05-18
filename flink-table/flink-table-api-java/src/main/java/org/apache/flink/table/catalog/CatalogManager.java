@@ -180,13 +180,11 @@ public final class CatalogManager {
 	public void unregisterCatalog(String catalogName) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "Catalog name cannot be null or empty.");
 
-		if (!catalogs.containsKey(catalogName)) {
-			throw new CatalogException(format("Catalog %s does not exist.", catalogName));
+		if (catalogs.containsKey(catalogName)) {
+			Catalog catalog = catalogs.get(catalogName);
+			catalog.close();
+			catalogs.remove(catalogName);
 		}
-
-		Catalog catalog = catalogs.get(catalogName);
-		catalog.close();
-		catalogs.remove(catalogName);
 	}
 
 	/**

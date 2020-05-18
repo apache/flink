@@ -61,6 +61,6 @@ public class SqlDropCatalog extends SqlDrop {
 	}
 
 	public String catalogName() {
-		return catalogName.names.get(0);
+		return catalogName.getSimple();
 	}
 }
