@@ -18,23 +18,22 @@
 
 package org.apache.flink.table.api
 
-import _root_.java.util.{HashMap => JHashMap}
-import _root_.java.util.{Map => JMap}
-import _root_.java.sql.{Date, Time, Timestamp}
-
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema}
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
 import org.apache.flink.types.Row
+
 import org.junit.{Assert, Test}
+
+import java.sql.{Date, Time, Timestamp}
+import java.util.{HashMap => JHashMap, Map => JMap}
 
 class TableSourceTest extends TableTestBase {
 

@@ -18,23 +18,24 @@
 
 package org.apache.flink.table.runtime.batch.table
 
-import java.io.File
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.scala.{ExecutionEnvironment, _}
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil.UnsafeMemoryOutputFormatTableSink
 import org.apache.flink.test.util.TestBaseUtils
+
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import java.io.File
 
 import scala.collection.JavaConverters._
 

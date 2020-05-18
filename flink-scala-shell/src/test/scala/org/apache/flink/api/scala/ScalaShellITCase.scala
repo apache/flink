@@ -432,8 +432,10 @@ class ScalaShellITCase extends TestLogger {
       """.stripMargin
 
     val output = processInShell(input)
-    Assert.assertTrue(output.contains("error: object util is not a member of package org.apache." +
-      "flink.table.api.java"))
+    Assert.assertTrue(output.contains("the java list size is: 5"))
+    Assert.assertFalse(output.toLowerCase.contains("failed"))
+    Assert.assertFalse(output.toLowerCase.contains("error"))
+    Assert.assertFalse(output.toLowerCase.contains("exception"))
   }
 
   @Test

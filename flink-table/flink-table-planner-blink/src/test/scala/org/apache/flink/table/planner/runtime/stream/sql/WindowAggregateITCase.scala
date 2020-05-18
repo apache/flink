@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
-
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableConfig, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -31,14 +31,14 @@ import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWat
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
 import java.math.BigDecimal
 import java.util.concurrent.TimeUnit
-
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
 @RunWith(classOf[Parameterized])
 class WindowAggregateITCase(mode: StateBackendMode)

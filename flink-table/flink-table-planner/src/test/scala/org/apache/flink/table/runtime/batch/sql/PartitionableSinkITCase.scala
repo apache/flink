@@ -32,7 +32,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.scala.BatchTableEnvironment
+import org.apache.flink.table.api.bridge.scala.BatchTableEnvironment
 import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory.TestCollectionInputFormat
 import org.apache.flink.table.runtime.batch.sql.PartitionableSinkITCase._

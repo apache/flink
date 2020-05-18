@@ -19,12 +19,13 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 

@@ -28,7 +28,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 
 import com.esotericsoftware.kryo.Serializer;
 

@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{DataTypes, ValidationException}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.descriptors.{FileSystem, OldCsv, Schema}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.{Before, Test}
 
 class TableScanTest extends TableTestBase {

@@ -23,9 +23,9 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.cep.pattern.Pattern
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamMatch, DataStreamScan}
 import org.apache.flink.table.planner.StreamPlanner

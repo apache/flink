@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.{ScalarOperatorsTestBase, ShouldNotExecuteFunc}
+
 import org.junit.Test
 
 class ScalarOperatorsTest extends ScalarOperatorsTestBase {
