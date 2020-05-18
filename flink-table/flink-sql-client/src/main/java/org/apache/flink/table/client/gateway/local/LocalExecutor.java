@@ -55,7 +55,7 @@ import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
-import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -457,16 +457,10 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
-	public List<Operation> parse(String sessionId, String statement) throws SqlExecutionException {
+	public Parser getSqlParser(String sessionId) {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tableEnv = context.getTableEnvironment();
-		// translate
-		try {
-			return context.wrapClassLoader(() -> ((TableEnvironmentInternal) tableEnv).getParser().parse(statement));
-		} catch (Throwable t) {
-			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
+		return ((TableEnvironmentInternal) tableEnv).getParser();
 	}
 
 	@Override

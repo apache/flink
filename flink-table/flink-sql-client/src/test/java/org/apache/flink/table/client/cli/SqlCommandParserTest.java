@@ -18,18 +18,23 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommand;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
-import org.apache.flink.table.client.cli.utils.ParserUtils;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.cli.utils.SqlParserHelper;
+import org.apache.flink.table.delegation.Parser;
 
+import org.junit.Before;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 /**
@@ -37,207 +42,230 @@ import static org.junit.Assert.fail;
  */
 public class SqlCommandParserTest {
 
+	private Parser parser;
+
+	@Before
+	public void setup() {
+		SqlParserHelper helper = new SqlParserHelper();
+		helper.registerTables();
+		parser = helper.getSqlParser();
+	}
+
 	@Test
 	public void testCommands() {
-		testValidSqlCommand("QUIT;", new SqlCommandCall(SqlCommand.QUIT));
-		testInvalidSqlCommand("-- comments \nQUIT;");
-		testValidSqlCommand("eXiT", new SqlCommandCall(SqlCommand.QUIT));
-		testInvalidSqlCommand("-- comments \nEXIT;");
-		testValidSqlCommand("CLEAR", new SqlCommandCall(SqlCommand.CLEAR));
-		testInvalidSqlCommand("-- comments \nCLEAR;");
-		testValidSqlCommand("SHOW TABLES", new SqlCommandCall(SqlCommand.SHOW_TABLES));
-		testValidSqlCommand("  SHOW   TABLES   ", new SqlCommandCall(SqlCommand.SHOW_TABLES));
-		testValidSqlCommand(" -- comments \n SHOW   TABLES   ", new SqlCommandCall(SqlCommand.SHOW_TABLES));
-		testValidSqlCommand("SHOW FUNCTIONS", new SqlCommandCall(SqlCommand.SHOW_FUNCTIONS));
-		testValidSqlCommand("  SHOW    FUNCTIONS   ", new SqlCommandCall(SqlCommand.SHOW_FUNCTIONS));
-		testValidSqlCommand(" -- comments \n SHOW    FUNCTIONS   ", new SqlCommandCall(SqlCommand.SHOW_FUNCTIONS));
-		testValidSqlCommand("DESC MyTable", new SqlCommandCall(SqlCommand.DESC, new String[]{"MyTable"}));
-		testValidSqlCommand("DESC         MyTable     ", new SqlCommandCall(SqlCommand.DESC, new String[]{"MyTable"}));
-		testInvalidSqlCommand("-- comments \n DESC MyTable");
-		testInvalidSqlCommand("DESC  "); // no table name
-		testValidSqlCommand("DESCRIBE MyTable", new SqlCommandCall(SqlCommand.DESCRIBE, new String[]{"`default_catalog`.`default_database`.`MyTable`"}));
-		testValidSqlCommand("DESCRIBE         MyTable     ", new SqlCommandCall(SqlCommand.DESCRIBE, new String[]{"`default_catalog`.`default_database`.`MyTable`"}));
-		testValidSqlCommand("-- comments \nDESCRIBE  MyTable  ", new SqlCommandCall(SqlCommand.DESCRIBE, new String[]{"`default_catalog`.`default_database`.`MyTable`"}));
-		testInvalidSqlCommand("DESCRIBE  "); // no table name
-		testValidSqlCommand("EXPLAIN SELECT a FROM MyTable", new SqlCommandCall(SqlCommand.EXPLAIN, new String[]{"EXPLAIN PLAN FOR SELECT a FROM MyTable"}));
-		testInvalidSqlCommand("-- comments \n EXPLAIN SELECT a FROM MyTable");
-		testValidSqlCommand(
-				"EXPLAIN PLAN FOR SELECT a FROM MyTable",
-				new SqlCommandCall(SqlCommand.EXPLAIN, new String[]{"EXPLAIN PLAN FOR SELECT a FROM MyTable"}));
-		testInvalidSql("EXPLAIN PLAN FOR SELECT xxx FROM MyTable");
-		testValidSqlCommand(
-				"-- comments \n EXPLAIN PLAN FOR SELECT a FROM MyTable",
-				new SqlCommandCall(SqlCommand.EXPLAIN, new String[]{"-- comments \n EXPLAIN PLAN FOR SELECT a FROM MyTable"}));
-		testValidSqlCommand(
-				"EXPLAIN PLAN FOR INSERT INTO MySink(c) SELECT c FROM MyTable",
-				new SqlCommandCall(SqlCommand.EXPLAIN, new String[]{"EXPLAIN PLAN FOR INSERT INTO MySink(c) SELECT c FROM MyTable"}));
-		testInvalidSqlCommand("EXPLAIN  "); // no query
-		testValidSqlCommand("SELECT a FROM MyTable", new SqlCommandCall(SqlCommand.SELECT, new String[]{"SELECT a FROM MyTable"}));
-		testValidSqlCommand("   SELECT  a FROM MyTable    ", new SqlCommandCall(SqlCommand.SELECT, new String[]{"SELECT  a FROM MyTable"}));
-		testValidSqlCommand(
-				"-- comments \n SELECT  a FROM MyTable    ",
-				new SqlCommandCall(SqlCommand.SELECT, new String[]{"-- comments \n SELECT  a FROM MyTable"}));
-		testValidSqlCommand(
-			"WITH t as (select a from MyTable) select a from t",
-			new SqlCommandCall(SqlCommand.SELECT, new String[]{"WITH t as (select a from MyTable) select a from t"}));
-		testValidSqlCommand(
-			"   WITH t as (select a from MyTable) select a from t    ",
-			new SqlCommandCall(SqlCommand.SELECT, new String[]{"WITH t as (select a from MyTable) select a from t"}));
-		testValidSqlCommand(
-			"INSERT INTO other SELECT 1+1",
-			new SqlCommandCall(SqlCommand.INSERT_INTO, new String[]{"INSERT INTO other SELECT 1+1"}));
-		testValidSqlCommand(
-			"INSERT OVERWRITE other SELECT 1+1",
-			new SqlCommandCall(SqlCommand.INSERT_OVERWRITE, new String[]{"INSERT OVERWRITE other SELECT 1+1"}));
-		testValidSqlCommand(
-				"-- comments\nINSERT OVERWRITE other SELECT 1+1",
-				new SqlCommandCall(SqlCommand.INSERT_OVERWRITE, new String[]{"-- comments\nINSERT OVERWRITE other SELECT 1+1"}));
-		testValidSqlCommand(
-			"CREATE VIEW x AS SELECT 1+1",
-			new SqlCommandCall(SqlCommand.CREATE_VIEW, new String[]{"`default_catalog`.`default_database`.`x`", "SELECT 1 + 1"}));
-		testValidSqlCommand(
-			"CREATE   VIEW    MyView   AS     SELECT 1+1 FROM MyTable",
-			new SqlCommandCall(SqlCommand.CREATE_VIEW, new String[]{"`default_catalog`.`default_database`.`MyView`",
-					"SELECT 1 + 1\nFROM `default_catalog`.`default_database`.`MyTable` AS `MyTable`"}));
-		testValidSqlCommand(
-				"-- comments\nCREATE VIEW x AS SELECT 1+1",
-				new SqlCommandCall(SqlCommand.CREATE_VIEW, new String[]{"`default_catalog`.`default_database`.`x`", "SELECT 1 + 1"}));
-		testInvalidSqlCommand("CREATE VIEW x SELECT 1+1"); // missing AS
-		testValidSqlCommand("DROP VIEW TestView1", new SqlCommandCall(SqlCommand.DROP_VIEW, new String[]{"`default_catalog`.`default_database`.`TestView1`"}));
-		testValidSqlCommand("DROP VIEW  TestView1", new SqlCommandCall(SqlCommand.DROP_VIEW, new String[]{"`default_catalog`.`default_database`.`TestView1`"}));
-		testValidSqlCommand("-- comments\nDROP VIEW  TestView1", new SqlCommandCall(SqlCommand.DROP_VIEW, new String[]{"`default_catalog`.`default_database`.`TestView1`"}));
-		testInvalidSqlCommand("DROP VIEW");
-		testValidSqlCommand("SET", new SqlCommandCall(SqlCommand.SET));
-		testValidSqlCommand("SET x=y", new SqlCommandCall(SqlCommand.SET, new String[] {"x", "y"}));
-		testValidSqlCommand("SET    x  = y", new SqlCommandCall(SqlCommand.SET, new String[] {"x", " y"}));
-		testInvalidSqlCommand("-- comments\nSET x=y");
-		testValidSqlCommand("reset;", new SqlCommandCall(SqlCommand.RESET));
-		testInvalidSqlCommand("-- comments\nreset");
-		testValidSqlCommand("source /my/file", new SqlCommandCall(SqlCommand.SOURCE, new String[] {"/my/file"}));
-		testInvalidSqlCommand("-- comments\nsource /my/file");
-		testInvalidSqlCommand("source"); // missing path
-		testValidSqlCommand("create CATALOG c1 with('type'='generic_in_memory')",
-				new SqlCommandCall(SqlCommand.CREATE_CATALOG, new String[]{"create CATALOG c1 with('type'='generic_in_memory')"}));
-		testValidSqlCommand("create CATALOG c1 WITH ('type'='simple-catalog', 'default-database'='db1')",
-				new SqlCommandCall(SqlCommand.CREATE_CATALOG, new String[]{"create CATALOG c1 WITH ('type'='simple-catalog', 'default-database'='db1')"}));
-		testValidSqlCommand("-- comments\ncreate CATALOG c1 with('type'='generic_in_memory')",
-				new SqlCommandCall(SqlCommand.CREATE_CATALOG, new String[]{"-- comments\ncreate CATALOG c1 with('type'='generic_in_memory')"}));
-		testValidSqlCommand("drop CATALOG c1",
-			new SqlCommandCall(SqlCommand.DROP_CATALOG, new String[]{"drop CATALOG c1"}));
-		testValidSqlCommand("USE CATALOG default", new SqlCommandCall(SqlCommand.USE_CATALOG, new String[]{"default"}));
-		testValidSqlCommand("-- comments\nUSE CATALOG catalog1", new SqlCommandCall(SqlCommand.USE_CATALOG, new String[]{"`catalog1`"}));
-		testValidSqlCommand("use default", new SqlCommandCall(SqlCommand.USE, new String[] {"default"}));
-		testValidSqlCommand("-- comments\nuse `default`", new SqlCommandCall(SqlCommand.USE, new String[] {"`default_catalog`.`default`"}));
-		testInvalidSqlCommand("use catalog");
-		testValidSqlCommand("create database db1",
-				new SqlCommandCall(SqlCommand.CREATE_DATABASE, new String[] {"create database db1"}));
-		testValidSqlCommand("-- comments\ncreate database db1",
-				new SqlCommandCall(SqlCommand.CREATE_DATABASE, new String[] {"-- comments\ncreate database db1"}));
-		testValidSqlCommand("drop database db1",
-				new SqlCommandCall(SqlCommand.DROP_DATABASE, new String[] {"drop database db1"}));
-		testValidSqlCommand("-- comments\ndrop database db1",
-				new SqlCommandCall(SqlCommand.DROP_DATABASE, new String[] {"-- comments\ndrop database db1"}));
-		testValidSqlCommand("alter database default_database set ('k1' = 'a')",
-				new SqlCommandCall(SqlCommand.ALTER_DATABASE, new String[] {"alter database default_database set ('k1' = 'a')"}));
-		testValidSqlCommand("-- comments\nalter database default_database set ('k1' = 'a')",
-				new SqlCommandCall(SqlCommand.ALTER_DATABASE, new String[] {"-- comments\nalter database default_database set ('k1' = 'a')"}));
-		testValidSqlCommand("alter table default_catalog.default_database.MyTable rename to tb2",
-				new SqlCommandCall(SqlCommand.ALTER_TABLE, new String[]{"alter table default_catalog.default_database.MyTable rename to tb2"}));
-		testValidSqlCommand("alter table MyTable set ('k1'='v1', 'k2'='v2')",
-				new SqlCommandCall(SqlCommand.ALTER_TABLE,
-						new String[]{"alter table MyTable set ('k1'='v1', 'k2'='v2')"}));
-		testValidSqlCommand("-- comments\nalter table default_catalog.default_database.MyTable rename to tb2",
-				new SqlCommandCall(SqlCommand.ALTER_TABLE, new String[]{"-- comments\nalter table default_catalog.default_database.MyTable rename to tb2"}));
-		// Test create table.
-		testInvalidSqlCommand("CREATE tables");
-		testInvalidSqlCommand("CREATE   tables");
-		testValidSqlCommand("create Table hello", new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[]{"create Table hello"}));
-		testValidSqlCommand("-- comments\ncreate Table hello", new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[]{"-- comments\ncreate Table hello"}));
-		testValidSqlCommand("create Table hello(a int)", new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[]{"create Table hello(a int)"}));
-		testValidSqlCommand("  CREATE TABLE hello(a int)", new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[]{"CREATE TABLE hello(a int)"}));
-		testValidSqlCommand("CREATE TABLE T(\n"
-						+ "  a int,\n"
-						+ "  b varchar(20),\n"
-						+ "  c as to_timestamp(b),\n"
-						+ "  watermark for c as c - INTERVAL '5' second\n"
-						+ ") WITH (\n"
-						+ "  'k1' = 'v1',\n"
-						+ "  'k2' = 'v2')\n",
-				new SqlCommandCall(SqlCommand.CREATE_TABLE, new String[] {"CREATE TABLE T(\n"
-						+ "  a int,\n"
-						+ "  b varchar(20),\n"
-						+ "  c as to_timestamp(b),\n"
-						+ "  watermark for c as c - INTERVAL '5' second\n"
-						+ ") WITH (\n"
-						+ "  'k1' = 'v1',\n"
-						+ "  'k2' = 'v2')"}));
-		// Test drop table.
-		testInvalidSqlCommand("DROP table");
-		testInvalidSqlCommand("DROP tables");
-		testInvalidSqlCommand("DROP   tables");
-		testValidSqlCommand("DROP TABLE t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE t1"}));
-		testValidSqlCommand("DROP TABLE IF EXISTS t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS t1"}));
-		testValidSqlCommand("DROP TABLE IF EXISTS catalog1.db1.t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS catalog1.db1.t1"}));
-		testValidSqlCommand("DROP TABLE IF EXISTS db1.t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS db1.t1"}));
-		testValidSqlCommand("-- comments\nDROP TABLE IF EXISTS db1.t1", new SqlCommandCall(SqlCommand.DROP_TABLE,
-				new String[]{"-- comments\nDROP TABLE IF EXISTS db1.t1"}));
-		testValidSqlCommand("SHOW MODULES", new SqlCommandCall(SqlCommand.SHOW_MODULES));
-		testValidSqlCommand("  SHOW    MODULES   ", new SqlCommandCall(SqlCommand.SHOW_MODULES));
-		testInvalidSqlCommand("-- comments\nSHOW MODULES");
-		// Test create function.
-		testInvalidSqlCommand("CREATE FUNCTION");
-		testInvalidSqlCommand("CREATE FUNCTIONS");
-		testInvalidSqlCommand("CREATE    FUNCTIONS");
-		testValidSqlCommand("CREATE FUNCTION catalog1.db1.func1 as 'class_name'",
-				new SqlCommandCall(SqlCommand.CREATE_FUNCTION, new String[] {"CREATE FUNCTION catalog1.db1.func1 as 'class_name'"}));
-		testValidSqlCommand("CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
-				new SqlCommandCall(SqlCommand.CREATE_FUNCTION, new String[] {"CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"}));
-		testValidSqlCommand("CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
-				new SqlCommandCall(SqlCommand.CREATE_FUNCTION, new String[] {"CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"}));
-		// Test drop function.
-		testInvalidSqlCommand("DROP FUNCTION");
-		testInvalidSqlCommand("DROP FUNCTIONS");
-		testInvalidSqlCommand("DROP    FUNCTIONS");
-		testValidSqlCommand("DROP FUNCTION catalog1.db1.func1",
-				new SqlCommandCall(SqlCommand.DROP_FUNCTION, new String[] {"DROP FUNCTION catalog1.db1.func1"}));
-		testValidSqlCommand("DROP TEMPORARY FUNCTION catalog1.db1.func1",
-				new SqlCommandCall(SqlCommand.DROP_FUNCTION, new String[] {"DROP TEMPORARY FUNCTION catalog1.db1.func1"}));
-		testValidSqlCommand("DROP TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1",
-				new SqlCommandCall(SqlCommand.DROP_FUNCTION, new String[] {"DROP TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1"}));
-		// Test alter function.
-		testInvalidSqlCommand("ALTER FUNCTION");
-		testInvalidSqlCommand("ALTER FUNCTIONS");
-		testInvalidSqlCommand("ALTER    FUNCTIONS");
-		testValidSqlCommand("ALTER FUNCTION catalog1.db1.func1 as 'a.b.c.func2'",
-				new SqlCommandCall(SqlCommand.ALTER_FUNCTION, new String[] {"ALTER FUNCTION catalog1.db1.func1 as 'a.b.c.func2'"}));
-		testValidSqlCommand("ALTER TEMPORARY FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'",
-				new SqlCommandCall(SqlCommand.ALTER_FUNCTION, new String[] {"ALTER TEMPORARY FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'"}));
-		testValidSqlCommand("ALTER TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'",
-				new SqlCommandCall(SqlCommand.ALTER_FUNCTION, new String[] {"ALTER TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'"}));
+		List<TestItem> testItems = Arrays.asList(
+				TestItem.validSql("QUIT;", SqlCommand.QUIT).cannotParseComment(),
+				TestItem.validSql("eXiT;", SqlCommand.QUIT).cannotParseComment(),
+				TestItem.validSql("CLEAR;", SqlCommand.CLEAR).cannotParseComment(),
+				TestItem.validSql("SHOW TABLES;", SqlCommand.SHOW_TABLES),
+				TestItem.validSql("  SHOW   TABLES   ;", SqlCommand.SHOW_TABLES),
+				TestItem.validSql("SHOW FUNCTIONS;", SqlCommand.SHOW_FUNCTIONS),
+				TestItem.validSql("  SHOW    FUNCTIONS   ", SqlCommand.SHOW_FUNCTIONS),
+				TestItem.validSql("DESC MyTable", SqlCommand.DESC, "MyTable").cannotParseComment(),
+				TestItem.validSql("DESC         MyTable     ", SqlCommand.DESC, "MyTable").cannotParseComment(),
+				TestItem.invalidSql("DESC "), // no table name
+				TestItem.validSql("DESCRIBE MyTable",
+						SqlCommand.DESCRIBE,
+						"`default_catalog`.`default_database`.`MyTable`"),
+				TestItem.validSql("DESCRIBE         MyTable     ",
+						SqlCommand.DESCRIBE,
+						"`default_catalog`.`default_database`.`MyTable`"),
+				TestItem.invalidSql("DESCRIBE "), // no table name
+				TestItem.validSql("EXPLAIN SELECT a FROM MyTable",
+						SqlCommand.EXPLAIN,
+						"EXPLAIN PLAN FOR SELECT a FROM MyTable").cannotParseComment(),
+				TestItem.validSql("EXPLAIN PLAN FOR SELECT a FROM MyTable",
+						SqlCommand.EXPLAIN,
+						"EXPLAIN PLAN FOR SELECT a FROM MyTable"),
+				TestItem.validSql("EXPLAIN PLAN FOR INSERT INTO MySink(c) SELECT c FROM MyTable",
+						SqlCommand.EXPLAIN,
+						"EXPLAIN PLAN FOR INSERT INTO MySink(c) SELECT c FROM MyTable"),
+				TestItem.invalidSql("EXPLAIN "), // no query
+				TestItem.validSql("EXPLAIN PLAN FOR INSERT INTO MySink(c) SELECT c FROM MyTable",
+						SqlCommand.EXPLAIN,
+						"EXPLAIN PLAN FOR INSERT INTO MySink(c) SELECT c FROM MyTable"),
+				TestItem.validSql("SELECT a FROM MyTable", SqlCommand.SELECT, "SELECT a FROM MyTable"),
+				TestItem.validSql("WITH t as (select a from MyTable) select a from t",
+						SqlCommand.SELECT,
+						"WITH t as (select a from MyTable) select a from t"),
+				TestItem.validSql("INSERT INTO other SELECT 1+1",
+						SqlCommand.INSERT_INTO,
+						"INSERT INTO other SELECT 1+1"),
+				TestItem.validSql("INSERT OVERWRITE other SELECT 1+1",
+						SqlCommand.INSERT_OVERWRITE,
+						"INSERT OVERWRITE other SELECT 1+1"),
+				TestItem.validSql("CREATE VIEW x AS SELECT 1+1",
+						SqlCommand.CREATE_VIEW,
+						"`default_catalog`.`default_database`.`x`", "SELECT 1 + 1"),
+				TestItem.validSql("CREATE   VIEW    x   AS     SELECT 1+1 FROM MyTable",
+						SqlCommand.CREATE_VIEW,
+						"`default_catalog`.`default_database`.`x`",
+						"SELECT 1 + 1\nFROM `default_catalog`.`default_database`.`MyTable` AS `MyTable`"),
+				TestItem.invalidSql("CREATE VIEW x SELECT 1+1 "), // missing AS
+				TestItem.validSql("DROP VIEW TestView1",
+						SqlCommand.DROP_VIEW,
+						"`default_catalog`.`default_database`.`TestView1`"),
+				TestItem.invalidSql("DROP VIEW "), // missing name
+				TestItem.validSql("SET", SqlCommand.SET).cannotParseComment(),
+				TestItem.validSql("SET x=y", SqlCommand.SET, "x", "y").cannotParseComment(),
+				TestItem.validSql("SET      x  = y", SqlCommand.SET, "x", " y").cannotParseComment(),
+				TestItem.validSql("reset;", SqlCommand.RESET).cannotParseComment(),
+				TestItem.validSql("source /my/file;", SqlCommand.SOURCE, "/my/file").cannotParseComment(),
+				TestItem.validSql("create CATALOG c1 with('type'='generic_in_memory')",
+						SqlCommand.CREATE_CATALOG,
+						"create CATALOG c1 with('type'='generic_in_memory')"),
+				TestItem.validSql("create CATALOG c1 WITH ('type'='simple-catalog', 'default-database'='db1')",
+						SqlCommand.CREATE_CATALOG,
+						"create CATALOG c1 WITH ('type'='simple-catalog', 'default-database'='db1')"),
+				TestItem.validSql("drop CATALOG c1",
+						SqlCommand.DROP_CATALOG,
+						"drop CATALOG c1"),
+				TestItem.validSql("USE CATALOG catalog1;", SqlCommand.USE_CATALOG, "`catalog1`"),
+				TestItem.validSql("use `default`;", SqlCommand.USE, "`default_catalog`.`default`"),
+				TestItem.invalidSql("use catalog "), // no catalog name
+				TestItem.validSql("create database db1;", SqlCommand.CREATE_DATABASE, "create database db1"),
+				TestItem.validSql("drop database db1;", SqlCommand.DROP_DATABASE, "drop database db1"),
+				TestItem.validSql("alter database default_database set ('k1' = 'a')",
+						SqlCommand.ALTER_DATABASE,
+						"alter database default_database set ('k1' = 'a')"),
+				TestItem.validSql("alter table default_catalog.default_database.MyTable rename to tb2",
+						SqlCommand.ALTER_TABLE, "alter table default_catalog.default_database.MyTable rename to tb2"),
+				TestItem.validSql("alter table MyTable set ('k1'='v1', 'k2'='v2')",
+						SqlCommand.ALTER_TABLE,
+						"alter table MyTable set ('k1'='v1', 'k2'='v2')"),
+				TestItem.invalidSql("CREATE tables"),
+				TestItem.invalidSql("CREATE    tables"),
+				TestItem.validSql("create Table hello", SqlCommand.CREATE_TABLE, "create Table hello"),
+				TestItem.validSql("create Table hello(a int)", SqlCommand.CREATE_TABLE, "create Table hello(a int)"),
+				TestItem.validSql("CREATE TABLE T(\n"
+								+ "  a int,\n"
+								+ "  b varchar(20),\n"
+								+ "  c as to_timestamp(b),\n"
+								+ "  watermark for c as c - INTERVAL '5' second\n"
+								+ ") WITH (\n"
+								+ "  'k1' = 'v1',\n"
+								+ "  'k2' = 'v2')\n",
+						SqlCommand.CREATE_TABLE,
+						"CREATE TABLE T(\n"
+								+ "  a int,\n"
+								+ "  b varchar(20),\n"
+								+ "  c as to_timestamp(b),\n"
+								+ "  watermark for c as c - INTERVAL '5' second\n"
+								+ ") WITH (\n"
+								+ "  'k1' = 'v1',\n"
+								+ "  'k2' = 'v2')"),
+				TestItem.invalidSql("DROP table"),
+				TestItem.invalidSql("DROP   tables"),
+				TestItem.validSql("DROP TABLE t1", SqlCommand.DROP_TABLE, "DROP TABLE t1"),
+				TestItem.validSql("DROP TABLE IF EXISTS t1", SqlCommand.DROP_TABLE, "DROP TABLE IF EXISTS t1"),
+				TestItem.validSql("DROP TABLE IF EXISTS catalog1.db1.t1", SqlCommand.DROP_TABLE,
+						"DROP TABLE IF EXISTS catalog1.db1.t1"),
+				TestItem.validSql("DROP TABLE IF EXISTS db1.t1", SqlCommand.DROP_TABLE, "DROP TABLE IF EXISTS db1.t1"),
+				TestItem.validSql("SHOW MODULES", SqlCommand.SHOW_MODULES).cannotParseComment(),
+				TestItem.validSql("  SHOW    MODULES   ", SqlCommand.SHOW_MODULES).cannotParseComment(),
+				// Test create function.
+				TestItem.invalidSql("CREATE FUNCTION "),
+				TestItem.invalidSql("CREATE FUNCTIONS "),
+				TestItem.invalidSql("CREATE    FUNCTIONS "),
+				TestItem.validSql("CREATE FUNCTION catalog1.db1.func1 as 'class_name'",
+						SqlCommand.CREATE_FUNCTION,
+						"CREATE FUNCTION catalog1.db1.func1 as 'class_name'"),
+				TestItem.validSql("CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
+						SqlCommand.CREATE_FUNCTION,
+						"CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"),
+				TestItem.validSql("CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
+						SqlCommand.CREATE_FUNCTION,
+						"CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"),
+				// Test drop function.
+				TestItem.invalidSql("DROP FUNCTION "),
+				TestItem.invalidSql("DROP FUNCTIONS "),
+				TestItem.invalidSql("DROP    FUNCTIONS "),
+				TestItem.validSql("DROP FUNCTION catalog1.db1.func1",
+						SqlCommand.DROP_FUNCTION,
+						"DROP FUNCTION catalog1.db1.func1"),
+				TestItem.validSql("DROP TEMPORARY FUNCTION catalog1.db1.func1",
+						SqlCommand.DROP_FUNCTION,
+						"DROP TEMPORARY FUNCTION catalog1.db1.func1"),
+				TestItem.validSql("DROP TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1",
+						SqlCommand.DROP_FUNCTION,
+						"DROP TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1"),
+				// Test alter function.
+				TestItem.invalidSql("ALTER FUNCTION "),
+				TestItem.invalidSql("ALTER FUNCTIONS "),
+				TestItem.invalidSql("ALTER    FUNCTIONS "),
+				TestItem.validSql("ALTER FUNCTION catalog1.db1.func1 as 'a.b.c.func2'",
+						SqlCommand.DROP_FUNCTION,
+						"ALTER FUNCTION catalog1.db1.func1 as 'a.b.c.func2'"),
+				TestItem.validSql("ALTER TEMPORARY FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'",
+						SqlCommand.DROP_FUNCTION,
+						"ALTER TEMPORARY FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'"),
+				TestItem.validSql("ALTER TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'",
+						SqlCommand.DROP_FUNCTION,
+						"ALTER TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'")
+		);
+		for (TestItem item : testItems) {
+			if (item.isValidSqlCmd) {
+				Optional<SqlCommandCall> actualCall = SqlCommandParser.parse(parser, item.sql);
+				if (!actualCall.isPresent()) {
+					fail("test statement: " + item.sql);
+				}
+				assertNotNull(item.expectedCmd);
+				assertEquals("test statement: " + item.sql,
+						new SqlCommandCall(item.expectedCmd, item.expectedOperands), actualCall.get());
 
-	}
-
-	private void testInvalidSqlCommand(String stmt) {
-		final Optional<SqlCommandCall> actualCall = SqlCommandParser.parse(ParserUtils::parse, stmt);
-		if (actualCall.isPresent()) {
-			fail();
+				String stmtWithComment = "-- comments \n " + item.sql;
+				actualCall = SqlCommandParser.parse(parser, stmtWithComment);
+				if (item.cannotParseComment) {
+					assertFalse(actualCall.isPresent());
+				} else {
+					if (!actualCall.isPresent()) {
+						fail("test statement: " + item.sql);
+					}
+					assertEquals(item.expectedCmd, actualCall.get().command);
+				}
+			} else {
+				final Optional<SqlCommandCall> actualCall = SqlCommandParser.parse(parser, item.sql);
+				if (actualCall.isPresent()) {
+					fail("test statement: " + item.sql);
+				}
+			}
 		}
 	}
 
-	private void testValidSqlCommand(String stmt, SqlCommandCall expectedCall) {
-		final Optional<SqlCommandCall> actualCall = SqlCommandParser.parse(ParserUtils::parse, stmt);
-		if (!actualCall.isPresent()) {
-			fail();
-		}
-		assertEquals(expectedCall, actualCall.get());
-	}
+	private static class TestItem {
+		private final String sql;
+		private final boolean isValidSqlCmd;
+		private boolean cannotParseComment = true;
+		private @Nullable
+		SqlCommand expectedCmd = null;
+		private String[] expectedOperands = new String[0];
 
-	private void testInvalidSql(String stmt) {
-		try {
-			SqlCommandParser.parse(ParserUtils::parse, stmt);
-			fail();
-		} catch (SqlExecutionException e) {
-			assertTrue(e.getCause() instanceof ValidationException);
+		private TestItem(String sql, boolean isValidSqlCmd) {
+			this.sql = sql;
+			this.isValidSqlCmd = isValidSqlCmd;
+		}
+
+		public static TestItem invalidSql(String sql) {
+			return new TestItem(sql, false);
+		}
+
+		public static TestItem validSql(
+				String sql, SqlCommand expectedCmd, String... expectedOperands) {
+			TestItem testItem = new TestItem(sql, true);
+			testItem.expectedCmd = expectedCmd;
+			testItem.expectedOperands = expectedOperands;
+			testItem.cannotParseComment = false; // default is false
+			return testItem;
+		}
+
+		public TestItem cannotParseComment() {
+			cannotParseComment = true;
+			return this;
+		}
+
+		@Override
+		public String toString() {
+			return this.sql;
 		}
 	}
 }

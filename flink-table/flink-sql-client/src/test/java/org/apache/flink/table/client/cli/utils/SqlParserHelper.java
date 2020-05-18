@@ -21,19 +21,23 @@ package org.apache.flink.table.client.cli.utils;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.operations.Operation;
-
-import java.util.List;
+import org.apache.flink.table.delegation.Parser;
 
 /**
- * An utility class that provides abilities to parse sql statements.
+ * An utility class that provides pre-prepared tables and sql parser.
  */
-public class ParserUtils {
+public class SqlParserHelper {
+	// return the sql parser instance hold by this table evn.
+	final TableEnvironment tableEnv;
 
-	private static final TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+	public SqlParserHelper() {
+		tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+	}
 
-	static {
+	/**
+	 * prepare some tables for testing
+	 */
+	public void registerTables() {
 		tableEnv.executeSql("create table MyTable (a int, b bigint, c varchar(32)) " +
 				"with ('connector' = 'filesystem', 'path' = '/non')");
 		tableEnv.executeSql("create table MyOtherTable (a int, b bigint) " +
@@ -41,12 +45,11 @@ public class ParserUtils {
 		tableEnv.executeSql("create table MySink (a int, c varchar(32)) with ('connector' = 'COLLECTION' )");
 	}
 
-	public static List<Operation> parse(String statement) throws SqlExecutionException {
-		try {
-			return ((TableEnvironmentInternal) tableEnv).getParser().parse(statement);
-		} catch (Throwable t) {
-			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
+	public void registerTable(String createTableStmt) {
+		tableEnv.executeSql(createTableStmt);
+	}
+
+	public Parser getSqlParser() {
+		return ((TableEnvironmentInternal) tableEnv).getParser();
 	}
 }

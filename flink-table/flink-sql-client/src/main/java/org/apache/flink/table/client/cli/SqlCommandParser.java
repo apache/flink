@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
@@ -37,9 +38,12 @@ import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
+import org.apache.flink.table.operations.ddl.DropCatalogOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
@@ -58,7 +62,7 @@ public final class SqlCommandParser {
 		// private
 	}
 
-	public static Optional<SqlCommandCall> parse(Function<String, List<Operation>> sqlParserFunction, String stmt) {
+	public static Optional<SqlCommandCall> parse(Parser sqlParser, String stmt) {
 		// normalize
 		stmt = stmt.trim();
 		// remove ';' at the end
@@ -67,45 +71,23 @@ public final class SqlCommandParser {
 		}
 
 		// parse statement via sql parser first
-		Optional<SqlCommandCall> callOpt = parseBySqlParser(sqlParserFunction, stmt);
+		Optional<SqlCommandCall> callOpt = parseBySqlParser(sqlParser, stmt);
 		if (callOpt.isPresent()) {
 			return callOpt;
+		} else {
+			return parseByRegexMatching(stmt);
 		}
-
-		// parse statement via regex match
-		for (SqlCommand cmd : SqlCommand.values()) {
-			if (cmd.hasRegexPattern()) {
-				final Matcher matcher = cmd.pattern.matcher(stmt);
-				if (matcher.matches()) {
-					final String[] groups = new String[matcher.groupCount()];
-					for (int i = 0; i < groups.length; i++) {
-						groups[i] = matcher.group(i + 1);
-					}
-					return cmd.operandConverter.apply(groups)
-							.map((operands) -> {
-								String[] newOperands = operands;
-								if (cmd == SqlCommand.EXPLAIN) {
-									// convert `explain xx` to `explain plan for xx`
-									newOperands = new String[] { "EXPLAIN PLAN FOR " + operands[0] };
-								}
-								return new SqlCommandCall(cmd, newOperands);
-							});
-				}
-			}
-		}
-		return Optional.empty();
 	}
 
-	private static Optional<SqlCommandCall> parseBySqlParser(
-			Function<String, List<Operation>> sqlParserFunction, String stmt) {
+	private static Optional<SqlCommandCall> parseBySqlParser(Parser sqlParser, String stmt) {
 		List<Operation> operations;
 		try {
-			operations = sqlParserFunction.apply(stmt);
-		} catch (SqlExecutionException e) {
-			if (e.getCause() instanceof ValidationException) {
+			operations = sqlParser.parse(stmt);
+		} catch (Throwable e) {
+			if (e instanceof ValidationException) {
 				// can be parsed via sql parser, but is not validated.
 				// throw exception directly
-				throw e;
+				throw new SqlExecutionException("Invalidate SQL statement.", e);
 			}
 			return Optional.empty();
 		}
@@ -149,6 +131,9 @@ public final class SqlCommandParser {
 		} else if (operation instanceof CreateCatalogOperation) {
 			cmd = SqlCommand.CREATE_CATALOG;
 			operands = new String[] { stmt };
+		} else if (operation instanceof DropCatalogOperation) {
+			cmd = SqlCommand.DROP_CATALOG;
+			operands = new String[] { stmt };
 		} else if (operation instanceof UseCatalogOperation) {
 			cmd = SqlCommand.USE_CATALOG;
 			operands = new String[] { String.format("`%s`", ((UseCatalogOperation) operation).getCatalogName()) };
@@ -181,6 +166,32 @@ public final class SqlCommandParser {
 		} else {
 			return Optional.of(new SqlCommandCall(cmd, operands));
 		}
+	}
+
+	private static Optional<SqlCommandCall> parseByRegexMatching(String stmt) {
+		// parse statement via regex matching
+		for (SqlCommand cmd : SqlCommand.values()) {
+			if (cmd.hasRegexPattern()) {
+				final Matcher matcher = cmd.pattern.matcher(stmt);
+				if (matcher.matches()) {
+					final String[] groups = new String[matcher.groupCount()];
+					for (int i = 0; i < groups.length; i++) {
+						groups[i] = matcher.group(i + 1);
+					}
+					return cmd.operandConverter.apply(groups)
+							.map((operands) -> {
+								String[] newOperands = operands;
+								if (cmd == SqlCommand.EXPLAIN) {
+									// convert `explain xx` to `explain plan for xx`
+									// which can execute through executeSql method
+									newOperands = new String[] { "EXPLAIN PLAN FOR " + operands[0] };
+								}
+								return new SqlCommandCall(cmd, newOperands);
+							});
+				}
+			}
+		}
+		return Optional.empty();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -228,9 +239,7 @@ public final class SqlCommandParser {
 
 		CREATE_CATALOG,
 
-		DROP_CATALOG(
-			"(DROP\\s+CATALOG\\s+.*)",
-			SINGLE_OPERAND),
+		DROP_CATALOG,
 
 		DESC(
 			"DESC\\s+(.*)",
@@ -238,7 +247,8 @@ public final class SqlCommandParser {
 
 		DESCRIBE,
 
-		// supports both `explain xx` and `explain plan for xx`
+		// supports both `explain xx` and `explain plan for xx` now
+		// TODO should keep `explain xx` ?
 		EXPLAIN(
 			"EXPLAIN\\s+(.*)",
 			SINGLE_OPERAND),
@@ -290,8 +300,8 @@ public final class SqlCommandParser {
 			"SOURCE\\s+(.*)",
 			SINGLE_OPERAND);
 
-		public final Pattern pattern;
-		public final Function<String[], Optional<String[]>> operandConverter;
+		public final @Nullable Pattern pattern;
+		public final @Nullable Function<String[], Optional<String[]>> operandConverter;
 
 		SqlCommand() {
 			this.pattern = null;
@@ -327,10 +337,6 @@ public final class SqlCommandParser {
 		public SqlCommandCall(SqlCommand command, String[] operands) {
 			this.command = command;
 			this.operands = operands;
-		}
-
-		public SqlCommandCall(SqlCommand command) {
-			this(command, new String[0]);
 		}
 
 		@Override

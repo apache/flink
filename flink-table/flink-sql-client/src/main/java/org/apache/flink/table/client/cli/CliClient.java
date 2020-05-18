@@ -253,7 +253,7 @@ public class CliClient {
 	// --------------------------------------------------------------------------------------------
 
 	private Optional<SqlCommandCall> parseCommand(String line) {
-		final Optional<SqlCommandCall> parsedLine = SqlCommandParser.parse(s -> executor.parse(sessionId, s), line);
+		final Optional<SqlCommandCall> parsedLine = SqlCommandParser.parse(executor.getSqlParser(sessionId), line);
 		if (!parsedLine.isPresent()) {
 			printError(CliStrings.MESSAGE_UNKNOWN_SQL);
 		}

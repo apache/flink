@@ -20,7 +20,7 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.client.cli.utils.ParserUtils;
+import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
@@ -28,7 +28,7 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.SupplierWithException;
@@ -58,6 +58,8 @@ class TestingExecutor implements Executor {
 	private int numUseDatabaseCalls = 0;
 	private BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer;
 
+	private final SqlParserHelper helper;
+
 	TestingExecutor(
 			List<SupplierWithException<TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException>> resultChanges,
 			List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>> snapshotResults,
@@ -69,6 +71,8 @@ class TestingExecutor implements Executor {
 		this.resultPages = resultPages;
 		this.useCatalogConsumer = useCatalogConsumer;
 		this.useDatabaseConsumer = useDatabaseConsumer;
+		helper = new SqlParserHelper();
+		helper.registerTables();
 	}
 
 	@Override
@@ -191,8 +195,8 @@ class TestingExecutor implements Executor {
 	}
 
 	@Override
-	public List<Operation> parse(String sessionId, String statement) throws SqlExecutionException {
-		return ParserUtils.parse(statement);
+	public Parser getSqlParser(String sessionId) {
+		return helper.getSqlParser();
 	}
 
 	@Override

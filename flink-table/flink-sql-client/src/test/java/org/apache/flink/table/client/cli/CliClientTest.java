@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.client.cli.utils.ParserUtils;
+import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ViewEntry;
@@ -32,7 +32,6 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.table.operations.Operation;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
@@ -267,16 +266,17 @@ public class CliClientTest extends TestLogger {
 		public String receivedStatement;
 		public int receivedPosition;
 		private final Map<String, SessionContext> sessionMap = new HashMap<>();
+		private final SqlParserHelper helper = new SqlParserHelper();
 
 		@Override
 		public void start() throws SqlExecutionException {
-			// nothing to do
 		}
 
 		@Override
 		public String openSession(SessionContext session) throws SqlExecutionException {
 			String sessionId = UUID.randomUUID().toString();
 			sessionMap.put(sessionId, session);
+			helper.registerTables();
 			return sessionId;
 		}
 
@@ -376,8 +376,8 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
-		public List<Operation> parse(String sessionId, String statement) throws SqlExecutionException {
-			return ParserUtils.parse(statement);
+		public org.apache.flink.table.delegation.Parser getSqlParser(String sessionId) {
+			return helper.getSqlParser();
 		}
 
 		@Override
