@@ -109,7 +109,7 @@
     (teardown! [_ test node]
       (c/su
         (try
-          (doseq [db dbs] (db/teardown! db test node))
+          (doseq [db (reverse dbs)] (db/teardown! db test node))
           (finally (fu/stop-all-supervised-services!)))))
     db/LogFiles
     (log-files [_ test node]
