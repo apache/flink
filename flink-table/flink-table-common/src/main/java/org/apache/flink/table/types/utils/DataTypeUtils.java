@@ -47,13 +47,23 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /**
  * Utilities for handling {@link DataType}s.
  */
 @Internal
 public final class DataTypeUtils {
+
+	/**
+	 * Checks whether a given data type is an internal data structure.
+	 */
+	public static boolean isInternal(DataType dataType) {
+		final Class<?> clazz = primitiveToWrapper(dataType.getConversionClass());
+		return clazz == toInternalConversionClass(dataType.getLogicalType());
+	}
 
 	/**
 	 * Replaces the {@link LogicalType} of a {@link DataType}, i.e., it keeps the bridging class.

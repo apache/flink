@@ -26,7 +26,7 @@ import org.apache.flink.table.types.logical.DateType;
  * Converter for {@link DateType} of {@link java.sql.Date} external type.
  */
 @Internal
-class DateDateConverter implements DataStructureConverter<Integer, java.sql.Date> {
+public class DateDateConverter implements DataStructureConverter<Integer, java.sql.Date> {
 
 	private static final long serialVersionUID = 1L;
 

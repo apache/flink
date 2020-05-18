@@ -27,6 +27,7 @@ import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFSET
 import org.apache.flink.table.data.binary._
+import org.apache.flink.table.data.conversion.DataStructureConverters
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.functions.UserDefinedFunction
@@ -42,6 +43,8 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale, hasRoot}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
+import org.apache.flink.table.types.utils.DataTypeUtils
+import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.types.{Row, RowKind}
 
 import scala.annotation.tailrec
@@ -776,9 +779,118 @@ object CodeGenUtils {
   // -------------------------- Data Structure Conversion  -------------------------------
 
   /**
+   * Generates code for converting the given term of external data type to an internal data
+   * structure.
+   *
+   * Use this function for converting at the edges of the API where primitive types CAN NOT occur
+   * and NO NULL CHECKING is required as it might have been done by surrounding layers.
+   */
+  def genToInternalConverter(
+      ctx: CodeGeneratorContext,
+      sourceDataType: DataType)
+    : String => String = {
+    if (isInternal(sourceDataType)) {
+      externalTerm => s"$externalTerm"
+    } else {
+      val converter = DataStructureConverters.getConverter(sourceDataType)
+      val internalTypeTerm = boxedTypeTermForType(sourceDataType.getLogicalType)
+      val externalTypeTerm = typeTerm(sourceDataType.getConversionClass)
+      val converterTerm = ctx.addReusableConverter(converter)
+      externalTerm =>
+        s"($internalTypeTerm) $converterTerm.toInternalOrNull(($externalTypeTerm) $externalTerm)"
+    }
+  }
+
+  /**
+   * Generates code for converting the given term of external data type to an internal data
+   * structure.
+   *
+   * Use this function for converting at the edges of the API where PRIMITIVE TYPES can occur or
+   * the RESULT CAN BE NULL.
+   */
+  def genToInternalConverterAll(
+      ctx: CodeGeneratorContext,
+      sourceDataType: DataType,
+      externalTerm: String)
+    : GeneratedExpression = {
+    val sourceType = sourceDataType.getLogicalType
+    val sourceClass = sourceDataType.getConversionClass
+    // convert external source type to internal structure
+    val internalResultTerm = if (isInternal(sourceDataType)) {
+      s"$externalTerm"
+    } else {
+      genToInternalConverter(ctx, sourceDataType)(externalTerm)
+    }
+    // extract null term from result term
+    if (sourceClass.isPrimitive) {
+      generateNonNullField(sourceType, internalResultTerm)
+    } else {
+      generateInputFieldUnboxing(ctx, sourceType, externalTerm, internalResultTerm)
+    }
+  }
+
+  /**
+   * Generates code for converting the given term of internal data structure to the given
+   * external target data type.
+   *
+   * Use this function for converting at the edges of the API where primitive types CAN NOT occur
+   * and NO NULL CHECKING is required as it might have been done by surrounding layers.
+   */
+  def genToExternalConverter(
+      ctx: CodeGeneratorContext,
+      targetDataType: DataType,
+      internalTerm: String)
+    : String = {
+    if (isInternal(targetDataType)) {
+      s"$internalTerm"
+    } else {
+      val converter = DataStructureConverters.getConverter(targetDataType)
+      val internalTypeTerm = boxedTypeTermForType(targetDataType.getLogicalType)
+      val externalTypeTerm = typeTerm(targetDataType.getConversionClass)
+      val converterTerm = ctx.addReusableConverter(converter)
+      s"($externalTypeTerm) $converterTerm.toExternal(($internalTypeTerm) $internalTerm)"
+    }
+  }
+
+  /**
+   * Generates code for converting the given expression of internal data structure to the given
+   * external target data type.
+   *
+   * Use this function for converting at the edges of the API where PRIMITIVE TYPES can occur or
+   * the RESULT CAN BE NULL.
+   */
+  def genToExternalConverterAll(
+      ctx: CodeGeneratorContext,
+      targetDataType: DataType,
+      internalExpr: GeneratedExpression)
+    : String = {
+    val targetType = targetDataType.getLogicalType
+    val targetTypeTerm = boxedTypeTermForType(targetType)
+
+    // untyped null literal
+    if (hasRoot(internalExpr.resultType, NULL)) {
+      return s"($targetTypeTerm) null"
+    }
+
+    // convert internal structure to target type
+    val externalResultTerm = if (isInternal(targetDataType)) {
+      s"($targetTypeTerm) ${internalExpr.resultTerm}"
+    } else {
+      genToExternalConverter(ctx, targetDataType, internalExpr.resultTerm)
+    }
+    // merge null term into the result term
+    if (targetDataType.getConversionClass.isPrimitive) {
+      externalResultTerm
+    } else {
+      s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
+    }
+  }
+
+  /**
     * If it's internally compatible, don't need to DataStructure converter.
     * clazz != classOf[Row] => Row can only infer GenericType[Row].
     */
+  @deprecated
   def isInternalClass(t: DataType): Boolean = {
     val clazz = t.getConversionClass
     clazz != classOf[Object] && clazz != classOf[Row] &&
@@ -786,10 +898,15 @@ object CodeGenUtils {
             clazz == toInternalConversionClass(fromDataTypeToLogicalType(t)))
   }
 
+  @deprecated
   private def isConverterIdentity(t: DataType): Boolean = {
     DataFormatConverters.getConverterForDataType(t).isInstanceOf[IdentityConverter[_]]
   }
 
+  /**
+   * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
+   */
+  @deprecated
   def genToInternal(ctx: CodeGeneratorContext, t: DataType, term: String): String =
     genToInternal(ctx, t)(term)
 
@@ -798,7 +915,10 @@ object CodeGenUtils {
    *
    * Use this function for converting at the edges of the API where primitive types CAN NOT occur
    * and NO NULL CHECKING is required as it might have been done by surrounding layers.
+   *
+   * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
    */
+  @deprecated
   def genToInternal(ctx: CodeGeneratorContext, t: DataType): String => String = {
     if (isConverterIdentity(t)) {
       term => s"$term"
@@ -813,11 +933,10 @@ object CodeGenUtils {
   }
 
   /**
-   * Generates code for converting the given external source data type to the internal data format.
    *
-   * Use this function for converting at the edges of the API where PRIMITIVE TYPES can occur or
-   * the RESULT CAN BE NULL.
+   * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
    */
+  @deprecated
   def genToInternalIfNeeded(
       ctx: CodeGeneratorContext,
       sourceDataType: DataType,
@@ -839,6 +958,10 @@ object CodeGenUtils {
     }
   }
 
+  /**
+   * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
+   */
+  @deprecated
   def genToExternal(
       ctx: CodeGeneratorContext,
       targetType: DataType,
@@ -856,10 +979,9 @@ object CodeGenUtils {
   }
 
   /**
-   * Generates code for converting the internal data format to the given external target data type.
-   *
-   * Use this function for converting at the edges of the API.
+   * @deprecated This uses the legacy [[DataFormatConverters]] including legacy types.
    */
+  @deprecated
   def genToExternalIfNeeded(
       ctx: CodeGeneratorContext,
       targetDataType: DataType,
