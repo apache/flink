@@ -35,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
+import static org.apache.flink.util.CloseableIterator.ofElements;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -47,14 +48,16 @@ public class ChannelStateWriterImplTest {
 	private static final long CHECKPOINT_ID = 42L;
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testAddEventBuffer() {
+	public void testAddEventBuffer() throws Exception {
+
 		NetworkBuffer dataBuf = getBuffer();
 		NetworkBuffer eventBuf = getBuffer();
 		eventBuf.setDataType(Buffer.DataType.EVENT_BUFFER);
-		ChannelStateWriterImpl writer = openWriter();
-		callStart(writer);
 		try {
-			writer.addInputData(CHECKPOINT_ID, new InputChannelInfo(1, 1), 1, eventBuf, dataBuf);
+			runWithSyncWorker(writer -> {
+				callStart(writer);
+				writer.addInputData(CHECKPOINT_ID, new InputChannelInfo(1, 1), 1, ofElements(Buffer::recycleBuffer, eventBuf, dataBuf));
+			});
 		} finally {
 			assertTrue(dataBuf.isRecycled());
 		}
@@ -285,7 +288,7 @@ public class ChannelStateWriterImplTest {
 	}
 
 	private void callAddInputData(ChannelStateWriter writer, NetworkBuffer... buffer) {
-		writer.addInputData(CHECKPOINT_ID, new InputChannelInfo(1, 1), 1, buffer);
+		writer.addInputData(CHECKPOINT_ID, new InputChannelInfo(1, 1), 1, ofElements(Buffer::recycleBuffer, buffer));
 	}
 
 	private void callAbort(ChannelStateWriter writer) {

@@ -19,11 +19,14 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.util.CloseableIterator;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.LinkedListMultimap;
 import org.apache.flink.shaded.guava18.com.google.common.collect.ListMultimap;
 
 import java.util.Arrays;
+
+import static org.apache.flink.util.ExceptionUtils.rethrow;
 
 /**
  * A simple {@link ChannelStateWriter} used to write unit tests.
@@ -54,9 +57,14 @@ public class RecordingChannelStateWriter extends MockChannelStateWriter {
 	}
 
 	@Override
-	public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, Buffer... data) {
+	public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, CloseableIterator<Buffer> iterator) {
 		checkCheckpointId(checkpointId);
-		addedInput.putAll(info, Arrays.asList(data));
+		iterator.forEachRemaining(b -> addedInput.put(info, b));
+		try {
+			iterator.close();
+		} catch (Exception e) {
+			rethrow(e);
+		}
 	}
 
 	@Override

@@ -45,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.util.CloseableIterator.ofElement;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -330,7 +331,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 					currentReceivedCheckpointId,
 					channelInfo,
 					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
-					buffer);
+					ofElement(buffer, Buffer::recycleBuffer));
 			} else {
 				buffer.recycleBuffer();
 			}

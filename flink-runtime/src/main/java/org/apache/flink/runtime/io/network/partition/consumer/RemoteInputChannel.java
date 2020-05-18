@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.util.CloseableIterator;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -207,7 +208,7 @@ public class RemoteInputChannel extends InputChannel {
 				checkpointId,
 				channelInfo,
 				ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
-				inflightBuffers.toArray(new Buffer[0]));
+				CloseableIterator.fromList(inflightBuffers, Buffer::recycleBuffer));
 		}
 	}
 
