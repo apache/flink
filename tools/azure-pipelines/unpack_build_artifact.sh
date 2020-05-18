@@ -15,10 +15,17 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 # limitations under the License.
+################################################################################
 
+
+if ! [ -e $FLINK_ARTIFACT_DIR ]; then
+    echo "Cached flink dir $FLINK_ARTIFACT_DIR does not exist. Exiting build."
+    exit 1
+fi
 
 echo "Merging cache"
-cp -RT "$CACHE_FLINK_DIR" "."
+cp -RT "$FLINK_ARTIFACT_DIR" "."
+
 echo "Adjusting timestamps"
 # adjust timestamps to prevent recompilation
 find . -type f -name '*.java' | xargs touch
@@ -28,20 +35,3 @@ sleep 5
 find . -type f -name '*.class' | xargs touch
 find . -type f -name '*.timestamp' | xargs touch
 
-
-export M2_HOME=/home/vsts/maven_cache/apache-maven-3.2.5/ 
-export PATH=/home/vsts/maven_cache/apache-maven-3.2.5/bin:$PATH
-run_mvn -version
-MVN_CALL="run_mvn install -DskipTests -Drat.skip"
-$MVN_CALL
-EXIT_CODE=$?
-
-if [ $EXIT_CODE != 0 ]; then
-	echo "=============================================================================="
-	echo "Build error. Exit code: $EXIT_CODE. Failing build"
-	echo "=============================================================================="
-	exit $EXIT_CODE
-fi
-
-chmod -R +x build-target
-chmod -R +x flink-end-to-end-tests

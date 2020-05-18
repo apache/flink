@@ -449,7 +449,7 @@ public abstract class YarnTestBase extends TestLogger {
 							}
 
 							if (!whitelistedFound) {
-								// logging in FATAL to see the actual message in TRAVIS tests.
+								// logging in FATAL to see the actual message in CI tests.
 								Marker fatal = MarkerFactory.getMarker("FATAL");
 								LOG.error(fatal, "Prohibited String '{}' in '{}:{}'", aProhibited, f.getAbsolutePath(), lineFromFile);
 
@@ -1048,10 +1048,10 @@ public abstract class YarnTestBase extends TestLogger {
 			hdfsSiteXML.delete();
 		}
 
-		// When we are on travis, we copy the temp files of JUnit (containing the MiniYARNCluster log files)
+		// When we are on CI, we copy the temp files of JUnit (containing the MiniYARNCluster log files)
 		// to <flinkRoot>/target/flink-yarn-tests-*.
 		// The files from there are picked up by the tools/ci/* scripts to upload them.
-		if (isOnTravis()) {
+		if (isOnCI()) {
 			File target = new File("../target" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
 			if (!target.mkdirs()) {
 				LOG.warn("Error creating dirs to {}", target);
@@ -1067,8 +1067,8 @@ public abstract class YarnTestBase extends TestLogger {
 
 	}
 
-	public static boolean isOnTravis() {
-		return System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true");
+	public static boolean isOnCI() {
+		return System.getenv("IS_CI") != null && System.getenv("IS_CI").equals("true");
 	}
 
 	protected void waitApplicationFinishedElseKillIt(
