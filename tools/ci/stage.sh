@@ -158,6 +158,10 @@ function get_compile_modules_for_stage() {
             # the negation takes precedence, thus not all required modules would be built
             echo ""
         ;;
+        (${STAGE_PYTHON})
+            # compile everything for PyFlink.
+            echo ""
+        ;;
     esac
 }
 
