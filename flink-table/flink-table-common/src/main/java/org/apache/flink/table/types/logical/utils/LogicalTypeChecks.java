@@ -108,6 +108,9 @@ public final class LogicalTypeChecks {
 	/**
 	 * Checks if the given type is a composite type.
 	 *
+	 * <p>Use {@link #getFieldCount(LogicalType)}, {@link #getFieldNames(LogicalType)},
+	 * {@link #getFieldTypes(LogicalType)} for unified handling of composite types.
+	 *
 	 * @param logicalType Logical data type to check
 	 * @return True if the type is composite type.
 	 */
@@ -196,6 +199,16 @@ public final class LogicalTypeChecks {
 	 */
 	public static List<String> getFieldNames(LogicalType logicalType) {
 		return logicalType.accept(FIELD_NAMES_EXTRACTOR);
+	}
+
+	/**
+	 * Returns the field types of row and structured types.
+	 */
+	public static List<LogicalType> getFieldTypes(LogicalType logicalType) {
+		if (logicalType instanceof DistinctType) {
+			return getFieldTypes(((DistinctType) logicalType).getSourceType());
+		}
+		return logicalType.getChildren();
 	}
 
 	private LogicalTypeChecks() {
