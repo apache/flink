@@ -27,7 +27,7 @@ import java.time.Duration;
  * Converter for {@link DayTimeIntervalType} of {@link java.time.Duration} external type.
  */
 @Internal
-class DayTimeIntervalDurationConverter implements DataStructureConverter<Long, java.time.Duration> {
+public class DayTimeIntervalDurationConverter implements DataStructureConverter<Long, java.time.Duration> {
 
 	private static final long serialVersionUID = 1L;
 

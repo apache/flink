@@ -26,7 +26,7 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
  * Converter for {@link LocalZonedTimestampType} of {@link Long} external type.
  */
 @Internal
-class LocalZonedTimestampLongConverter implements DataStructureConverter<TimestampData, Long> {
+public class LocalZonedTimestampLongConverter implements DataStructureConverter<TimestampData, Long> {
 
 	private static final long serialVersionUID = 1L;
 

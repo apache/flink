@@ -27,7 +27,7 @@ import org.apache.flink.table.types.logical.ArrayType;
  * Converter for {@link ArrayType} of {@code boolean[]} external type.
  */
 @Internal
-class ArrayBooleanArrayConverter implements DataStructureConverter<ArrayData, boolean[]> {
+public class ArrayBooleanArrayConverter implements DataStructureConverter<ArrayData, boolean[]> {
 
 	private static final long serialVersionUID = 1L;
 

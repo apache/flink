@@ -27,7 +27,7 @@ import org.apache.flink.table.types.logical.ArrayType;
  * Converter for {@link ArrayType} of {@code float[]} external type.
  */
 @Internal
-class ArrayFloatArrayConverter implements DataStructureConverter<ArrayData, float[]> {
+public class ArrayFloatArrayConverter implements DataStructureConverter<ArrayData, float[]> {
 
 	private static final long serialVersionUID = 1L;
 

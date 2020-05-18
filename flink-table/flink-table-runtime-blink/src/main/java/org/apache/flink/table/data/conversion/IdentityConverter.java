@@ -24,7 +24,7 @@ import org.apache.flink.annotation.Internal;
  * No-op converter that just forwards its input.
  */
 @Internal
-class IdentityConverter<I> implements DataStructureConverter<I, I> {
+public class IdentityConverter<I> implements DataStructureConverter<I, I> {
 
 	private static final long serialVersionUID = 1L;
 

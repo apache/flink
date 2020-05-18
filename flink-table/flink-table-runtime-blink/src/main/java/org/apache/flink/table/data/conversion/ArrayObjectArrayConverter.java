@@ -39,7 +39,7 @@ import java.lang.reflect.Array;
  */
 @Internal
 @SuppressWarnings("unchecked")
-class ArrayObjectArrayConverter<E> implements DataStructureConverter<ArrayData, E[]> {
+public class ArrayObjectArrayConverter<E> implements DataStructureConverter<ArrayData, E[]> {
 
 	private static final long serialVersionUID = 1L;
 

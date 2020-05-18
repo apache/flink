@@ -28,7 +28,7 @@ import org.apache.flink.table.types.logical.RawType;
  * Converter for {@link RawType} of object external type.
  */
 @Internal
-class RawObjectConverter<T> implements DataStructureConverter<RawValueData<T>, T> {
+public class RawObjectConverter<T> implements DataStructureConverter<RawValueData<T>, T> {
 
 	private static final long serialVersionUID = 1L;
 

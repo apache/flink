@@ -35,7 +35,7 @@ import java.util.Map;
  * Converter for {@link MapType}/{@link MultisetType} of {@link Map} external type.
  */
 @Internal
-class MapMapConverter<K, V> implements DataStructureConverter<MapData, Map<K, V>> {
+public class MapMapConverter<K, V> implements DataStructureConverter<MapData, Map<K, V>> {
 
 	private static final long serialVersionUID = 1L;
 

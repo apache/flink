@@ -30,7 +30,7 @@ import java.time.Period;
  * Converter for {@link YearMonthIntervalType} of {@link java.time.Period} external type.
  */
 @Internal
-class YearMonthIntervalPeriodConverter implements DataStructureConverter<Integer, java.time.Period> {
+public class YearMonthIntervalPeriodConverter implements DataStructureConverter<Integer, java.time.Period> {
 
 	private static final long serialVersionUID = 1L;
 

@@ -28,7 +28,7 @@ import org.apache.flink.table.types.logical.RawType;
  * Converter for {@link RawType} of {@code byte[]} external type.
  */
 @Internal
-class RawByteArrayConverter<T> implements DataStructureConverter<RawValueData<T>, byte[]> {
+public class RawByteArrayConverter<T> implements DataStructureConverter<RawValueData<T>, byte[]> {
 
 	private static final long serialVersionUID = 1L;
 

@@ -35,6 +35,8 @@ import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import java.io.File
 
+import org.apache.flink.table.data.conversion.DataStructureConverter
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
@@ -274,5 +276,12 @@ class ConstantCodeGeneratorContext(tableConfig: TableConfig)
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
       runtimeContextTerm: String = null): String = {
     super.addReusableFunction(function, classOf[ConstantFunctionContext], "parameters")
+  }
+
+  override def addReusableConverter(
+      converter: DataStructureConverter[_, _],
+      classLoaderTerm: String = null)
+    : String = {
+    super.addReusableConverter(converter, "this.getClass().getClassLoader()")
   }
 }

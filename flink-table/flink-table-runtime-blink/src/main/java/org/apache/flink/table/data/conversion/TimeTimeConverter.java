@@ -26,7 +26,7 @@ import org.apache.flink.table.types.logical.TimeType;
  * Converter for {@link TimeType} of {@link java.sql.Time} external type.
  */
 @Internal
-class TimeTimeConverter implements DataStructureConverter<Integer, java.sql.Time> {
+public class TimeTimeConverter implements DataStructureConverter<Integer, java.sql.Time> {
 
 	private static final long serialVersionUID = 1L;
 
