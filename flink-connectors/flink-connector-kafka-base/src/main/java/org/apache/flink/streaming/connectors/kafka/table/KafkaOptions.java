@@ -276,7 +276,7 @@ public class KafkaOptions {
 						return Optional.empty();
 					// Default fallback to full class name of the partitioner.
 					default:
-						return Optional.of(initializePartitioner(partitioner, classLoader));
+						return Optional.<FlinkKafkaPartitioner<RowData>>of(initializePartitioner(partitioner, classLoader));
 					}
 				});
 	}
