@@ -27,7 +27,7 @@ import org.apache.flink.table.types.logical.VarCharType;
  * Converter for {@link CharType}/{@link VarCharType} of {@link String} external type.
  */
 @Internal
-class StringStringConverter implements DataStructureConverter<StringData, String> {
+public class StringStringConverter implements DataStructureConverter<StringData, String> {
 
 	private static final long serialVersionUID = 1L;
 

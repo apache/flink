@@ -32,7 +32,7 @@ import java.util.stream.IntStream;
  * Converter for {@link RowType} of {@link Row} external type.
  */
 @Internal
-class RowRowConverter implements DataStructureConverter<RowData, Row> {
+public class RowRowConverter implements DataStructureConverter<RowData, Row> {
 
 	private static final long serialVersionUID = 1L;
 

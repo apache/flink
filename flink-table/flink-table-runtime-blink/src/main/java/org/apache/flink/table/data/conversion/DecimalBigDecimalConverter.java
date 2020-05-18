@@ -29,7 +29,7 @@ import java.math.BigDecimal;
  * Converter for {@link DecimalType} of {@link BigDecimal} external type.
  */
 @Internal
-class DecimalBigDecimalConverter implements DataStructureConverter<DecimalData, BigDecimal> {
+public class DecimalBigDecimalConverter implements DataStructureConverter<DecimalData, BigDecimal> {
 
 	private static final long serialVersionUID = 1L;
 
