@@ -119,7 +119,7 @@ public class CompositeTypeSerializerSnapshotTest {
 	}
 
 	@Test
-	public void testOuterSnapshotCompatibilityPrecedence() throws IOException {
+	public void testOuterSnapshotIncompatiblePrecedence() throws IOException {
 		TypeSerializer<?>[] testNestedSerializers = {
 			new NestedSerializer(TargetCompatibility.COMPATIBLE_AS_IS),
 		};
@@ -133,6 +133,23 @@ public class CompositeTypeSerializerSnapshotTest {
 		// even though nested serializers are compatible, incompatibility of the outer
 		// snapshot should have higher precedence in the final result
 		Assert.assertTrue(compatibility.isIncompatible());
+	}
+
+	@Test
+	public void testOuterSnapshotRequiresMigrationPrecedence() throws IOException {
+		TypeSerializer<?>[] testNestedSerializers = {
+			new NestedSerializer(TargetCompatibility.COMPATIBLE_WITH_RECONFIGURED_SERIALIZER),
+		};
+
+		TypeSerializerSchemaCompatibility<String> compatibility =
+			snapshotCompositeSerializerAndGetSchemaCompatibilityAfterRestore(
+				testNestedSerializers,
+				testNestedSerializers,
+				OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION);
+
+		// even though nested serializers can be compatible with reconfiguration, the outer
+		// snapshot requiring migration should have higher precedence in the final result
+		Assert.assertTrue(compatibility.isCompatibleAfterMigration());
 	}
 
 	@Test
