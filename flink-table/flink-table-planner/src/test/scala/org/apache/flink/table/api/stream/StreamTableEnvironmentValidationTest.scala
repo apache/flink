@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.api.stream
 
-import java.math.BigDecimal
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{EnvironmentSettings, TableException, ValidationException}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.TimestampWithEqualWatermark
 import org.apache.flink.table.utils.TableTestBase
 
 import org.junit.Test
+
+import java.math.BigDecimal
 
 class StreamTableEnvironmentValidationTest extends TableTestBase {
 

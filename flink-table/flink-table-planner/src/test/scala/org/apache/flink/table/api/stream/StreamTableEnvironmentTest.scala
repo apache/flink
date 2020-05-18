@@ -26,16 +26,16 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecEnv}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.Expressions.$
-import org.apache.flink.table.api.java.internal.{StreamTableEnvironmentImpl => JStreamTableEnvironmentImpl}
-import org.apache.flink.table.api.java.{StreamTableEnvironment => JStreamTableEnv}
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{EnvironmentSettings, ResultKind, TableConfig, TableException, Types, ValidationException}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.java.internal.{StreamTableEnvironmentImpl => JStreamTableEnvironmentImpl}
+import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JStreamTableEnv}
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.utils.StreamTestData
-import org.apache.flink.table.utils.TableTestUtil.{binaryNode, readFromResource, replaceStageId, streamTableNode, term, unaryNode}
+import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{CatalogManagerMocks, TableTestBase}
 import org.apache.flink.types.Row
 

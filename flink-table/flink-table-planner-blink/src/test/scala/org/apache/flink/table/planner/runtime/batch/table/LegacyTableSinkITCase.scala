@@ -18,17 +18,17 @@
 
 package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableSchema}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.test.util.TestBaseUtils
+
 import org.junit.Assert._
 import org.junit._
-import java.util.TimeZone
 
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 

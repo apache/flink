@@ -18,15 +18,16 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.utils.{TableFunc1, TableTestBase}
 import org.apache.flink.table.types.logical._
-import org.junit.Test
-import java.sql.Timestamp
 
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.junit.Test
+
+import java.sql.Timestamp
 
 class DagOptimizationTest extends TableTestBase {
   private val util = batchTestUtil()

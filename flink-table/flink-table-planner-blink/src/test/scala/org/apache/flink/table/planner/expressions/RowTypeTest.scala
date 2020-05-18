@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.api.{DataTypes, ValidationException}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.RowTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
+
 import org.junit.Test
 
 class RowTypeTest extends RowTypeTestBase {

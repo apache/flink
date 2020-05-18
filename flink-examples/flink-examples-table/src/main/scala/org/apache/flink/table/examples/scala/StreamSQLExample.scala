@@ -20,8 +20,8 @@ package org.apache.flink.table.examples.scala
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 
 /**
   * Simple example for demonstrating the use of SQL on a Stream Table in Scala.

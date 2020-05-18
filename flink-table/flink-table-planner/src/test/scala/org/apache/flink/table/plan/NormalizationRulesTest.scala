@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.plan
 
-import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule
-import org.apache.calcite.tools.RuleSets
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.PlannerConfig
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.CalciteConfigBuilder
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
+import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule
+import org.apache.calcite.tools.RuleSets
 import org.junit.Test
 
 class NormalizationRulesTest extends TableTestBase {

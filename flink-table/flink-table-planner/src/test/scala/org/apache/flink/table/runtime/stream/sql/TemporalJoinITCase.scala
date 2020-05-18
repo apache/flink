@@ -18,19 +18,20 @@
 
 package org.apache.flink.table.runtime.stream.sql
 
-import java.sql.Timestamp
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
 import org.junit._
+
+import java.sql.Timestamp
 
 import scala.collection.mutable
 

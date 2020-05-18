@@ -19,10 +19,10 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Table, Tumble}
+import org.apache.flink.table.api._
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.utils.StreamTableTestUtil
+
 import org.junit.Assert._
 import org.junit.Test
 

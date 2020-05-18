@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.expressions
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
+
 import org.joda.time.{DateTime, DateTimeZone}
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class DateTimeFunctionTest extends ExpressionTestBase {
   private val INSTANT = DateTime.parse("1990-01-02T03:04:05.678Z")

@@ -21,16 +21,18 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.planner.runtime.utils.{TestingRetractTableSink, TestingUpsertTableSink, _}
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
+import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Ignore, _}
 
 @RunWith(classOf[Parameterized])
 class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {

@@ -18,7 +18,8 @@
 package org.apache.flink.table.examples.scala
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 
 /**
   * Simple example that shows how the Batch SQL API is used in Scala.

@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, Table, TableSchema, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}

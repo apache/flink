@@ -17,11 +17,10 @@
  */
 package org.apache.flink.table.runtime.stream.table
 
-import java.lang.{Boolean => JBoolean}
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{EnvironmentSettings, Types, ValidationException}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.expressions.utils.{Func18, Func20, RichFunc2}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, _}
 import org.apache.flink.table.utils._
@@ -30,6 +29,8 @@ import org.apache.flink.types.Row
 
 import org.junit.Assert._
 import org.junit.{Before, Test}
+
+import java.lang.{Boolean => JBoolean}
 
 import scala.collection.mutable
 

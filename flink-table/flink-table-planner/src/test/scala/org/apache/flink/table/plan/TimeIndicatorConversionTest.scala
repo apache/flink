@@ -18,17 +18,17 @@
 
 package org.apache.flink.table.plan
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Tumble
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.TimeIndicatorConversionTest.{ScalarFunc, TableFunc}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
+
+import java.sql.Timestamp
 
 /**
   * Tests for [[org.apache.flink.table.calcite.RelTimeIndicatorConverter]].

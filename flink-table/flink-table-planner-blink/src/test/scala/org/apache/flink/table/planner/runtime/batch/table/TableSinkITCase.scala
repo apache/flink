@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._

@@ -25,9 +25,9 @@ import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecutionEnvironment}
 import org.apache.flink.table.api.TableEnvironmentITCase.getPersonCsvTableSource
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment}
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
-import org.apache.flink.table.api.java.StreamTableEnvironment
-import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment}
 import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
@@ -35,19 +35,21 @@ import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStag
 import org.apache.flink.table.utils.{TestTableSourceWithTime, TestingOverwritableTableSink}
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
+
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+
 import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Rule, Test}
-import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
-import _root_.java.lang.{Long => JLong}
-import _root_.java.util
 
-import _root_.scala.collection.mutable
+import java.io.{File, FileOutputStream, OutputStreamWriter}
+import java.lang.{Long => JLong}
+import java.util
 
+import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class TableEnvironmentITCase(tableEnvName: String) {

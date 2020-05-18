@@ -24,8 +24,9 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, ResultKind, TableEnvironment, TableEnvironmentITCase, TableResult, TableSchema}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.sinks.CsvTableSink
@@ -34,17 +35,18 @@ import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TestingOverwrita
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
+
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
 import java.io.File
 import java.lang.{Long => JLong}
 import java.util
-
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
 import scala.collection.JavaConverters._
 import scala.io.Source

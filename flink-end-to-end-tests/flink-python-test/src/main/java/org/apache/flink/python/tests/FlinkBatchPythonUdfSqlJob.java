@@ -18,7 +18,7 @@
 package org.apache.flink.python.tests;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;

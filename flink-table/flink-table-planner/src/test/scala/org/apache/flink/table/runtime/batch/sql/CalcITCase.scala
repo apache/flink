@@ -18,13 +18,10 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import java.sql.{Date, Time, Timestamp}
-import java.util
-
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.expressions.utils.{Func13, SplitUDF}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.batch.table.OldHashCode
@@ -32,10 +29,14 @@ import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMod
 import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
-import org.junit._
+
 import org.junit.Assert.assertEquals
+import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import java.sql.{Date, Time, Timestamp}
+import java.util
 
 import scala.collection.JavaConverters._
 

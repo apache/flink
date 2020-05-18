@@ -18,17 +18,18 @@
 
 package org.apache.flink.table.runtime.harness
 
-import java.time.{Instant, ZoneId}
-import java.util.concurrent.ConcurrentLinkedQueue
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 
 import org.junit.Test
+
+import java.time.{Instant, ZoneId}
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.mutable
 

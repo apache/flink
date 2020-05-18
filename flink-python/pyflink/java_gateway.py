@@ -130,6 +130,7 @@ def import_flink_view(gateway):
     # Import the classes used by PyFlink
     java_import(gateway.jvm, "org.apache.flink.table.api.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.java.*")
+    java_import(gateway.jvm, "org.apache.flink.table.api.bridge.java.*")
     java_import(gateway.jvm, "org.apache.flink.table.api.dataview.*")
     java_import(gateway.jvm, "org.apache.flink.table.catalog.*")
     java_import(gateway.jvm, "org.apache.flink.table.descriptors.*")

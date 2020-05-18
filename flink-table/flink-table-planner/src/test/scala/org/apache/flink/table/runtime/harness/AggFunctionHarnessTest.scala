@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.runtime.harness
 
-import java.lang.{Integer => JInt}
-import java.util.concurrent.ConcurrentLinkedQueue
 import org.apache.flink.api.scala._
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.dataview.StateMapView
 import org.apache.flink.table.runtime.aggregate.GroupAggProcessFunction
@@ -34,6 +32,9 @@ import org.apache.flink.types.Row
 
 import org.junit.Assert.assertTrue
 import org.junit.Test
+
+import java.lang.{Integer => JInt}
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable

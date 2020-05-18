@@ -19,9 +19,9 @@
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Slide, Tumble}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{EmptyTableAggFunc, TableTestBase}
+
 import org.junit.Test
 
 class GroupWindowTableAggregateTest extends TableTestBase {

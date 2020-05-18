@@ -19,9 +19,10 @@
 package org.apache.flink.table.api.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.Func0
 import org.apache.flink.table.utils.{TableTestBase, Top3WithMapView}
+
 import org.junit.Test
 
 class TableAggregateStringExpressionTest extends TableTestBase {

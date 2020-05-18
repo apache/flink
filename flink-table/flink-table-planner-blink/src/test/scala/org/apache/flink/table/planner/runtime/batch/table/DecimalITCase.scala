@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, Table}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType

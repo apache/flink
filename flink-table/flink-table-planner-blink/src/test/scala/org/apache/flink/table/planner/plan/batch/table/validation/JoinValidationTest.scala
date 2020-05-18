@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.plan.batch.table.validation
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{EnvironmentSettings, TableException, ValidationException}
 import org.apache.flink.table.planner.runtime.utils.CollectionBatchExecTable
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
