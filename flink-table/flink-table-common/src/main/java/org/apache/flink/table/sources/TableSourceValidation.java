@@ -75,6 +75,15 @@ public class TableSourceValidation {
 		return !getRowtimeAttributes(tableSource).isEmpty();
 	}
 
+	/**
+	 * Checks if the given {@link TableSource} defines a proctime attribute.
+	 * @param tableSource The table source to check.
+	 * @return true if the given table source defines proctime attribute.
+	 */
+	public static boolean hasProctimeAttribute(TableSource<?> tableSource) {
+		return getProctimeAttribute(tableSource).isPresent();
+	}
+
 	private static void validateSingleRowtimeAttribute(List<RowtimeAttributeDescriptor> rowtimeAttributes) {
 		if (rowtimeAttributes.size() > 1) {
 			throw new ValidationException("Currently, only a single rowtime attribute is supported. " +
