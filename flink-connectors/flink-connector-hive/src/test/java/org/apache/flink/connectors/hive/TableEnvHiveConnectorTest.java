@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableEnvironment;
@@ -536,8 +537,7 @@ public class TableEnvHiveConnectorTest {
 		}
 	}
 
-	@Test
-	public void testCompressTextTable() throws Exception {
+	private void testCompressTextTable(boolean batch) throws Exception {
 		hiveShell.execute("create database db1");
 		try {
 			hiveShell.execute("create table db1.src (x string,y string)");
@@ -547,14 +547,26 @@ public class TableEnvHiveConnectorTest {
 					.addRow(new Object[]{"c", "d"})
 					.commit();
 			hiveCatalog.getHiveConf().setBoolVar(HiveConf.ConfVars.COMPRESSRESULT, true);
-			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert overwrite db1.dest select * from db1.src");
+			TableEnvironment tableEnv = batch ?
+					getTableEnvWithHiveCatalog() :
+					getStreamTableEnvWithHiveCatalog();
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
 			List<String> expected = Arrays.asList("a\tb", "c\td");
 			verifyHiveQueryResult("select * from db1.dest", expected);
 			verifyFlinkQueryResult(tableEnv.sqlQuery("select * from db1.dest"), expected);
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}
+	}
+
+	@Test
+	public void testBatchCompressTextTable() throws Exception {
+		testCompressTextTable(true);
+	}
+
+	@Test
+	public void testStreamCompressTextTable() throws Exception {
+		testCompressTextTable(false);
 	}
 
 	@Test
@@ -633,6 +645,14 @@ public class TableEnvHiveConnectorTest {
 
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tableEnv.useCatalog(hiveCatalog.getName());
+		return tableEnv;
+	}
+
+	private TableEnvironment getStreamTableEnvWithHiveCatalog() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 		tableEnv.useCatalog(hiveCatalog.getName());
 		return tableEnv;
