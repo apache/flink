@@ -48,6 +48,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -328,7 +329,7 @@ public class ClassPathPackagedProgramRetrieverTest extends TestLogger {
 			containsInAnyOrder(expectedURLs.stream().map(URL::toString).toArray()));
 	}
 
-	private JobGraph retrieveJobGraph(ClassPathPackagedProgramRetriever retrieverUnderTest, Configuration configuration) throws FlinkException, ProgramInvocationException {
+	private JobGraph retrieveJobGraph(ClassPathPackagedProgramRetriever retrieverUnderTest, Configuration configuration) throws FlinkException, ProgramInvocationException, MalformedURLException {
 		final PackagedProgram packagedProgram = retrieverUnderTest.getPackagedProgram();
 
 		final int defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
