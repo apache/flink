@@ -217,10 +217,10 @@ The key and value of expression `key1=val1` should both be string literal. See d
 
 **LIKE clause**
 
-The `LIKE` clause is a variant of a SQL features (Feature T171, “LIKE clause in table definition” and Feature T173, “Extended LIKE clause in table definition”). The clause can be used to create a table based on a definition of an existing table. Additionally, users
+The `LIKE` clause is a variant of SQL features (Feature T171, “LIKE clause in table definition” and Feature T173, “Extended LIKE clause in table definition”). The clause can be used to create a table based on a definition of an existing table. Additionally, users
 can extend the original table or exclude certain parts of it. In contrast to the SQL standard the clause must be defined at the top-level of a CREATE statement. That is because the clause applies to multiple parts of the definition and not only to the schema part.
 
-You can use the clause e.g. to reuse, but overwrite certain connector properties or add watermarks to tables defined externally, e.g. add a watermark to a table created in Apache Hive. 
+You can use the clause e.g. to reuse (and potentially overwrite) certain connector properties or add watermarks to tables defined externally, e.g. add a watermark to a table created in Apache Hive. 
 
 Consider the example statement below:
 {% highlight sql %}
@@ -274,10 +274,7 @@ with three different merging strategies:
 
 Additionally, you can use the `INCLUDING/EXCLUDING ALL` option to specify what should be the strategy if there was no specific strategy defined, i.e. if you use `EXCLUDING ALL INCLUDING WATERMARKS` only the watermarks will be included from the source table.
 
-If you provide no like options, by default the planner will use `INCLUDING ALL OVERWRITING OPTIONS` options.
-
-**NOTE** You cannot control the behavior of merging physical fields. Those will be merged as if you applied the `INCLUDING` strategy.
-
+Example:
 {% highlight sql %}
 -- A source table stored in a filesystem
 CREATE TABLE Orders_in_file (
@@ -309,6 +306,9 @@ LIKE Orders_in_file (
 );
 {% endhighlight %}
 
+If you provide no like options, by default the planner will use `INCLUDING ALL OVERWRITING OPTIONS` options.
+
+**NOTE** You cannot control the behavior of merging physical fields. Those will be merged as if you applied the `INCLUDING` strategy.
 
 {% top %}
 
