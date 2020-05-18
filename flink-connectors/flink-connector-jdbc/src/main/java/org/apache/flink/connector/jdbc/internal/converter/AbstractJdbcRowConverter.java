@@ -20,22 +20,18 @@ package org.apache.flink.connector.jdbc.internal.converter;
 
 import org.apache.flink.connector.jdbc.utils.JdbcTypeUtil;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.io.Serializable;
-import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -162,7 +158,6 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 				final int scale = ((DecimalType) type).getScale();
 				return v -> DecimalData.fromBigDecimal((BigDecimal) v, precision, scale);
 			case ARRAY:
-				return createToInternalArrayConverter((ArrayType) type);
 			case ROW:
 			case MAP:
 			case MULTISET:
@@ -170,19 +165,6 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 			default:
 				throw new UnsupportedOperationException("Unsupported type:" + type);
 		}
-	}
-
-	protected JdbcDeserializationConverter createToInternalArrayConverter(ArrayType arrayType) {
-		final JdbcDeserializationConverter elementConverter = createNullableInternalConverter(arrayType.getElementType());
-		final Class<?> elementClass = LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
-		return v -> {
-			final Object[] objects = (Object[]) v;
-			final Object[] array = (Object[]) Array.newInstance(elementClass, objects.length);
-			for (int i = 0; i < objects.length; i++) {
-				array[i] = elementConverter.deserialize(objects[i]);
-			}
-			return new GenericArrayData(array);
-		};
 	}
 
 	/**
@@ -250,17 +232,12 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 						index + 1,
 						val.getDecimal(index, decimalPrecision, decimalScale).toBigDecimal());
 			case ARRAY:
-				//note: dialect need implements the conversion from ArrayData to JDBC Array if the dialect supports array.
-				return (val, index, statement) -> {
-					throw new IllegalStateException(
-						String.format("JDBC:%s do not support write ARRAY type.", converterName()));
-				};
 			case MAP:
 			case MULTISET:
 			case ROW:
 			case RAW:
 			default:
-				throw new UnsupportedOperationException("Unsupported type: " + type);
+				throw new UnsupportedOperationException("Unsupported type:" + type);
 		}
 	}
 }

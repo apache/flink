@@ -29,7 +29,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * JDBC dialect for Postgres.
+ * JDBC dialect for PostgreSQL.
  */
 public class PostgresDialect extends AbstractDialect {
 

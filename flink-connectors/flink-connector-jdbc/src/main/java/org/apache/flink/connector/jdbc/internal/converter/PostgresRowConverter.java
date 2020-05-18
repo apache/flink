@@ -33,7 +33,7 @@ import org.postgresql.util.PGobject;
 import java.lang.reflect.Array;
 
 /**
- * Runtime converter that responsible to convert between JDBC object and Flink internal object for Postgres.
+ * Runtime converter that responsible to convert between JDBC object and Flink internal object for PostgreSQL.
  */
 public class PostgresRowConverter extends AbstractJdbcRowConverter {
 
@@ -57,6 +57,20 @@ public class PostgresRowConverter extends AbstractJdbcRowConverter {
 			return createPostgresArrayConverter(arrayType);
 		} else {
 			return createPrimitiveConverter(type);
+		}
+	}
+
+	@Override
+	protected JdbcSerializationConverter createNullableExternalConverter(LogicalType type) {
+		LogicalTypeRoot root = type.getTypeRoot();
+		if (root == LogicalTypeRoot.ARRAY) {
+			//note:Writing ARRAY type is not yet supported by PostgreSQL dialect now.
+			return (val, index, statement) -> {
+				throw new IllegalStateException(
+					String.format("Writing ARRAY type is not yet supported in JDBC:%s.", converterName()));
+			};
+		} else {
+			return super.createNullableExternalConverter(type);
 		}
 	}
 
