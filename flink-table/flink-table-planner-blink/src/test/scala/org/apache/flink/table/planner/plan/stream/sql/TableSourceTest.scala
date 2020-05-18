@@ -37,7 +37,7 @@ class TableSourceTest extends TableTestBase {
          |  name varchar(32),
          |  watermark for rowtime as rowtime
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'bounded' = 'false'
          |)
        """.stripMargin
@@ -57,7 +57,7 @@ class TableSourceTest extends TableTestBase {
          |  name varchar(32),
          |  watermark for rowtime as rowtime
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'bounded' = 'false'
          |)
        """.stripMargin
@@ -86,7 +86,7 @@ class TableSourceTest extends TableTestBase {
          |  pTime as PROCTIME(),
          |  watermark for pTime as pTime
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'bounded' = 'false'
          |)
        """.stripMargin
@@ -107,7 +107,7 @@ class TableSourceTest extends TableTestBase {
          |  ptime as PROCTIME(),
          |  watermark for ptime as ptime
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'bounded' = 'false'
          |)
        """.stripMargin
@@ -128,7 +128,7 @@ class TableSourceTest extends TableTestBase {
          |  ptime as PROCTIME(),
          |  watermark for rtime as rtime
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'bounded' = 'false'
          |)
        """.stripMargin
@@ -148,7 +148,7 @@ class TableSourceTest extends TableTestBase {
          |  ptime as PROCTIME(),
          |  watermark for rtime as rtime
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'bounded' = 'false'
          |)
        """.stripMargin
@@ -168,7 +168,7 @@ class TableSourceTest extends TableTestBase {
          |  ptime as PROCTIME(),
          |  watermark for ptime as ptime
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'bounded' = 'false'
          |)
        """.stripMargin
@@ -188,7 +188,7 @@ class TableSourceTest extends TableTestBase {
          |  ptime as PROCTIME(),
          |  watermark for rtime as rtime
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'bounded' = 'false'
          |)
        """.stripMargin
@@ -208,7 +208,7 @@ class TableSourceTest extends TableTestBase {
          |  nested row<name string, `value` int>,
          |  name string
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'nested-projection-supported' = 'false',
          |  'bounded' = 'false'
          |)
@@ -235,7 +235,7 @@ class TableSourceTest extends TableTestBase {
          |  id int,
          |  name varchar(32)
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'bounded' = 'false'
          |)
        """.stripMargin

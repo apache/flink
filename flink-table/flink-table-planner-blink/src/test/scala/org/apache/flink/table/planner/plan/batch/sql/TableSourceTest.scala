@@ -35,7 +35,7 @@ class TableSourceTest extends TableTestBase {
          |  b bigint,
          |  c varchar(32)
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'bounded' = 'true'
          |)
        """.stripMargin
@@ -49,7 +49,7 @@ class TableSourceTest extends TableTestBase {
         |  nested row<name string, `value` int>,
         |  name string
         |) WITH (
-        | 'connector' = 'projectable-values',
+        | 'connector' = 'values',
         |  'bounded' = 'true'
         |)
         |""".stripMargin
