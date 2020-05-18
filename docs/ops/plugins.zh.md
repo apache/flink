@@ -26,7 +26,7 @@ under the License.
 Plugins facilitate a strict separation of code through restricted classloaders. Plugins cannot
 access classes from other plugins or from Flink that have not been specifically whitelisted. This
 strict isolation allows plugins to contain conflicting versions of the same library without the need
-to relocate classes or to converge to common versions. Currently, only file systems are pluggable
+to relocate classes or to converge to common versions. Currently, file systems and metric reporters are pluggable
 but in the future, connectors, formats, and even user code should also be pluggable.
 
 * This will be replaced by the TOC
@@ -113,5 +113,10 @@ Add when we have a real whitelist
 The whitelisted classes mainly consists of the necessary interfaces to implement the plugins.
 Furthermore, loggers are whitelisted, so that they are configured properly.
 -->
+
+## Metric Reporters
+
+All [metric reporters](../monitoring/metrics.html#Reporter) that Flink provides can be used as plugins.
+See the [metrics](../monitoring/metrics.html) documentation for more details.
 
 {% top %}
