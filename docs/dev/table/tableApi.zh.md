@@ -46,7 +46,6 @@ For the Expression DSL it is also necessary to import static `org.apache.flink.t
 
 {% highlight java %}
 import org.apache.flink.table.api.*
-import org.apache.flink.table.api.java.*
 
 import static org.apache.flink.table.api.Expressions.*
 
@@ -73,14 +72,14 @@ result.print();
 
 <div data-lang="scala" markdown="1">
 
-The Scala Table API is enabled by importing `org.apache.flink.api.scala._` and `org.apache.flink.table.api.scala._`.
+The Scala Table API is enabled by importing `org.apache.flink.table.api._`, `org.apache.flink.api.scala._`, and `org.apache.flink.table.api.bridge.scala._` (for bridging to/from DataStream).
 
 The following example shows how a Scala Table API program is constructed. Table fields are referenced using Scala's String interpolation using a dollar character (`$`).
 
 {% highlight scala %}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.bridge.scala._
 
 // environment configuration
 val env = ExecutionEnvironment.getExecutionEnvironment
@@ -3157,6 +3156,6 @@ timeIndicator = fieldReference , "." , ( "proctime" | "rowtime" ) ;
 
 **Temporal intervals:** Temporal intervals can be represented as number of months (`Types.INTERVAL_MONTHS`) or number of milliseconds (`Types.INTERVAL_MILLIS`). Intervals of same type can be added or subtracted (e.g. `1.hour + 10.minutes`). Intervals of milliseconds can be added to time points (e.g. `"2016-08-10".toDate + 5.days`).
 
-**Scala expressions:** Scala expressions use implicit conversions. Therefore, make sure to add the wildcard import `org.apache.flink.table.api.scala._` to your programs. In case a literal is not treated as an expression, use `.toExpr` such as `3.toExpr` to force a literal to be converted.
+**Scala expressions:** Scala expressions use implicit conversions. Therefore, make sure to add the wildcard import `org.apache.flink.table.api._` to your programs. In case a literal is not treated as an expression, use `.toExpr` such as `3.toExpr` to force a literal to be converted.
 
 {% top %}

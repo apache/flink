@@ -157,7 +157,7 @@ table_env.execute("python_job")
 // **********************
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 EnvironmentSettings fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build();
 StreamExecutionEnvironment fsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -168,7 +168,7 @@ StreamTableEnvironment fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSetti
 // FLINK BATCH QUERY
 // ******************
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 
 ExecutionEnvironment fbEnv = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment fbTableEnv = BatchTableEnvironment.create(fbEnv);
@@ -178,7 +178,7 @@ BatchTableEnvironment fbTableEnv = BatchTableEnvironment.create(fbEnv);
 // **********************
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 StreamExecutionEnvironment bsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
@@ -205,7 +205,7 @@ TableEnvironment bbTableEnv = TableEnvironment.create(bbSettings);
 // **********************
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 
 val fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build()
 val fsEnv = StreamExecutionEnvironment.getExecutionEnvironment
@@ -216,7 +216,7 @@ val fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSettings)
 // FLINK BATCH QUERY
 // ******************
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.table.api.scala.BatchTableEnvironment
+import org.apache.flink.table.api.bridge.scala.BatchTableEnvironment
 
 val fbEnv = ExecutionEnvironment.getExecutionEnvironment
 val fbTableEnv = BatchTableEnvironment.create(fbEnv)
@@ -226,7 +226,7 @@ val fbTableEnv = BatchTableEnvironment.create(fbEnv)
 // **********************
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 
 val bsEnv = StreamExecutionEnvironment.getExecutionEnvironment
 val bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
@@ -531,7 +531,9 @@ val revenue = orders
 // execute query
 {% endhighlight %}
 
-**Note:** The Scala Table API uses Scala Symbols, which start with a single tick (`'`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import `org.apache.flink.api.scala._` and `org.apache.flink.table.api.scala._` in order to use Scala implicit conversions.
+**Note:** The Scala Table API uses Scala String interpolation that starts with a dollar sign (`$`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import
+* `org.apache.flink.table.api._` - for implicit expression conversions 
+* `org.apache.flink.api.scala._` and `org.apache.flink.table.api.bridge.scala._` if you want to convert from/to DataStream.
 </div>
 
 <div data-lang="python" markdown="1">
@@ -858,7 +860,7 @@ Table API 和 SQL 可以被很容易地集成并嵌入到 [DataStream]({{ site.b
 
 ### Scala 隐式转换
 
-Scala Table API 含有对 `DataSet`、`DataStream` 和 `Table` 类的隐式转换。 通过为 Scala DataStream API 导入 `org.apache.flink.table.api.scala._` 包以及 `org.apache.flink.api.scala._` 包，可以启用这些转换。
+Scala Table API 含有对 `DataSet`、`DataStream` 和 `Table` 类的隐式转换。 通过为 Scala DataStream API 导入 `org.apache.flink.table.api.bridge.scala._` 包以及 `org.apache.flink.api.scala._` 包，可以启用这些转换。
 
 ### 通过 DataSet 或 DataStream 创建`视图`
 

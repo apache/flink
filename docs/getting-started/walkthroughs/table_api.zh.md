@@ -451,7 +451,7 @@ import org.apache.flink.walkthrough.common.table.TransactionTableSource;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Tumble;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 public class SpendReport {
 
@@ -484,7 +484,8 @@ package spendreport
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.table.api.Tumble
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.walkthrough.common.table._
 
 object SpendReport {
