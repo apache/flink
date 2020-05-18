@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 
 /**
- * A {@link DataStreamSink} which is used to collect query results.
+ * A {@link DataStreamSink} which is used to collect results of a data stream.
  * It completely overwrites {@link DataStreamSink} so that its own transformation is manipulated.
  */
 @Internal

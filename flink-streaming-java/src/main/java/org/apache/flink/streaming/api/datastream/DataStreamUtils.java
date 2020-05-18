@@ -47,8 +47,7 @@ public final class DataStreamUtils {
 	public static <OUT> Iterator<OUT> collect(DataStream<OUT> stream) {
 		TypeSerializer<OUT> serializer = stream.getType().createSerializer(
 			stream.getExecutionEnvironment().getConfig());
-		String id = UUID.randomUUID().toString();
-		String accumulatorName = "dataStreamCollect_" + id;
+		String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
 
 		CollectSinkOperatorFactory<OUT> factory = new CollectSinkOperatorFactory<>(serializer, accumulatorName);
 		CollectSinkOperator<OUT> operator = (CollectSinkOperator<OUT>) factory.getOperator();
@@ -61,7 +60,7 @@ public final class DataStreamUtils {
 		env.addOperator(sink.getTransformation());
 
 		try {
-			JobClient jobClient = env.executeAsync("DataStreamCollect_" + id);
+			JobClient jobClient = env.executeAsync("Data Stream Collect");
 			iterator.setJobClient(jobClient);
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to execute data stream", e);
