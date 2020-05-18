@@ -63,14 +63,17 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	/** The schema to convert between Kafka's byte messages, and Flink's objects. */
 	private final KafkaDeserializationSchema<T> deserializer;
 
+	/** A collector to emit records in batch (bundle). **/
+	private final KafkaCollector kafkaCollector;
+
 	/** The handover of data and exceptions between the consumer thread and the task thread. */
-	private final Handover handover;
+	final Handover handover;
 
 	/** The thread that runs the actual KafkaConsumer and hand the record batches to this fetcher. */
-	private final KafkaConsumerThread consumerThread;
+	final KafkaConsumerThread consumerThread;
 
 	/** Flag to mark the main work loop as alive. */
-	private volatile boolean running = true;
+	volatile boolean running = true;
 
 	// ------------------------------------------------------------------------
 
@@ -111,19 +114,16 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			useMetrics,
 			consumerMetricGroup,
 			subtaskMetricGroup);
+		this.kafkaCollector = new KafkaCollector();
 	}
 
 	// ------------------------------------------------------------------------
 	//  Fetcher work methods
 	// ------------------------------------------------------------------------
 
-	private final KafkaCollector kafkaCollector = new KafkaCollector();
-
 	@Override
 	public void runFetchLoop() throws Exception {
 		try {
-			final Handover handover = this.handover;
-
 			// kick off the actual Kafka consumer
 			consumerThread.start();
 
@@ -138,23 +138,7 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 					List<ConsumerRecord<byte[], byte[]>> partitionRecords =
 						records.records(partition.getKafkaPartitionHandle());
 
-					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
-						deserializer.deserialize(record, kafkaCollector);
-
-						// emit the actual records. this also updates offset state atomically and emits
-						// watermarks
-						emitRecordsWithTimestamps(
-							kafkaCollector.getRecords(),
-							partition,
-							record.offset(),
-							record.timestamp());
-
-						if (kafkaCollector.isEndOfStreamSignalled()) {
-							// end of stream signaled
-							running = false;
-							break;
-						}
-					}
+					partitionConsumerRecordsHandler(partitionRecords, partition);
 				}
 			}
 		}
@@ -187,6 +171,29 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	 */
 	protected String getFetcherName() {
 		return "Kafka Fetcher";
+	}
+
+	protected void partitionConsumerRecordsHandler(
+			List<ConsumerRecord<byte[], byte[]>> partitionRecords,
+			KafkaTopicPartitionState<T, TopicPartition> partition) throws Exception {
+
+		for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
+			deserializer.deserialize(record, kafkaCollector);
+
+			// emit the actual records. this also updates offset state atomically and emits
+			// watermarks
+			emitRecordsWithTimestamps(
+				kafkaCollector.getRecords(),
+				partition,
+				record.offset(),
+				record.timestamp());
+
+			if (kafkaCollector.isEndOfStreamSignalled()) {
+				// end of stream signaled
+				running = false;
+				break;
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
