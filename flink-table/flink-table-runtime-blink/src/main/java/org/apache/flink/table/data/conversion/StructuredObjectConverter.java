@@ -46,7 +46,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFi
  */
 @Internal
 @SuppressWarnings("unchecked")
-class StructuredObjectConverter<T> implements DataStructureConverter<RowData, T> {
+public class StructuredObjectConverter<T> implements DataStructureConverter<RowData, T> {
 
 	private static final long serialVersionUID = 1L;
 

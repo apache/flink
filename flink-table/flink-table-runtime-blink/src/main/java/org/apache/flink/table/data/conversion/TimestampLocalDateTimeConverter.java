@@ -26,7 +26,7 @@ import org.apache.flink.table.types.logical.TimestampType;
  * Converter for {@link TimestampType} of {@link java.time.LocalDateTime} external type.
  */
 @Internal
-class TimestampLocalDateTimeConverter implements DataStructureConverter<TimestampData, java.time.LocalDateTime> {
+public class TimestampLocalDateTimeConverter implements DataStructureConverter<TimestampData, java.time.LocalDateTime> {
 
 	private static final long serialVersionUID = 1L;
 

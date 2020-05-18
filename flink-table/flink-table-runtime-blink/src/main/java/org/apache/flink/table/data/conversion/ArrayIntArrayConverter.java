@@ -27,7 +27,7 @@ import org.apache.flink.table.types.logical.ArrayType;
  * Converter for {@link ArrayType} of {@code int[]} external type.
  */
 @Internal
-class ArrayIntArrayConverter implements DataStructureConverter<ArrayData, int[]> {
+public class ArrayIntArrayConverter implements DataStructureConverter<ArrayData, int[]> {
 
 	private static final long serialVersionUID = 1L;
 
