@@ -456,7 +456,6 @@ public class ExecutionContext<ClusterID> {
 		config.addConfiguration(flinkConfig);
 		environment.getConfiguration().asMap().forEach((k, v) ->
 				config.getConfiguration().setString(k, v));
-		config.setSqlDialect(environment.getExecution().getSqlDialect());
 
 		if (noInheritedState) {
 			//--------------------------------------------------------------------------------------------------------------
