@@ -38,7 +38,7 @@ public class SqlDropCatalog extends SqlDrop {
 	private static final SqlOperator OPERATOR = new SqlSpecialOperator("DROP CATALOG", SqlKind.OTHER_DDL);
 
 	private final SqlIdentifier catalogName;
-	private boolean ifExists;
+	private final boolean ifExists;
 
 	public SqlDropCatalog(SqlParserPos pos, SqlIdentifier catalogName, boolean ifExists) {
 		super(OPERATOR, pos, false);
@@ -63,6 +63,9 @@ public class SqlDropCatalog extends SqlDrop {
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.keyword("DROP");
 		writer.keyword("CATALOG");
+		if (ifExists) {
+			writer.keyword("IF EXISTS");
+		}
 		catalogName.unparse(writer, leftPrec, rightPrec);
 	}
 
