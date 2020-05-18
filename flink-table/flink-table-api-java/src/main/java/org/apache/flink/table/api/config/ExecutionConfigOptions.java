@@ -220,22 +220,6 @@ public class ExecutionConfigOptions {
 				" is set true, its value must be positive.");
 
 	// ------------------------------------------------------------------------
-	//  Result Collect Options
-	// ------------------------------------------------------------------------
-
-	public static final ConfigOption<Integer> TABLE_EXEC_COLLECT_BATCH_SIZE =
-		key("table.exec.collect.batch.size")
-			.defaultValue(10000)
-			.withDescription("The maximum number of results transmitted from the sink function to the client each time. " +
-				"This option can be set to a larger value if both network bandwidth and task manager's memory are enough.");
-
-	public static final ConfigOption<Integer> TABLE_EXEC_COLLECT_SOCKET_TIMEOUT =
-		key("table.exec.collect.socket.timeout")
-			.defaultValue(10000)
-			.withDescription("The timeout in milliseconds for one collect request from the client to the sink function. " +
-				"It's recommended to set this value the same with akka timeout.");
-
-	// ------------------------------------------------------------------------
 	//  Other Exec Options
 	// ------------------------------------------------------------------------
 	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)

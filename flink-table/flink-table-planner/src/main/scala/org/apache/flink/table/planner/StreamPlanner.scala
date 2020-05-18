@@ -122,10 +122,8 @@ class StreamPlanner(
     }.filter(Objects.nonNull).asJava
   }
 
-  override def createSelectTableSink(
-      tableConfig: TableConfig,
-      tableSchema: TableSchema): SelectTableSink = {
-    new StreamSelectTableSink(tableConfig, tableSchema)
+  override def createSelectTableSink(tableSchema: TableSchema): SelectTableSink = {
+    new StreamSelectTableSink(tableSchema)
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {

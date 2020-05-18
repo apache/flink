@@ -27,9 +27,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.SelectTableSink;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
@@ -54,20 +52,16 @@ public class StreamSelectTableSink implements AppendStreamTableSink<Row>, Select
 	private final CollectResultIterator<Row> iterator;
 
 	@SuppressWarnings("unchecked")
-	public StreamSelectTableSink(TableConfig tableConfig, TableSchema tableSchema) {
+	public StreamSelectTableSink(TableSchema tableSchema) {
 		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
 				SelectTableSinkSchemaConverter.changeDefaultConversionClass(tableSchema));
 
 		TypeSerializer<Row> typeSerializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
 			.fromDataTypeToTypeInfo(this.tableSchema.toRowDataType())
 			.createSerializer(new ExecutionConfig());
-		int batchSize = tableConfig.getConfiguration().getInteger(
-			ExecutionConfigOptions.TABLE_EXEC_COLLECT_BATCH_SIZE);
-		int socketTimeout = tableConfig.getConfiguration().getInteger(
-			ExecutionConfigOptions.TABLE_EXEC_COLLECT_SOCKET_TIMEOUT);
 		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
 
-		this.factory = new CollectSinkOperatorFactory<>(typeSerializer, batchSize, accumulatorName, socketTimeout);
+		this.factory = new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
 		CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
 		this.iterator = new CollectResultIterator<>(operator.getOperatorIdFuture(), typeSerializer, accumulatorName);
 	}

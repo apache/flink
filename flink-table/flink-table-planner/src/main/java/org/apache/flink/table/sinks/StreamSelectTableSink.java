@@ -27,9 +27,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.internal.SelectTableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
@@ -49,17 +47,13 @@ public class StreamSelectTableSink implements AppendStreamTableSink<Row>, Select
 	private final CollectSinkOperatorFactory<Row> factory;
 	private final CollectResultIterator<Row> iterator;
 
-	public StreamSelectTableSink(TableConfig tableConfig, TableSchema tableSchema) {
+	public StreamSelectTableSink(TableSchema tableSchema) {
 		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(tableSchema);
 
 		TypeSerializer<Row> typeSerializer = this.tableSchema.toRowType().createSerializer(new ExecutionConfig());
-		int batchSize = tableConfig.getConfiguration().getInteger(
-			ExecutionConfigOptions.TABLE_EXEC_COLLECT_BATCH_SIZE);
-		int socketTimeout = tableConfig.getConfiguration().getInteger(
-			ExecutionConfigOptions.TABLE_EXEC_COLLECT_SOCKET_TIMEOUT);
 		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
 
-		this.factory = new CollectSinkOperatorFactory<>(typeSerializer, batchSize, accumulatorName, socketTimeout);
+		this.factory = new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
 		CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
 		this.iterator = new CollectResultIterator<>(operator.getOperatorIdFuture(), typeSerializer, accumulatorName);
 	}
