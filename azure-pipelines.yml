@@ -62,7 +62,7 @@ jobs:
     parameters: # see template file for a definition of the parameters.
       stage_name: ci_build
       test_pool_definition:
-        vmImage: 'ubuntu-latest'
+        vmImage: 'ubuntu-16.04'
       e2e_pool_definition:
         vmImage: 'ubuntu-16.04'
       environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
