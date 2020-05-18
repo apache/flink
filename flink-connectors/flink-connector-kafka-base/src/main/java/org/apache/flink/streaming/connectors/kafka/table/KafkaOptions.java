@@ -263,7 +263,6 @@ public class KafkaOptions {
 	/**
 	 * The partitioner can be either "fixed", "round-robin" or a customized partitioner full class name.
 	 */
-	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static Optional<FlinkKafkaPartitioner<RowData>> getFlinkKafkaPartitioner(
 			ReadableConfig tableOptions,
 			ClassLoader classLoader) {
@@ -340,8 +339,7 @@ public class KafkaOptions {
 	/**
 	 * Returns a class value with the given class name.
 	 */
-	@SuppressWarnings("rawtypes")
-	private static FlinkKafkaPartitioner initializePartitioner(String name, ClassLoader classLoader) {
+	private static <T> FlinkKafkaPartitioner<T> initializePartitioner(String name, ClassLoader classLoader) {
 		try {
 			Class<?> clazz = Class.forName(name, true, classLoader);
 			if (!FlinkKafkaPartitioner.class.isAssignableFrom(clazz)) {
@@ -350,7 +348,10 @@ public class KafkaOptions {
 								name,
 								FlinkKafkaPartitioner.class.getName()));
 			}
-			return InstantiationUtil.instantiate(name, FlinkKafkaPartitioner.class, classLoader);
+			@SuppressWarnings("unchecked")
+			final FlinkKafkaPartitioner<T> kafkaPartitioner = InstantiationUtil.instantiate(name, FlinkKafkaPartitioner.class, classLoader);
+
+			return kafkaPartitioner;
 		} catch (ClassNotFoundException | FlinkException e) {
 			throw new ValidationException(
 					String.format("Could not find and instantiate partitioner class '%s'", name), e);
