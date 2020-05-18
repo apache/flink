@@ -24,8 +24,6 @@ import org.apache.flink.connectors.hive.write.HiveOutputFormatFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
 import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
 import org.apache.flink.orc.OrcSplitReaderUtil;
-import org.apache.flink.orc.vector.RowDataVectorizer;
-import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
@@ -75,7 +73,6 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import static org.apache.flink.table.filesystem.FileSystemTableFactory.SINK_ROLLING_POLICY_FILE_SIZE;
 import static org.apache.flink.table.filesystem.FileSystemTableFactory.SINK_ROLLING_POLICY_TIME_INTERVAL;
@@ -228,10 +225,8 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 					formatType, formatConf, hiveVersion.startsWith("3."));
 		} else if (serLib.contains("orc")) {
 			TypeDescription typeDescription = OrcSplitReaderUtil.logicalTypeToOrcType(formatType);
-			bulkFactory = new OrcBulkWriterFactory<>(
-					new RowDataVectorizer(typeDescription.toString(), formatTypes),
-					new Properties(),
-					formatConf);
+			bulkFactory = hiveShim.createOrcBulkWriterFactory(
+					formatConf, typeDescription.toString(), formatTypes);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 					"Only parquet or orc can support streaming writing, but now serialization lib is %s.",
