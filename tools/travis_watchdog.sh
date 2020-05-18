@@ -39,7 +39,7 @@ echo "Build for commit ${TRAVIS_COMMIT} of ${TRAVIS_REPO_SLUG} [build ID: ${TRAV
 # =============================================================================
 
 # Number of seconds w/o output before printing a stack trace and killing $MVN
-MAX_NO_OUTPUT=${1:-600}
+MAX_NO_OUTPUT=${1:-900}
 
 # Number of seconds to sleep before checking the output again
 SLEEP_TIME=20
