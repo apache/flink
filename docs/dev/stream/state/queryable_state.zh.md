@@ -27,55 +27,54 @@ under the License.
 {:toc}
 
 <div class="alert alert-warning">
-  <strong>Note:</strong> 目前客户端的API处于不断演进的状态，<strong>无法保证</strong>当前的接口是稳定的。在接下来的Flink版本中，
-  客户端的API很有可能会发生变化。
+  <strong>注意:</strong> 目前 querable state 的客户端 API 还在不断演进，<strong>不保证</strong>现有接口的稳定性。在后续的 Flink 版本中有可能发生 API 变化。
 </div>
 
-简而言之, 这个特性将Flink的managed keyed (partitioned) state
-(参考 [Working with State]({{ site.baseurl }}/dev/stream/state/state.html)) 暴露给外部，从而用户可以在Flink外部查询作业状态。
-在某些场景中，可查询状态消除了对外部系统的分布式操作/事务的需求，比如KV存储系统，而这些外部系统往往会成为瓶颈。除此之外，这个特性对于调试作业非常有用。
+简而言之, 这个特性将 Flink 的managed keyed (partitioned) state
+(参考 [Working with State]({{ site.baseurl }}/dev/stream/state/state.html)) 暴露给外部，从而用户可以在 Flink 外部查询作业 state。
+在某些场景中，可查询状态消除了对外部系统的分布式操作/事务的需求，比如 KV 存储系统，而这些外部系统往往会成为瓶颈。除此之外，这个特性对于调试作业非常有用。
 
 <div class="alert alert-warning">
-  <strong>注意:</strong> 进行查询时，状态会在并发线程中被访问，但并不会对状态进行同步和拷贝。这种设计是为了避免同步和拷贝带来的作业延时。对于使用Java堆内存的状态后端，
-  <i>比如</i> <code>MemoryStateBackend</code> 或者 <code>FsStateBackend</code>, 它们获取状态时不会进行拷贝，而是直接引用状态对象，所以对状态的读、修改和写是不安全的，并且
-  可能会因为并发修改导致查询失败。但 <code>RocksDBStateBackend</code> 是安全的，不会遇到上述的问题。
+  <strong>注意:</strong> 进行查询时，状态会在并发线程中被访问，但并不会对状态进行同步和拷贝。这种设计是为了避免同步和拷贝带来的作业延时。对于使用 Java 堆内存的状态后端，
+  <i>比如</i> <code>MemoryStateBackend</code> 或者 <code>FsStateBackend</code>, 它们获取状态时不会进行拷贝，而是直接引用状态对象，所以对状态的 read-modify-write 是不安全的，并且
+ 可能会因为并发修改导致查询失败。但 <code>RocksDBStateBackend</code> 是安全的，不会遇到上述的问题。
 </div>
 
 ## 架构
 
 在展示如何使用可查询状态之前，先简单描述一下该特性的组成部分，主要包括以下三部分:
 
- 1. `QueryableStateClient`, 可能运行在Flink集群外部，负责提交用户的查询请求,
- 2. `QueryableStateClientProxy`, 运行在每个 `TaskManager` 上(*比如* Flink集群内部), 负责接收客户端的查询请求, 从所负责的Task Manager获取请求的状态, 并返回给客户端,
+ 1. `QueryableStateClient`, 默认运行在Flink集群外部，负责提交用户的查询请求,
+ 2. `QueryableStateClientProxy`, 运行在每个 `TaskManager` 上(*即* Flink 集群内部), 负责接收客户端的查询请求, 从所负责的 Task Manager 获取请求的状态, 并返回给客户端,
  3. `QueryableStateServer`, 运行在 `TaskManager` 上，负责服务本地存储的状态.
 
-客户端连接到一个代理，并发送请求获取特定`k`对应的状态。 如 [Working with State]({{ site.baseurl }}/dev/stream/state/state.html)所述, keyed state按照
-*Key Groups*进行划分, 每个`TaskManager`会分配其中的一些key groups。为了找到`k`所属key group的TaskManager, 代理会询问`JobManager`。根据返回的结果, 代理
-将会向运行在`TaskManager`上的`QueryableStateServer`查询`k`下的状态, 并将结果返回给客户端。
+客户端连接到一个代理，并发送请求获取特定 `k` 对应的状态。 如 [Working with State]({{ site.baseurl }}/dev/stream/state/state.html)所述, keyed state 按照
+*Key Groups* 进行划分, 每个 `TaskManager` 会分配其中的一些 key groups。为了找到 `k` 所属 key group 的 TaskManager, 代理会询问 `JobManager`。根据返回的结果, 代理
+将会向运行在 `TaskManager` 上的 `QueryableStateServer` 查询 `k` 对应的状态, 并将结果返回给客户端。
 
 ## 激活可查询状态
 
 为了在Flink集群上使用可查询状态，需要进行以下操作：
 
- 1. 将`flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar`
-从[Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads")的`opt/`目录拷贝到`lib/`目录。
- 2. 将参数`queryable-state.enable`设置为`true`。详细信息以及其它参数可参考文档[Configuration]({{ site.baseurl }}/ops/config.html#queryable-state).
+ 1. 将 `flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar`
+从 [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads") 的 `opt/` 目录拷贝到 `lib/` 目录。
+ 2. 将参数 `queryable-state.enable` 设置为`true`。详细信息以及其它参数可参考文档 [Configuration]({{ site.baseurl }}/ops/config.html#queryable-state).
 
-为了验证集群的可查询状态已经被激活，可以检查任意task manager的日志中是否包含"Started the Queryable State Proxy Server @ ..."。
+为了验证集群的可查询状态已经被激活，可以检查任意 task manager 的日志中是否包含 "Started the Queryable State Proxy Server @ ..."。
 
 ## 将状态设置为可查询
 
 激活集群的可查询状态功能后，还要将状态设置为可查询的才能对外可见，可以通过以下两种方式进行设置：
 
-* 创建 `QueryableStateStream`, 它会作为一个sink，并将输入数据转化为可查询状态；
-* 通过 `stateDescriptor.setQueryable(String queryableStateName)` 将状态描述符所表示的keyed state设置成可查询的
+* 创建 `QueryableStateStream`, 它会作为一个 sink，并将输入数据转化为可查询状态；
+* 通过 `stateDescriptor.setQueryable(String queryableStateName)` 将状态描述符所表示的 keyed state 设置成可查询的
 
 接下来的部分将详细解释这两种方式。
 
 ### Queryable State Stream
 
-在`KeyedStream`上调用`.asQueryableState(stateName, stateDescriptor)`将会返回一个`QueryableStateStream`， 它会将流数据转化为可查询状态。
-取决于状态的类型，`asQueryableState()`有以下一些方法变体：
+在 `KeyedStream` 上调用 `.asQueryableState(stateName, stateDescriptor)` 将会返回一个 `QueryableStateStream`， 它会将流数据转化为可查询状态。
+对应不同的状态类型，`asQueryableState()` 有以下一些方法变体：
 
 {% highlight java %}
 // ValueState
@@ -99,24 +98,24 @@ QueryableStateStream asQueryableState(
 
 
 <div class="alert alert-info">
-  <strong>注意:</strong> 没有可查询的 <code>ListState</code> sink，因为这种情况下list会不断增长，并且可能不会被清理，最终会消耗大量的内存。
+  <strong>注意:</strong> 没有可查询的 <code>ListState</code> sink，因为这种情况下 list 会不断增长，并且可能不会被清理，最终会消耗大量的内存。
 </div>
 
-返回的`QueryableStateStream`可以被视作一个sink，而且**不能再**被进一步转换。在内部实现上，一个`QueryableStateStream`被转换成一个operator，
-使用所有输入的数据来更新可查询状态。状态如何更新是由`asQueryableState`提供的`StateDescriptor`来决定。在下面的代码中, keyed stream的所有数据
-将会通过`ValueState.update(value)`来更新状态：
+返回的 `QueryableStateStream` 可以被视作一个sink，而且**不能再**被进一步转换。在内部实现上，一个 `QueryableStateStream` 被转换成一个operator，
+使用所有输入的数据来更新可查询状态。状态如何更新是由 `asQueryableState` 提供的 `StateDescriptor` 来决定。在下面的代码中, keyed stream 的所有数据
+将会通过 `ValueState.update(value)` 来更新状态：
 
 {% highlight java %}
 stream.keyBy(0).asQueryableState("query-name")
 {% endhighlight %}
 
-这个行为类似于Scala API中的`flatMapWithState`。
+这个行为类似于 Scala API 中的 `flatMapWithState`。
 
 ### Managed Keyed State
 
-operator中的Managed keyed state
-(参考[Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state/state.html#using-managed-keyed-state))
-可以通过设置state descriptor变成可查询的，具体是通过`StateDescriptor.setQueryable(String queryableStateName)`来实现的，如下所示：
+operator 中的 Managed keyed state
+(参考 [Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state/state.html#using-managed-keyed-state))
+可以通过 `StateDescriptor.setQueryable(String queryableStateName)` 将 state descriptor 设置成可查询的，从而使 state 可查询，如下所示：
 
 {% highlight java %}
 ValueStateDescriptor<Tuple2<Long, Long>> descriptor =
@@ -127,7 +126,7 @@ descriptor.setQueryable("query-name"); // queryable state name
 {% endhighlight %}
 
 <div class="alert alert-info">
-  <strong>注意:</strong> 参数<code>queryableStateName</code>可以任意选取，并且只被用来进行查询，它和状态的名称不一定相同。
+  <strong>注意:</strong> 参数 <code>queryableStateName</code> 可以任意选取，并且只被用来进行查询，它可以和 state 的名称不同。
 </div>
 
 这种方式不会限制状态的类型，即任意的 `ValueState`， `ReduceState`， `ListState`， `MapState`， `AggregatingState`，以及当前已经启用的 `FoldingState` 均可作为可查询状态。
@@ -136,8 +135,8 @@ descriptor.setQueryable("query-name"); // queryable state name
 
 目前为止，你已经激活了集群的可查询状态功能，并且将一些状态设置成了可查询，接下来将会展示如何进行查询。
 
-为了进行查询，可以使用辅助类`QueryableStateClient`，这个类位于`flink-queryable-state-client`的jar中，在项目的`pom.xml`需要显示添加
-对`flink-queryable-state-client`和`flink-core`的依赖, 如下所示；
+为了进行查询，可以使用辅助类 `QueryableStateClient`，这个类位于 `flink-queryable-state-client` 的jar中，在项目的 `pom.xml` 需要显示添加
+对 `flink-queryable-state-client` 和 `flink-core` 的依赖, 如下所示；
 
 <div data-lang="java" markdown="1">
 {% highlight xml %}
@@ -154,16 +153,16 @@ descriptor.setQueryable("query-name"); // queryable state name
 {% endhighlight %}
 </div>
 
-关于依赖的更多信息, 可以参考如何[配置Flink项目]({{ site.baseurl }}/dev/projectsetup/dependencies.html).
+关于依赖的更多信息, 可以参考如何[配置Flink项目]({{ site.baseurl }}/zh/dev/projectsetup/dependencies.html).
 
-`QueryableStateClient` 将提交你的请求到内部代理，代理会处理请求并返回结果。客户端的初始化只需要提供一个有效的`TaskManager`主机名
-(每个task manager上都运行着一个状态查询代理)，以及代理监听的端口号。关于如何配置代理以及端口号可以参考[Configuration Section](#configuration).
+`QueryableStateClient` 将提交你的请求到内部代理，代理会处理请求并返回结果。客户端的初始化只需要提供一个有效的 `TaskManager` 主机名
+(每个 task manager 上都运行着一个状态查询代理)，以及代理监听的端口号。关于如何配置代理以及端口号可以参考[Configuration Section](#configuration).
 
 {% highlight java %}
 QueryableStateClient client = new QueryableStateClient(tmHostname, proxyPort);
 {% endhighlight %}
 
-客户端就绪后，为了查询key类型为`K`，以及状态类型为`V`的状态，可以使用如下方法：
+客户端就绪后，为了查询key类型为 `K`，以及状态类型为 `V` 的状态，可以使用如下方法：
 
 {% highlight java %}
 CompletableFuture<S> getKvState(
@@ -174,28 +173,28 @@ CompletableFuture<S> getKvState(
     StateDescriptor<S, V> stateDescriptor)
 {% endhighlight %}
 
-该方法会返回一个`CompletableFuture`，最终会保存作业ID为`jobID`，可查询状态名称为`queryableStateName`的状态。`key`指定所要查询的状态所属的key，
-`keyTypeInfo`告诉Flink如何对key进行序列化/反序列化。`stateDescriptor`包含了所请求状态的必要信息，即状态的类型(`Value`，`Reduce`等等)，
+该方法会返回一个最终将包含状态值的queryable state实例，该实例可通过JobID和queryableStateName识别。在方法参数中，key用来指定所要查询的状态所属的key。
+`keyTypeInfo` 告诉 Flink 如何对key进行序列化/反序列化。`stateDescriptor` 包含了所请求状态的必要信息，即状态的类型(`Value`，`Reduce` 等等)，
 以及如何对其进行序列化/反序列。
 
-细心的读者会注意到返回的future包含类型为`S`的值，*比如*一个存储实际值的`State`对象。它可以是Flink支持的任何类型的状态: `ValueState`, `ReduceState`,
-`ListState`, `MapState`,`AggregatingState`, 以及当前弃用的 `FoldingState`。
+细心的读者会注意到返回的 future 包含类型为 `S` 的值，*即*一个存储实际值的 `State` 对象。它可以是Flink支持的任何类型的状态: `ValueState`, `ReduceState`,
+`ListState`, `MapState`,`AggregatingState`, 以及弃用的 `FoldingState`。
 
 <div class="alert alert-info">
-  <strong>注意：</strong> 这些状态对象不允许对其中的状态进行修改。你可以通过<code>valueState.get()</code>获取实际的状态，
-  或者通过<code>mapState.entries()</code>遍历所有<code><K, V></code>对，但是不能修改它们。举例来说，对返回的list state调用<code>add()</code>
-  方法将会导致<code>UnsupportedOperationException</code>。
+  <strong>注意：</strong> 这些状态对象不允许对其中的状态进行修改。你可以通过 <code>valueState.get()</code> 获取实际的状态，
+  或者通过 <code>mapState.entries()</code> 遍历所有 <code><K, V></code>，但是不能修改它们。举例来说，对返回的 list state 调用 <code>add()</code>
+   方法将会导致 <code>UnsupportedOperationException</code>。
 </div>
 
 <div class="alert alert-info">
-  <strong>注意:</strong> 客户端是异步的，并且可能被多个线程共享。客户端不再使用后需要通过<code>QueryableStateClient.shutdown()</code>
-  来终止，从而释放资源。
+  <strong>注意:</strong> 客户端是异步的，并且可能被多个线程共享。客户端不再使用后需要通过 <code>QueryableStateClient.shutdown()</code>
+   来终止，从而释放资源。
 </div>
 
 ### 示例
 
-下面的例子扩展自`CountWindowAverage`
-(参考 [Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state/state.html#using-managed-keyed-state))，
+下面的例子扩展自 `CountWindowAverage`
+(参考 [Using Managed Keyed State]({{ site.baseurl }}/zh/dev/stream/state/state.html#using-managed-keyed-state))，
 将其中的状态设置成可查询的，并展示了如何进行查询：
 
 {% highlight java %}
@@ -254,27 +253,26 @@ resultFuture.thenAccept(response -> {
 
 ## Configuration
 
-下面的配置参数会影响可查询状态服务器端和客户端的行为，它们在`QueryableStateOptions`中定义。
+下面的配置参数会影响可查询状态服务器端和客户端的行为，它们定义在 `QueryableStateOptions`。
 
 ### State Server
-* `queryable-state.server.ports`: 服务器端口范围。如果同一台机器上运行了多个task manager，可以避免端口冲突。指定的范围可以是一个具体的端口号，如"9123"，
-    可以是一个端口范围，如"50100-50200"，或者可以是端口范围以及端口号的组合，如"50100-50200,50300-50400,51234"。默认端口号是9067。
-* `queryable-state.server.network-threads`: 服务器端network (event loop) thread的数量，用来接收查询请求 (0 => #slots)。
+* `queryable-state.server.ports`: 服务器端口范围。如果同一台机器上运行了多个 task manager，可以避免端口冲突。指定的范围可以是一个具体的端口号，如 "9123"，
+    可以是一个端口范围，如 "50100-50200"，或者可以是端口范围以及端口号的组合，如 "50100-50200,50300-50400,51234"。默认端口号是 9067。
+* `queryable-state.server.network-threads`: 服务器端 network (event loop) thread 的数量，用来接收查询请求 (0 => #slots)。
 * `queryable-state.server.query-threads`: 服务器端处理查询请求的线程数 (0 => #slots)。
 
 
 ### Proxy
-* `queryable-state.proxy.ports`: 代理的服务端口范围。 如果同一台机器上运行了多个task manager，可以避免端口冲突。指定的范围可以是一个具体的端口号，如"9123"，
-   可以是一个端口范围，如"50100-50200"，或者可以是端口范围以及端口号的组合，如"50100-50200,50300-50400,51234"。默认端口号是9069。
-* `queryable-state.proxy.network-threads`: 代理上network (event loop) thread的数量，用来接收查询请求 (0 => #slots)。
+* `queryable-state.proxy.ports`: 代理的服务端口范围。 如果同一台机器上运行了多个 task manager，可以避免端口冲突。指定的范围可以是一个具体的端口号，如 "9123"，
+   可以是一个端口范围，如"50100-50200"，或者可以是端口范围以及端口号的组合，如 "50100-50200,50300-50400,51234"。默认端口号是 9069。
+* `queryable-state.proxy.network-threads`: 代理上 network (event loop) thread 的数量，用来接收查询请求 (0 => #slots)。
 * `queryable-state.proxy.query-threads`: 代理上处理查询请求的线程数 (0 => #slots)。
 
 ## 限制
 
-* 可查询状态的生命周期受限于作业的生命周期，*比如，* tasks在启动是注册可查询状态，并在销毁时注销。在未来的版本中，希望能够将其解耦
-从而允许task结束后能够查询状态，并且通过状态备份来加速恢复。
-* 现在是通过简单的tell来通知可用的KvState。将来会使用asks和acknowledgements来提升稳定性。
-* 服务器端和客户端会记录请求的统计信息。这个功能默认没有开启，因为统计信息目前不会暴露给外部。如果将来支持通过Metrics系统发布这些数据，统计功能
-将会被开启。
+* 可查询状态的生命周期受限于作业的生命周期，*比如* tasks 在启动时注册可查询状态，并在退出时注销。在未来的版本中，希望能够将其解耦
+从而允许 task 结束后能够查询状态，并且通过状态备份来加速恢复。
+* 现在是通过简单的 tell 来通知可用的 KvState。将来会使用 asks和acknowledgements 来提升稳定性。
+* 服务器端和客户端会记录请求的统计信息。这个功能默认没有开启，因为统计信息目前不会暴露给外部。如果将来支持通过 Metrics 系统发布这些数据，将开启统计功能。
 
 {% top %}
