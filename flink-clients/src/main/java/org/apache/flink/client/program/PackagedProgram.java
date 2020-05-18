@@ -27,12 +27,8 @@ import org.apache.flink.util.JarUtils;
 
 import javax.annotation.Nullable;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -42,12 +38,9 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 import java.util.jar.Attributes;
-import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.client.program.PackagedProgramUtils.isPython;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -77,8 +70,6 @@ public class PackagedProgram {
 	private final String[] args;
 
 	private final Class<?> mainClass;
-
-	private final List<File> extractedTempLibraries;
 
 	private final List<URL> classpaths;
 
@@ -127,8 +118,6 @@ public class PackagedProgram {
 
 		assert this.jarFile != null || entryPointClassName != null;
 
-		// now that we have an entry point, we can extract the nested jar files (if any)
-		this.extractedTempLibraries = this.jarFile == null ? Collections.emptyList() : extractContainedLibraries(this.jarFile);
 		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
 			getJobJarAndDependencies(),
 			classpaths,
@@ -220,17 +209,10 @@ public class PackagedProgram {
 	 * Returns all provided libraries needed to run the program.
 	 */
 	public List<URL> getJobJarAndDependencies() {
-		List<URL> libs = new ArrayList<URL>(this.extractedTempLibraries.size() + 1);
+		List<URL> libs = new ArrayList<>();
 
 		if (jarFile != null) {
 			libs.add(jarFile);
-		}
-		for (File tmpLib : this.extractedTempLibraries) {
-			try {
-				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
-			} catch (MalformedURLException e) {
-				throw new RuntimeException("URL is invalid. This should not happen.", e);
-			}
 		}
 
 		if (isPython) {
@@ -238,14 +220,6 @@ public class PackagedProgram {
 		}
 
 		return libs;
-	}
-
-	/**
-	 * Deletes all temporary files created for contained packaged libraries.
-	 */
-	public void deleteExtractedLibraries() {
-		deleteExtractedLibraries(this.extractedTempLibraries);
-		this.extractedTempLibraries.clear();
 	}
 
 	private static boolean hasMainMethod(Class<?> entryClass) {
@@ -401,93 +375,6 @@ public class PackagedProgram {
 			if (contextCl != null) {
 				Thread.currentThread().setContextClassLoader(contextCl);
 			}
-		}
-	}
-
-	/**
-	 * Takes all JAR files that are contained in this program's JAR file and extracts them
-	 * to the system's temp directory.
-	 *
-	 * @return The file names of the extracted temporary files.
-	 * @throws ProgramInvocationException Thrown, if the extraction process failed.
-	 */
-	public static List<File> extractContainedLibraries(URL jarFile) throws ProgramInvocationException {
-		try (final JarFile jar = new JarFile(new File(jarFile.toURI()))) {
-
-			final List<JarEntry> containedJarFileEntries = getContainedJarEntries(jar);
-			if (containedJarFileEntries.isEmpty()) {
-				return Collections.emptyList();
-			}
-
-			final List<File> extractedTempLibraries = new ArrayList<>(containedJarFileEntries.size());
-			boolean incomplete = true;
-
-			try {
-				final Random rnd = new Random();
-				final byte[] buffer = new byte[4096];
-
-				for (final JarEntry entry : containedJarFileEntries) {
-					// '/' as in case of zip, jar
-					// java.util.zip.ZipEntry#isDirectory always looks only for '/' not for File.separator
-					final String name = entry.getName().replace('/', '_');
-					final File tempFile = copyLibToTempFile(name, rnd, jar, entry, buffer);
-					extractedTempLibraries.add(tempFile);
-				}
-
-				incomplete = false;
-			} finally {
-				if (incomplete) {
-					deleteExtractedLibraries(extractedTempLibraries);
-				}
-			}
-
-			return extractedTempLibraries;
-		} catch (Throwable t) {
-			throw new ProgramInvocationException("Unknown I/O error while extracting contained jar files.", t);
-		}
-	}
-
-	private static File copyLibToTempFile(String name, Random rnd, JarFile jar, JarEntry input, byte[] buffer) throws ProgramInvocationException {
-		final File output = createTempFile(rnd, input, name);
-		try (
-				final OutputStream out = new FileOutputStream(output);
-				final InputStream in = new BufferedInputStream(jar.getInputStream(input))
-		) {
-			int numRead = 0;
-			while ((numRead = in.read(buffer)) != -1) {
-				out.write(buffer, 0, numRead);
-			}
-			return output;
-		} catch (IOException e) {
-			throw new ProgramInvocationException("An I/O error occurred while extracting nested library '"
-					+ input.getName() + "' to temporary file '" + output.getAbsolutePath() + "'.");
-		}
-	}
-
-	private static File createTempFile(Random rnd, JarEntry entry, String name) throws ProgramInvocationException {
-		try {
-			final File tempFile = File.createTempFile(rnd.nextInt(Integer.MAX_VALUE) + "_", name);
-			tempFile.deleteOnExit();
-			return tempFile;
-		} catch (IOException e) {
-			throw new ProgramInvocationException(
-					"An I/O error occurred while creating temporary file to extract nested library '" +
-							entry.getName() + "'.", e);
-		}
-	}
-
-	private static List<JarEntry> getContainedJarEntries(JarFile jar) {
-		return jar.stream()
-				.filter(jarEntry -> {
-					final String name = jarEntry.getName();
-					return name.length() > 8 && name.startsWith("lib/") && name.endsWith(".jar");
-				})
-				.collect(Collectors.toList());
-	}
-
-	private static void deleteExtractedLibraries(List<File> tempLibraries) {
-		for (File f : tempLibraries) {
-			f.delete();
 		}
 	}
 

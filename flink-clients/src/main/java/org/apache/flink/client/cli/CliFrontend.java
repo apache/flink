@@ -222,12 +222,7 @@ public class CliFrontend {
 				getEffectiveConfiguration(commandLine, programOptions, jobJars);
 
 		LOG.debug("Effective executor configuration: {}", effectiveConfiguration);
-
-		try {
-			executeProgram(effectiveConfiguration, program);
-		} finally {
-			program.deleteExtractedLibraries();
-		}
+		executeProgram(effectiveConfiguration, program);
 	}
 
 	private PackagedProgram getPackagedProgram(ProgramOptions programOptions) throws ProgramInvocationException, CliArgsException {
@@ -284,41 +279,34 @@ public class CliFrontend {
 		LOG.info("Building program from JAR file");
 		final PackagedProgram program = buildProgram(programOptions);
 
-		try {
-			int parallelism = programOptions.getParallelism();
-			if (ExecutionConfig.PARALLELISM_DEFAULT == parallelism) {
-				parallelism = defaultParallelism;
-			}
-
-			LOG.info("Creating program plan dump");
-
-			final Configuration effectiveConfiguration =
-					getEffectiveConfiguration(commandLine, programOptions, program.getJobJarAndDependencies());
-
-			Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, effectiveConfiguration, parallelism, true);
-			String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
-
-			if (jsonPlan != null) {
-				System.out.println("----------------------- Execution Plan -----------------------");
-				System.out.println(jsonPlan);
-				System.out.println("--------------------------------------------------------------");
-			}
-			else {
-				System.out.println("JSON plan could not be generated.");
-			}
-
-			String description = program.getDescription();
-			if (description != null) {
-				System.out.println();
-				System.out.println(description);
-			}
-			else {
-				System.out.println();
-				System.out.println("No description provided.");
-			}
+		int parallelism = programOptions.getParallelism();
+		if (ExecutionConfig.PARALLELISM_DEFAULT == parallelism) {
+			parallelism = defaultParallelism;
 		}
-		finally {
-			program.deleteExtractedLibraries();
+
+		LOG.info("Creating program plan dump");
+
+		final Configuration effectiveConfiguration =
+				getEffectiveConfiguration(commandLine, programOptions, program.getJobJarAndDependencies());
+
+		Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(program, effectiveConfiguration, parallelism, true);
+		String jsonPlan = FlinkPipelineTranslationUtil.translateToJSONExecutionPlan(pipeline);
+
+		if (jsonPlan != null) {
+			System.out.println("----------------------- Execution Plan -----------------------");
+			System.out.println(jsonPlan);
+			System.out.println("--------------------------------------------------------------");
+		} else {
+			System.out.println("JSON plan could not be generated.");
+		}
+
+		String description = program.getDescription();
+		if (description != null) {
+			System.out.println();
+			System.out.println(description);
+		} else {
+			System.out.println();
+			System.out.println("No description provided.");
 		}
 	}
 
@@ -1099,5 +1087,4 @@ public class CliFrontend {
 
 		return constructor.newInstance(params);
 	}
-
 }
