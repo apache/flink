@@ -84,7 +84,7 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	/** The lock that guarantees that record emission and state updates are atomic,
 	 * from the view of taking a checkpoint. */
-	protected final Object checkpointLock;
+	private final Object checkpointLock;
 
 	/** All partitions (and their state) that this fetcher is subscribed to. */
 	private final List<KafkaTopicPartitionState<T, KPH>> subscribedPartitionStates;
