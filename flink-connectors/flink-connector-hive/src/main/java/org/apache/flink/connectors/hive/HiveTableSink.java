@@ -132,7 +132,7 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 					isCompressed);
 			if (isBounded) {
 				FileSystemOutputFormat.Builder<Row> builder = new FileSystemOutputFormat.Builder<>();
-				builder.setPartitionComputer(new HivePartitionComputer(
+				builder.setPartitionComputer(new HiveRowPartitionComputer(
 						hiveShim,
 						jobConf.get(
 								HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
