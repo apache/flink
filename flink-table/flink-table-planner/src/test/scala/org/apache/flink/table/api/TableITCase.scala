@@ -20,17 +20,20 @@ package org.apache.flink.table.api
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableEnvironmentITCase.getPersonCsvTableSource
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
-import org.apache.flink.table.api.java.StreamTableEnvironment
 import org.apache.flink.types.Row
+
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+
 import org.hamcrest.Matchers.containsString
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Rule, Test}
-import _root_.java.util
+
+import java.util
 
 @RunWith(classOf[Parameterized])
 class TableITCase(tableEnvName: String) {

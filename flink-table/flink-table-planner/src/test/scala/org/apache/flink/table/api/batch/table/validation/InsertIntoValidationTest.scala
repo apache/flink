@@ -20,10 +20,10 @@ package org.apache.flink.table.api.batch.table.validation
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.{Types, ValidationException}
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TableTestBase}
+
 import org.junit._
 
 class InsertIntoValidationTest extends TableTestBase {

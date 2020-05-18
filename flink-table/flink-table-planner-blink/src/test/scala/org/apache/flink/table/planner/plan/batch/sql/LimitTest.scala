@@ -21,9 +21,9 @@ package org.apache.flink.table.planner.plan.batch.sql
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{SqlParserException, TableSchema}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{SqlParserException, TableSchema, _}
 import org.apache.flink.table.planner.utils.{TableTestBase, TestLimitableTableSource}
+
 import org.junit.Test
 
 class LimitTest extends TableTestBase {

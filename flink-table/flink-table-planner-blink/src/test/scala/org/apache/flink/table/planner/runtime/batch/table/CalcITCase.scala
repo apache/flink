@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.DataTypes._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.data.DecimalDataUtils
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils._

@@ -17,14 +17,14 @@
  */
 package org.apache.flink.table.api.stream.table.validation
 
-import java.math.BigDecimal
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableException, Tumble, ValidationException}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
+
 import org.junit.Test
+
+import java.math.BigDecimal
 
 class CalcValidationTest extends TableTestBase {
 

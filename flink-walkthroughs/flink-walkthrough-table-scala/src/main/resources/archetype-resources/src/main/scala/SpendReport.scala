@@ -20,7 +20,6 @@ package ${package}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.scala._
 import org.apache.flink.walkthrough.common.table._
 
 object SpendReport {

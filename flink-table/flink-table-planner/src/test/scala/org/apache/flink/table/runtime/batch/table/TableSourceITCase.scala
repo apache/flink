@@ -18,26 +18,27 @@
 
 package org.apache.flink.table.runtime.batch.table
 
-import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
-import java.sql.{Date, Time, Timestamp}
-
-import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment => JExecEnv}
 import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, TableSchema, Tumble, Types}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
+
+import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
+import java.sql.{Date, Time, Timestamp}
 
 import scala.collection.JavaConverters._
 

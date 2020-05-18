@@ -19,11 +19,12 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendRowDataSink}
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.logical.{IntType, VarCharType}
+
 import org.junit.Assert._
 import org.junit.Test
 

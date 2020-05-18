@@ -19,7 +19,8 @@
 package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.{Over, Slide, Table}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction

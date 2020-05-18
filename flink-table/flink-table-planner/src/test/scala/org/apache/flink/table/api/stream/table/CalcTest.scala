@@ -19,7 +19,8 @@
 package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.Tumble
 import org.apache.flink.table.expressions.utils.{Func1, Func23, Func24}
 import org.apache.flink.table.utils.TableTestBase

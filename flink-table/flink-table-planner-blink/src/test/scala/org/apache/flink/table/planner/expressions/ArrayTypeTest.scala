@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.ArrayTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
-import java.time.{LocalDateTime => JLocalDateTime}
-
 import org.junit.Test
+
+import java.time.{LocalDateTime => JLocalDateTime}
 
 class ArrayTypeTest extends ArrayTypeTestBase {
 

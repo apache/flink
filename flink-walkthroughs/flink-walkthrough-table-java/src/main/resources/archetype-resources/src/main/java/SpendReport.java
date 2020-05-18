@@ -20,7 +20,7 @@ package ${package};
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.walkthrough.common.table.SpendReportTableSink;
 import org.apache.flink.walkthrough.common.table.BoundedTransactionTableSource;
 import org.apache.flink.walkthrough.common.table.TruncateDateToHour;

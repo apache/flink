@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.api.batch.table.stringexpr
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class SetOperatorsTest extends TableTestBase {
 
