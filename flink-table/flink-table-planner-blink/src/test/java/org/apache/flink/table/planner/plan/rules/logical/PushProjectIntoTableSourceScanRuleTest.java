@@ -54,7 +54,7 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 						"  b bigint,\n" +
 						"  c string\n" +
 						") WITH (\n" +
-						" 'connector' = 'projectable-values',\n" +
+						" 'connector' = 'values',\n" +
 						" 'bounded' = 'true'\n" +
 						")";
 		util().tableEnv().executeSql(ddl1);
@@ -66,7 +66,7 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 						"  c string,\n" +
 						"  d as a + 1\n" +
 						") WITH (\n" +
-						" 'connector' = 'projectable-values',\n" +
+						" 'connector' = 'values',\n" +
 						" 'bounded' = 'true'\n" +
 						")";
 		util().tableEnv().executeSql(ddl2);
@@ -92,7 +92,7 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 						"  nested row<name string, `value` int>,\n" +
 						"  name string\n" +
 						") WITH (\n" +
-						" 'connector' = 'projectable-values',\n" +
+						" 'connector' = 'values',\n" +
 						" 'nested-projection-supported' = '" + nestedProjectionSupported + "',\n" +
 						"  'bounded' = 'true'\n" +
 						")";

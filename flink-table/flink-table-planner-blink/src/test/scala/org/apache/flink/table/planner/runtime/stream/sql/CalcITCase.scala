@@ -25,7 +25,7 @@ import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.data.{GenericRowData, RowData}
-import org.apache.flink.table.planner.factories.TestProjectableValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
@@ -290,7 +290,7 @@ class CalcITCase extends StreamingTestBase {
 
   @Test
   def testSimpleProject(): Unit = {
-    val myTableDataId = TestProjectableValuesTableFactory.registerData(TestData.smallData3)
+    val myTableDataId = TestValuesTableFactory.registerData(TestData.smallData3)
     val ddl =
       s"""
          |CREATE TABLE SimpleTable (
@@ -298,7 +298,7 @@ class CalcITCase extends StreamingTestBase {
          |  b bigint,
          |  c string
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'data-id' = '$myTableDataId',
          |  'bounded' = 'true'
          |)
@@ -321,7 +321,7 @@ class CalcITCase extends StreamingTestBase {
       row(2, row(row("HELLO", 22), row(222, false)), row("hello", 2222), "mary"),
       row(3, row(row("HELLO WORLD", 33), row(333, true)), row("hello world", 3333), "benji")
     )
-    val myTableDataId = TestProjectableValuesTableFactory.registerData(data)
+    val myTableDataId = TestValuesTableFactory.registerData(data)
     val ddl =
       s"""
          |CREATE TABLE NestedTable (
@@ -331,7 +331,7 @@ class CalcITCase extends StreamingTestBase {
          |  nested row<name string, `value` int>,
          |  name string
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'nested-projection-supported' = 'false',
          |  'data-id' = '$myTableDataId',
          |  'bounded' = 'true'
