@@ -257,6 +257,9 @@ object FlinkShell {
         .deploySessionCluster(clusterSpecification)
         .getClusterClient
     } finally {
+      // remove target when deploying flink cluster, otherwise it would be as yarn-per-job
+      // which is not correct. It would be set to yarn-session after deployment
+      executorConfig.removeConfig(DeploymentOptions.TARGET)
       clusterDescriptor.close()
     }
 
