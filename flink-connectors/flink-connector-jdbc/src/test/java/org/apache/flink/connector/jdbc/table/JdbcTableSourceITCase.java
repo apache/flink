@@ -22,9 +22,10 @@ import org.apache.flink.connector.jdbc.JdbcTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.runtime.utils.StreamITCase;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Before;
@@ -34,9 +35,12 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static org.junit.Assert.assertEquals;
 
 /**
  * ITCase for {@link JdbcTableSource}.
@@ -107,16 +111,17 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
 				")"
 		);
 
-		StreamITCase.clear();
-		tEnv.toAppendStream(tEnv.sqlQuery("SELECT * FROM " + INPUT_TABLE), Row.class)
-			.addSink(new StreamITCase.StringSink<>());
-		env.execute();
-
+		Iterator<Row> collected = tEnv.executeSql("SELECT * FROM " + INPUT_TABLE).collect();
+		List<String> result = Lists.newArrayList(collected).stream()
+			.map(Row::toString)
+			.sorted()
+			.collect(Collectors.toList());
 		List<String> expected =
-			Arrays.asList(
+			Stream.of(
 				"1,2020-01-01T15:35:00.123456,2020-01-01T15:35:00.123456789,15:35,1.175E-37,1.79769E308,100.1234",
-				"2,2020-01-01T15:36:01.123456,2020-01-01T15:36:01.123456789,15:36:01,-1.175E-37,-1.79769E308,101.1234");
-		StreamITCase.compareWithList(expected);
+				"2,2020-01-01T15:36:01.123456,2020-01-01T15:36:01.123456789,15:36:01,-1.175E-37,-1.79769E308,101.1234")
+				.sorted().collect(Collectors.toList());
+		assertEquals(expected, result);
 	}
 
 	@Test
@@ -143,15 +148,16 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
 				")"
 		);
 
-		StreamITCase.clear();
-		tEnv.toAppendStream(tEnv.sqlQuery("SELECT timestamp6_col, decimal_col FROM " + INPUT_TABLE), Row.class)
-				.addSink(new StreamITCase.StringSink<>());
-		env.execute();
-
+		Iterator<Row> collected = tEnv.executeSql("SELECT id,timestamp6_col,decimal_col FROM " + INPUT_TABLE).collect();
+		List<String> result = Lists.newArrayList(collected).stream()
+			.map(Row::toString)
+			.sorted()
+			.collect(Collectors.toList());
 		List<String> expected =
-			Arrays.asList(
-				"2020-01-01T15:35:00.123456,100.1234",
-				"2020-01-01T15:36:01.123456,101.1234");
-		StreamITCase.compareWithList(expected);
+			Stream.of(
+				"1,2020-01-01T15:35:00.123456,100.1234",
+				"2,2020-01-01T15:36:01.123456,101.1234")
+				.sorted().collect(Collectors.toList());
+		assertEquals(expected, result);
 	}
 }

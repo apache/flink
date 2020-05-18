@@ -173,16 +173,11 @@ public class JdbcDynamicTableSourceSinkFactory implements DynamicTableSourceFact
 		helper.validate();
 		validateConfigOptions(config);
 		TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
-		int[] selectFields = new int[physicalSchema.getFieldNames().length];
-		for (int i = 0; i < selectFields.length; i++) {
-			selectFields[i] = i;
-		}
 		return new JdbcDynamicTableSource(
 			getJdbcOptions(helper.getOptions()),
 			getJdbcReadOptions(helper.getOptions()),
 			getJdbcLookupOptions(helper.getOptions()),
-			physicalSchema,
-			selectFields);
+			physicalSchema);
 	}
 
 	private JdbcOptions getJdbcOptions(ReadableConfig readableConfig) {
