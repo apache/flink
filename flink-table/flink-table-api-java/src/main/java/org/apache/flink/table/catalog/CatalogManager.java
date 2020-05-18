@@ -157,7 +157,7 @@ public final class CatalogManager {
 	 * Registers a catalog under the given name. The catalog name must be unique.
 	 *
 	 * @param catalogName name under which to register the given catalog
-	 * @param catalog catalog to register
+	 * @param catalog     catalog to register
 	 * @throws CatalogException if the registration of the catalog under the given name failed
 	 */
 	public void registerCatalog(String catalogName, Catalog catalog) {
@@ -170,6 +170,25 @@ public final class CatalogManager {
 
 		catalogs.put(catalogName, catalog);
 		catalog.open();
+	}
+
+	/**
+	 * Unregisters a catalog under the given name. The catalog name must be existed.
+	 *
+	 * @param catalogName       name under which to unregister the given catalog.
+	 * @param ignoreIfNotExists If false exception will be thrown if the table or database or catalog to be altered
+	 *                          does not exist.
+	 * @throws CatalogException if the unregistration of the catalog under the given name failed
+	 */
+	public void unregisterCatalog(String catalogName, boolean ignoreIfNotExists) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "Catalog name cannot be null or empty.");
+
+		if (catalogs.containsKey(catalogName)) {
+			Catalog catalog = catalogs.remove(catalogName);
+			catalog.close();
+		} else if (!ignoreIfNotExists) {
+			throw new CatalogException(format("Catalog %s does not exist.", catalogName));
+		}
 	}
 
 	/**

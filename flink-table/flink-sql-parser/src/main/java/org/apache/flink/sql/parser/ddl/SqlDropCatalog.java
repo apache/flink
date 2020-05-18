@@ -18,11 +18,10 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlCreate;
+import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
@@ -31,68 +30,43 @@ import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
 
-import static java.util.Objects.requireNonNull;
-
-
 /**
- * CREATE CATALOG DDL sql call.
+ * DROP CATALOG DDL sql call.
  */
-public class SqlCreateCatalog extends SqlCreate {
+public class SqlDropCatalog extends SqlDrop {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE CATALOG", SqlKind.OTHER_DDL);
+	private static final SqlOperator OPERATOR = new SqlSpecialOperator("DROP CATALOG", SqlKind.OTHER_DDL);
 
 	private final SqlIdentifier catalogName;
+	private final boolean ifExists;
 
-	private final SqlNodeList propertyList;
-
-	public SqlCreateCatalog(
-			SqlParserPos position,
-			SqlIdentifier catalogName,
-			SqlNodeList propertyList) {
-		super(OPERATOR, position, false, false);
-		this.catalogName = requireNonNull(catalogName, "catalogName cannot be null");
-		this.propertyList = requireNonNull(propertyList, "propertyList cannot be null");
-	}
-
-	@Override
-	public SqlOperator getOperator() {
-		return OPERATOR;
+	public SqlDropCatalog(SqlParserPos pos, SqlIdentifier catalogName, boolean ifExists) {
+		super(OPERATOR, pos, false);
+		this.catalogName = catalogName;
+		this.ifExists = ifExists;
 	}
 
 	@Override
 	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(catalogName, propertyList);
+		return ImmutableNullableList.of(catalogName);
 	}
 
 	public SqlIdentifier getCatalogName() {
 		return catalogName;
 	}
 
-	public SqlNodeList getPropertyList() {
-		return propertyList;
+	public boolean getIfExists() {
+		return this.ifExists;
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("CREATE CATALOG");
-		catalogName.unparse(writer, leftPrec, rightPrec);
-
-		if (this.propertyList.size() > 0) {
-			writer.keyword("WITH");
-			SqlWriter.Frame withFrame = writer.startList("(", ")");
-			for (SqlNode property : propertyList) {
-				printIndent(writer);
-				property.unparse(writer, leftPrec, rightPrec);
-			}
-			writer.newlineAndIndent();
-			writer.endList(withFrame);
+		writer.keyword("DROP");
+		writer.keyword("CATALOG");
+		if (ifExists) {
+			writer.keyword("IF EXISTS");
 		}
-	}
-
-	private void printIndent(SqlWriter writer) {
-		writer.sep(",", false);
-		writer.newlineAndIndent();
-		writer.print("  ");
+		catalogName.unparse(writer, leftPrec, rightPrec);
 	}
 
 	public String catalogName() {

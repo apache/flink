@@ -114,6 +114,7 @@ import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
+import org.apache.flink.table.operations.ddl.DropCatalogOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
@@ -165,14 +166,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	private static final String UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
 			"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
 			"INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
-			"CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, " +
-			"DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, CREATE VIEW, DROP VIEW.";
+			"CREATE DATABASE, DROP DATABASE, ALTER DATABASE, CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, " +
+			"CREATE CATALOG, DROP CATALOG, CREATE VIEW, DROP VIEW.";
 	private static final String UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG =
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
-			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, " +
-			"SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, CREATE VIEW, DROP VIEW, SHOW VIEWS, " +
-			"INSERT, DESCRIBE.";
+			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, DROP CATALOG, " +
+			"USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, " +
+			"CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE.";
 
 	/**
 	 * Provides necessary methods for {@link ConnectTableDescriptor}.
@@ -735,6 +736,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 				operation instanceof DropTempSystemFunctionOperation ||
 				operation instanceof AlterCatalogFunctionOperation ||
 				operation instanceof CreateCatalogOperation ||
+				operation instanceof DropCatalogOperation ||
 				operation instanceof UseCatalogOperation ||
 				operation instanceof UseDatabaseOperation) {
 			executeOperation(operation);
@@ -982,6 +984,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			try {
 				catalogManager.registerCatalog(
 						createCatalogOperation.getCatalogName(), createCatalogOperation.getCatalog());
+				return TableResultImpl.TABLE_RESULT_OK;
+			} catch (CatalogException e) {
+				throw new ValidationException(exMsg, e);
+			}
+		} else if (operation instanceof DropCatalogOperation) {
+			DropCatalogOperation dropCatalogOperation = (DropCatalogOperation) operation;
+			String exMsg = getDDLOpExecuteErrorMsg(dropCatalogOperation.asSummaryString());
+			try {
+				catalogManager.unregisterCatalog(dropCatalogOperation.getCatalogName(),
+					dropCatalogOperation.isIfExists());
 				return TableResultImpl.TABLE_RESULT_OK;
 			} catch (CatalogException e) {
 				throw new ValidationException(exMsg, e);

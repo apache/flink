@@ -37,6 +37,7 @@ import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
 import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateView;
+import org.apache.flink.sql.parser.ddl.SqlDropCatalog;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropFunction;
 import org.apache.flink.sql.parser.ddl.SqlDropPartitions;
@@ -103,6 +104,7 @@ import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
+import org.apache.flink.table.operations.ddl.DropCatalogOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
@@ -212,6 +214,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertAlterDatabase((SqlAlterDatabase) validated));
 		} else if (validated instanceof SqlCreateCatalog) {
 			return Optional.of(converter.convertCreateCatalog((SqlCreateCatalog) validated));
+		} else if (validated instanceof SqlDropCatalog) {
+			return Optional.of(converter.convertDropCatalog((SqlDropCatalog) validated));
 		} else if (validated instanceof SqlShowCatalogs) {
 			return Optional.of(converter.convertShowCatalogs((SqlShowCatalogs) validated));
 		} else if (validated instanceof SqlShowDatabases) {
@@ -554,6 +558,12 @@ public class SqlToOperationConverter {
 
 		Catalog catalog = factory.createCatalog(catalogName, properties);
 		return new CreateCatalogOperation(catalogName, catalog);
+	}
+
+	/** Convert DROP CATALOG statement. */
+	private Operation convertDropCatalog(SqlDropCatalog sqlDropCatalog) {
+		String catalogName = sqlDropCatalog.catalogName();
+		return new DropCatalogOperation(catalogName, sqlDropCatalog.getIfExists());
 	}
 
 	/** Convert use database statement. */
