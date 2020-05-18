@@ -697,6 +697,37 @@ public class FunctionITCase extends StreamingTestBase {
 	}
 
 	@Test
+	public void testStructuredScalarFunction() {
+		final List<Row> sourceData = Arrays.asList(
+			Row.of("Bob", 42),
+			Row.of("Alice", 12),
+			Row.of(null, 0)
+		);
+
+		final List<Row> sinkData = Arrays.asList(
+			Row.of("Bob 42", "Tyler"),
+			Row.of("Alice 12", "Tyler"),
+			Row.of("<<null>>", "Tyler")
+		);
+
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		tEnv().executeSql("CREATE TABLE SourceTable(s STRING, i INT NOT NULL) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s1 STRING, s2 STRING) WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("StructuredScalarFunction", StructuredScalarFunction.class);
+		execInsertSqlAndWaitResult(
+			"INSERT INTO SinkTable " +
+			"SELECT " +
+			"  StructuredScalarFunction(StructuredScalarFunction(s, i)), " +
+			"  StructuredScalarFunction('Tyler', 27).name " +
+			"FROM SourceTable");
+
+		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
+	@Test
 	public void testInvalidCustomScalarFunction() {
 		tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
 
@@ -740,6 +771,32 @@ public class FunctionITCase extends StreamingTestBase {
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 		execInsertSqlAndWaitResult("INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable, LATERAL TABLE(RowTableFunction(s)) t");
+
+		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
+	@Test
+	public void testStructuredTableFunction() {
+		final List<Row> sourceData = Arrays.asList(
+			Row.of("Bob", 42),
+			Row.of("Alice", 12),
+			Row.of(null, 0)
+		);
+
+		final List<Row> sinkData = Arrays.asList(
+			Row.of("Bob", 42),
+			Row.of("Alice", 12),
+			Row.of(null, 0)
+		);
+
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		tEnv().executeSql("CREATE TABLE SourceTable(s STRING, i INT NOT NULL) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s STRING, i INT NOT NULL) WITH ('connector' = 'COLLECTION')");
+
+		tEnv().createTemporarySystemFunction("StructuredTableFunction", StructuredTableFunction.class);
+		execInsertSqlAndWaitResult("INSERT INTO SinkTable SELECT t.name, t.age FROM SourceTable, LATERAL TABLE(StructuredTableFunction(s, i)) t");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
@@ -1006,6 +1063,55 @@ public class FunctionITCase extends StreamingTestBase {
 			return TypeInference.newBuilder()
 				.outputTypeStrategy(TypeStrategies.explicit(DataTypes.STRING()))
 				.build();
+		}
+	}
+
+	/**
+	 * Function that creates and consumes structured types.
+	 */
+	public static class StructuredScalarFunction extends ScalarFunction {
+		public StructuredUser eval(String name, int age) {
+			if (name == null) {
+				return null;
+			}
+			return new StructuredUser(name, age);
+		}
+
+		public String eval(StructuredUser user) {
+			if (user == null) {
+				return "<<null>>";
+			}
+			return user.toString();
+		}
+	}
+
+	/**
+	 * Table function that returns a structured type.
+	 */
+	public static class StructuredTableFunction extends TableFunction<StructuredUser> {
+		public void eval(String name, int age) {
+			if (name == null) {
+				collect(null);
+			}
+			collect(new StructuredUser(name, age));
+		}
+	}
+
+	/**
+	 * Example POJO for structured type.
+	 */
+	public static class StructuredUser {
+		public final String name;
+		public final int age;
+
+		public StructuredUser(String name, int age) {
+			this.name = name;
+			this.age = age;
+		}
+
+		@Override
+		public String toString() {
+			return name + " " + age;
 		}
 	}
 }

@@ -305,7 +305,7 @@ public final class LogicalTypeCasts {
 		} else if (targetRoot == DISTINCT_TYPE) {
 			return supportsCasting(sourceType, ((DistinctType) targetType).getSourceType(), allowExplicit);
 		} else if (sourceRoot == STRUCTURED_TYPE || targetRoot == STRUCTURED_TYPE) {
-			// TODO structured types are not supported yet
+			// inheritance is not supported yet, so structured type must be fully equal
 			return false;
 		} else if (sourceRoot == NULL) {
 			// null can be cast to an arbitrary type
