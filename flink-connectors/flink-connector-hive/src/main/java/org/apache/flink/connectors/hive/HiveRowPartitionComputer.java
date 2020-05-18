@@ -33,13 +33,13 @@ import java.util.LinkedHashMap;
 /**
  * A RowPartitionComputer that converts Flink objects to Hive objects before computing the partition value strings.
  */
-public class HivePartitionComputer extends RowPartitionComputer {
+public class HiveRowPartitionComputer extends RowPartitionComputer {
 
 	private static final long serialVersionUID = 1L;
 
 	private final HiveObjectConversion[] partColConversions;
 
-	HivePartitionComputer(HiveShim hiveShim, String defaultPartValue, String[] columnNames,
+	HiveRowPartitionComputer(HiveShim hiveShim, String defaultPartValue, String[] columnNames,
 			DataType[] columnTypes, String[] partitionColumns) {
 		super(defaultPartValue, columnNames, partitionColumns);
 		partColConversions = new HiveObjectConversion[partitionIndexes.length];

@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connectors.hive;
+package org.apache.flink.connectors.hive.write;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
-import org.apache.flink.table.filesystem.OutputFormatFactory;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.DataFormatConverters;
+import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.types.DataType;
@@ -31,9 +32,11 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter;
+import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
@@ -42,22 +45,24 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.util.ReflectionUtils;
 
-import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Function;
 
 /**
- * Hive {@link OutputFormatFactory}, use {@link RecordWriter} to write record.
+ * Factory for creating {@link RecordWriter} and converters for writing.
  */
-public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
+public class HiveWriterFactory implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -79,21 +84,25 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 
 	private final boolean isCompressed;
 
-	// number of non-partitioning columns
-	private transient int numNonPartitionColumns;
-
 	// SerDe in Hive-1.2.1 and Hive-2.3.4 can be of different classes, make sure to use a common base class
 	private transient Serializer recordSerDe;
+
+	/**
+	 * Field number excluding partition fields.
+	 */
+	private transient int formatFields;
 
 	// to convert Flink object to Hive object
 	private transient HiveObjectConversion[] hiveConversions;
 
+	private transient DataFormatConverter[] converters;
+
 	//StructObjectInspector represents the hive row structure.
-	private transient StructObjectInspector rowObjectInspector;
+	private transient StructObjectInspector formatInspector;
 
-	private transient boolean inited;
+	private transient boolean initialized;
 
-	public HiveOutputFormatFactory(
+	public HiveWriterFactory(
 			JobConf jobConf,
 			Class hiveOutputFormatClz,
 			SerDeInfo serDeInfo,
@@ -102,7 +111,7 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 			Properties tableProperties,
 			HiveShim hiveShim,
 			boolean isCompressed) {
-		Preconditions.checkArgument(org.apache.hadoop.hive.ql.io.HiveOutputFormat.class.isAssignableFrom(hiveOutputFormatClz),
+		Preconditions.checkArgument(HiveOutputFormat.class.isAssignableFrom(hiveOutputFormatClz),
 				"The output format should be an instance of HiveOutputFormat");
 		this.confWrapper = new JobConfWrapper(jobConf);
 		this.hiveOutputFormatClz = hiveOutputFormatClz;
@@ -115,40 +124,12 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 		this.isCompressed = isCompressed;
 	}
 
-	private void init() throws Exception {
-		JobConf jobConf = confWrapper.conf();
-		Object serdeLib = Class.forName(serDeInfo.getSerializationLib()).newInstance();
-		Preconditions.checkArgument(serdeLib instanceof Serializer && serdeLib instanceof Deserializer,
-				"Expect a SerDe lib implementing both Serializer and Deserializer, but actually got "
-						+ serdeLib.getClass().getName());
-		this.recordSerDe = (Serializer) serdeLib;
-		ReflectionUtils.setConf(recordSerDe, jobConf);
-
-		// TODO: support partition properties, for now assume they're same as table properties
-		SerDeUtils.initializeSerDe((Deserializer) recordSerDe, jobConf, tableProperties, null);
-
-		this.numNonPartitionColumns = allColumns.length - partitionColumns.length;
-		this.hiveConversions = new HiveObjectConversion[numNonPartitionColumns];
-		List<ObjectInspector> objectInspectors = new ArrayList<>(hiveConversions.length);
-		for (int i = 0; i < numNonPartitionColumns; i++) {
-			ObjectInspector objectInspector = HiveInspectors.getObjectInspector(allTypes[i]);
-			objectInspectors.add(objectInspector);
-			hiveConversions[i] = HiveInspectors.getConversion(objectInspector, allTypes[i].getLogicalType(), hiveShim);
-		}
-
-		this.rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
-				Arrays.asList(allColumns).subList(0, numNonPartitionColumns),
-				objectInspectors);
-	}
-
-	@Override
-	public HiveOutputFormat createOutputFormat(Path outPath) {
+	/**
+	 * Create a {@link RecordWriter} from path.
+	 */
+	public RecordWriter createRecordWriter(Path path) {
 		try {
-			if (!inited) {
-				init();
-				inited = true;
-			}
-
+			checkInitialize();
 			JobConf conf = new JobConf(confWrapper.conf());
 
 			if (isCompressed) {
@@ -167,56 +148,82 @@ public class HiveOutputFormatFactory implements OutputFormatFactory<Row> {
 				}
 			}
 
-			RecordWriter recordWriter = hiveShim.getHiveRecordWriter(
+			return hiveShim.getHiveRecordWriter(
 					conf,
 					hiveOutputFormatClz,
 					recordSerDe.getSerializedClass(),
 					isCompressed,
 					tableProperties,
-					HadoopFileSystem.toHadoopPath(outPath));
-			return new HiveOutputFormat(recordWriter);
+					path);
 		} catch (Exception e) {
 			throw new FlinkHiveException(e);
 		}
 	}
 
-	private class HiveOutputFormat implements org.apache.flink.api.common.io.OutputFormat<Row> {
+	public JobConf getJobConf() {
+		return confWrapper.conf();
+	}
 
-		private final RecordWriter recordWriter;
-
-		private HiveOutputFormat(RecordWriter recordWriter) {
-			this.recordWriter = recordWriter;
+	private void checkInitialize() throws Exception {
+		if (initialized) {
+			return;
 		}
 
-		// converts a Row to a list of Hive objects so that Hive can serialize it
-		private Object getConvertedRow(Row record) {
-			List<Object> res = new ArrayList<>(numNonPartitionColumns);
-			for (int i = 0; i < numNonPartitionColumns; i++) {
-				res.add(hiveConversions[i].toHiveObject(record.getField(i)));
+		JobConf jobConf = confWrapper.conf();
+		Object serdeLib = Class.forName(serDeInfo.getSerializationLib()).newInstance();
+		Preconditions.checkArgument(serdeLib instanceof Serializer && serdeLib instanceof Deserializer,
+				"Expect a SerDe lib implementing both Serializer and Deserializer, but actually got "
+						+ serdeLib.getClass().getName());
+		this.recordSerDe = (Serializer) serdeLib;
+		ReflectionUtils.setConf(recordSerDe, jobConf);
+
+		// TODO: support partition properties, for now assume they're same as table properties
+		SerDeUtils.initializeSerDe((Deserializer) recordSerDe, jobConf, tableProperties, null);
+
+		this.formatFields = allColumns.length - partitionColumns.length;
+		this.hiveConversions = new HiveObjectConversion[formatFields];
+		this.converters = new DataFormatConverter[formatFields];
+		List<ObjectInspector> objectInspectors = new ArrayList<>(hiveConversions.length);
+		for (int i = 0; i < formatFields; i++) {
+			DataType type = allTypes[i];
+			ObjectInspector objectInspector = HiveInspectors.getObjectInspector(type);
+			objectInspectors.add(objectInspector);
+			hiveConversions[i] = HiveInspectors.getConversion(
+					objectInspector, type.getLogicalType(), hiveShim);
+			converters[i] = DataFormatConverters.getConverterForDataType(type);
+		}
+
+		this.formatInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
+				Arrays.asList(allColumns).subList(0, formatFields),
+				objectInspectors);
+		this.initialized = true;
+	}
+
+	public Function<Row, Writable> createRowConverter() {
+		return row -> {
+			List<Object> fields = new ArrayList<>(formatFields);
+			for (int i = 0; i < formatFields; i++) {
+				fields.add(hiveConversions[i].toHiveObject(row.getField(i)));
 			}
-			return res;
-		}
+			return serialize(fields);
+		};
+	}
 
-		@Override
-		public void configure(Configuration parameters) {
-		}
-
-		@Override
-		public void open(int taskNumber, int numTasks) throws IOException {
-		}
-
-		@Override
-		public void writeRecord(Row record) throws IOException {
-			try {
-				recordWriter.write(recordSerDe.serialize(getConvertedRow(record), rowObjectInspector));
-			} catch (SerDeException e) {
-				throw new IOException(e);
+	public Function<RowData, Writable> createRowDataConverter() {
+		return row -> {
+			List<Object> fields = new ArrayList<>(formatFields);
+			for (int i = 0; i < formatFields; i++) {
+				fields.add(hiveConversions[i].toHiveObject(converters[i].toExternal(row, i)));
 			}
-		}
+			return serialize(fields);
+		};
+	}
 
-		@Override
-		public void close() throws IOException {
-			recordWriter.close(false);
+	private Writable serialize(List<Object> fields) {
+		try {
+			return recordSerDe.serialize(fields, formatInspector);
+		} catch (SerDeException e) {
+			throw new FlinkHiveException(e);
 		}
 	}
 }
