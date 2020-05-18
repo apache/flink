@@ -18,25 +18,31 @@
 
 package org.apache.flink.table.planner.sinks;
 
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectTableSink;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.types.Row;
 
 
 /**
- * A {@link SelectTableSink} for batch select job.
+ * A {@link StreamTableSink} for batch select job to collect the result to local.
  */
-public class BatchSelectTableSink extends SelectTableSinkBase implements StreamTableSink<Row> {
+public class BatchSelectTableSink extends SelectTableSinkBase<RowData> implements StreamTableSink<RowData> {
 
 	public BatchSelectTableSink(TableSchema tableSchema) {
-		super(tableSchema);
+		super(tableSchema, createRowDataTypeInfo(tableSchema).createSerializer(new ExecutionConfig()));
 	}
 
 	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
-		return super.consumeDataStream(dataStream);
+	public TypeInformation<RowData> getOutputType() {
+		return createRowDataTypeInfo(getTableSchema());
+	}
+
+	@Override
+	protected Row convertToRow(RowData element) {
+		// convert RowData to Row
+		return converter.toExternal(element);
 	}
 }

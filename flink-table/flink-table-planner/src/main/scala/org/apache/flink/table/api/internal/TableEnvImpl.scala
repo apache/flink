@@ -588,13 +588,15 @@ abstract class TableEnvImpl(
     val dataSink = writeToSinkAndTranslate(operation, tableSink)
     try {
       val jobClient = execute(JCollections.singletonList(dataSink), "collect")
-      tableSink.setJobClient(jobClient)
+      val selectResultProvider = tableSink.getSelectResultProvider
+      selectResultProvider.setJobClient(jobClient)
       TableResultImpl.builder
         .jobClient(jobClient)
         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
         .tableSchema(tableSchema)
-        .data(tableSink.getResultIterator)
-        .setPrintStyle(PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN))
+        .data(selectResultProvider.getResultIterator)
+        .setPrintStyle(
+          PrintStyle.tableau(PrintUtils.MAX_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, false))
         .build
     } catch {
       case e: Exception =>

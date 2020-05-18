@@ -19,6 +19,7 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
@@ -31,6 +32,8 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Utilities for print formatting.
@@ -58,44 +61,51 @@ public class PrintUtils {
 	 * |      (NULL) |  (NULL) |      (NULL) |
 	 * +-------------+---------+-------------+
 	 * 3 rows in result
-	 *
-	 * <p>Changelog is not supported until FLINK-16998 is finished.
 	 */
 	public static void printAsTableauForm(
 			TableSchema tableSchema,
 			Iterator<Row> it,
 			PrintWriter printWriter) {
-		printAsTableauForm(tableSchema, it, printWriter, MAX_COLUMN_WIDTH, NULL_COLUMN);
+		printAsTableauForm(tableSchema, it, printWriter, MAX_COLUMN_WIDTH, NULL_COLUMN, false);
 	}
 
 	/**
 	 * Displays the result in a tableau form.
 	 *
-	 * <p>For example:
-	 * +-------------+---------+-------------+
-	 * | boolean_col | int_col | varchar_col |
-	 * +-------------+---------+-------------+
-	 * |        true |       1 |         abc |
-	 * |       false |       2 |         def |
-	 * |      (NULL) |  (NULL) |      (NULL) |
-	 * +-------------+---------+-------------+
-	 * 3 rows in result
-	 *
-	 * <p>Changelog is not supported until FLINK-16998 is finished.
+	 * <p>For example: (printRowKind is true)
+	 * +-------------+-------------+---------+-------------+
+	 * | row_kind | boolean_col | int_col | varchar_col |
+	 * +-------------+-------------+---------+-------------+
+	 * |       +I |        true |       1 |         abc |
+	 * |       -U |       false |       2 |         def |
+	 * |       +U |       false |       3 |         def |
+	 * |       -D |      (NULL) |  (NULL) |      (NULL) |
+	 * +-------------+-------------+---------+-------------+
+	 * 4 rows in result
 	 */
 	public static void printAsTableauForm(
 			TableSchema tableSchema,
 			Iterator<Row> it,
 			PrintWriter printWriter,
 			int maxColumnWidth,
-			String nullColumn) {
+			String nullColumn,
+			boolean printRowKind) {
 		List<String[]> rows = new ArrayList<>();
 
 		// fill field names first
-		List<TableColumn> columns = tableSchema.getTableColumns();
+		final List<TableColumn> columns;
+		if (printRowKind) {
+			columns = Stream.concat(
+					Stream.of(TableColumn.of("row_kind", DataTypes.STRING())),
+					tableSchema.getTableColumns().stream()
+			).collect(Collectors.toList());
+		} else {
+			columns = tableSchema.getTableColumns();
+		}
+
 		rows.add(columns.stream().map(TableColumn::getName).toArray(String[]::new));
 		while (it.hasNext()) {
-			rows.add(rowToString(it.next(), nullColumn));
+			rows.add(rowToString(it.next(), nullColumn, printRowKind));
 		}
 
 		int[] colWidths = columnWidthsByContent(columns, rows, maxColumnWidth);
@@ -124,20 +134,24 @@ public class PrintUtils {
 	}
 
 	public static String[] rowToString(Row row) {
-		return rowToString(row, NULL_COLUMN);
+		return rowToString(row, NULL_COLUMN, false);
 	}
 
-	public static String[] rowToString(Row row, String nullColumn) {
-		final String[] fields = new String[row.getArity()];
+	public static String[] rowToString(Row row, String nullColumn, boolean printRowKind) {
+		final int len = printRowKind ? row.getArity() + 1 : row.getArity();
+		final List<String> fields = new ArrayList<>(len);
+		if (printRowKind) {
+			fields.add(row.getKind().shortString());
+		}
 		for (int i = 0; i < row.getArity(); i++) {
 			final Object field = row.getField(i);
 			if (field == null) {
-				fields[i] = nullColumn;
+				fields.add(nullColumn);
 			} else {
-				fields[i] = StringUtils.arrayAwareToString(field);
+				fields.add(StringUtils.arrayAwareToString(field));
 			}
 		}
-		return fields;
+		return fields.toArray(new String[0]);
 	}
 
 	private static int[] columnWidthsByContent(

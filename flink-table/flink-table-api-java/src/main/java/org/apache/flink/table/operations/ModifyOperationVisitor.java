@@ -31,4 +31,6 @@ public interface ModifyOperationVisitor<T> {
 	T visit(OutputConversionModifyOperation outputConversion);
 
 	<U> T visit(UnregisteredSinkModifyOperation<U> unregisteredSink);
+
+	T visit(SelectSinkOperation selectOperation);
 }

@@ -21,8 +21,6 @@ package org.apache.flink.table.delegation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.ExplainDetail;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectTableSink;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -75,14 +73,6 @@ public interface Planner {
 	 * @return list of corresponding {@link Transformation}s.
 	 */
 	List<Transformation<?>> translate(List<ModifyOperation> modifyOperations);
-
-	/**
-	 * Creates a {@link SelectTableSink} for a select query.
-	 *
-	 * @param tableSchema the table schema of select result.
-	 * @return The {@link SelectTableSink} for the select query.
-	 */
-	SelectTableSink createSelectTableSink(TableSchema tableSchema);
 
 	/**
 	 * Returns the AST of the specified Table API and SQL queries and the execution plan

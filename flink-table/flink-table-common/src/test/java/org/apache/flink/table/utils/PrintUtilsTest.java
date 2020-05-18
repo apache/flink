@@ -21,6 +21,7 @@ package org.apache.flink.table.utils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import org.junit.Test;
 
@@ -92,6 +93,24 @@ public class PrintUtilsTest {
 	}
 
 	@Test
+	public void testPrintWithEmptyResultAndRowKind() {
+		PrintUtils.printAsTableauForm(
+				getSchema(),
+				Collections.<Row>emptyList().iterator(),
+				new PrintWriter(outContent),
+				PrintUtils.MAX_COLUMN_WIDTH,
+				"",
+				true);
+
+		assertEquals(
+				"+----------+---------+-----+--------+---------+----------------+-----------+\n" +
+				"| row_kind | boolean | int | bigint | varchar | decimal(10, 5) | timestamp |\n" +
+				"+----------+---------+-----+--------+---------+----------------+-----------+\n" +
+				"0 row in set" + System.lineSeparator(),
+				outContent.toString());
+	}
+
+	@Test
 	public void testPrintWithMultipleRows() {
 		PrintUtils.printAsTableauForm(
 				getSchema(),
@@ -118,6 +137,36 @@ public class PrintUtilsTest {
 				outContent.toString());
 	}
 
+	@Test
+	public void testPrintWithMultipleRowsAndRowKind() {
+		PrintUtils.printAsTableauForm(
+				getSchema(),
+				getData().iterator(),
+				new PrintWriter(outContent),
+				PrintUtils.MAX_COLUMN_WIDTH,
+				"",
+				true);
+
+		// note: the expected result may look irregular because every CJK(Chinese/Japanese/Korean) character's
+		// width < 2 in IDE by default, every CJK character usually's width is 2, you can open this source file
+		// by vim or just cat the file to check the regular result.
+		assertEquals(
+				"+----------+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+\n" +
+				"| row_kind | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |\n" +
+				"+----------+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+\n" +
+				"|       +I |         |           1 |                    2 |                            abc |           1.23 |      2020-03-01 18:39:14.0 |\n" +
+				"|       +I |   false |             |                    0 |                                |              1 |      2020-03-01 18:39:14.1 |\n" +
+				"|       -D |    true |  2147483647 |                      |                        abcdefg |     1234567890 |     2020-03-01 18:39:14.12 |\n" +
+				"|       +I |   false | -2147483648 |  9223372036854775807 |                                |    12345.06789 |    2020-03-01 18:39:14.123 |\n" +
+				"|       +I |    true |         100 | -9223372036854775808 |                     abcdefg111 |                | 2020-03-01 18:39:14.123456 |\n" +
+				"|       -U |         |          -1 |                   -1 |     abcdefghijklmnopqrstuvwxyz |   -12345.06789 |                            |\n" +
+				"|       +U |         |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 |      2020-03-04 18:39:14.0 |\n" +
+				"|       -D |         |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 |      2020-03-04 18:39:14.0 |\n" +
+				"+----------+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+\n" +
+				"8 rows in set" + System.lineSeparator(),
+				outContent.toString());
+	}
+
 	private TableSchema getSchema() {
 		return TableSchema.builder()
 				.field("boolean", DataTypes.BOOLEAN())
@@ -131,7 +180,8 @@ public class PrintUtilsTest {
 
 	private List<Row> getData() {
 		List<Row> data = new ArrayList<>();
-		data.add(Row.of(
+		data.add(Row.ofKind(
+				RowKind.INSERT,
 				null,
 				1,
 				2,
@@ -139,7 +189,8 @@ public class PrintUtilsTest {
 				BigDecimal.valueOf(1.23),
 				Timestamp.valueOf("2020-03-01 18:39:14"))
 		);
-		data.add(Row.of(
+		data.add(Row.ofKind(
+				RowKind.INSERT,
 				false,
 				null,
 				0,
@@ -147,7 +198,8 @@ public class PrintUtilsTest {
 				BigDecimal.valueOf(1),
 				Timestamp.valueOf("2020-03-01 18:39:14.1"))
 		);
-		data.add(Row.of(
+		data.add(Row.ofKind(
+				RowKind.DELETE,
 				true,
 				Integer.MAX_VALUE,
 				null,
@@ -155,7 +207,8 @@ public class PrintUtilsTest {
 				BigDecimal.valueOf(1234567890),
 				Timestamp.valueOf("2020-03-01 18:39:14.12"))
 		);
-		data.add(Row.of(
+		data.add(Row.ofKind(
+				RowKind.INSERT,
 				false,
 				Integer.MIN_VALUE,
 				Long.MAX_VALUE,
@@ -163,7 +216,8 @@ public class PrintUtilsTest {
 				BigDecimal.valueOf(12345.06789),
 				Timestamp.valueOf("2020-03-01 18:39:14.123"))
 		);
-		data.add(Row.of(
+		data.add(Row.ofKind(
+				RowKind.INSERT,
 				true,
 				100,
 				Long.MIN_VALUE,
@@ -171,7 +225,8 @@ public class PrintUtilsTest {
 				null,
 				Timestamp.valueOf("2020-03-01 18:39:14.123456"))
 		);
-		data.add(Row.of(
+		data.add(Row.ofKind(
+				RowKind.UPDATE_BEFORE,
 				null,
 				-1,
 				-1,
@@ -179,7 +234,8 @@ public class PrintUtilsTest {
 				BigDecimal.valueOf(-12345.06789),
 				null)
 		);
-		data.add(Row.of(
+		data.add(Row.ofKind(
+				RowKind.UPDATE_AFTER,
 				null,
 				-1,
 				-1,
@@ -187,7 +243,8 @@ public class PrintUtilsTest {
 				BigDecimal.valueOf(-12345.06789),
 				Timestamp.valueOf("2020-03-04 18:39:14"))
 		);
-		data.add(Row.of(
+		data.add(Row.ofKind(
+				RowKind.DELETE,
 				null,
 				-1,
 				-1,

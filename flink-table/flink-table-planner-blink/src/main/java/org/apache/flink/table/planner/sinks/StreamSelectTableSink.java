@@ -18,28 +18,42 @@
 
 package org.apache.flink.table.planner.sinks;
 
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectTableSink;
-import org.apache.flink.table.sinks.AppendStreamTableSink;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.sinks.RetractStreamTableSink;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 /**
- * A {@link SelectTableSink} for streaming select job.
+ * A {@link RetractStreamTableSink} for streaming select job to collect the result to local.
  *
- * <p><strong>NOTE:</strong>
- * Currently, only insert changes (AppendStreamTableSink) is supported.
- * Once FLINK-16998 is finished, all kinds of changes will be supported.
+ * <p>{@link RowData} contains {@link RowKind} attribute which
+ * can represents all kind of changes. The boolean flag is useless here,
+ * only because {@link RetractStreamTableSink} requires Tuple2&lt;Boolean, T&gt; type.
  */
-public class StreamSelectTableSink extends SelectTableSinkBase implements AppendStreamTableSink<Row> {
+public class StreamSelectTableSink
+		extends SelectTableSinkBase<Tuple2<Boolean, RowData>>
+		implements RetractStreamTableSink<RowData> {
 
 	public StreamSelectTableSink(TableSchema tableSchema) {
-		super(tableSchema);
+		super(tableSchema, new TupleTypeInfo<Tuple2<Boolean, RowData>>(
+				Types.BOOLEAN,
+				createRowDataTypeInfo(tableSchema)).createSerializer(new ExecutionConfig()));
 	}
 
 	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
-		return super.consumeDataStream(dataStream);
+	public TypeInformation<RowData> getRecordType() {
+		return createRowDataTypeInfo(getTableSchema());
+	}
+
+	@Override
+	protected Row convertToRow(Tuple2<Boolean, RowData> tuple2) {
+		// convert Tuple2<Boolean, RowData> to Row
+		return converter.toExternal(tuple2.f1);
 	}
 }

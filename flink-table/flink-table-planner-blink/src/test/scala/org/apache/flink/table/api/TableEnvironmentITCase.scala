@@ -22,22 +22,24 @@ import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecutionEnvironment}
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment, _}
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.{TableEnvUtil, TestingAppendSink}
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceStageId}
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks, TestTableSourceWithTime}
-import org.apache.flink.types.Row
+import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.{FileUtils, TestLogger}
+
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
-import org.hamcrest.Matchers.containsString
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assert, Before, Rule, Test}
+
 import _root_.java.io.{File, FileFilter}
 import _root_.java.lang.{Long => JLong}
 import _root_.java.util
@@ -599,14 +601,35 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testExecuteSelectWithUpdateChanges(): Unit = {
-    if (!isStreaming) {
-      return
+    val tableResult = tEnv.sqlQuery("select count(*) as c from MyTable").execute()
+    assertTrue(tableResult.getJobClient.isPresent)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    assertEquals(
+      TableSchema.builder().field("c", DataTypes.BIGINT().notNull()).build(),
+      tableResult.getTableSchema)
+    val expected = if (isStreaming) {
+      util.Arrays.asList(
+        Row.ofKind(RowKind.INSERT, JLong.valueOf(1)),
+        Row.ofKind(RowKind.UPDATE_BEFORE, JLong.valueOf(1)),
+        Row.ofKind(RowKind.UPDATE_AFTER, JLong.valueOf(2)),
+        Row.ofKind(RowKind.UPDATE_BEFORE, JLong.valueOf(2)),
+        Row.ofKind(RowKind.UPDATE_AFTER, JLong.valueOf(3)),
+        Row.ofKind(RowKind.UPDATE_BEFORE, JLong.valueOf(3)),
+        Row.ofKind(RowKind.UPDATE_AFTER, JLong.valueOf(4)),
+        Row.ofKind(RowKind.UPDATE_BEFORE, JLong.valueOf(4)),
+        Row.ofKind(RowKind.UPDATE_AFTER, JLong.valueOf(5)),
+        Row.ofKind(RowKind.UPDATE_BEFORE, JLong.valueOf(5)),
+        Row.ofKind(RowKind.UPDATE_AFTER, JLong.valueOf(6)),
+        Row.ofKind(RowKind.UPDATE_BEFORE, JLong.valueOf(6)),
+        Row.ofKind(RowKind.UPDATE_AFTER, JLong.valueOf(7)),
+        Row.ofKind(RowKind.UPDATE_BEFORE, JLong.valueOf(7)),
+        Row.ofKind(RowKind.UPDATE_AFTER, JLong.valueOf(8))
+      )
+    } else {
+      util.Arrays.asList(Row.of(JLong.valueOf(8)))
     }
-    // TODO Once FLINK-16998 is finished, all kinds of changes will be supported.
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(containsString(
-      "AppendStreamTableSink doesn't support consuming update changes"))
-    tEnv.executeSql("select count(*) from MyTable")
+    val actual = Lists.newArrayList(tableResult.collect())
+    assertEquals(expected, actual)
   }
 
   @Test
