@@ -21,6 +21,8 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
@@ -34,38 +36,37 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_FIELD_DELIMITER;
 import static org.apache.flink.api.java.io.CsvOutputFormat.DEFAULT_LINE_DELIMITER;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 
 /**
  * Test csv {@link FileSystemFormatFactory}.
  */
 public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 
-	public static final String USE_BULK_WRITER = "format.use-bulk-writer";
+	public static final ConfigOption<Boolean> USE_BULK_WRITER = ConfigOptions.key("use-bulk-writer")
+			.booleanType()
+			.defaultValue(false);
 
 	@Override
-	public boolean supportsSchemaDerivation() {
-		return true;
+	public String factoryIdentifier() {
+		return "testcsv";
 	}
 
 	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(FORMAT, "testcsv");
-		return context;
+	public Set<ConfigOption<?>> requiredOptions() {
+		Set<ConfigOption<?>> options = new HashSet<>();
+		options.add(USE_BULK_WRITER);
+		return options;
 	}
 
 	@Override
-	public List<String> supportedProperties() {
-		return Collections.singletonList(USE_BULK_WRITER);
+	public Set<ConfigOption<?>> optionalOptions() {
+		return new HashSet<>();
 	}
 
 	@Override
@@ -80,7 +81,7 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 	}
 
 	private boolean useBulkWriter(WriterContext context) {
-		return Boolean.parseBoolean(context.getFormatProperties().get(USE_BULK_WRITER));
+		return context.getFormatOptions().get(USE_BULK_WRITER);
 	}
 
 	@Override

@@ -18,34 +18,27 @@
 
 package org.apache.flink.table.filesystem;
 
-import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.factories.TableFactory;
-import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
-import static org.apache.flink.table.descriptors.Schema.SCHEMA;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_TRIGGER;
+import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_DEFAULT_NAME;
+import static org.apache.flink.table.filesystem.FileSystemOptions.PATH;
 
 /**
  * File system {@link TableFactory}.
@@ -61,121 +54,64 @@ public class FileSystemTableFactory implements
 		TableSourceFactory<RowData>,
 		TableSinkFactory<RowData> {
 
-	public static final String CONNECTOR_VALUE = "filesystem";
-
-	/**
-	 * Not use "connector.path" because:
-	 * 1.Using "connector.path" will conflict with current batch csv source and batch csv sink.
-	 * 2.This is compatible with FLIP-122.
-	 */
-	public static final String PATH = "path";
-
-	/**
-	 * Move these properties to validator after FLINK-16904.
-	 */
-	public static final ConfigOption<String> PARTITION_DEFAULT_NAME = key("partition.default-name")
-			.stringType()
-			.defaultValue("__DEFAULT_PARTITION__")
-			.withDescription("The default partition name in case the dynamic partition" +
-					" column value is null/empty string");
-
-	public static final ConfigOption<Long> SINK_ROLLING_POLICY_FILE_SIZE = key("sink.rolling-policy.file-size")
-			.longType()
-			.defaultValue(1024L * 1024L * 128L)
-			.withDescription("The maximum part file size before rolling (by default 128MB).");
-
-	public static final ConfigOption<Long> SINK_ROLLING_POLICY_TIME_INTERVAL = key("sink.rolling-policy.time.interval")
-			.longType()
-			.defaultValue(30L * 60 * 1000L)
-			.withDescription("The maximum time duration a part file can stay open before rolling" +
-					" (by default 30 min to avoid to many small files).");
-
-	public static final ConfigOption<Boolean> SINK_SHUFFLE_BY_PARTITION = key("sink.shuffle-by-partition.enable")
-			.booleanType()
-			.defaultValue(false)
-			.withDescription("The option to enable shuffle data by dynamic partition fields in sink" +
-					" phase, this can greatly reduce the number of file for filesystem sink but may" +
-					" lead data skew, the default value is disabled.");
+	public static final String IDENTIFIER = "filesystem";
 
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
-		context.put(CONNECTOR, CONNECTOR_VALUE);
+		context.put(CONNECTOR, IDENTIFIER);
 		return context;
 	}
 
 	@Override
 	public List<String> supportedProperties() {
-		List<String> properties = new ArrayList<>();
-
-		// path
-		properties.add(PATH);
-
-		// schema
-		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
-		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
-
-		// partition
-		properties.add(DescriptorProperties.PARTITION_KEYS + ".#." +
-				DescriptorProperties.PARTITION_KEYS_NAME);
-		properties.add(PARTITION_DEFAULT_NAME.key());
-
-		properties.add(SINK_ROLLING_POLICY_FILE_SIZE.key());
-		properties.add(SINK_ROLLING_POLICY_TIME_INTERVAL.key());
-		properties.add(SINK_SHUFFLE_BY_PARTITION.key());
-		properties.add(PARTITION_TIME_EXTRACTOR_KIND.key());
-		properties.add(PARTITION_TIME_EXTRACTOR_CLASS.key());
-		properties.add(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key());
-		properties.add(SINK_PARTITION_COMMIT_TRIGGER.key());
-		properties.add(SINK_PARTITION_COMMIT_DELAY.key());
-		properties.add(SINK_PARTITION_COMMIT_POLICY_KIND.key());
-		properties.add(SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.key());
-
-		// format
-		properties.add(FORMAT);
-		properties.add(FORMAT + ".*");
-
-		return properties;
+		// contains format properties.
+		return Collections.singletonList("*");
 	}
 
 	@Override
 	public TableSource<RowData> createTableSource(TableSourceFactory.Context context) {
-		DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(context.getTable().getProperties());
+		Configuration conf = new Configuration();
+		context.getTable().getOptions().forEach(conf::setString);
 
 		return new FileSystemTableSource(
 				context.getTable().getSchema(),
-				new Path(properties.getString(PATH)),
+				getPath(conf),
 				context.getTable().getPartitionKeys(),
-				getPartitionDefaultName(properties),
+				conf.get(PARTITION_DEFAULT_NAME),
 				context.getTable().getProperties());
 	}
 
 	@Override
 	public TableSink<RowData> createTableSink(TableSinkFactory.Context context) {
-		DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(context.getTable().getProperties());
+		Configuration conf = new Configuration();
+		context.getTable().getOptions().forEach(conf::setString);
 
 		return new FileSystemTableSink(
 				context.getObjectIdentifier(),
 				context.isBounded(),
 				context.getTable().getSchema(),
-				new Path(properties.getString(PATH)),
+				getPath(conf),
 				context.getTable().getPartitionKeys(),
-				getPartitionDefaultName(properties),
+				conf.get(PARTITION_DEFAULT_NAME),
 				context.getTable().getOptions());
 	}
 
-	private static String getPartitionDefaultName(DescriptorProperties properties) {
-		return properties
-				.getOptionalString(PARTITION_DEFAULT_NAME.key())
-				.orElse(PARTITION_DEFAULT_NAME.defaultValue());
+	private static Path getPath(Configuration conf) {
+		return new Path(conf.getOptional(PATH).orElseThrow(() ->
+				new ValidationException("Path should be not empty.")));
 	}
 
 	public static FileSystemFormatFactory createFormatFactory(Map<String, String> properties) {
-		return TableFactoryService.find(
+		String format = properties.get(FORMAT);
+		if (format == null) {
+			throw new ValidationException(String.format(
+					"Table options do not contain an option key '%s' for discovering a format.",
+					FORMAT));
+		}
+		return FactoryUtil.discoverFactory(
+				Thread.currentThread().getContextClassLoader(),
 				FileSystemFormatFactory.class,
-				properties,
-				FileSystemTableFactory.class.getClassLoader());
+				format);
 	}
 }

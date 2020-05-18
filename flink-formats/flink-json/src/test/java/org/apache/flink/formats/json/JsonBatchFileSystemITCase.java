@@ -39,7 +39,7 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
 	public String[] formatProperties() {
 		List<String> ret = new ArrayList<>();
 		ret.add("'format'='json'");
-		ret.add("'format.ignore-parse-errors'='true'");
+		ret.add("'json.ignore-parse-errors'='true'");
 		return ret.toArray(new String[0]);
 	}
 

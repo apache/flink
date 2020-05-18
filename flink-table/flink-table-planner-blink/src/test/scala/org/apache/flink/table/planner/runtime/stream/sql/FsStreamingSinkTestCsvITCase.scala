@@ -34,7 +34,7 @@ class FsStreamingSinkTestCsvITCase(useBulkWriter: Boolean) extends FsStreamingSi
 
   override def additionalProperties(): Array[String] = {
     super.additionalProperties() ++
-        Seq("'format' = 'testcsv'", s"'$USE_BULK_WRITER' = '$useBulkWriter'") ++
+        Seq("'format' = 'testcsv'", s"'${USE_BULK_WRITER.key()}' = '$useBulkWriter'") ++
         (if (useBulkWriter) Seq() else Seq("'sink.rolling-policy.file-size' = '1'"))
   }
 }

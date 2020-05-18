@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning
-import org.apache.flink.table.filesystem.FileSystemTableFactory
+import org.apache.flink.table.filesystem.FileSystemOptions
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
@@ -62,7 +62,7 @@ class StreamExecSinkRule extends ConverterRule(
             val shuffleEnable = sinkNode
                 .catalogTable
                 .getOptions
-                .get(FileSystemTableFactory.SINK_SHUFFLE_BY_PARTITION.key())
+                .get(FileSystemOptions.SINK_SHUFFLE_BY_PARTITION.key())
 
             if (shuffleEnable != null && shuffleEnable.toBoolean) {
               requiredTraitSet = requiredTraitSet.plus(
