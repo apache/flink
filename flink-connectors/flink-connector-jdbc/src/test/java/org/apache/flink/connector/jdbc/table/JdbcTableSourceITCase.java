@@ -44,7 +44,6 @@ import java.util.stream.StreamSupport;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
-
 /**
  * ITCase for {@link JdbcTableSource}.
  */

@@ -22,16 +22,16 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.jdbc.JdbcTestFixture;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.runtime.utils.StreamITCase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Before;
@@ -46,16 +46,20 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.DERBY_EBOOKSHOP_DB;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.junit.Assert.assertEquals;
 
 /**
- * IT case for {@link JdbcLookupFunction}.
+ * IT case for lookup source of JDBC connector.
  */
 @RunWith(Parameterized.class)
-public class JdbcLookupFunctionITCase extends AbstractTestBase {
+public class JdbcLookupTableITCase extends AbstractTestBase {
 
 	public static final String DB_URL = "jdbc:derby:memory:lookup";
 	public static final String LOOKUP_TABLE = "lookup_table";
@@ -63,7 +67,7 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 	private final String tableFactory;
 	private final boolean useCache;
 
-	public JdbcLookupFunctionITCase(String tableFactory, boolean useCache) {
+	public JdbcLookupTableITCase(String tableFactory, boolean useCache) {
 		this.useCache = useCache;
 		this.tableFactory = tableFactory;
 	}
@@ -143,16 +147,20 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 	}
 
 	@Test
-	public void test() throws Exception {
+	public void testLookup() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
-		StreamITCase.clear();
 
+		Iterator<Row> collected;
 		if ("legacyFactory".equals(tableFactory)) {
-			useLegacyTableFactory(env, tEnv);
+			collected = useLegacyTableFactory(env, tEnv);
 		} else {
-			useDynamicTableFactory(env, tEnv);
+			collected = useDynamicTableFactory(env, tEnv);
 		}
+		List<String> result = Lists.newArrayList(collected).stream()
+			.map(Row::toString)
+			.sorted()
+			.collect(Collectors.toList());
 
 		List<String> expected = new ArrayList<>();
 		expected.add("1,1,11-c1-v1,11-c2-v1");
@@ -162,11 +170,12 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 		expected.add("2,3,null,23-c2");
 		expected.add("2,5,25-c1,25-c2");
 		expected.add("3,8,38-c1,38-c2");
+		Collections.sort(expected);
 
-		StreamITCase.compareWithList(expected);
+		assertEquals(expected, result);
 	}
 
-	private void useLegacyTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) throws Exception {
+	private Iterator<Row> useLegacyTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) throws Exception {
 		Table t = tEnv.fromDataStream(env.fromCollection(Arrays.asList(
 			new Tuple2<>(1, "1"),
 			new Tuple2<>(1, "1"),
@@ -195,13 +204,10 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 
 		String sqlQuery = "SELECT id1, id2, comment1, comment2 FROM T, " +
 			"LATERAL TABLE(jdbcLookup(id1, id2)) AS S(l_id1, l_id2, comment1, comment2)";
-		Table result = tEnv.sqlQuery(sqlQuery);
-		DataStream<Row> resultSet = tEnv.toAppendStream(result, Row.class);
-		resultSet.addSink(new StreamITCase.StringSink<>());
-		env.execute();
+		return tEnv.executeSql(sqlQuery).collect();
 	}
 
-	private void useDynamicTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) throws Exception {
+	private Iterator<Row> useDynamicTableFactory(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) throws Exception {
 		Table t = tEnv.fromDataStream(env.fromCollection(Arrays.asList(
 			new Tuple2<>(1, "1"),
 			new Tuple2<>(1, "1"),
@@ -229,9 +235,6 @@ public class JdbcLookupFunctionITCase extends AbstractTestBase {
 		String sqlQuery = "SELECT source.id1, source.id2, L.comment1, L.comment2 FROM T AS source " +
 			"JOIN lookup for system_time as of source.proctime AS L " +
 			"ON source.id1 = L.id1 and source.id2 = L.id2";
-		Table result = tEnv.sqlQuery(sqlQuery);
-		DataStream<Row> resultSet = tEnv.toAppendStream(result, Row.class);
-		resultSet.addSink(new StreamITCase.StringSink<>());
-		env.execute();
+		return tEnv.executeSql(sqlQuery).collect();
 	}
 }
