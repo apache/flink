@@ -17,6 +17,7 @@
  */
 
 package org.apache.flink.table.planner
+
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.datastream.DataStream

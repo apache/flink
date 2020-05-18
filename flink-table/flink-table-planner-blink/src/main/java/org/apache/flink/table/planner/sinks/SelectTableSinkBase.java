@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sinks;
+package org.apache.flink.table.planner.sinks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFacto
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.SelectTableSink;
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
@@ -36,21 +37,22 @@ import java.util.Iterator;
 import java.util.UUID;
 
 /**
- * A {@link SelectTableSink} for streaming select job.
- *
- * <p><strong>NOTES:</strong> Currently, only insert changes is supported.
- * Once FLINK-16998 is finished, all kinds of changes will be supported.
+ * Basic implementation of {@link SelectTableSink}.
  */
-public class StreamSelectTableSink implements AppendStreamTableSink<Row>, SelectTableSink {
+public class SelectTableSinkBase implements SelectTableSink {
 
 	private final TableSchema tableSchema;
 	private final CollectSinkOperatorFactory<Row> factory;
 	private final CollectResultIterator<Row> iterator;
 
-	public StreamSelectTableSink(TableSchema tableSchema) {
-		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(tableSchema);
+	@SuppressWarnings("unchecked")
+	public SelectTableSinkBase(TableSchema tableSchema) {
+		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
+			SelectTableSinkSchemaConverter.changeDefaultConversionClass(tableSchema));
 
-		TypeSerializer<Row> typeSerializer = this.tableSchema.toRowType().createSerializer(new ExecutionConfig());
+		TypeSerializer<Row> typeSerializer = (TypeSerializer<Row>) TypeInfoDataTypeConverter
+			.fromDataTypeToTypeInfo(this.tableSchema.toRowDataType())
+			.createSerializer(new ExecutionConfig());
 		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
 
 		this.factory = new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
@@ -68,11 +70,10 @@ public class StreamSelectTableSink implements AppendStreamTableSink<Row>, Select
 		return tableSchema;
 	}
 
-	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
+	protected DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
 		CollectStreamSink<Row> sink = new CollectStreamSink<>(dataStream, factory);
 		dataStream.getExecutionEnvironment().addOperator(sink.getTransformation());
-		return sink.name("Streaming select table sink");
+		return sink.name("Select table sink");
 	}
 
 	@Override
