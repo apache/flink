@@ -61,11 +61,11 @@ import static org.junit.Assert.assertThat;
 @RunWith(Parameterized.class)
 public class BucketStateSerializerTest {
 
-	private static final int CURRENT_VERSION = 1;
+	private static final int CURRENT_VERSION = 2;
 
 	@Parameterized.Parameters(name = "Previous Version = {0}")
 	public static Collection<Integer> previousVersions() {
-		return Arrays.asList(1);
+		return Arrays.asList(1, 2);
 	}
 
 	@Parameterized.Parameter
