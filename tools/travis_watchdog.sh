@@ -147,12 +147,13 @@ upload_artifacts_s3() {
 
 	# On Azure, publish ARTIFACTS_FILE as a build artifact
 	if [ ! -z "$TF_BUILD" ] ; then
+		TIMESTAMP=`date +%s` # append timestamp to name to allow multiple uploads for the same module
 		ARTIFACT_DIR="$(pwd)/artifact-dir"
 		mkdir $ARTIFACT_DIR
 		cp $ARTIFACTS_FILE $ARTIFACT_DIR/
 		
 		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$ARTIFACT_DIR"
-		echo "##vso[task.setvariable variable=ARTIFACT_NAME]$(echo $MODULE | tr -dc '[:alnum:]\n\r')"
+		echo "##vso[task.setvariable variable=ARTIFACT_NAME]$(echo $MODULE | tr -dc '[:alnum:]\n\r')-$TIMESTAMP"
 	fi
 
 	# upload to https://transfer.sh
