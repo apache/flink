@@ -31,7 +31,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
-import org.apache.flink.table.planner.factories.TestProjectableValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -42,7 +42,6 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit._
 
@@ -1250,7 +1249,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testSimpleProject(): Unit = {
-    val myTableDataId = TestProjectableValuesTableFactory.registerData(TestData.smallData3)
+    val myTableDataId = TestValuesTableFactory.registerData(TestData.smallData3)
     val ddl =
       s"""
          |CREATE TABLE SimpleTable (
@@ -1258,7 +1257,7 @@ class CalcITCase extends BatchTestBase {
          |  b bigint,
          |  c string
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'data-id' = '$myTableDataId',
          |  'bounded' = 'true'
          |)
@@ -1278,7 +1277,7 @@ class CalcITCase extends BatchTestBase {
       row(2, row(row("HELLO", 22), row(222, false)), row("hello", 2222), "mary"),
       row(3, row(row("HELLO WORLD", 33), row(333, true)), row("hello world", 3333), "benji")
     )
-    val myTableDataId = TestProjectableValuesTableFactory.registerData(data)
+    val myTableDataId = TestValuesTableFactory.registerData(data)
     val ddl =
       s"""
          |CREATE TABLE NestedTable (
@@ -1288,7 +1287,7 @@ class CalcITCase extends BatchTestBase {
          |  nested row<name string, `value` int>,
          |  name string
          |) WITH (
-         |  'connector' = 'projectable-values',
+         |  'connector' = 'values',
          |  'nested-projection-supported' = 'false',
          |  'data-id' = '$myTableDataId',
          |  'bounded' = 'true'

@@ -40,6 +40,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
@@ -55,7 +56,6 @@ import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.Retra
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -235,6 +235,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.booleanType()
 		.defaultValue(true);
 
+	private static final ConfigOption<Boolean> NESTED_PROJECTION_SUPPORTED = ConfigOptions
+		.key("nested-projection-supported")
+		.booleanType()
+		.defaultValue(false);
+
 	@Override
 	public String factoryIdentifier() {
 		return IDENTIFIER;
@@ -251,18 +256,21 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		String sourceClass = helper.getOptions().get(TABLE_SOURCE_CLASS);
 		boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
 		String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
+		boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
 
 		if (sourceClass.equals("DEFAULT")) {
 			Collection<Tuple2<RowKind, Row>> data = registeredData.getOrDefault(dataId, Collections.emptyList());
-			DataType rowDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+			TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
 			return new TestValuesTableSource(
+				physicalSchema,
 				changelogMode,
 				isBounded,
 				runtimeSource,
-				rowDataType,
 				data,
 				isAsync,
-				lookupFunctionClass);
+				lookupFunctionClass,
+				nestedProjectionSupported,
+				null);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -306,7 +314,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			ASYNC_ENABLED,
 			TABLE_SOURCE_CLASS,
 			SINK_INSERT_ONLY,
-			RUNTIME_SINK));
+			RUNTIME_SINK,
+			NESTED_PROJECTION_SUPPORTED));
 	}
 
 	private ChangelogMode parseChangelogMode(String string) {
@@ -339,30 +348,37 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	/**
 	 * Values {@link DynamicTableSource} for testing.
 	 */
-	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource {
+	private static class TestValuesTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
 
+		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;
 		private final boolean bounded;
 		private final String runtimeSource;
-		private final DataType physicalRowDataType;
 		private final Collection<Tuple2<RowKind, Row>> data;
 		private final boolean isAsync;
 		private final @Nullable String lookupFunctionClass;
+		private final boolean nestedProjectionSupported;
+		private @Nullable int[] projectedFields;
 
 		private TestValuesTableSource(
+				TableSchema physicalSchema,
 				ChangelogMode changelogMode,
-				boolean bounded, String runtimeSource,
-				DataType physicalRowDataType,
+				boolean bounded,
+				String runtimeSource,
 				Collection<Tuple2<RowKind, Row>> data,
 				boolean isAsync,
-				@Nullable String lookupFunctionClass) {
+				@Nullable String lookupFunctionClass,
+				boolean nestedProjectionSupported,
+				int[] projectedFields) {
+			this.physicalSchema = physicalSchema;
 			this.changelogMode = changelogMode;
 			this.bounded = bounded;
 			this.runtimeSource = runtimeSource;
-			this.physicalRowDataType = physicalRowDataType;
 			this.data = data;
 			this.isAsync = isAsync;
 			this.lookupFunctionClass = lookupFunctionClass;
+			this.nestedProjectionSupported = nestedProjectionSupported;
+			this.projectedFields = projectedFields;
 		}
 
 		@Override
@@ -374,11 +390,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		@Override
 		public ScanRuntimeProvider getScanRuntimeProvider(ScanTableSource.Context runtimeProviderContext) {
 			TypeSerializer<RowData> serializer = (TypeSerializer<RowData>) runtimeProviderContext
-				.createTypeInformation(physicalRowDataType)
+				.createTypeInformation(physicalSchema.toRowDataType())
 				.createSerializer(new ExecutionConfig());
-			DataStructureConverter converter = runtimeProviderContext.createDataStructureConverter(physicalRowDataType);
+			DataStructureConverter converter = runtimeProviderContext.createDataStructureConverter(physicalSchema.toRowDataType());
 			converter.open(RuntimeConverter.Context.create(TestValuesTableFactory.class.getClassLoader()));
-			Collection<RowData> values = convertToRowData(data, converter);
+			Collection<RowData> values = convertToRowData(data, projectedFields, converter);
 
 			if (runtimeSource.equals("SourceFunction")) {
 				try {
@@ -438,8 +454,28 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 
 		@Override
+		public boolean supportsNestedProjection() {
+			return nestedProjectionSupported;
+		}
+
+		@Override
+		public void applyProjection(int[][] projectedFields) {
+			this.physicalSchema = TableSchemaUtils.projectSchema(physicalSchema, projectedFields);
+			this.projectedFields = Arrays.stream(projectedFields).mapToInt(f -> f[0]).toArray();
+		}
+
+		@Override
 		public DynamicTableSource copy() {
-			return new TestValuesTableSource(changelogMode, bounded, runtimeSource, physicalRowDataType, data, isAsync, lookupFunctionClass);
+			return new TestValuesTableSource(
+				physicalSchema,
+				changelogMode,
+				bounded,
+				runtimeSource,
+				data,
+				isAsync,
+				lookupFunctionClass,
+				nestedProjectionSupported,
+				projectedFields);
 		}
 
 		@Override
@@ -449,10 +485,21 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		private static Collection<RowData> convertToRowData(
 				Collection<Tuple2<RowKind, Row>> data,
+				int[] projectedFields,
 				DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
 			for (Tuple2<RowKind, Row> value : data) {
-				RowData rowData = (RowData) converter.toInternal(value.f1);
+				Row projectedRow;
+				if (projectedFields == null) {
+					projectedRow = value.f1;
+				} else {
+					Object[] newValues = new Object[projectedFields.length];
+					for (int i = 0; i < projectedFields.length; ++i) {
+						newValues[i] = value.f1.getField(projectedFields[i]);
+					}
+					projectedRow = Row.of(newValues);
+				}
+				RowData rowData = (RowData) converter.toInternal(projectedRow);
 				if (rowData != null) {
 					rowData.setRowKind(value.f0);
 					result.add(rowData);

@@ -70,4 +70,52 @@ public class TableSchemaUtilsTest {
 		exceptionRule.expectMessage("Constraint ct2 to drop does not exist");
 		TableSchemaUtils.dropConstraint(oriSchema, "ct2");
 	}
+
+	@Test
+	public void testInvalidProjectSchema() {
+		{
+			TableSchema schema = TableSchema.builder()
+				.field("a", DataTypes.INT().notNull())
+				.field("b", DataTypes.STRING())
+				.field("c", DataTypes.INT(), "a + 1")
+				.field("t", DataTypes.TIMESTAMP(3))
+				.primaryKey("ct1", new String[]{"a"})
+				.watermark("t", "t", DataTypes.TIMESTAMP(3))
+				.build();
+			exceptionRule.expect(IllegalArgumentException.class);
+			exceptionRule.expectMessage("It's illegal to project on a schema contains computed columns.");
+			int[][] projectedFields = {{1}};
+			TableSchemaUtils.projectSchema(schema, projectedFields);
+		}
+
+		{
+			TableSchema schema = TableSchema.builder()
+				.field("a", DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.STRING())))
+				.field("b", DataTypes.STRING())
+				.build();
+			exceptionRule.expect(IllegalArgumentException.class);
+			exceptionRule.expectMessage("Nested projection push down is not supported yet.");
+			int[][] projectedFields = {{0, 1}};
+			TableSchemaUtils.projectSchema(schema, projectedFields);
+		}
+	}
+
+	@Test
+	public void testProjectSchema() {
+		TableSchema schema = TableSchema.builder()
+			.field("a", DataTypes.INT().notNull())
+			.field("b", DataTypes.STRING())
+			.field("t", DataTypes.TIMESTAMP(3))
+			.primaryKey("a")
+			.watermark("t", "t", DataTypes.TIMESTAMP(3))
+			.build();
+
+		int[][] projectedFields = {{2}, {0}};
+		TableSchema projected = TableSchemaUtils.projectSchema(schema, projectedFields);
+		TableSchema expected = TableSchema.builder()
+			.field("t", DataTypes.TIMESTAMP(3))
+			.field("a", DataTypes.INT().notNull())
+			.build();
+		assertEquals(expected, projected);
+	}
 }
