@@ -22,7 +22,7 @@ jobs:
       clean: all
     steps:
       # Compile
-      - script: STAGE=compile ${{parameters.environment}} ./tools/azure_controller.sh compile
+      - script: STAGE=compile ${{parameters.environment}} ./tools/azure-pipelines/azure_controller.sh compile
         displayName: Build
 
       - script: |
