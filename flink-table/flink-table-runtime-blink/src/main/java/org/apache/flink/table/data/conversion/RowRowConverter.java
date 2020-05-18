@@ -57,7 +57,7 @@ class RowRowConverter implements DataStructureConverter<RowData, Row> {
 	@Override
 	public RowData toInternal(Row external) {
 		final int length = fieldConverters.length;
-		final GenericRowData genericRow = new GenericRowData(length);
+		final GenericRowData genericRow = new GenericRowData(external.getKind(), length);
 		for (int pos = 0; pos < length; pos++) {
 			final Object value = external.getField(pos);
 			genericRow.setField(pos, fieldConverters[pos].toInternalOrNull(value));
@@ -68,7 +68,7 @@ class RowRowConverter implements DataStructureConverter<RowData, Row> {
 	@Override
 	public Row toExternal(RowData internal) {
 		final int length = fieldConverters.length;
-		final Row row = new Row(length);
+		final Row row = new Row(internal.getRowKind(), length);
 		for (int pos = 0; pos < length; pos++) {
 			final Object value = fieldGetters[pos].getFieldOrNull(internal);
 			row.setField(pos, fieldConverters[pos].toExternalOrNull(value));

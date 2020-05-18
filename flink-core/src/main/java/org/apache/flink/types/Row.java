@@ -155,13 +155,13 @@ public final class Row implements Serializable {
 		}
 		Row row = (Row) o;
 		return kind == row.kind &&
-			Arrays.equals(fields, row.fields);
+			Arrays.deepEquals(fields, row.fields);
 	}
 
 	@Override
 	public int hashCode() {
 		int result = kind.toByteValue(); // for stable hash across JVM instances
-		result = 31 * result + Arrays.hashCode(fields);
+		result = 31 * result + Arrays.deepHashCode(fields);
 		return result;
 	}
 
