@@ -235,7 +235,7 @@ printf "Running Java end-to-end tests\n"
 printf "==============================================================================\n"
 
 
-LOG4J_PROPERTIES=${END_TO_END_DIR}/../tools/log4j-travis.properties
+LOG4J_PROPERTIES=${END_TO_END_DIR}/../tools/ci/log4j-ci.properties
 
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -DlogBackupDir=${ARTIFACTS_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
 MVN_COMMON_OPTIONS="-Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Pskip-webui-build"
