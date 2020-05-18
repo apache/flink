@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -69,6 +70,8 @@ public final class TypeInferenceOperandInference implements SqlOperandTypeInfere
 			returnType);
 		try {
 			inferOperandTypesOrError(unwrapTypeFactory(callBinding), callContext, operandTypes);
+		} catch (ValidationException e) {
+			// let operand checker fail
 		} catch (Throwable t) {
 			throw createUnexpectedException(callContext, t);
 		}
