@@ -67,8 +67,8 @@ public class HBaseSerde {
 	private GenericRowData reusedRow;
 	private GenericRowData[] reusedFamilyRows;
 
-	private final FieldEncoder keyEncoder;
-	private final FieldDecoder keyDecoder;
+	private final @Nullable FieldEncoder keyEncoder;
+	private final @Nullable FieldDecoder keyDecoder;
 	private final FieldEncoder[][] qualifierEncoders;
 	private final FieldDecoder[][] qualifierDecoders;
 
@@ -78,17 +78,20 @@ public class HBaseSerde {
 		LogicalType rowkeyType = hbaseSchema.getRowKeyDataType().map(DataType::getLogicalType).orElse(null);
 
 		// field length need take row key into account if it exists.
-		checkArgument(rowkeyIndex != -1 && rowkeyType != null, "row key is not set.");
-		this.fieldLength = families.length + 1;
+		if (rowkeyIndex != -1 && rowkeyType != null) {
+			this.fieldLength = families.length + 1;
+			this.keyEncoder = createFieldEncoder(rowkeyType);
+			this.keyDecoder = createFieldDecoder(rowkeyType);
+		} else {
+			this.fieldLength = families.length;
+			this.keyEncoder = null;
+			this.keyDecoder = null;
+		}
 		this.nullStringBytes = nullStringLiteral.getBytes(StandardCharsets.UTF_8);
 
 		// prepare output rows
 		this.reusedRow = new GenericRowData(fieldLength);
 		this.reusedFamilyRows = new GenericRowData[families.length];
-
-		// row key should never be null
-		this.keyEncoder = createFieldEncoder(rowkeyType);
-		this.keyDecoder = createFieldDecoder(rowkeyType);
 
 		this.qualifiers = new byte[families.length][][];
 		this.qualifierEncoders = new FieldEncoder[families.length][];
@@ -115,6 +118,7 @@ public class HBaseSerde {
 	 * @return The appropriate instance of Put for this use case.
 	 */
 	public @Nullable Put createPutMutation(RowData row) {
+		checkArgument(keyEncoder != null, "row key is not set.");
 		byte[] rowkey = keyEncoder.encode(row, rowkeyIndex);
 		if (rowkey.length == 0) {
 			// drop dirty records, rowkey shouldn't be zero length
@@ -146,6 +150,7 @@ public class HBaseSerde {
 	 * @return The appropriate instance of Delete for this use case.
 	 */
 	public @Nullable Delete createDeleteMutation(RowData row) {
+		checkArgument(keyEncoder != null, "row key is not set.");
 		byte[] rowkey = keyEncoder.encode(row, rowkeyIndex);
 		if (rowkey.length == 0) {
 			// drop dirty records, rowkey shouldn't be zero length
@@ -189,9 +194,10 @@ public class HBaseSerde {
 	 * Converts HBase {@link Result} into {@link RowData}.
 	 */
 	public RowData convertToRow(Result result) {
-		Object rowkey = keyDecoder.decode(result.getRow());
 		for (int i = 0; i < fieldLength; i++) {
 			if (rowkeyIndex == i) {
+				assert keyDecoder != null;
+				Object rowkey = keyDecoder.decode(result.getRow());
 				reusedRow.setField(rowkeyIndex, rowkey);
 			} else {
 				int f = (rowkeyIndex != -1 && i > rowkeyIndex) ? i - 1 : i;

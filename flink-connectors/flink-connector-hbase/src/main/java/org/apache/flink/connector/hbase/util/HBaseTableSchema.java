@@ -361,18 +361,6 @@ public class HBaseTableSchema implements Serializable {
 					"Unsupported field type '" + fieldType + "' for HBase.");
 			}
 		}
-		schema.getPrimaryKey().ifPresent(k -> {
-			if (k.getColumns().size() > 1 ||
-					!hbaseSchema.getRowKeyName().isPresent() ||
-					!hbaseSchema.getRowKeyName().get().equals(k.getColumns().get(0))) {
-				throw new IllegalArgumentException(
-					"Primary Key of HBase table should only be defined on the row key field.");
-			}
-		});
-		if (!hbaseSchema.getRowKeyName().isPresent()) {
-			throw new IllegalArgumentException(
-				"HBase table requires to define a row key field. A row key field must be an atomic type.");
-		}
 		return hbaseSchema;
 	}
 

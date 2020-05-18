@@ -103,15 +103,15 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 	public DynamicTableSource createDynamicTableSource(Context context) {
 		TableFactoryHelper helper = createTableFactoryHelper(this, context);
 		helper.validate();
+		TableSchema tableSchema = context.getCatalogTable().getSchema();
+		validatePrimaryKey(tableSchema);
+
 		String hTableName = helper.getOptions().get(TABLE_NAME);
 		// create default configuration from current runtime env (`hbase-site.xml` in classpath) first,
 		Configuration hbaseClientConf = HBaseConfiguration.create();
 		hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, helper.getOptions().get(ZOOKEEPER_QUORUM));
 		hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, helper.getOptions().get(ZOOKEEPER_ZNODE_PARENT));
-
 		String nullStringLiteral = helper.getOptions().get(NULL_STRING_LITERAL);
-
-		TableSchema tableSchema = context.getCatalogTable().getSchema();
 		HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
 
 		return new HBaseDynamicTableSource(
@@ -125,6 +125,9 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 	public DynamicTableSink createDynamicTableSink(Context context) {
 		TableFactoryHelper helper = createTableFactoryHelper(this, context);
 		helper.validate();
+		TableSchema tableSchema = context.getCatalogTable().getSchema();
+		validatePrimaryKey(tableSchema);
+
 		HBaseOptions.Builder hbaseOptionsBuilder = HBaseOptions.builder();
 		hbaseOptionsBuilder.setTableName(helper.getOptions().get(TABLE_NAME));
 		hbaseOptionsBuilder.setZkQuorum(helper.getOptions().get(ZOOKEEPER_QUORUM));
@@ -136,10 +139,7 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 			.ifPresent(v -> writeBuilder.setBufferFlushIntervalMillis(v.toMillis()));
 		helper.getOptions().getOptional(SINK_BUFFER_FLUSH_MAX_ROWS)
 			.ifPresent(writeBuilder::setBufferFlushMaxRows);
-
 		String nullStringLiteral = helper.getOptions().get(NULL_STRING_LITERAL);
-
-		TableSchema tableSchema = context.getCatalogTable().getSchema();
 		HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
 
 		return new HBaseDynamicTableSink(
@@ -171,5 +171,36 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		set.add(SINK_BUFFER_FLUSH_MAX_ROWS);
 		set.add(SINK_BUFFER_FLUSH_INTERVAL);
 		return set;
+	}
+
+	// ------------------------------------------------------------------------------------------
+
+	/**
+	 * Checks that the HBase table have row key defined. A row key is defined as an atomic type,
+	 * and column families and qualifiers are defined as ROW type. There shouldn't be multiple
+	 * atomic type columns in the schema. The PRIMARY KEY constraint is optional, if exist, the
+	 * primary key constraint must be defined on the single row key field.
+	 */
+	private static void validatePrimaryKey(TableSchema schema) {
+		HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(schema);
+		if (!hbaseSchema.getRowKeyName().isPresent()) {
+			throw new IllegalArgumentException(
+				"HBase table requires to define a row key field. " +
+					"A row key field is defined as an atomic type, " +
+					"column families and qualifiers are defined as ROW type.");
+		}
+		schema.getPrimaryKey().ifPresent(k -> {
+			if (k.getColumns().size() > 1) {
+				throw new IllegalArgumentException(
+					"HBase table doesn't support a primary Key on multiple columns. " +
+						"The primary key of HBase table must be defined on row key field.");
+			}
+			if (!hbaseSchema.getRowKeyName().get().equals(k.getColumns().get(0))) {
+				throw new IllegalArgumentException(
+					"Primary key of HBase table must be defined on the row key field. " +
+						"A row key field is defined as an atomic type, " +
+						"column families and qualifiers are defined as ROW type.");
+			}
+		});
 	}
 }
