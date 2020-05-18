@@ -18,8 +18,12 @@
 
 package org.apache.flink.client.deployment.application;
 
+import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
@@ -30,6 +34,12 @@ import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceMa
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -68,5 +78,20 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
 			final Configuration configuration,
 			final ScheduledExecutor scheduledExecutor) {
 		return new MemoryArchivedExecutionGraphStore();
+	}
+
+	protected static void configureExecution(final Configuration configuration, final PackagedProgram program) throws MalformedURLException {
+		configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, getClasspath(configuration, program), URL::toString);
+	}
+
+	private static List<URL> getClasspath(final Configuration configuration, final PackagedProgram program) throws MalformedURLException {
+		final List<URL> classpath = ConfigUtils.decodeListFromConfig(
+			configuration,
+			PipelineOptions.CLASSPATHS,
+			URL::new);
+		classpath.addAll(program.getClasspaths());
+		return Collections.unmodifiableList(classpath.stream().distinct().collect(Collectors.toList()));
 	}
 }
