@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -155,8 +156,7 @@ public class BootstrapTransformation<T> {
 
 		BoundedOneInputStreamTaskRunner<T> operatorRunner = new BoundedOneInputStreamTaskRunner<>(
 			config,
-			localMaxParallelism
-		);
+			localMaxParallelism);
 
 		MapPartitionOperator<T, TaggedOperatorSubtaskState> subtaskStates = input
 			.mapPartition(operatorRunner)
@@ -175,7 +175,10 @@ public class BootstrapTransformation<T> {
 
 	@VisibleForTesting
 	StreamConfig getConfig(OperatorID operatorID, StateBackend stateBackend, StreamOperator<TaggedOperatorSubtaskState> operator) {
-		final StreamConfig config = new StreamConfig(dataSet.getExecutionEnvironment().getConfiguration());
+		// Eagerly perform a deep copy of the configuration, otherwise it will result in undefined behavior
+		// when deploying with multiple bootstrap transformations.
+		Configuration deepCopy = new Configuration(dataSet.getExecutionEnvironment().getConfiguration());
+		final StreamConfig config = new StreamConfig(deepCopy);
 		config.setChainStart();
 		config.setCheckpointingEnabled(true);
 		config.setCheckpointMode(CheckpointingMode.EXACTLY_ONCE);

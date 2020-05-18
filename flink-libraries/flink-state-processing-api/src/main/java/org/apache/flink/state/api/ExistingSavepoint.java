@@ -280,6 +280,7 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 		KeyedStateInputFormat<K, VoidNamespace, OUT> inputFormat = new KeyedStateInputFormat<>(
 			operatorState,
 			stateBackend,
+			env.getConfiguration(),
 			new KeyedStateReaderOperator<>(function, keyTypeInfo));
 
 		return env.createInput(inputFormat, outTypeInfo);
