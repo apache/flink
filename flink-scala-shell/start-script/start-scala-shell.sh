@@ -88,8 +88,8 @@ then
     LOGBACK_CONFIG=logback.xml
 elif [[ $1 = "yarn" ]]
 then
-    LOG4J_CONFIG=log4j-yarn-session.properties
-    LOGBACK_CONFIG=logback-yarn.xml
+    LOG4J_CONFIG=log4j-session.properties
+    LOGBACK_CONFIG=logback-session.xml
     FLINK_CLASSPATH=$FLINK_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR
 fi
 
