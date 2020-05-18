@@ -87,6 +87,8 @@ public class HiveTableFactory
 
 		if (!isGeneric) {
 			return new HiveTableSink(
+					context.getConfiguration().get(
+							HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),
 					context.isBounded(),
 					new JobConf(hiveConf),
 					context.getObjectIdentifier(),
