@@ -20,14 +20,14 @@
 HERE="`dirname \"$0\"`"             # relative
 HERE="`( cd \"$HERE\" && pwd )`"    # absolutized and normalized
 if [ -z "$HERE" ] ; then
-    # error; for some reason, the path is not accessible
-    # to the script (e.g. permissions re-evaled after suid)
     exit 1  # fail
 fi
+CI_DIR="$HERE/../ci"
 
-source "${HERE}/ci/stage.sh"
-source "${HERE}/ci/shade.sh"
-source "${HERE}/ci/maven-utils.sh"
+# source required ci scripts
+source "${CI_DIR}/stage.sh"
+source "${CI_DIR}/shade.sh"
+source "${CI_DIR}/maven-utils.sh"
 
 echo $M2_HOME
 echo $PATH
@@ -75,7 +75,7 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
         echo "Checking scala suffixes\n"
         echo "==============================================================================\n"
 
-        ./tools/verify_scala_suffixes.sh "${PROFILE}"
+        ./tools/ci/verify_scala_suffixes.sh "${PROFILE}"
         EXIT_CODE=$?
     else
         echo "\n==============================================================================\n"
