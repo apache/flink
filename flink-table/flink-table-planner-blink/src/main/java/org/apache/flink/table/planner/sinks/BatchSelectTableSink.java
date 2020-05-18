@@ -18,25 +18,58 @@
 
 package org.apache.flink.table.planner.sinks;
 
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectTableSink;
+import org.apache.flink.table.api.internal.SelectResultProvider;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.types.Row;
 
+import java.util.Iterator;
+
 
 /**
- * A {@link SelectTableSink} for batch select job.
+ * A {@link StreamTableSink} for batch select job to collect the result to local.
  */
-public class BatchSelectTableSink extends SelectTableSinkBase implements StreamTableSink<Row> {
+public class BatchSelectTableSink extends SelectTableSinkBase<RowData> implements StreamTableSink<RowData> {
 
 	public BatchSelectTableSink(TableSchema tableSchema) {
-		super(tableSchema);
+		super(tableSchema, createRowDataTypeInfo(tableSchema).createSerializer(new ExecutionConfig()));
 	}
 
 	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
-		return super.consumeDataStream(dataStream);
+	public TypeInformation<RowData> getOutputType() {
+		return createRowDataTypeInfo(getTableSchema());
+	}
+
+	@Override
+	public SelectResultProvider getSelectResultProvider() {
+		return new SelectResultProvider() {
+
+			@Override
+			public void setJobClient(JobClient jobClient) {
+				iterator.setJobClient(jobClient);
+			}
+
+			@Override
+			public Iterator<Row> getResultIterator() {
+				// convert Iterator<RowData> to Iterator<Row>
+				return new Iterator<Row>() {
+
+					@Override
+					public boolean hasNext() {
+						return iterator.hasNext();
+					}
+
+					@Override
+					public Row next() {
+						// convert RowData to Row
+						return converter.toExternal(iterator.next());
+					}
+				};
+			}
+		};
 	}
 }

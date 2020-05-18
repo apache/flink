@@ -18,28 +18,65 @@
 
 package org.apache.flink.table.planner.sinks;
 
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectTableSink;
-import org.apache.flink.table.sinks.AppendStreamTableSink;
+import org.apache.flink.table.api.internal.SelectResultProvider;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.sinks.RetractStreamTableSink;
 import org.apache.flink.types.Row;
 
+import java.util.Iterator;
+
 /**
- * A {@link SelectTableSink} for streaming select job.
- *
- * <p><strong>NOTE:</strong>
- * Currently, only insert changes (AppendStreamTableSink) is supported.
- * Once FLINK-16998 is finished, all kinds of changes will be supported.
+ * A {@link RetractStreamTableSink} for streaming select job to collect the result to local.
  */
-public class StreamSelectTableSink extends SelectTableSinkBase implements AppendStreamTableSink<Row> {
+public class StreamSelectTableSink
+		extends SelectTableSinkBase<Tuple2<Boolean, RowData>>
+		implements RetractStreamTableSink<RowData> {
 
 	public StreamSelectTableSink(TableSchema tableSchema) {
-		super(tableSchema);
+		super(tableSchema, new TupleTypeInfo<Tuple2<Boolean, RowData>>(
+				Types.BOOLEAN,
+				createRowDataTypeInfo(tableSchema)).createSerializer(new ExecutionConfig()));
 	}
 
 	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
-		return super.consumeDataStream(dataStream);
+	public TypeInformation<RowData> getRecordType() {
+		return createRowDataTypeInfo(getTableSchema());
+	}
+
+	@Override
+	public SelectResultProvider getSelectResultProvider() {
+		return new SelectResultProvider() {
+
+			@Override
+			public void setJobClient(JobClient jobClient) {
+				iterator.setJobClient(jobClient);
+			}
+
+			@Override
+			public Iterator<Row> getResultIterator() {
+				// convert Iterator<Tuple2<Boolean, RowData>> to Iterator<Row>
+				return new Iterator<Row>() {
+
+					@Override
+					public boolean hasNext() {
+						return iterator.hasNext();
+					}
+
+					@Override
+					public Row next() {
+						Tuple2<Boolean, RowData> tuple2 = iterator.next();
+						// convert RowData to Row
+						return converter.toExternal(tuple2.f1);
+					}
+				};
+			}
+		};
 	}
 }

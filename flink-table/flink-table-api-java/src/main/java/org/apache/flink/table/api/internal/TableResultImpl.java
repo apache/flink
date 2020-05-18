@@ -93,8 +93,9 @@ class TableResultImpl implements TableResult {
 		if (printStyle instanceof TableauStyle) {
 			int maxColumnWidth = ((TableauStyle) printStyle).getMaxColumnWidth();
 			String nullColumn = ((TableauStyle) printStyle).getNullColumn();
+			boolean printChangeMode = ((TableauStyle) printStyle).isPrintChangeMode();
 			PrintUtils.printAsTableauForm(
-					getTableSchema(), it, new PrintWriter(System.out), maxColumnWidth, nullColumn);
+					getTableSchema(), it, new PrintWriter(System.out), maxColumnWidth, nullColumn, printChangeMode);
 		} else if (printStyle instanceof RawContentStyle) {
 			while (it.hasNext()) {
 				System.out.println(String.join(",", PrintUtils.rowToString(it.next())));
@@ -116,7 +117,7 @@ class TableResultImpl implements TableResult {
 		private TableSchema tableSchema = null;
 		private ResultKind resultKind = null;
 		private Iterator<Row> data = null;
-		private PrintStyle printStyle = PrintStyle.tableau(Integer.MAX_VALUE, PrintUtils.NULL_COLUMN);
+		private PrintStyle printStyle = PrintStyle.tableau(Integer.MAX_VALUE, PrintUtils.NULL_COLUMN, false);
 
 		private Builder() {
 		}
@@ -197,13 +198,13 @@ class TableResultImpl implements TableResult {
 	 */
 	public interface PrintStyle {
 		/**
-		 * Create a tableau print style with given max column width and null column,
+		 * Create a tableau print style with given max column width, null column and change mode indicator,
 		 * which prints the result schema and content as tableau form.
 		 */
-		static PrintStyle tableau(int maxColumnWidth, String nullColumn) {
+		static PrintStyle tableau(int maxColumnWidth, String nullColumn, boolean printChangeMode) {
 			Preconditions.checkArgument(maxColumnWidth > 0, "maxColumnWidth should be greater than 0");
 			Preconditions.checkNotNull(nullColumn, "nullColumn should not be null");
-			return new TableauStyle(maxColumnWidth, nullColumn);
+			return new TableauStyle(maxColumnWidth, nullColumn, printChangeMode);
 		}
 
 		/**
@@ -223,10 +224,12 @@ class TableResultImpl implements TableResult {
 
 		private final int maxColumnWidth;
 		private final String nullColumn;
+		private final boolean printChangeMode;
 
-		private TableauStyle(int maxColumnWidth, String nullColumn) {
+		private TableauStyle(int maxColumnWidth, String nullColumn, boolean printChangeMode) {
 			this.maxColumnWidth = maxColumnWidth;
 			this.nullColumn = nullColumn;
+			this.printChangeMode = printChangeMode;
 		}
 
 		int getMaxColumnWidth() {
@@ -235,6 +238,10 @@ class TableResultImpl implements TableResult {
 
 		String getNullColumn() {
 			return nullColumn;
+		}
+
+		public boolean isPrintChangeMode() {
+			return printChangeMode;
 		}
 	}
 
