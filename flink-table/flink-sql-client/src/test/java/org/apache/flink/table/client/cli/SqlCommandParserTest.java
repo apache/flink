@@ -134,6 +134,36 @@ public class SqlCommandParserTest {
 		testValidSqlCommand("DROP TABLE IF EXISTS t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS t1"}));
 		testValidSqlCommand("DROP TABLE IF EXISTS catalog1.db1.t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS catalog1.db1.t1"}));
 		testValidSqlCommand("DROP TABLE IF EXISTS db1.t1", new SqlCommandCall(SqlCommand.DROP_TABLE, new String[]{"DROP TABLE IF EXISTS db1.t1"}));
+		// Test create function.
+		testInvalidSqlCommand("CREATE FUNCTION");
+		testInvalidSqlCommand("CREATE FUNCTIONS");
+		testInvalidSqlCommand("CREATE    FUNCTIONS");
+		testValidSqlCommand("CREATE FUNCTION catalog1.db1.func1 as 'class_name'",
+				new SqlCommandCall(SqlCommand.CREATE_FUNCTION, new String[] {"CREATE FUNCTION catalog1.db1.func1 as 'class_name'"}));
+		testValidSqlCommand("CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
+				new SqlCommandCall(SqlCommand.CREATE_FUNCTION, new String[] {"CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"}));
+		testValidSqlCommand("CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
+				new SqlCommandCall(SqlCommand.CREATE_FUNCTION, new String[] {"CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"}));
+		// Test drop function.
+		testInvalidSqlCommand("DROP FUNCTION");
+		testInvalidSqlCommand("DROP FUNCTIONS");
+		testInvalidSqlCommand("DROP    FUNCTIONS");
+		testValidSqlCommand("DROP FUNCTION catalog1.db1.func1",
+				new SqlCommandCall(SqlCommand.DROP_FUNCTION, new String[] {"DROP FUNCTION catalog1.db1.func1"}));
+		testValidSqlCommand("DROP TEMPORARY FUNCTION catalog1.db1.func1",
+				new SqlCommandCall(SqlCommand.DROP_FUNCTION, new String[] {"DROP TEMPORARY FUNCTION catalog1.db1.func1"}));
+		testValidSqlCommand("DROP TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1",
+				new SqlCommandCall(SqlCommand.DROP_FUNCTION, new String[] {"DROP TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1"}));
+		// Test alter function.
+		testInvalidSqlCommand("ALTER FUNCTION");
+		testInvalidSqlCommand("ALTER FUNCTIONS");
+		testInvalidSqlCommand("ALTER    FUNCTIONS");
+		testValidSqlCommand("ALTER FUNCTION catalog1.db1.func1 as 'a.b.c.func2'",
+				new SqlCommandCall(SqlCommand.ALTER_FUNCTION, new String[] {"ALTER FUNCTION catalog1.db1.func1 as 'a.b.c.func2'"}));
+		testValidSqlCommand("ALTER TEMPORARY FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'",
+				new SqlCommandCall(SqlCommand.ALTER_FUNCTION, new String[] {"ALTER TEMPORARY FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'"}));
+		testValidSqlCommand("ALTER TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'",
+				new SqlCommandCall(SqlCommand.ALTER_FUNCTION, new String[] {"ALTER TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'"}));
 	}
 
 	private void testInvalidSqlCommand(String stmt) {

@@ -18,6 +18,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
@@ -196,6 +197,11 @@ public class CliResultViewTest {
 
 		@Override
 		public List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
+		public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
 			return null;
 		}
 

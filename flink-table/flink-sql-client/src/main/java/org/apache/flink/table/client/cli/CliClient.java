@@ -323,6 +323,15 @@ public class CliClient {
 			case DROP_VIEW:
 				callDropView(cmdCall);
 				break;
+			case CREATE_FUNCTION:
+				callCreateFunction(cmdCall);
+				break;
+			case DROP_FUNCTION:
+				callDropFunction(cmdCall);
+				break;
+			case ALTER_FUNCTION:
+				callAlterFunction(cmdCall);
+				break;
 			case SOURCE:
 				callSource(cmdCall);
 				break;
@@ -578,7 +587,6 @@ public class CliClient {
 			printInfo(CliStrings.MESSAGE_TABLE_CREATED);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
-			return;
 		}
 	}
 
@@ -628,6 +636,33 @@ public class CliClient {
 			// rollback change
 			executor.addView(sessionId, view.getName(), view.getQuery());
 			printExecutionException(CliStrings.MESSAGE_VIEW_NOT_REMOVED, e);
+		}
+	}
+
+	private void callCreateFunction(SqlCommandCall cmdCall) {
+		try {
+			executor.executeSql(sessionId, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_FUNCTION_CREATED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
+	}
+
+	private void callDropFunction(SqlCommandCall cmdCall) {
+		try {
+			executor.executeSql(sessionId, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_FUNCTION_REMOVED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
+	}
+
+	private void callAlterFunction(SqlCommandCall cmdCall) {
+		try {
+			executor.executeSql(sessionId, cmdCall.operands[0]);
+			printInfo(CliStrings.MESSAGE_ALTER_FUNCTION_SUCCEEDED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(CliStrings.MESSAGE_ALTER_FUNCTION_FAILED, e);
 		}
 	}
 

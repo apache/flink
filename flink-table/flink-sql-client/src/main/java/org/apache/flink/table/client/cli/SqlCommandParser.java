@@ -143,6 +143,10 @@ public final class SqlCommandParser {
 
 		DROP_TABLE("(DROP\\s+TABLE\\s+.*)", SINGLE_OPERAND),
 
+		ALTER_TABLE(
+				"(ALTER\\s+TABLE\\s+.*)",
+				SINGLE_OPERAND),
+
 		CREATE_VIEW(
 			"CREATE\\s+VIEW\\s+(\\S+)\\s+AS\\s+(.*)",
 			(operands) -> {
@@ -152,6 +156,14 @@ public final class SqlCommandParser {
 				return Optional.of(new String[]{operands[0], operands[1]});
 			}),
 
+		DROP_VIEW("DROP\\s+VIEW\\s+(.*)", SINGLE_OPERAND),
+
+		CREATE_FUNCTION("(CREATE.+FUNCTION\\s+(\\S+)\\s+AS.+)", SINGLE_OPERAND),
+
+		DROP_FUNCTION("(DROP.+FUNCTION\\s+.+)", SINGLE_OPERAND),
+
+		ALTER_FUNCTION("(ALTER.+FUNCTION\\s+.+)", SINGLE_OPERAND),
+
 		CREATE_DATABASE(
 				"(CREATE\\s+DATABASE\\s+.*)",
 				SINGLE_OPERAND),
@@ -160,16 +172,8 @@ public final class SqlCommandParser {
 				"(DROP\\s+DATABASE\\s+.*)",
 				SINGLE_OPERAND),
 
-		DROP_VIEW(
-			"DROP\\s+VIEW\\s+(.*)",
-			SINGLE_OPERAND),
-
 		ALTER_DATABASE(
 				"(ALTER\\s+DATABASE\\s+.*)",
-				SINGLE_OPERAND),
-
-		ALTER_TABLE(
-				"(ALTER\\s+TABLE\\s+.*)",
 				SINGLE_OPERAND),
 
 		SET(
