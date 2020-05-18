@@ -185,8 +185,9 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 		// serialize non-null fields
 		for (int fieldPos = 0; fieldPos < len; fieldPos++) {
-			if (!mask[legacyOffset + fieldPos]) {
-				fieldSerializers[fieldPos].serialize(record.getField(fieldPos), target);
+			final Object o = record.getField(fieldPos);
+			if (o != null) {
+				fieldSerializers[fieldPos].serialize(o, target);
 			}
 		}
 	}
