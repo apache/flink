@@ -574,6 +574,11 @@ public class SlotSharingManager {
 		}
 
 		@Override
+		public boolean willOccupySlotIndefinitely() {
+			throw new UnsupportedOperationException("Shared slot are not allowed for slot occupation check.");
+		}
+
+		@Override
 		public ResourceProfile getReservedResources() {
 			return reservedResources;
 		}
