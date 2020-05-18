@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -103,10 +104,9 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 	}
 
 	@Override
-	public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, Buffer... data) {
-		LOG.debug("add input data, checkpoint id: {}, channel: {}, startSeqNum: {}, num buffers: {}",
-			checkpointId, info, startSeqNum, data == null ? 0 : data.length);
-		enqueue(write(checkpointId, info, checkBufferType(data)), false);
+	public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, CloseableIterator<Buffer> iterator) {
+		LOG.debug("add input data, checkpoint id: {}, channel: {}, startSeqNum: {}", checkpointId, info, startSeqNum);
+		enqueue(write(checkpointId, info, iterator), false);
 	}
 
 	@Override
@@ -168,8 +168,13 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
 				executor.submit(request);
 			}
 		} catch (Exception e) {
-			request.cancel(e);
-			throw new RuntimeException("unable to send request to worker", e);
+			RuntimeException wrapped = new RuntimeException("unable to send request to worker", e);
+			try {
+				request.cancel(e);
+			} catch (Exception cancelException) {
+				wrapped.addSuppressed(cancelException);
+			}
+			throw wrapped;
 		}
 	}
 

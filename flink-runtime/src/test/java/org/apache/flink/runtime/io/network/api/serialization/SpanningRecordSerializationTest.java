@@ -30,6 +30,7 @@ import org.apache.flink.testutils.serialization.types.IntType;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -46,7 +47,6 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
@@ -293,14 +293,15 @@ public class SpanningRecordSerializationTest extends TestLogger {
 		}
 	}
 
-	private static void assertUnconsumedBuffer(ByteArrayOutputStream expected, Optional<Buffer> actual) {
-		if (!actual.isPresent()) {
+	private static void assertUnconsumedBuffer(ByteArrayOutputStream expected, CloseableIterator<Buffer> actual) throws Exception {
+		if (!actual.hasNext()) {
 			Assert.assertEquals(expected.size(), 0);
 		}
 
 		ByteBuffer expectedByteBuffer = ByteBuffer.wrap(expected.toByteArray());
-		ByteBuffer actualByteBuffer = actual.get().getNioBufferReadable();
+		ByteBuffer actualByteBuffer = actual.next().getNioBufferReadable();
 		Assert.assertEquals(expectedByteBuffer, actualByteBuffer);
+		actual.close();
 	}
 
 	private static void writeBuffer(ByteBuffer buffer, OutputStream stream) throws IOException {

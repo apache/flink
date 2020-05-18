@@ -22,17 +22,21 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.NextRecordResponse;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.util.CloseableIterator;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
 import java.nio.ByteBuffer;
-import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER;
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.PARTIAL_RECORD;
 import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
+import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
 
 final class NonSpanningWrapper implements DataInputView {
 
@@ -69,13 +73,13 @@ final class NonSpanningWrapper implements DataInputView {
 		this.limit = limit;
 	}
 
-	Optional<MemorySegment> getUnconsumedSegment() {
+	CloseableIterator<Buffer> getUnconsumedSegment() {
 		if (!hasRemaining()) {
-			return Optional.empty();
+			return CloseableIterator.empty();
 		}
-		MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(remaining());
-		segment.copyTo(position, target, 0, remaining());
-		return Optional.of(target);
+		MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(remaining());
+		this.segment.copyTo(position, segment, 0, remaining());
+		return singleBufferIterator(segment);
 	}
 
 	boolean hasRemaining() {
@@ -357,6 +361,12 @@ final class NonSpanningWrapper implements DataInputView {
 
 	private boolean canReadRecord(int recordLength) {
 		return recordLength <= remaining();
+	}
+
+	static CloseableIterator<Buffer> singleBufferIterator(MemorySegment target) {
+		return CloseableIterator.ofElement(
+			new NetworkBuffer(target, FreeingBufferRecycler.INSTANCE, DATA_BUFFER, target.size()),
+			Buffer::recycleBuffer);
 	}
 
 }

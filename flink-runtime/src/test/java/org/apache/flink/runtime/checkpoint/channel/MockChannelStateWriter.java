@@ -19,6 +19,9 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.util.CloseableIterator;
+
+import static org.apache.flink.util.ExceptionUtils.rethrow;
 
 /**
  * A no op implementation that performs basic checks of the contract, but does not actually write any data.
@@ -49,10 +52,12 @@ public class MockChannelStateWriter implements ChannelStateWriter {
 	}
 
 	@Override
-	public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, Buffer... data) {
+	public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, CloseableIterator<Buffer> iterator) {
 		checkCheckpointId(checkpointId);
-		for (final Buffer buffer : data) {
-			buffer.recycleBuffer();
+		try {
+			iterator.close();
+		} catch (Exception e) {
+			rethrow(e);
 		}
 	}
 
