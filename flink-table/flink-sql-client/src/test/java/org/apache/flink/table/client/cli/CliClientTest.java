@@ -93,6 +93,7 @@ public class CliClientTest extends TestLogger {
 	@Test
 	public void testSqlCompletion() throws IOException {
 		verifySqlCompletion("", 0, Arrays.asList("SOURCE", "QUIT;", "RESET;"), Collections.emptyList());
+		verifySqlCompletion("SELE", 5, Collections.singletonList("HintA"), Collections.singletonList("QUIT;"));
 		verifySqlCompletion("SOUR", 5, Collections.singletonList("SOURCE"), Collections.singletonList("QUIT;"));
 		verifySqlCompletion("SOUR", 0, Collections.singletonList("SOURCE"), Collections.singletonList("QUIT;"));
 		verifySqlCompletion("QU", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
@@ -100,10 +101,9 @@ public class CliClientTest extends TestLogger {
 		verifySqlCompletion("  qu", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
 		verifySqlCompletion("set ", 3, Collections.emptyList(), Collections.singletonList("SET"));
 		verifySqlCompletion("show t ", 6, Collections.emptyList(), Collections.singletonList("SET"));
-		verifySqlCompletion("use cat", 7, Collections.singletonList("CATALOG"), Collections.singletonList("USE CATALOG"));
-		verifySqlCompletion("use ", 4, Collections.singletonList("CATALOG"), Collections.singletonList("USE CATALOG"));
-		verifySqlCompletion("use catalog", 11, Collections.emptyList(), Collections.singletonList("CATALOG"));
-
+		verifySqlCompletion("show", 7, Collections.singletonList("MODULES;"), Collections.singletonList("QUIT;"));
+		verifySqlCompletion("show ", 4, Collections.singletonList("MODULES;"), Collections.singletonList("QUIT;"));
+		verifySqlCompletion("show modules", 13, Collections.emptyList(), Collections.singletonList("QUIT;"));
 	}
 
 	@Test
@@ -386,11 +386,6 @@ public class CliClientTest extends TestLogger {
 			receivedStatement = statement;
 			receivedPosition = position;
 			return Arrays.asList("HintA", "Hint B");
-		}
-
-		@Override
-		public TableResult executeSql(String sessionId, String stmt) throws SqlExecutionException {
-			return null;
 		}
 
 		@Override

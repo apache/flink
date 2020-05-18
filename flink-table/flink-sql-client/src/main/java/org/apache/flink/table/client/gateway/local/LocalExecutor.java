@@ -481,19 +481,6 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
-	public TableResult executeSql(String sessionId, String stmt) throws SqlExecutionException {
-		final ExecutionContext<?> context = getExecutionContext(sessionId);
-		final TableEnvironment tableEnv = context.getTableEnvironment();
-
-		try {
-			return context.wrapClassLoader(() -> tableEnv.executeSql(stmt));
-		} catch (Throwable t) {
-			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("Failed to execute statement.", t);
-		}
-	}
-
-	@Override
 	public ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		return executeQueryInternal(sessionId, context, query);

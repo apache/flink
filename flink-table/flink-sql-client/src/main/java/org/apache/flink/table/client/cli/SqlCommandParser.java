@@ -32,15 +32,20 @@ import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableOperation;
+import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
 import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
+import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropCatalogOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
+import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
 
 import javax.annotation.Nullable;
@@ -96,21 +101,17 @@ public final class SqlCommandParser {
 		}
 
 		final SqlCommand cmd;
-		String[] operands = new String[0];
+		String[] operands = new String[] { stmt };
 		Operation operation = operations.get(0);
 		if (operation instanceof CatalogSinkModifyOperation) {
 			boolean overwrite = ((CatalogSinkModifyOperation) operation).isOverwrite();
 			cmd = overwrite ? SqlCommand.INSERT_OVERWRITE : SqlCommand.INSERT_INTO;
-			operands = new String[] { stmt };
 		} else if (operation instanceof CreateTableOperation) {
 			cmd = SqlCommand.CREATE_TABLE;
-			operands = new String[] { stmt };
 		} else if (operation instanceof DropTableOperation) {
 			cmd = SqlCommand.DROP_TABLE;
-			operands = new String[] { stmt };
 		} else if (operation instanceof AlterTableOperation) {
 			cmd = SqlCommand.ALTER_TABLE;
-			operands = new String[] { stmt };
 		} else if (operation instanceof CreateViewOperation) {
 			cmd = SqlCommand.CREATE_VIEW;
 			CreateViewOperation op = (CreateViewOperation) operation;
@@ -121,19 +122,14 @@ public final class SqlCommandParser {
 			operands = new String[] { ((DropViewOperation) operation).getViewIdentifier().asSerializableString() };
 		} else if (operation instanceof CreateDatabaseOperation) {
 			cmd = SqlCommand.CREATE_DATABASE;
-			operands = new String[] { stmt };
 		} else if (operation instanceof DropDatabaseOperation) {
 			cmd = SqlCommand.DROP_DATABASE;
-			operands = new String[] { stmt };
 		} else if (operation instanceof AlterDatabaseOperation) {
 			cmd = SqlCommand.ALTER_DATABASE;
-			operands = new String[] { stmt };
 		} else if (operation instanceof CreateCatalogOperation) {
 			cmd = SqlCommand.CREATE_CATALOG;
-			operands = new String[] { stmt };
 		} else if (operation instanceof DropCatalogOperation) {
 			cmd = SqlCommand.DROP_CATALOG;
-			operands = new String[] { stmt };
 		} else if (operation instanceof UseCatalogOperation) {
 			cmd = SqlCommand.USE_CATALOG;
 			operands = new String[] { String.format("`%s`", ((UseCatalogOperation) operation).getCatalogName()) };
@@ -143,29 +139,36 @@ public final class SqlCommandParser {
 			operands = new String[] { String.format("`%s`.`%s`", op.getCatalogName(), op.getDatabaseName()) };
 		} else if (operation instanceof ShowCatalogsOperation) {
 			cmd = SqlCommand.SHOW_CATALOGS;
+			operands = new String[0];
 		} else if (operation instanceof ShowDatabasesOperation) {
 			cmd = SqlCommand.SHOW_DATABASES;
+			operands = new String[0];
 		} else if (operation instanceof ShowTablesOperation) {
 			cmd = SqlCommand.SHOW_TABLES;
+			operands = new String[0];
 		} else if (operation instanceof ShowFunctionsOperation) {
 			cmd = SqlCommand.SHOW_FUNCTIONS;
+			operands = new String[0];
+		} else if (operation instanceof CreateCatalogFunctionOperation ||
+				operation instanceof CreateTempSystemFunctionOperation) {
+			cmd = SqlCommand.CREATE_FUNCTION;
+		} else if (operation instanceof DropCatalogFunctionOperation ||
+				operation instanceof DropTempSystemFunctionOperation) {
+			cmd = SqlCommand.DROP_FUNCTION;
+		} else if (operation instanceof AlterCatalogFunctionOperation) {
+			cmd = SqlCommand.ALTER_FUNCTION;
 		} else if (operation instanceof ExplainOperation) {
 			cmd = SqlCommand.EXPLAIN;
-			operands = new String[] { stmt };
 		} else if (operation instanceof DescribeTableOperation) {
 			cmd = SqlCommand.DESCRIBE;
 			operands = new String[] { ((DescribeTableOperation) operation).getSqlIdentifier().asSerializableString() };
 		} else if (operation instanceof QueryOperation) {
 			cmd = SqlCommand.SELECT;
-			operands = new String[] { stmt };
 		} else {
 			cmd = null;
 		}
-		if (cmd == null) {
-			return Optional.empty();
-		} else {
-			return Optional.of(new SqlCommandCall(cmd, operands));
-		}
+
+		return cmd == null ? Optional.empty() : Optional.of(new SqlCommandCall(cmd, operands));
 	}
 
 	private static Optional<SqlCommandCall> parseByRegexMatching(String stmt) {

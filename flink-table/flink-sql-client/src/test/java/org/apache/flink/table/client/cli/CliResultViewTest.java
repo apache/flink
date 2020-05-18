@@ -242,11 +242,6 @@ public class CliResultViewTest {
 		}
 
 		@Override
-		public TableResult executeSql(String sessionId, String stmt) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
 		public ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException {
 			return null;
 		}

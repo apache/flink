@@ -38,11 +38,11 @@ public class SqlParserHelper {
 	 * prepare some tables for testing.
 	 */
 	public void registerTables() {
-		tableEnv.executeSql("create table MyTable (a int, b bigint, c varchar(32)) " +
+		registerTable("create table MyTable (a int, b bigint, c varchar(32)) " +
 				"with ('connector' = 'filesystem', 'path' = '/non')");
-		tableEnv.executeSql("create table MyOtherTable (a int, b bigint) " +
+		registerTable("create table MyOtherTable (a int, b bigint) " +
 				"with ('connector' = 'filesystem', 'path' = '/non')");
-		tableEnv.executeSql("create table MySink (a int, c varchar(32)) with ('connector' = 'COLLECTION' )");
+		registerTable("create table MySink (a int, c varchar(32)) with ('connector' = 'COLLECTION' )");
 	}
 
 	public void registerTable(String createTableStmt) {

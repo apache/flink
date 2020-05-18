@@ -177,11 +177,6 @@ public interface Executor {
 	List<String> completeStatement(String sessionId, String statement, int position);
 
 	/**
-	 * Execute a statement and return the {@link TableResult}.
-	 */
-	TableResult executeSql(String sessionId, String stmt) throws SqlExecutionException;
-
-	/**
 	 * Submits a Flink SQL query job (detached) and returns the result descriptor.
 	 */
 	ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException;
