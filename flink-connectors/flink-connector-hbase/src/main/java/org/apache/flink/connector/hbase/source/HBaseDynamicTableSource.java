@@ -21,12 +21,15 @@ package org.apache.flink.connector.hbase.source;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
 import org.apache.hadoop.conf.Configuration;
 
@@ -36,11 +39,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * HBase table source implementation.
  */
 @Internal
-public class HBaseDynamicTableSource implements ScanTableSource, LookupTableSource {
+public class HBaseDynamicTableSource implements ScanTableSource, LookupTableSource, SupportsProjectionPushDown {
 
 	private final Configuration conf;
 	private final String tableName;
-	private final HBaseTableSchema hbaseSchema;
+	private HBaseTableSchema hbaseSchema;
 	private final String nullStringLiteral;
 
 	public HBaseDynamicTableSource(
@@ -75,6 +78,20 @@ public class HBaseDynamicTableSource implements ScanTableSource, LookupTableSour
 			"Currently, HBase table only supports lookup by rowkey field.");
 
 		return TableFunctionProvider.of(new HBaseLookupFunction(conf, tableName, hbaseSchema));
+	}
+
+	@Override
+	public boolean supportsNestedProjection() {
+		// planner doesn't support nested projection push down yet.
+		return false;
+	}
+
+	@Override
+	public void applyProjection(int[][] projectedFields) {
+		TableSchema projectSchema = TableSchemaUtils.projectSchema(
+			hbaseSchema.convertsToTableSchema(),
+			projectedFields);
+		this.hbaseSchema = HBaseTableSchema.fromTableSchema(projectSchema);
 	}
 
 	@Override
