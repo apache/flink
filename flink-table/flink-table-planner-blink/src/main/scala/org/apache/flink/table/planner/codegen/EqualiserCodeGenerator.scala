@@ -24,8 +24,10 @@ import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens.generateE
 import org.apache.flink.table.runtime.generated.{GeneratedRecordEqualiser, RecordEqualiser}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, isCompositeType}
+import org.apache.flink.table.types.logical.{DistinctType, LogicalType}
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
@@ -57,9 +59,9 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
       // TODO merge ScalarOperatorGens.generateEquals.
       val (equalsCode, equalsResult) = if (isInternalPrimitive(fieldType)) {
         ("", s"$leftFieldTerm == $rightFieldTerm")
-      } else if (isRowData(fieldType)) {
+      } else if (isCompositeType(fieldType)) {
         val equaliserGenerator = new EqualiserCodeGenerator(
-          fieldType.asInstanceOf[RowType].getChildren.asScala.toArray)
+          getFieldTypes(fieldType).asScala.toArray)
         val generatedEqualiser = equaliserGenerator
           .generateRecordEqualiser("field$" + i + "GeneratedEqualiser")
         val generatedEqualiserTerm = ctx.addReusableObject(
@@ -128,15 +130,14 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
     new GeneratedRecordEqualiser(className, functionCode, ctx.references.toArray)
   }
 
+  @tailrec
   private def isInternalPrimitive(t: LogicalType): Boolean = t.getTypeRoot match {
     case _ if PlannerTypeUtils.isPrimitive(t) => true
 
-    case DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH |INTERVAL_DAY_TIME => true
-    case _ => false
-  }
+    case DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME => true
 
-  private def isRowData(t: LogicalType): Boolean = t match {
-    case _: RowType => true
+    case DISTINCT_TYPE => isInternalPrimitive(t.asInstanceOf[DistinctType].getSourceType)
+
     case _ => false
   }
 }
