@@ -50,7 +50,7 @@ public class AvroFilesystemITCase extends BatchFileSystemITCaseBase {
 		List<String> ret = new ArrayList<>();
 		ret.add("'format'='avro'");
 		if (configure) {
-			ret.add("'format.avro.codec'='snappy'");
+			ret.add("'avro.codec'='snappy'");
 		}
 		return ret.toArray(new String[0]);
 	}

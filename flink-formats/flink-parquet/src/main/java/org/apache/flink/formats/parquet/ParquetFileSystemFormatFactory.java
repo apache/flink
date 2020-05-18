@@ -23,6 +23,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
@@ -30,7 +31,6 @@ import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
 import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -38,19 +38,18 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.parquet.hadoop.ParquetOutputFormat;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
+import java.util.Set;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.filesystem.RowPartitionComputer.restorePartValueFromType;
 
 /**
@@ -58,66 +57,43 @@ import static org.apache.flink.table.filesystem.RowPartitionComputer.restorePart
  */
 public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 
-	public static final ConfigOption<Boolean> UTC_TIMEZONE = key("format.utc-timezone")
+	public static final String IDENTIFIER = "parquet";
+
+	public static final ConfigOption<Boolean> UTC_TIMEZONE = key("utc-timezone")
 			.booleanType()
 			.defaultValue(false)
 			.withDescription("Use UTC timezone or local timezone to the conversion between epoch" +
 					" time and LocalDateTime. Hive 0.x/1.x/2.x use local timezone. But Hive 3.x" +
 					" use UTC timezone");
 
-	/**
-	 * Prefix for parquet-related properties, besides format, start with "parquet".
-	 * See more in {@link ParquetOutputFormat}.
-	 * - parquet.compression
-	 * - parquet.block.size
-	 * - parquet.page.size
-	 * - parquet.dictionary.page.size
-	 * - parquet.writer.max-padding
-	 * - parquet.enable.dictionary
-	 * - parquet.validation
-	 * - parquet.writer.version
-	 * ...
-	 */
-	public static final String PARQUET_PROPERTIES = "format.parquet";
-
 	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(FORMAT, "parquet");
-		return context;
+	public String factoryIdentifier() {
+		return IDENTIFIER;
 	}
 
 	@Override
-	public List<String> supportedProperties() {
-		return Arrays.asList(
-				UTC_TIMEZONE.key(),
-				PARQUET_PROPERTIES + ".*"
-		);
+	public Set<ConfigOption<?>> requiredOptions() {
+		return new HashSet<>();
 	}
 
-	private static boolean isUtcTimestamp(DescriptorProperties properties) {
-		return properties.getOptionalBoolean(UTC_TIMEZONE.key())
-				.orElse(UTC_TIMEZONE.defaultValue());
+	@Override
+	public Set<ConfigOption<?>> optionalOptions() {
+		Set<ConfigOption<?>> options = new HashSet<>();
+		options.add(UTC_TIMEZONE);
+		// support "parquet.*"
+		return options;
 	}
 
-	private static Configuration getParquetConfiguration(DescriptorProperties properties) {
+	private static Configuration getParquetConfiguration(ReadableConfig options) {
 		Configuration conf = new Configuration();
-		properties.asMap().keySet()
-				.stream()
-				.filter(key -> key.startsWith(PARQUET_PROPERTIES))
-				.forEach(key -> {
-					String value = properties.getString(key);
-					String subKey = key.substring((FORMAT + '.').length());
-					conf.set(subKey, value);
-				});
+		Properties properties = new Properties();
+		((org.apache.flink.configuration.Configuration) options).addAllToProperties(properties);
+		properties.forEach((k, v) -> conf.set(IDENTIFIER + "." + k, v.toString()));
 		return conf;
 	}
 
 	@Override
 	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-		DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(context.getFormatProperties());
-
 		return new ParquetInputFormat(
 				context.getPaths(),
 				context.getSchema().getFieldNames(),
@@ -125,33 +101,24 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 				context.getProjectFields(),
 				context.getDefaultPartName(),
 				context.getPushedDownLimit(),
-				getParquetConfiguration(properties),
-				isUtcTimestamp(properties));
+				getParquetConfiguration(context.getFormatOptions()),
+				context.getFormatOptions().get(UTC_TIMEZONE));
 	}
 
 	@Override
 	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
-		DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(context.getFormatProperties());
-
 		return Optional.of(ParquetRowDataBuilder.createWriterFactory(
 				RowType.of(Arrays.stream(context.getFormatFieldTypes())
 								.map(DataType::getLogicalType)
 								.toArray(LogicalType[]::new),
 						context.getFormatFieldNames()),
-				getParquetConfiguration(properties),
-				isUtcTimestamp(properties)
-		));
+				getParquetConfiguration(context.getFormatOptions()),
+				context.getFormatOptions().get(UTC_TIMEZONE)));
 	}
 
 	@Override
 	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
 		return Optional.empty();
-	}
-
-	@Override
-	public boolean supportsSchemaDerivation() {
-		return true;
 	}
 
 	/**

@@ -21,13 +21,14 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -35,7 +36,6 @@ import org.apache.flink.table.utils.PartitionPathUtils;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
-import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -44,47 +44,43 @@ import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.io.DatumWriter;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
-
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 
 /**
  * Avro format factory for file system.
  */
 public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 
-	public static final String AVRO_OUTPUT_CODEC = "format." + DataFileConstants.CODEC;
+	public static final String IDENTIFIER = "avro";
+	public static final ConfigOption<String> AVRO_OUTPUT_CODEC = ConfigOptions.key("codec")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("The compression codec for avro");
 
 	@Override
-	public boolean supportsSchemaDerivation() {
-		return true;
+	public String factoryIdentifier() {
+		return IDENTIFIER;
 	}
 
 	@Override
-	public List<String> supportedProperties() {
-		List<String> options = new ArrayList<>();
+	public Set<ConfigOption<?>> requiredOptions() {
+		return new HashSet<>();
+	}
+
+	@Override
+	public Set<ConfigOption<?>> optionalOptions() {
+		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(AVRO_OUTPUT_CODEC);
 		return options;
 	}
 
 	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(FORMAT, "avro");
-		return context;
-	}
-
-	@Override
 	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-		DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(context.getFormatProperties());
-
 		String[] fieldNames = context.getSchema().getFieldNames();
 		List<String> projectFields = Arrays.stream(context.getProjectFields())
 			.mapToObj(idx -> fieldNames[idx])
@@ -123,7 +119,7 @@ public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
 		return Optional.of(new RowDataAvroWriterFactory(
 				context.getFormatRowType(),
-				context.getFormatProperties().get(AVRO_OUTPUT_CODEC)));
+				context.getFormatOptions().get(AVRO_OUTPUT_CODEC)));
 	}
 
 	/**

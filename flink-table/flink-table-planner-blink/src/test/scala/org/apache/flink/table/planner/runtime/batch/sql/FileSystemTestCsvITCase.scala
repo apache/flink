@@ -32,7 +32,7 @@ class FileSystemTestCsvITCase(useBulkWriter: Boolean) extends BatchFileSystemITC
   override def formatProperties(): Array[String] = {
     super.formatProperties() ++ Seq(
       "'format' = 'testcsv'",
-      s"'$USE_BULK_WRITER' = '$useBulkWriter'")
+      s"'${USE_BULK_WRITER.key()}' = '$useBulkWriter'")
   }
 }
 
