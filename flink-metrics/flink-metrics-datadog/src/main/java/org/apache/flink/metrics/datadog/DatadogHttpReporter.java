@@ -134,45 +134,30 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 	@Override
 	public void report() {
-		try {
-			int totalGaugesSent = addGaugesAndUnregisterOnException();
+		DSeries request = new DSeries();
 
-			DSeries request = new DSeries();
-			int currentCount = 0;
-			for (DCounter c : counters.values()) {
-				request.addCounter(c);
-				++currentCount;
-				if (currentCount % maxMetricsPerRequestValue == 0) {
-					client.send(request);
-					request = new DSeries();
-				}
-			}
+		addGaugesAndUnregisterOnException(request);
+		counters.values().forEach(request::addCounter);
+		meters.values().forEach(request::addMeter);
 
-			for (DMeter m : meters.values()) {
-				request.addMeter(m);
-				++currentCount;
-				if (currentCount % maxMetricsPerRequestValue == 0) {
-					client.send(request);
-					request = new DSeries();
-				}
+		int totalMetrics = request.getSeries().size();
+		int fromIndex = 0;
+		while (fromIndex < totalMetrics) {
+			int toIndex = Math.min(fromIndex + maxMetricsPerRequestValue, totalMetrics);
+			try {
+				client.send(new DSeries(request.getSeries().subList(fromIndex, toIndex)));
+			} catch (SocketTimeoutException e) {
+				LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout: {}", e.getMessage());
+			} catch (Exception e) {
+				LOGGER.warn("Failed reporting metrics to Datadog.", e);
 			}
-			// send any leftover metrics
-			if (request.getSeries().size() > 0) {
-				client.send(request);
-			}
-			counters.values().forEach(DCounter::ackReport);
-			LOGGER.debug("Reported series with size {}.", totalGaugesSent + currentCount);
-		} catch (SocketTimeoutException e) {
-			LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout: {}", e.getMessage());
-		} catch (Exception e) {
-			LOGGER.warn("Failed reporting metrics to Datadog.", e);
+			fromIndex = toIndex;
 		}
+		LOGGER.debug("Reported series with size {}.", totalMetrics);
+		counters.values().forEach(DCounter::ackReport);
 	}
 
-	private int addGaugesAndUnregisterOnException() {
-		DSeries request = new DSeries();
-		int currentCount = 0;
-		int totalGauges = gauges.size();
+	private void addGaugesAndUnregisterOnException(DSeries request) {
 		List<Gauge> gaugesToRemove = new ArrayList<>();
 		for (Map.Entry<Gauge, DGauge> entry : gauges.entrySet()) {
 			DGauge g = entry.getValue();
@@ -181,11 +166,6 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 				// Flink uses Gauge to store many types other than Number
 				g.getMetricValue();
 				request.addGauge(g);
-				++currentCount;
-				if (currentCount % maxMetricsPerRequestValue == 0 || currentCount >= totalGauges) {
-					client.send(request);
-					request = new DSeries();
-				}
 			} catch (ClassCastException e) {
 				LOGGER.info("The metric {} will not be reported because only number types are supported by this reporter.", g.getMetric());
 				gaugesToRemove.add(entry.getKey());
@@ -199,7 +179,6 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 			}
 		}
 		gaugesToRemove.forEach(gauges::remove);
-		return currentCount;
 	}
 
 	/**
