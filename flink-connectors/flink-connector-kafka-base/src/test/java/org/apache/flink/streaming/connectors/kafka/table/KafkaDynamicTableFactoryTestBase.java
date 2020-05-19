@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
@@ -61,7 +62,9 @@ import java.util.function.Consumer;
 import static org.apache.flink.util.CoreMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Abstract test base for {@link KafkaDynamicTableFactoryBase}.
@@ -153,6 +156,26 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 		final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
 		final SourceFunction<RowData> sourceFunction = sourceFunctionProvider.createSourceFunction();
 		assertThat(sourceFunction, instanceOf(getExpectedConsumerClass()));
+
+		// Test commitOnCheckpoint should be false if did not set consumer group.
+		assertTrue(((FlinkKafkaConsumerBase) sourceFunction).getEnableCommitOnCheckpoints());
+
+		Properties propsWithoutGroupId = new Properties();
+		propsWithoutGroupId.put("bootstrap.servers", "dummy");
+		final KafkaDynamicSourceBase sourceWithoutGroupId = getExpectedScanSource(
+			producedDataType,
+			TOPIC,
+			propsWithoutGroupId,
+			scanFormat,
+			StartupMode.SPECIFIC_OFFSETS,
+			specificOffsets,
+			0);
+		ScanTableSource.ScanRuntimeProvider providerWithoutGroupId = sourceWithoutGroupId
+			.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+		assertThat(providerWithoutGroupId, instanceOf(SourceFunctionProvider.class));
+		final SourceFunctionProvider functionProviderWithoutGroupId = (SourceFunctionProvider) providerWithoutGroupId;
+		final SourceFunction<RowData> function = functionProviderWithoutGroupId.createSourceFunction();
+		assertFalse(((FlinkKafkaConsumerBase) function).getEnableCommitOnCheckpoints());
 	}
 
 	@Test
