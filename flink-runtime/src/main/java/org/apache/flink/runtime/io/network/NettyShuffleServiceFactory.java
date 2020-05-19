@@ -38,6 +38,8 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 
+import java.util.concurrent.Executor;
+
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerShuffleMetrics;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -65,7 +67,8 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			networkConfig,
 			shuffleEnvironmentContext.getTaskExecutorResourceId(),
 			shuffleEnvironmentContext.getEventPublisher(),
-			shuffleEnvironmentContext.getParentMetricGroup());
+			shuffleEnvironmentContext.getParentMetricGroup(),
+			shuffleEnvironmentContext.getIoExecutor());
 	}
 
 	@VisibleForTesting
@@ -73,15 +76,32 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			NettyShuffleEnvironmentConfiguration config,
 			ResourceID taskExecutorResourceId,
 			TaskEventPublisher taskEventPublisher,
-			MetricGroup metricGroup) {
+			MetricGroup metricGroup,
+			Executor ioExecutor) {
+		return createNettyShuffleEnvironment(
+			config,
+			taskExecutorResourceId,
+			taskEventPublisher,
+			new ResultPartitionManager(),
+			metricGroup,
+			ioExecutor);
+	}
+
+	@VisibleForTesting
+	static NettyShuffleEnvironment createNettyShuffleEnvironment(
+			NettyShuffleEnvironmentConfiguration config,
+			ResourceID taskExecutorResourceId,
+			TaskEventPublisher taskEventPublisher,
+			ResultPartitionManager resultPartitionManager,
+			MetricGroup metricGroup,
+			Executor ioExecutor) {
 		checkNotNull(config);
 		checkNotNull(taskExecutorResourceId);
 		checkNotNull(taskEventPublisher);
+		checkNotNull(resultPartitionManager);
 		checkNotNull(metricGroup);
 
 		NettyConfig nettyConfig = config.nettyConfig();
-
-		ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
 
 		FileChannelManager fileChannelManager = new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
 
@@ -126,6 +146,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			resultPartitionManager,
 			fileChannelManager,
 			resultPartitionFactory,
-			singleInputGateFactory);
+			singleInputGateFactory,
+			ioExecutor);
 	}
 }
