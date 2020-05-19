@@ -57,8 +57,12 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 	// Logging variables
 	private static final String logback =
 			String.format("-Dlogback.configurationFile=file:%s/%s", FLINK_CONF_DIR_IN_POD, CONFIG_FILE_LOGBACK_NAME);
-	private static final String log4j =
-			String.format("-Dlog4j.configurationFile=file:%s/%s", FLINK_CONF_DIR_IN_POD, CONFIG_FILE_LOG4J_NAME);
+	private static final String log4j = String.format(
+		"-Dlog4j.configuration=file:%s/%s -Dlog4j.configurationFile=file:%s/%s",
+		FLINK_CONF_DIR_IN_POD,
+		CONFIG_FILE_LOG4J_NAME,
+		FLINK_CONF_DIR_IN_POD,
+		CONFIG_FILE_LOG4J_NAME);
 	private static final String jmLogfile = String.format("-Dlog.file=%s/jobmanager.log", FLINK_LOG_DIR_IN_POD);
 	private static final String jmLogRedirects =
 			String.format("1> %s/jobmanager.out 2> %s/jobmanager.err",
