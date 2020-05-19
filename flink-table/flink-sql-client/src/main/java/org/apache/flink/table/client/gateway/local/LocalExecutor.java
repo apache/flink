@@ -55,6 +55,7 @@ import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -79,7 +80,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -457,17 +457,10 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
-	public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
+	public Parser getSqlParser(String sessionId) {
 		final ExecutionContext<?> context = getExecutionContext(sessionId);
 		final TableEnvironment tableEnv = context.getTableEnvironment();
-		// translate
-		try {
-			final Table table = createTable(context, tableEnv, statement);
-			return context.wrapClassLoader((Supplier<String>) table::explain);
-		} catch (Throwable t) {
-			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
+		return ((TableEnvironmentInternal) tableEnv).getParser();
 	}
 
 	@Override
