@@ -83,6 +83,7 @@ public class ParquetSplitReaderUtil {
 	 */
 	public static ParquetColumnarRowSplitReader genPartColumnarRowReader(
 			boolean utcTimestamp,
+			boolean caseSensitive,
 			Configuration conf,
 			String[] fullFieldNames,
 			DataType[] fullFieldTypes,
@@ -119,6 +120,7 @@ public class ParquetSplitReaderUtil {
 
 		return new ParquetColumnarRowSplitReader(
 				utcTimestamp,
+				caseSensitive,
 				conf,
 				Arrays.stream(selParquetFields)
 						.mapToObj(i -> fullFieldTypes[i].getLogicalType())
