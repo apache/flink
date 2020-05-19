@@ -47,7 +47,6 @@ Apache Flink 是一个分布式流批一体化的开源平台。Flink 的核心�
 
 API 参考列举并解释了 Flink API 的所有功能。
 
-* [基本 API 概念](dev/api_concepts.html)
 * [DataStream API](dev/datastream_api.html)
 * [DataSet API](dev/batch/index.html)
 * [Table API &amp; SQL](dev/table/index.html)
