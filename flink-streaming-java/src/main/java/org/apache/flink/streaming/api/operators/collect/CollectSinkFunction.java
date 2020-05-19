@@ -135,7 +135,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 	private transient long currentBufferBytes;
 	private transient ReentrantLock bufferLock;
 	private transient Condition bufferCanAddNextResultCondition;
-	private transient long nextResultBytes;
+	private transient long invokingRecordBytes;
 
 	// this version indicates whether the sink has restarted or not
 	private transient String version;
@@ -252,16 +252,16 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
 			serializer.serialize(value, wrapper);
-			nextResultBytes = baos.size();
+			invokingRecordBytes = baos.size();
 
-			if (nextResultBytes > maxBytesPerBatch) {
+			if (invokingRecordBytes > maxBytesPerBatch) {
 				throw new RuntimeException(
-					"Record size is too large for CollectSinkFunction. Record size is " + nextResultBytes + " bytes, " +
+					"Record size is too large for CollectSinkFunction. Record size is " + invokingRecordBytes + " bytes, " +
 						"but max bytes per batch is only " + maxBytesPerBatch + " bytes. " +
 						"Please consider increasing max bytes per batch value.");
 			}
 
-			if (currentBufferBytes + nextResultBytes > bufferSizeLimitBytes) {
+			if (currentBufferBytes + invokingRecordBytes > bufferSizeLimitBytes) {
 				bufferCanAddNextResultCondition.await();
 			}
 			buffer.add(baos.toByteArray());
@@ -414,7 +414,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 							}
 						}
 
-						if (currentBufferBytes + nextResultBytes <= bufferSizeLimitBytes) {
+						if (currentBufferBytes + invokingRecordBytes <= bufferSizeLimitBytes) {
 							bufferCanAddNextResultCondition.signal();
 						}
 					} finally {
