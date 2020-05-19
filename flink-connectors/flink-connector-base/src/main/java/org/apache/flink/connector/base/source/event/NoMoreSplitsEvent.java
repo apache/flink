@@ -26,6 +26,9 @@ import org.apache.flink.api.connector.source.SourceEvent;
  * reading the currently assigned splits, they can exit.
  */
 public class NoMoreSplitsEvent implements SourceEvent {
+
+	private static final long serialVersionUID = 1L;
+
 	@Override
 	public String toString() {
 		return "[NoMoreSplitEvent]";

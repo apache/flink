@@ -28,6 +28,9 @@ import java.util.List;
  * @param <SplitT> the type of splits.
  */
 public class AddSplitEvent<SplitT> implements OperatorEvent {
+
+	private static final long serialVersionUID = 1L;
+
 	private final List<SplitT> splits;
 
 	public AddSplitEvent(List<SplitT> splits) {
