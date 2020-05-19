@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -36,6 +35,7 @@ import java.io.Closeable;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -46,7 +46,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
 	public static final Logger LOG = LoggerFactory.getLogger(AsyncCheckpointRunnable.class);
 	private final String taskName;
-	private final AsyncCheckpointRunnables runnableRegistry;
+	private final Consumer<AsyncCheckpointRunnable> registerConsumer;
+	private final Consumer<AsyncCheckpointRunnable> unregisterConsumer;
 	private final Environment taskEnvironment;
 
 	enum AsyncCheckpointState {
@@ -70,7 +71,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 			Future<?> channelWrittenFuture,
 			long asyncStartNanos,
 			String taskName,
-			AsyncCheckpointRunnables closeableRegistry,
+			Consumer<AsyncCheckpointRunnable> register,
+			Consumer<AsyncCheckpointRunnable> unregister,
 			Environment taskEnvironment,
 			AsyncExceptionHandler asyncExceptionHandler) {
 
@@ -80,7 +82,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 		this.channelWrittenFuture = checkNotNull(channelWrittenFuture);
 		this.asyncStartNanos = asyncStartNanos;
 		this.taskName = checkNotNull(taskName);
-		this.runnableRegistry = checkNotNull(closeableRegistry);
+		this.registerConsumer = register;
+		this.unregisterConsumer = unregister;
 		this.taskEnvironment = checkNotNull(taskEnvironment);
 		this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
 	}
@@ -89,7 +92,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 	public void run() {
 		FileSystemSafetyNet.initializeSafetyNetForThread();
 		try {
-			runnableRegistry.registerAsyncCheckpointRunnable(checkpointMetaData.getCheckpointId(), this);
+			registerConsumer.accept(this);
 
 			TaskStateSnapshot jobManagerTaskOperatorSubtaskStates = new TaskStateSnapshot(operatorSnapshotsInProgress.size());
 			TaskStateSnapshot localTaskOperatorSubtaskStates = new TaskStateSnapshot(operatorSnapshotsInProgress.size());
@@ -140,7 +143,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 			}
 			handleExecutionException(e);
 		} finally {
-			runnableRegistry.unregisterAsyncCheckpointRunnable(checkpointMetaData.getCheckpointId());
+			unregisterConsumer.accept(this);
 			FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 		}
 	}
@@ -229,9 +232,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 		}
 	}
 
-	@VisibleForTesting
-	AsyncCheckpointState getAsyncCheckpointState() {
-		return asyncCheckpointState.get();
+	long getCheckpointId() {
+		return checkpointMetaData.getCheckpointId();
 	}
 
 	private void cleanup() throws Exception {

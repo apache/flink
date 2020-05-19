@@ -180,9 +180,9 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 	}
 
 	@Override
-	public void notifyCheckpointAborted(long abortedCheckpointId) throws Exception {
+	public void notifyCheckpointAborted(long abortedCheckpointId) {
 		synchronized (materializedSstFiles) {
-			materializedSstFiles.keySet().removeIf(checkpointId -> checkpointId == abortedCheckpointId);
+			materializedSstFiles.keySet().remove(abortedCheckpointId);
 		}
 	}
 

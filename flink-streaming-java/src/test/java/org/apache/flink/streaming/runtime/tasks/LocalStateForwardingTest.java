@@ -118,7 +118,8 @@ public class LocalStateForwardingTest extends TestLogger {
 			CompletableFuture.completedFuture(null),
 			0L,
 			testStreamTask.getName(),
-			new AsyncCheckpointRunnables(),
+			asyncCheckpointRunnable -> {},
+			asyncCheckpointRunnable -> {},
 			testStreamTask.getEnvironment(),
 			testStreamTask);
 
