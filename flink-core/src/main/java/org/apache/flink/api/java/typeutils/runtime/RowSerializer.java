@@ -60,7 +60,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 	public static final int ROW_KIND_OFFSET = 2;
 
-	private static final long serialVersionUID = 2L;
+	private static final long serialVersionUID = 1L; // legacy, don't touch
 
 	private final boolean legacyModeEnabled;
 
@@ -367,14 +367,13 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	/**
 	 * A {@link TypeSerializerSnapshot} for RowSerializer.
 	 */
-	// TODO not fully functional yet due to FLINK-17520
 	public static final class RowSerializerSnapshot extends CompositeTypeSerializerSnapshot<Row, RowSerializer> {
 
 		private static final int VERSION = 3;
 
-		private static final int VERSION_WITHOUT_ROW_KIND = 2;
+		private static final int LAST_VERSION_WITHOUT_ROW_KIND = 2;
 
-		private boolean legacyModeEnabled = false;
+		private int readVersion = VERSION;
 
 		public RowSerializerSnapshot() {
 			super(RowSerializer.class);
@@ -382,6 +381,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 		RowSerializerSnapshot(RowSerializer serializerInstance) {
 			super(serializerInstance);
+			this.readVersion = serializerInstance.legacyModeEnabled ? LAST_VERSION_WITHOUT_ROW_KIND : VERSION;
 		}
 
 		@Override
@@ -394,9 +394,15 @@ public final class RowSerializer extends TypeSerializer<Row> {
 				int readOuterSnapshotVersion,
 				DataInputView in,
 				ClassLoader userCodeClassLoader) {
-			if (readOuterSnapshotVersion == VERSION_WITHOUT_ROW_KIND) {
-				legacyModeEnabled = true;
+			readVersion = readOuterSnapshotVersion;
+		}
+
+		@Override
+		protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(RowSerializer newSerializer) {
+			if (readVersion <= LAST_VERSION_WITHOUT_ROW_KIND) {
+				return OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION;
 			}
+			return OuterSchemaCompatibility.COMPATIBLE_AS_IS;
 		}
 
 		@Override
@@ -406,7 +412,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 		@Override
 		protected RowSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-			return new RowSerializer(nestedSerializers, legacyModeEnabled);
+			return new RowSerializer(nestedSerializers, readVersion <= LAST_VERSION_WITHOUT_ROW_KIND);
 		}
 	}
 }
