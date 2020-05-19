@@ -24,6 +24,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.streaming.api.operators.collect.utils.CollectTestUtils;
 import org.apache.flink.types.Row;
 
 import org.junit.Assert;
@@ -112,7 +113,6 @@ public class CollectSinkOperatorCoordinatorTest {
 		coordinator.close();
 	}
 
-	@SuppressWarnings("unchecked")
 	private void assertResponseEquals(
 			CollectCoordinationRequest request,
 			CollectCoordinationResponse response,
@@ -173,11 +173,10 @@ public class CollectSinkOperatorCoordinatorTest {
 						break;
 					}
 
-					CollectCoordinationResponse<Row> response = new CollectCoordinationResponse<>(
+					CollectCoordinationResponse response = new CollectCoordinationResponse(
 						request.getVersion(),
 						0,
-						data.removeFirst(),
-						serializer);
+						CollectTestUtils.toBytesList(data.removeFirst(), serializer));
 					response.serialize(outStream);
 				}
 

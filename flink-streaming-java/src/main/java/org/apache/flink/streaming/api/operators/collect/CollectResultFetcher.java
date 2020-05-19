@@ -125,13 +125,13 @@ public class CollectResultFetcher<T> {
 			if (isJobTerminated()) {
 				// job terminated, read results from accumulator
 				jobTerminated = true;
-				Tuple2<Long, CollectCoordinationResponse<T>> accResults = getAccumulatorResults();
+				Tuple2<Long, CollectCoordinationResponse> accResults = getAccumulatorResults();
 				buffer.dealWithResponse(accResults.f1, accResults.f0);
 				buffer.complete();
 			} else {
 				// job still running, try to fetch some results
 				long requestOffset = buffer.offset;
-				CollectCoordinationResponse<T> response;
+				CollectCoordinationResponse response;
 				try {
 					response = sendRequest(buffer.version, requestOffset);
 				} catch (Exception e) {
@@ -153,8 +153,7 @@ public class CollectResultFetcher<T> {
 		closed = true;
 	}
 
-	@SuppressWarnings("unchecked")
-	private CollectCoordinationResponse<T> sendRequest(
+	private CollectCoordinationResponse sendRequest(
 			String version,
 			long offset) throws InterruptedException, ExecutionException {
 		checkJobClientConfigured();
@@ -163,10 +162,10 @@ public class CollectResultFetcher<T> {
 		Preconditions.checkNotNull(operatorId, "Unknown operator ID. This is a bug.");
 
 		CollectCoordinationRequest request = new CollectCoordinationRequest(version, offset);
-		return (CollectCoordinationResponse<T>) gateway.sendCoordinationRequest(operatorId, request).get();
+		return (CollectCoordinationResponse) gateway.sendCoordinationRequest(operatorId, request).get();
 	}
 
-	private Tuple2<Long, CollectCoordinationResponse<T>> getAccumulatorResults() throws IOException {
+	private Tuple2<Long, CollectCoordinationResponse> getAccumulatorResults() throws IOException {
 		checkJobClientConfigured();
 
 		JobExecutionResult executionResult;
@@ -285,7 +284,7 @@ public class CollectResultFetcher<T> {
 			return ret;
 		}
 
-		private void dealWithResponse(CollectCoordinationResponse<T> response, long responseOffset) throws IOException {
+		private void dealWithResponse(CollectCoordinationResponse response, long responseOffset) throws IOException {
 			String responseVersion = response.getVersion();
 			long responseLastCheckpointedOffset = response.getLastCheckpointedOffset();
 			List<T> results = response.getResults(serializer);

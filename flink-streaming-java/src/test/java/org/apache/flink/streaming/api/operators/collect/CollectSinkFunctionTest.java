@@ -28,6 +28,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.collect.utils.MockFunctionInitializationContext;
 import org.apache.flink.streaming.api.operators.collect.utils.MockFunctionSnapshotContext;
@@ -61,6 +64,7 @@ import java.util.concurrent.TimeUnit;
 public class CollectSinkFunctionTest extends TestLogger {
 
 	private static final int MAX_RESULTS_PER_BATCH = 3;
+	private static final int MAX_BYTES_PER_BATCH = 12; // sizeof(int) * MAX_RESULTS_PER_BATCH
 	private static final String ACCUMULATOR_NAME = "tableCollectAccumulator";
 	private static final int FUTURE_TIMEOUT_MILLIS = 10000;
 	private static final int SOCKET_TIMEOUT_MILLIS = 1000;
@@ -83,7 +87,13 @@ public class CollectSinkFunctionTest extends TestLogger {
 	@Before
 	public void before() throws Exception {
 		ioManager = new IOManagerAsync();
-		runtimeContext = new MockStreamingRuntimeContext(false, 1, 0, ioManager);
+		MockEnvironment environment = new MockEnvironmentBuilder()
+			.setTaskName("mockTask")
+			.setManagedMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
+			.setIOManager(ioManager)
+			.build();
+		runtimeContext = new MockStreamingRuntimeContext(false, 1, 0, environment);
+
 		gateway = new MockOperatorEventGateway();
 		coordinator = new CollectSinkOperatorCoordinator(SOCKET_TIMEOUT_MILLIS);
 		coordinator.start();
@@ -108,7 +118,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 			function.invoke(i, null);
 		}
 
-		CollectCoordinationResponse<Integer> response = sendRequestAndGetValidResponse("", 0);
+		CollectCoordinationResponse response = sendRequestAndGetValidResponse("", 0);
 		Assert.assertEquals(0, response.getLastCheckpointedOffset());
 		String version = response.getVersion();
 
@@ -158,7 +168,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 			function.invoke(i, null);
 		}
 
-		CollectCoordinationResponse<Integer> response = sendRequestAndGetValidResponse("", 0);
+		CollectCoordinationResponse response = sendRequestAndGetValidResponse("", 0);
 		Assert.assertEquals(0, response.getLastCheckpointedOffset());
 		String version = response.getVersion();
 
@@ -341,8 +351,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 	}
 
 	private void openFunction() throws Exception {
-		function = new CollectSinkFunction<>(
-			serializer, MAX_RESULTS_PER_BATCH, ACCUMULATOR_NAME);
+		function = new CollectSinkFunction<>(serializer, MAX_BYTES_PER_BATCH, ACCUMULATOR_NAME);
 		function.setRuntimeContext(runtimeContext);
 		function.setOperatorEventGateway(gateway);
 		function.open(new Configuration());
@@ -351,8 +360,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 
 	private void openFunctionWithState() throws Exception {
 		functionInitializationContext.getOperatorStateStore().revertToLastSuccessCheckpoint();
-		function = new CollectSinkFunction<>(
-			serializer, MAX_RESULTS_PER_BATCH, ACCUMULATOR_NAME);
+		function = new CollectSinkFunction<>(serializer, MAX_BYTES_PER_BATCH, ACCUMULATOR_NAME);
 		function.setRuntimeContext(runtimeContext);
 		function.setOperatorEventGateway(gateway);
 		function.initializeState(functionInitializationContext);
@@ -384,20 +392,15 @@ public class CollectSinkFunctionTest extends TestLogger {
 		jobFinished = true;
 	}
 
-	@SuppressWarnings("unchecked")
-	private CollectCoordinationResponse<Integer> sendRequest(
-			String version,
-			long offset) throws Exception {
+	private CollectCoordinationResponse sendRequest(String version, long offset) throws Exception {
 		CollectCoordinationRequest request = new CollectCoordinationRequest(version, offset);
 		// we add a timeout to not block the tests
 		return ((CollectCoordinationResponse) coordinator
 			.handleCoordinationRequest(request).get(FUTURE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
 	}
 
-	private CollectCoordinationResponse<Integer> sendRequestAndGetValidResponse(
-			String version,
-			long offset) throws Exception {
-		CollectCoordinationResponse<Integer> response;
+	private CollectCoordinationResponse sendRequestAndGetValidResponse(String version, long offset) throws Exception {
+		CollectCoordinationResponse response;
 		for (int i = 0; i < MAX_RETIRES; i++) {
 			response = sendRequest(version, offset);
 			if (response.getLastCheckpointedOffset() >= 0) {
@@ -408,7 +411,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 	}
 
 	@SuppressWarnings("unchecked")
-	private Tuple2<Long, CollectCoordinationResponse<Integer>> getAccumualtorResults() throws Exception {
+	private Tuple2<Long, CollectCoordinationResponse> getAccumualtorResults() throws Exception {
 		Accumulator accumulator = runtimeContext.getAccumulator(ACCUMULATOR_NAME);
 		ArrayList<byte[]> accLocalValue = ((SerializedListAccumulator) accumulator).getLocalValue();
 		List<byte[]> serializedResults =
@@ -419,7 +422,7 @@ public class CollectSinkFunctionTest extends TestLogger {
 	}
 
 	private void assertResponseEquals(
-			CollectCoordinationResponse<Integer> response,
+			CollectCoordinationResponse response,
 			String version,
 			long lastCheckpointedOffset,
 			List<Integer> expected) throws IOException {
@@ -444,9 +447,9 @@ public class CollectSinkFunctionTest extends TestLogger {
 			String expectedVersion,
 			long expectedLastCheckpointedOffset,
 			List<Integer> expectedResults) throws Exception {
-		Tuple2<Long, CollectCoordinationResponse<Integer>> accResults = getAccumualtorResults();
+		Tuple2<Long, CollectCoordinationResponse> accResults = getAccumualtorResults();
 		long offset = accResults.f0;
-		CollectCoordinationResponse<Integer> response = accResults.f1;
+		CollectCoordinationResponse response = accResults.f1;
 		List<Integer> actualResults = response.getResults(serializer);
 
 		Assert.assertEquals(expectedOffset, offset);

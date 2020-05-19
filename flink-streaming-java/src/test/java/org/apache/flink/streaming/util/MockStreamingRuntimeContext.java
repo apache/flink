@@ -20,9 +20,9 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -46,23 +46,19 @@ public class MockStreamingRuntimeContext extends StreamingRuntimeContext {
 		int numParallelSubtasks,
 		int subtaskIndex) {
 
-		this(isCheckpointingEnabled, numParallelSubtasks, subtaskIndex, null);
+		this(isCheckpointingEnabled, numParallelSubtasks, subtaskIndex, new MockEnvironmentBuilder()
+			.setTaskName("mockTask")
+			.setManagedMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
+			.build());
 	}
 
 	public MockStreamingRuntimeContext(
 		boolean isCheckpointingEnabled,
 		int numParallelSubtasks,
 		int subtaskIndex,
-		IOManager ioManager) {
+		MockEnvironment environment) {
 
-		super(
-			new MockStreamOperator(),
-			new MockEnvironmentBuilder()
-				.setTaskName("mockTask")
-				.setManagedMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
-				.setIOManager(ioManager)
-				.build(),
-			new HashMap<>());
+		super(new MockStreamOperator(), environment, new HashMap<>());
 
 		this.isCheckpointingEnabled = isCheckpointingEnabled;
 		this.numParallelSubtasks = numParallelSubtasks;

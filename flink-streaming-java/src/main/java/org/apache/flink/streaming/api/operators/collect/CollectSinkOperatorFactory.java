@@ -33,22 +33,22 @@ public class CollectSinkOperatorFactory<IN> extends SimpleUdfStreamOperatorFacto
 
 	private static final long serialVersionUID = 1L;
 
-	private static final int DEFAULT_MAX_RESULTS_PER_BATCH = 4096;
+	private static final long DEFAULT_MAX_BYTES_PER_BATCH = 1 << 21; // 2MB
 	private static final int DEFAULT_SOCKET_TIMEOUT_MILLIS = 10000;
 
 	private final CollectSinkOperator<IN> operator;
 	private final int socketTimeoutMillis;
 
 	public CollectSinkOperatorFactory(TypeSerializer<IN> serializer, String accumulatorName) {
-		this(serializer, accumulatorName, DEFAULT_MAX_RESULTS_PER_BATCH, DEFAULT_SOCKET_TIMEOUT_MILLIS);
+		this(serializer, accumulatorName, DEFAULT_MAX_BYTES_PER_BATCH, DEFAULT_SOCKET_TIMEOUT_MILLIS);
 	}
 
 	public CollectSinkOperatorFactory(
 			TypeSerializer<IN> serializer,
 			String accumulatorName,
-			int maxResultsPerBatch,
+			long maxBytesPerBatch,
 			int socketTimeoutMillis) {
-		super(new CollectSinkOperator<>(serializer, maxResultsPerBatch, accumulatorName));
+		super(new CollectSinkOperator<>(serializer, maxBytesPerBatch, accumulatorName));
 		this.operator = (CollectSinkOperator<IN>) getOperator();
 		this.socketTimeoutMillis = socketTimeoutMillis;
 	}

@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.operators.collect;
 
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -147,7 +146,10 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 			// request failed, close current connection and send back empty results
 			// we catch every exception here because socket might suddenly becomes null if the sink fails
 			// and we do not want the coordinator to fail
-			LOG.warn("Collect sink coordinator encounters an exception", e);
+			if (LOG.isDebugEnabled()) {
+				// this is normal when sink restarts or job ends, so we print a debug log
+				LOG.debug("Collect sink coordinator encounters an exception", e);
+			}
 			closeConnection();
 			completeWithEmptyResponse(request, responseFuture);
 		}
@@ -156,20 +158,12 @@ public class CollectSinkOperatorCoordinator implements OperatorCoordinator, Coor
 	private void completeWithEmptyResponse(
 			CollectCoordinationRequest request,
 			CompletableFuture<CoordinationResponse> future) {
-		try {
-			future.complete(new CollectCoordinationResponse<>(
-				request.getVersion(),
-				// this lastCheckpointedOffset is OK
-				// because client will only expose results to the users when the checkpointed offset increases
-				-1,
-				Collections.emptyList(),
-				// just a random serializer, we're serializing no results
-				LongSerializer.INSTANCE));
-		} catch (IOException e) {
-			// this is impossible as we're serializing no results
-			// but even if this happens, client will come with the same version and offset again
-			future.completeExceptionally(e);
-		}
+		future.complete(new CollectCoordinationResponse(
+			request.getVersion(),
+			// this lastCheckpointedOffset is OK
+			// because client will only expose results to the users when the checkpointed offset increases
+			-1,
+			Collections.emptyList()));
 	}
 
 	private void closeConnection() {
