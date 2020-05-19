@@ -99,7 +99,7 @@ public class StreamSelectTableSink implements RetractStreamTableSink<Row> {
 	}
 
 	/**
-	 * An Iterator wrapper class that converts Iterator<Tuple2<Boolean, Row>> to Iterator<Row>.
+	 * An Iterator wrapper class that converts Iterator&lt;Tuple2&lt;Boolean, Row&gt;&gt; to Iterator&lt;Row&gt;.
 	 */
 	private static class RowIteratorWrapper implements Iterator<Row> {
 		private final CollectResultIterator<Tuple2<Boolean, Row>> iterator;

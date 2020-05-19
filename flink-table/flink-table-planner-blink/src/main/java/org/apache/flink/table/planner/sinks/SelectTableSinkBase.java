@@ -97,7 +97,7 @@ public abstract class SelectTableSinkBase<T> implements StreamTableSink<T> {
 	}
 
 	/**
-	 * An Iterator wrapper class that converts Iterator<T> to Iterator<Row>.
+	 * An Iterator wrapper class that converts Iterator&lt;T&gt; to Iterator&lt;Row&gt;.
 	 */
 	private class RowIteratorWrapper implements Iterator<Row> {
 		private final CollectResultIterator<T> iterator;

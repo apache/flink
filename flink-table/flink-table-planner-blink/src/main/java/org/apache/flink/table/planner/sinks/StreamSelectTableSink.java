@@ -32,9 +32,9 @@ import org.apache.flink.types.RowKind;
 /**
  * A {@link RetractStreamTableSink} for streaming select job to collect the result to local.
  *
- * <p>{@link RowData} has contains {@link RowKind} attribute which
+ * <p>{@link RowData} contains {@link RowKind} attribute which
  * can represents all kind of changes. The boolean flag is useless here,
- * only because {@link RetractStreamTableSink} requires Tuple2<Boolean, T> type.
+ * only because {@link RetractStreamTableSink} requires Tuple2&lt;Boolean, T&gt; type.
  */
 public class StreamSelectTableSink
 		extends SelectTableSinkBase<Tuple2<Boolean, RowData>>
