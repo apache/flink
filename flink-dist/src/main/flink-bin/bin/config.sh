@@ -478,9 +478,9 @@ runBashJavaUtilsCmd() {
     local conf_dir=$2
     local class_path=$3
     local dynamic_args=${@:4}
-    class_path=`manglePathList ${class_path}`
+    class_path=`manglePathList "${class_path}"`
 
-    local output=`${JAVA_RUN} -classpath ${class_path} org.apache.flink.runtime.util.bash.BashJavaUtils ${cmd} --configDir ${conf_dir} $dynamic_args 2>&1 | tail -n 1000`
+    local output=`${JAVA_RUN} -classpath "${class_path}" org.apache.flink.runtime.util.bash.BashJavaUtils ${cmd} --configDir "${conf_dir}" $dynamic_args 2>&1 | tail -n 1000`
     if [[ $? -ne 0 ]]; then
         echo "[ERROR] Cannot run BashJavaUtils to execute command ${cmd}." 1>&2
         # Print the output in case the user redirect the log to console.
