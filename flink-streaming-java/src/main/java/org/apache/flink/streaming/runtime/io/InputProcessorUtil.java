@@ -66,7 +66,7 @@ public class InputProcessorUtil {
 	 * @return a pair of {@link CheckpointedInputGate} created for two corresponding
 	 * {@link InputGate}s supplied as parameters.
 	 */
-	public static CheckpointedInputGate[] createCheckpointedInputGatePair(
+	public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
 			AbstractInvokable toNotifyOnCheckpoint,
 			StreamConfig config,
 			ChannelStateWriter channelStateWriter,
