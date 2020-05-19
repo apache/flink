@@ -30,7 +30,7 @@ This page describes how to deploy a Flink session cluster natively on [Kubernete
 {:toc}
 
 <div class="alert alert-warning">
-Flink's native Kubernetes integration is still experimental. There may be changes in the configuration and CLI flags in latter versions. Job clusters are not yet supported.
+Flink's native Kubernetes integration is still experimental. There may be changes in the configuration and CLI flags in latter versions.
 </div>
 
 ## Requirements
@@ -63,7 +63,7 @@ Although this setting may cause more cloud cost it has the effect that starting 
 faster and during development you have more time to inspect the logfiles of your job.
 
 {% highlight bash %}
-./bin/kubernetes-session.sh \
+$ ./bin/kubernetes-session.sh \
   -Dkubernetes.cluster-id=<ClusterId> \
   -Dtaskmanager.memory.process.size=4096m \
   -Dkubernetes.taskmanager.cpu=2 \
@@ -83,13 +83,13 @@ If you want to use a custom Docker image to deploy Flink containers, check [the 
 If you created a custom Docker image you can provide it by setting the [`kubernetes.container.image`](../config.html#kubernetes-container-image) configuration option:
 
 {% highlight bash %}
-./bin/kubernetes-session.sh \
+$ ./bin/kubernetes-session.sh \
   -Dkubernetes.cluster-id=<ClusterId> \
   -Dtaskmanager.memory.process.size=4096m \
   -Dkubernetes.taskmanager.cpu=2 \
   -Dtaskmanager.numberOfTaskSlots=4 \
   -Dresourcemanager.taskmanager-timeout=3600000 \
-  -Dkubernetes.container.image=<custom_image_name>
+  -Dkubernetes.container.image=<CustomImageName>
 {% endhighlight %}
 
 ### Submitting jobs to an existing Session
@@ -169,6 +169,42 @@ appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m
 {% endhighlight %}
 
 If the pod is running, you can use `kubectl exec -it <PodName> bash` to tunnel in and view the logs or debug the process.
+
+## Flink Kubernetes Application
+
+### Start Flink Application
+
+Application mode allows users to create a single image containing their Job and the Flink runtime, which will automatically create and destroy cluster components as needed. The Flink community provides base docker images [customized](docker.html#customize-flink-image) for any use case.
+
+{% highlight dockerfile %}
+FROM flink
+RUN mkdir -p $FLINK_HOME/usrlib
+COPY /path/of/my-flink-job-*.jar $FLINK_HOME/usrlib/my-flink-job.jar
+{% endhighlight %}
+
+Use the following command to start a Flink application.
+{% highlight bash %}
+$ ./bin/flink run-application -p 8 -t kubernetes-application \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dtaskmanager.memory.process.size=4096m \
+  -Dkubernetes.taskmanager.cpu=2 \
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dkubernetes.container.image=<CustomImageName> \
+  local:///opt/flink/usrlib/my-flink-job.jar
+{% endhighlight %}
+
+Note: Only "local" is supported as schema for application mode. This assumes that the jar is located in the image, not the Flink client.
+
+Note: All the jars in the "$FLINK_HOME/usrlib" directory in the image will be added to user classpath.
+
+### Stop Flink Application
+
+When an application is stopped, all Flink cluster resources are automatically destroyed.
+As always, Jobs may stop when manually canceled or, in the case of bounded Jobs, complete.
+
+{% highlight bash %}
+$ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterID> <JobID>
+{% endhighlight %}
 
 ## Kubernetes concepts
 
