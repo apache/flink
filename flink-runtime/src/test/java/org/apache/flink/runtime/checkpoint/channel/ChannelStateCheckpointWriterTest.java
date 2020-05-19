@@ -21,6 +21,7 @@ import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
@@ -57,13 +58,7 @@ public class ChannelStateCheckpointWriterTest {
 				return null;
 			}
 		};
-		ChannelStateCheckpointWriter writer = new ChannelStateCheckpointWriter(
-				1L,
-				new ChannelStateWriteResult(),
-				stream,
-				new ChannelStateSerializerImpl(),
-				NO_OP_RUNNABLE
-		);
+		ChannelStateCheckpointWriter writer = createWriter(new ChannelStateWriteResult(), stream);
 		writer.completeOutput();
 		writer.completeInput();
 		assertTrue(stream.isClosed());
@@ -155,13 +150,11 @@ public class ChannelStateCheckpointWriterTest {
 	}
 
 	private ChannelStateCheckpointWriter createWriter(ChannelStateWriteResult result) throws Exception {
-		return new ChannelStateCheckpointWriter(
-			1L,
-			result,
-			new MemoryCheckpointOutputStream(1000),
-			new ChannelStateSerializerImpl(),
-			NO_OP_RUNNABLE
-		);
+		return createWriter(result, new MemoryCheckpointOutputStream(1000));
+	}
+
+	private ChannelStateCheckpointWriter createWriter(ChannelStateWriteResult result, CheckpointStateOutputStream stream) throws Exception {
+		return new ChannelStateCheckpointWriter(1L, result, stream, new ChannelStateSerializerImpl(), NO_OP_RUNNABLE);
 	}
 
 }
