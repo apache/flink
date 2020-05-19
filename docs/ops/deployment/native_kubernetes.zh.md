@@ -151,23 +151,10 @@ $ kubectl delete deployment/<ClusterID>
 
 ## 日志文件
 
-默认情况下，JobManager 和 TaskManager 只把日志存储在每个 pod 中的 `/opt/flink/log` 下。
-如果要使用 `kubectl logs <PodName>` 查看日志，必须执行以下操作：
+默认情况下，JobManager 和 TaskManager 会把日志同时输出到console和每个 pod 中的 `/opt/flink/log` 下。
+STDOUT 和 STDERR 只会输出到console。你可以使用 `kubectl logs <PodName>` 来访问它们。
 
-1. 在 Flink 客户端的 log4j.properties 中增加新的 appender。
-2. 在 log4j.properties 的 rootLogger 中增加如下 'appenderRef'，`rootLogger.appenderRef.console.ref = ConsoleAppender`。
-3. 通过增加配置项 `-Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"` 来删除重定向的参数。
-4. 停止并重启你的 session。现在你可以使用 `kubectl logs` 查看日志了。
-
-{% highlight bash %}
-# Log all infos to the console
-appender.console.name = ConsoleAppender
-appender.console.type = CONSOLE
-appender.console.layout.type = PatternLayout
-appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
-{% endhighlight %}
-
-如果 pod 正在运行，可以使用 `kubectl exec -it <PodName> bash` 进入 pod 并查看日志或调试进程。
+如果 pod 正在运行，还可以使用 `kubectl exec -it <PodName> bash` 进入 pod 并查看日志或调试进程。
 
 ## Flink Kubernetes Application
 
