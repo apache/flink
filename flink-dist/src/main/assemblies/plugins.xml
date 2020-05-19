@@ -31,7 +31,6 @@
 	<files>
 		<!-- Metrics -->
 
-		<!-- jmx -->
 		<file>
 			<source>../flink-metrics/flink-metrics-jmx/target/flink-metrics-jmx_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>plugins/metrics_jmx/</outputDirectory>
