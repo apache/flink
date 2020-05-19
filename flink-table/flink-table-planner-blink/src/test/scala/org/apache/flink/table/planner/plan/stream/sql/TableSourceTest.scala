@@ -21,13 +21,15 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types, ValidationException}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, Rowtime, Schema}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TableTestBase, TestFilterableTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestProjectableTableSource, TestTableSource, TestTableSourceWithTime}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-
 import org.junit.{Before, Test}
+
+import _root_.java.util.{Collections, Map => JMap}
 
 class TableSourceTest extends TableTestBase {
 
@@ -128,6 +130,63 @@ class TableSourceTest extends TableTestBase {
       """.stripMargin
 
     util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testLegacyRowTimeTableGroupWindow(): Unit = {
+    util.tableEnv.connect(
+      new ConnectorDescriptor("TestTableSourceWithTime", 1, false) {
+        override protected def toConnectorProperties: JMap[String, String] = {
+          Collections.emptyMap()
+        }
+      }
+    ).withSchema(
+      new Schema()
+        .field("id", DataTypes.INT())
+        .field("val", DataTypes.BIGINT())
+        .field("name", DataTypes.STRING())
+        .field("rowtime", DataTypes.TIMESTAMP(3))
+        .rowtime(new Rowtime().timestampsFromField("rowtime").watermarksPeriodicBounded(1000))
+    ).createTemporaryTable("rowTimeT")
+
+    val sql =
+      """
+        |SELECT name,
+        |    TUMBLE_END(rowtime, INTERVAL '10' MINUTE),
+        |    AVG(val)
+        |FROM rowTimeT WHERE val > 100
+        |    GROUP BY name, TUMBLE(rowtime, INTERVAL '10' MINUTE)
+      """.stripMargin
+
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testLegacyProcTimeTableGroupWindow(): Unit = {
+    util.tableEnv.connect(
+      new ConnectorDescriptor("TestTableSourceWithTime", 1, false) {
+        override protected def toConnectorProperties: JMap[String, String] = {
+          Collections.emptyMap()
+        }
+      }
+    ).withSchema(
+      new Schema()
+        .field("id", DataTypes.INT())
+        .field("val", DataTypes.BIGINT())
+        .field("name", DataTypes.STRING())
+        .field("proctime", DataTypes.TIMESTAMP(3)).proctime()
+    ).createTemporaryTable("procTimeT")
+
+    val sql =
+      """
+        |SELECT name,
+        |    TUMBLE_END(proctime, INTERVAL '10' MINUTE),
+        |    AVG(val)
+        |FROM procTimeT WHERE val > 100
+        |    GROUP BY name, TUMBLE(proctime, INTERVAL '10' MINUTE)
+      """.stripMargin
+
+    util.verifyPlan(sql)
   }
 
   @Test

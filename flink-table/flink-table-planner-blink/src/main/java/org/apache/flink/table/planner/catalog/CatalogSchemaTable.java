@@ -19,14 +19,22 @@
 package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
+import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -124,7 +132,7 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 		return statistic;
 	}
 
-	private static RelDataType getRowType(RelDataTypeFactory typeFactory,
+	private RelDataType getRowType(RelDataTypeFactory typeFactory,
 			CatalogBaseTable catalogBaseTable,
 			boolean isStreamingMode) {
 		final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
@@ -153,6 +161,24 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 				}
 			}
 		}
+
+		// The following block is a workaround to support tables defined by TableEnvironment.connect() and
+		// the actual table sources implement DefinedProctimeAttribute/DefinedRowtimeAttributes.
+		// It should be removed after we remove DefinedProctimeAttribute/DefinedRowtimeAttributes.
+		Optional<TableSource<?>> sourceOpt = findAndCreateTableSource();
+		if (isStreamingMode
+				&& tableSchema.getTableColumns().stream().noneMatch(TableColumn::isGenerated)
+				&& tableSchema.getWatermarkSpecs().isEmpty()
+				&& sourceOpt.isPresent()) {
+			TableSource<?> source = sourceOpt.get();
+			if (TableSourceValidation.hasProctimeAttribute(source)
+					|| TableSourceValidation.hasRowtimeAttribute(source)) {
+				// If the table is defined by TableEnvironment.connect(), and use the legacy proctime and rowtime
+				// descriptors, the TableSchema should fallback to ConnectorCatalogTable#calculateSourceSchema
+				tableSchema = ConnectorCatalogTable.calculateSourceSchema(source, false);
+			}
+		}
+
 		return TableSourceUtil.getSourceRowType(flinkTypeFactory,
 			tableSchema,
 			scala.Option.empty(),
@@ -167,5 +193,27 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 	@Override
 	public String getSysEndFieldName() {
 		return "sys_end";
+	}
+
+	private Optional<TableSource<?>> findAndCreateTableSource() {
+		Optional<TableSource<?>> tableSource = Optional.empty();
+		try {
+			if (catalogBaseTable instanceof CatalogTableImpl) {
+				TableSource<?> source = TableFactoryUtil.findAndCreateTableSource((CatalogTable) catalogBaseTable);
+				if (source instanceof StreamTableSource) {
+					if (!isStreamingMode && !((StreamTableSource) source).isBounded()) {
+						throw new ValidationException("Cannot query on an unbounded source in batch mode, but " +
+								tableIdentifier.asSummaryString() + " is unbounded.");
+					}
+					tableSource = Optional.of(source);
+				} else {
+					throw new ValidationException("Catalog tables only support " +
+							"StreamTableSource and InputFormatTableSource.");
+				}
+			}
+		} catch (Exception e) {
+			tableSource = Optional.empty();
+		}
+		return tableSource;
 	}
 }

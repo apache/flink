@@ -140,7 +140,12 @@ public abstract class ConnectTableDescriptor
 		TableSchema tableSchema = getTableSchema(schemaProperties);
 
 		Map<String, String> properties = new HashMap<>(toProperties());
-		schemaProperties.keySet().forEach(properties::remove);
+
+		// DescriptorProperties#putTableSchema and getTableSchema are not symmetrical
+		// We should retain time attribute properties when remove table schema properties
+		DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putTableSchema(Schema.SCHEMA, tableSchema);
+		descriptorProperties.asMap().keySet().forEach(properties::remove);
 
 		CatalogTableImpl catalogTable = new CatalogTableImpl(
 			tableSchema,
