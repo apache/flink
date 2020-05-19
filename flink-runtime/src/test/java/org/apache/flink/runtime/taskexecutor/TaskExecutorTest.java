@@ -446,7 +446,7 @@ public class TaskExecutorTest extends TestLogger {
 			assertThat(taskExecutorRegistrationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS), equalTo(unresolvedTaskManagerLocation.getResourceID()));
 
 			// heartbeat timeout should trigger disconnect TaskManager from ResourceManager
-			assertThat(taskExecutorDisconnectFuture.get(heartbeatTimeout * 50L, TimeUnit.MILLISECONDS), equalTo(unresolvedTaskManagerLocation.getResourceID()));
+			assertThat(taskExecutorDisconnectFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS), equalTo(unresolvedTaskManagerLocation.getResourceID()));
 
 			assertTrue(
 				"The TaskExecutor should try to reconnect to the RM",
