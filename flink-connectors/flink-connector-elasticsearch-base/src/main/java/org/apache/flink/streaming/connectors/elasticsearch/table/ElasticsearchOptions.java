@@ -97,17 +97,17 @@ public class ElasticsearchOptions {
 			.noDefaultValue()
 			.withDescription("Bulk flush interval");
 	public static final ConfigOption<BackOffType> BULK_FLUSH_BACKOFF_TYPE_OPTION =
-		ConfigOptions.key("sink.bulk-flush.back-off.strategy")
+		ConfigOptions.key("sink.bulk-flush.backoff.strategy")
 			.enumType(BackOffType.class)
 			.defaultValue(BackOffType.DISABLED)
 			.withDescription("Backoff strategy");
 	public static final ConfigOption<Integer> BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION =
-		ConfigOptions.key("sink.bulk-flush.back-off.max-retries")
+		ConfigOptions.key("sink.bulk-flush.backoff.max-retries")
 			.intType()
 			.noDefaultValue()
 			.withDescription("Maximum number of retries.");
 	public static final ConfigOption<Duration> BULK_FLUSH_BACKOFF_DELAY_OPTION =
-		ConfigOptions.key("sink.bulk-flush.back-off.delay")
+		ConfigOptions.key("sink.bulk-flush.backoff.delay")
 			.durationType()
 			.noDefaultValue()
 			.withDescription("Delay between each backoff attempt.");

@@ -122,7 +122,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
-			"'sink.bulk-flush.back-off.max-retries' must be at least 1. Got: 0");
+			"'sink.bulk-flush.backoff.max-retries' must be at least 1. Got: 0");
 		sinkFactory.createDynamicTableSink(
 			context()
 				.withSchema(TableSchema.builder()
@@ -162,7 +162,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
-			"Invalid value for option 'sink.bulk-flush.back-off.delay'.");
+			"Invalid value for option 'sink.bulk-flush.backoff.delay'.");
 		sinkFactory.createDynamicTableSink(
 			context()
 				.withSchema(TableSchema.builder()
