@@ -48,7 +48,7 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
     # Startup parameters
 
-    jvm_params_output=$(runBashJavaUtilsCmd GET_TM_RESOURCE_JVM_PARAMS ${FLINK_CONF_DIR} $FLINK_BIN_DIR/bash-java-utils.jar:$(findFlinkDistJar) "${ARGS[@]}")
+    jvm_params_output=$(runBashJavaUtilsCmd GET_TM_RESOURCE_JVM_PARAMS "${FLINK_CONF_DIR}" "$FLINK_BIN_DIR/bash-java-utils.jar:$(findFlinkDistJar)" "${ARGS[@]}")
     jvm_params=`extractExecutionParams "$jvm_params_output"`
     if [[ $? -ne 0 ]]; then
         echo "[ERROR] Could not get JVM parameters properly."
