@@ -25,7 +25,8 @@ package org.apache.flink.testutils.migration;
 public enum MigrationVersion {
 
 	// NOTE: the version strings must not change,
-	// as they are used to locate snapshot file paths
+	// as they are used to locate snapshot file paths.
+	// The definition order matters for performing version arithmetic.
 	v1_3("1.3"),
 	v1_4("1.4"),
 	v1_5("1.5"),
@@ -47,6 +48,6 @@ public enum MigrationVersion {
 	}
 
 	public boolean isNewerVersionThan(MigrationVersion otherVersion) {
-		return Double.valueOf(versionStr) > Double.valueOf(otherVersion.versionStr);
+		return this.ordinal() > otherVersion.ordinal();
 	}
 }
