@@ -45,6 +45,8 @@ import java.util.Map;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator.getFlinkConfConfigMapName;
+import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
@@ -83,8 +85,8 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 
 	@Test
 	public void testConfigMap() throws IOException {
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOG4J_NAME);
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
 
 		final List<HasMetadata> additionalResources = flinkConfMountDecorator.buildAccompanyingKubernetesResources();
 		assertEquals(1, additionalResources.size());
@@ -98,8 +100,8 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 		assertEquals(getCommonLabels(), resultConfigMap.getMetadata().getLabels());
 
 		Map<String, String> resultDatas = resultConfigMap.getData();
-		assertEquals("some data", resultDatas.get("logback.xml"));
-		assertEquals("some data", resultDatas.get("log4j.properties"));
+		assertEquals("some data", resultDatas.get(CONFIG_FILE_LOGBACK_NAME));
+		assertEquals("some data", resultDatas.get(CONFIG_FILE_LOG4J_NAME));
 
 		final Configuration resultFlinkConfig = KubernetesTestUtils.loadConfigurationFromString(
 			resultDatas.get(FLINK_CONF_FILENAME));
@@ -138,14 +140,14 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 
 	@Test
 	public void testDecoratedFlinkPodWithLog4j() throws IOException {
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOG4J_NAME);
 
 		final FlinkPod resultFlinkPod = flinkConfMountDecorator.decorateFlinkPod(baseFlinkPod);
 
 		final List<KeyToPath> expectedKeyToPaths = Arrays.asList(
 			new KeyToPathBuilder()
-				.withKey("log4j.properties")
-				.withPath("log4j.properties")
+				.withKey(CONFIG_FILE_LOG4J_NAME)
+				.withPath(CONFIG_FILE_LOG4J_NAME)
 				.build(),
 			new KeyToPathBuilder()
 				.withKey(FLINK_CONF_FILENAME)
@@ -164,14 +166,14 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 
 	@Test
 	public void testDecoratedFlinkPodWithLogback() throws IOException {
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
 
 		final FlinkPod resultFlinkPod = flinkConfMountDecorator.decorateFlinkPod(baseFlinkPod);
 
 		final List<KeyToPath> expectedKeyToPaths = Arrays.asList(
 			new KeyToPathBuilder()
-				.withKey("logback.xml")
-				.withPath("logback.xml")
+				.withKey(CONFIG_FILE_LOGBACK_NAME)
+				.withPath(CONFIG_FILE_LOGBACK_NAME)
 				.build(),
 			new KeyToPathBuilder()
 				.withKey(FLINK_CONF_FILENAME)
@@ -190,19 +192,19 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
 
 	@Test
 	public void testDecoratedFlinkPodWithLog4jAndLogback() throws IOException {
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOG4J_NAME);
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
 
 		final FlinkPod resultFlinkPod = flinkConfMountDecorator.decorateFlinkPod(baseFlinkPod);
 
 		final List<KeyToPath> expectedKeyToPaths = Arrays.asList(
 			new KeyToPathBuilder()
-				.withKey("logback.xml")
-				.withPath("logback.xml")
+				.withKey(CONFIG_FILE_LOGBACK_NAME)
+				.withPath(CONFIG_FILE_LOGBACK_NAME)
 				.build(),
 			new KeyToPathBuilder()
-				.withKey("log4j.properties")
-				.withPath("log4j.properties")
+				.withKey(CONFIG_FILE_LOG4J_NAME)
+				.withPath(CONFIG_FILE_LOG4J_NAME)
 				.build(),
 			new KeyToPathBuilder()
 				.withKey(FLINK_CONF_FILENAME)
