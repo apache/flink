@@ -28,6 +28,9 @@ import java.util.Objects;
  */
 @Public
 public final class ReaderInfo implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
 	private final int subtaskId;
 	private final String location;
 

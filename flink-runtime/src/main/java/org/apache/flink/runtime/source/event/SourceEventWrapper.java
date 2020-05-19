@@ -25,6 +25,9 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
  * A wrapper operator event that contains a custom defined operator event.
  */
 public class SourceEventWrapper implements OperatorEvent {
+
+	private static final long serialVersionUID = 1L;
+
 	private final SourceEvent sourceEvent;
 
 	public SourceEventWrapper(SourceEvent sourceEvent) {

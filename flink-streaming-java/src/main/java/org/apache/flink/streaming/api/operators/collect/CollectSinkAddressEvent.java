@@ -26,6 +26,8 @@ import java.net.InetSocketAddress;
  */
 public class CollectSinkAddressEvent implements OperatorEvent {
 
+	private static final long serialVersionUID = 1L;
+
 	private final InetSocketAddress address;
 
 	public CollectSinkAddressEvent(InetSocketAddress address) {
