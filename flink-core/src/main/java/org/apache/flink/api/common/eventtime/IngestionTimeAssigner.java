@@ -28,7 +28,6 @@ import org.apache.flink.annotation.Public;
  */
 @Public
 public final class IngestionTimeAssigner<T> implements TimestampAssigner<T> {
-	private static final long serialVersionUID = 1L;
 
 	private long maxTimestamp;
 
