@@ -51,7 +51,7 @@ public interface SourceReader<T, SplitT extends SourceSplit> extends AutoCloseab
 	 *
 	 * @return The InputStatus of the SourceReader after the method invocation.
 	 */
-	InputStatus pollNext(SourceOutput<T> sourceOutput) throws Exception;
+	InputStatus pollNext(ReaderOutput<T> output) throws Exception;
 
 	/**
 	 * Checkpoint on the state of the source.

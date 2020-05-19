@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader;
 
+import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -63,7 +64,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	private final BlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
 
 	/** The state of the splits. */
-	private final Map<String, SplitStateT> splitStates;
+	private final Map<String, SplitContext<T, SplitStateT>> splitStates;
 
 	/** The record emitter to handle the records read by the SplitReaders. */
 	protected final RecordEmitter<E, T, SplitStateT> recordEmitter;
@@ -111,7 +112,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	}
 
 	@Override
-	public InputStatus pollNext(SourceOutput<T> sourceOutput) throws Exception {
+	public InputStatus pollNext(ReaderOutput<T> output) throws Exception {
 		splitFetcherManager.checkErrors();
 		// poll from the queue if the last element was successfully handled. Otherwise
 		// just pass the last element again.
@@ -133,14 +134,19 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 			// Process one record.
 			if (splitIter.hasNext()) {
 				// emit the record.
-				E record = splitIter.next();
-				recordEmitter.emitRecord(record, sourceOutput, splitStates.get(splitIter.currentSplitId()));
+				final E record = splitIter.next();
+				final SplitContext<T, SplitStateT> splitContext = splitStates.get(splitIter.currentSplitId());
+				final SourceOutput<T> splitOutput = splitContext.getOrCreateSplitOutput(output);
+				recordEmitter.emitRecord(record, splitOutput, splitContext.state);
 				LOG.trace("Emitted record: {}", record);
 			}
 			// Do some cleanup if the all the records in the current splitIter have been processed.
 			if (!splitIter.hasNext()) {
 				// First remove the state of the split.
-				splitIter.finishedSplitIds().forEach(splitStates::remove);
+				splitIter.finishedSplitIds().forEach((id) -> {
+					splitStates.remove(id);
+					output.releaseOutputForSplit(id);
+				});
 				// Handle the finished splits.
 				onSplitFinished(splitIter.finishedSplitIds());
 				// Prepare the return status based on the availability of the next element.
@@ -173,7 +179,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	@Override
 	public List<SplitT> snapshotState() {
 		List<SplitT> splits = new ArrayList<>();
-		splitStates.forEach((id, state) -> splits.add(toSplitType(id, state)));
+		splitStates.forEach((id, context) -> splits.add(toSplitType(id, context.state)));
 		return splits;
 	}
 
@@ -181,7 +187,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	public void addSplits(List<SplitT> splits) {
 		LOG.trace("Adding splits {}", splits);
 		// Initialize the state for each split.
-		splits.forEach(s -> splitStates.put(s.splitId(), initializedState(s)));
+		splits.forEach(s -> splitStates.put(s.splitId(), new SplitContext<>(s.splitId(), initializedState(s))));
 		// Hand over the splits to the split fetcher to start fetch.
 		splitFetcherManager.addSplits(splits);
 	}
@@ -200,6 +206,8 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		LOG.info("Closing Source Reader.");
 		splitFetcherManager.close(options.sourceReaderCloseTimeout);
 	}
+
+
 
 	// -------------------- Abstract method to allow different implementations ------------------
 	/**
@@ -231,6 +239,27 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 			return InputStatus.END_OF_INPUT;
 		} else {
 			return InputStatus.NOTHING_AVAILABLE;
+		}
+	}
+
+	// ------------------ private helper classes ---------------------
+
+	private static final class SplitContext<T, SplitStateT> {
+
+		final String splitId;
+		final SplitStateT state;
+		SourceOutput<T> sourceOutput;
+
+		private SplitContext(String splitId, SplitStateT state) {
+			this.state = state;
+			this.splitId = splitId;
+		}
+
+		SourceOutput<T> getOrCreateSplitOutput(ReaderOutput<T> mainOutput) {
+			if (sourceOutput == null) {
+				sourceOutput = mainOutput.createOutputForSplit(splitId);
+			}
+			return sourceOutput;
 		}
 	}
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
@@ -107,7 +109,7 @@ public class SourceOperatorStreamTaskTest {
 
 			// Build expected output to verify the results
 			Queue<Object> expectedOutput = new LinkedList<>();
-			expectedRecords.forEach(r -> expectedOutput.offer(new StreamRecord<>(r)));
+			expectedRecords.forEach(r -> expectedOutput.offer(new StreamRecord<>(r, TimestampAssigner.NO_TIMESTAMP)));
 			// Add barrier to the expected output.
 			expectedOutput.add(new CheckpointBarrier(checkpointId, checkpointId, checkpointOptions));
 
@@ -128,8 +130,10 @@ public class SourceOperatorStreamTaskTest {
 			long checkpointId,
 			TaskStateSnapshot snapshot) throws Exception {
 		// get a source operator.
-		SourceOperatorFactory<Integer> sourceOperatorFactory =
-				new SourceOperatorFactory<>(new MockSource(Boundedness.BOUNDED, 1));
+		SourceOperatorFactory<Integer> sourceOperatorFactory = new SourceOperatorFactory<>(
+				new MockSource(Boundedness.BOUNDED, 1),
+				WatermarkStrategies.<Integer>noWatermarks().build());
+
 		// build a test harness.
 		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
 				new MultipleInputStreamTaskTestHarnessBuilder<>(SourceOperatorStreamTask::new, BasicTypeInfo.INT_TYPE_INFO);
