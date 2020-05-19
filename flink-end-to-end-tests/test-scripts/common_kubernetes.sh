@@ -141,10 +141,7 @@ function wait_rest_endpoint_up_k8s {
   # wait at most 30 seconds until the endpoint is up
   local TIMEOUT=30
   for i in $(seq 1 ${TIMEOUT}); do
-    QUERY_RESULT=$(kubectl logs $jm_pod_name 2> /dev/null)
-
-    # ensure the response adapts with the successful regex
-    if [[ ${QUERY_RESULT} =~ ${successful_response_regex} ]]; then
+    if check_logs_output $jm_pod_name $successful_response_regex; then
       echo "REST endpoint is up."
       return
     fi
@@ -156,6 +153,18 @@ function wait_rest_endpoint_up_k8s {
   exit 1
 }
 
+function check_logs_output {
+  local pod_name=$1
+  local successful_response_regex=$2
+  LOG_CONTENT=$(kubectl logs $pod_name 2> /dev/null)
+
+  # ensure the log content adapts with the successful regex
+  if [[ ${LOG_CONTENT} =~ ${successful_response_regex} ]]; then
+    return 0
+  fi
+  return 1
+}
+
 function cleanup {
     if [ $TRAPPED_EXIT_CODE != 0 ];then
       debug_and_show_logs
@@ -163,18 +172,6 @@ function cleanup {
     internal_cleanup
     kubectl wait --for=delete pod --all=true
     stop_kubernetes
-}
-
-function setConsoleLogging {
-    cat >> $FLINK_DIR/conf/log4j.properties <<END
-rootLogger.appenderRef.console.ref = ConsoleAppender
-
-# Log all infos to the console
-appender.console.name = ConsoleAppender
-appender.console.type = CONSOLE
-appender.console.layout.type = PatternLayout
-appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] %-60c %x - %m%n
-END
 }
 
 on_exit cleanup

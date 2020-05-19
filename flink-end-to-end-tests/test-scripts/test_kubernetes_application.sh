@@ -29,8 +29,6 @@ function internal_cleanup {
     kubectl delete clusterrolebinding ${CLUSTER_ROLE_BINDING}
 }
 
-setConsoleLogging
-
 start_kubernetes
 
 build_image ${FLINK_IMAGE_NAME}
@@ -46,7 +44,6 @@ mkdir -p "$LOCAL_LOGS_PATH"
     -Djobmanager.memory.process.size=1088m \
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
-    -Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%" \
     -Dkubernetes.rest-service.exposed.type=NodePort \
     local:///opt/flink/examples/batch/WordCount.jar
 

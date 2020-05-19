@@ -64,9 +64,6 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		FLINK_CONF_DIR_IN_POD,
 		CONFIG_FILE_LOG4J_NAME);
 	private static final String jmLogfile = String.format("-Dlog.file=%s/jobmanager.log", FLINK_LOG_DIR_IN_POD);
-	private static final String jmLogRedirects =
-			String.format("1> %s/jobmanager.out 2> %s/jobmanager.err",
-					FLINK_LOG_DIR_IN_POD, FLINK_LOG_DIR_IN_POD);
 
 	// Memory variables
 	private final String jmJvmMem = JobManagerProcessUtils.generateJvmParametersStr(
@@ -194,7 +191,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
 
 		final String containerStartCommandTemplate =
-				"%java% 1 %classpath% 2 %jvmmem% %jvmopts% %logging% %class% %args% %redirects%";
+				"%java% 1 %classpath% 2 %jvmmem% %jvmopts% %logging% %class% %args%";
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_START_COMMAND_TEMPLATE,
 				containerStartCommandTemplate);
 
@@ -210,7 +207,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		final String expectedCommand = java + " 1 " + classpath + " 2 " + jmJvmMem +
 				" " + jvmOpts + " " + jmJvmOpts +
 				" " + jmLogfile + " " + logback + " " + log4j +
-				" " + ENTRY_POINT_CLASS + " " + jmLogRedirects;
+				" " + ENTRY_POINT_CLASS;
 
 		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
 		assertEquals(resultMainContainer.getArgs(), expectedArgs);
@@ -222,7 +219,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
 
 		final String containerStartCommandTemplate =
-				"%java% %jvmmem% %logging% %jvmopts% %class% %args% %redirects%";
+				"%java% %jvmmem% %logging% %jvmopts% %class% %args%";
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_START_COMMAND_TEMPLATE,
 				containerStartCommandTemplate);
 
@@ -238,7 +235,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		final String expectedCommand = java + " " + jmJvmMem +
 				" " + jmLogfile + " " + logback + " " + log4j +
 				" " + jvmOpts + " " + jmJvmOpts +
-				" " + ENTRY_POINT_CLASS + " " + jmLogRedirects;
+				" " + ENTRY_POINT_CLASS;
 
 		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
 		assertEquals(resultMainContainer.getArgs(), expectedArgs);
@@ -248,6 +245,6 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		return java + " " + classpath + " " + jmJvmMem +
 				(jvmAllOpts.isEmpty() ? "" : " " + jvmAllOpts) +
 				(logging.isEmpty() ? "" : " " + jmLogfile + " " + logging) +
-				" " + ENTRY_POINT_CLASS + " " + jmLogRedirects;
+				" " + ENTRY_POINT_CLASS;
 	}
 }
