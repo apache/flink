@@ -1456,6 +1456,8 @@ under the License.
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
 
 						<!-- snapshots -->
+						<exclude>**/src/test/resources/**/serializer-snapshot</exclude>
+						<exclude>**/src/test/resources/**/test-data</exclude>
 						<exclude>**/src/test/resources/*-snapshot</exclude>
 						<exclude>**/src/test/resources/*.snapshot</exclude>
 						<exclude>**/src/test/resources/*-savepoint</exclude>
