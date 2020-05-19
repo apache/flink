@@ -30,6 +30,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
+import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.util.NetUtils;
 
@@ -84,7 +85,9 @@ public class TaskManagerServicesConfiguration {
 
 	private final String[] alwaysParentFirstLoaderPatterns;
 
-	public TaskManagerServicesConfiguration(
+	private final int numIoThreads;
+
+	private TaskManagerServicesConfiguration(
 			Configuration configuration,
 			ResourceID resourceID,
 			String externalAddress,
@@ -102,7 +105,8 @@ public class TaskManagerServicesConfiguration {
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration,
 			Optional<Time> systemResourceMetricsProbingInterval,
 			FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
-			String[] alwaysParentFirstLoaderPatterns) {
+			String[] alwaysParentFirstLoaderPatterns,
+			int numIoThreads) {
 		this.configuration = checkNotNull(configuration);
 		this.resourceID = checkNotNull(resourceID);
 
@@ -121,6 +125,7 @@ public class TaskManagerServicesConfiguration {
 		this.taskExecutorResourceSpec = taskExecutorResourceSpec;
 		this.classLoaderResolveOrder = classLoaderResolveOrder;
 		this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
+		this.numIoThreads = numIoThreads;
 
 		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
 			"service shutdown timeout must be greater or equal to 0.");
@@ -215,6 +220,10 @@ public class TaskManagerServicesConfiguration {
 		return alwaysParentFirstLoaderPatterns;
 	}
 
+	public int getNumIoThreads() {
+		return numIoThreads;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Parsing of Flink configuration
 	// --------------------------------------------------------------------------------------------
@@ -262,6 +271,8 @@ public class TaskManagerServicesConfiguration {
 
 		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(configuration);
 
+		final int numIoThreads = ClusterEntrypointUtils.getPoolSize(configuration);
+
 		return new TaskManagerServicesConfiguration(
 			configuration,
 			resourceID,
@@ -280,6 +291,7 @@ public class TaskManagerServicesConfiguration {
 			retryingRegistrationConfiguration,
 			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration),
 			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
-			alwaysParentFirstLoaderPatterns);
+			alwaysParentFirstLoaderPatterns,
+			numIoThreads);
 	}
 }

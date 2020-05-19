@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_INPUT;
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.METRIC_GROUP_OUTPUT;
@@ -95,6 +96,8 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 
 	private final SingleInputGateFactory singleInputGateFactory;
 
+	private final Executor ioExecutor;
+
 	private boolean isClosed;
 
 	NettyShuffleEnvironment(
@@ -105,7 +108,8 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			ResultPartitionManager resultPartitionManager,
 			FileChannelManager fileChannelManager,
 			ResultPartitionFactory resultPartitionFactory,
-			SingleInputGateFactory singleInputGateFactory) {
+			SingleInputGateFactory singleInputGateFactory,
+			Executor ioExecutor) {
 		this.taskExecutorResourceId = taskExecutorResourceId;
 		this.config = config;
 		this.networkBufferPool = networkBufferPool;
@@ -115,6 +119,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 		this.fileChannelManager = fileChannelManager;
 		this.resultPartitionFactory = resultPartitionFactory;
 		this.singleInputGateFactory = singleInputGateFactory;
+		this.ioExecutor = ioExecutor;
 		this.isClosed = false;
 	}
 
@@ -149,9 +154,11 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 
 	@Override
 	public void releasePartitionsLocally(Collection<ResultPartitionID> partitionIds) {
-		for (ResultPartitionID partitionId : partitionIds) {
-			resultPartitionManager.releasePartition(partitionId, null);
-		}
+		ioExecutor.execute(() -> {
+			for (ResultPartitionID partitionId : partitionIds) {
+				resultPartitionManager.releasePartition(partitionId, null);
+			}
+		});
 	}
 
 	/**
