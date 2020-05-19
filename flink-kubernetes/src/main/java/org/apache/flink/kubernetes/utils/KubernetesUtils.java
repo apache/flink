@@ -44,6 +44,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -213,10 +215,10 @@ public class KubernetesUtils {
 		if (hasLogback || hasLog4j) {
 			logging.append("-Dlog.file=").append(logFile);
 			if (hasLogback) {
-				logging.append(" -Dlogback.configurationFile=file:").append(confDir).append("/logback.xml");
+				logging.append(" -Dlogback.configurationFile=file:").append(confDir).append("/").append(CONFIG_FILE_LOGBACK_NAME);
 			}
 			if (hasLog4j) {
-				logging.append(" -Dlog4j.configurationFile=file:").append(confDir).append("/log4j.properties");
+				logging.append(" -Dlog4j.configurationFile=file:").append(confDir).append("/").append(CONFIG_FILE_LOG4J_NAME);
 			}
 		}
 		return logging.toString();
