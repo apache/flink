@@ -47,7 +47,7 @@ under the License.
  2. `QueryableStateClientProxy`，运行在每个 `TaskManager` 上(*即* Flink 集群内部)，负责接收客户端的查询请求，从所负责的 Task Manager 获取请求的 state，并返回给客户端；
  3. `QueryableStateServer`, 运行在 `TaskManager` 上，负责服务本地存储的 state。
 
-客户端连接到一个代理，并发送请求获取特定 `k` 对应的 state。 如 [Working with State]({{ site.baseurl }}/zh/dev/stream/state/state.html)所述，keyed state 按照
+客户端连接到一个代理，并发送请求获取特定 `k` 对应的 state。 如 [Working with State]({{ site.baseurl }}/zh/dev/stream/state/state.html) 所述，keyed state 按照
 *Key Groups* 进行划分，每个 `TaskManager` 会分配其中的一些 key groups。代理会询问 `JobManager` 以找到 `k` 所属 key group 的 TaskManager。根据返回的结果, 代理将会向运行在 `TaskManager` 上的 `QueryableStateServer` 查询 `k` 对应的 state， 并将结果返回给客户端。
 
 ## 激活 Queryable State
