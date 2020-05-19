@@ -99,7 +99,7 @@ public abstract class SelectTableSinkBase<T> implements StreamTableSink<T> {
 	/**
 	 * An Iterator wrapper class that converts Iterator&lt;T&gt; to Iterator&lt;Row&gt;.
 	 */
-	private class RowIteratorWrapper implements Iterator<Row> {
+	private class RowIteratorWrapper implements Iterator<Row>, AutoCloseable {
 		private final CollectResultIterator<T> iterator;
 
 		public RowIteratorWrapper(CollectResultIterator<T> iterator) {
@@ -114,6 +114,11 @@ public abstract class SelectTableSinkBase<T> implements StreamTableSink<T> {
 		@Override
 		public Row next() {
 			return convertToRow(iterator.next());
+		}
+
+		@Override
+		public void close() throws Exception {
+			iterator.close();
 		}
 	}
 

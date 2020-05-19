@@ -101,7 +101,7 @@ public class StreamSelectTableSink implements RetractStreamTableSink<Row> {
 	/**
 	 * An Iterator wrapper class that converts Iterator&lt;Tuple2&lt;Boolean, Row&gt;&gt; to Iterator&lt;Row&gt;.
 	 */
-	private static class RowIteratorWrapper implements Iterator<Row> {
+	private static class RowIteratorWrapper implements Iterator<Row>, AutoCloseable {
 		private final CollectResultIterator<Tuple2<Boolean, Row>> iterator;
 		public RowIteratorWrapper(CollectResultIterator<Tuple2<Boolean, Row>> iterator) {
 			this.iterator = iterator;
@@ -120,6 +120,11 @@ public class StreamSelectTableSink implements RetractStreamTableSink<Row> {
 			Row row = tuple2.f1;
 			row.setKind(rowKind);
 			return row;
+		}
+
+		@Override
+		public void close() throws Exception {
+			iterator.close();
 		}
 	}
 }
