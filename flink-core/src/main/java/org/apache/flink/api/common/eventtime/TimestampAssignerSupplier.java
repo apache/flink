@@ -69,6 +69,9 @@ public interface TimestampAssignerSupplier<T> extends Serializable {
 	 * into the {@link SerializableTimestampAssigner}.
 	 */
 	class SupplierFromSerializableTimestampAssigner<T> implements TimestampAssignerSupplier<T> {
+
+		private static final long serialVersionUID = 1L;
+
 		private final SerializableTimestampAssigner<T> assigner;
 
 		public SupplierFromSerializableTimestampAssigner(SerializableTimestampAssigner<T> assigner) {
