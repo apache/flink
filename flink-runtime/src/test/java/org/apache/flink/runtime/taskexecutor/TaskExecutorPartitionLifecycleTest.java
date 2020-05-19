@@ -37,11 +37,15 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionInfo;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.TestingTaskExecutorPartitionTracker;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
@@ -61,6 +65,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriConsumer;
@@ -69,6 +74,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -81,6 +87,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.StreamSupport;
 
@@ -106,6 +113,10 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
+
+	@ClassRule
+	public static final TestExecutorResource TEST_EXECUTOR_SERVICE_RESOURCE =
+		new TestExecutorResource(() -> java.util.concurrent.Executors.newFixedThreadPool(1));
 
 	@Before
 	public void setup() {
@@ -241,6 +252,48 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 				assertThat(releasePartitionsFuture.get(), hasItems(partitionId));
 			}
 		);
+	}
+
+	@Test
+	public void testBlockingLocalPartitionReleaseDoesNotBlockTaskExecutor() throws Exception {
+		BlockerSync sync = new BlockerSync();
+		ResultPartitionManager blockingResultPartitionManager = new ResultPartitionManager() {
+			@Override
+			public void releasePartition(ResultPartitionID partitionId, Throwable cause) {
+				sync.blockNonInterruptible();
+				super.releasePartition(partitionId, cause);
+			}
+		};
+
+		NettyShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder()
+			.setResultPartitionManager(blockingResultPartitionManager)
+			.setIoExecutor(TEST_EXECUTOR_SERVICE_RESOURCE.getExecutor())
+			.build();
+
+		final CompletableFuture<ResultPartitionID> startTrackingFuture = new CompletableFuture<>();
+		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl(shuffleEnvironment) {
+			@Override
+			public void startTrackingPartition(JobID producingJobId, TaskExecutorPartitionInfo partitionInfo) {
+				super.startTrackingPartition(producingJobId, partitionInfo);
+				startTrackingFuture.complete(partitionInfo.getResultPartitionId());
+			}
+		};
+
+		try {
+			internalTestPartitionRelease(
+				partitionTracker,
+				shuffleEnvironment,
+				startTrackingFuture,
+				(jobId, partitionId, taskExecutor, taskExecutorGateway) -> {
+					taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(partitionId), Collections.emptySet());
+
+					// execute some operation to check whether the TaskExecutor is blocked
+					taskExecutorGateway.canBeReleased().get(5, TimeUnit.SECONDS);
+				}
+			);
+		} finally {
+			sync.releaseBlocker();
+		}
 	}
 
 	private void testPartitionRelease(PartitionTrackerSetup partitionTrackerSetup, TestAction testAction) throws Exception {

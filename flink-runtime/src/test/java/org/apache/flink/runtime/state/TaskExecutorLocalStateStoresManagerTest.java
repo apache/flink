@@ -226,6 +226,6 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		return TaskManagerServices.fromConfiguration(
 			config,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			Executors.directExecutor());
+			Executors.newDirectExecutorService());
 	}
 }

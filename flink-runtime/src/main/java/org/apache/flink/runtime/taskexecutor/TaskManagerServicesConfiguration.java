@@ -26,6 +26,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
+import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import javax.annotation.Nullable;
@@ -71,6 +72,8 @@ public class TaskManagerServicesConfiguration {
 
 	private final TaskExecutorResourceSpec taskExecutorResourceSpec;
 
+	private final int numIoThreads;
+
 	public TaskManagerServicesConfiguration(
 			Configuration configuration,
 			ResourceID resourceID,
@@ -85,7 +88,8 @@ public class TaskManagerServicesConfiguration {
 			TaskExecutorResourceSpec taskExecutorResourceSpec,
 			long timerServiceShutdownTimeout,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration,
-			Optional<Time> systemResourceMetricsProbingInterval) {
+			Optional<Time> systemResourceMetricsProbingInterval,
+			int numIoThreads) {
 		this.configuration = checkNotNull(configuration);
 		this.resourceID = checkNotNull(resourceID);
 
@@ -100,6 +104,7 @@ public class TaskManagerServicesConfiguration {
 		this.pageSize = pageSize;
 
 		this.taskExecutorResourceSpec = taskExecutorResourceSpec;
+		this.numIoThreads = numIoThreads;
 
 		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
 			"service shutdown timeout must be greater or equal to 0.");
@@ -178,6 +183,10 @@ public class TaskManagerServicesConfiguration {
 		return retryingRegistrationConfiguration;
 	}
 
+	public int getNumIoThreads() {
+		return numIoThreads;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Parsing of Flink configuration
 	// --------------------------------------------------------------------------------------------
@@ -215,6 +224,8 @@ public class TaskManagerServicesConfiguration {
 
 		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
+		final int numIoThreads = ClusterEntrypointUtils.getPoolSize(configuration);
+
 		return new TaskManagerServicesConfiguration(
 			configuration,
 			resourceID,
@@ -229,6 +240,7 @@ public class TaskManagerServicesConfiguration {
 			taskExecutorResourceSpec,
 			timerServiceShutdownTimeout,
 			retryingRegistrationConfiguration,
-			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
+			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration),
+			numIoThreads);
 	}
 }
