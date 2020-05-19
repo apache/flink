@@ -23,11 +23,12 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -36,43 +37,48 @@ import org.apache.flink.table.utils.PartitionPathUtils;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
-import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD;
-import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_IGNORE_PARSE_ERRORS;
+import static org.apache.flink.formats.json.JsonFormatFactory.validateFormatOptions;
+import static org.apache.flink.formats.json.JsonOptions.FAIL_ON_MISSING_FIELD;
+import static org.apache.flink.formats.json.JsonOptions.IGNORE_PARSE_ERRORS;
 
 /**
  * Factory to build reader/writer to read/write json format file.
  */
 public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 
+	public static final String IDENTIFIER = "json";
+
 	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(FORMAT, "json");
-		return context;
+	public String factoryIdentifier() {
+		return IDENTIFIER;
 	}
 
 	@Override
-	public List<String> supportedProperties() {
-		ArrayList<String> properties = new ArrayList<>();
-		properties.add(FORMAT_FAIL_ON_MISSING_FIELD);
-		properties.add(FORMAT_IGNORE_PARSE_ERRORS);
-		return properties;
+	public Set<ConfigOption<?>> requiredOptions() {
+		return new HashSet<>();
+	}
+
+	@Override
+	public Set<ConfigOption<?>> optionalOptions() {
+		Set<ConfigOption<?>> options = new HashSet<>();
+		options.add(FAIL_ON_MISSING_FIELD);
+		options.add(IGNORE_PARSE_ERRORS);
+		return options;
 	}
 
 	@Override
 	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-		DescriptorProperties properties = getValidatedProperties(context.getFormatProperties());
-		boolean failOnMissingField = properties.getOptionalBoolean(FORMAT_FAIL_ON_MISSING_FIELD).orElse(false);
-		boolean ignoreParseErrors = properties.getOptionalBoolean(FORMAT_IGNORE_PARSE_ERRORS).orElse(false);
+		ReadableConfig options = context.getFormatOptions();
+		validateFormatOptions(options);
+		boolean failOnMissingField = options.get(FAIL_ON_MISSING_FIELD);
+		boolean ignoreParseErrors = options.get(IGNORE_PARSE_ERRORS);
 
 		RowType formatRowType = context.getFormatRowType();
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
@@ -117,19 +123,6 @@ public class JsonFileSystemFormatFactory implements FileSystemFormatFactory {
 	@Override
 	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
 		return Optional.empty();
-	}
-
-	@Override
-	public boolean supportsSchemaDerivation() {
-		return true;
-	}
-
-	private static DescriptorProperties getValidatedProperties(Map<String, String> propertiesMap) {
-		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putProperties(propertiesMap);
-		properties.validateBoolean(FORMAT_FAIL_ON_MISSING_FIELD, true);
-		properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, true);
-		return properties;
 	}
 
 	/**
