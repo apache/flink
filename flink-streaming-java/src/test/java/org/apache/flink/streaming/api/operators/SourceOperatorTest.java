@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.connector.source.SourceEvent;
-import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
@@ -28,7 +27,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
@@ -39,7 +37,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
+import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Before;
@@ -164,33 +162,5 @@ public class SourceOperatorTest {
 		CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
 		return abstractStateBackend.createOperatorStateBackend(
 				env, "test-operator", Collections.emptyList(), cancelStreamRegistry);
-	}
-
-	// -------------- Testing SourceOperator class -------------
-
-	/**
-	 * A testing class that overrides the getRuntimeContext() Method.
-	 */
-	private static class TestingSourceOperator<OUT> extends SourceOperator<OUT, MockSourceSplit> {
-
-		private final int subtaskIndex;
-
-		TestingSourceOperator(
-				SourceReader<OUT, MockSourceSplit> reader,
-				OperatorEventGateway eventGateway,
-				int subtaskIndex) {
-
-			super(
-					(context) -> reader,
-					eventGateway,
-					new MockSourceSplitSerializer());
-
-			this.subtaskIndex = subtaskIndex;
-		}
-
-		@Override
-		public StreamingRuntimeContext getRuntimeContext() {
-			return new MockStreamingRuntimeContext(false, 5, subtaskIndex);
-		}
 	}
 }

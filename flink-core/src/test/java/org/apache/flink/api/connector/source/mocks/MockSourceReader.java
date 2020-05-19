@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.connector.source.mocks;
 
+import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
-import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.core.io.InputStatus;
 
@@ -53,7 +53,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	}
 
 	@Override
-	public InputStatus pollNext(SourceOutput<Integer> sourceOutput) throws Exception {
+	public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
 		boolean finished = true;
 		currentSplitIndex = 0;
 		// Find first splits with available records.

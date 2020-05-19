@@ -20,6 +20,7 @@ package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -170,7 +171,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 	/**
 	 * A source output that validates the output.
 	 */
-	protected static class ValidatingSourceOutput implements SourceOutput<Integer> {
+	protected static class ValidatingSourceOutput implements ReaderOutput<Integer> {
 		private Set<Integer> consumedValues = new HashSet<>();
 		private int max = Integer.MIN_VALUE;
 		private int min = Integer.MAX_VALUE;
@@ -204,13 +205,17 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 		}
 
 		@Override
-		public void emitWatermark(Watermark watermark) {
+		public void emitWatermark(Watermark watermark) {}
 
+		@Override
+		public void markIdle() {}
+
+		@Override
+		public SourceOutput<Integer> createOutputForSplit(String splitId) {
+			return this;
 		}
 
 		@Override
-		public void markIdle() {
-
-		}
+		public void releaseOutputForSplit(String splitId) {}
 	}
 }
