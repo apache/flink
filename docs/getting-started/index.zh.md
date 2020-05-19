@@ -27,54 +27,37 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-There are many ways to get started with Apache Flink. Which one is the best for
-you depends on your goals and prior experience:
+上手使用 Apache Flink 有很多方式，哪一个最适合你取决于你的目标和以前的经验。
 
-* take a look at the **Docker Playgrounds** if you want to see what Flink can do, via a hands-on,
-  docker-based introduction to specific Flink concepts
-* explore one of the **Code Walkthroughs** if you want a quick, end-to-end
-  introduction to one of Flink's APIs
-* work your way through the **Hands-on Training** for a comprehensive,
-  step-by-step introduction to Flink
-* use **Project Setup** if you already know the basics of Flink and want a
-  project template for Java or Scala, or need help setting up the dependencies
+* 通过阅读 **Docker Playgrounds** 小节中基于 Docker 的 Flink 实践来了解 Flink 的基本概念和功能。
+* 可以通过 **Code Walkthroughs** 小节快速了解 Flink API。
+* 可以通过 **Hands-on Training** 章节逐步全面的学习 Flink。
+* 如果你已经了解 Flink 的基本概念并且想构建 Flink 项目，可以通过**项目构建设置**小节获取 Java/Scala 的项目模板或项目依赖。
 
-### Taking a first look at Flink
+### 初识 Flink
 
-The **Docker Playgrounds** provide sandboxed Flink environments that are set up in just a few minutes and which allow you to explore and play with Flink.
+通过 **Docker Playgrounds** 提供沙箱的Flink环境，你只需花几分钟做些简单设置，就可以开始探索和使用 Flink。
 
-* The [**Operations Playground**]({% link getting-started/docker-playgrounds/flink-operations-playground.md %}) shows you how to operate streaming applications with Flink. You can experience how Flink recovers application from failures, upgrade and scale streaming applications up and down, and query application metrics.
+* [**Flink Operations Playground**](./docker-playgrounds/flink-operations-playground.html) 向你展示如何使用 Flink 编写数据流应用程序。你可以体验 Flink 如何从故障中恢复应用程序，升级、提高并行度、降低并行度和监控运行的状态指标等特性。
 
 <!--
 * The [**Streaming SQL Playground**]() provides a Flink cluster with a SQL CLI client, tables which are fed by streaming data sources, and instructions for how to run continuous streaming SQL queries on these tables. This is the perfect environment for your first steps with streaming SQL.
 -->
 
-### First steps with one of Flink's APIs
+### Flink API 入门
 
-The **Code Walkthroughs** are a great way to get started quickly with a step-by-step introduction to
-one of Flink's APIs. Each walkthrough provides instructions for bootstrapping a small skeleton
-project, and then shows how to extend it to a simple application.
+**代码练习**是快速入门的最佳方式，通过代码练习可以逐步深入地理解 Flink API。每个示例都演示了如何构建基础的 Flink 代码框架，并如何逐步将其扩展为简单的应用程序。
 
-* The [**DataStream API**  code walkthrough]({% link getting-started/walkthroughs/datastream_api.md %}) shows how
-  to implement a simple DataStream application and how to extend it to be stateful and use timers.
-  The DataStream API is Flink's main abstraction for implementing stateful streaming applications
-  with sophisticated time semantics in Java or Scala.
+<!--
+* The [**DataStream API**]() code walkthrough shows how to implement a simple DataStream application and how to extend it to be stateful and use timers.
+-->
+* [**DataStream API 示例**](./walkthroughs/datastream_api.html) 展示了如何实现一个基本的 DataStream 应用程序，并把它扩展成有状态的应用程序。DataStream API 是 Flink 的主要抽象，可用于在 Java 或 Scala 语言中实现具有复杂时间语义的有状态数据流处理的应用程序。
 
-* Flink's **Table API** is a relational API used for writing SQL-like queries in Java, Scala, or
-  Python, which are then automatically optimized, and can be executed on batch or streaming data
-  with identical syntax and semantics. The [Table API code walkthrough for Java and Scala]({% link
-  getting-started/walkthroughs/table_api.md %}) shows how to implement a simple Table API query on a
-  batch source and how to evolve it into a continuous query on a streaming source. There's also a
-  similar [code walkthrough for the Python Table API]({% link
-  getting-started/walkthroughs/python_table_api.md %}).
+* **Table API** 是 Flink 的语言嵌入式关系 API，用于在 Java，Scala 或 Python 中编写类 SQL 的查询，并且这些查询会自动进行优化。Table API 查询可以使用一致的语法和语义同时在批处理或流数据上运行。[Table API code walkthrough for Java and Scala](./walkthroughs/table_api.html) 演示了如何在批处理中简单的使用 Table API 进行查询，以及如何将其扩展为流处理中的查询。Python Table API 同上 [code walkthrough for the Python Table API](./walkthroughs/python_table_api.html)。
 
-### Taking a Deep Dive with the Hands-on Training
+### 通过实操进一步探索 Flink
 
-The [**Hands-on Training**]({% link training/index.md %}) is a self-paced training course with
-a set of lessons and hands-on exercises. This step-by-step introduction to Flink focuses
-on learning how to use the DataStream API to meet the needs of common, real-world use cases,
-and provides a complete introduction to the fundamental concepts: parallel dataflows,
-stateful stream processing, event time and watermarking, and fault tolerance via state snapshots.
+[Hands-on Training](/zh/training/index.html) 是一系列可供自主学习的练习课程。这些课程会循序渐进的介绍 Flink，包括如何使用 DataStream API 来满足常见的、真实的需求场景，并提供对 Flink 中并行数据流（parallel dataflows）、有状态流式处理（stateful stream processing）、Event Time、Watermarking、通过状态快照实现容错（fault tolerance via state snapshots）等基本概念的完整介绍。
 
 <!--
 ### Starting a new Flink application
