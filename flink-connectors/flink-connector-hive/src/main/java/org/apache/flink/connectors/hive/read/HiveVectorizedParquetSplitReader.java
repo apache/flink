@@ -63,6 +63,7 @@ public class HiveVectorizedParquetSplitReader implements SplitReader {
 
 		this.reader = ParquetSplitReaderUtil.genPartColumnarRowReader(
 				hiveVersion.startsWith("3"),
+				false, // hive case insensitive
 				conf,
 				fieldNames,
 				fieldTypes,
