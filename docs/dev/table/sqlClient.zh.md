@@ -347,7 +347,7 @@ CLI commands > session environment file > defaults environment file
 
 #### 重启策略（Restart Strategies）
 
-重启策略控制 Flink 作业失败时的重启方式。与 Flink 集群的[全局重启策略]({{ site.baseurl }}/zh/dev/restart_strategies.html)相似，更细精度的重启配置可以在环境配置文件中声明。
+重启策略控制 Flink 作业失败时的重启方式。与 Flink 集群的[全局重启策略]({{ site.baseurl }}/zh/dev/task_failure_recovery.html)相似，更细精度的重启配置可以在环境配置文件中声明。
 
 Flink 支持以下策略：
 
@@ -600,7 +600,7 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 Web interface: http://localhost:8081
 {% endhighlight %}
 
-<span class="label label-danger">注意</span> 提交后，SQL 客户端不追踪正在运行的 Flink 作业状态。提交后可以关闭 CLI 进程，并且不会影响分离的查询。Flink 的[重启策略]({{ site.baseurl }}/zh/dev/restart_strategies.html)负责容错。取消查询可以用 Flink 的 web 接口、命令行或 REST API 。
+<span class="label label-danger">注意</span> 提交后，SQL 客户端不追踪正在运行的 Flink 作业状态。提交后可以关闭 CLI 进程，并且不会影响分离的查询。Flink 的[重启策略]({{ site.baseurl }}/zh/dev/task_failure_recovery.html)负责容错。取消查询可以用 Flink 的 web 接口、命令行或 REST API 。
 
 {% top %}
 

@@ -1,5 +1,5 @@
 ---
-title: Flink Architecture
+title: Flink 架构
 nav-id: flink-architecture
 nav-pos: 4
 nav-title: Flink Architecture
