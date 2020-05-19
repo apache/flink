@@ -473,7 +473,9 @@ public class SlotPoolImpl implements SlotPool {
 		final PendingRequest pendingRequest = removePendingRequest(slotRequestId);
 
 		if (pendingRequest != null) {
-			failPendingRequest(pendingRequest, new FlinkException("Pending slot request with " + slotRequestId + " has been released."));
+			failPendingRequest(
+				pendingRequest,
+				new FlinkException("Pending slot request with " + slotRequestId + " has been released.", cause));
 		} else {
 			final AllocatedSlot allocatedSlot = allocatedSlots.remove(slotRequestId);
 
