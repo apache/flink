@@ -234,10 +234,10 @@ public class JobManagerOptions {
 	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
 	 */
 	@Documentation.Section({Documentation.Sections.ALL_JOB_MANAGER, Documentation.Sections.EXPERT_FAULT_TOLERANCE})
-	@Documentation.OverrideDefault("region")
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
-			.defaultValue("full")
+			.stringType()
+			.defaultValue("region")
 			.withDescription(Description.builder()
 				.text("This option specifies how the job computation recovers from task failures. " +
 					"Accepted values are:")

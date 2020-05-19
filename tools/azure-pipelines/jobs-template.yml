@@ -148,8 +148,7 @@ jobs:
       artifact: logs-${{parameters.stage_name}}-$(ARTIFACT_NAME)
 
 - job: e2e_${{parameters.stage_name}}
-  # uncomment below condition to run the e2e tests only on request.
-  #condition: or(eq(variables['MODE'], 'e2e'), eq(${{parameters.run_end_to_end}}, 'true'))
+  condition: or(eq(variables['MODE'], 'e2e'), eq(${{parameters.run_end_to_end}}, 'true'), not(startsWith(variables['Build.SourceBranchName'], 'ci_')))
   # We are running this in a separate pool
   pool: ${{parameters.e2e_pool_definition}}
   timeoutInMinutes: 240

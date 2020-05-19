@@ -29,7 +29,7 @@ Flink exposes a metric system that allows gathering and exposing metrics to exte
 
 ## Registering metrics
 
-You can access the metric system from any user function that extends [RichFunction]({{ site.baseurl }}/dev/api_concepts.html#rich-functions) by calling `getRuntimeContext().getMetricGroup()`.
+You can access the metric system from any user function that extends [RichFunction]({% link dev/user_defined_functions.zh.md %}#rich-functions) by calling `getRuntimeContext().getMetricGroup()`.
 This method returns a `MetricGroup` object on which you can create and register new metrics.
 
 ### Metric types
@@ -737,7 +737,7 @@ Please see the [Prometheus documentation](https://prometheus.io/docs/practices/p
 
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
 
-In order to use this reporter you must copy `/opt/flink-metrics-statsd-{{site.version}}.jar` into the `/plugins/statsd` 
+In order to use this reporter you must copy `/opt/flink-metrics-statsd-{{site.version}}.jar` into the `/plugins/statsd`
 folder of your Flink distribution.
 
 Parameters:
@@ -769,6 +769,7 @@ Parameters:
 - `tags` - (optional) the global tags that will be applied to metrics when sending to Datadog. Tags should be separated by comma only
 - `proxyHost` - (optional) The proxy host to use when sending to Datadog.
 - `proxyPort` - (optional) The proxy port to use when sending to Datadog, defaults to 8080.
+- `dataCenter` - (optional) The data center (`EU`/`US`) to connect to, defaults to `US`.
 
 Example configuration:
 
@@ -779,6 +780,7 @@ metrics.reporter.dghttp.apikey: xxx
 metrics.reporter.dghttp.tags: myflinkapp,prod
 metrics.reporter.dghttp.proxyHost: my.web.proxy.com
 metrics.reporter.dghttp.proxyPort: 8080
+metrics.reporter.dhhttp.dataCenter: US
 
 {% endhighlight %}
 

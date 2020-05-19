@@ -419,7 +419,7 @@ tableEnvironment.sqlUpdate("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
 用户可以指定一个 catalog 和数据库作为 "当前catalog" 和"当前数据库"。有了这些，那么刚刚提到的三元标识符的前两个部分就可以被省略了。如果前两部分的标识符没有指定，
 那么会使用当前的 catalog 和当前数据库。用户也可以通过 Table API 或 SQL 切换当前的 catalog 和当前的数据库。
 
-标识符遵循 SQL 标准，因此使用时需要用反引号（`` ` ``）进行转义。此外，所有 SQL 保留关键字都必须转义。
+标识符遵循 SQL 标准，因此使用时需要用反引号（`` ` ``）进行转义。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -561,7 +561,7 @@ revenue = orders \
 
 Flink SQL 是基于实现了SQL标准的 [Apache Calcite](https://calcite.apache.org) 的。SQL 查询由常规字符串指定。
 
-文档 [SQL]({{ site.baseurl }}/zh/dev/table/sql.html) 描述了Flink对流处理和批处理表的SQL支持。
+文档 [SQL]({{ site.baseurl }}/zh/dev/table/sql/index.html) 描述了Flink对流处理和批处理表的SQL支持。
 
 下面的示例演示了如何指定查询并将结果作为 `Table` 对象返回。
 
@@ -1273,7 +1273,7 @@ val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as
 
 #### POJO 类型 （Java 和 Scala）
 
-Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{ site.baseurl }}/zh/dev/api_concepts.html#pojos).
+Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{ site.baseurl }}{% link dev/types_serialization.md %}#pojos).
 
 在不指定字段名称的情况下将 POJO 类型的 `DataStream` 或 `DataSet` 转换成 `Table` 时，将使用原始 POJO 类型字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（带有 `as` 关键字）来重命名，重新排序和投影。
 

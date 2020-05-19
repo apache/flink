@@ -52,6 +52,8 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
+import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
@@ -117,6 +119,8 @@ public class StreamMockEnvironment implements Environment {
 	private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 
 	private TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+
+	private CheckpointResponder checkpointResponder = NoOpCheckpointResponder.INSTANCE;
 
 	public StreamMockEnvironment(
 		Configuration jobConfig,
@@ -338,7 +342,9 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
-	public void declineCheckpoint(long checkpointId, Throwable cause) {}
+	public void declineCheckpoint(long checkpointId, Throwable cause) {
+		checkpointResponder.declineCheckpoint(jobID, executionAttemptID, checkpointId, cause);
+	}
 
 	@Override
 	public TaskOperatorEventGateway getOperatorCoordinatorEventGateway() {
@@ -368,5 +374,9 @@ public class StreamMockEnvironment implements Environment {
 
 	public void setTaskMetricGroup(TaskMetricGroup taskMetricGroup) {
 		this.taskMetricGroup = taskMetricGroup;
+	}
+
+	public void setCheckpointResponder(CheckpointResponder checkpointResponder) {
+		this.checkpointResponder = checkpointResponder;
 	}
 }

@@ -29,6 +29,7 @@ import org.jline.utils.AttributedString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -97,17 +98,15 @@ public class SqlCompleter implements Completer {
 	}
 
 	private static String[] getCommandHints() {
-		final SqlCommandParser.SqlCommand[] commands = SqlCommandParser.SqlCommand.values();
-		final String[] hints = new String[commands.length];
-		for (int i = 0; i < commands.length; i++) {
-			final SqlCommandParser.SqlCommand command = commands[i];
-			// add final ";" for convenience if no operands can follow
-			if (command.hasOperands()) {
-				hints[i] = command.toString();
-			} else {
-				hints[i] = command.toString() + ";";
-			}
-		}
-		return hints;
+		return Arrays.stream(SqlCommandParser.SqlCommand.values())
+				.filter(SqlCommandParser.SqlCommand::hasRegexPattern)
+				.map(cmd -> {
+					// add final ";" for convenience if no operands can follow
+					if (cmd.hasOperands()) {
+						return cmd.toString();
+					} else {
+						return cmd.toString() + ";";
+					}
+				}).toArray(String[]::new);
 	}
 }

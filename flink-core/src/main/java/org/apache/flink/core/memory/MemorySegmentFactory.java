@@ -27,6 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * A factory for (hybrid) memory segments ({@link HybridMemorySegment}).
  *
@@ -50,6 +52,31 @@ public final class MemorySegmentFactory {
 	 */
 	public static MemorySegment wrap(byte[] buffer) {
 		return new HybridMemorySegment(buffer, null);
+	}
+
+	/**
+	 * Copies the given heap memory region and creates a new memory segment wrapping it.
+	 *
+	 * @param bytes The heap memory region.
+	 * @param start starting position, inclusive
+	 * @param end end position, exclusive
+	 * @return A new memory segment that targets a copy of the given heap memory region.
+	 * @throws IllegalArgumentException if start > end or end > bytes.length
+	 */
+	public static MemorySegment wrapCopy(byte[] bytes, int start, int end) throws IllegalArgumentException {
+		checkArgument(end >= start);
+		checkArgument(end <= bytes.length);
+		MemorySegment copy = allocateUnpooledSegment(end - start);
+		copy.put(0, bytes, start, copy.size());
+		return copy;
+	}
+
+	/**
+	 * Wraps the four bytes representing the given number with a {@link MemorySegment}.
+	 * @see ByteBuffer#putInt(int)
+	 */
+	public static MemorySegment wrapInt(int value) {
+		return wrap(ByteBuffer.allocate(Integer.BYTES).putInt(value).array());
 	}
 
 	/**
@@ -161,5 +188,4 @@ public final class MemorySegmentFactory {
 	public static MemorySegment wrapOffHeapMemory(ByteBuffer memory) {
 		return new HybridMemorySegment(memory, null);
 	}
-
 }

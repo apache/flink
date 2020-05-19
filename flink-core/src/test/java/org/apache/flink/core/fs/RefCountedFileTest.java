@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.fs.s3.common.utils;
+package org.apache.flink.core.fs;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -25,13 +25,13 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.UUID;
 import java.util.stream.Stream;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Tests for the {@link RefCountedFile}.
@@ -44,9 +44,9 @@ public class RefCountedFileTest {
 	@Test
 	public void releaseToZeroRefCounterShouldDeleteTheFile() throws IOException {
 		final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
-		final OutputStream out = Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
+		checkState(newFile.createNewFile());
 
-		RefCountedFile fileUnderTest = RefCountedFile.newFile(newFile, out);
+		RefCountedFile fileUnderTest = new RefCountedFile(newFile);
 		verifyTheFileIsStillThere();
 
 		fileUnderTest.release();
@@ -59,10 +59,10 @@ public class RefCountedFileTest {
 	@Test
 	public void retainsShouldRequirePlusOneReleasesToDeleteTheFile() throws IOException {
 		final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
-		final OutputStream out = Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
+		checkState(newFile.createNewFile());
 
 		// the reference counter always starts with 1 (not 0). This is why we need +1 releases
-		RefCountedFile fileUnderTest = RefCountedFile.newFile(newFile, out);
+		RefCountedFile fileUnderTest = new RefCountedFile(newFile);
 		verifyTheFileIsStillThere();
 
 		fileUnderTest.retain();
@@ -85,57 +85,10 @@ public class RefCountedFileTest {
 		}
 	}
 
-	@Test
-	public void writeShouldSucceed() throws IOException {
-		byte[] content = bytesOf("hello world");
-
-		final RefCountedFile fileUnderTest = getClosedRefCountedFileWithContent(content);
-		long fileLength = fileUnderTest.getLength();
-
-		Assert.assertEquals(content.length, fileLength);
-	}
-
-	@Test
-	public void closeShouldNotReleaseReference() throws IOException {
-		getClosedRefCountedFileWithContent("hello world");
-		verifyTheFileIsStillThere();
-	}
-
-	@Test(expected = IOException.class)
-	public void writeAfterCloseShouldThrowException() throws IOException {
-		final RefCountedFile fileUnderTest = getClosedRefCountedFileWithContent("hello world");
-		byte[] content = bytesOf("Hello Again");
-		fileUnderTest.write(content, 0, content.length);
-	}
-
-	@Test(expected = IOException.class)
-	public void flushAfterCloseShouldThrowException() throws IOException {
-		final RefCountedFile fileUnderTest = getClosedRefCountedFileWithContent("hello world");
-		fileUnderTest.flush();
-	}
-
-	// ------------------------------------- Utilities -------------------------------------
-
 	private void verifyTheFileIsStillThere() throws IOException {
 		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
 			Assert.assertEquals(1L, files.count());
 		}
-	}
-
-	private RefCountedFile getClosedRefCountedFileWithContent(String content) throws IOException {
-		return getClosedRefCountedFileWithContent(bytesOf(content));
-	}
-
-	private RefCountedFile getClosedRefCountedFileWithContent(byte[] content) throws IOException {
-		final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
-		final OutputStream out = Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
-
-		final RefCountedFile fileUnderTest = RefCountedFile.newFile(newFile, out);
-
-		fileUnderTest.write(content, 0, content.length);
-
-		fileUnderTest.closeStream();
-		return fileUnderTest;
 	}
 
 	private static byte[] bytesOf(String str) {

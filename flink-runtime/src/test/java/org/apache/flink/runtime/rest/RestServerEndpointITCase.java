@@ -595,12 +595,31 @@ public class RestServerEndpointITCase extends TestLogger {
 	}
 
 	@Test
+	public void testEndpointsMustBeUnique() throws Exception {
+		final RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
+
+		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
+			Tuple2.of(new TestHeaders(), testHandler),
+			Tuple2.of(new TestHeaders(), testUploadHandler)
+		);
+
+		assertThrows("REST handler registration",
+			FlinkRuntimeException.class,
+			() -> {
+				try (TestRestServerEndpoint restServerEndpoint =  new TestRestServerEndpoint(serverConfig, handlers)) {
+					restServerEndpoint.start();
+					return null;
+				}
+			});
+	}
+
+	@Test
 	public void testDuplicateHandlerRegistrationIsForbidden() throws Exception {
 		final RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 
 		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
 			Tuple2.of(new TestHeaders(), testHandler),
-			Tuple2.of(new TestHeaders(), testHandler)
+			Tuple2.of(TestUploadHeaders.INSTANCE, testHandler)
 		);
 
 		assertThrows("Duplicate REST handler",

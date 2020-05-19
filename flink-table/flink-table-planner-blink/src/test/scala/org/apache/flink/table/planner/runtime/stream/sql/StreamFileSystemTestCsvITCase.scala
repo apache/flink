@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.table.planner.utils.TestCsvFileSystemFormatFactory.USE_BULK_WRITER
-
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -34,7 +32,7 @@ class StreamFileSystemTestCsvITCase(useBulkWriter: Boolean) extends StreamFileSy
   override def formatProperties(): Array[String] = {
     super.formatProperties() ++ Seq(
       "'format' = 'testcsv'",
-      s"'$USE_BULK_WRITER' = '$useBulkWriter'")
+      s"'testcsv.use-bulk-writer' = '$useBulkWriter'")
   }
 }
 

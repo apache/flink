@@ -30,6 +30,7 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 
 import org.jline.utils.AttributedString;
@@ -231,7 +232,7 @@ public class CliResultViewTest {
 		}
 
 		@Override
-		public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
+		public Parser getSqlParser(String sessionId) {
 			return null;
 		}
 

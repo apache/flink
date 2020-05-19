@@ -47,8 +47,8 @@ public class CsvFilesystemBatchITCase {
 		public String[] formatProperties() {
 			List<String> ret = new ArrayList<>();
 			ret.add("'format'='csv'");
-			ret.add("'format.field-delimiter'=';'");
-			ret.add("'format.quote-character'='#'");
+			ret.add("'csv.field-delimiter'=';'");
+			ret.add("'csv.quote-character'='#'");
 			return ret.toArray(new String[0]);
 		}
 	}
@@ -62,8 +62,8 @@ public class CsvFilesystemBatchITCase {
 		public String[] formatProperties() {
 			List<String> ret = new ArrayList<>();
 			ret.add("'format'='csv'");
-			ret.add("'format.ignore-parse-errors'='true'");
-			ret.add("'format.escape-character'='\t'");
+			ret.add("'csv.ignore-parse-errors'='true'");
+			ret.add("'csv.escape-character'='\t'");
 			return ret.toArray(new String[0]);
 		}
 

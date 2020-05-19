@@ -147,7 +147,7 @@ public final class CsvFormatFactory implements
 	//  Validation
 	// ------------------------------------------------------------------------
 
-	private static void validateFormatOptions(ReadableConfig tableOptions) {
+	static void validateFormatOptions(ReadableConfig tableOptions) {
 		final boolean hasQuoteCharacter = tableOptions.getOptional(QUOTE_CHARACTER).isPresent();
 		final boolean isDisabledQuoteCharacter = tableOptions.get(DISABLE_QUOTE_CHARACTER);
 		if (isDisabledQuoteCharacter && hasQuoteCharacter){

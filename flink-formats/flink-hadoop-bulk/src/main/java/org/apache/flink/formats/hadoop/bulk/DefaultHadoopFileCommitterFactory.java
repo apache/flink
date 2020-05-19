@@ -16,36 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.runtime;
+package org.apache.flink.formats.hadoop.bulk;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.formats.hadoop.bulk.committer.HadoopRenameFileCommitter;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 
 /**
- * A {@link StreamConfig} with default settings.
+ * The default hadoop file committer factory which always use {@link HadoopRenameFileCommitter}.
  */
-@Internal
-public class BoundedStreamConfig extends StreamConfig {
+public class DefaultHadoopFileCommitterFactory implements HadoopFileCommitterFactory {
 
 	private static final long serialVersionUID = 1L;
 
-	public BoundedStreamConfig() {
-		super(new Configuration());
-
-		setChainStart();
-		setCheckpointingEnabled(true);
-		setCheckpointMode(CheckpointingMode.EXACTLY_ONCE);
-	}
-
-	public <IN> BoundedStreamConfig(TypeSerializer<?> keySerializer, KeySelector<IN, ?> keySelector) {
-		this();
-
-		setStateKeySerializer(keySerializer);
-		setStatePartitioner(0, keySelector);
+	@Override
+	public HadoopFileCommitter create(Configuration configuration, Path targetFilePath) {
+		return new HadoopRenameFileCommitter(configuration, targetFilePath);
 	}
 }
-

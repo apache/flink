@@ -32,8 +32,10 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
@@ -107,6 +109,7 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+	private static final String DIALECT_ENVIRONMENT_FILE = "test-sql-client-dialect.yaml";
 
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
@@ -1302,6 +1305,32 @@ public class LocalExecutorITCase extends TestLogger {
 		} finally {
 			executor.closeSession(sessionId);
 		}
+	}
+
+	@Test
+	public void testSQLDialect() throws Exception {
+		LocalExecutor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		// by default to use DEFAULT dialect
+		assertEquals(SqlDialect.DEFAULT, executor.getExecutionContext(sessionId).getTableEnvironment().getConfig().getSqlDialect());
+		// test switching dialect
+		executor.setSessionProperty(sessionId, TableConfigOptions.TABLE_SQL_DIALECT.key(), "hive");
+		assertEquals(SqlDialect.HIVE, executor.getExecutionContext(sessionId).getTableEnvironment().getConfig().getSqlDialect());
+		executor.closeSession(sessionId);
+
+		Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_DIALECT", "default");
+		executor = createModifiedExecutor(DIALECT_ENVIRONMENT_FILE, clusterClient, replaceVars);
+		sessionId = executor.openSession(session);
+		assertEquals(SqlDialect.DEFAULT, executor.getExecutionContext(sessionId).getTableEnvironment().getConfig().getSqlDialect());
+		executor.closeSession(sessionId);
+
+		replaceVars.put("$VAR_DIALECT", "hive");
+		executor = createModifiedExecutor(DIALECT_ENVIRONMENT_FILE, clusterClient, replaceVars);
+		sessionId = executor.openSession(session);
+		assertEquals(SqlDialect.HIVE, executor.getExecutionContext(sessionId).getTableEnvironment().getConfig().getSqlDialect());
+		executor.closeSession(sessionId);
 	}
 
 	private void executeStreamQueryTable(

@@ -28,7 +28,7 @@ under the License.
 
 在该教程中，我们会从零开始，介绍如何创建一个Flink Python项目及运行Python Table API程序。
 
-关于Python执行环境的要求，请参考Python Table API[环境安装]({{ site.baseurl }}/dev/dev/table/python/installation.html)。
+关于Python执行环境的要求，请参考Python Table API[环境安装]({{ site.baseurl }}/dev/table/python/installation.html)。
 
 ## 创建一个Python Table API项目
 
@@ -70,6 +70,33 @@ t_env.connect(FileSystem().path('/tmp/output')) \
                  .field('word', DataTypes.STRING())
                  .field('count', DataTypes.BIGINT())) \
     .create_temporary_table('mySink')
+{% endhighlight %}
+
+You can also use the TableEnvironment.sql_update() method to register a source/sink table defined in DDL:
+{% highlight python %}
+my_source_ddl = """
+    create table mySource (
+        word VARCHAR
+    ) with (
+        'connector.type' = 'filesystem',
+        'format.type' = 'csv',
+        'connector.path' = '/tmp/input'
+    )
+"""
+
+my_sink_ddl = """
+    create table mySink (
+        word VARCHAR,
+        `count` BIGINT
+    ) with (
+        'connector.type' = 'filesystem',
+        'format.type' = 'csv',
+        'connector.path' = '/tmp/output'
+    )
+"""
+
+t_env.sql_update(my_source_ddl)
+t_env.sql_update(my_sink_ddl)
 {% endhighlight %}
 
 上面的程序展示了如何创建及在`ExecutionEnvironment`中注册表名分别为`mySource`和`mySink`的表。

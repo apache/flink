@@ -303,6 +303,7 @@
     "-Djobmanager.rpc.address=$(hostname -f)"
     "-Djobmanager.rpc.port=6123"
     "-Dmesos.resourcemanager.tasks.cpus=1"
+    "-Dcontainerized.taskmanager.env.HADOOP_CLASSPATH=$(/opt/hadoop/bin/hadoop classpath)"
     "-Dtaskmanager.memory.process.size=2048m"
     "-Drest.bind-address=$(hostname -f)"))
 

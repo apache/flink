@@ -98,31 +98,19 @@ public class StreamingFileSink<IN>
 
 	private final long bucketCheckInterval;
 
-	private final StreamingFileSink.BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder;
+	private final BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder;
 
 	// --------------------------- runtime fields -----------------------------
 
 	private transient StreamingFileSinkHelper<IN> helper;
 
 	/**
-	 * Creates a new {@code StreamingFileSink} that writes files in row-based format to the given base directory.
+	 * Creates a new {@code StreamingFileSink} that writes files to the given base directory
+	 * with the give buckets properties.
 	 */
 	protected StreamingFileSink(
-		final RowFormatBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
-		final long bucketCheckInterval) {
-
-		Preconditions.checkArgument(bucketCheckInterval > 0L);
-
-		this.bucketsBuilder = Preconditions.checkNotNull(bucketsBuilder);
-		this.bucketCheckInterval = bucketCheckInterval;
-	}
-
-	/**
-	 * Creates a new {@code StreamingFileSink} that writes files in bulk-encoded format to the given base directory.
-	 */
-	protected StreamingFileSink(
-		final BulkFormatBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
-		final long bucketCheckInterval) {
+		BucketsBuilder<IN, ?, ? extends BucketsBuilder<IN, ?, ?>> bucketsBuilder,
+		long bucketCheckInterval) {
 
 		Preconditions.checkArgument(bucketCheckInterval > 0L);
 
@@ -277,7 +265,7 @@ public class StreamingFileSink<IN>
 					basePath,
 					bucketAssigner,
 					bucketFactory,
-					new RowWisePartWriter.Factory<>(encoder),
+					new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder),
 					rollingPolicy,
 					bucketLifeCycleListener,
 					subtaskIndex,
@@ -397,7 +385,7 @@ public class StreamingFileSink<IN>
 					basePath,
 					bucketAssigner,
 					bucketFactory,
-					new BulkPartWriter.Factory<>(writerFactory),
+					new BulkBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory),
 					rollingPolicy,
 					bucketLifeCycleListener,
 					subtaskIndex,

@@ -59,6 +59,8 @@ The following tables list all available connectors and formats. Their mutual com
 | CSV (for Kafka)            | `flink-csv`                  | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-csv/{{site.version}}/flink-csv-{{site.version}}-sql-jar.jar) |
 | JSON                       | `flink-json`                 | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-json/{{site.version}}/flink-json-{{site.version}}-sql-jar.jar) |
 | Apache Avro                | `flink-avro`                 | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) |
+| Apache ORC                 | `flink-orc`                  | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-orc{{site.scala_version_suffix}}/{{site.version}}/flink-orc{{site.scala_version_suffix}}-{{site.version}}-jar-with-dependencies.jar) |
+| Apache Parquet             | `flink-parquet`              | [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-parquet{{site.scala_version_suffix}}/{{site.version}}/flink-parquet{{site.scala_version_suffix}}-{{site.version}}-jar-with-dependencies.jar) |
 
 {% else %}
 
@@ -929,15 +931,15 @@ CREATE TABLE MyUserTable (
   'connector.hosts' = 'http://host_name:9092;http://host_name:9093',  -- required: one or more Elasticsearch hosts to connect to
 
   'connector.index' = 'myusers',       -- required: Elasticsearch index. Flink supports both static index and dynamic index.
-                                       -- If you want to have a static index, this option value should be a plain string, 
+                                       -- If you want to have a static index, this option value should be a plain string,
                                        -- e.g. 'myusers', all the records will be consistently written into "myusers" index.
                                        -- If you want to have a dynamic index, you can use '{field_name}' to reference a field
-                                       -- value in the record to dynamically generate a target index. You can also use 
+                                       -- value in the record to dynamically generate a target index. You can also use
                                        -- '{field_name|date_format_string}' to convert a field value of TIMESTAMP/DATE/TIME type
-                                       -- into the format specified by date_format_string. The date_format_string is 
+                                       -- into the format specified by date_format_string. The date_format_string is
                                        -- compatible with Java's [DateTimeFormatter](https://docs.oracle.com/javase/8/docs/api/index.html).
-                                       -- For example, if the option value is 'myusers-{log_ts|yyyy-MM-dd}', then a 
-                                       -- record with log_ts field value 2020-03-27 12:25:55 will be written into 
+                                       -- For example, if the option value is 'myusers-{log_ts|yyyy-MM-dd}', then a
+                                       -- record with log_ts field value 2020-03-27 12:25:55 will be written into
                                        -- "myusers-2020-03-27" index.
 
   'connector.document-type' = 'user',  -- required: Elasticsearch document type
@@ -969,11 +971,11 @@ CREATE TABLE MyUserTable (
                                               -- per bulk request
                                               -- (only MB granularity is supported)
   'connector.bulk-flush.interval' = '60000',  -- optional: bulk flush interval (in milliseconds)
-  'connector.bulk-flush.back-off.type' = '...',       -- optional: backoff strategy ("disabled" by default)
+  'connector.bulk-flush.backoff.type' = '...',       -- optional: backoff strategy ("disabled" by default)
                                                       -- valid strategies are "disabled", "constant",
                                                       -- or "exponential"
-  'connector.bulk-flush.back-off.max-retries' = '3',  -- optional: maximum number of retries
-  'connector.bulk-flush.back-off.delay' = '30000',    -- optional: delay between each backoff attempt
+  'connector.bulk-flush.backoff.max-retries' = '3',  -- optional: maximum number of retries
+  'connector.bulk-flush.backoff.delay' = '30000',    -- optional: delay between each backoff attempt
                                                       -- (in milliseconds)
 
   -- optional: connection properties to be used during REST communication to Elasticsearch
@@ -1100,7 +1102,7 @@ connector:
       max-size: 42 mb           # optional: maximum size of buffered actions in bytes per bulk request
                                 #   (only MB granularity is supported)
       interval: 60000           # optional: bulk flush interval (in milliseconds)
-      back-off:                 # optional: backoff strategy ("disabled" by default)
+      backoff:                 # optional: backoff strategy ("disabled" by default)
         type: ...               #   valid strategies are "disabled", "constant", or "exponential"
         max-retries: 3          # optional: maximum number of retries
         delay: 30000            # optional: delay between each backoff attempt (in milliseconds)
@@ -1198,6 +1200,27 @@ CREATE TABLE MyUserTable (
                                            // no asynchronous flush thread will be scheduled.
 )
 {% endhighlight %}
+</div>
+<div data-lang="python" markdown="1">
+{% highlight python%}
+.connect(
+    HBase()
+    .version('1.4.3')                      # required: currently only support '1.4.3'
+    .table_name('hbase_table_name')        # required: HBase table name
+    .zookeeper_quorum('localhost:2181')    # required: HBase Zookeeper quorum configuration
+    .zookeeper_node_parent('/test')        # optional: the root dir in Zookeeper for Hbae cluster.
+                                           # The default value is '/hbase'
+    .write_buffer_flush_max_size('10mb')   # optional: writing option, determines how many size in memory of buffered
+                                           # rows to insert per round trip. This can help performance on writing to JDBC
+                                           # database. The default value is '2mb'
+    .write_buffer_flush_max_rows(1000)     # optional: writing option, determines how many rows to insert per round trip.
+                                           # This can help performance on writing to JDBC database. No default value,
+                                           # i.e. the default flushing is not depends on the number of buffered rows.
+    .write_buffer_flush_interval('2s')     # optional: writing option, sets a flush interval flushing buffered requesting
+                                           # if the interval passes, in milliseconds. Default value is '0s', which means
+                                           # no asynchronous flush thread will he scheduled.
+)
+{% endhighlight%}
 </div>
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
@@ -1594,9 +1617,8 @@ CREATE TABLE MyUserTable (
   'format.type' = 'json',                   -- required: specify the format type
   'format.fail-on-missing-field' = 'true',  -- optional: flag whether to fail if a field is missing or not,
                                             -- 'false' by default
-  'format.ignore-parse-errors' = 'true'     -- optional: skip fields and rows with parse errors instead of failing;
+  'format.ignore-parse-errors' = 'true',    -- optional: skip fields and rows with parse errors instead of failing;
                                             -- fields are set to null in case of errors
-
   -- deprecated: define the schema explicitly using JSON schema which parses to DECIMAL and TIMESTAMP.
   'format.json-schema' =
     '{

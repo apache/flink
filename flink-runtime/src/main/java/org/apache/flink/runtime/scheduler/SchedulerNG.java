@@ -127,6 +127,16 @@ public interface SchedulerNG {
 	CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean advanceToEndOfEventTime);
 
 	// ------------------------------------------------------------------------
+	//  Operator Coordinator related methods
+	//
+	//  These are necessary as long as the Operator Coordinators are part of the
+	//  scheduler. There are good reasons to pull them out of the Scheduler and
+	//  make them directly a part of the JobMaster. However, we would need to
+	//  rework the complete CheckpointCoordinator initialization before we can
+	//  do that, because the CheckpointCoordinator is initialized (and restores
+	//  savepoint) in the scheduler constructor, which requires the coordinators
+	//  to be there as well.
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Delivers the given OperatorEvent to the {@link OperatorCoordinator} with the given {@link OperatorID}.
