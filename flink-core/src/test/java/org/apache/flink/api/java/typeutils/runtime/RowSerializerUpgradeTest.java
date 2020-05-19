@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import org.hamcrest.Matcher;
 import org.junit.runner.RunWith;
@@ -50,7 +51,7 @@ public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row,
 	@Parameterized.Parameters(name = "Test Specification = {0}")
 	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+		for (MigrationVersion migrationVersion : MigrationVersion.v1_10.orHigher()) {
 			testSpecifications.add(
 				new TestSpecification<>(
 					"row-serializer",
@@ -61,8 +62,14 @@ public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row,
 		return testSpecifications;
 	}
 
-	public static TypeSerializer<Row> stringLongRowSupplier() {
-		RowTypeInfo rowTypeInfo = new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
+	public static TypeSerializer<Row> createRowSerializer() {
+		// in older branches, this writes in old format WITHOUT row kind;
+		// in newer branches >= 1.11, this writes in new format WITH row kind
+		final RowTypeInfo rowTypeInfo = new RowTypeInfo(
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.LONG_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO);
 		return rowTypeInfo.createSerializer(new ExecutionConfig());
 	}
 
@@ -76,14 +83,16 @@ public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row,
 	public static final class RowSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Row> {
 		@Override
 		public TypeSerializer<Row> createPriorSerializer() {
-			return stringLongRowSupplier();
+			return createRowSerializer();
 		}
 
 		@Override
 		public Row createTestData() {
-			Row row = new Row(2);
-			row.setField(0, "flink");
+			Row row = new Row(4);
+			row.setField(0, null);
 			row.setField(1, 42L);
+			row.setField(2, "My string.");
+			row.setField(3, null);
 			return row;
 		}
 	}
@@ -94,20 +103,25 @@ public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row,
 	public static final class RowSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Row> {
 		@Override
 		public TypeSerializer<Row> createUpgradedSerializer() {
-			return stringLongRowSupplier();
+			return createRowSerializer();
 		}
 
 		@Override
 		public Matcher<Row> testDataMatcher() {
-			Row row = new Row(2);
-			row.setField(0, "flink");
+			Row row = new Row(RowKind.INSERT, 4);
+			row.setField(0, null);
 			row.setField(1, 42L);
+			row.setField(2, "My string.");
+			row.setField(3, null);
 			return is(row);
 		}
 
 		@Override
 		public Matcher<TypeSerializerSchemaCompatibility<Row>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
+			if (version.isNewerVersionThan(MigrationVersion.v1_10)) {
+				return TypeSerializerMatchers.isCompatibleAsIs();
+			}
+			return TypeSerializerMatchers.isCompatibleAfterMigration();
 		}
 	}
 }
