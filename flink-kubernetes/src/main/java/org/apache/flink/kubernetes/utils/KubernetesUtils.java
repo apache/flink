@@ -218,7 +218,8 @@ public class KubernetesUtils {
 				logging.append(" -Dlogback.configurationFile=file:").append(confDir).append("/").append(CONFIG_FILE_LOGBACK_NAME);
 			}
 			if (hasLog4j) {
-				logging.append(" -Dlog4j.configurationFile=file:").append(confDir).append("/").append(CONFIG_FILE_LOG4J_NAME);
+				logging.append(" -Dlog4j.configuration=file:").append(confDir).append("/").append(CONFIG_FILE_LOG4J_NAME)
+					.append(" -Dlog4j.configurationFile=file:").append(confDir).append("/").append(CONFIG_FILE_LOG4J_NAME);
 			}
 		}
 		return logging.toString();
