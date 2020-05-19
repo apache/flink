@@ -35,7 +35,7 @@ public class WriterProperties {
 
 	private final boolean supportsResume;
 
-	WriterProperties(
+	public WriterProperties(
 			SimpleVersionedSerializer<InProgressFileWriter.InProgressFileRecoverable> inProgressFileRecoverableSerializer,
 			SimpleVersionedSerializer<InProgressFileWriter.PendingFileRecoverable> pendingFileRecoverableSerializer,
 			boolean supportsResume) {
