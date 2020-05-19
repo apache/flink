@@ -42,7 +42,7 @@ import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
 import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateSchemaAndApplyImplicitCast, validateTableSink}
-import org.apache.flink.table.planner.sinks.{DataStreamTableSink, SelectTableSinkBase}
+import org.apache.flink.table.planner.sinks.{DataStreamTableSink, SelectTableSinkBase, SelectTableSinkSchemaConverter}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
@@ -188,7 +188,9 @@ abstract class PlannerBase(
 
       case s: SelectSinkOperation =>
         val input = getRelBuilder.queryOperation(s.getChild).build()
-        val sinkSchema = s.getChild.getTableSchema
+        // convert query schema to sink schema
+        val sinkSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
+          SelectTableSinkSchemaConverter.changeDefaultConversionClass(s.getChild.getTableSchema))
         // validate query schema and sink schema, and apply cast if possible
         val query = validateSchemaAndApplyImplicitCast(input, sinkSchema, getTypeFactory)
         val sink = createSelectTableSink(sinkSchema)

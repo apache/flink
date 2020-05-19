@@ -55,8 +55,7 @@ public abstract class SelectTableSinkBase<T> implements StreamTableSink<T> {
 
 	@SuppressWarnings("unchecked")
 	public SelectTableSinkBase(TableSchema schema, TypeSerializer<T> typeSerializer) {
-		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(
-				SelectTableSinkSchemaConverter.changeDefaultConversionClass(schema));
+		this.tableSchema = schema;
 		this.converter = DataFormatConverters.getConverterForDataType(this.tableSchema.toPhysicalRowDataType());
 
 		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
