@@ -139,20 +139,19 @@ public class PrintUtils {
 
 	public static String[] rowToString(Row row, String nullColumn, boolean printChangeMode) {
 		final int len = printChangeMode ? row.getArity() + 1 : row.getArity();
-		final String[] fields = new String[len];
-		int index = 0;
+		final List<String> fields = new ArrayList<>(len);
 		if (printChangeMode) {
-			fields[index++] = row.getKind().shortString();
+			fields.add(row.getKind().shortString());
 		}
 		for (int i = 0; i < row.getArity(); i++) {
 			final Object field = row.getField(i);
 			if (field == null) {
-				fields[index++] = nullColumn;
+				fields.add(nullColumn);
 			} else {
-				fields[index++] = StringUtils.arrayAwareToString(field);
+				fields.add(StringUtils.arrayAwareToString(field));
 			}
 		}
-		return fields;
+		return fields.toArray(new String[0]);
 	}
 
 	private static int[] columnWidthsByContent(

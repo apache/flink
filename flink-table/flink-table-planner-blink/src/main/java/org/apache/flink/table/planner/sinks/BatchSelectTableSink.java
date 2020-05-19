@@ -20,14 +20,10 @@ package org.apache.flink.table.planner.sinks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectResultProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.types.Row;
-
-import java.util.Iterator;
 
 
 /**
@@ -45,31 +41,8 @@ public class BatchSelectTableSink extends SelectTableSinkBase<RowData> implement
 	}
 
 	@Override
-	public SelectResultProvider getSelectResultProvider() {
-		return new SelectResultProvider() {
-
-			@Override
-			public void setJobClient(JobClient jobClient) {
-				iterator.setJobClient(jobClient);
-			}
-
-			@Override
-			public Iterator<Row> getResultIterator() {
-				// convert Iterator<RowData> to Iterator<Row>
-				return new Iterator<Row>() {
-
-					@Override
-					public boolean hasNext() {
-						return iterator.hasNext();
-					}
-
-					@Override
-					public Row next() {
-						// convert RowData to Row
-						return converter.toExternal(iterator.next());
-					}
-				};
-			}
-		};
+	protected Row convertToRow(RowData element) {
+		// convert RowData to Row
+		return converter.toExternal(element);
 	}
 }

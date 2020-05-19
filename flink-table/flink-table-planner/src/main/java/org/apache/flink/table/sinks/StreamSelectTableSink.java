@@ -93,25 +93,33 @@ public class StreamSelectTableSink implements RetractStreamTableSink<Row> {
 
 			@Override
 			public Iterator<Row> getResultIterator() {
-				// convert Iterator<Tuple2<Boolean, Row>> to Iterator<Row>
-				return new Iterator<Row>() {
-
-					@Override
-					public boolean hasNext() {
-						return iterator.hasNext();
-					}
-
-					@Override
-					public Row next() {
-						// convert Tuple2<Boolean, Row> to Row
-						Tuple2<Boolean, Row> tuple2 = iterator.next();
-						RowKind rowKind = tuple2.f0 ? RowKind.INSERT : RowKind.DELETE;
-						Row row = tuple2.f1;
-						row.setKind(rowKind);
-						return row;
-					}
-				};
+				return new RowIteratorWrapper(iterator);
 			}
 		};
+	}
+
+	/**
+	 * An Iterator wrapper class that converts Iterator<Tuple2<Boolean, Row>> to Iterator<Row>.
+	 */
+	private static class RowIteratorWrapper implements Iterator<Row> {
+		private final CollectResultIterator<Tuple2<Boolean, Row>> iterator;
+		public RowIteratorWrapper(CollectResultIterator<Tuple2<Boolean, Row>> iterator) {
+			this.iterator = iterator;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return iterator.hasNext();
+		}
+
+		@Override
+		public Row next() {
+			// convert Tuple2<Boolean, Row> to Row
+			Tuple2<Boolean, Row> tuple2 = iterator.next();
+			RowKind rowKind = tuple2.f0 ? RowKind.INSERT : RowKind.DELETE;
+			Row row = tuple2.f1;
+			row.setKind(rowKind);
+			return row;
+		}
 	}
 }

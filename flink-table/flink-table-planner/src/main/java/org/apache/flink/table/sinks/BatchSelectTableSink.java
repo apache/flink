@@ -91,27 +91,31 @@ public class BatchSelectTableSink implements BatchTableSink<Row> {
 			@Override
 			public Iterator<Row> getResultIterator() {
 				Preconditions.checkNotNull(jobClient, "jobClient is null, please call setJobClient first.");
-				JobExecutionResult jobExecutionResult;
-				try {
-					jobExecutionResult = jobClient.getJobExecutionResult(
-							Thread.currentThread().getContextClassLoader())
-							.get();
-				} catch (InterruptedException | ExecutionException e) {
-					throw new TableException("Failed to get job execution result.", e);
-				}
-				ArrayList<byte[]> accResult = jobExecutionResult.getAccumulatorResult(accumulatorName);
-				if (accResult == null) {
-					throw new TableException("result is null.");
-				}
-				List<Row> rowList;
-				try {
-					rowList = SerializedListAccumulator.deserializeList(accResult, typeSerializer);
-				} catch (IOException | ClassNotFoundException e) {
-					throw new TableException("Failed to deserialize the result.", e);
-				}
-				return rowList.iterator();
+				return collectResult(jobClient);
 			}
 		};
+	}
+
+	private Iterator<Row> collectResult(JobClient jobClient) {
+		JobExecutionResult jobExecutionResult;
+		try {
+			jobExecutionResult = jobClient.getJobExecutionResult(
+					Thread.currentThread().getContextClassLoader())
+					.get();
+		} catch (InterruptedException | ExecutionException e) {
+			throw new TableException("Failed to get job execution result.", e);
+		}
+		ArrayList<byte[]> accResult = jobExecutionResult.getAccumulatorResult(accumulatorName);
+		if (accResult == null) {
+			throw new TableException("result is null.");
+		}
+		List<Row> rowList;
+		try {
+			rowList = SerializedListAccumulator.deserializeList(accResult, typeSerializer);
+		} catch (IOException | ClassNotFoundException e) {
+			throw new TableException("Failed to deserialize the result.", e);
+		}
+		return rowList.iterator();
 	}
 
 }

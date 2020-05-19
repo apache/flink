@@ -23,17 +23,18 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.SelectResultProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sinks.RetractStreamTableSink;
 import org.apache.flink.types.Row;
-
-import java.util.Iterator;
+import org.apache.flink.types.RowKind;
 
 /**
  * A {@link RetractStreamTableSink} for streaming select job to collect the result to local.
+ *
+ * <p>{@link RowData} has contains {@link RowKind} attribute which
+ * can represents all kind of changes. The boolean flag is useless here,
+ * only because {@link RetractStreamTableSink} requires Tuple2<Boolean, T> type.
  */
 public class StreamSelectTableSink
 		extends SelectTableSinkBase<Tuple2<Boolean, RowData>>
@@ -51,32 +52,8 @@ public class StreamSelectTableSink
 	}
 
 	@Override
-	public SelectResultProvider getSelectResultProvider() {
-		return new SelectResultProvider() {
-
-			@Override
-			public void setJobClient(JobClient jobClient) {
-				iterator.setJobClient(jobClient);
-			}
-
-			@Override
-			public Iterator<Row> getResultIterator() {
-				// convert Iterator<Tuple2<Boolean, RowData>> to Iterator<Row>
-				return new Iterator<Row>() {
-
-					@Override
-					public boolean hasNext() {
-						return iterator.hasNext();
-					}
-
-					@Override
-					public Row next() {
-						Tuple2<Boolean, RowData> tuple2 = iterator.next();
-						// convert RowData to Row
-						return converter.toExternal(tuple2.f1);
-					}
-				};
-			}
-		};
+	protected Row convertToRow(Tuple2<Boolean, RowData> tuple2) {
+		// convert Tuple2<Boolean, RowData> to Row
+		return converter.toExternal(tuple2.f1);
 	}
 }
