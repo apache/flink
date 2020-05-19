@@ -14,4 +14,3 @@
 # limitations under the License.
 
 org.apache.flink.formats.json.JsonRowFormatFactory
-org.apache.flink.formats.json.JsonFileSystemFormatFactory

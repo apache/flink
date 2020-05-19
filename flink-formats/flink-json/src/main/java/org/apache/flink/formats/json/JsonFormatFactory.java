@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -42,6 +41,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.json.JsonOptions.FAIL_ON_MISSING_FIELD;
+import static org.apache.flink.formats.json.JsonOptions.IGNORE_PARSE_ERRORS;
+
 /**
  * Table format factory for providing configured instances of JSON to RowData
  * {@link SerializationSchema} and {@link DeserializationSchema}.
@@ -51,23 +53,6 @@ public class JsonFormatFactory implements
 		SerializationFormatFactory {
 
 	public static final String IDENTIFIER = "json";
-
-	// ------------------------------------------------------------------------
-	//  Options
-	// ------------------------------------------------------------------------
-
-	private static final ConfigOption<Boolean> FAIL_ON_MISSING_FIELD = ConfigOptions
-			.key("fail-on-missing-field")
-			.booleanType()
-			.defaultValue(false)
-			.withDescription("Optional flag to specify whether to fail if a field is missing or not, false by default");
-
-	private static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = ConfigOptions
-			.key("ignore-parse-errors")
-			.booleanType()
-			.defaultValue(false)
-			.withDescription("Optional flag to skip fields and rows with parse errors instead of failing;\n"
-					+ "fields are set to null in case of errors, false by default");
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -146,7 +131,7 @@ public class JsonFormatFactory implements
 	//  Validation
 	// ------------------------------------------------------------------------
 
-	private void validateFormatOptions(ReadableConfig tableOptions) {
+	static void validateFormatOptions(ReadableConfig tableOptions) {
 		boolean failOnMissingField = tableOptions.get(FAIL_ON_MISSING_FIELD);
 		boolean ignoreParseErrors = tableOptions.get(IGNORE_PARSE_ERRORS);
 		if (ignoreParseErrors && failOnMissingField) {

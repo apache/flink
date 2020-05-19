@@ -79,8 +79,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.table.filesystem.FileSystemTableFactory.SINK_ROLLING_POLICY_FILE_SIZE;
-import static org.apache.flink.table.filesystem.FileSystemTableFactory.SINK_ROLLING_POLICY_TIME_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_TIME_INTERVAL;
 
 /**
  * Table sink to write to Hive tables.
@@ -184,7 +184,7 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 				TableRollingPolicy rollingPolicy = new TableRollingPolicy(
 						true,
 						conf.get(SINK_ROLLING_POLICY_FILE_SIZE),
-						conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL));
+						conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL).toMillis());
 				InactiveBucketListener listener = new InactiveBucketListener();
 
 				Optional<BulkWriter.Factory<RowData>> bulkFactory = createBulkWriterFactory(partitionColumns, sd);

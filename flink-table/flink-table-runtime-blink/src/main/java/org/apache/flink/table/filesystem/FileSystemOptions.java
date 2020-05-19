@@ -29,6 +29,35 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  */
 public class FileSystemOptions {
 
+	public static final ConfigOption<String> PATH = key("path")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("The path of a directory");
+
+	public static final ConfigOption<String> PARTITION_DEFAULT_NAME = key("partition.default-name")
+			.stringType()
+			.defaultValue("__DEFAULT_PARTITION__")
+			.withDescription("The default partition name in case the dynamic partition" +
+					" column value is null/empty string");
+
+	public static final ConfigOption<Long> SINK_ROLLING_POLICY_FILE_SIZE = key("sink.rolling-policy.file-size")
+			.longType()
+			.defaultValue(1024L * 1024L * 128L)
+			.withDescription("The maximum part file size before rolling (by default 128MB).");
+
+	public static final ConfigOption<Duration> SINK_ROLLING_POLICY_TIME_INTERVAL = key("sink.rolling-policy.time-interval")
+			.durationType()
+			.defaultValue(Duration.ofMinutes(30))
+			.withDescription("The maximum time duration a part file can stay open before rolling" +
+					" (by default 30 min to avoid to many small files).");
+
+	public static final ConfigOption<Boolean> SINK_SHUFFLE_BY_PARTITION = key("sink.shuffle-by-partition.enable")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription("The option to enable shuffle data by dynamic partition fields in sink" +
+					" phase, this can greatly reduce the number of file for filesystem sink but may" +
+					" lead data skew, the default value is disabled.");
+
 	public static final ConfigOption<Boolean> STREAMING_SOURCE_ENABLE =
 			key("streaming-source.enable")
 					.booleanType()

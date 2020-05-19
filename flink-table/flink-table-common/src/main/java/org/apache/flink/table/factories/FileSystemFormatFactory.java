@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
@@ -32,7 +33,6 @@ import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
  * File system format factory for creating configured instances of reader and writer.
  */
 @Internal
-public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
+public interface FileSystemFormatFactory extends Factory {
 
 	/**
 	 * Create {@link InputFormat} reader.
@@ -68,9 +68,9 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		TableSchema getSchema();
 
 		/**
-		 * Properties of this format.
+		 * Options of this format.
 		 */
-		Map<String, String> getFormatProperties();
+		ReadableConfig getFormatOptions();
 
 		/**
 		 * Partition keys of the table.
@@ -160,9 +160,9 @@ public interface FileSystemFormatFactory extends TableFormatFactory<RowData> {
 		TableSchema getSchema();
 
 		/**
-		 * Properties of this format.
+		 * Options of this format.
 		 */
-		Map<String, String> getFormatProperties();
+		ReadableConfig getFormatOptions();
 
 		/**
 		 * Partition keys of the table.

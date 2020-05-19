@@ -22,12 +22,13 @@ import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -41,16 +42,14 @@ import org.apache.orc.TypeDescription;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 
 import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.filesystem.RowPartitionComputer.restorePartValueFromType;
 
 /**
@@ -58,44 +57,34 @@ import static org.apache.flink.table.filesystem.RowPartitionComputer.restorePart
  */
 public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 
-	/**
-	 * Prefix for orc-related properties, besides format, start with "orc".
-	 * See more in {@link org.apache.orc.OrcConf}.
-	 */
-	public static final String ORC_PROPERTIES_PREFIX = "format.orc";
+	public static final String IDENTIFIER = "orc";
 
 	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(FORMAT, "orc");
-		return context;
+	public String factoryIdentifier() {
+		return IDENTIFIER;
 	}
 
 	@Override
-	public List<String> supportedProperties() {
-		return Collections.singletonList(
-				ORC_PROPERTIES_PREFIX + ".*"
-		);
+	public Set<ConfigOption<?>> requiredOptions() {
+		return new HashSet<>();
 	}
 
-	private static Properties getOrcProperties(DescriptorProperties properties) {
-		Properties conf = new Properties();
-		properties.asMap().keySet()
-				.stream()
-				.filter(key -> key.startsWith(ORC_PROPERTIES_PREFIX))
-				.forEach(key -> {
-					String value = properties.getString(key);
-					String subKey = key.substring((FORMAT + '.').length());
-					conf.put(subKey, value);
-				});
-		return conf;
+	@Override
+	public Set<ConfigOption<?>> optionalOptions() {
+		// support "orc.*"
+		return new HashSet<>();
+	}
+
+	private static Properties getOrcProperties(ReadableConfig options) {
+		Properties orcProperties = new Properties();
+		Properties properties = new Properties();
+		((org.apache.flink.configuration.Configuration) options).addAllToProperties(properties);
+		properties.forEach((k, v) -> orcProperties.put(IDENTIFIER + "." + k, v));
+		return orcProperties;
 	}
 
 	@Override
 	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-		DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(context.getFormatProperties());
-
 		return new OrcRowDataInputFormat(
 				context.getPaths(),
 				context.getSchema().getFieldNames(),
@@ -103,14 +92,11 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 				context.getProjectFields(),
 				context.getDefaultPartName(),
 				context.getPushedDownLimit(),
-				getOrcProperties(properties));
+				getOrcProperties(context.getFormatOptions()));
 	}
 
 	@Override
 	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
-		DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(context.getFormatProperties());
-
 		LogicalType[] orcTypes = Arrays.stream(context.getFormatFieldTypes())
 				.map(DataType::getLogicalType)
 				.toArray(LogicalType[]::new);
@@ -120,7 +106,7 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 
 		OrcBulkWriterFactory<RowData> factory = new OrcBulkWriterFactory<>(
 				new RowDataVectorizer(typeDescription.toString(), orcTypes),
-				getOrcProperties(properties),
+				getOrcProperties(context.getFormatOptions()),
 				new Configuration());
 		return Optional.of(factory);
 	}
@@ -128,11 +114,6 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 	@Override
 	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
 		return Optional.empty();
-	}
-
-	@Override
-	public boolean supportsSchemaDerivation() {
-		return true;
 	}
 
 	/**
