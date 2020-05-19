@@ -31,6 +31,7 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.DataOutputStream;
@@ -74,7 +75,7 @@ class ChannelStateCheckpointWriter {
 		this(
 			startCheckpointItem.getCheckpointId(),
 			startCheckpointItem.getTargetResult(),
-			streamFactory.createCheckpointStateOutputStream(EXCLUSIVE),
+			new NotFlushingCheckpointStateOutputStream(streamFactory.createCheckpointStateOutputStream(EXCLUSIVE)),
 			serializer,
 			onComplete);
 	}
@@ -83,6 +84,15 @@ class ChannelStateCheckpointWriter {
 			long checkpointId,
 			ChannelStateWriteResult result,
 			CheckpointStateOutputStream stream,
+			ChannelStateSerializer serializer,
+			RunnableWithException onComplete) throws Exception {
+		this(checkpointId, result, new NotFlushingCheckpointStateOutputStream(stream), serializer, onComplete);
+	}
+
+	private ChannelStateCheckpointWriter(
+			long checkpointId,
+			ChannelStateWriteResult result,
+			NotFlushingCheckpointStateOutputStream stream,
 			ChannelStateSerializer serializer,
 			RunnableWithException onComplete) throws Exception {
 		this(checkpointId, result, serializer, onComplete, stream, new DataOutputStream(stream));
@@ -206,4 +216,52 @@ class ChannelStateCheckpointWriter {
 		checkpointStream.close();
 	}
 
+	private static class NotFlushingCheckpointStateOutputStream extends CheckpointStateOutputStream {
+		private final CheckpointStateOutputStream delegatee;
+
+		private NotFlushingCheckpointStateOutputStream(CheckpointStateOutputStream delegatee) {
+			this.delegatee = delegatee;
+		}
+
+		@Nullable
+		@Override
+		public StreamStateHandle closeAndGetHandle() throws IOException {
+			return delegatee.closeAndGetHandle();
+		}
+
+		@Override
+		public long getPos() throws IOException {
+			return delegatee.getPos();
+		}
+
+		@Override
+		public void write(int b) throws IOException {
+			delegatee.write(b);
+		}
+
+		@Override
+		public void flush() throws IOException {
+			// do nothing (see https://issues.apache.org/jira/browse/FLINK-17820)
+		}
+
+		@Override
+		public void sync() throws IOException {
+			delegatee.sync();
+		}
+
+		@Override
+		public void close() throws IOException {
+			delegatee.close();
+		}
+
+		@Override
+		public void write(byte[] b) throws IOException {
+			delegatee.write(b);
+		}
+
+		@Override
+		public void write(byte[] b, int off, int len) throws IOException {
+			delegatee.write(b, off, len);
+		}
+	}
 }
