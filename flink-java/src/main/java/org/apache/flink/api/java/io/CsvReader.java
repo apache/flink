@@ -315,7 +315,7 @@ public class CsvReader {
 	 */
 	public <T> DataSource<T> pojoType(Class<T> pojoType, String... pojoFields) {
 		Preconditions.checkNotNull(pojoType, "The POJO type class must not be null.");
-		Preconditions.checkNotNull(pojoFields, "POJO fields must be specified (not null) if output type is a POJO.");
+		Preconditions.checkArgument(pojoFields != null && pojoFields.length > 0, "POJO fields must be specified (not null) if output type is a POJO.");
 
 		final TypeInformation<T> ti = TypeExtractor.createTypeInfo(pojoType);
 		if (!(ti instanceof PojoTypeInfo)) {
