@@ -146,6 +146,8 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 			int toIndex = Math.min(fromIndex + maxMetricsPerRequestValue, totalMetrics);
 			try {
 				client.send(new DSeries(request.getSeries().subList(fromIndex, toIndex)));
+				request.getSeries().subList(fromIndex, toIndex).forEach(DMetric::ackReport);
+				LOGGER.debug("Reported series with size {}.", (toIndex - fromIndex));
 			} catch (SocketTimeoutException e) {
 				LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout: {}", e.getMessage());
 			} catch (Exception e) {
@@ -153,8 +155,6 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 			}
 			fromIndex = toIndex;
 		}
-		LOGGER.debug("Reported series with size {}.", totalMetrics);
-		counters.values().forEach(DCounter::ackReport);
 	}
 
 	private void addGaugesAndUnregisterOnException(DSeries request) {

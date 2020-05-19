@@ -781,11 +781,8 @@ metrics.reporter.dghttp.apikey: xxx
 metrics.reporter.dghttp.tags: myflinkapp,prod
 metrics.reporter.dghttp.proxyHost: my.web.proxy.com
 metrics.reporter.dghttp.proxyPort: 8080
-<<<<<<< HEAD
 metrics.reporter.dhhttp.dataCenter: US
-=======
 metrics.reporter.dhhttp.maxMetricsPerRequest: 2000
->>>>>>> [FLINK-16611] [datadog-metrics] Make number of metrics per request configurable
 
 {% endhighlight %}
 
