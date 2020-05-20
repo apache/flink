@@ -268,7 +268,25 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		);
 	}
 
-	private <C> void testPartitionRelease(PartitionTrackerSetup<C> partitionTrackerSetup, TestAction<C> testAction) throws Exception {
+	private void testPartitionRelease(PartitionTrackerSetup partitionTrackerSetup, TestAction testAction) throws Exception {
+		final TestingTaskExecutorPartitionTracker partitionTracker = new TestingTaskExecutorPartitionTracker();
+		final CompletableFuture<ResultPartitionID> startTrackingFuture = new CompletableFuture<>();
+		partitionTracker.setStartTrackingPartitionsConsumer((jobId, partitionInfo) -> startTrackingFuture.complete(partitionInfo.getResultPartitionId()));
+		partitionTrackerSetup.accept(partitionTracker);
+
+		internalTestPartitionRelease(
+			partitionTracker,
+			new NettyShuffleEnvironmentBuilder().build(),
+			startTrackingFuture,
+			testAction
+		);
+	}
+
+	private void internalTestPartitionRelease(
+			TaskExecutorPartitionTracker partitionTracker,
+			ShuffleEnvironment<?, ?> shuffleEnvironment,
+			CompletableFuture<ResultPartitionID> startTrackingFuture,
+			TestAction testAction) throws Exception {
 
 		final ResultPartitionDeploymentDescriptor taskResultPartitionDescriptor =
 			PartitionTestUtils.createPartitionDeploymentDescriptor(ResultPartitionType.BLOCKING);
@@ -301,8 +319,6 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
-		final ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
-
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setTaskSlotTable(taskSlotTable)
 			.setTaskStateManager(localStateStoresManager)
@@ -325,11 +341,6 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			})
 			.build();
-
-		final TestingTaskExecutorPartitionTracker partitionTracker = new TestingTaskExecutorPartitionTracker();
-		final CompletableFuture<ResultPartitionID> startTrackingFuture = new CompletableFuture<>();
-		partitionTracker.setStartTrackingPartitionsConsumer((jobId, partitionInfo) -> startTrackingFuture.complete(partitionInfo.getResultPartitionId()));
-		partitionTrackerSetup.accept(partitionTracker);
 
 		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker);
 
