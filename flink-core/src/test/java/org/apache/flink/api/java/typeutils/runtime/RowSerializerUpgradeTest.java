@@ -106,7 +106,7 @@ public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row,
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<Row>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<Row>> schemaCompatibilityMatcher(MigrationVersion version) {
 			return TypeSerializerMatchers.isCompatibleAsIs();
 		}
 	}

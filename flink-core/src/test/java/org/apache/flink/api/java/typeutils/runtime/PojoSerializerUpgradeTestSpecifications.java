@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
 
@@ -228,7 +229,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher(MigrationVersion version) {
 			return TypeSerializerMatchers.isCompatibleAsIs();
 		}
 	}
@@ -330,7 +331,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<PojoAfterSchemaUpgrade>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<PojoAfterSchemaUpgrade>> schemaCompatibilityMatcher(MigrationVersion version) {
 			return TypeSerializerMatchers.isCompatibleAfterMigration();
 		}
 	}
@@ -395,7 +396,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<PojoWithStringField>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<PojoWithStringField>> schemaCompatibilityMatcher(MigrationVersion version) {
 			return TypeSerializerMatchers.isIncompatible();
 		}
 	}
@@ -519,7 +520,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<BasePojo>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<BasePojo>> schemaCompatibilityMatcher(MigrationVersion version) {
 			return TypeSerializerMatchers.isCompatibleAfterMigration();
 		}
 	}
@@ -592,7 +593,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher(MigrationVersion version) {
 			return TypeSerializerMatchers.isIncompatible();
 		}
 	}
@@ -631,7 +632,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher(MigrationVersion version) {
 			return TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer();
 		}
 	}
@@ -680,7 +681,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher(MigrationVersion version) {
 			return TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer();
 		}
 	}
@@ -727,7 +728,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher(MigrationVersion version) {
 			return TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer();
 		}
 	}
@@ -772,7 +773,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher(MigrationVersion version) {
 			return TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer();
 		}
 	}
@@ -819,7 +820,7 @@ public class PojoSerializerUpgradeTestSpecifications {
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<StaticSchemaPojo>> schemaCompatibilityMatcher(MigrationVersion version) {
 			return TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer();
 		}
 	}
