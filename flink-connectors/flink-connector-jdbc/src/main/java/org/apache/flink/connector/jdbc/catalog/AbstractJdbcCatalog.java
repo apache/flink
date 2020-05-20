@@ -142,15 +142,11 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 		List<String> pkFields = Arrays.asList(new String[keySeqColumnName.size()]); // initialize size
 		keySeqColumnName.forEach(pkFields::set);
 		if (!pkFields.isEmpty()) {
-			if (pkName == null) {
-				// PK_NAME maybe null according to the javadoc,
-				// generate an unique name for the primary key
-				pkName = "pk_" + String.join("_", pkFields);
-			}
+			// PK_NAME maybe null according to the javadoc, generate an unique name in that case
+			pkName = pkName != null ? pkName : "pk_" + String.join("_", pkFields);
 			return Optional.of(UniqueConstraint.primaryKey(pkName, pkFields));
-		} else {
-			return Optional.empty();
 		}
+		return Optional.empty();
 	}
 
 	// ------ table factory ------
