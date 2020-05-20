@@ -153,6 +153,7 @@ jobs:
       IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
 
   - task: PublishTestResults@2
+    condition: succeededOrFailed()
     inputs:
       testResultsFormat: 'JUnit'
 
