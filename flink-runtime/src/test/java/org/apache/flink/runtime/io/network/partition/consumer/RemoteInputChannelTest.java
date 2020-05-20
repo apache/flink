@@ -58,6 +58,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -1003,6 +1004,56 @@ public class RemoteInputChannelTest {
 			// Submit tasks and wait to finish
 			submitTasksAndWaitForResults(executor,
 				new Callable[] {bufferPoolInteractionsTask, channelInteractionsTask});
+		} catch (Throwable t) {
+			thrown = t;
+		} finally {
+			cleanup(networkBufferPool, executor, null, thrown, inputChannel);
+		}
+	}
+
+	@Test
+	public void testConcurrentGetNextBufferAndRelease() throws Exception {
+		final int numTotalBuffers  = 1_000;
+		final int numExclusiveBuffers = 2;
+		final int numFloatingBuffers = 998;
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(numTotalBuffers, 32, numExclusiveBuffers);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		inputGate.setInputChannels(inputChannel);
+
+		final ExecutorService executor = Executors.newFixedThreadPool(2);
+		Throwable thrown = null;
+		try {
+			BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
+			inputGate.setBufferPool(bufferPool);
+			inputGate.assignExclusiveSegments();
+			inputChannel.requestSubpartition(0);
+
+			for (int i = 0; i < numTotalBuffers; i++) {
+				Buffer buffer = inputChannel.requestBuffer();
+				inputChannel.onBuffer(buffer, i, 0);
+			}
+
+			final Callable<Void> getNextBufferTask = () -> {
+				try {
+					for (int i = 0; i < numTotalBuffers; ++i) {
+						Optional<InputChannel.BufferAndAvailability> bufferAndAvailability = inputChannel.getNextBuffer();
+						bufferAndAvailability.ifPresent(buffer -> buffer.buffer().recycleBuffer());
+					}
+				} catch (Throwable t) {
+					if (!inputChannel.isReleased()) {
+						throw new AssertionError("Exceptions are expected here only if the input channel was released", t);
+					}
+				}
+				return null;
+			};
+
+			final Callable<Void> releaseTask = () -> {
+				inputChannel.releaseAllResources();
+				return null;
+			};
+
+			submitTasksAndWaitForResults(executor, new Callable[] {getNextBufferTask, releaseTask});
 		} catch (Throwable t) {
 			thrown = t;
 		} finally {
