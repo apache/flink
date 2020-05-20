@@ -21,6 +21,7 @@ package org.apache.flink.api.connector.source.mocks;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.core.io.InputStatus;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +53,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	}
 
 	@Override
-	public Status pollNext(SourceOutput<Integer> sourceOutput) throws Exception {
+	public InputStatus pollNext(SourceOutput<Integer> sourceOutput) throws Exception {
 		boolean finished = true;
 		currentSplitIndex = 0;
 		// Find first splits with available records.
@@ -64,10 +65,10 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 		// Read from the split with available record.
 		if (currentSplitIndex < assignedSplits.size()) {
 			sourceOutput.collect(assignedSplits.get(currentSplitIndex).getNext(false)[0]);
-			return Status.AVAILABLE_NOW;
+			return InputStatus.MORE_AVAILABLE;
 		} else {
 			// In case no split has available record, return depending on whether all the splits has finished.
-			return finished ? Status.FINISHED : Status.AVAILABLE_LATER;
+			return finished ? InputStatus.END_OF_INPUT : InputStatus.NOTHING_AVAILABLE;
 		}
 	}
 
