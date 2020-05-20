@@ -76,7 +76,7 @@ public class CheckpointFailureManagerTest extends TestLogger {
 			failureManager.handleJobLevelCheckpointException(new CheckpointException(reason), -1);
 		}
 
-		assertEquals(1, callback.getInvokeCounter());
+		assertEquals(2, callback.getInvokeCounter());
 	}
 
 	@Test
