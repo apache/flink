@@ -60,7 +60,8 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 	public static final int ROW_KIND_OFFSET = 2;
 
-	private static final long serialVersionUID = 1L; // legacy, don't touch
+	// legacy, don't touch until we drop support for 1.9 savepoints
+	private static final long serialVersionUID = 1L;
 
 	private final boolean legacyModeEnabled;
 
@@ -381,7 +382,6 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 		RowSerializerSnapshot(RowSerializer serializerInstance) {
 			super(serializerInstance);
-			this.readVersion = serializerInstance.legacyModeEnabled ? LAST_VERSION_WITHOUT_ROW_KIND : VERSION;
 		}
 
 		@Override
