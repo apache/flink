@@ -19,9 +19,13 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +47,9 @@ import static org.junit.Assert.assertThat;
  * Tests for converting an object to a {@link Expression} via {@link ApiExpressionUtils#objectToExpression(Object)}.
  */
 public class ObjectToExpressionTest {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testListConversion() {
@@ -88,8 +95,31 @@ public class ObjectToExpressionTest {
 				nullOf(DataTypes.NULL())));
 	}
 
+	@Test
+	public void testRowWithDeleteKindConversion() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Unsupported kind 'DELETE' of a row [1]. " +
+			"Only rows with 'INSERT' kind are supported when converting to an expression.");
+		objectToExpression(Row.ofKind(RowKind.DELETE, 1));
+	}
+
+	@Test
+	public void testRowWithUpdateBeforeKindConversion() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Unsupported kind 'UPDATE_BEFORE' of a row [1]. " +
+			"Only rows with 'INSERT' kind are supported when converting to an expression.");
+		objectToExpression(Row.ofKind(RowKind.UPDATE_BEFORE, 1));
+	}
+
+	@Test
+	public void testRowWithUpdateAfterKindConversion() {
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("Unsupported kind 'UPDATE_AFTER' of a row [1]. " +
+			"Only rows with 'INSERT' kind are supported when converting to an expression.");
+		objectToExpression(Row.ofKind(RowKind.UPDATE_AFTER, 1));
+	}
+
 	private static void assertThatEquals(Expression actual, Expression expected) {
 		assertThat(unwrapFromApi(actual), equalTo(unwrapFromApi(expected)));
 	}
-
 }
