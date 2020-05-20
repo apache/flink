@@ -105,7 +105,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 		 * that the serializer upgrade produced with an expected {@link
 		 * TypeSerializerSchemaCompatibility}.
 		 */
-		Matcher<TypeSerializerSchemaCompatibility<UpgradedElementT>> schemaCompatibilityMatcher();
+		Matcher<TypeSerializerSchemaCompatibility<UpgradedElementT>> schemaCompatibilityMatcher(MigrationVersion version);
 	}
 
 	private static class ClassLoaderSafePreUpgradeSetup<PreviousElementT> implements PreUpgradeSetup<PreviousElementT> {
@@ -186,9 +186,9 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 		}
 
 		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<UpgradedElementT>> schemaCompatibilityMatcher() {
+		public Matcher<TypeSerializerSchemaCompatibility<UpgradedElementT>> schemaCompatibilityMatcher(MigrationVersion version) {
 			try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(verifierClassloader)) {
-				return delegateVerifier.schemaCompatibilityMatcher();
+				return delegateVerifier.schemaCompatibilityMatcher(version);
 			} catch (IOException e) {
 				throw new RuntimeException(
 						"Error creating schema compatibility matcher via ClassLoaderSafeUpgradeVerifier.",
@@ -273,13 +273,14 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 			assumeThat(
 					"This test only applies for test specifications that verify an upgraded serializer that is not incompatible.",
 					TypeSerializerSchemaCompatibility.incompatible(),
-					not(testSpecification.verifier.schemaCompatibilityMatcher()));
+					not(testSpecification.verifier.schemaCompatibilityMatcher(testSpecification.migrationVersion)));
 
 			TypeSerializerSnapshot<UpgradedElementT> restoredSerializerSnapshot = snapshotUnderTest();
 
 			TypeSerializer<UpgradedElementT> restoredSerializer = restoredSerializerSnapshot.restoreSerializer();
 			assertSerializerIsValid(
 					restoredSerializer,
+					true,
 					dataUnderTest(),
 					testSpecification.verifier.testDataMatcher());
 		}
@@ -296,7 +297,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 
 			assertThat(
 					upgradeCompatibility,
-					testSpecification.verifier.schemaCompatibilityMatcher());
+					testSpecification.verifier.schemaCompatibilityMatcher(testSpecification.migrationVersion));
 		}
 	}
 
@@ -325,6 +326,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 			// .. and then assert that the upgraded serializer is valid with the migrated data
 			assertSerializerIsValid(
 					upgradedSerializer,
+					false,
 					migratedData,
 					testSpecification.verifier.testDataMatcher());
 		}
@@ -346,6 +348,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 			TypeSerializer<UpgradedElementT> reconfiguredUpgradedSerializer = upgradeCompatibility.getReconfiguredSerializer();
 			assertSerializerIsValid(
 					reconfiguredUpgradedSerializer,
+					false,
 					dataUnderTest(),
 					testSpecification.verifier.testDataMatcher());
 		}
@@ -366,6 +369,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 
 			assertSerializerIsValid(
 					upgradedSerializer,
+					false,
 					dataUnderTest(),
 					testSpecification.verifier.testDataMatcher());
 		}
@@ -378,14 +382,17 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 	 * <p>A serializer is valid, iff:
 	 * <ul>
 	 *     <li>1. The serializer can read and then write again the given serialized data.
-	 *     <li>2. The serializer can produce a serializer snapshot which can be written and then read back again.
+	 *     <li>2. The serializer can produce a serializer snapshot which can be written and then read
+	 *            back again.
 	 *     <li>3. The serializer's produced snapshot is capable of creating a restore serializer.
 	 *     <li>4. The restore serializer created from the serializer snapshot can read and then
-	 *            write again data written by step 1.
+	 *            write again data written by step 1. Given that the serializer is not a restore
+	 *            serializer already.
 	 * </ul>
 	 */
 	private static <T> void assertSerializerIsValid(
 			TypeSerializer<T> serializer,
+			boolean isRestoreSerializer,
 			DataInputView dataInput,
 			Matcher<T> testDataMatcher) throws Exception {
 
@@ -394,9 +401,11 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 				serializer,
 				serializer,
 				testDataMatcher);
-		TypeSerializerSnapshot<T> snapshot = writeAndThenReadSerializerSnapshot(serializer);
-		TypeSerializer<T> restoreSerializer = snapshot.restoreSerializer();
-		readAndThenWriteData(serializedData, restoreSerializer, restoreSerializer, testDataMatcher);
+		if (!isRestoreSerializer) {
+			TypeSerializerSnapshot<T> snapshot = writeAndThenReadSerializerSnapshot(serializer);
+			TypeSerializer<T> restoreSerializer = snapshot.restoreSerializer();
+			readAndThenWriteData(serializedData, restoreSerializer, restoreSerializer, testDataMatcher);
+		}
 	}
 
 	// ------------------------------------------------------------------------------
