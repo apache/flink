@@ -46,6 +46,11 @@ public enum JavaGcCleanerWrapper {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JavaGcCleanerWrapper.class);
 
+	private static final Class<?>[] LEGACY_WAIT_FOR_REFERENCE_PROCESSING_ARG_TYPES = { Boolean.TYPE };
+	private static final Object[] LEGACY_WAIT_FOR_REFERENCE_PROCESSING_ARGS = { false };
+	private static final Class<?>[] JAVA9_WAIT_FOR_REFERENCE_PROCESSING_ARG_TYPES = { };
+	private static final Object[] JAVA9_WAIT_FOR_REFERENCE_PROCESSING_ARGS = { };
+
 	private static final Collection<CleanerProvider> CLEANER_PROVIDERS =
 		Arrays.asList(createLegacyCleanerProvider(), createJava9CleanerProvider());
 	private static final CleanerManager CLEANER_MANAGER = findGcCleanerManager();
@@ -63,8 +68,7 @@ public enum JavaGcCleanerWrapper {
 		// }
 		//
 		// public static boolean tryRunPendingCleaners() throws InterruptedException {
-		//     sun.misc.JavaLangRefAccess javaLangRefAccess = sun.misc.SharedSecrets.getJavaLangRefAccess();
-		//	   return javaLangRefAccess.tryHandlePendingReference();
+		//	   return java.lang.ref.Reference.tryHandlePending(false);
 		// }
 		//
 		return new CleanerProvider(
@@ -80,10 +84,9 @@ public enum JavaGcCleanerWrapper {
 			new PendingCleanersRunnerProvider(
 				name,
 				reflectionUtils,
-				"sun.misc.SharedSecrets",
-				"sun.misc.JavaLangRefAccess",
-				"getJavaLangRefAccess",
-				"tryHandlePendingReference"));
+				"tryHandlePending",
+				LEGACY_WAIT_FOR_REFERENCE_PROCESSING_ARGS,
+				LEGACY_WAIT_FOR_REFERENCE_PROCESSING_ARG_TYPES));
 	}
 
 	private static CleanerProvider createJava9CleanerProvider() {
@@ -100,8 +103,7 @@ public enum JavaGcCleanerWrapper {
 		// }
 		//
 		// public static boolean tryRunPendingCleaners() throws InterruptedException {
-		//     jdk.internal.misc.JavaLangRefAccess javaLangRefAccess = jdk.internal.misc.SharedSecrets.getJavaLangRefAccess();
-		//	   return javaLangRefAccess.waitForReferenceProcessing();
+		//     return java.lang.ref.Reference.waitForReferenceProcessing();
 		// }
 		//
 		return new CleanerProvider(
@@ -125,10 +127,9 @@ public enum JavaGcCleanerWrapper {
 			new PendingCleanersRunnerProvider(
 				name,
 				reflectionUtils,
-				"jdk.internal.misc.SharedSecrets",
-				"jdk.internal.misc.JavaLangRefAccess",
-				"getJavaLangRefAccess",
-				"waitForReferenceProcessing"));
+				"waitForReferenceProcessing",
+				JAVA9_WAIT_FOR_REFERENCE_PROCESSING_ARGS,
+				JAVA9_WAIT_FOR_REFERENCE_PROCESSING_ARG_TYPES));
 	}
 
 	private static CleanerManager findGcCleanerManager() {
@@ -300,36 +301,34 @@ public enum JavaGcCleanerWrapper {
 	}
 
 	private static class PendingCleanersRunnerProvider {
+		private static final String REFERENCE_CLASS = "java.lang.ref.Reference";
 		private final String cleanerName;
 		private final ReflectionUtils reflectionUtils;
-		private final String sharedSecretsClassName;
-		private final String javaLangRefAccessClassName;
-		private final String getJavaLangRefAccessName;
-		private final String tryHandlePendingReferenceName;
+		private final String waitForReferenceProcessingName;
+		private final Object[] waitForReferenceProcessingArgs;
+		private final Class<?>[] waitForReferenceProcessingArgTypes;
 
 		private PendingCleanersRunnerProvider(
-				String cleanerName,
-				ReflectionUtils reflectionUtils,
-				String sharedSecretsClassName,
-				String javaLangRefAccessClassName,
-				String getJavaLangRefAccessName,
-				String tryHandlePendingReferenceName) {
+			String cleanerName,
+			ReflectionUtils reflectionUtils,
+			String waitForReferenceProcessingName,
+			Object[] waitForReferenceProcessingArgs,
+			Class<?>[] waitForReferenceProcessingArgTypes) {
 			this.cleanerName = cleanerName;
 			this.reflectionUtils = reflectionUtils;
-			this.sharedSecretsClassName = sharedSecretsClassName;
-			this.javaLangRefAccessClassName = javaLangRefAccessClassName;
-			this.getJavaLangRefAccessName = getJavaLangRefAccessName;
-			this.tryHandlePendingReferenceName = tryHandlePendingReferenceName;
+			this.waitForReferenceProcessingName = waitForReferenceProcessingName;
+			this.waitForReferenceProcessingArgs = waitForReferenceProcessingArgs;
+			this.waitForReferenceProcessingArgTypes = waitForReferenceProcessingArgTypes;
 		}
 
 		private PendingCleanersRunner createPendingCleanersRunner() {
-			Class<?> sharedSecretsClass = reflectionUtils.findClass(sharedSecretsClassName);
-			Class<?> javaLangRefAccessClass = reflectionUtils.findClass(javaLangRefAccessClassName);
-			Method getJavaLangRefAccessMethod = reflectionUtils.findMethod(sharedSecretsClass, getJavaLangRefAccessName);
-			Method tryHandlePendingReferenceMethod = reflectionUtils.findMethod(
-				javaLangRefAccessClass,
-				tryHandlePendingReferenceName);
-			return new PendingCleanersRunner(getJavaLangRefAccessMethod, tryHandlePendingReferenceMethod);
+			Class<?> referenceClass = reflectionUtils.findClass(REFERENCE_CLASS);
+			Method waitForReferenceProcessingMethod = reflectionUtils.findMethod(
+				referenceClass,
+				waitForReferenceProcessingName,
+				waitForReferenceProcessingArgTypes);
+			waitForReferenceProcessingMethod.setAccessible(true);
+			return new PendingCleanersRunner(waitForReferenceProcessingMethod, waitForReferenceProcessingArgs);
 		}
 
 		@Override
@@ -339,29 +338,20 @@ public enum JavaGcCleanerWrapper {
 	}
 
 	private static class PendingCleanersRunner {
-		private final Method getJavaLangRefAccessMethod;
 		private final Method waitForReferenceProcessingMethod;
+		private final Object[] waitForReferenceProcessingArgs;
 
-		private PendingCleanersRunner(Method getJavaLangRefAccessMethod, Method waitForReferenceProcessingMethod) {
-			this.getJavaLangRefAccessMethod = getJavaLangRefAccessMethod;
+		private PendingCleanersRunner(Method waitForReferenceProcessingMethod, Object[] waitForReferenceProcessingArgs) {
 			this.waitForReferenceProcessingMethod = waitForReferenceProcessingMethod;
+			this.waitForReferenceProcessingArgs = waitForReferenceProcessingArgs;
 		}
 
 		private boolean tryRunPendingCleaners() throws InterruptedException {
-			Object javaLangRefAccess = getJavaLangRefAccess();
 			try {
-				return (Boolean) waitForReferenceProcessingMethod.invoke(javaLangRefAccess);
+				return (Boolean) waitForReferenceProcessingMethod.invoke(null, waitForReferenceProcessingArgs);
 			} catch (IllegalAccessException | InvocationTargetException e) {
 				throwIfCauseIsInterruptedException(e);
-				return throwInvocationError(e, javaLangRefAccess, waitForReferenceProcessingMethod);
-			}
-		}
-
-		private Object getJavaLangRefAccess() {
-			try {
-				return getJavaLangRefAccessMethod.invoke(null);
-			} catch (IllegalAccessException | InvocationTargetException e) {
-				return throwInvocationError(e, null, waitForReferenceProcessingMethod);
+				return throwInvocationError(e, waitForReferenceProcessingMethod);
 			}
 		}
 
@@ -373,10 +363,10 @@ public enum JavaGcCleanerWrapper {
 			}
 		}
 
-		private static <T> T throwInvocationError(Throwable t, @Nullable Object obj, Method method) {
+		private static <T> T throwInvocationError(Throwable t, Method method) {
 			String message = String.format(
-				"FATAL UNEXPECTED - Failed to invoke %s%s",
-				obj == null ? "" : obj.getClass().getSimpleName() + '#',
+				"FATAL UNEXPECTED - Failed to invoke %s#%s",
+				PendingCleanersRunnerProvider.REFERENCE_CLASS,
 				method.getName());
 			LOG.error(message, t);
 			throw new Error(message, t);
@@ -402,7 +392,7 @@ public enum JavaGcCleanerWrapper {
 
 		private Method findMethod(Class<?> cl, String methodName, Class<?>... parameterTypes) {
 			try {
-				return cl.getMethod(methodName, parameterTypes);
+				return cl.getDeclaredMethod(methodName, parameterTypes);
 			} catch (NoSuchMethodException e) {
 				throw new FlinkRuntimeException(
 					String.format("%s: Failed to find %s#%s method", logPrefix, cl.getSimpleName(), methodName),
