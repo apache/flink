@@ -130,16 +130,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	@Override
 	@SuppressWarnings("unchecked")
 	public InputStatus emitNext(DataOutput<OUT> output) throws Exception {
-		switch (sourceReader.pollNext((SourceOutput<OUT>) output)) {
-			case AVAILABLE_NOW:
-				return InputStatus.MORE_AVAILABLE;
-			case AVAILABLE_LATER:
-				return InputStatus.NOTHING_AVAILABLE;
-			case FINISHED:
-				return InputStatus.END_OF_INPUT;
-			default:
-				throw new IllegalStateException("Should never reach here");
-		}
+		return sourceReader.pollNext((SourceOutput<OUT>) output);
 	}
 
 	@Override
