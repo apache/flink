@@ -258,6 +258,11 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 	public static final String PG_CHARACTER_VARYING = "varchar";
 	public static final String PG_CHARACTER_VARYING_ARRAY = "_varchar";
 
+	/**
+	 * Converts Postgres type to Flink {@link DataType}.
+	 *
+	 * @see org.postgresql.jdbc.TypeInfoCache
+	 */
 	private DataType fromJDBCType(ResultSetMetaData metadata, int colIndex) throws SQLException {
 		String pgType = metadata.getColumnTypeName(colIndex);
 
