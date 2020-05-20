@@ -148,7 +148,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 				DSeries chunk = new DSeries(request.getSeries().subList(fromIndex, toIndex));
 				client.send(chunk);
 				chunk.forEach(DMetric::ackReport);
-				LOGGER.debug("Reported series with size {}.", (toIndex - fromIndex));
+				LOGGER.debug("Reported series with size {}.", chunk.size());
 			} catch (SocketTimeoutException e) {
 				LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout: {}", e.getMessage());
 			} catch (Exception e) {
