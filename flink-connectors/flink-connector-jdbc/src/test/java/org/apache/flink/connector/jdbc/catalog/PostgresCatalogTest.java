@@ -70,7 +70,11 @@ public class PostgresCatalogTest extends PostgresCatalogTestBase {
 	public void testListTables() throws DatabaseNotExistException {
 		List<String> actual = catalog.listTables(PostgresCatalog.DEFAULT_DATABASE);
 
-		assertEquals(Arrays.asList("public.dt", "public.dt2", "public.t1", "public.t4", "public.t5"), actual);
+		assertEquals(
+			Arrays.asList(
+				"public.array_table", "public.primitive_table", "public.primitive_table2",
+				"public.t1", "public.t4", "public.t5"),
+			actual);
 
 		actual = catalog.listTables(TEST_DB);
 

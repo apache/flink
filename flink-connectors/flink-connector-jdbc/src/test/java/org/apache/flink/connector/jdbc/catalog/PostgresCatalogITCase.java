@@ -20,7 +20,7 @@ package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -69,16 +69,37 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 	}
 
 	@Test
-	public void test_insert() throws Exception {
+	public void testInsert() {
 		TableEnvironment tEnv = getTableEnvWithPgCatalog();
 
-		TableResult tableResult = tEnv.executeSql(String.format("insert into %s select * from `%s`", TABLE4, TABLE1));
-		// wait to finish
-		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+		TableEnvUtil.execInsertSqlAndWaitResult(
+			tEnv,
+			String.format("insert into %s select * from `%s`", TABLE4, TABLE1));
 
 		List<Row> results = Lists.newArrayList(
-			tEnv.sqlQuery(String.format("select * from %s", TABLE1)).execute().collect());
+			tEnv.sqlQuery(String.format("select * from %s", TABLE4)).execute().collect());
 		assertEquals("[1]", results.toString());
+	}
+
+	@Test
+	public void testGroupByInsert() {
+		TableEnvironment tEnv = getTableEnvWithPgCatalog();
+
+		TableEnvUtil.execInsertSqlAndWaitResult(
+			tEnv,
+			String.format(
+				"insert into `%s` " +
+					"select `int`, cast('A' as bytes), `short`, max(`long`), max(`real`), " +
+					"max(`double_precision`), max(`numeric`), max(`boolean`), max(`text`), " +
+					"'B', 'C', max(`character_varying`), " +
+					"max(`timestamp`), max(`date`), max(`time`), max(`default_numeric`) " +
+					"from `%s` group by `int`, `short`",
+				TABLE_PRIMITIVE_TYPE2,
+				TABLE_PRIMITIVE_TYPE));
+
+		List<Row> results = Lists.newArrayList(
+			tEnv.sqlQuery(String.format("select * from `%s`", TABLE_PRIMITIVE_TYPE2)).execute().collect());
+		assertEquals("[1,[65],3,4,5.5,6.6,7.70000,true,a,B,C  ,d,2016-06-22T19:10:25,2015-01-01,00:51:03,500.000000000000000000]", results.toString());
 	}
 
 	@Test
