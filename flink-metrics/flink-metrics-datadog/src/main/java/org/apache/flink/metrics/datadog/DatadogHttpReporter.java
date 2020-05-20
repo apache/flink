@@ -56,6 +56,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 	private DatadogHttpClient client;
 	private List<String> configTags;
+	private int maxMetricsPerRequestValue;
 
 	private final Clock clock = () -> System.currentTimeMillis() / 1000L;
 
@@ -64,6 +65,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	public static final String PROXY_PORT = "proxyPort";
 	public static final String DATA_CENTER = "dataCenter";
 	public static final String TAGS = "tags";
+	public static final String MAX_METRICS_PER_REQUEST = "maxMetricsPerRequest";
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
@@ -113,6 +115,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		String proxyHost = config.getString(PROXY_HOST, null);
 		Integer proxyPort = config.getInteger(PROXY_PORT, 8080);
 		String rawDataCenter = config.getString(DATA_CENTER, "US");
+		maxMetricsPerRequestValue = config.getInteger(MAX_METRICS_PER_REQUEST, 2000);
 		DataCenter dataCenter = DataCenter.valueOf(rawDataCenter);
 		String tags = config.getString(TAGS, "");
 
@@ -120,7 +123,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 		configTags = getTagsFromConfig(tags);
 
-		LOGGER.info("Configured DatadogHttpReporter with {tags={}, proxyHost={}, proxyPort={}, dataCenter={}", tags, proxyHost, proxyPort, dataCenter);
+		LOGGER.info("Configured DatadogHttpReporter with {tags={}, proxyHost={}, proxyPort={}, dataCenter={}, maxMetricsPerRequest={}", tags, proxyHost, proxyPort, dataCenter, maxMetricsPerRequestValue);
 	}
 
 	@Override
@@ -137,14 +140,21 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		counters.values().forEach(request::addCounter);
 		meters.values().forEach(request::addMeter);
 
-		try {
-			client.send(request);
-			counters.values().forEach(DCounter::ackReport);
-			LOGGER.debug("Reported series with size {}.", request.getSeries().size());
-		} catch (SocketTimeoutException e) {
-			LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout: {}", e.getMessage());
-		} catch (Exception e) {
-			LOGGER.warn("Failed reporting metrics to Datadog.", e);
+		int totalMetrics = request.getSeries().size();
+		int fromIndex = 0;
+		while (fromIndex < totalMetrics) {
+			int toIndex = Math.min(fromIndex + maxMetricsPerRequestValue, totalMetrics);
+			try {
+				DSeries chunk = new DSeries(request.getSeries().subList(fromIndex, toIndex));
+				client.send(chunk);
+				chunk.getSeries().forEach(DMetric::ackReport);
+				LOGGER.debug("Reported series with size {}.", chunk.getSeries().size());
+			} catch (SocketTimeoutException e) {
+				LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout: {}", e.getMessage());
+			} catch (Exception e) {
+				LOGGER.warn("Failed reporting metrics to Datadog.", e);
+			}
+			fromIndex = toIndex;
 		}
 	}
 
