@@ -156,21 +156,29 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 		final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
 		final SourceFunction<RowData> sourceFunction = sourceFunctionProvider.createSourceFunction();
 		assertThat(sourceFunction, instanceOf(getExpectedConsumerClass()));
-
-		// Test commitOnCheckpoint should be false if did not set consumer group.
+		//  Test commitOnCheckpoints flag should be true when set consumer group
 		assertTrue(((FlinkKafkaConsumerBase) sourceFunction).getEnableCommitOnCheckpoints());
+	}
 
-		Properties propsWithoutGroupId = new Properties();
-		propsWithoutGroupId.put("bootstrap.servers", "dummy");
-		final KafkaDynamicSourceBase sourceWithoutGroupId = getExpectedScanSource(
-			producedDataType,
-			TOPIC,
-			propsWithoutGroupId,
-			scanFormat,
-			StartupMode.SPECIFIC_OFFSETS,
-			specificOffsets,
-			0);
-		ScanTableSource.ScanRuntimeProvider providerWithoutGroupId = sourceWithoutGroupId
+	@Test
+	public void testTableSourceCommitOnCheckpointsDisabled() {
+		//Construct table source using options and table source factory
+		ObjectIdentifier objectIdentifier = ObjectIdentifier.of(
+			"default",
+			"default",
+			"scanTable");
+		Map<String, String> tableOptions = getFullSourceOptions();
+		tableOptions.remove("properties.group.id");
+		CatalogTable catalogTable = createKafkaSourceCatalogTable(tableOptions);
+		final DynamicTableSource tableSource = FactoryUtil.createTableSource(null,
+			objectIdentifier,
+			catalogTable,
+			new Configuration(),
+			Thread.currentThread().getContextClassLoader());
+
+		// Test commitOnCheckpoints flag should be false when do not set consumer group.
+		assertThat(tableSource, instanceOf(KafkaDynamicSourceBase.class));
+		ScanTableSource.ScanRuntimeProvider providerWithoutGroupId = ((KafkaDynamicSourceBase) tableSource)
 			.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
 		assertThat(providerWithoutGroupId, instanceOf(SourceFunctionProvider.class));
 		final SourceFunctionProvider functionProviderWithoutGroupId = (SourceFunctionProvider) providerWithoutGroupId;
