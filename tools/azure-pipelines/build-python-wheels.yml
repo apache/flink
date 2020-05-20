@@ -24,7 +24,6 @@ jobs:
       # Compile
       - script: |
           ${{parameters.environment}} ./tools/ci/compile.sh
-          ./tools/azure-pipelines/create_build_artifact.sh
         displayName: Compile
 
       - script: |
@@ -33,14 +32,13 @@ jobs:
         name: set_version
 
       - script: |
-          cd $(Pipeline.Workspace)
-          tar czf $(Pipeline.Workspace)/flink.tar.gz flink_cache/flink-dist/target/flink-$(set_version.VERSION)-bin/flink-$(set_version.VERSION)
+          tar czf $(Pipeline.Workspace)/flink.tar.gz flink-dist/target/flink-$(set_version.VERSION)-bin/flink-$(set_version.VERSION)
         displayName: Compress in tgz
 
       # upload artifacts for building wheels
       - task: PublishPipelineArtifact@1
         inputs:
-          path: $(FLINK_ARTIFACT_DIR)
+          targetPath: $(Pipeline.Workspace)/flink.tar.gz
           artifact: FlinkCompileArtifact-${{parameters.stage_name}}
 
   - job: build_wheels
@@ -64,7 +62,7 @@ jobs:
       - script: |
           tar zxf $(Pipeline.Workspace)/flink.tar.gz -C $(Pipeline.Workspace)
           mkdir -p flink-dist/target/flink-$(VERSION)-bin
-          ln -snf $(CACHE_FLINK_DIR)/flink-dist/target/flink-$(VERSION)-bin/flink-$(VERSION) `pwd`/flink-dist/target/flink-$(VERSION)-bin/flink-$(VERSION)
+          ln -snf $(Pipeline.Workspace)/flink-dist/target/flink-$(VERSION)-bin/flink-$(VERSION) `pwd`/flink-dist/target/flink-$(VERSION)-bin/flink-$(VERSION)
         displayName: Recreate 'flink-dist/target' symlink
       - script: |
           cd flink-python
