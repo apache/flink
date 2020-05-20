@@ -36,7 +36,7 @@ under the License.
 
 ### 初识 Flink
 
-通过 **Docker Playgrounds** 提供沙箱的Flink环境，你只需花几分钟做些简单设置，就可以开始探索和使用 Flink。
+通过 **Docker Playgrounds** 提供沙箱的 Flink 环境，你只需花几分钟做些简单设置，就可以开始探索和使用 Flink。
 
 * [**Flink Operations Playground**](./docker-playgrounds/flink-operations-playground.html) 向你展示如何使用 Flink 编写数据流应用程序。你可以体验 Flink 如何从故障中恢复应用程序，升级、提高并行度、降低并行度和监控运行的状态指标等特性。
 
