@@ -321,6 +321,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 	 */
 	private class ServerThread extends Thread {
 
+		private final TypeSerializer<IN> serializer;
 		private final ServerSocket serverSocket;
 
 		private boolean running;
@@ -330,6 +331,8 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		private DataOutputViewStreamWrapper outStream;
 
 		private ServerThread() throws Exception {
+			// serializers are not thread safe
+			this.serializer = CollectSinkFunction.this.serializer.duplicate();
 			this.serverSocket = new ServerSocket(0, 0, getBindAddress());
 			this.running = true;
 		}
