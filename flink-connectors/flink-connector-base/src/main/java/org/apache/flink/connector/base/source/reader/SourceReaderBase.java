@@ -29,6 +29,7 @@ import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
+import org.apache.flink.core.io.InputStatus;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,7 +111,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	}
 
 	@Override
-	public Status pollNext(SourceOutput<T> sourceOutput) throws Exception {
+	public InputStatus pollNext(SourceOutput<T> sourceOutput) throws Exception {
 		splitFetcherManager.checkErrors();
 		// poll from the queue if the last element was successfully handled. Otherwise
 		// just pass the last element again.
@@ -120,7 +121,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 			recordsWithSplitId = elementsQueue.poll();
 		}
 
-		Status status;
+		InputStatus status;
 		if (newFetch && recordsWithSplitId == null) {
 			// No element available, set to available later if needed.
 			status = finishedOrAvailableLater();
@@ -146,7 +147,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 				status = finishedOrAvailableLater();
 			} else {
 				// There are more records from the current splitIter.
-				status = Status.AVAILABLE_NOW;
+				status = InputStatus.MORE_AVAILABLE;
 			}
 		}
 		LOG.trace("Source reader status: {}", status);
@@ -223,13 +224,13 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 	// ------------------ private helper methods ---------------------
 
-	private Status finishedOrAvailableLater() {
+	private InputStatus finishedOrAvailableLater() {
 		boolean allFetchersHaveShutdown = splitFetcherManager.maybeShutdownFinishedFetchers();
 		boolean allElementsEmitted = elementsQueue.isEmpty() && (splitIter == null || !splitIter.hasNext());
 		if (noMoreSplitsAssignment && allFetchersHaveShutdown && allElementsEmitted) {
-			return Status.FINISHED;
+			return InputStatus.END_OF_INPUT;
 		} else {
-			return Status.AVAILABLE_LATER;
+			return InputStatus.NOTHING_AVAILABLE;
 		}
 	}
 }

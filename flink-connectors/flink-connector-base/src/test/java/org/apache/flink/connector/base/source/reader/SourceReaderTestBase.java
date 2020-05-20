@@ -23,6 +23,7 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -106,7 +107,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 		// Consumer all the records in the s;oit.
 		try (SourceReader<Integer, SplitT> reader = consumeRecords(splits, output, NUM_RECORDS_PER_SPLIT)) {
 			// Now let the main thread poll again.
-			assertEquals("The status should be ", SourceReader.Status.AVAILABLE_LATER, reader.pollNext(output));
+			assertEquals("The status should be ", InputStatus.NOTHING_AVAILABLE, reader.pollNext(output));
 		}
 	}
 
