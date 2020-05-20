@@ -117,7 +117,6 @@ public class CheckpointFailureManager {
 			case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
 
 			case EXCEPTION:
-			case CHECKPOINT_EXPIRED:
 			case TASK_FAILURE:
 			case TASK_CHECKPOINT_FAILURE:
 			case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
@@ -127,6 +126,7 @@ public class CheckpointFailureManager {
 				break;
 
 			case CHECKPOINT_DECLINED:
+			case CHECKPOINT_EXPIRED:
 				//we should make sure one checkpoint only be counted once
 				if (countedCheckpointIds.add(checkpointId)) {
 					continuousFailureCounter.incrementAndGet();
