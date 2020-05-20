@@ -396,7 +396,14 @@ public class DataTypeExtractorTest {
 			// method with generic return type
 			TestSpec
 				.forMethodOutput(IntegerVarArg.class)
-				.expectDataType(DataTypes.INT())
+				.expectDataType(DataTypes.INT()),
+
+			// structured type with invalid constructor
+			TestSpec
+				.forType(SimplePojoWithInvalidConstructor.class)
+				.expectErrorMessage(
+					"Class '" + SimplePojoWithInvalidConstructor.class.getName() + "' has neither a " +
+						"constructor that assigns all fields nor a default constructor.")
 		);
 	}
 
@@ -551,13 +558,14 @@ public class DataTypeExtractorTest {
 		builder.setInstantiable(true);
 		final StructuredType structuredType = builder.build();
 
-		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("intField", DataTypes.INT());
-		fields.put("primitiveBooleanField", DataTypes.BOOLEAN().notNull().bridgedTo(boolean.class));
-		fields.put("primitiveIntField", DataTypes.INT().notNull().bridgedTo(int.class));
-		fields.put("stringField", DataTypes.STRING());
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.INT(),
+			DataTypes.BOOLEAN().notNull().bridgedTo(boolean.class),
+			DataTypes.INT().notNull().bridgedTo(int.class),
+			DataTypes.STRING()
+		);
 
-		return new FieldsDataType(structuredType, simplePojoClass, fields);
+		return new FieldsDataType(structuredType, simplePojoClass, fieldDataTypes);
 	}
 
 	/**
@@ -580,12 +588,13 @@ public class DataTypeExtractorTest {
 		builder.setInstantiable(true);
 		final StructuredType structuredType = builder.build();
 
-		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("mapField", DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()));
-		fields.put("simplePojoField", getSimplePojoDataType(simplePojoClass));
-		fields.put("someObject", DataTypes.RAW(new GenericTypeInfo<>(Object.class)));
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()),
+			getSimplePojoDataType(simplePojoClass),
+			DataTypes.RAW(new GenericTypeInfo<>(Object.class))
+		);
 
-		return new FieldsDataType(structuredType, complexPojoClass, fields);
+		return new FieldsDataType(structuredType, complexPojoClass, fieldDataTypes);
 	}
 
 	/**
@@ -608,12 +617,13 @@ public class DataTypeExtractorTest {
 		builder.setInstantiable(true);
 		final StructuredType structuredType = builder.build();
 
-		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("z", DataTypes.BIGINT());
-		fields.put("y", DataTypes.BOOLEAN());
-		fields.put("x", DataTypes.INT());
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.BIGINT(),
+			DataTypes.BOOLEAN(),
+			DataTypes.INT()
+		);
 
-		return new FieldsDataType(structuredType, pojoClass, fields);
+		return new FieldsDataType(structuredType, pojoClass, fieldDataTypes);
 	}
 
 	private static DataType getOuterTupleDataType() {
@@ -630,11 +640,12 @@ public class DataTypeExtractorTest {
 		builder.setInstantiable(true);
 		final StructuredType structuredType = builder.build();
 
-		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("f0", DataTypes.INT());
-		fields.put("f1", getInnerTupleDataType());
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.INT(),
+			getInnerTupleDataType()
+		);
 
-		return new FieldsDataType(structuredType, Tuple2.class, fields);
+		return new FieldsDataType(structuredType, Tuple2.class, fieldDataTypes);
 	}
 
 	private static DataType getInnerTupleDataType() {
@@ -651,11 +662,12 @@ public class DataTypeExtractorTest {
 		builder.setInstantiable(true);
 		final StructuredType structuredType = builder.build();
 
-		final Map<String, DataType> fields = new HashMap<>();
-		fields.put("f0", DataTypes.STRING());
-		fields.put("f1", DataTypes.BOOLEAN());
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.STRING(),
+			DataTypes.BOOLEAN()
+		);
 
-		return new FieldsDataType(structuredType, Tuple2.class, fields);
+		return new FieldsDataType(structuredType, Tuple2.class, fieldDataTypes);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -941,5 +953,21 @@ public class DataTypeExtractorTest {
 
 	private static class RawTypeSpecific extends RawTypeGeneric {
 		// nothing to do
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Default constructor is missing.
+	 */
+	public static class SimplePojoWithInvalidConstructor {
+		public Integer intField;
+		public boolean primitiveBooleanField;
+		public int primitiveIntField;
+		public String stringField;
+
+		public SimplePojoWithInvalidConstructor(Integer intField) {
+			this.intField = intField;
+		}
 	}
 }

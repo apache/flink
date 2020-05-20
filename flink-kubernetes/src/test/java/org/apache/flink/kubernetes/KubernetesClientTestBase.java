@@ -30,7 +30,6 @@ import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.ServiceStatus;
 import io.fabric8.kubernetes.api.model.ServiceStatusBuilder;
-import org.junit.Before;
 
 import javax.annotation.Nullable;
 
@@ -44,11 +43,6 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
 
 	protected static final int REST_PORT = 9021;
 	protected static final int NODE_PORT = 31234;
-
-	@Before
-	public void setup() throws Exception {
-		super.setup();
-	}
 
 	protected void mockExpectedServiceFromServerSide(Service expectedService) {
 		final String serviceName = expectedService.getMetadata().getName();

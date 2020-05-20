@@ -32,7 +32,7 @@ public class JavaGcCleanerWrapperTest {
 	@Test
 	public void testCleanOperationRunsOnlyOnceEitherOnGcOrExplicitly() throws InterruptedException {
 		AtomicInteger callCounter = new AtomicInteger();
-		Runnable cleaner = JavaGcCleanerWrapper.create(new Object(), callCounter::incrementAndGet);
+		Runnable cleaner = JavaGcCleanerWrapper.createCleaner(new Object(), callCounter::incrementAndGet);
 		System.gc(); // not guaranteed to be run always but should in practice
 		Thread.sleep(10); // more chance for GC to run
 		cleaner.run();

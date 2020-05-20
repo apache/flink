@@ -86,7 +86,7 @@ public abstract class ConnectTableDescriptor
 		if (schemaDescriptor == null) {
 			throw new TableException(
 				"Table schema must be explicitly defined. To derive schema from the underlying connector" +
-					" use registerTableSource/registerTableSink/registerTableSourceAndSink.");
+					" use registerTableSourceInternal/registerTableSinkInternal/registerTableSourceAndSink.");
 		}
 
 		registration.createTemporaryTable(path, CatalogTableImpl.fromProperties(toProperties()));

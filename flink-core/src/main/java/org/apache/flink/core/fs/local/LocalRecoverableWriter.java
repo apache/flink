@@ -77,7 +77,7 @@ public class LocalRecoverableWriter implements RecoverableWriter {
 
 	@Override
 	public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
-		throw new UnsupportedOperationException();
+		return false;
 	}
 
 	@Override
@@ -116,7 +116,6 @@ public class LocalRecoverableWriter implements RecoverableWriter {
 
 	@VisibleForTesting
 	static File generateStagingTempFilePath(File targetFile) {
-		checkArgument(targetFile.isAbsolute(), "targetFile must be absolute");
 		checkArgument(!targetFile.isDirectory(), "targetFile must not be a directory");
 
 		final File parent = targetFile.getParentFile();

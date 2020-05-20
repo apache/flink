@@ -35,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
+import static org.apache.flink.util.CloseableIterator.ofElements;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -47,14 +48,16 @@ public class ChannelStateWriterImplTest {
 	private static final long CHECKPOINT_ID = 42L;
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testAddEventBuffer() {
+	public void testAddEventBuffer() throws Exception {
+
 		NetworkBuffer dataBuf = getBuffer();
 		NetworkBuffer eventBuf = getBuffer();
 		eventBuf.setDataType(Buffer.DataType.EVENT_BUFFER);
-		ChannelStateWriterImpl writer = openWriter();
-		callStart(writer);
 		try {
-			writer.addInputData(CHECKPOINT_ID, new InputChannelInfo(1, 1), 1, eventBuf, dataBuf);
+			runWithSyncWorker(writer -> {
+				callStart(writer);
+				writer.addInputData(CHECKPOINT_ID, new InputChannelInfo(1, 1), 1, ofElements(Buffer::recycleBuffer, eventBuf, dataBuf));
+			});
 		} finally {
 			assertTrue(dataBuf.isRecycled());
 		}
@@ -80,7 +83,7 @@ public class ChannelStateWriterImplTest {
 		try (ChannelStateWriterImpl writer = openWriter()) {
 			callStart(writer);
 			writer.getWriteResult(CHECKPOINT_ID);
-			writer.notifyCheckpointComplete(CHECKPOINT_ID);
+			writer.stop(CHECKPOINT_ID);
 			writer.getWriteResult(CHECKPOINT_ID);
 		}
 	}
@@ -182,16 +185,19 @@ public class ChannelStateWriterImplTest {
 		unwrappingError(TestException.class, () -> callStart(writer));
 	}
 
-	@Test(expected = IllegalStateException.class)
-	public void testLimit() throws IOException {
-		int maxCheckpoints = 3;
-		try (ChannelStateWriterImpl writer = new ChannelStateWriterImpl(getStreamFactoryFactory(), maxCheckpoints)) {
-			writer.open();
-			for (int i = 0; i < maxCheckpoints; i++) {
+	@Test
+	public void testStartAbortsOldCheckpoints() throws Exception {
+		int maxCheckpoints = 10;
+		runWithSyncWorker((writer, worker) -> {
+			writer.start(0, CheckpointOptions.forCheckpointWithDefaultLocation());
+			ChannelStateWriteResult writeResult = writer.getWriteResult(0);
+			for (int i = 1; i <= maxCheckpoints; i++) {
 				writer.start(i, CheckpointOptions.forCheckpointWithDefaultLocation());
+				worker.processAllRequests();
+				assertTrue(writeResult.isDone());
+				writeResult = writer.getWriteResult(i);
 			}
-			writer.start(maxCheckpoints, CheckpointOptions.forCheckpointWithDefaultLocation());
-		}
+		});
 	}
 
 	@Test(expected = IllegalStateException.class)
@@ -282,7 +288,7 @@ public class ChannelStateWriterImplTest {
 	}
 
 	private void callAddInputData(ChannelStateWriter writer, NetworkBuffer... buffer) {
-		writer.addInputData(CHECKPOINT_ID, new InputChannelInfo(1, 1), 1, buffer);
+		writer.addInputData(CHECKPOINT_ID, new InputChannelInfo(1, 1), 1, ofElements(Buffer::recycleBuffer, buffer));
 	}
 
 	private void callAbort(ChannelStateWriter writer) {

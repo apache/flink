@@ -18,11 +18,19 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
+
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.verifyBufferOrEvent;
+import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -132,5 +140,28 @@ public class UnionInputGateTest extends InputGateTestBase {
 				inputGate1.notifyChannelNonEmpty(inputChannel1);
 				inputGate2.notifyChannelNonEmpty(inputChannel2);
 			});
+	}
+
+	@Test
+	public void testUpdateInputChannel() throws Exception {
+		final SingleInputGate inputGate1 = createInputGate(1);
+		TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
+		inputGate1.setInputChannels(inputChannel1);
+
+		final SingleInputGate inputGate2 = createInputGate(1);
+		TestingResultPartitionManager partitionManager = new TestingResultPartitionManager(new NoOpResultSubpartitionView());
+		InputChannel unknownInputChannel2 = InputChannelBuilder.newBuilder()
+			.setPartitionManager(partitionManager)
+			.buildUnknownChannel(inputGate2);
+		inputGate2.setInputChannels(unknownInputChannel2);
+
+		UnionInputGate unionInputGate = new UnionInputGate(inputGate1, inputGate2);
+		ResultPartitionID resultPartitionID = unknownInputChannel2.getPartitionId();
+		ResourceID location = ResourceID.generate();
+		inputGate2.updateInputChannel(location, createRemoteWithIdAndLocation(resultPartitionID.getPartitionId(), location));
+
+		assertThat(unionInputGate.getChannel(0), Matchers.is(inputChannel1));
+		// Check that updated input channel is visible via UnionInputGate
+		assertThat(unionInputGate.getChannel(1), Matchers.is(inputGate2.getChannel(0)));
 	}
 }

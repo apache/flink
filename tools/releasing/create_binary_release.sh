@@ -51,7 +51,8 @@ cd ..
 
 FLINK_DIR=`pwd`
 RELEASE_DIR=${FLINK_DIR}/tools/releasing/release
-mkdir -p ${RELEASE_DIR}
+PYTHON_RELEASE_DIR=${RELEASE_DIR}/python
+mkdir -p ${PYTHON_RELEASE_DIR}
 
 ###########################
 
@@ -108,7 +109,7 @@ make_python_release() {
     exit 1
   fi
 
-  cp ${pyflink_actual_name} "${RELEASE_DIR}/${pyflink_release_name}"
+  cp ${pyflink_actual_name} "${PYTHON_RELEASE_DIR}/${pyflink_release_name}"
 
   wheel_packages_num=0
   # py35,py36,py37 for mac and linux (6 wheel packages)
@@ -119,7 +120,7 @@ make_python_release() {
         echo -e "\033[31;1mThe file name of the python package: ${wheel_file} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
         exit 1
     fi
-    cp ${wheel_file} "${RELEASE_DIR}/${wheel_file}"
+    cp ${wheel_file} "${PYTHON_RELEASE_DIR}/${wheel_file}"
     wheel_packages_num=$((wheel_packages_num+1))
   done
   if [[ ${wheel_packages_num} != ${EXPECTED_WHEEL_PACKAGES_NUM} ]]; then
@@ -127,7 +128,7 @@ make_python_release() {
     exit 1
   fi
 
-  cd ${RELEASE_DIR}
+  cd ${PYTHON_RELEASE_DIR}
 
   # Sign sha the tgz and wheel packages
   if [ "$SKIP_GPG" == "false" ] ; then

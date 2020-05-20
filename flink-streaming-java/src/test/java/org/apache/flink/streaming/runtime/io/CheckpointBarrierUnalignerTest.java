@@ -52,6 +52,7 @@ import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.NO_OP;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -510,6 +511,7 @@ public class CheckpointBarrierUnalignerTest {
 		sequenceNumbers = new int[numberOfChannels];
 
 		gate.setup();
+		gate.requestPartitions();
 
 		return createCheckpointedInputGate(gate, toNotify);
 	}
@@ -612,7 +614,7 @@ public class CheckpointBarrierUnalignerTest {
 			nextExpectedCheckpointId = checkpointMetaData.getCheckpointId() + 1;
 
 			for (int index = 0; index < inputGate.getNumberOfInputChannels(); index++) {
-				inputGate.getChannel(index).requestInflightBuffers(checkpointMetaData.getCheckpointId());
+				inputGate.getChannel(index).spillInflightBuffers(checkpointMetaData.getCheckpointId(), NO_OP);
 			}
 		}
 

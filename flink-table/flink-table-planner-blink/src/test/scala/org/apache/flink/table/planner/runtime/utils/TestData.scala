@@ -22,12 +22,15 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.{LOCAL_DATE, LOCAL_DATE_TIME, LOCAL_TIME}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
+import org.apache.flink.table.planner.{JHashMap, JInt, JLong}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
-import org.apache.flink.types.Row
+import org.apache.flink.types.{Row, RowKind}
 
 import java.math.{BigDecimal => JBigDecimal}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 import scala.collection.{Seq, mutable}
 
@@ -473,4 +476,94 @@ object TestData {
       INT_TYPE_INFO, STRING_TYPE_INFO)
 
   val nullablesOfProjectionTestData = Array(true, true, true, true, true, true, true, true)
+
+  val userChangelog: Seq[JTuple2[RowKind, Row]] = Seq(
+    changelogRow("+I", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
+    changelogRow("+I", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+    changelogRow("-U", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
+    changelogRow("+U", "user1", "Tom", "tom123@gmail.com", new JBigDecimal("8.1")),
+    changelogRow("+I", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
+    changelogRow("-D", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
+    changelogRow("+I", "user4", "Tina", "tina@gmail.com", new JBigDecimal("11.3")),
+    changelogRow("-U", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
+    changelogRow("+U", "user3", "Bailey", "bailey@qq.com", new JBigDecimal("9.99")))
+
+  val fullDataTypesData: Seq[Row] = {
+    val bools = List(true, false, true, false, null)
+    val bytes = List(Byte.MaxValue, Byte.MinValue, 0.byteValue(), 5.byteValue(), null)
+    val shorts = List(Short.MaxValue, Short.MinValue, 0.shortValue(), 4.shortValue(), null)
+    val ints = List(Int.MaxValue, Int.MinValue, 0, 123, null)
+    val longs = List(Long.MaxValue, Long.MinValue, 0L, 1234L, null)
+    val floats = List(-1.123F, 3.4F, 0.12F, 1.2345F, null)
+    val doubles = List(-1.123D, 3.4D, 0.12D, 1.2345D, null)
+    val decimals = List(
+      new JBigDecimal("5.1"), new JBigDecimal("6.1"), new JBigDecimal("7.1"),
+      new JBigDecimal("8.123"), null)
+    val varchars = List("1", "12", "123", "1234", null)
+    val chars = List("1", "12", "123", "1234", null)
+    val dates = List(
+      LocalDate.of(1969, 1, 1),
+      LocalDate.of(1970, 9, 30),
+      LocalDate.of(1990, 12, 24),
+      LocalDate.of(2020, 5, 1),
+      null)
+    val times = List(
+      LocalTime.of(0, 0, 0, 123000000),
+      LocalTime.of(1, 1, 1, 123000000),
+      LocalTime.of(8, 10, 24, 123000000),
+      LocalTime.of(23, 23, 23, 0),
+      null)
+    val datetimes = List(
+      LocalDateTime.of(1969, 1, 1, 0, 0, 0, 123456789),
+      LocalDateTime.of(1970, 9, 30, 1, 1, 1, 123456000),
+      LocalDateTime.of(1990, 12, 24, 8, 10, 24, 123000000),
+      LocalDateTime.of(2020, 5, 1, 23, 23, 23, 0),
+      null)
+    val instants = new mutable.MutableList[Instant]
+    for (i <- datetimes.indices) {
+      if (datetimes(i) == null) {
+        instants += null
+      } else {
+        // Assume the time zone of source side is UTC
+        instants += datetimes(i).toInstant(ZoneId.of("UTC").getRules.getOffset(datetimes(i)))
+      }
+    }
+    val arrays = List(
+      array(1L, 2L, 3L),
+      array(4L, 5L),
+      array(6L, null, 7L),
+      array(8L),
+      null)
+    val rows = List(
+      row(1L, "a", 2.3D),
+      row(null, "b", 4.56D),
+      row(3L, null, 7.86D),
+      row(4L, "c", null),
+      null)
+    val maps = List(
+      map(("k1", 1)),
+      map(("k2", 2), ("k4", 4)),
+      map(("k3", null)),
+      map((null, 3)),
+      null)
+
+    val data = new mutable.MutableList[Row]
+    for (i <- ints.indices) {
+      data += row(
+        bools(i), bytes(i), shorts(i), ints(i), longs(i), floats(i), doubles(i),
+        decimals(i), varchars(i), chars(i), dates(i), times(i), datetimes(i), instants(i),
+        arrays(i), rows(i), maps(i))
+    }
+    data
+  }
+
+  private def map(keyValue: (String, JInt)*): JHashMap[String, JInt] = {
+    val hashMap = new JHashMap[String, JInt]
+    keyValue.foreach(kv => hashMap.put(kv._1, kv._2))
+    hashMap
+  }
+
+  private def array(longs: JLong*): Array[JLong] = {
+    longs.toArray
+  }
 }

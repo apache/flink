@@ -383,7 +383,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
 
     val result = proctimeOrders
       .joinLateral(proctimeRates('o_proctime), 'currency === 'o_currency)
-      .select("o_amount * rate, currency, proctime").as("converted_amount")
+      .select($"o_amount" * $"rate", $"currency", $"proctime").as("converted_amount")
       .window(Tumble over 1.second on 'proctime as 'w)
       .groupBy('w, 'currency)
       .select('converted_amount.sum)
@@ -420,7 +420,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
 
     val result = proctimeOrders
       .joinLateral(proctimeRates('o_proctime), 'currency === 'o_currency)
-      .select("o_amount * rate, currency, o_proctime").as("converted_amount")
+      .select($"o_amount" * $"rate", $"currency", $"o_proctime").as("converted_amount")
       .window(Tumble over 1.second on 'o_proctime as 'w)
       .groupBy('w, 'currency)
       .select('converted_amount.sum)
@@ -457,7 +457,8 @@ class TimeIndicatorConversionTest extends TableTestBase {
 
     val result = proctimeOrders
       .joinLateral(proctimeRates('o_proctime), 'currency === 'o_currency)
-      .select("o_amount * rate, currency, o_proctime, o_rowtime").as("converted_amount")
+      .select($"o_amount" * $"rate", $"currency", $"o_proctime", $"o_rowtime")
+      .as("converted_amount")
       .window(Tumble over 1.second on 'o_rowtime as 'w)
       .groupBy('w, 'currency)
       .select('converted_amount.sum)

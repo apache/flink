@@ -23,6 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{EnvironmentSettings, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
@@ -30,7 +31,6 @@ import org.apache.flink.table.runtime.stream.sql.SortITCase.StringRowSelectorSin
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit._
 
@@ -127,7 +127,8 @@ class SortITCase extends StreamingWithStateTestBase {
     val fieldTypes = Array(Types.INT, Types.LONG, Types.STRING, Types.SQL_TIMESTAMP)
       .asInstanceOf[Array[TypeInformation[_]]]
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "targetTable", sink.configure(fieldNames, fieldTypes))
 
     val sql = "INSERT INTO targetTable SELECT a, b, c, rowtime " +
       "FROM sourceTable ORDER BY rowtime, a desc"

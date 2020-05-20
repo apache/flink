@@ -42,6 +42,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.Objects;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
@@ -59,6 +60,9 @@ import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIME_FORMAT;
 public class JsonRowDataSerializationSchema implements SerializationSchema<RowData> {
 	private static final long serialVersionUID = 1L;
 
+	/** RowType to generate the runtime converter. */
+	private final RowType rowType;
+
 	/** The converter that converts internal data formats to JsonNode. */
 	private final SerializationRuntimeConverter runtimeConverter;
 
@@ -69,6 +73,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 	private transient ObjectNode node;
 
 	public JsonRowDataSerializationSchema(RowType rowType) {
+		this.rowType = rowType;
 		this.runtimeConverter = createConverter(rowType);
 	}
 
@@ -85,6 +90,23 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
 			throw new RuntimeException("Could not serialize row '" + row + "'. " +
 				"Make sure that the schema matches the input.", t);
 		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		JsonRowDataSerializationSchema that = (JsonRowDataSerializationSchema) o;
+		return rowType.equals(that.rowType);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(rowType);
 	}
 
 	// --------------------------------------------------------------------------------

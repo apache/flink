@@ -592,7 +592,7 @@ class AggregateITCase(
       ") GROUP BY b " +
       "ORDER BY b"
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("MyTable", t)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()

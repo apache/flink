@@ -218,10 +218,10 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
     tEnv.createTemporaryView("RatesHistory", ratesHistory)
     tEnv.registerFunction(
       "Rates",
-      ratesHistory.createTemporalTableFunction("rowtime", "currency"))
+      ratesHistory.createTemporalTableFunction($"rowtime", $"currency"))
     tEnv.registerFunction(
       "Prices",
-      pricesHistory.createTemporalTableFunction("rowtime", "productId"))
+      pricesHistory.createTemporalTableFunction($"rowtime", $"productId"))
 
     tEnv.createTemporaryView("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
 

@@ -21,7 +21,7 @@ limitations under the License.
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[=(c, a1)], select=[a, b, c], build=[right], tryDistinctBuildRow=[true])
 :- Exchange(distribution=[hash[c]], shuffle_mode=[BATCH])
-:  +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], reuse_id=[1])
 +- Exchange(distribution=[hash[a1]])
    +- LocalHashAggregate(groupBy=[a1], select=[a1])
       +- Calc(select=[a AS a1], where=[=(b, _UTF-16LE'two')])
@@ -40,7 +40,7 @@ LogicalProject(b2=[AS(IN($1, 1972-02-22 07:12:00.333:TIMESTAMP(3)), _UTF-16LE'b2
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[IN(b, 1972-02-22 07:12:00.333:TIMESTAMP(3)) AS b2])
-+- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

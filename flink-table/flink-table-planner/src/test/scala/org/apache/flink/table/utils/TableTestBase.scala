@@ -46,6 +46,7 @@ import org.junit.{ComparisonFailure, Rule}
 import org.mockito.Mockito.{mock, when}
 
 import _root_.scala.util.control.Breaks._
+import scala.io.Source
 
 /**
   * Test base for testing Table API / SQL plans.
@@ -213,6 +214,15 @@ object TableTestUtil {
     }
 
     s"DataStreamScan(id=[$id], fields=[${fieldNames.mkString(", ")}])"
+  }
+
+  def readFromResource(file: String): String = {
+    val source = s"${getClass.getResource("/").getFile}../../src/test/scala/resources/$file"
+    Source.fromFile(source).mkString
+  }
+
+  def replaceStageId(s: String): String = {
+    s.replaceAll("\\r\\n", "\n").replaceAll("Stage \\d+", "")
   }
 }
 

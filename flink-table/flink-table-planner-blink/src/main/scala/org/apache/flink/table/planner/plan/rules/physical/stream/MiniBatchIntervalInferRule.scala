@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecGroupWindowAggregate, StreamExecMiniBatchAssigner, StreamExecTableSourceScan, StreamExecWatermarkAssigner, StreamPhysicalRel}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecGroupWindowAggregate, StreamExecMiniBatchAssigner, StreamExecLegacyTableSourceScan, StreamExecWatermarkAssigner, StreamPhysicalRel}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -122,7 +122,7 @@ class MiniBatchIntervalInferRule extends RelOptRule(
       .getMiniBatchInterval
       .mode
     node match {
-      case _: StreamExecDataStreamScan | _: StreamExecTableSourceScan =>
+      case _: StreamExecDataStreamScan | _: StreamExecLegacyTableSourceScan =>
         // append minibatch node if the mode is not NONE and reach a source leaf node
         mode == MiniBatchMode.RowTime || mode == MiniBatchMode.ProcTime
       case _: StreamExecWatermarkAssigner  =>

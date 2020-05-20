@@ -26,6 +26,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo}
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.util.DummyStreamExecutionEnvironment
 
 import scala.collection.mutable
 import scala.collection.JavaConversions._
@@ -93,7 +94,8 @@ trait CommonPythonBase {
     val clazz = loadClass(CommonPythonBase.PYTHON_DEPENDENCY_UTILS_CLASS)
     val method = clazz.getDeclaredMethod(
       "configurePythonDependencies", classOf[java.util.List[_]], classOf[Configuration])
-    val config = method.invoke(null, field.get(env), getMergedConfiguration(env, tableConfig))
+    val config = method.invoke(
+      null, field.get(env), getMergedConfiguration(env, tableConfig))
       .asInstanceOf[Configuration]
     config.setString("table.exec.timezone", tableConfig.getLocalTimeZone.getId)
     config
@@ -103,9 +105,11 @@ trait CommonPythonBase {
       env: StreamExecutionEnvironment,
       tableConfig: TableConfig): Configuration = {
     val clazz = loadClass(CommonPythonBase.PYTHON_DEPENDENCY_UTILS_CLASS)
+    val realEnv = getRealEnvironment(env)
     val method = clazz.getDeclaredMethod(
       "configurePythonDependencies", classOf[java.util.List[_]], classOf[Configuration])
-    val config = method.invoke(null, env.getCachedFiles, getMergedConfiguration(env, tableConfig))
+    val config = method.invoke(
+      null, realEnv.getCachedFiles, getMergedConfiguration(realEnv, tableConfig))
       .asInstanceOf[Configuration]
     config.setString("table.exec.timezone", tableConfig.getLocalTimeZone.getId)
     config
@@ -135,6 +139,16 @@ trait CommonPythonBase {
     val config = new Configuration(env.getConfiguration)
     config.addAll(tableConfig.getConfiguration)
     config
+  }
+
+  private def getRealEnvironment(env: StreamExecutionEnvironment): StreamExecutionEnvironment = {
+    val realExecEnvField = classOf[DummyStreamExecutionEnvironment].getDeclaredField("realExecEnv")
+    realExecEnvField.setAccessible(true)
+    var realEnv = env
+    while (realEnv.isInstanceOf[DummyStreamExecutionEnvironment]) {
+      realEnv = realExecEnvField.get(realEnv).asInstanceOf[StreamExecutionEnvironment]
+    }
+    realEnv
   }
 }
 

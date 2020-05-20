@@ -48,7 +48,7 @@ public class JavaCmdJobManagerDecorator extends AbstractKubernetesStepDecorator 
 
 	@Override
 	public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-		final JobManagerProcessSpec processSpec = JobManagerProcessUtils.processSpecFromConfigWithFallbackForLegacyHeap(
+		final JobManagerProcessSpec processSpec = JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
 			kubernetesJobManagerParameters.getFlinkConfiguration(),
 			JobManagerOptions.TOTAL_PROCESS_MEMORY);
 		final String startCommand = getJobManagerStartCommand(

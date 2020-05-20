@@ -24,14 +24,41 @@
   # Please keep the import classes in alphabetical order if new class is added.
   imports: [
     "org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAddHivePartitions"
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseLocation"
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner"
     "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseProps"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHivePartitionRename"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableAddReplaceColumn"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableChangeColumn"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableFileFormat"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableLocation"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableProps"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTableSerDe"
+    "org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveViewProperties"
     "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase"
+    "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable"
+    "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableCreationContext"
+    "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat"
+    "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs"
+    "org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveView"
+    "org.apache.flink.sql.parser.hive.ddl.SqlDescribeHiveTable"
+    "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintEnable"
+    "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintRely"
+    "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintTrait"
+    "org.apache.flink.sql.parser.hive.ddl.SqlHiveConstraintValidate"
+    "org.apache.flink.sql.parser.hive.dml.RichSqlHiveInsert"
+    "org.apache.flink.sql.parser.hive.type.ExtendedHiveStructTypeNameSpec"
+    "org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement"
+    "org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint"
+    "org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec"
     "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
     "org.apache.flink.sql.parser.ddl.SqlAlterTable"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableProperties"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableRename"
+    "org.apache.flink.sql.parser.ddl.SqlAlterView"
+    "org.apache.flink.sql.parser.ddl.SqlAlterViewAs"
+    "org.apache.flink.sql.parser.ddl.SqlAlterViewRename"
     "org.apache.flink.sql.parser.ddl.SqlCreateCatalog"
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction"
     "org.apache.flink.sql.parser.ddl.SqlCreateTable"
@@ -39,6 +66,7 @@
     "org.apache.flink.sql.parser.ddl.SqlCreateView"
     "org.apache.flink.sql.parser.ddl.SqlDropDatabase"
     "org.apache.flink.sql.parser.ddl.SqlDropFunction"
+    "org.apache.flink.sql.parser.ddl.SqlDropPartitions"
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlDropView"
     "org.apache.flink.sql.parser.ddl.SqlTableColumn"
@@ -477,10 +505,19 @@
   # Return type of method implementation should be 'SqlNode'.
   # Example: SqlShowDatabases(), SqlShowTables().
   statementParserMethods: [
+    "RichSqlInsert()"
+    "SqlShowCatalogs()"
+    "SqlDescribeCatalog()"
+    "SqlUseCatalog()"
     "SqlShowDatabases()"
     "SqlUseDatabase()"
     "SqlAlterDatabase()"
     "SqlDescribeDatabase()"
+    "SqlShowTables()"
+    "SqlRichDescribeTable()"
+    "SqlShowFunctions()"
+    "SqlAlterTable()"
+    "SqlAlterView()"
   ]
 
   # List of methods for parsing custom literals.
@@ -493,6 +530,10 @@
   # Return type of method implementation should be "SqlTypeNameSpec".
   # Example: SqlParseTimeStampZ().
   dataTypeParserMethods: [
+    "ExtendedSqlBasicTypeName()"
+    "CustomizedCollectionsTypeName()"
+    "SqlMapTypeName()"
+    "ExtendedSqlRowTypeName()"
   ]
 
   # List of methods for parsing builtin function calls.
@@ -511,12 +552,18 @@
   # Each must accept arguments "(SqlParserPos pos, boolean replace)".
   createStatementParserMethods: [
     "SqlCreateDatabase"
+    "SqlCreateTemporary"
+    "SqlCreateCatalog"
+    "SqlCreateView"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.
   # Each must accept arguments "(Span s)".
   dropStatementParserMethods: [
+    "SqlDropTable"
     "SqlDropDatabase"
+    "SqlDropFunction"
+    "SqlDropView"
   ]
 
   # Binary operators tokens

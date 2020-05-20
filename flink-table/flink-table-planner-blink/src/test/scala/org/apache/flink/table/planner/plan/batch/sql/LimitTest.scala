@@ -20,21 +20,23 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.SqlParserException
+import org.apache.flink.table.api.{SqlParserException, TableSchema}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.{TableTestBase, TestLimitableTableSource}
-
 import org.junit.Test
 
 class LimitTest extends TableTestBase {
 
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-  util.addTableSource("LimitTable", new TestLimitableTableSource(null, new RowTypeInfo(
-    Array[TypeInformation[_]](INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO),
-    Array("a", "b", "c"))))
+  TestLimitableTableSource.createTemporaryTable(
+    util.tableEnv,
+    Seq(),
+    new TableSchema(
+      Array("a", "b", "c"),
+      Array[TypeInformation[_]](INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO)),
+    "LimitTable")
 
   @Test
   def testLimitWithoutOffset(): Unit = {

@@ -21,8 +21,10 @@ package org.apache.flink.table.api
 import _root_.java.util.{HashMap => JHashMap}
 import _root_.java.util.{Map => JMap}
 import _root_.java.sql.{Date, Time, Timestamp}
+
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, Schema}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
@@ -32,7 +34,6 @@ import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
 import org.apache.flink.types.Row
-
 import org.junit.{Assert, Test}
 
 class TableSourceTest extends TableTestBase {
@@ -47,11 +48,13 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource("table1", tableSource1)
-    tableEnv.registerTableSource("table2", tableSource2)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal("table1", tableSource1)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal("table2", tableSource2)
 
-    val table1 = tableEnv.scan("table1").where("amount > 2")
-    val table2 = tableEnv.scan("table2").where("amount > 2")
+    val table1 = tableEnv.scan("table1").where($"amount" > 2)
+    val table2 = tableEnv.scan("table2").where($"amount" > 2)
     val result = table1.unionAll(table2)
 
     val expected = binaryNode(
@@ -80,7 +83,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -100,7 +104,8 @@ class TableSourceTest extends TableTestBase {
     val (tableSource, tableName) = csvTable
     val util = batchTestUtil()
 
-    util.tableEnv.registerTableSource(tableName, tableSource)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery = s"SELECT `last`, floor(id), score * 2 FROM $tableName"
 
@@ -119,7 +124,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -135,7 +141,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -158,12 +165,13 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
         .scan(tableName)
         .select('price, 'id, 'amount)
-        .where("price * 2 < 32")
+        .where($"price" * 2 < 32)
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -185,11 +193,12 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
-      .where("amount > 2 && price * 2 < 32")
+      .where($"amount" > 2 && $"price" * 2 < 32)
       .select('price, 'name.lowerCase(), 'amount)
 
     val expected = unaryNode(
@@ -211,12 +220,13 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
         .scan(tableName)
         .select('price, 'id, 'amount)
-        .where("amount > 2 && amount < 32")
+        .where($"amount" > 2 && $"amount" < 32)
 
     val expected = batchFilterableSourceTableNode(
       tableName,
@@ -232,13 +242,14 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
         .scan(tableName)
         .select('price, 'id, 'amount)
-        .where("amount > 2 && id < 1.2 && " +
-          "(amount < 32 || amount.cast(LONG) > 10)") // cast can not be converted
+        .where($"amount" > 2 && $"id" < 1.2 &&
+          ($"amount" < 32 || $"amount".cast(Types.LONG) > 10)) // cast can not be converted
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -259,14 +270,15 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
     val func = Func0
     tableEnv.registerFunction("func0", func)
 
     val result = tableEnv
         .scan(tableName)
         .select('price, 'id, 'amount)
-        .where("amount > 2 && func0(amount) < 32")
+        .where($"amount" > 2 && call("func0", $"amount") < 32)
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -290,7 +302,8 @@ class TableSourceTest extends TableTestBase {
     val util = streamTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -310,7 +323,8 @@ class TableSourceTest extends TableTestBase {
     val (tableSource, tableName) = csvTable
     val util = streamTestUtil()
 
-    util.tableEnv.registerTableSource(tableName, tableSource)
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery = s"SELECT `last`, floor(id), score * 2 FROM $tableName"
 
@@ -329,7 +343,8 @@ class TableSourceTest extends TableTestBase {
     val util = streamTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
@@ -345,12 +360,13 @@ class TableSourceTest extends TableTestBase {
     val util = streamTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
       .scan(tableName)
       .select('price, 'id, 'amount)
-      .where("amount > 2 && price * 2 < 32")
+      .where($"amount" > 2 && $"price" * 2 < 32)
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -468,7 +484,8 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerTableSource(tableName, tableSource)
+    tableEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery =
       s"""

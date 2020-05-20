@@ -38,7 +38,6 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -66,15 +65,20 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
 	protected KubernetesJobManagerSpecification kubernetesJobManagerSpecification;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
-
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
+	@Override
+	protected void setupFlinkConfig() {
+		super.setupFlinkConfig();
 
 		flinkConfig.set(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, ENTRY_POINT_CLASS);
 		flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT, SERVICE_ACCOUNT_NAME);
+	}
+
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
+
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
 
 		this.kubernetesJobManagerSpecification =
 			KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);

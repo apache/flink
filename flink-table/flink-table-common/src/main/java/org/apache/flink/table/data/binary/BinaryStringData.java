@@ -63,7 +63,7 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
 	// ------------------------------------------------------------------------------------------
 
 	/**
-	 * Creates an BinaryStringData from given address (base and offset) and length.
+	 * Creates a {@link BinaryStringData} instance from the given address (base and offset) and length.
 	 */
 	public static BinaryStringData fromAddress(
 			MemorySegment[] segments,
@@ -73,7 +73,7 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
 	}
 
 	/**
-	 * Creates an BinaryStringData from given java String.
+	 * Creates a {@link BinaryStringData} instance from the given Java string.
 	 */
 	public static BinaryStringData fromString(String str) {
 		if (str == null) {
@@ -84,14 +84,14 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
 	}
 
 	/**
-	 * Creates an BinaryStringData from given UTF-8 bytes.
+	 * Creates a {@link BinaryStringData} instance from the given UTF-8 bytes.
 	 */
 	public static BinaryStringData fromBytes(byte[] bytes) {
 		return fromBytes(bytes, 0, bytes.length);
 	}
 
 	/**
-	 * Creates an BinaryStringData from given UTF-8 bytes with offset and number of bytes.
+	 * Creates a {@link BinaryStringData} instance from the given UTF-8 bytes with offset and number of bytes.
 	 */
 	public static BinaryStringData fromBytes(byte[] bytes, int offset, int numBytes) {
 		return new BinaryStringData(
@@ -101,7 +101,7 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
 	}
 
 	/**
-	 * Creates an BinaryStringData that contains `length` spaces.
+	 * Creates a {@link BinaryStringData} instance that contains `length` spaces.
 	 */
 	public static BinaryStringData blankString(int length) {
 		byte[] spaces = new byte[length];

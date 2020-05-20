@@ -84,6 +84,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	/** Cached handle to the file system for file operations. */
 	private final FileSystem filesystem;
 
+	/** Whether the file system dynamically injects entropy into the file paths. */
+	private final boolean entropyInjecting;
+
 	/**
 	 * Creates a new stream factory that stores its checkpoint data in the file system and location
 	 * defined by the given Path.
@@ -123,6 +126,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		this.sharedStateDirectory = checkNotNull(sharedStateDirectory);
 		this.fileStateThreshold = fileStateSizeThreshold;
 		this.writeBufferSize = writeBufferSize;
+		this.entropyInjecting = EntropyInjector.isEntropyInjecting(fileSystem);
 	}
 
 	// ------------------------------------------------------------------------
@@ -132,7 +136,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		Path target = scope == CheckpointedStateScope.EXCLUSIVE ? checkpointDirectory : sharedStateDirectory;
 		int bufferSize = Math.max(writeBufferSize, fileStateThreshold);
 
-		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold);
+		final boolean absolutePath = entropyInjecting || scope == CheckpointedStateScope.SHARED;
+		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold, !absolutePath);
 	}
 
 	// ------------------------------------------------------------------------
@@ -152,7 +157,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	 * A {@link CheckpointStreamFactory.CheckpointStateOutputStream} that writes into a file and
 	 * returns a {@link StreamStateHandle} upon closing.
 	 */
-	public static final class FsCheckpointStateOutputStream
+	public static class FsCheckpointStateOutputStream
 			extends CheckpointStreamFactory.CheckpointStateOutputStream {
 
 		private final byte[] writeBuffer;
@@ -169,11 +174,26 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		private Path statePath;
 
+		private String relativeStatePath;
+
 		private volatile boolean closed;
 
+		private final boolean allowRelativePaths;
+
 		public FsCheckpointStateOutputStream(
-					Path basePath, FileSystem fs,
-					int bufferSize, int localStateThreshold) {
+				Path basePath,
+				FileSystem fs,
+				int bufferSize,
+				int localStateThreshold) {
+			this(basePath, fs, bufferSize, localStateThreshold, false);
+		}
+
+		public FsCheckpointStateOutputStream(
+					Path basePath,
+					FileSystem fs,
+					int bufferSize,
+					int localStateThreshold,
+					boolean allowRelativePaths) {
 
 			if (bufferSize < localStateThreshold) {
 				throw new IllegalArgumentException();
@@ -183,6 +203,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			this.fs = fs;
 			this.writeBuffer = new byte[bufferSize];
 			this.localStateThreshold = localStateThreshold;
+			this.allowRelativePaths = allowRelativePaths;
 		}
 
 		@Override
@@ -319,7 +340,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 							outStream.close();
 
-							return new FileStateHandle(statePath, size);
+							return allowRelativePaths
+									? new RelativeFileStateHandle(statePath, relativeStatePath, size)
+									: new FileStateHandle(statePath, size);
 						} catch (Exception exception) {
 							try {
 								if (statePath != null) {
@@ -346,7 +369,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		}
 
 		private Path createStatePath() {
-			return new Path(basePath, UUID.randomUUID().toString());
+			final String fileName = UUID.randomUUID().toString();
+			relativeStatePath = fileName;
+			return new Path(basePath, fileName);
 		}
 
 		private void createStream() throws IOException {

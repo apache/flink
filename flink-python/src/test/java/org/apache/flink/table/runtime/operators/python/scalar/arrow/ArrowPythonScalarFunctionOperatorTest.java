@@ -97,7 +97,7 @@ public class ArrowPythonScalarFunctionOperatorTest extends PythonScalarFunctionO
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
-				pythonEnvironmentManager,
+				PythonTestUtils.createTestEnvironmentManager(),
 				userDefinedFunctionInputType,
 				userDefinedFunctionOutputType,
 				getPythonConfig().getMaxArrowBatchSize(),

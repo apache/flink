@@ -33,7 +33,7 @@ class CatalogTableTest {
 
   @Test
   def testDDLSchema(): Unit = {
-    tEnv.sqlUpdate(
+    tEnv.executeSql(
       """
         |CREATE TABLE t1 (
         |  f1 INT,

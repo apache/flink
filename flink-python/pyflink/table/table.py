@@ -16,11 +16,18 @@
 # limitations under the License.
 ################################################################################
 
+import warnings
+
 from py4j.java_gateway import get_method
+
 from pyflink.java_gateway import get_gateway
+from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.table_schema import TableSchema
+from pyflink.table.types import create_arrow_schema
+from pyflink.table.utils import tz_convert_from_internal
 
 from pyflink.util.utils import to_jarray
+from pyflink.util.utils import to_j_explain_detail_arr
 
 __all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
 
@@ -75,7 +82,7 @@ class Table(object):
         """
         return Table(self._j_table.select(fields))
 
-    def alias(self, fields):
+    def alias(self, field, *fields):
         """
         Renames the fields of the expression result. Use this to disambiguate fields before
         joining to operations.
@@ -83,14 +90,18 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.alias("a, b")
+            >>> tab.alias("a", "b")
 
-        :param fields: Field list expression string.
+        :param field: Field alias.
+        :type field: str
+        :param fields: Additional field aliases.
         :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(get_method(self._j_table, "as")(fields))
+        gateway = get_gateway()
+        extra_fields = to_jarray(gateway.jvm.String, fields)
+        return Table(get_method(self._j_table, "as")(field, extra_fields))
 
     def filter(self, predicate):
         """
@@ -675,8 +686,55 @@ class Table(object):
         :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
                the :class:`~pyflink.table.Table` is written.
         :type table_path: str
+
+        .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
+                  use :class:`TableTableEnvironment`#:func:`create_statement_set`
+                  for multiple sinks.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_insert for single sink, "
+                      "use TableTableEnvironment#create_statement_set for multiple sinks.",
+                      DeprecationWarning)
         self._j_table.insertInto(table_path)
+
+    def to_pandas(self):
+        """
+        Converts the table to a pandas DataFrame.
+
+        Example:
+        ::
+
+            >>> pdf = pd.DataFrame(np.random.rand(1000, 2))
+            >>> table = table_env.from_pandas(pdf, ["a", "b"])
+            >>> table.filter("a > 0.5").to_pandas()
+
+        :return: the result pandas DataFrame.
+        """
+        gateway = get_gateway()
+        max_arrow_batch_size = self._j_table.getTableEnvironment().getConfig().getConfiguration()\
+            .getInteger(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE)
+        batches = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
+            .collectAsPandasDataFrame(self._j_table, max_arrow_batch_size)
+        if batches.hasNext():
+            import pytz
+            timezone = pytz.timezone(
+                self._j_table.getTableEnvironment().getConfig().getLocalTimeZone().getId())
+            serializer = ArrowSerializer(
+                create_arrow_schema(self.get_schema().get_field_names(),
+                                    self.get_schema().get_field_data_types()),
+                self.get_schema().to_row_data_type(),
+                timezone)
+            import pyarrow as pa
+            table = pa.Table.from_batches(serializer.load_from_iterator(batches))
+            pdf = table.to_pandas()
+
+            schema = self.get_schema()
+            for field_name in schema.get_field_names():
+                pdf[field_name] = tz_convert_from_internal(
+                    pdf[field_name], schema.get_field_data_type(field_name), timezone)
+            return pdf
+        else:
+            import pandas as pd
+            return pd.DataFrame.from_records([], columns=self.get_schema().get_field_names())
 
     def get_schema(self):
         """
@@ -692,6 +750,55 @@ class Table(object):
         Prints the schema of this table to the console in a tree format.
         """
         self._j_table.printSchema()
+
+    def execute_insert(self, table_path, overwrite=False):
+        """
+        Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
+        registered under the specified name, and then execute the insert operation.
+        For the path resolution algorithm see :func:`~TableEnvironment.use_database`.
+
+        Example:
+        ::
+
+            >>> tab.execute_insert("sink")
+
+        :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
+               the :class:`~pyflink.table.Table` is written.
+        :type table_path: str
+        :param overwrite: The flag that indicates whether the insert should overwrite
+               existing data or not.
+        :type overwrite: bool
+        :return: The table result.
+        """
+        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
+        self._j_table.executeInsert(table_path, overwrite)
+
+    def execute(self):
+        """
+        Collects the contents of the current table local client.
+
+        Example:
+        ::
+
+            >>> tab.execute()
+
+        :return: The content of the table.
+        """
+        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
+        self._j_table.execute()
+
+    def explain(self, *extra_details):
+        """
+        Returns the AST of this table and the execution plan.
+
+        :param extra_details: The extra explain details which the explain result should include,
+                              e.g. estimated cost, changelog mode for streaming
+        :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
+        :return: The statement for which the AST and execution plan will be returned.
+        :rtype: str
+        """
+        j_extra_details = to_j_explain_detail_arr(extra_details)
+        return self._j_table.explain(j_extra_details)
 
     def __str__(self):
         return self._j_table.toString()

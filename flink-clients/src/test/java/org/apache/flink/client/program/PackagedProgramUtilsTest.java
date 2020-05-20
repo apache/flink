@@ -29,6 +29,10 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.junit.Test;
 
+import java.io.File;
+import java.net.URISyntaxException;
+
+import static org.apache.flink.client.program.PackagedProgramUtils.resolveURI;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -85,6 +89,27 @@ public class PackagedProgramUtilsTest {
 		ExecutionConfig executionConfig = ((StreamGraph) pipeline).getExecutionConfig();
 
 		assertExpectedOption(executionConfig);
+	}
+
+	@Test
+	public void testResolveURI() throws URISyntaxException {
+		final String relativeFile = "path/of/user.jar";
+		assertThat(resolveURI(relativeFile).getScheme(), is("file"));
+		assertThat(
+			resolveURI(relativeFile).getPath(),
+			is(new File(System.getProperty("user.dir"), relativeFile).getAbsolutePath()));
+
+		final String absoluteFile = "/path/of/user.jar";
+		assertThat(resolveURI(relativeFile).getScheme(), is("file"));
+		assertThat(resolveURI(absoluteFile).getPath(), is(absoluteFile));
+
+		final String fileSchemaFile = "file:///path/of/user.jar";
+		assertThat(resolveURI(fileSchemaFile).getScheme(), is("file"));
+		assertThat(resolveURI(fileSchemaFile).toString(), is(fileSchemaFile));
+
+		final String localSchemaFile = "local:///path/of/user.jar";
+		assertThat(resolveURI(localSchemaFile).getScheme(), is("local"));
+		assertThat(resolveURI(localSchemaFile).toString(), is(localSchemaFile));
 	}
 
 	private static void assertPrecondition(ExecutionConfig executionConfig) {

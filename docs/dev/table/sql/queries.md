@@ -47,13 +47,13 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 
 // SQL query with an inlined (unregistered) table
-Table table = tableEnv.fromDataStream(ds, "user, product, amount");
+Table table = tableEnv.fromDataStream(ds, $("user"), $("product"), $("amount"));
 Table result = tableEnv.sqlQuery(
   "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
 
 // SQL query with a registered table
 // register the DataStream as view "Orders"
-tableEnv.createTemporaryView("Orders", ds, "user, product, amount");
+tableEnv.createTemporaryView("Orders", ds, $("user"), $("product"), $("amount"));
 // run a SQL query on the Table and retrieve the result as a new Table
 Table result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
@@ -84,13 +84,13 @@ val tableEnv = StreamTableEnvironment.create(env)
 val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
 
 // SQL query with an inlined (unregistered) table
-val table = ds.toTable(tableEnv, 'user, 'product, 'amount)
+val table = ds.toTable(tableEnv, $"user", $"product", $"amount")
 val result = tableEnv.sqlQuery(
   s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
 
 // SQL query with a registered table
 // register the DataStream under the name "Orders"
-tableEnv.createTemporaryView("Orders", ds, 'user, 'product, 'amount)
+tableEnv.createTemporaryView("Orders", ds, $"user", $"product", $"amount")
 // run a SQL query on the Table and retrieve the result as a new Table
 val result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
@@ -889,7 +889,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
 // register the DataStream as table "ShopSales"
-tableEnv.createTemporaryView("ShopSales", ds, "product_id, category, product_name, sales");
+tableEnv.createTemporaryView("ShopSales", ds, $("product_id"), $("category"), $("product_name"), $("sales"));
 
 // select top-5 products per category which have the maximum sales.
 Table result1 = tableEnv.sqlQuery(
@@ -910,7 +910,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // read a DataStream from an external source
 val ds: DataStream[(String, String, String, Long)] = env.addSource(...)
 // register the DataStream under the name "ShopSales"
-tableEnv.createTemporaryView("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
+tableEnv.createTemporaryView("ShopSales", ds, $"product_id", $"category", $"product_name", $"sales")
 
 
 // select top-5 products per category which have the maximum sales.
@@ -944,7 +944,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
 // register the DataStream as table "ShopSales"
-tableEnv.createTemporaryView("ShopSales", ds, "product_id, category, product_name, sales");
+tableEnv.createTemporaryView("ShopSales", ds, $("product_id"), $("category"), $("product_name"), $("sales"));
 
 // select top-5 products per category which have the maximum sales.
 Table result1 = tableEnv.sqlQuery(
@@ -965,7 +965,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // read a DataStream from an external source
 val ds: DataStream[(String, String, String, Long)] = env.addSource(...)
 // register the DataStream under the name "ShopSales"
-tableEnv.createTemporaryView("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
+tableEnv.createTemporaryView("ShopSales", ds, $"product_id", $"category", $"product_name", $"sales")
 
 
 // select top-5 products per category which have the maximum sales.
@@ -1024,7 +1024,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<String, String, String, Integer>> ds = env.addSource(...);
 // register the DataStream as table "Orders"
-tableEnv.createTemporaryView("Orders", ds, "order_id, user, product, number, proctime.proctime");
+tableEnv.createTemporaryView("Orders", ds, $("order_id"), $("user"), $("product"), $("number"), $("proctime").proctime());
 
 // remove duplicate rows on order_id and keep the first occurrence row,
 // because there shouldn't be two orders with the same order_id.
@@ -1046,7 +1046,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // read a DataStream from an external source
 val ds: DataStream[(String, String, String, Int)] = env.addSource(...)
 // register the DataStream under the name "Orders"
-tableEnv.createTemporaryView("Orders", ds, 'order_id, 'user, 'product, 'number, 'proctime.proctime)
+tableEnv.createTemporaryView("Orders", ds, $"order_id", $"user", $"product", $"number", $"proctime".proctime)
 
 // remove duplicate rows on order_id and keep the first occurrence row,
 // because there shouldn't be two orders with the same order_id.
@@ -1162,7 +1162,7 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 // ingest a DataStream from an external source
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 // register the DataStream as table "Orders"
-tableEnv.createTemporaryView("Orders", ds, "user, product, amount, proctime.proctime, rowtime.rowtime");
+tableEnv.createTemporaryView("Orders", ds, $("user"), $("product"), $("amount"), $("proctime").proctime(), $("rowtime").rowtime());
 
 // compute SUM(amount) per day (in event-time)
 Table result1 = tableEnv.sqlQuery(
@@ -1199,7 +1199,7 @@ val tableEnv = StreamTableEnvironment.create(env)
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Int)] = env.addSource(...)
 // register the DataStream under the name "Orders"
-tableEnv.createTemporaryView("Orders", ds, 'user, 'product, 'amount, 'proctime.proctime, 'rowtime.rowtime)
+tableEnv.createTemporaryView("Orders", ds, $"user", $"product", $"amount", $"proctime".proctime, $"rowtime".rowtime)
 
 // compute SUM(amount) per day (in event-time)
 val result1 = tableEnv.sqlQuery(

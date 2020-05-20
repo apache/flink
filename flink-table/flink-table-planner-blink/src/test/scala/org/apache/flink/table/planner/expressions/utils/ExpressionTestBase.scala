@@ -239,7 +239,7 @@ abstract class ExpressionTestBase {
   private def addTableApiTestExpr(tableApiExpr: Expression, expected: String): Unit = {
     // create RelNode from Table API expression
     val relNode = relBuilder
-        .queryOperation(tEnv.scan(tableName).select(tableApiExpr).getQueryOperation).build()
+        .queryOperation(tEnv.from(tableName).select(tableApiExpr).getQueryOperation).build()
 
     addTestExpr(relNode, expected, tableApiExpr.asSummaryString())
   }

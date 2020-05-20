@@ -20,13 +20,15 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.{AggMode, LocalGlobalOff, LocalGlobalOn}
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
-import org.junit.{Before, Test}
+
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.{Before, Test}
 
 import java.util
 
@@ -51,13 +53,13 @@ class ChangelogModeInferenceTest(aggMode: AggMode) extends TableTestBase {
 
   @Test
   def testSelect(): Unit = {
-    util.verifyPlanWithTrait("SELECT word, number FROM MyTable")
+    util.verifyPlan("SELECT word, number FROM MyTable", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testOneLevelGroupBy(): Unit = {
     // one level unbounded groupBy
-    util.verifyPlanWithTrait("SELECT COUNT(number) FROM MyTable GROUP BY word")
+    util.verifyPlan("SELECT COUNT(number) FROM MyTable GROUP BY word", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -69,7 +71,7 @@ class ChangelogModeInferenceTest(aggMode: AggMode) extends TableTestBase {
         |  SELECT word, COUNT(number) as cnt FROM MyTable GROUP BY word
         |) GROUP BY cnt
       """.stripMargin
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -84,7 +86,7 @@ class ChangelogModeInferenceTest(aggMode: AggMode) extends TableTestBase {
         |   SELECT word, cnt FROM MyTable2
         |) GROUP BY cnt
       """.stripMargin
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
 }

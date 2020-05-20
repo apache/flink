@@ -28,12 +28,10 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,7 +45,6 @@ import static org.junit.Assert.assertEquals;
  * Integration test that verifies that a user program with a big(ger) payload is successfully
  * submitted and run.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class BigUserProgramJobSubmitITCase extends TestLogger {
 
 	// ------------------------------------------------------------------------

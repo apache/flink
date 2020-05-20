@@ -37,17 +37,17 @@ Catalog 提供了元数据信息，例如数据库、表、分区、视图以及
 
 `GenericInMemoryCatalog` 是基于内存实现的 Catalog，所有元数据只在 session 的生命周期内可用。
 
-### JDBCCatalog
+### JdbcCatalog
 
-The `JDBCCatalog` enables users to connect Flink to relational databases over JDBC protocol.
+The `JdbcCatalog` enables users to connect Flink to relational databases over JDBC protocol.
 
 #### PostgresCatalog
 
 `PostgresCatalog` is the only implementation of JDBC Catalog at the moment.
 
-#### Usage of JDBCCatalog
+#### Usage of JdbcCatalog
 
-Set a `JDBCatalog` with the following parameters:
+Set a `Jdbcatalog` with the following parameters:
 
 - name: required, name of the catalog
 - default database: required, default database to connect to
@@ -68,10 +68,10 @@ String username        = "...";
 String password        = "...";
 String baseUrl         = "..."
 
-JDBCCatalog catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl);
+JdbcCatalog catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl);
 tableEnv.registerCatalog("mypg", catalog);
 
-// set the JDBCCatalog as the current catalog of the session
+// set the JdbcCatalog as the current catalog of the session
 tableEnv.useCatalog("mypg");
 {% endhighlight %}
 </div>
@@ -87,10 +87,10 @@ val username        = "..."
 val password        = "..."
 val baseUrl         = "..."
 
-val catalog = new JDBCCatalog(name, defaultDatabase, username, password, baseUrl)
+val catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl)
 tableEnv.registerCatalog("mypg", catalog)
 
-// set the JDBCCatalog as the current catalog of the session
+// set the JdbcCatalog as the current catalog of the session
 tableEnv.useCatalog("mypg")
 {% endhighlight %}
 </div>
@@ -113,7 +113,7 @@ USE CATALOG mypg;
 execution:
     planner: blink
     ...
-    current-catalog: mypg  # set the JDBCCatalog as the current catalog of the session
+    current-catalog: mypg  # set the JdbcCatalog as the current catalog of the session
     current-database: mydb
     
 catalogs:

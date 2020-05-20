@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -33,8 +34,6 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -67,10 +66,10 @@ public abstract class InputChannel {
 	// - Partition request backoff --------------------------------------------
 
 	/** The initial backoff (in ms). */
-	private final int initialBackoff;
+	protected final int initialBackoff;
 
 	/** The maximum backoff (in ms). */
-	private final int maxBackoff;
+	protected final int maxBackoff;
 
 	protected final Counter numBytesIn;
 
@@ -152,8 +151,10 @@ public abstract class InputChannel {
 		inputGate.notifyChannelNonEmpty(this);
 	}
 
-	public List<Buffer> requestInflightBuffers(long checkpointId) throws IOException {
-		return Collections.emptyList();
+	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) throws IOException {
+	}
+
+	protected void notifyBufferAvailable(int numAvailableBuffers) {
 	}
 
 	// ------------------------------------------------------------------------

@@ -29,6 +29,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
@@ -56,5 +58,31 @@ public class DualKeyLinkedMapTest extends TestLogger {
 
 		assertThat(dualKeyMap.keySetA(), Matchers.equalTo(keys.stream().map(t -> t.f0).collect(Collectors.toSet())));
 		assertThat(dualKeyMap.keySetB(), Matchers.equalTo(keys.stream().map(t -> t.f1).collect(Collectors.toSet())));
+	}
+
+	@Test
+	public void ensuresOneToOneMappingBetweenKeysSamePrimaryKey() {
+		final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+
+		final String secondValue = "barfoo";
+		map.put(1, 1, "foobar");
+		map.put(1, 2, secondValue);
+
+		assertThat(map.getKeyB(1), nullValue());
+		assertThat(map.getKeyA(1), is(secondValue));
+		assertThat(map.getKeyB(2), is(secondValue));
+	}
+
+	@Test
+	public void ensuresOneToOneMappingBetweenKeysSameSecondaryKey() {
+		final DualKeyLinkedMap<Integer, Integer, String> map = new DualKeyLinkedMap<>(2);
+
+		final String secondValue = "barfoo";
+		map.put(1, 1, "foobar");
+		map.put(2, 1, secondValue);
+
+		assertThat(map.getKeyA(1), nullValue());
+		assertThat(map.getKeyB(1), is(secondValue));
+		assertThat(map.getKeyA(2), is(secondValue));
 	}
 }

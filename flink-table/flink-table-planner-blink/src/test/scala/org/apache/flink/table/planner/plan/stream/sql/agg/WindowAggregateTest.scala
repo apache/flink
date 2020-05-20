@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.{ExplainDetail, TableException, ValidationException}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -35,7 +35,7 @@ class WindowAggregateTest extends TableTestBase {
   util.addDataStream[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
   util.addFunction("weightedAvg", new WeightedAvgWithMerge)
-  util.tableEnv.sqlUpdate(
+  util.tableEnv.executeSql(
     s"""
        |create table MyTable1 (
        |  a int,
@@ -428,7 +428,7 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
         |""".stripMargin
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -440,6 +440,6 @@ class WindowAggregateTest extends TableTestBase {
         |FROM MyTable
         |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
         |""".stripMargin
-    util.verifyPlanWithTrait(sql)
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 }

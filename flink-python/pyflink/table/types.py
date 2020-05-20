@@ -1846,10 +1846,10 @@ def _from_java_type(j_data_type):
     # Row Type.
     elif is_instance_of(java_data_type, gateway.jvm.FieldsDataType):
         logical_type = java_data_type.getLogicalType()
-        field_data_types = java_data_type.getFieldDataTypes()
+        field_data_types = java_data_type.getChildren()
         if is_instance_of(logical_type, gateway.jvm.RowType):
-            fields = [DataTypes.FIELD(name, _from_java_type(field_data_types[name]))
-                      for name in logical_type.getFieldNames()]
+            fields = [DataTypes.FIELD(name, _from_java_type(field_data_types[idx]))
+                      for idx, name in enumerate(logical_type.getFieldNames())]
             data_type = DataTypes.ROW(fields, logical_type.isNullable())
         else:
             raise TypeError("Unsupported row data type: %s" % j_data_type)

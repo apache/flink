@@ -18,6 +18,8 @@
 import datetime
 import decimal
 
+from pandas.util.testing import assert_frame_equal
+
 from pyflink.table.types import DataTypes, Row
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
@@ -129,6 +131,17 @@ class PandasConversionITTests(PandasConversionTestBase):
                             "1000000000000000000.010000000000000000,2014-09-13,01:00:01,"
                             "1970-01-01 00:00:00.123,[hello, 中文],1,hello,"
                             "1970-01-01 00:00:00.123,[1, 2]"])
+
+    def test_to_pandas(self):
+        table = self.t_env.from_pandas(self.pdf, self.data_type)
+        result_pdf = table.to_pandas()
+        self.assertEqual(2, len(result_pdf))
+        assert_frame_equal(self.pdf, result_pdf)
+
+    def test_empty_to_pandas(self):
+        table = self.t_env.from_pandas(self.pdf, self.data_type)
+        pdf = table.filter("f1 < 0").to_pandas()
+        self.assertTrue(pdf.empty)
 
 
 class StreamPandasConversionTests(PandasConversionITTests,

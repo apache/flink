@@ -21,6 +21,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -52,13 +56,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.TimestampExtractor;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
-import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
@@ -84,9 +85,9 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.operators.ExtractTimestampsOperator;
-import org.apache.flink.streaming.runtime.operators.TimestampsAndPeriodicWatermarksOperator;
-import org.apache.flink.streaming.runtime.operators.TimestampsAndPunctuatedWatermarksOperator;
+import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperator;
+import org.apache.flink.streaming.runtime.operators.util.AssignerWithPeriodicWatermarksAdapter;
+import org.apache.flink.streaming.runtime.operators.util.AssignerWithPunctuatedWatermarksAdapter;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
@@ -874,121 +875,80 @@ public class DataStream<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
-	 * The internal timestamps are, for example, used to to event-time window operations.
+	 * Assigns timestamps to the elements in the data stream and generates watermarks to signal
+	 * event time progress. The given {@link WatermarkStrategy} is used to create a {@link
+	 * TimestampAssigner} and {@link WatermarkGenerator}.
 	 *
-	 * <p>If you know that the timestamps are strictly increasing you can use an
-	 * {@link AscendingTimestampExtractor}. Otherwise,
-	 * you should provide a {@link TimestampExtractor} that also implements
-	 * {@link TimestampExtractor#getCurrentWatermark()} to keep track of watermarks.
+	 * <p>For each event in the data stream, the {@link TimestampAssigner#extractTimestamp(Object,
+	 * long)} method is called to assign an event timestamp.
 	 *
-	 * @param extractor The TimestampExtractor that is called for each element of the DataStream.
+	 * <p>For each event in the data stream, the {@link WatermarkGenerator#onEvent(Object, long,
+	 * WatermarkOutput)} will be called.
 	 *
-	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)}
-	 *             of {@link #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)}
-	 *             instead.
-	 * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)
-	 * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)
+	 * <p>Periodically (defined by the {@link ExecutionConfig#getAutoWatermarkInterval()}), the
+	 * {@link WatermarkGenerator#onPeriodicEmit(WatermarkOutput)} method will be called.
+	 *
+	 * <p>Common watermark generation patterns can be found in the
+	 * {@link org.apache.flink.api.common.eventtime.WatermarkStrategies} class.
+	 *
+	 * @param watermarkStrategy The strategy to generate watermarks based on event timestamps.
+	 * @return The stream after the transformation, with assigned timestamps and watermarks.
 	 */
-	@Deprecated
-	public SingleOutputStreamOperator<T> assignTimestamps(TimestampExtractor<T> extractor) {
-		// match parallelism to input, otherwise dop=1 sources could lead to some strange
-		// behaviour: the watermark will creep along very slowly because the elements
-		// from the source go to each extraction operator round robin.
-		int inputParallelism = getTransformation().getParallelism();
-		ExtractTimestampsOperator<T> operator = new ExtractTimestampsOperator<>(clean(extractor));
-		return transform("ExtractTimestamps", getTransformation().getOutputType(), operator)
-				.setParallelism(inputParallelism);
+	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
+			WatermarkStrategy<T> watermarkStrategy) {
+
+		final WatermarkStrategy<T> cleanedStrategy = clean(watermarkStrategy);
+
+		final TimestampsAndWatermarksOperator<T> operator =
+			new TimestampsAndWatermarksOperator<>(cleanedStrategy);
+
+		// match parallelism to input, to have a 1:1 source -> timestamps/watermarks relationship and chain
+		final int inputParallelism = getTransformation().getParallelism();
+
+		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
+			.setParallelism(inputParallelism);
 	}
 
 	/**
 	 * Assigns timestamps to the elements in the data stream and periodically creates
 	 * watermarks to signal event time progress.
 	 *
-	 * <p>This method creates watermarks periodically (for example every second), based
-	 * on the watermarks indicated by the given watermark generator. Even when no new elements
-	 * in the stream arrive, the given watermark generator will be periodically checked for
-	 * new watermarks. The interval in which watermarks are generated is defined in
-	 * {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
+	 * <p>This method uses the deprecated watermark generator interfaces. Please switch to
+	 * {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} to use the
+	 * new interfaces instead. The new interfaces support watermark idleness and no longer need
+	 * to differentiate between "periodic" and "punctuated" watermarks.
 	 *
-	 * <p>Use this method for the common cases, where some characteristic over all elements
-	 * should generate the watermarks, or where watermarks are simply trailing behind the
-	 * wall clock time by a certain amount.
-	 *
-	 * <p>For the second case and when the watermarks are required to lag behind the maximum
-	 * timestamp seen so far in the elements of the stream by a fixed amount of time, and this
-	 * amount is known in advance, use the
-	 * {@link BoundedOutOfOrdernessTimestampExtractor}.
-	 *
-	 * <p>For cases where watermarks should be created in an irregular fashion, for example
-	 * based on certain markers that some element carry, use the
-	 * {@link AssignerWithPunctuatedWatermarks}.
-	 *
-	 * @param timestampAndWatermarkAssigner The implementation of the timestamp assigner and
-	 *                                      watermark generator.
-	 * @return The stream after the transformation, with assigned timestamps and watermarks.
-	 *
-	 * @see AssignerWithPeriodicWatermarks
-	 * @see AssignerWithPunctuatedWatermarks
-	 * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)
+	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} instead.
 	 */
+	@Deprecated
 	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
 			AssignerWithPeriodicWatermarks<T> timestampAndWatermarkAssigner) {
 
-		// match parallelism to input, otherwise dop=1 sources could lead to some strange
-		// behaviour: the watermark will creep along very slowly because the elements
-		// from the source go to each extraction operator round robin.
-		final int inputParallelism = getTransformation().getParallelism();
 		final AssignerWithPeriodicWatermarks<T> cleanedAssigner = clean(timestampAndWatermarkAssigner);
+		final WatermarkStrategy<T> wms = new AssignerWithPeriodicWatermarksAdapter.Strategy<>(cleanedAssigner);
 
-		TimestampsAndPeriodicWatermarksOperator<T> operator =
-				new TimestampsAndPeriodicWatermarksOperator<>(cleanedAssigner);
-
-		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
-				.setParallelism(inputParallelism);
+		return assignTimestampsAndWatermarks(wms);
 	}
 
 	/**
-	 * Assigns timestamps to the elements in the data stream and creates watermarks to
-	 * signal event time progress based on the elements themselves.
+	 * Assigns timestamps to the elements in the data stream and creates watermarks based on events,
+	 * to signal event time progress.
 	 *
-	 * <p>This method creates watermarks based purely on stream elements. For each element
-	 * that is handled via {@link AssignerWithPunctuatedWatermarks#extractTimestamp(Object, long)},
-	 * the {@link AssignerWithPunctuatedWatermarks#checkAndGetNextWatermark(Object, long)}
-	 * method is called, and a new watermark is emitted, if the returned watermark value is
-	 * non-negative and greater than the previous watermark.
+	 * <p>This method uses the deprecated watermark generator interfaces. Please switch to
+	 * {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} to use the
+	 * new interfaces instead. The new interfaces support watermark idleness and no longer need
+	 * to differentiate between "periodic" and "punctuated" watermarks.
 	 *
-	 * <p>This method is useful when the data stream embeds watermark elements, or certain elements
-	 * carry a marker that can be used to determine the current event time watermark.
-	 * This operation gives the programmer full control over the watermark generation. Users
-	 * should be aware that too aggressive watermark generation (i.e., generating hundreds of
-	 * watermarks every second) can cost some performance.
-	 *
-	 * <p>For cases where watermarks should be created in a regular fashion, for example
-	 * every x milliseconds, use the {@link AssignerWithPeriodicWatermarks}.
-	 *
-	 * @param timestampAndWatermarkAssigner The implementation of the timestamp assigner and
-	 *                                      watermark generator.
-	 * @return The stream after the transformation, with assigned timestamps and watermarks.
-	 *
-	 * @see AssignerWithPunctuatedWatermarks
-	 * @see AssignerWithPeriodicWatermarks
-	 * @see #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)
+	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(WatermarkStrategy)} instead.
 	 */
+	@Deprecated
 	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
 			AssignerWithPunctuatedWatermarks<T> timestampAndWatermarkAssigner) {
 
-		// match parallelism to input, otherwise dop=1 sources could lead to some strange
-		// behaviour: the watermark will creep along very slowly because the elements
-		// from the source go to each extraction operator round robin.
-		final int inputParallelism = getTransformation().getParallelism();
 		final AssignerWithPunctuatedWatermarks<T> cleanedAssigner = clean(timestampAndWatermarkAssigner);
+		final WatermarkStrategy<T> wms = new AssignerWithPunctuatedWatermarksAdapter.Strategy<>(cleanedAssigner);
 
-		TimestampsAndPunctuatedWatermarksOperator<T> operator =
-				new TimestampsAndPunctuatedWatermarksOperator<>(cleanedAssigner);
-
-		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
-				.setParallelism(inputParallelism);
+		return assignTimestampsAndWatermarks(wms);
 	}
 
 	// ------------------------------------------------------------------------

@@ -47,7 +47,7 @@ class TemporalTableJoinTest extends TableTestBase {
 
     val result = orders
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select("o_amount * rate").as("rate")
+      .select($"o_amount" * $"rate").as("rate")
 
     util.printTable(result)
   }
@@ -61,7 +61,7 @@ class TemporalTableJoinTest extends TableTestBase {
       .joinLateral(
         rates(java.sql.Timestamp.valueOf("2016-06-27 10:10:42.123")),
         'o_currency === 'currency)
-      .select("o_amount * rate")
+      .select($"o_amount" * $"rate")
 
     util.printTable(result)
   }

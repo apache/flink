@@ -19,7 +19,6 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -55,14 +54,14 @@ public class ExecutionConfigAccessor {
 	/**
 	 * Creates an {@link ExecutionConfigAccessor} based on the provided {@link ProgramOptions} as provided by the user through the CLI.
 	 */
-	public static ExecutionConfigAccessor fromProgramOptions(final ProgramOptions options, final List<URL> jobJars) {
+	public static <T> ExecutionConfigAccessor fromProgramOptions(final ProgramOptions options, final List<T> jobJars) {
 		checkNotNull(options);
 		checkNotNull(jobJars);
 
 		final Configuration configuration = new Configuration();
 
 		options.applyToConfiguration(configuration);
-		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, jobJars, URL::toString);
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, jobJars, Object::toString);
 
 		return new ExecutionConfigAccessor(configuration);
 	}
@@ -72,22 +71,12 @@ public class ExecutionConfigAccessor {
 		return baseConfiguration;
 	}
 
-	public List<URL> getJars() {
-		return decodeUrlList(configuration, PipelineOptions.JARS);
+	public List<URL> getJars() throws MalformedURLException {
+		return ConfigUtils.decodeListFromConfig(configuration, PipelineOptions.JARS, URL::new);
 	}
 
-	public List<URL> getClasspaths() {
-		return decodeUrlList(configuration, PipelineOptions.CLASSPATHS);
-	}
-
-	private List<URL> decodeUrlList(final Configuration configuration, final ConfigOption<List<String>> configOption) {
-		return ConfigUtils.decodeListFromConfig(configuration, configOption, url -> {
-			try {
-				return new URL(url);
-			} catch (MalformedURLException e) {
-				throw new IllegalArgumentException("Invalid URL", e);
-			}
-		});
+	public List<URL> getClasspaths() throws MalformedURLException {
+		return ConfigUtils.decodeListFromConfig(configuration, PipelineOptions.CLASSPATHS, URL::new);
 	}
 
 	public int getParallelism() {

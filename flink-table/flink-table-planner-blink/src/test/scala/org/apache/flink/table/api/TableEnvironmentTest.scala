@@ -27,13 +27,13 @@ import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.planner.operations.SqlConversionException
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
+import org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
-import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.types.Row
+
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
-import org.hamcrest.Matchers.containsString
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
+import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
@@ -56,14 +56,14 @@ class TableEnvironmentTest {
   def testScanNonExistTable(): Unit = {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Table `MyTable` was not found")
-    tableEnv.scan("MyTable")
+    tableEnv.from("MyTable")
   }
 
   @Test
   def testRegisterDataStream(): Unit = {
     val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.registerTable("MyTable", table)
-    val scanTable = tableEnv.scan("MyTable")
+    val scanTable = tableEnv.from("MyTable")
     val relNode = TableTestUtil.toRelNode(scanTable)
     val actual = RelOptUtil.toString(relNode)
     val expected = "LogicalTableScan(table=[[default_catalog, default_database, MyTable]])\n"
@@ -94,9 +94,10 @@ class TableEnvironmentTest {
     val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
     val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
-    tEnv.registerTableSource("MyTable", TestTableSourceSinks.getPersonCsvTableSource)
-    tEnv.registerTableSink("MySink",
-      new CsvTableSink("/tmp").configure(Array("first"), Array(STRING)))
+    TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
+
+    TestTableSourceSinks.createCsvTemporarySinkTable(
+      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink", -1)
 
     val table1 = tEnv.sqlQuery("select first from MyTable")
     tEnv.insertInto(table1, "MySink")
@@ -303,7 +304,7 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testExecuteSqlWithCreateUseCatalog(): Unit = {
+  def testExecuteSqlWithCreateUseDropCatalog(): Unit = {
     val tableResult1 = tableEnv.executeSql(
       "CREATE CATALOG my_catalog WITH('type'='generic_in_memory')")
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
@@ -313,6 +314,10 @@ class TableEnvironmentTest {
     val tableResult2 = tableEnv.executeSql("USE CATALOG my_catalog")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
     assertEquals("my_catalog", tableEnv.getCurrentCatalog)
+
+    val tableResult3 = tableEnv.executeSql("DROP CATALOG my_catalog")
+    assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
+    assertFalse(tableEnv.getCatalog("my_catalog").isPresent)
   }
 
   @Test
@@ -378,15 +383,6 @@ class TableEnvironmentTest {
     checkData(
       tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
       tableResult.collect())
-  }
-
-  @Test
-  def testExecuteSqlWithUnsupportedStmt(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(containsString("Unsupported SQL query!"))
-    tableEnv.registerTableSource("MyTable", TestTableSourceSinks.getPersonCsvTableSource)
-    // TODO supports select later
-    tableEnv.executeSql("select * from MyTable")
   }
 
   @Test
@@ -550,10 +546,10 @@ class TableEnvironmentTest {
 
     assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
 
-    tableEnv.sqlUpdate("DROP VIEW default_catalog.default_database.T2")
+    tableEnv.executeSql("DROP VIEW default_catalog.default_database.T2")
     assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
 
-    tableEnv.sqlUpdate("DROP VIEW default_catalog.default_database.T3")
+    tableEnv.executeSql("DROP VIEW default_catalog.default_database.T3")
     assert(tableEnv.listTables().sameElements(Array[String]("T1")))
   }
 
@@ -736,9 +732,11 @@ class TableEnvironmentTest {
     val sourceDDL =
       """
         |CREATE TABLE T1(
-        |  a int,
+        |  a int not null,
         |  b varchar,
-        |  c int
+        |  c int,
+        |  ts AS to_timestamp(b),
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
         |) with (
         |  'connector' = 'COLLECTION'
         |)
@@ -795,6 +793,302 @@ class TableEnvironmentTest {
     checkData(
       util.Arrays.asList(Row.of("view1"), Row.of("view2")).iterator(),
       tableResult5.collect())
+  }
+
+  @Test
+  def testExecuteSqlWithExplainSelect(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val tableResult2 = tableEnv.executeSql("explain plan for select * from MyTable where a > 10")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    val it = tableResult2.collect()
+    assertTrue(it.hasNext)
+    val row = it.next()
+    assertEquals(1, row.getArity)
+    val actual = row.getField(0).toString
+    val expected = TableTestUtil.readFromResource("/explain/testExecuteSqlWithExplainSelect.out")
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+    assertFalse(it.hasNext)
+  }
+
+  @Test
+  def testExecuteSqlWithExplainInsert(): Unit = {
+    val createTableStmt1 =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt1)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE TABLE MySink (
+        |  d bigint,
+        |  e int
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult2 = tableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val tableResult3 = tableEnv.executeSql(
+      "explain plan for insert into MySink select a, b from MyTable where a > 10")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    val it = tableResult3.collect()
+    assertTrue(it.hasNext)
+    val row = it.next()
+    assertEquals(1, row.getArity)
+    val actual = row.getField(0).toString
+    val expected = TableTestUtil.readFromResource("/explain/testExecuteSqlWithExplainInsert.out")
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+    assertFalse(it.hasNext)
+  }
+
+  @Test
+  def testExecuteSqlWithUnsupportedExplain(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    // TODO we can support them later
+    testUnsupportedExplain("explain plan excluding attributes for select * from MyTable")
+    testUnsupportedExplain("explain plan including all attributes for select * from MyTable")
+    testUnsupportedExplain("explain plan with type for select * from MyTable")
+    testUnsupportedExplain("explain plan without implementation for select * from MyTable")
+    testUnsupportedExplain("explain plan as xml for select * from MyTable")
+    testUnsupportedExplain("explain plan as json for select * from MyTable")
+  }
+
+  @Test
+  def testExplainSqlWithSelect(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val actual = tableEnv.explainSql(
+      "select * from MyTable where a > 10", ExplainDetail.CHANGELOG_MODE)
+    val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithSelect.out")
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainSqlWithInsert(): Unit = {
+    val createTableStmt1 =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt1)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE TABLE MySink (
+        |  d bigint,
+        |  e int
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult2 = tableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val actual = tableEnv.explainSql(
+      "insert into MySink select a, b from MyTable where a > 10")
+    val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithInsert.out")
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+  }
+
+  @Test
+  def testTableExplain(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val actual = tableEnv.sqlQuery("select * from MyTable where a > 10")
+      .explain(ExplainDetail.CHANGELOG_MODE)
+    val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithSelect.out")
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+  }
+
+  private def testUnsupportedExplain(explain: String): Unit = {
+    try {
+      tableEnv.executeSql(explain)
+      fail("This should not happen")
+    } catch {
+      case e: TableException =>
+        assertTrue(e.getMessage.contains("Only default behavior is supported now"))
+      case e =>
+        fail("This should not happen, " + e.getMessage)
+    }
+  }
+
+  @Test
+  def testDescribeTableOrView(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  f0 char(10),
+        |  f1 varchar(10),
+        |  f2 string,
+        |  f3 BOOLEAN,
+        |  f4 BINARY(10),
+        |  f5 VARBINARY(10),
+        |  f6 BYTES,
+        |  f7 DECIMAL(10, 3),
+        |  f8 TINYINT,
+        |  f9 SMALLINT,
+        |  f10 INTEGER,
+        |  f11 BIGINT,
+        |  f12 FLOAT,
+        |  f13 DOUBLE,
+        |  f14 DATE,
+        |  f15 TIME,
+        |  f16 TIMESTAMP,
+        |  f17 TIMESTAMP(3),
+        |  f18 TIMESTAMP WITHOUT TIME ZONE,
+        |  f19 TIMESTAMP(3) WITH LOCAL TIME ZONE,
+        |  f20 TIMESTAMP WITH LOCAL TIME ZONE,
+        |  f21 ARRAY<INT>,
+        |  f22 MAP<INT, STRING>,
+        |  f23 ROW<f0 INT, f1 STRING>,
+        |  f24 int not null,
+        |  f25 varchar not null,
+        |  f26 row<f0 int not null, f1 int> not null,
+        |  ts AS to_timestamp(f25),
+        |  PRIMARY KEY(f24, f26) NOT ENFORCED,
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    val viewDDL =
+      """
+        |CREATE VIEW IF NOT EXISTS T2(d, e, f) AS SELECT f24, f25, f26 FROM T1
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+    tableEnv.executeSql(viewDDL)
+
+    val tableResult1 = tableEnv.executeSql("describe T1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
+    checkData(
+      util.Arrays.asList(
+        Row.of("f0", "CHAR(10)", Boolean.box(true), null, null, null),
+        Row.of("f1", "VARCHAR(10)", Boolean.box(true), null, null, null),
+        Row.of("f2", "STRING", Boolean.box(true), null, null, null),
+        Row.of("f3", "BOOLEAN", Boolean.box(true), null, null, null),
+        Row.of("f4", "BINARY(10)", Boolean.box(true), null, null, null),
+        Row.of("f5", "VARBINARY(10)", Boolean.box(true), null, null, null),
+        Row.of("f6", "BYTES", Boolean.box(true), null, null, null),
+        Row.of("f7", "DECIMAL(10, 3)", Boolean.box(true), null, null, null),
+        Row.of("f8", "TINYINT", Boolean.box(true), null, null, null),
+        Row.of("f9", "SMALLINT", Boolean.box(true), null, null, null),
+        Row.of("f10", "INT", Boolean.box(true), null, null, null),
+        Row.of("f11", "BIGINT", Boolean.box(true), null, null, null),
+        Row.of("f12", "FLOAT", Boolean.box(true), null, null, null),
+        Row.of("f13", "DOUBLE", Boolean.box(true), null, null, null),
+        Row.of("f14", "DATE", Boolean.box(true), null, null, null),
+        Row.of("f15", "TIME(0)", Boolean.box(true), null, null, null),
+        Row.of("f16", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
+        Row.of("f17", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+        Row.of("f18", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
+        Row.of("f19", "TIMESTAMP(3) WITH LOCAL TIME ZONE", Boolean.box(true), null, null, null),
+        Row.of("f20", "TIMESTAMP(6) WITH LOCAL TIME ZONE", Boolean.box(true), null, null, null),
+        Row.of("f21", "ARRAY<INT>", Boolean.box(true), null, null, null),
+        Row.of("f22", "MAP<INT, STRING>", Boolean.box(true), null, null, null),
+        Row.of("f23", "ROW<`f0` INT, `f1` STRING>", Boolean.box(true), null, null, null),
+        Row.of("f24", "INT", Boolean.box(false), "PRI(f24, f26)", null, null),
+        Row.of("f25", "STRING", Boolean.box(false), null, null, null),
+        Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
+          "PRI(f24, f26)", null, null),
+        Row.of("ts", "TIMESTAMP(3)", Boolean.box(true), null, "TO_TIMESTAMP(`f25`)",
+          "`ts` - INTERVAL '1' SECOND")
+      ).iterator(),
+      tableResult1.collect())
+
+    val tableResult2 = tableEnv.executeSql("describe T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    checkData(
+      util.Arrays.asList(
+        Row.of("d", "INT", Boolean.box(false), null, null, null),
+        Row.of("e", "STRING", Boolean.box(false), null, null, null),
+        Row.of("f", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), null, null, null)
+      ).iterator(),
+      tableResult2.collect())
+
+    // temporary view T2(x, y) masks permanent view T2(d, e, f)
+    val temporaryViewDDL =
+      """
+        |CREATE TEMPORARY VIEW IF NOT EXISTS T2(x, y) AS SELECT f24, f25 FROM T1
+      """.stripMargin
+    tableEnv.executeSql(temporaryViewDDL)
+
+    val tableResult3 = tableEnv.executeSql("describe T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    checkData(
+      util.Arrays.asList(
+        Row.of("x", "INT", Boolean.box(false), null, null, null),
+        Row.of("y", "STRING", Boolean.box(false), null, null, null)).iterator(),
+      tableResult3.collect())
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {

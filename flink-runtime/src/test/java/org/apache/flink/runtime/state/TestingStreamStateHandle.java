@@ -18,50 +18,28 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
-import javax.annotation.Nullable;
+import java.util.UUID;
 
 /**
  * A simple test mock for a {@link StreamStateHandle}.
  */
-public class TestingStreamStateHandle implements StreamStateHandle {
+public class TestingStreamStateHandle extends ByteStreamStateHandle {
 	private static final long serialVersionUID = 1L;
-
-	@Nullable
-	private final FSDataInputStream inputStream;
-
-	private final long size;
 
 	private boolean disposed;
 
 	public TestingStreamStateHandle() {
-		this(null, 0L);
-	}
-
-	public TestingStreamStateHandle(@Nullable FSDataInputStream inputStream, long size) {
-		this.inputStream = inputStream;
-		this.size = size;
+		super(UUID.randomUUID().toString(), new byte[0]);
 	}
 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public FSDataInputStream openInputStream() {
-		if (inputStream == null) {
-			throw new UnsupportedOperationException("no input stream provided");
-		}
-		return inputStream;
-	}
-
-	@Override
 	public void discardState() {
+		super.discardState();
 		disposed = true;
-	}
-
-	@Override
-	public long getStateSize() {
-		return size;
 	}
 
 	// ------------------------------------------------------------------------

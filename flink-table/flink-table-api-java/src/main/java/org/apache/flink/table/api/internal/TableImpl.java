@@ -20,6 +20,7 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.AggregatedTable;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.FlatAggregateTable;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.GroupWindowedTable;
@@ -29,28 +30,36 @@ import org.apache.flink.table.api.OverWindowedTable;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WindowGroupedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.functions.TemporalTableFunctionImpl;
+import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.api.Expressions.lit;
 
 /**
  * Implementation for {@link Table}.
@@ -60,7 +69,7 @@ public class TableImpl implements Table {
 
 	private static final AtomicInteger uniqueId = new AtomicInteger(0);
 
-	private final TableEnvironment tableEnvironment;
+	private final TableEnvironmentInternal tableEnvironment;
 	private final QueryOperation operationTree;
 	private final OperationTreeBuilder operationTreeBuilder;
 	private final LookupCallResolver lookupResolver;
@@ -72,7 +81,7 @@ public class TableImpl implements Table {
 	}
 
 	private TableImpl(
-			TableEnvironment tableEnvironment,
+			TableEnvironmentInternal tableEnvironment,
 			QueryOperation operationTree,
 			OperationTreeBuilder operationTreeBuilder,
 			LookupCallResolver lookupResolver) {
@@ -83,7 +92,7 @@ public class TableImpl implements Table {
 	}
 
 	public static TableImpl createTable(
-			TableEnvironment tableEnvironment,
+			TableEnvironmentInternal tableEnvironment,
 			QueryOperation operationTree,
 			OperationTreeBuilder operationTreeBuilder,
 			FunctionLookup functionLookup) {
@@ -156,8 +165,17 @@ public class TableImpl implements Table {
 	}
 
 	@Override
-	public Table as(String fields) {
-		List<Expression> fieldsExprs = ExpressionParser.parseExpressionList(fields);
+	public Table as(String field, String... fields) {
+		final List<Expression> fieldsExprs;
+		if (fields.length == 0 && operationTree.getTableSchema().getFieldCount() > 1) {
+			fieldsExprs = ExpressionParser.parseExpressionList(field);
+		} else {
+			fieldsExprs = new ArrayList<>();
+			fieldsExprs.add(lit(field));
+			for (String extraField : fields) {
+				fieldsExprs.add(lit(extraField));
+			}
+		}
 		return createTable(operationTreeBuilder.alias(fieldsExprs, operationTree));
 	}
 
@@ -524,6 +542,37 @@ public class TableImpl implements Table {
 	@Override
 	public FlatAggregateTable flatAggregate(Expression tableAggregateFunction) {
 		return groupBy().flatAggregate(tableAggregateFunction);
+	}
+
+	@Override
+	public TableResult executeInsert(String tablePath) {
+		return executeInsert(tablePath, false);
+	}
+
+	@Override
+	public TableResult executeInsert(String tablePath, boolean overwrite) {
+		UnresolvedIdentifier unresolvedIdentifier = tableEnvironment.getParser().parseIdentifier(tablePath);
+		ObjectIdentifier objectIdentifier = tableEnvironment.getCatalogManager()
+				.qualifyIdentifier(unresolvedIdentifier);
+
+		ModifyOperation operation = new CatalogSinkModifyOperation(
+				objectIdentifier,
+				getQueryOperation(),
+				Collections.emptyMap(),
+				overwrite,
+				Collections.emptyMap());
+
+		return tableEnvironment.executeInternal(Collections.singletonList(operation));
+	}
+
+	@Override
+	public TableResult execute() {
+		return tableEnvironment.executeInternal(getQueryOperation());
+	}
+
+	@Override
+	public String explain(ExplainDetail... extraDetails) {
+		return tableEnvironment.explainInternal(Collections.singletonList(getQueryOperation()), extraDetails);
 	}
 
 	@Override

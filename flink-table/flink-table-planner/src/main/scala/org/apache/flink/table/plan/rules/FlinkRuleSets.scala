@@ -146,7 +146,8 @@ object FlinkRuleSets {
     FlinkLogicalTableFunctionScan.CONVERTER,
     FlinkLogicalMatch.CONVERTER,
     FlinkLogicalTableAggregate.CONVERTER,
-    FlinkLogicalWindowTableAggregate.CONVERTER
+    FlinkLogicalWindowTableAggregate.CONVERTER,
+    FlinkLogicalSink.CONVERTER
   )
 
   /**
@@ -219,7 +220,8 @@ object FlinkRuleSets {
     DataSetValuesRule.INSTANCE,
     DataSetCorrelateRule.INSTANCE,
     DataSetPythonCorrelateRule.INSTANCE,
-    BatchTableSourceScanRule.INSTANCE
+    BatchTableSourceScanRule.INSTANCE,
+    DataSetSinkRule.INSTANCE
   )
 
   /**
@@ -265,7 +267,8 @@ object FlinkRuleSets {
     DataStreamTableAggregateRule.INSTANCE,
     DataStreamGroupWindowTableAggregateRule.INSTANCE,
     DataStreamPythonCalcRule.INSTANCE,
-    DataStreamPythonCorrelateRule.INSTANCE
+    DataStreamPythonCorrelateRule.INSTANCE,
+    DataStreamSinkRule.INSTANCE
   )
 
   /**

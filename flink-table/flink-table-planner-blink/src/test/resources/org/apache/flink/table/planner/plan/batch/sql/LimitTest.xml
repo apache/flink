@@ -50,7 +50,7 @@ Calc(select=[a, c])
 +- Limit(offset=[0], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[10], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 10]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 10]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -71,7 +71,7 @@ Calc(select=[a, c])
 +- Limit(offset=[10], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[20], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -92,7 +92,7 @@ Calc(select=[a, c])
 +- Limit(offset=[10], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[20], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 20]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 20]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -113,7 +113,7 @@ Calc(select=[a, c])
 +- Limit(offset=[0], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[10], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -185,7 +185,7 @@ Calc(select=[a, c])
 +- Limit(offset=[0], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[10], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 10]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 10]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -206,7 +206,7 @@ Calc(select=[a, c])
 +- SortLimit(orderBy=[c ASC], offset=[0], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- SortLimit(orderBy=[c ASC], offset=[0], fetch=[10], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -227,7 +227,7 @@ Calc(select=[a, c])
 +- Limit(offset=[1], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[11], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -248,7 +248,7 @@ Calc(select=[a, c])
 +- Limit(offset=[0], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[10], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -268,7 +268,7 @@ LogicalSort(fetch=[5])
 Limit(offset=[0], fetch=[5], global=[true])
 +- Exchange(distribution=[single])
    +- Limit(offset=[0], fetch=[5], global=[false])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -288,7 +288,7 @@ LogicalSort(offset=[10])
 Calc(select=[a, c])
 +- Limit(offset=[10], fetch=[unlimited], global=[true])
    +- Exchange(distribution=[single])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -309,7 +309,7 @@ Calc(select=[a, c])
 +- Limit(offset=[1], fetch=[10], global=[true])
    +- Exchange(distribution=[single])
       +- Limit(offset=[0], fetch=[11], global=[false])
-         +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 11]]], fields=[a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 11]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

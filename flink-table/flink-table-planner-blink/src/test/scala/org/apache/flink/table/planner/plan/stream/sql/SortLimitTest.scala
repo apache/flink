@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -77,12 +78,15 @@ class SortLimitTest extends TableTestBase {
 
   @Test
   def testOrderByLimit(): Unit = {
-    util.verifyPlanWithTrait("SELECT * FROM MyTable ORDER BY a, b DESC LIMIT 10")
+    util.verifyPlan(
+      "SELECT * FROM MyTable ORDER BY a, b DESC LIMIT 10", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
   def testOrderByFetch(): Unit = {
-    util.verifyPlanWithTrait("SELECT * FROM MyTable ORDER BY a, b DESC FETCH FIRST 10 ROWS ONLY")
+    util.verifyPlan(
+      "SELECT * FROM MyTable ORDER BY a, b DESC FETCH FIRST 10 ROWS ONLY",
+      ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

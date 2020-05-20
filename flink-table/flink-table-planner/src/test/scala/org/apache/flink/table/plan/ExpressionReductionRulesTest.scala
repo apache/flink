@@ -473,7 +473,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val result = table
       .select('a, 'b, 'c, DeterministicNullFunc() as 'd)
-      .where("d.isNull")
+      .where($"d".isNull)
       .select('a, 'b, 'c)
 
     val expected: String = unaryNode("DataStreamCalc",
@@ -492,7 +492,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     val result = table
       .select('a, 'b, 'c, NonDeterministicNullFunc() as 'd)
-      .where("d.isNull")
+      .where($"d".isNull)
       .select('a, 'b, 'c)
 
     val expected = unaryNode(

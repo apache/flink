@@ -28,6 +28,7 @@ from pyflink.common import JobExecutionResult
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
 from pyflink.table.serializers import ArrowSerializer
+from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
 from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor
 
@@ -36,7 +37,8 @@ from pyflink.table import Table
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema
 from pyflink.util import utils
-from pyflink.util.utils import get_j_env_configuration, is_local_deployment, load_java_class
+from pyflink.util.utils import get_j_env_configuration, is_local_deployment, load_java_class, \
+    to_j_explain_detail_arr
 
 __all__ = [
     'BatchTableEnvironment',
@@ -188,7 +190,7 @@ class TableEnvironment(object):
         .. note:: Deprecated in 1.10. Use :func:`connect` instead.
         """
         warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
-        self._j_tenv.registerTableSource(name, table_source._j_table_source)
+        self._j_tenv.registerTableSourceInternal(name, table_source._j_table_source)
 
     def register_table_sink(self, name, table_sink):
         """
@@ -213,7 +215,7 @@ class TableEnvironment(object):
         .. note:: Deprecated in 1.10. Use :func:`connect` instead.
         """
         warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
-        self._j_tenv.registerTableSink(name, table_sink._j_table_sink)
+        self._j_tenv.registerTableSinkInternal(name, table_sink._j_table_sink)
 
     def scan(self, *table_path):
         """
@@ -310,7 +312,12 @@ class TableEnvironment(object):
         .. versionchanged:: 1.10.0
             The signature is changed, e.g. the parameter *table_path_continued* was removed and
             the parameter *target_path* is moved before the parameter *table*.
+
+        .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
+                  use :func:`create_statement_set` for multiple sinks.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_insert for single sink,"
+                      "use create_statement_set for multiple sinks.", DeprecationWarning)
         self._j_tenv.insertInto(target_path, table._j_table)
 
     def list_catalogs(self):
@@ -462,11 +469,30 @@ class TableEnvironment(object):
         :type extended: bool
         :return: The table for which the AST and execution plan will be returned.
         :rtype: str
+
+        .. note:: Deprecated in 1.11. Use :class:`Table`#:func:`explain` instead.
         """
+        warnings.warn("Deprecated in 1.11. Use Table#explain instead.", DeprecationWarning)
         if table is None:
             return self._j_tenv.explain(extended)
         else:
             return self._j_tenv.explain(table._j_table, extended)
+
+    def explain_sql(self, stmt, *extra_details):
+        """
+        Returns the AST of the specified statement and the execution plan.
+
+        :param stmt: The statement for which the AST and execution plan will be returned.
+        :type stmt: str
+        :param extra_details: The extra explain details which the explain result should include,
+                              e.g. estimated cost, changelog mode for streaming
+        :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
+        :return: The statement for which the AST and execution plan will be returned.
+        :rtype: str
+        """
+
+        j_extra_details = to_j_explain_detail_arr(extra_details)
+        return self._j_tenv.explainSql(stmt, j_extra_details)
 
     def sql_query(self, query):
         """
@@ -505,7 +531,20 @@ class TableEnvironment(object):
                 the affected row count for `DML` (-1 means unknown),
                 or a string message ("OK") for other statements.
         """
+        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
         return self._j_tenv.executeSql(stmt)
+
+    def create_statement_set(self):
+        """
+        Create a StatementSet instance which accepts DML statements or Tables,
+        the planner can optimize all added statements and Tables together
+        and then submit as one job.
+
+        :return statement_set instance
+        :rtype: pyflink.table.StatementSet
+        """
+        _j_statement_set = self._j_tenv.createStatementSet()
+        return StatementSet(_j_statement_set)
 
     def sql_update(self, stmt):
         """
@@ -577,7 +616,12 @@ class TableEnvironment(object):
 
         :param stmt: The SQL statement to evaluate.
         :type stmt: str
+
+        .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single statement,
+                  use :func:`create_statement_set` for multiple DML statements.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_sql for single statement, "
+                      "use create_statement_set for multiple DML statements.", DeprecationWarning)
         self._j_tenv.sqlUpdate(stmt)
 
     def get_current_catalog(self):
@@ -768,7 +812,17 @@ class TableEnvironment(object):
         gateway = get_gateway()
         java_function = gateway.jvm.Thread.currentThread().getContextClassLoader()\
             .loadClass(function_class_name).newInstance()
-        self._j_tenv.registerFunction(name, java_function)
+        # this is a temporary solution and will be unified later when we use the new type
+        # system(DataType) to replace the old type system(TypeInformation).
+        if self._is_blink_planner and isinstance(self, BatchTableEnvironment):
+            if self._is_table_function(java_function):
+                self._register_table_function(name, java_function)
+            elif self._is_aggregate_function(java_function):
+                self._register_aggregate_function(name, java_function)
+            else:
+                self._j_tenv.registerFunction(name, java_function)
+        else:
+            self._j_tenv.registerFunction(name, java_function)
 
     def register_function(self, name, function):
         """
@@ -800,7 +854,14 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.10.0
         """
-        self._j_tenv.registerFunction(name, function.java_user_defined_function())
+        java_function = function.java_user_defined_function()
+        # this is a temporary solution and will be unified later when we use the new type
+        # system(DataType) to replace the old type system(TypeInformation).
+        if self._is_blink_planner and isinstance(self, BatchTableEnvironment) and \
+                self._is_table_function(java_function):
+            self._register_table_function(name, java_function)
+        else:
+            self._j_tenv.registerFunction(name, java_function)
 
     def create_temporary_view(self, view_path, table):
         """
@@ -974,7 +1035,12 @@ class TableEnvironment(object):
         :param job_name: Desired name of the job.
         :type job_name: str
         :return: The result of the job execution, containing elapsed time and accumulators.
+
+        .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single sink,
+                  use :func:`create_statement_set` for multiple sinks.
         """
+        warnings.warn("Deprecated in 1.11. Use execute_sql for single sink, "
+                      "use create_statement_set for multiple sinks.", DeprecationWarning)
         jvm = get_gateway().jvm
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
@@ -1222,6 +1288,42 @@ class TableEnvironment(object):
     @abstractmethod
     def _get_j_env(self):
         pass
+
+    @staticmethod
+    def _is_table_function(java_function):
+        java_function_class = java_function.getClass()
+        j_table_function_class = get_java_class(
+            get_gateway().jvm.org.apache.flink.table.functions.TableFunction)
+        return j_table_function_class.isAssignableFrom(java_function_class)
+
+    @staticmethod
+    def _is_aggregate_function(java_function):
+        java_function_class = java_function.getClass()
+        j_aggregate_function_class = get_java_class(
+            get_gateway().jvm.org.apache.flink.table.functions.UserDefinedAggregateFunction)
+        return j_aggregate_function_class.isAssignableFrom(java_function_class)
+
+    def _register_table_function(self, name, table_function):
+        function_catalog = self._get_function_catalog()
+        gateway = get_gateway()
+        helper = gateway.jvm.org.apache.flink.table.functions.UserDefinedFunctionHelper
+        result_type = helper.getReturnTypeOfTableFunction(table_function)
+        function_catalog.registerTempSystemTableFunction(name, table_function, result_type)
+
+    def _register_aggregate_function(self, name, aggregate_function):
+        function_catalog = self._get_function_catalog()
+        gateway = get_gateway()
+        helper = gateway.jvm.org.apache.flink.table.functions.UserDefinedFunctionHelper
+        result_type = helper.getReturnTypeOfAggregateFunction(aggregate_function)
+        acc_type = helper.getAccumulatorTypeOfAggregateFunction(aggregate_function)
+        function_catalog.registerTempSystemAggregateFunction(
+            name, aggregate_function, result_type, acc_type)
+
+    def _get_function_catalog(self):
+        function_catalog_field = self._j_tenv.getClass().getDeclaredField("functionCatalog")
+        function_catalog_field.setAccessible(True)
+        function_catalog = function_catalog_field.get(self._j_tenv)
+        return function_catalog
 
 
 class StreamTableEnvironment(TableEnvironment):

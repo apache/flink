@@ -29,6 +29,7 @@ import org.apache.flink.util.ThrowableCatchingRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -138,6 +139,24 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 			() -> fetchers.remove(fetcherId));
 		fetchers.put(fetcherId, splitFetcher);
 		return splitFetcher;
+	}
+
+	/**
+	 * Check and shutdown the fetchers that have completed their work.
+	 *
+	 * @return true if all the fetchers have completed the work, false otherwise.
+	 */
+	public boolean maybeShutdownFinishedFetchers() {
+		Iterator<Map.Entry<Integer, SplitFetcher<E, SplitT>>> iter = fetchers.entrySet().iterator();
+		while (iter.hasNext()) {
+			Map.Entry<Integer, SplitFetcher<E, SplitT>> entry = iter.next();
+			SplitFetcher<E, SplitT> fetcher = entry.getValue();
+			if (fetcher.isIdle()) {
+				fetcher.shutdown();
+				iter.remove();
+			}
+		}
+		return fetchers.isEmpty();
 	}
 
 	/**

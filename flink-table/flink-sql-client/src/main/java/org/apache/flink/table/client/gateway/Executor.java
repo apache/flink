@@ -19,8 +19,10 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.config.entries.ViewEntry;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 
 import java.util.List;
@@ -134,6 +136,11 @@ public interface Executor {
 	List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException;
 
 	/**
+	 * Executes a SQL statement.
+	 */
+	TableResult executeSql(String sessionId, String statement) throws SqlExecutionException;
+
+	/**
 	 * Lists all functions known to the executor.
 	 */
 	List<String> listFunctions(String sessionId) throws SqlExecutionException;
@@ -160,9 +167,9 @@ public interface Executor {
 	TableSchema getTableSchema(String sessionId, String name) throws SqlExecutionException;
 
 	/**
-	 * Returns a string-based explanation about AST and execution plan of the given statement.
+	 * Returns a sql parser instance.
 	 */
-	String explainStatement(String sessionId, String statement) throws SqlExecutionException;
+	Parser getSqlParser(String sessionId);
 
 	/**
 	 * Returns a list of completion hints for the given statement at the given position.

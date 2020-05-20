@@ -60,7 +60,7 @@ class CorrelateValidationTest extends TableTestBase {
     //============ throw exception when table function is not registered =========
     // Java Table API call
     expectExceptionThrown(
-      t.joinLateral("nonexist(a)"), "Undefined function: nonexist")
+      t.joinLateral(call("nonexist", $"a")), "Undefined function: nonexist")
     // SQL API call
     expectExceptionThrown(
       util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
@@ -81,7 +81,7 @@ class CorrelateValidationTest extends TableTestBase {
     // Java Table API call
     util.addFunction("func2", new TableFunc2)
     expectExceptionThrown(
-      t.joinLateral("func2(c, c)"),
+      t.joinLateral(call("func2", $"c", $"c")),
       "Given parameters of function 'func2' do not match any signature")
     // SQL API call
     expectExceptionThrown(
@@ -131,7 +131,7 @@ class CorrelateValidationTest extends TableTestBase {
     util.tableEnv.registerFunction("weightedAvg", new WeightedAvg)
     util.addTable[(Int)](
       "MyTable", 'int)
-      .flatMap("weightedAvg(int, int)") // do not support AggregateFunction as input
+      .flatMap(call("weightedAvg", $"int", $"int")) // do not support AggregateFunction as input
   }
 
   @Test(expected = classOf[ValidationException])

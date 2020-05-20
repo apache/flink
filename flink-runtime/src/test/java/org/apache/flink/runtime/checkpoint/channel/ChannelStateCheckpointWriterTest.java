@@ -22,6 +22,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelSta
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -37,6 +38,7 @@ import java.util.Random;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * {@link ChannelStateCheckpointWriter} test.
@@ -45,6 +47,27 @@ public class ChannelStateCheckpointWriterTest {
 	private static final RunnableWithException NO_OP_RUNNABLE = () -> {
 	};
 	private final Random random = new Random();
+
+	@Test
+	public void testEmptyState() throws Exception {
+		MemoryCheckpointOutputStream stream = new MemoryCheckpointOutputStream(1000) {
+			@Override
+			public StreamStateHandle closeAndGetHandle() {
+				fail("closeAndGetHandle shouldn't be called for empty channel state");
+				return null;
+			}
+		};
+		ChannelStateCheckpointWriter writer = new ChannelStateCheckpointWriter(
+				1L,
+				new ChannelStateWriteResult(),
+				stream,
+				new ChannelStateSerializerImpl(),
+				NO_OP_RUNNABLE
+		);
+		writer.completeOutput();
+		writer.completeInput();
+		assertTrue(stream.isClosed());
+	}
 
 	@Test
 	public void testRecyclingBuffers() throws Exception {

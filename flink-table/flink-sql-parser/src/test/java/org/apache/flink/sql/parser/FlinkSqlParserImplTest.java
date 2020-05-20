@@ -28,6 +28,7 @@ import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.parser.SqlParserTest;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
+import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -65,17 +66,21 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	@Test
 	public void testCreateCatalog() {
-		check(
-			"create catalog c1\n" +
+		sql("create catalog c1\n" +
 				" WITH (\n" +
 				"  'key1'='value1',\n" +
 				"  'key2'='value2'\n" +
-				" )\n",
-			"CREATE CATALOG `C1` " +
-				"WITH (\n" +
-				"  'key1' = 'value1',\n" +
-				"  'key2' = 'value2'\n" +
-				")");
+				" )\n")
+			.ok("CREATE CATALOG `C1` " +
+					"WITH (\n" +
+					"  'key1' = 'value1',\n" +
+					"  'key2' = 'value2'\n" +
+					")");
+	}
+
+	@Test
+	public void testDropCatalog() {
+		sql("drop catalog c1").ok("DROP CATALOG `C1`");
 	}
 
 	@Test
@@ -181,11 +186,24 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	public void testAlterTable() {
 		sql("alter table t1 rename to t2").ok("ALTER TABLE `T1` RENAME TO `T2`");
 		sql("alter table c1.d1.t1 rename to t2").ok("ALTER TABLE `C1`.`D1`.`T1` RENAME TO `T2`");
-		final String sql = "alter table t1 set ('key1'='value1')";
-		final String expected = "ALTER TABLE `T1` SET (\n"
+		final String sql0 = "alter table t1 set ('key1'='value1')";
+		final String expected0 = "ALTER TABLE `T1` SET (\n"
 				+ "  'key1' = 'value1'\n"
 				+ ")";
-		sql(sql).ok(expected);
+		sql(sql0).ok(expected0);
+		final String sql1 = "alter table t1 "
+				+ "add constraint ct1 primary key(a, b) not enforced";
+		final String expected1 = "ALTER TABLE `T1` "
+				+ "ADD CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED";
+		sql(sql1).ok(expected1);
+		final String sql2 = "alter table t1 "
+				+ "add unique(a, b)";
+		final String expected2 = "ALTER TABLE `T1` "
+				+ "ADD UNIQUE (`A`, `B`)";
+		sql(sql2).ok(expected2);
+		final String sql3 = "alter table t1 drop constraint ct1";
+		final String expected3 = "ALTER TABLE `T1` DROP CONSTRAINT `CT1`";
+		sql(sql3).ok(expected3);
 	}
 
 	@Test
@@ -257,40 +275,112 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
-	public void testCreateTableWithPrimaryKeyAndUniqueKey() {
+	public void testTableConstraints() {
+		final String sql = "CREATE TABLE tbl1 (\n" +
+			"  a bigint,\n" +
+			"  h varchar, \n" +
+			"  g as 2 * (a + 1),\n" +
+			"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n" +
+			"  b varchar,\n" +
+			"  proc as PROCTIME(),\n" +
+			"  PRIMARY KEY (a, b),\n" +
+			"  UNIQUE (h, g)\n" +
+			") with (\n" +
+			"  'connector' = 'kafka',\n" +
+			"  'kafka.topic' = 'log.test'\n" +
+			")\n";
+		final String expected = "CREATE TABLE `TBL1` (\n" +
+			"  `A`  BIGINT,\n" +
+			"  `H`  VARCHAR,\n" +
+			"  `G` AS (2 * (`A` + 1)),\n" +
+			"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
+			"  `B`  VARCHAR,\n" +
+			"  `PROC` AS `PROCTIME`(),\n" +
+			"  PRIMARY KEY (`A`, `B`),\n" +
+			"  UNIQUE (`H`, `G`)\n" +
+			") WITH (\n" +
+			"  'connector' = 'kafka',\n" +
+			"  'kafka.topic' = 'log.test'\n" +
+			")";
+		sql(sql).ok(expected);
+	}
+
+	@Test
+	public void testTableConstraintsValidated() {
+		final String sql = "CREATE TABLE tbl1 (\n" +
+			"  a bigint,\n" +
+			"  h varchar, \n" +
+			"  g as 2 * (a + 1),\n" +
+			"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n" +
+			"  b varchar,\n" +
+			"  proc as PROCTIME(),\n" +
+			"  PRIMARY KEY (a, b),\n" +
+			"  UNIQUE (h, g)\n" +
+			") with (\n" +
+			"  'connector' = 'kafka',\n" +
+			"  'kafka.topic' = 'log.test'\n" +
+			")\n";
+		final String expected = "CREATE TABLE `TBL1` (\n" +
+			"  `A`  BIGINT NOT NULL,\n" +
+			"  `H`  VARCHAR,\n" +
+			"  `G` AS (2 * (`A` + 1)),\n" +
+			"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
+			"  `B`  VARCHAR NOT NULL,\n" +
+			"  `PROC` AS `PROCTIME`(),\n" +
+			"  PRIMARY KEY (`A`, `B`),\n" +
+			"  UNIQUE (`H`, `G`)\n" +
+			") WITH (\n" +
+			"  'connector' = 'kafka',\n" +
+			"  'kafka.topic' = 'log.test'\n" +
+			")";
+		sql(sql).node(validated(expected));
+	}
+
+	@Test
+	public void testTableConstraintsWithEnforcement() {
+		final String sql = "CREATE TABLE tbl1 (\n" +
+			"  a bigint primary key enforced comment 'test column comment AAA.',\n" +
+			"  h varchar constraint ct1 unique not enforced,\n" +
+			"  g as 2 * (a + 1), \n" +
+			"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n" +
+			"  b varchar constraint ct2 unique,\n" +
+			"  proc as PROCTIME(),\n" +
+			"  unique (g, ts) not enforced" +
+			") with (\n" +
+			"    'connector' = 'kafka',\n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		final String expected = "CREATE TABLE `TBL1` (\n" +
+			"  `A`  BIGINT PRIMARY KEY ENFORCED  COMMENT 'test column comment AAA.',\n" +
+			"  `H`  VARCHAR CONSTRAINT `CT1` UNIQUE NOT ENFORCED,\n" +
+			"  `G` AS (2 * (`A` + 1)),\n" +
+			"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
+			"  `B`  VARCHAR CONSTRAINT `CT2` UNIQUE,\n" +
+			"  `PROC` AS `PROCTIME`(),\n" +
+			"  UNIQUE (`G`, `TS`) NOT ENFORCED\n" +
+			") WITH (\n" +
+			"  'connector' = 'kafka',\n" +
+			"  'kafka.topic' = 'log.test'\n" +
+			")";
+		sql(sql).ok(expected);
+	}
+
+	@Test
+	public void testDuplicatePk() {
 		final String sql = "CREATE TABLE tbl1 (\n" +
 				"  a bigint comment 'test column comment AAA.',\n" +
-				"  h varchar, \n" +
+				"  h varchar constraint ct1 primary key,\n" +
 				"  g as 2 * (a + 1), \n" +
-				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n" +
+				"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'),\n" +
 				"  b varchar,\n" +
-				"  proc as PROCTIME(), \n" +
-				"  PRIMARY KEY (a, b), \n" +
-				"  UNIQUE (h, g)\n" +
-				")\n" +
-				"comment 'test table comment ABC.'\n" +
-				"PARTITIONED BY (a, h)\n" +
-				"  with (\n" +
+				"  proc as PROCTIME(),\n" +
+				"  constraint ct2 primary key (b, h)" +
+				") with (\n" +
 				"    'connector' = 'kafka', \n" +
 				"    'kafka.topic' = 'log.test'\n" +
 				")\n";
-		final String expected = "CREATE TABLE `TBL1` (\n" +
-				"  `A`  BIGINT  COMMENT 'test column comment AAA.',\n" +
-				"  `H`  VARCHAR,\n" +
-				"  `G` AS (2 * (`A` + 1)),\n" +
-				"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
-				"  `B`  VARCHAR,\n" +
-				"  `PROC` AS `PROCTIME`(),\n" +
-				"  PRIMARY KEY (`A`, `B`),\n" +
-				"  UNIQUE (`H`, `G`)\n" +
-				")\n" +
-				"COMMENT 'test table comment ABC.'\n" +
-				"PARTITIONED BY (`A`, `H`)\n" +
-				"WITH (\n" +
-				"  'connector' = 'kafka',\n" +
-				"  'kafka.topic' = 'log.test'\n" +
-				")";
-		sql(sql).ok(expected);
+		sql(sql).node(new ValidationMatcher()
+				.fails("Duplicate primary key definition"));
 	}
 
 	@Test
@@ -355,21 +445,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  'kafka.topic' = 'log.test'\n" +
 				")";
 		sql(sql).ok(expected);
-	}
-
-	@Test
-	public void testCreateTableWithInvalidWatermark() {
-		String sql = "CREATE TABLE tbl1 (\n" +
-			"  f1 row<q1 bigint, q2 varchar, q3 boolean>,\n" +
-			"  WATERMARK FOR f1.q0 AS NOW()\n" +
-			")\n" +
-			"  with (\n" +
-			"    'connector' = 'kafka', \n" +
-			"    'kafka.topic' = 'log.test'\n" +
-			")\n";
-		sql(sql).node(new ValidationMatcher()
-			.fails("The rowtime attribute field \"F1.Q0\" is not defined in columns, at line 3, column 17"));
-
 	}
 
 	@Test
@@ -524,20 +599,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			+ "`PROCTIME`() AS `PROC`, `C`";
 		sql(sql).node(new ValidationMatcher()
 			.expectColumnSql(expected));
-	}
-
-	@Test
-	public void testCreateInvalidPartitionedTable() {
-		final String sql = "create table sls_stream1(\n" +
-			"  a bigint,\n" +
-			"  b VARCHAR,\n" +
-			"  PRIMARY KEY(a, b)\n" +
-			") PARTITIONED BY (\n" +
-			"  c,\n" +
-			"  d\n" +
-			") with ( 'x' = 'y', 'asd' = 'dada')";
-		sql(sql).node(new ValidationMatcher()
-			.fails("Partition column [C] not defined in columns, at line 6, column 3"));
 	}
 
 	@Test
@@ -918,6 +979,33 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 		sql("drop temporary system function if exists catalog1.db1.function1")
 				.ok("DROP TEMPORARY SYSTEM FUNCTION IF EXISTS `CATALOG1`.`DB1`.`FUNCTION1`");
+	}
+
+	public static BaseMatcher<SqlNode> validated(String validatedSql) {
+		return new TypeSafeDiagnosingMatcher<SqlNode>() {
+			@Override
+			protected boolean matchesSafely(SqlNode item, Description mismatchDescription) {
+				if (item instanceof ExtendedSqlNode) {
+					try {
+						((ExtendedSqlNode) item).validate();
+					} catch (SqlValidateException e) {
+						mismatchDescription.appendText("Could not validate the node. Exception: \n");
+						mismatchDescription.appendValue(e);
+					}
+
+					String actual = item.toSqlString(null, true).getSql();
+					return actual.equals(validatedSql);
+				}
+				mismatchDescription.appendText("This matcher can be applied only to ExtendedSqlNode.");
+				return false;
+			}
+
+			@Override
+			public void describeTo(Description description) {
+				description.appendText("The validated node string representation should be equal to: \n");
+				description.appendText(validatedSql);
+			}
+		};
 	}
 
 	/** Matcher that invokes the #validate() of the {@link ExtendedSqlNode} instance. **/

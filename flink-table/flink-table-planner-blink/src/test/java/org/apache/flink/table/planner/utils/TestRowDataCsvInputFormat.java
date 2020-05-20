@@ -34,8 +34,8 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.filesystem.PartitionPathUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.types.Row;
 
 import java.io.IOException;

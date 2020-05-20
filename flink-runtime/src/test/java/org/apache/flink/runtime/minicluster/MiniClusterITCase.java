@@ -46,11 +46,9 @@ import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -64,7 +62,6 @@ import static org.junit.Assert.fail;
 /**
  * Integration test cases for the {@link MiniCluster}.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class MiniClusterITCase extends TestLogger {
 
 	@Test

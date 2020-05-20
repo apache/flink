@@ -111,7 +111,7 @@ class TableAggregateTest extends TableTestBase {
 
     val resultTable = table
       .flatAggregate(emptyFunc('b))
-      .select("*")
+      .select($"*")
 
     val expected =
       unaryNode(
@@ -160,9 +160,9 @@ class TableAggregateTest extends TableTestBase {
     util.javaTableEnv.registerFunction("func", func)
 
     val resultTable = table
-      .groupBy("c")
+      .groupBy($"c")
       .flatAggregate("func(a)")
-      .select("*")
+      .select($"*")
 
     val expected =
       unaryNode(

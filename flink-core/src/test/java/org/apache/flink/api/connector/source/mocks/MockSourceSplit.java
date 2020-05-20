@@ -67,6 +67,10 @@ public class MockSourceSplit implements SourceSplit, Serializable {
 		return endIndex;
 	}
 
+	public boolean isAvailable() {
+		return !isFinished() && !records.isEmpty();
+	}
+
 	public boolean isFinished() {
 		return index == endIndex;
 	}
@@ -90,7 +94,7 @@ public class MockSourceSplit implements SourceSplit, Serializable {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(id, records.toArray(new Integer[0]), endIndex, index);
+		return Objects.hash(id, Arrays.hashCode(records.toArray(new Integer[0])), endIndex, index);
 	}
 
 	@Override

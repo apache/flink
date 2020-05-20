@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.util.StringUtils;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -54,7 +54,7 @@ public class RowDataTestUtil {
 			// TODO support after FLINK-11898 is merged
 			throw new UnsupportedOperationException();
 		} else {
-			return EncodingUtils.objectToString(field);
+			return StringUtils.arrayAwareToString(field);
 		}
 	}
 

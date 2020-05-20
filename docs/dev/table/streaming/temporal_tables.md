@@ -176,7 +176,7 @@ ratesHistoryData.add(Tuple2.of("Euro", 119L));
 // Create and register an example table using above data set.
 // In the real setup, you should replace this with your own table.
 DataStream<Tuple2<String, Long>> ratesHistoryStream = env.fromCollection(ratesHistoryData);
-Table ratesHistory = tEnv.fromDataStream(ratesHistoryStream, "r_currency, r_rate, r_proctime.proctime");
+Table ratesHistory = tEnv.fromDataStream(ratesHistoryStream, $("r_currency"), $("r_rate"), $("r_proctime").proctime());
 
 tEnv.createTemporaryView("RatesHistory", ratesHistory);
 
@@ -210,7 +210,7 @@ tEnv.createTemporaryView("RatesHistory", ratesHistory)
 
 // Create and register TemporalTableFunction.
 // Define "r_proctime" as the time attribute and "r_currency" as the primary key.
-val rates = ratesHistory.createTemporalTableFunction('r_proctime, 'r_currency) // <==== (1)
+val rates = ratesHistory.createTemporalTableFunction($"r_proctime", $"r_currency") // <==== (1)
 tEnv.registerFunction("Rates", rates)                                          // <==== (2)
 {% endhighlight %}
 </div>

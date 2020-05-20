@@ -140,7 +140,7 @@ class ColumnFunctionsTest extends TableTestBase {
   @Test
   def testWindowGroupBy(): Unit = {
     val t = util.addDataStream[(Int, Long, String, Int)]("T1",'a, 'rowtime.rowtime, 'c, 'd)
-      .as('a, 'b, 'c, 'd)
+      .as("a", "b", "c", "d")
 
     val tab1 = t
       .window(Slide over 3.milli every 10.milli on withColumns('b) as 'w)

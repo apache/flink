@@ -42,6 +42,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -290,7 +291,8 @@ public class StreamingRuntimeContextTest {
 			operator.getMetricGroup(),
 			operator.getOperatorID(),
 			operator.getProcessingTimeService(),
-			operator.getKeyedStateStore());
+			operator.getKeyedStateStore(),
+			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES);
 	}
 
 	@SuppressWarnings("unchecked")

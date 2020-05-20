@@ -27,8 +27,11 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
+import org.apache.flink.util.FlinkException;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -40,18 +43,27 @@ public class BashJavaUtils {
 	@VisibleForTesting
 	public static final String EXECUTION_PREFIX = "BASH_JAVA_UTILS_EXEC_RESULT:";
 
-	public static void main(String[] args) throws Exception {
+	private BashJavaUtils() {
+	}
+
+	public static void main(String[] args) throws FlinkException {
 		checkArgument(args.length > 0, "Command not specified.");
 
+		Command command = Command.valueOf(args[0]);
 		String[] commandArgs = Arrays.copyOfRange(args, 1, args.length);
+		List<String> output = runCommand(command, commandArgs);
+		for (String outputLine : output) {
+			System.out.println(EXECUTION_PREFIX + outputLine);
+		}
+	}
 
-		switch (Command.valueOf(args[0])) {
+	private static List<String> runCommand(Command command, String[] commandArgs) throws FlinkException {
+		Configuration configuration = FlinkConfigLoader.loadConfiguration(commandArgs);
+		switch (command) {
 			case GET_TM_RESOURCE_PARAMS:
-				getTmResourceParams(commandArgs);
-				break;
+				return getTmResourceParams(configuration);
 			case GET_JM_RESOURCE_PARAMS:
-				getJmResourceParams(commandArgs);
-				break;
+				return getJmResourceParams(configuration);
 			default:
 				// unexpected, Command#valueOf should fail if a unknown command is passed in
 				throw new RuntimeException("Unexpected, something is wrong.");
@@ -62,24 +74,25 @@ public class BashJavaUtils {
 	 * Generate and print JVM parameters and dynamic configs of task executor resources. The last two lines of
 	 * the output should be JVM parameters and dynamic configs respectively.
 	 */
-	private static void getTmResourceParams(String[] args) throws Exception {
-		Configuration configuration = getConfigurationForStandaloneTaskManagers(args);
-		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(configuration);
-		System.out.println(EXECUTION_PREFIX + ProcessMemoryUtils.generateJvmParametersStr(taskExecutorProcessSpec));
-		System.out.println(EXECUTION_PREFIX + TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec));
+	private static List<String> getTmResourceParams(Configuration configuration) {
+		Configuration configurationWithFallback = TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
+			configuration,
+			TaskManagerOptions.TOTAL_FLINK_MEMORY);
+		TaskExecutorProcessSpec taskExecutorProcessSpec = TaskExecutorProcessUtils.processSpecFromConfig(configurationWithFallback);
+		return Arrays.asList(
+			ProcessMemoryUtils.generateJvmParametersStr(taskExecutorProcessSpec),
+			TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec));
 	}
 
-	private static Configuration getConfigurationForStandaloneTaskManagers(String[] args) throws Exception {
-		Configuration configuration = FlinkConfigLoader.loadConfiguration(args);
-		return TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-			configuration, TaskManagerOptions.TOTAL_FLINK_MEMORY);
-	}
-
-	private static void getJmResourceParams(String[] args) throws Exception {
-		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfigWithFallbackForLegacyHeap(
-			FlinkConfigLoader.loadConfiguration(args),
-			JobManagerOptions.TOTAL_FLINK_MEMORY);
-		System.out.println(EXECUTION_PREFIX + ProcessMemoryUtils.generateJvmParametersStr(jobManagerProcessSpec));
+	/**
+	 * Generate and print JVM parameters of Flink Master resources as one line.
+	 */
+	@VisibleForTesting
+	static List<String> getJmResourceParams(Configuration configuration) {
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
+			configuration,
+			JobManagerOptions.JVM_HEAP_MEMORY);
+		return Collections.singletonList(ProcessMemoryUtils.generateJvmParametersStr(jobManagerProcessSpec));
 	}
 
 	/**

@@ -17,4 +17,4 @@
   -->
 
 <flink-monaco-editor [value]="dump"></flink-monaco-editor>
-<flink-refresh-download [downloadHref]="'taskmanagers/'+taskManagerDetail?.id+'/thread-dump'" [downloadName]="'taskmanager_'+taskManagerDetail?.id+'_thread_dump'" (reload)="reload()"></flink-refresh-download>
+<flink-refresh-download [compactMode]="true" [downloadHref]="'taskmanagers/'+taskManagerDetail?.id+'/thread-dump'" [downloadName]="'taskmanager_'+taskManagerDetail?.id+'_thread_dump'" (reload)="reload()"></flink-refresh-download>

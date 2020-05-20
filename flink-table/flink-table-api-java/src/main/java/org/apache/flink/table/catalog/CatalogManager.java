@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.util.StringUtils;
@@ -156,7 +157,7 @@ public final class CatalogManager {
 	 * Registers a catalog under the given name. The catalog name must be unique.
 	 *
 	 * @param catalogName name under which to register the given catalog
-	 * @param catalog catalog to register
+	 * @param catalog     catalog to register
 	 * @throws CatalogException if the registration of the catalog under the given name failed
 	 */
 	public void registerCatalog(String catalogName, Catalog catalog) {
@@ -169,6 +170,25 @@ public final class CatalogManager {
 
 		catalogs.put(catalogName, catalog);
 		catalog.open();
+	}
+
+	/**
+	 * Unregisters a catalog under the given name. The catalog name must be existed.
+	 *
+	 * @param catalogName       name under which to unregister the given catalog.
+	 * @param ignoreIfNotExists If false exception will be thrown if the table or database or catalog to be altered
+	 *                          does not exist.
+	 * @throws CatalogException if the unregistration of the catalog under the given name failed
+	 */
+	public void unregisterCatalog(String catalogName, boolean ignoreIfNotExists) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "Catalog name cannot be null or empty.");
+
+		if (catalogs.containsKey(catalogName)) {
+			Catalog catalog = catalogs.remove(catalogName);
+			catalog.close();
+		} else if (!ignoreIfNotExists) {
+			throw new CatalogException(format("Catalog %s does not exist.", catalogName));
+		}
 	}
 
 	/**
@@ -324,6 +344,25 @@ public final class CatalogManager {
 				return getPermanentTable(objectIdentifier);
 			}
 		} catch (TableNotExistException ignored) {
+		}
+		return Optional.empty();
+	}
+
+	/**
+	 * Retrieves a partition with a fully qualified table path and partition spec.
+	 * If the path is not yet fully qualified use{@link #qualifyIdentifier(UnresolvedIdentifier)} first.
+	 *
+	 * @param tableIdentifier full path of the table to retrieve
+	 * @param partitionSpec full partition spec
+	 * @return partition in the table.
+	 */
+	public Optional<CatalogPartition> getPartition(ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
+		Catalog catalog = catalogs.get(tableIdentifier.getCatalogName());
+		if (catalog != null) {
+			try {
+				return Optional.of(catalog.getPartition(tableIdentifier.toObjectPath(), partitionSpec));
+			} catch (PartitionNotExistException ignored) {
+			}
 		}
 		return Optional.empty();
 	}

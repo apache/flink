@@ -28,6 +28,7 @@ import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
@@ -70,10 +71,33 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
 	 * It store the length and offset of variable-length part when type is string, map, etc.
 	 */
 	public static int calculateFixLengthPartSize(LogicalType type) {
+		// ordered by type root definition
 		switch (type.getTypeRoot()) {
 			case BOOLEAN:
 			case TINYINT:
 				return 1;
+			case CHAR:
+			case VARCHAR:
+			case BINARY:
+			case VARBINARY:
+			case DECIMAL:
+			case BIGINT:
+			case DOUBLE:
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+			case INTERVAL_DAY_TIME:
+			case ARRAY:
+			case MULTISET:
+			case MAP:
+			case ROW:
+			case STRUCTURED_TYPE:
+			case RAW:
+				// long and double are 8 bytes;
+				// otherwise it stores the length and offset of the variable-length part for types
+				// such as is string, map, etc.
+				return 8;
+			case TIMESTAMP_WITH_TIME_ZONE:
+				throw new UnsupportedOperationException();
 			case SMALLINT:
 				return 2;
 			case INTEGER:
@@ -82,10 +106,13 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
 			case TIME_WITHOUT_TIME_ZONE:
 			case INTERVAL_YEAR_MONTH:
 				return 4;
+			case DISTINCT_TYPE:
+				return calculateFixLengthPartSize(((DistinctType) type).getSourceType());
+			case NULL:
+			case SYMBOL:
+			case UNRESOLVED:
 			default:
-				// long, double is 8 bytes.
-				// It store the length and offset of variable-length part when type is string, map, etc.
-				return 8;
+				throw new IllegalArgumentException();
 		}
 	}
 

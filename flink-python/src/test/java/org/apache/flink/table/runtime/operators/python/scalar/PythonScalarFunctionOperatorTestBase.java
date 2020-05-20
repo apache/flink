@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 
 /**
  * Base class for Python scalar function operator test. These test that:
@@ -203,7 +204,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 		StreamTableEnvironment tEnv = createTableEnvironment(env);
 		tEnv.registerFunction("pyFunc", new PythonScalarFunction("pyFunc"));
 		DataStream<Tuple2<Integer, Integer>> ds = env.fromElements(new Tuple2<>(1, 2));
-		Table t = tEnv.fromDataStream(ds, $("a"), $("b")).select("pyFunc(a, b)");
+		Table t = tEnv.fromDataStream(ds, $("a"), $("b")).select(call("pyFunc", $("a"), $("b")));
 		// force generating the physical plan for the given table
 		tEnv.toAppendStream(t, BasicTypeInfo.INT_TYPE_INFO);
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();

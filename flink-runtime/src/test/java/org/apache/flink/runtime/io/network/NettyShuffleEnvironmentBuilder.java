@@ -39,6 +39,8 @@ public class NettyShuffleEnvironmentBuilder {
 	private static final String[] DEFAULT_TEMP_DIRS = {EnvironmentInformation.getTemporaryFileDirectory()};
 	private static final Duration DEFAULT_REQUEST_SEGMENTS_TIMEOUT = Duration.ofMillis(30000L);
 
+	private int bufferSize = DEFAULT_NETWORK_BUFFER_SIZE;
+
 	private int numNetworkBuffers = DEFAULT_NUM_NETWORK_BUFFERS;
 
 	private int partitionRequestInitialBackoff;
@@ -63,6 +65,11 @@ public class NettyShuffleEnvironmentBuilder {
 
 	public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
 		this.taskManagerLocation = taskManagerLocation;
+		return this;
+	}
+
+	public NettyShuffleEnvironmentBuilder setBufferSize(int bufferSize) {
+		this.bufferSize = bufferSize;
 		return this;
 	}
 

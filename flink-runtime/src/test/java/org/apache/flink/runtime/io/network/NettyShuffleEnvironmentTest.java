@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -79,9 +78,9 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	 */
 	@Test
 	public void testRegisterTaskWithLimitedBuffers() throws Exception {
-		// outgoing: 1 buffer per channel (always)
-		// incoming: 2 exclusive buffers per channel
-		final int bufferCount = 14 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+		// outgoing: 1 buffer per channel + 1 extra buffer per ResultPartition
+		// incoming: 2 exclusive buffers per channel + 1 floating buffer per single gate
+		final int bufferCount = 18 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
 
 		testRegisterTaskWithLimitedBuffers(bufferCount);
 	}
@@ -92,8 +91,8 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	 */
 	@Test
 	public void testRegisterTaskWithInsufficientBuffers() throws Exception {
-		// outgoing: 1 buffer per channel (always)
-		// incoming: 2 exclusive buffers per channel
+		// outgoing: 1 buffer per channel + 1 extra buffer per ResultPartition
+		// incoming: 2 exclusive buffers per channel + 1 floating buffer per single gate
 		final int bufferCount = 10 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() - 1;
 
 		expectedException.expect(IOException.class);
@@ -135,22 +134,22 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 		InputChannel[] ic4 = new InputChannel[rp4Channels];
 		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
 
-		ic4[0] = createRemoteInputChannel(ig4, 0, rp1, connManager, network.getNetworkBufferPool());
-		ic4[1] = createRemoteInputChannel(ig4, 0, rp2, connManager, network.getNetworkBufferPool());
-		ic4[2] = createRemoteInputChannel(ig4, 0, rp3, connManager, network.getNetworkBufferPool());
-		ic4[3] = createRemoteInputChannel(ig4, 0, rp4, connManager, network.getNetworkBufferPool());
+		ic4[0] = createRemoteInputChannel(ig4, 0, rp1, connManager);
+		ic4[1] = createRemoteInputChannel(ig4, 0, rp2, connManager);
+		ic4[2] = createRemoteInputChannel(ig4, 0, rp3, connManager);
+		ic4[3] = createRemoteInputChannel(ig4, 0, rp4, connManager);
 		ig4.setInputChannels(ic4);
 
-		ic1[0] = createRemoteInputChannel(ig1, 1, rp1, connManager, network.getNetworkBufferPool());
-		ic1[1] = createRemoteInputChannel(ig1, 1, rp4, connManager, network.getNetworkBufferPool());
+		ic1[0] = createRemoteInputChannel(ig1, 1, rp1, connManager);
+		ic1[1] = createRemoteInputChannel(ig1, 1, rp4, connManager);
 		ig1.setInputChannels(ic1);
 
-		ic2[0] = createRemoteInputChannel(ig2, 1, rp2, connManager, network.getNetworkBufferPool());
-		ic2[1] = createRemoteInputChannel(ig2, 2, rp4, connManager, network.getNetworkBufferPool());
+		ic2[0] = createRemoteInputChannel(ig2, 1, rp2, connManager);
+		ic2[1] = createRemoteInputChannel(ig2, 2, rp4, connManager);
 		ig2.setInputChannels(ic2);
 
-		ic3[0] = createRemoteInputChannel(ig3, 1, rp3, connManager, network.getNetworkBufferPool());
-		ic3[1] = createRemoteInputChannel(ig3, 3, rp4, connManager, network.getNetworkBufferPool());
+		ic3[0] = createRemoteInputChannel(ig3, 1, rp3, connManager);
+		ic3[1] = createRemoteInputChannel(ig3, 3, rp4, connManager);
 		ig3.setInputChannels(ic3);
 
 		Task.setupPartitionsAndGates(resultPartitions, inputGates);
@@ -168,10 +167,10 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 
 		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
 		// for exclusive buffers not managed by the buffer pool)
-		assertEquals(0, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(0, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(0, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(0, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(1, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
 
 		assertEquals(floatingBuffers, ig1.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(floatingBuffers, ig2.getBufferPool().getMaxNumberOfMemorySegments());
@@ -219,13 +218,11 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 			SingleInputGate inputGate,
 			int channelIndex,
 			ResultPartition resultPartition,
-			ConnectionManager connManager,
-			MemorySegmentProvider memorySegmentProvider) {
+			ConnectionManager connManager) {
 		return InputChannelBuilder.newBuilder()
 			.setChannelIndex(channelIndex)
 			.setPartitionId(resultPartition.getPartitionId())
 			.setConnectionManager(connManager)
-			.setMemorySegmentProvider(memorySegmentProvider)
 			.buildRemoteChannel(inputGate);
 	}
 }

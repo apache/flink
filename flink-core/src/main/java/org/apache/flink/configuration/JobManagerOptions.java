@@ -232,17 +232,12 @@ public class JobManagerOptions {
 
 	/**
 	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
-	 *
-	 * <p>The option "individual" is intentionally not included for its known limitations.
-	 * It only works when all tasks are not connected, in which case the "region"
-	 * failover strategy would also restart failed tasks individually.
-	 * The new "region" strategy supersedes "individual" strategy and should always work.
 	 */
 	@Documentation.Section({Documentation.Sections.ALL_JOB_MANAGER, Documentation.Sections.EXPERT_FAULT_TOLERANCE})
-	@Documentation.OverrideDefault("region")
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
-			.defaultValue("full")
+			.stringType()
+			.defaultValue("region")
 			.withDescription(Description.builder()
 				.text("This option specifies how the job computation recovers from task failures. " +
 					"Accepted values are:")
@@ -321,7 +316,6 @@ public class JobManagerOptions {
 			.withDescription(Description.builder()
 				.text("Determines which scheduler implementation is used to schedule tasks. Accepted values are:")
 				.list(
-					text("'legacy': legacy scheduler"),
 					text("'ng': new generation scheduler"))
 				.build());
 	/**

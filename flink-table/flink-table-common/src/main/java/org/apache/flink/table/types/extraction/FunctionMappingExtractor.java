@@ -47,7 +47,7 @@ import static org.apache.flink.table.types.extraction.ExtractionUtils.collectMet
 import static org.apache.flink.table.types.extraction.ExtractionUtils.createMethodSignatureString;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.isAssignable;
-import static org.apache.flink.table.types.extraction.ExtractionUtils.isMethodInvokable;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.isInvokable;
 import static org.apache.flink.table.types.extraction.TemplateUtils.extractGlobalFunctionTemplates;
 import static org.apache.flink.table.types.extraction.TemplateUtils.extractLocalFunctionTemplates;
 import static org.apache.flink.table.types.extraction.TemplateUtils.findInputOnlyTemplates;
@@ -419,7 +419,7 @@ final class FunctionMappingExtractor {
 		return (method, signature, result) -> {
 			final Class<?>[] parameters = signature.toArray(new Class[0]);
 			final Class<?> returnType = method.getReturnType();
-			final boolean isValid = isMethodInvokable(method, parameters) &&
+			final boolean isValid = isInvokable(method, parameters) &&
 				isAssignable(result, returnType, true);
 			if (!isValid) {
 				throw createMethodNotFoundError(method.getName(), parameters, result);
@@ -449,7 +449,7 @@ final class FunctionMappingExtractor {
 		return (method, signature, result) -> {
 			final Class<?>[] parameters = Stream.concat(Stream.of(argumentClass), signature.stream())
 				.toArray(Class<?>[]::new);
-			if (!isMethodInvokable(method, parameters)) {
+			if (!isInvokable(method, parameters)) {
 				throw createMethodNotFoundError(method.getName(), parameters, null);
 			}
 		};
@@ -461,7 +461,7 @@ final class FunctionMappingExtractor {
 	static MethodVerification createParameterVerification() {
 		return (method, signature, result) -> {
 			final Class<?>[] parameters = signature.toArray(new Class[0]);
-			if (!isMethodInvokable(method, parameters)) {
+			if (!isInvokable(method, parameters)) {
 				throw createMethodNotFoundError(method.getName(), parameters, null);
 			}
 		};

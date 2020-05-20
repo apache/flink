@@ -19,15 +19,17 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.TestingLibraryCacheManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
-import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
+import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
@@ -50,11 +52,12 @@ public class TaskManagerServicesBuilder {
 	private KvStateService kvStateService;
 	private BroadcastVariableManager broadcastVariableManager;
 	private TaskSlotTable<Task> taskSlotTable;
-	private JobManagerTable jobManagerTable;
+	private JobTable jobTable;
 	private JobLeaderService jobLeaderService;
 	private TaskExecutorLocalStateStoresManager taskStateManager;
 	private TaskEventDispatcher taskEventDispatcher;
 	private ExecutorService ioExecutor;
+	private LibraryCacheManager libraryCacheManager;
 
 	public TaskManagerServicesBuilder() {
 		unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
@@ -64,10 +67,11 @@ public class TaskManagerServicesBuilder {
 		broadcastVariableManager = new BroadcastVariableManager();
 		taskEventDispatcher = new TaskEventDispatcher();
 		taskSlotTable = TestingTaskSlotTable.<Task>newBuilder().closeAsyncReturns(CompletableFuture.completedFuture(null)).build();
-		jobManagerTable = new JobManagerTable();
-		jobLeaderService = new JobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
+		jobTable = DefaultJobTable.create();
+		jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, RetryingRegistrationConfiguration.defaultConfiguration());
 		taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
 		ioExecutor = TestingUtils.defaultExecutor();
+		libraryCacheManager = TestingLibraryCacheManager.newBuilder().build();
 	}
 
 	public TaskManagerServicesBuilder setUnresolvedTaskManagerLocation(UnresolvedTaskManagerLocation unresolvedTaskManagerLocation) {
@@ -100,8 +104,8 @@ public class TaskManagerServicesBuilder {
 		return this;
 	}
 
-	public TaskManagerServicesBuilder setJobManagerTable(JobManagerTable jobManagerTable) {
-		this.jobManagerTable = jobManagerTable;
+	public TaskManagerServicesBuilder setJobTable(JobTable jobTable) {
+		this.jobTable = jobTable;
 		return this;
 	}
 
@@ -120,6 +124,11 @@ public class TaskManagerServicesBuilder {
 		return this;
 	}
 
+	public TaskManagerServicesBuilder setLibraryCacheManager(LibraryCacheManager libraryCacheManager) {
+		this.libraryCacheManager = libraryCacheManager;
+		return this;
+	}
+
 	public TaskManagerServices build() {
 		return new TaskManagerServices(
 			unresolvedTaskManagerLocation,
@@ -129,10 +138,11 @@ public class TaskManagerServicesBuilder {
 			kvStateService,
 			broadcastVariableManager,
 			taskSlotTable,
-			jobManagerTable,
+			jobTable,
 			jobLeaderService,
 			taskStateManager,
 			taskEventDispatcher,
-			ioExecutor);
+			ioExecutor,
+			libraryCacheManager);
 	}
 }

@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
+
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -190,17 +192,29 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 
 	@Override
 	public void close() {
-		closed = true;
 		synchronized (producerClosingLock) {
 			kafkaProducer.close();
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(
+						"Closed internal KafkaProducer {}. Stacktrace: {}",
+						System.identityHashCode(this),
+						Joiner.on("\n").join(Thread.currentThread().getStackTrace()));
+			}
+			closed = true;
 		}
 	}
 
 	@Override
 	public void close(long timeout, TimeUnit unit) {
-		closed = true;
 		synchronized (producerClosingLock) {
 			kafkaProducer.close(timeout, unit);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(
+						"Closed internal KafkaProducer {}. Stacktrace: {}",
+						System.identityHashCode(this),
+						Joiner.on("\n").join(Thread.currentThread().getStackTrace()));
+			}
+			closed = true;
 		}
 	}
 
@@ -285,7 +299,7 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 
 	private void ensureNotClosed() {
 		if (closed) {
-			throw new IllegalStateException("The producer has already been closed");
+			throw new IllegalStateException(String.format("The producer %s has already been closed", System.identityHashCode(this)));
 		}
 	}
 

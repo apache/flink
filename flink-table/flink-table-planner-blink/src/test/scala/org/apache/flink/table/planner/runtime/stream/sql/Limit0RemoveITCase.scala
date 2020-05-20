@@ -19,9 +19,9 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil, TestingAppendTableSink, TestingRetractTableSink}
-
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -37,9 +37,8 @@ class Limit0RemoveITCase extends StreamingTestBase() {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", result)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -54,9 +53,8 @@ class Limit0RemoveITCase extends StreamingTestBase() {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", result)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -71,9 +69,8 @@ class Limit0RemoveITCase extends StreamingTestBase() {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", result)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -92,9 +89,8 @@ class Limit0RemoveITCase extends StreamingTestBase() {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", result)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getAppendResults.size)
   }
@@ -113,9 +109,8 @@ class Limit0RemoveITCase extends StreamingTestBase() {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", result)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    execInsertTableAndWaitResult(result, "MySink")
 
     val expected = Seq("1", "2", "3", "4", "5", "6")
     assertEquals(expected, sink.getAppendResults.sorted)
@@ -135,9 +130,8 @@ class Limit0RemoveITCase extends StreamingTestBase() {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingRetractTableSink())
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", result)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getRawResults.size)
   }
@@ -156,9 +150,8 @@ class Limit0RemoveITCase extends StreamingTestBase() {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingRetractTableSink())
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", result)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    execInsertTableAndWaitResult(result, "MySink")
 
     val expected = Seq("1", "2", "3", "4", "5", "6")
     assertEquals(expected, sink.getRetractResults.sorted)
@@ -178,9 +171,8 @@ class Limit0RemoveITCase extends StreamingTestBase() {
 
     val result = tEnv.sqlQuery(sql)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", result)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    execInsertTableAndWaitResult(result, "MySink")
 
     assertEquals(0, sink.getAppendResults.size)
   }

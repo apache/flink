@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
@@ -40,6 +41,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.ThrowingSlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
@@ -186,8 +188,16 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private void handleTaskFailure(final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
 		setGlobalFailureCause(error);
+		notifyCoordinatorsAboutTaskFailure(executionVertexId, error);
 		final FailureHandlingResult failureHandlingResult = executionFailureHandler.getFailureHandlingResult(executionVertexId, error);
 		maybeRestartTasks(failureHandlingResult);
+	}
+
+	private void notifyCoordinatorsAboutTaskFailure(final ExecutionVertexID executionVertexId, @Nullable final Throwable error) {
+		final ExecutionJobVertex jobVertex = getExecutionJobVertex(executionVertexId.getJobVertexId());
+		final int subtaskIndex = executionVertexId.getSubtaskIndex();
+
+		jobVertex.getOperatorCoordinators().forEach(c -> c.subtaskFailed(subtaskIndex, error));
 	}
 
 	@Override
@@ -212,6 +222,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 		final Set<ExecutionVertexVersion> executionVertexVersions =
 			new HashSet<>(executionVertexVersioner.recordVertexModifications(verticesToRestart).values());
+		final boolean globalRecovery = failureHandlingResult.isGlobalFailure();
 
 		addVerticesToRestartPending(verticesToRestart);
 
@@ -219,7 +230,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 		delayExecutor.schedule(
 			() -> FutureUtils.assertNoException(
-				cancelFuture.thenRunAsync(restartTasks(executionVertexVersions), getMainThreadExecutor())),
+				cancelFuture.thenRunAsync(restartTasks(executionVertexVersions, globalRecovery), getMainThreadExecutor())),
 			failureHandlingResult.getRestartDelayMS(),
 			TimeUnit.MILLISECONDS);
 	}
@@ -236,7 +247,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		}
 	}
 
-	private Runnable restartTasks(final Set<ExecutionVertexVersion> executionVertexVersions) {
+	private Runnable restartTasks(final Set<ExecutionVertexVersion> executionVertexVersions, final boolean isGlobalRecovery) {
 		return () -> {
 			final Set<ExecutionVertexID> verticesToRestart = executionVertexVersioner.getUnmodifiedExecutionVertices(executionVertexVersions);
 
@@ -245,7 +256,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			resetForNewExecutions(verticesToRestart);
 
 			try {
-				restoreState(verticesToRestart);
+				restoreState(verticesToRestart, isGlobalRecovery);
 			} catch (Throwable t) {
 				handleGlobalFailure(t);
 				return;
@@ -264,8 +275,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	private CompletableFuture<?> cancelExecutionVertex(final ExecutionVertexID executionVertexId) {
+		final ExecutionVertex vertex = getExecutionVertex(executionVertexId);
+
+		notifyCoordinatorOfCancellation(vertex);
+
 		executionSlotAllocator.cancel(executionVertexId);
-		return executionVertexOperations.cancel(getExecutionVertex(executionVertexId));
+		return executionVertexOperations.cancel(vertex);
 	}
 
 	@Override
@@ -456,6 +471,23 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			executionVertexOperations.deploy(executionVertex);
 		} catch (Throwable e) {
 			handleTaskDeploymentFailure(executionVertexId, e);
+		}
+	}
+
+	private void notifyCoordinatorOfCancellation(ExecutionVertex vertex) {
+		// this method makes a best effort to filter out duplicate notifications, meaning cases where
+		// the coordinator was already notified for that specific task
+		// we don't notify if the task is already FAILED, CANCELLING, or CANCELED
+
+		final ExecutionState currentState = vertex.getExecutionState();
+		if (currentState == ExecutionState.FAILED ||
+				currentState == ExecutionState.CANCELING ||
+				currentState == ExecutionState.CANCELED) {
+			return;
+		}
+
+		for (OperatorCoordinator coordinator : vertex.getJobVertex().getOperatorCoordinators()) {
+			coordinator.subtaskFailed(vertex.getParallelSubtaskIndex(), null);
 		}
 	}
 }

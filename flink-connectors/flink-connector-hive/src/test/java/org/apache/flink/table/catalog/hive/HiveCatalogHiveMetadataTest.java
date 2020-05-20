@@ -19,12 +19,17 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.AlterHiveDatabaseOp;
+import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
+import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.CatalogTestUtil;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
@@ -37,19 +42,23 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -159,6 +168,55 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 		checkStatistics(0, -1);
 		checkStatistics(1, 1);
 		checkStatistics(1000, 1000);
+	}
+
+	@Test
+	public void testCreateTableWithConstraints() throws Exception {
+		Assume.assumeTrue(HiveVersionTestUtil.HIVE_310_OR_LATER);
+		HiveCatalog hiveCatalog = (HiveCatalog) catalog;
+		hiveCatalog.createDatabase(db1, createDb(), false);
+		TableSchema.Builder builder = TableSchema.builder();
+		builder.fields(
+				new String[]{"x", "y", "z"},
+				new DataType[]{DataTypes.INT().notNull(), DataTypes.TIMESTAMP(9).notNull(), DataTypes.BIGINT()});
+		builder.primaryKey("pk_name", new String[]{"x"});
+		hiveCatalog.createTable(path1, new CatalogTableImpl(builder.build(), getBatchTableProperties(), null), false);
+		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(path1);
+		assertTrue("PK not present", catalogTable.getSchema().getPrimaryKey().isPresent());
+		UniqueConstraint pk = catalogTable.getSchema().getPrimaryKey().get();
+		assertEquals("pk_name", pk.getName());
+		assertEquals(Collections.singletonList("x"), pk.getColumns());
+		assertFalse(catalogTable.getSchema().getFieldDataTypes()[0].getLogicalType().isNullable());
+		assertFalse(catalogTable.getSchema().getFieldDataTypes()[1].getLogicalType().isNullable());
+		assertTrue(catalogTable.getSchema().getFieldDataTypes()[2].getLogicalType().isNullable());
+
+		hiveCatalog.dropDatabase(db1, false, true);
+	}
+
+	@Override
+	@Test
+	public void testAlterPartition() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		catalog.createTable(path1, createPartitionedTable(), false);
+		catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
+
+		assertEquals(Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1));
+		CatalogPartition cp = catalog.getPartition(path1, createPartitionSpec());
+		CatalogTestUtil.checkEquals(createPartition(), cp);
+		assertNull(cp.getProperties().get("k"));
+
+		CatalogPartition another = createPartition();
+		another.getProperties().put("k", "v");
+		another.getProperties().put(SqlAlterHiveTable.ALTER_TABLE_OP, SqlAlterHiveTable.AlterTableOp.CHANGE_TBL_PROPS.name());
+
+		catalog.alterPartition(path1, createPartitionSpec(), another, false);
+
+		assertEquals(Collections.singletonList(createPartitionSpec()), catalog.listPartitions(path1));
+
+		cp = catalog.getPartition(path1, createPartitionSpec());
+
+		CatalogTestUtil.checkEquals(another, cp);
+		assertEquals("v", cp.getProperties().get("k"));
 	}
 
 	private void checkStatistics(int inputStat, int expectStat) throws Exception {

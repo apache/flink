@@ -32,7 +32,7 @@ class PartitionableSinkTest extends TableTestBase {
   createTable("sink", shuffleBy = false)
 
   private def createTable(name: String, shuffleBy: Boolean): Unit = {
-    util.tableEnv.sqlUpdate(
+    util.tableEnv.executeSql(
       s"""
          |create table $name (
          |  a bigint,
@@ -49,32 +49,32 @@ class PartitionableSinkTest extends TableTestBase {
 
   @Test
   def testStatic(): Unit = {
-    util.verifySqlUpdate("INSERT INTO sink PARTITION (b=1, c=1) SELECT a FROM MyTable")
+    util.verifyPlanInsert("INSERT INTO sink PARTITION (b=1, c=1) SELECT a FROM MyTable")
   }
 
   @Test
   def testDynamic(): Unit = {
-    util.verifySqlUpdate("INSERT INTO sink SELECT a, b, c FROM MyTable")
+    util.verifyPlanInsert("INSERT INTO sink SELECT a, b, c FROM MyTable")
   }
 
   @Test
   def testDynamicShuffleBy(): Unit = {
     createTable("sinkShuffleBy", shuffleBy = true)
-    util.verifySqlUpdate("INSERT INTO sinkShuffleBy SELECT a, b, c FROM MyTable")
+    util.verifyPlanInsert("INSERT INTO sinkShuffleBy SELECT a, b, c FROM MyTable")
   }
 
   @Test
   def testPartial(): Unit = {
-    util.verifySqlUpdate("INSERT INTO sink PARTITION (b=1) SELECT a, c FROM MyTable")
+    util.verifyPlanInsert("INSERT INTO sink PARTITION (b=1) SELECT a, c FROM MyTable")
   }
 
   @Test(expected = classOf[ValidationException])
   def testWrongStatic(): Unit = {
-    util.verifySqlUpdate("INSERT INTO sink PARTITION (a=1) SELECT b, c FROM MyTable")
+    util.verifyPlanInsert("INSERT INTO sink PARTITION (a=1) SELECT b, c FROM MyTable")
   }
 
   @Test(expected = classOf[ValidationException])
   def testWrongFields(): Unit = {
-    util.verifySqlUpdate("INSERT INTO sink PARTITION (b=1) SELECT a, b, c FROM MyTable")
+    util.verifyPlanInsert("INSERT INTO sink PARTITION (b=1) SELECT a, b, c FROM MyTable")
   }
 }

@@ -1,8 +1,8 @@
 ---
-title: Intro to the DataStream API
+title: DataStream API 简介
 nav-id: datastream-api
 nav-pos: 2
-nav-title: Intro to the DataStream API
+nav-title: DataStream API 简介
 nav-parent_id: training
 ---
 <!--
@@ -24,30 +24,27 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The focus of this training is to broadly cover the DataStream API well enough that you will be able
-to get started writing streaming applications.
+该练习的重点是充分全面地了解 DataStream API，以便于编写流式应用入门。
 
 * This will be replaced by the TOC
 {:toc}
 
-## What can be Streamed?
+## 什么能被转化成流？
 
-Flink's DataStream APIs for Java and Scala will let you stream anything they can serialize. Flink's
-own serializer is used for
+Flink 的 Java 和 Scala DataStream API 可以将任何可序列化的对象转化为流。Flink  自带的序列化器有
 
-- basic types, i.e., String, Long, Integer, Boolean, Array
-- composite types: Tuples, POJOs, and Scala case classes
+- 基本类型，即 String、Long、Integer、Boolean、Array
+- 复合类型：Tuples、POJOs 和 Scala case classes
 
-and Flink falls back to Kryo for other types. It is also possible to use other serializers with
-Flink. Avro, in particular, is well supported.
+而且 Flink 会交给 Kryo 序列化其他类型。也可以将其他序列化器和 Flink 一起使用。特别是有良好支持的 Avro。
 
-### Java tuples and POJOs
+### Java tuples 和 POJOs
 
-Flink's native serializer can operate efficiently on tuples and POJOs.
+Flink 的原生序列化器可以高效地操作 tuples 和 POJOs
 
 #### Tuples
 
-For Java, Flink defines its own `Tuple0` thru `Tuple25` types.
+对于 Java，Flink 自带有 `Tuple0` 到 `Tuple25` 类型。
 
 {% highlight java %}
 Tuple2<String, Integer> person = Tuple2.of("Fred", 35);
@@ -59,15 +56,13 @@ Integer age = person.f1;
 
 #### POJOs
 
-Flink recognizes a data type as a POJO type (and allows “by-name” field referencing) if the following conditions are fulfilled:
+如果满足以下条件，Flink 将数据类型识别为 POJO 类型（并允许“按名称”字段引用）：
 
-- The class is public and standalone (no non-static inner class)
-- The class has a public no-argument constructor
-- All non-static, non-transient fields in the class (and all superclasses) are either public (and
-  non-final) or have public getter- and setter- methods that follow the Java beans naming
-  conventions for getters and setters.
+- 该类是公有且独立的（没有非静态内部类）
+- 该类有公有的无参构造函数
+- 类（及父类）中所有的所有不被 static、transient 修饰的属性要么是公有的（且不被 final 修饰），要么是包含公有的 getter 和 setter 方法，这些方法遵循 Java bean 命名规范。
 
-Example:
+示例：
 
 {% highlight java %}
 public class Person {
@@ -82,17 +77,17 @@ public class Person {
 Person person = new Person("Fred Flintstone", 35);
 {% endhighlight %}
 
-Flink's serializer [supports schema evolution for POJO types]({% link dev/stream/state/schema_evolution.zh.md %}#pojo-types).
+Flink 的序列化器[支持的 POJO 类型数据结构升级]({% link dev/stream/state/schema_evolution.zh.md %}#pojo-types)。
 
-### Scala tuples and case classes
+### Scala tuples 和 case classes
 
-These work just as you'd expect.
+如果你了解 Scala，那一定知道 tuple 和 case class。
 
 {% top %}
 
-## A Complete Example
+## 一个完整的示例
 
-This example takes a stream of records about people as input, and filters it to only include the adults.
+该示例将关于人的记录流作为输入，并且过滤后只包含成年人。
 
 {% highlight java %}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -139,28 +134,21 @@ public class Example {
 }
 {% endhighlight %}
 
-### Stream execution environment
+### Stream 执行环境
 
-Every Flink application needs an execution environment, `env` in this example. Streaming
-applications need to use a `StreamExecutionEnvironment`.
+每个 Flink 应用都需要有执行环境，在该示例中为 `env`。流式应用需要用到 `StreamExecutionEnvironment`。
 
-The DataStream API calls made in your application build a job graph that is attached to the
-`StreamExecutionEnvironment`. When `env.execute()` is called this graph is packaged up and sent to
-the Flink Master, which parallelizes the job and distributes slices of it to the Task Managers for
-execution. Each parallel slice of your job will be executed in a *task slot*.
+DataStream API 将你的应用构建为一个 job graph，并附加到 `StreamExecutionEnvironment` 。当调用 `env.execute()` 时此 graph 就被打包并发送到 Flink Master 上，后者对作业并行处理并将其子任务分发给 Task Manager 来执行。每个作业的并行子任务将在 *task slot* 中执行。
 
-Note that if you don't call execute(), your application won't be run.
+注意，如果没有调用 execute()，应用就不会运行。
 
 <img src="{{ site.baseurl }}/fig/distributed-runtime.svg" alt="Flink runtime: client, job manager, task managers" class="offset" width="80%" />
 
-This distributed runtime depends on your application being serializable. It also requires that all
-dependencies are available to each node in the cluster.
+此分布式运行时取决于你的应用是否是可序列化的。它还要求所有依赖对集群中的每个节点均可用。
 
-### Basic stream sources
+### 基本的 stream source
 
-The example above constructs a `DataStream<Person>` using `env.fromElements(...)`. This is a
-convenient way to throw together a simple stream for use in a prototype or test. There is also a
-`fromCollection(Collection)` method on `StreamExecutionEnvironment`. So instead, you could do this:
+上述示例用 `env.fromElements(...)` 方法构造 `DataStream<Person>` 。这样将简单的流放在一起是为了方便用于原型或测试。`StreamExecutionEnvironment` 上还有一个 `fromCollection(Collection)` 方法。因此，你可以这样做：
 
 {% highlight java %}
 List<Person> people = new ArrayList<Person>();
@@ -172,60 +160,49 @@ people.add(new Person("Pebbles", 2));
 DataStream<Person> flintstones = env.fromCollection(people);
 {% endhighlight %}
 
-Another convenient way to get some data into a stream while prototyping is to use a socket
+另一个获取数据到流中的便捷方法是用 socket
 
 {% highlight java %}
 DataStream<String> lines = env.socketTextStream("localhost", 9999)
 {% endhighlight %}
 
-or a file
+或读取文件
 
 {% highlight java %}
 DataStream<String> lines = env.readTextFile("file:///path");
 {% endhighlight %}
 
-In real applications the most commonly used data sources are those that support low-latency, high
-throughput parallel reads in combination with rewind and replay -- the prerequisites for high
-performance and fault tolerance -- such as Apache Kafka, Kinesis, and various filesystems. REST APIs
-and databases are also frequently used for stream enrichment.
+在真实的应用中，最常用的数据源是那些支持低延迟，高吞吐并行读取以及重复（高性能和容错能力为先决条件）的数据源，例如 Apache Kafka，Kinesis 和各种文件系统。REST API 和数据库也经常用于增强流处理的能力（stream enrichment）。
 
-### Basic stream sinks
+### 基本的 stream sink
 
-The example above uses `adults.print()` to print its results to the task manager logs (which will
-appear in your IDE's console, when running in an IDE). This will call `toString()` on each element
-of the stream.
+上述示例用 `adults.print()` 打印其结果到 task manager 的日志中（如果运行在 IDE 中时，将追加到你的 IDE 控制台）。它会对流中的每个元素都调用 `toString()` 方法。
 
-The output looks something like this
+输出看起来类似于
 
     1> Fred: age 35
     2> Wilma: age 35
 
-where 1> and 2> indicate which sub-task (i.e., thread) produced the output.
+1> 和 2> 指出输出来自哪个 sub-task（即 thread）
 
 In production, commonly used sinks include the StreamingFileSink, various databases,
 and several pub-sub systems.
 
-### Debugging
+### 调试
 
-In production, your application will run in a remote cluster or set of containers. And if it fails,
-it will fail remotely. The Flink Master and Task Manager logs can be very helpful in debugging such
-failures, but it is much easier to do local debugging inside an IDE, which is something that Flink
-supports. You can set breakpoints, examine local variables, and step through your code. You can also
-step into Flink's code, which can be a great way to learn more about its internals if you are
-curious to see how Flink works.
+在生产中，应用程序将在远程集群或一组容器中运行。如果集群或容器挂了，这就属于远程失败。Flink Master 和 Task Manager 日志对于调试此类故障非常有用，但是更简单的是 Flink 支持在 IDE 内部进行本地调试。你可以设置断点，检查局部变量，并逐行执行代码。如果想了解 Flink 的工作原理和内部细节，查看 Flink 源码也是非常好的方法。
 
 {% top %}
 
-## Hands-on
+## 动手实践
 
-At this point you know enough to get started coding and running a simple DataStream application.
-Clone the [flink-training repo](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %}), and after following the
-instructions in the README, do the first exercise:
-[Filtering a Stream (Ride Cleansing)](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %}/ride-cleansing).
+至此，你已经可以开始编写并运行一个简单的 DataStream 应用了。
+克隆 [flink-training repo](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %}) 并在阅读完 README 中的指示后，开始尝试第一个练习吧：
+[Filtering a Stream (Ride Cleansing)](https://github.com/apache/flink-training/tree/{% if site.is_stable %}release-{{ site.version_title }}{% else %}master{% endif %}/ride-cleansing)。
 
 {% top %}
 
-## Further Reading
+## 更多阅读
 
 - [Flink Serialization Tuning Vol. 1: Choosing your Serializer — if you can](https://flink.apache.org/news/2020/04/15/flink-serialization-tuning-vol-1.html)
 - [Anatomy of a Flink Program]({% link dev/api_concepts.zh.md %}#anatomy-of-a-flink-program)

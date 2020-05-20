@@ -188,6 +188,13 @@ public class EntropyInjectorTest {
 		}
 	}
 
+	@Test
+	public void testIsEntropyFs() {
+		final FileSystem efs = new TestEntropyInjectingFs("test", "ignored");
+
+		assertTrue(EntropyInjector.isEntropyInjecting(efs));
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static final class TestEntropyInjectingFs extends LocalFileSystem implements EntropyInjectingFileSystem {

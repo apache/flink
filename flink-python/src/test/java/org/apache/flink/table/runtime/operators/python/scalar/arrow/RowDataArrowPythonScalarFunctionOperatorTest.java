@@ -121,7 +121,7 @@ public class RowDataArrowPythonScalarFunctionOperatorTest
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
-				pythonEnvironmentManager,
+				PythonTestUtils.createTestEnvironmentManager(),
 				userDefinedFunctionInputType,
 				userDefinedFunctionOutputType,
 				getPythonConfig().getMaxArrowBatchSize(),

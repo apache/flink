@@ -47,7 +47,9 @@ public final class OverWindowPartitioned {
 	 *
 	 * @param orderBy field reference
 	 * @return an over window with defined order
+	 * @deprecated use {@link #orderBy(Expression)}
 	 */
+	@Deprecated
 	public OverWindowPartitionedOrdered orderBy(String orderBy) {
 		return this.orderBy(ExpressionParser.parseExpression(orderBy));
 	}

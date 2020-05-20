@@ -63,6 +63,7 @@ import org.apache.flink.yarn.entrypoint.YarnWorkerResourceSpecFactory;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -71,6 +72,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
+import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -107,7 +109,7 @@ import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_HOME_DIR;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_SHIP_FILES;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_HADOOP_USER_NAME;
-import static org.apache.flink.yarn.YarnConfigKeys.FLINK_JAR_PATH;
+import static org.apache.flink.yarn.YarnConfigKeys.FLINK_DIST_JAR;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_YARN_FILES;
 import static org.apache.flink.yarn.YarnResourceManager.ERROR_MASSAGE_ON_SHUTDOWN_REQUEST;
 import static org.hamcrest.Matchers.instanceOf;
@@ -152,7 +154,12 @@ public class YarnResourceManagerTest extends TestLogger {
 		env.put(ENV_CLIENT_SHIP_FILES, "");
 		env.put(ENV_FLINK_CLASSPATH, "");
 		env.put(ENV_HADOOP_USER_NAME, "foo");
-		env.put(FLINK_JAR_PATH, root.toURI().toString());
+		env.put(FLINK_DIST_JAR, new YarnLocalResourceDescriptor(
+			"flink.jar",
+			new Path("/tmp/flink.jar"),
+			0,
+			System.currentTimeMillis(),
+			LocalResourceVisibility.APPLICATION).toString());
 		env.put(ApplicationConstants.Environment.PWD.key(), home.getAbsolutePath());
 
 		BootstrapTools.writeConfiguration(flinkConfig, new File(home.getAbsolutePath(), FLINK_CONF_FILENAME));

@@ -47,7 +47,9 @@ public final class OverWindowPartitionedOrdered {
 	 *
 	 * @param preceding preceding offset relative to the current row.
 	 * @return an over window with defined preceding
+	 * @deprecated use {@link #preceding(Expression)}
 	 */
+	@Deprecated
 	public OverWindowPartitionedOrderedPreceding preceding(String preceding) {
 		return this.preceding(ExpressionParser.parseExpression(preceding));
 	}

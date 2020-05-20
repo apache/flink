@@ -67,7 +67,7 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new Configuration(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
 		KeyGroupRangeInputSplit[] splits = format.createInputSplits(4);
 		Assert.assertEquals("Failed to properly partition operator state into input splits", 4, splits.length);
 	}
@@ -80,7 +80,7 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new Configuration(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
 		KeyGroupRangeInputSplit[] splits = format.createInputSplits(129);
 		Assert.assertEquals("Failed to properly partition operator state into input splits", 128, splits.length);
 	}
@@ -93,7 +93,7 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new Configuration(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
 		KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
 		KeyedStateReaderFunction<Integer, Integer> userFunction = new ReaderFunction();
@@ -111,7 +111,7 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new Configuration(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
 		KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
 		KeyedStateReaderFunction<Integer, Integer> userFunction = new DoubleReaderFunction();
@@ -129,7 +129,7 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new Configuration(), new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
 		KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
 		KeyedStateReaderFunction<Integer, Integer> userFunction = new InvalidReaderFunction();
@@ -147,7 +147,7 @@ public class KeyedStateInputFormatTest {
 		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
 		operatorState.putState(0, state);
 
-		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new KeyedStateReaderOperator<>(new TimerReaderFunction(), Types.INT));
+		KeyedStateInputFormat<?, ?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), new Configuration(), new KeyedStateReaderOperator<>(new TimerReaderFunction(), Types.INT));
 		KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
 
 		KeyedStateReaderFunction<Integer, Integer> userFunction = new TimerReaderFunction();
@@ -162,6 +162,7 @@ public class KeyedStateInputFormatTest {
 		KeyedStateInputFormat<Integer, VoidNamespace, Integer> format = new KeyedStateInputFormat<>(
 			new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4),
 			new MemoryStateBackend(),
+			new Configuration(),
 			new KeyedStateReaderOperator<>(userFunction, Types.INT));
 
 		List<Integer> data = new ArrayList<>();

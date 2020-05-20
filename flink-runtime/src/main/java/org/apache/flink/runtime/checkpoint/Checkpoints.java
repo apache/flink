@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializers;
@@ -93,7 +94,7 @@ public class Checkpoints {
 	//  Reading and validating checkpoint metadata
 	// ------------------------------------------------------------------------
 
-	public static CheckpointMetadata loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader) throws IOException {
+	public static CheckpointMetadata loadCheckpointMetadata(DataInputStream in, ClassLoader classLoader, String externalPointer) throws IOException {
 		checkNotNull(in, "input stream");
 		checkNotNull(classLoader, "classLoader");
 
@@ -102,7 +103,7 @@ public class Checkpoints {
 		if (magicNumber == HEADER_MAGIC_NUMBER) {
 			final int version = in.readInt();
 			final MetadataSerializer serializer = MetadataSerializers.getSerializer(version);
-			return serializer.deserialize(in, classLoader);
+			return serializer.deserialize(in, classLoader, externalPointer);
 		}
 		else {
 			throw new IOException("Unexpected magic number. This can have multiple reasons: " +
@@ -131,33 +132,23 @@ public class Checkpoints {
 		final CheckpointMetadata checkpointMetadata;
 		try (InputStream in = metadataHandle.openInputStream()) {
 			DataInputStream dis = new DataInputStream(in);
-			checkpointMetadata = loadCheckpointMetadata(dis, classLoader);
+			checkpointMetadata = loadCheckpointMetadata(dis, classLoader, checkpointPointer);
 		}
 
 		// generate mapping from operator to task
 		Map<OperatorID, ExecutionJobVertex> operatorToJobVertexMapping = new HashMap<>();
 		for (ExecutionJobVertex task : tasks.values()) {
-			for (OperatorID operatorID : task.getOperatorIDs()) {
-				operatorToJobVertexMapping.put(operatorID, task);
+			for (OperatorIDPair operatorIDPair : task.getOperatorIDs()) {
+				operatorToJobVertexMapping.put(operatorIDPair.getGeneratedOperatorID(), task);
+				operatorIDPair.getUserDefinedOperatorID().ifPresent(id -> operatorToJobVertexMapping.put(id, task));
 			}
 		}
 
 		// (2) validate it (parallelism, etc)
-		boolean expandedToLegacyIds = false;
-
 		HashMap<OperatorID, OperatorState> operatorStates = new HashMap<>(checkpointMetadata.getOperatorStates().size());
 		for (OperatorState operatorState : checkpointMetadata.getOperatorStates()) {
 
 			ExecutionJobVertex executionJobVertex = operatorToJobVertexMapping.get(operatorState.getOperatorID());
-
-			// on the first time we can not find the execution job vertex for an id, we also consider alternative ids,
-			// for example as generated from older flink versions, to provide backwards compatibility.
-			if (executionJobVertex == null && !expandedToLegacyIds) {
-				operatorToJobVertexMapping = ExecutionJobVertex.includeAlternativeOperatorIDs(operatorToJobVertexMapping);
-				executionJobVertex = operatorToJobVertexMapping.get(operatorState.getOperatorID());
-				expandedToLegacyIds = true;
-				LOG.info("Could not find ExecutionJobVertex. Including user-defined OperatorIDs in search.");
-			}
 
 			if (executionJobVertex != null) {
 
@@ -180,16 +171,13 @@ public class Checkpoints {
 			} else if (allowNonRestoredState) {
 				LOG.info("Skipping savepoint state for operator {}.", operatorState.getOperatorID());
 			} else {
+				if (operatorState.getCoordinatorState() != null) {
+					throwNonRestoredStateException(checkpointPointer, operatorState.getOperatorID());
+				}
+
 				for (OperatorSubtaskState operatorSubtaskState : operatorState.getStates()) {
 					if (operatorSubtaskState.hasState()) {
-						String msg = String.format("Failed to rollback to checkpoint/savepoint %s. " +
-										"Cannot map checkpoint/savepoint state for operator %s to the new program, " +
-										"because the operator is not available in the new program. If " +
-										"you want to allow to skip this, you can set the --allowNonRestoredState " +
-										"option on the CLI.",
-								checkpointPointer, operatorState.getOperatorID());
-
-						throw new IllegalStateException(msg);
+						throwNonRestoredStateException(checkpointPointer, operatorState.getOperatorID());
 					}
 				}
 
@@ -198,7 +186,7 @@ public class Checkpoints {
 		}
 
 		// (3) convert to checkpoint so the system can fall back to it
-		CheckpointProperties props = CheckpointProperties.forSavepoint();
+		CheckpointProperties props = CheckpointProperties.forSavepoint(false);
 
 		return new CompletedCheckpoint(
 				jobId,
@@ -209,6 +197,17 @@ public class Checkpoints {
 				checkpointMetadata.getMasterStates(),
 				props,
 				location);
+	}
+
+	private static void throwNonRestoredStateException(String checkpointPointer, OperatorID operatorId) {
+		String msg = String.format("Failed to rollback to checkpoint/savepoint %s. " +
+				"Cannot map checkpoint/savepoint state for operator %s to the new program, " +
+				"because the operator is not available in the new program. If " +
+				"you want to allow to skip this, you can set the --allowNonRestoredState " +
+				"option on the CLI.",
+			checkpointPointer, operatorId);
+
+		throw new IllegalStateException(msg);
 	}
 
 	// ------------------------------------------------------------------------
@@ -234,7 +233,7 @@ public class Checkpoints {
 		try (InputStream in = metadataHandle.openInputStream();
 			DataInputStream dis = new DataInputStream(in)) {
 
-			metadata = loadCheckpointMetadata(dis, classLoader);
+			metadata = loadCheckpointMetadata(dis, classLoader, pointer);
 		}
 
 		Exception exception = null;

@@ -55,6 +55,8 @@ Important classes of Flink Table API:
       user-defined function is executed, such as the metric group, and global job parameters, etc.
     - :class:`pyflink.table.ScalarFunction`
       Base interface for user-defined scalar function.
+    - :class:`pyflink.table.StatementSet`
+      Base interface accepts DML statements or Tables.
 """
 from __future__ import absolute_import
 
@@ -70,6 +72,8 @@ from pyflink.table.sources import TableSource, CsvTableSource
 from pyflink.table.types import DataTypes, UserDefinedType, Row
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.udf import FunctionContext, ScalarFunction
+from pyflink.table.explain_detail import ExplainDetail
+from pyflink.table.statement_set import StatementSet
 
 __all__ = [
     'TableEnvironment',
@@ -93,5 +97,7 @@ __all__ = [
     'TableSchema',
     'FunctionContext',
     'ScalarFunction',
-    'SqlDialect'
+    'SqlDialect',
+    'ExplainDetail',
+    'StatementSet'
 ]

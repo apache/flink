@@ -48,11 +48,13 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 	void sendEventToSourceReader(int subtaskId, SourceEvent event);
 
 	/**
-	 * Get the number of subtasks.
+	 * Get the current parallelism of this Source. Note that due to auto-scaling, the parallelism
+	 * may change over time. Therefore the SplitEnumerator should not cache the return value
+	 * of this method, but always invoke this method to get the latest parallelism.
 	 *
-	 * @return the number of subtasks.
+	 * @return the parallelism of the Source.
 	 */
-	int numSubtasks();
+	int currentParallelism();
 
 	/**
 	 * Get the currently registered readers. The mapping is from subtask id to the reader info.
@@ -70,10 +72,12 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 
 	/**
 	 * Invoke the callable and handover the return value to the handler which will be executed
-	 * by the source coordinator.
+	 * by the source coordinator. When this method is invoked multiple times, The <code>Coallble</code>s
+	 * may be executed in a thread pool concurrently.
 	 *
-	 * <p>It is important to make sure that the callable should not modify
-	 * any shared state. Otherwise the there might be unexpected behavior.
+	 * <p>It is important to make sure that the callable does not modify any shared state, especially
+	 * the states that will be a part of the {@link SplitEnumerator#snapshotState()}. Otherwise the
+	 * there might be unexpected behavior.
 	 *
 	 * @param callable a callable to call.
 	 * @param handler a handler that handles the return value of or the exception thrown from the callable.
@@ -81,11 +85,13 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 	<T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler);
 
 	/**
-	 * Invoke the callable and handover the return value to the handler which will be executed
-	 * by the source coordinator.
+	 * Invoke the given callable periodically and handover the return value to the handler which will
+	 * be executed by the source coordinator. When this method is invoked multiple times, The
+	 * <code>Coallble</code>s may be executed in a thread pool concurrently.
 	 *
-	 * <p>It is important to make sure that the callable should not modify
-	 * any shared state. Otherwise the there might be unexpected behavior.
+	 * <p>It is important to make sure that the callable does not modify any shared state, especially
+	 * the states that will be a part of the {@link SplitEnumerator#snapshotState()}. Otherwise the
+	 * there might be unexpected behavior.
 	 *
 	 * @param callable the callable to call.
 	 * @param handler a handler that handles the return value of or the exception thrown from the callable.

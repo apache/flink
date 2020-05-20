@@ -25,6 +25,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalPipelinedRegion;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -164,9 +166,7 @@ public class StreamingJobGraphGenerator {
 			legacyHashes.add(hasher.traverseStreamGraphAndGenerateHashes(streamGraph));
 		}
 
-		Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes = new HashMap<>();
-
-		setChaining(hashes, legacyHashes, chainedOperatorHashes);
+		setChaining(hashes, legacyHashes);
 
 		setPhysicalEdges();
 
@@ -250,20 +250,17 @@ public class StreamingJobGraphGenerator {
 	 *
 	 * <p>This will recursively create all {@link JobVertex} instances.
 	 */
-	private void setChaining(Map<Integer, byte[]> hashes, List<Map<Integer, byte[]>> legacyHashes, Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes) {
+	private void setChaining(Map<Integer, byte[]> hashes, List<Map<Integer, byte[]>> legacyHashes) {
 		for (Integer sourceNodeId : streamGraph.getSourceIDs()) {
-			createChain(sourceNodeId, sourceNodeId, hashes, legacyHashes, 0, chainedOperatorHashes);
+			createChain(
+					sourceNodeId,
+					0,
+					new OperatorChainInfo(sourceNodeId, hashes, legacyHashes, streamGraph));
 		}
 	}
 
-	private List<StreamEdge> createChain(
-			Integer startNodeId,
-			Integer currentNodeId,
-			Map<Integer, byte[]> hashes,
-			List<Map<Integer, byte[]>> legacyHashes,
-			int chainIndex,
-			Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes) {
-
+	private List<StreamEdge> createChain(Integer currentNodeId, int chainIndex, OperatorChainInfo chainInfo) {
+		Integer startNodeId = chainInfo.getStartNodeId();
 		if (!builtVertices.contains(startNodeId)) {
 
 			List<StreamEdge> transitiveOutEdges = new ArrayList<StreamEdge>();
@@ -283,27 +280,19 @@ public class StreamingJobGraphGenerator {
 
 			for (StreamEdge chainable : chainableOutputs) {
 				transitiveOutEdges.addAll(
-						createChain(startNodeId, chainable.getTargetId(), hashes, legacyHashes, chainIndex + 1, chainedOperatorHashes));
+						createChain(chainable.getTargetId(), chainIndex + 1, chainInfo));
 			}
 
 			for (StreamEdge nonChainable : nonChainableOutputs) {
 				transitiveOutEdges.add(nonChainable);
-				createChain(nonChainable.getTargetId(), nonChainable.getTargetId(), hashes, legacyHashes, 0, chainedOperatorHashes);
-			}
-
-			List<Tuple2<byte[], byte[]>> operatorHashes =
-				chainedOperatorHashes.computeIfAbsent(startNodeId, k -> new ArrayList<>());
-
-			byte[] primaryHashBytes = hashes.get(currentNodeId);
-			OperatorID currentOperatorId = new OperatorID(primaryHashBytes);
-
-			for (Map<Integer, byte[]> legacyHash : legacyHashes) {
-				operatorHashes.add(new Tuple2<>(primaryHashBytes, legacyHash.get(currentNodeId)));
+				createChain(nonChainable.getTargetId(), 0, chainInfo.newChain(nonChainable.getTargetId()));
 			}
 
 			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs));
 			chainedMinResources.put(currentNodeId, createChainedMinResources(currentNodeId, chainableOutputs));
 			chainedPreferredResources.put(currentNodeId, createChainedPreferredResources(currentNodeId, chainableOutputs));
+
+			OperatorID currentOperatorId = chainInfo.addNodeToChain(currentNodeId, chainedNames.get(currentNodeId));
 
 			if (currentNode.getInputFormat() != null) {
 				getOrCreateFormatContainer(startNodeId).addInputFormat(currentOperatorId, currentNode.getInputFormat());
@@ -314,7 +303,7 @@ public class StreamingJobGraphGenerator {
 			}
 
 			StreamConfig config = currentNodeId.equals(startNodeId)
-					? createJobVertex(startNodeId, hashes, legacyHashes, chainedOperatorHashes)
+					? createJobVertex(startNodeId, chainInfo)
 					: new StreamConfig(new Configuration());
 
 			setVertexConfig(currentNodeId, config, chainableOutputs, nonChainableOutputs);
@@ -392,14 +381,12 @@ public class StreamingJobGraphGenerator {
 
 	private StreamConfig createJobVertex(
 			Integer streamNodeId,
-			Map<Integer, byte[]> hashes,
-			List<Map<Integer, byte[]>> legacyHashes,
-			Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes) {
+			OperatorChainInfo chainInfo) {
 
 		JobVertex jobVertex;
 		StreamNode streamNode = streamGraph.getStreamNode(streamNodeId);
 
-		byte[] hash = hashes.get(streamNodeId);
+		byte[] hash = chainInfo.getHash(streamNodeId);
 
 		if (hash == null) {
 			throw new IllegalStateException("Cannot find node hash. " +
@@ -408,21 +395,12 @@ public class StreamingJobGraphGenerator {
 
 		JobVertexID jobVertexId = new JobVertexID(hash);
 
-		List<JobVertexID> legacyJobVertexIds = new ArrayList<>(legacyHashes.size());
-		for (Map<Integer, byte[]> legacyHash : legacyHashes) {
-			hash = legacyHash.get(streamNodeId);
-			if (null != hash) {
-				legacyJobVertexIds.add(new JobVertexID(hash));
-			}
-		}
-
-		List<Tuple2<byte[], byte[]>> chainedOperators = chainedOperatorHashes.get(streamNodeId);
-		List<OperatorID> chainedOperatorVertexIds = new ArrayList<>();
-		List<OperatorID> userDefinedChainedOperatorVertexIds = new ArrayList<>();
+		List<Tuple2<byte[], byte[]>> chainedOperators = chainInfo.getChainedOperatorHashes(streamNodeId);
+		List<OperatorIDPair> operatorIDPairs = new ArrayList<>();
 		if (chainedOperators != null) {
 			for (Tuple2<byte[], byte[]> chainedOperator : chainedOperators) {
-				chainedOperatorVertexIds.add(new OperatorID(chainedOperator.f0));
-				userDefinedChainedOperatorVertexIds.add(chainedOperator.f1 != null ? new OperatorID(chainedOperator.f1) : null);
+				OperatorID userDefinedOperatorID = chainedOperator.f1 == null ? null : new OperatorID(chainedOperator.f1);
+				operatorIDPairs.add(OperatorIDPair.of(new OperatorID(chainedOperator.f0), userDefinedOperatorID));
 			}
 		}
 
@@ -430,9 +408,7 @@ public class StreamingJobGraphGenerator {
 			jobVertex = new InputOutputFormatVertex(
 					chainedNames.get(streamNodeId),
 					jobVertexId,
-					legacyJobVertexIds,
-					chainedOperatorVertexIds,
-					userDefinedChainedOperatorVertexIds);
+					operatorIDPairs);
 
 			chainedInputOutputFormats
 				.get(streamNodeId)
@@ -441,9 +417,16 @@ public class StreamingJobGraphGenerator {
 			jobVertex = new JobVertex(
 					chainedNames.get(streamNodeId),
 					jobVertexId,
-					legacyJobVertexIds,
-					chainedOperatorVertexIds,
-					userDefinedChainedOperatorVertexIds);
+					operatorIDPairs);
+		}
+
+		for (OperatorCoordinator.Provider coordinatorProvider : chainInfo.getCoordinatorProviders()) {
+			try {
+				jobVertex.addOperatorCoordinator(new SerializedValue<>(coordinatorProvider));
+			} catch (IOException e) {
+				throw new FlinkRuntimeException(String.format(
+						"Coordinator Provider for node %s is not serializable.", chainedNames.get(streamNodeId)));
+			}
 		}
 
 		jobVertex.setResources(chainedMinResources.get(streamNodeId), chainedPreferredResources.get(streamNodeId));
@@ -969,19 +952,83 @@ public class StreamingJobGraphGenerator {
 			triggerVertices,
 			ackVertices,
 			commitVertices,
-			new CheckpointCoordinatorConfiguration(
-				interval,
-				cfg.getCheckpointTimeout(),
-				cfg.getMinPauseBetweenCheckpoints(),
-				cfg.getMaxConcurrentCheckpoints(),
-				retentionAfterTermination,
-				getCheckpointingMode(cfg) == CheckpointingMode.EXACTLY_ONCE,
-				cfg.isUnalignedCheckpointsEnabled(),
-				cfg.isPreferCheckpointForRecovery(),
-				cfg.getTolerableCheckpointFailureNumber()),
+			CheckpointCoordinatorConfiguration.builder()
+				.setCheckpointInterval(interval)
+				.setCheckpointTimeout(cfg.getCheckpointTimeout())
+				.setMinPauseBetweenCheckpoints(cfg.getMinPauseBetweenCheckpoints())
+				.setMaxConcurrentCheckpoints(cfg.getMaxConcurrentCheckpoints())
+				.setCheckpointRetentionPolicy(retentionAfterTermination)
+				.setExactlyOnce(getCheckpointingMode(cfg) == CheckpointingMode.EXACTLY_ONCE)
+				.setPreferCheckpointForRecovery(cfg.isPreferCheckpointForRecovery())
+				.setTolerableCheckpointFailureNumber(cfg.getTolerableCheckpointFailureNumber())
+				.setUnalignedCheckpointsEnabled(cfg.isUnalignedCheckpointsEnabled())
+				.build(),
 			serializedStateBackend,
 			serializedHooks);
 
 		jobGraph.setSnapshotSettings(settings);
+	}
+
+	/**
+	 * A private class to help maintain the information of an operator chain during the recursive call in
+	 * {@link #createChain(Integer, int, OperatorChainInfo)}.
+	 */
+	private static class OperatorChainInfo {
+		private final Integer startNodeId;
+		private final Map<Integer, byte[]> hashes;
+		private final List<Map<Integer, byte[]>> legacyHashes;
+		private final Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes;
+		private final List<OperatorCoordinator.Provider> coordinatorProviders;
+		private final StreamGraph streamGraph;
+
+		private OperatorChainInfo(
+				int startNodeId,
+				Map<Integer, byte[]> hashes,
+				List<Map<Integer, byte[]>> legacyHashes,
+				StreamGraph streamGraph) {
+			this.startNodeId = startNodeId;
+			this.hashes = hashes;
+			this.legacyHashes = legacyHashes;
+			this.chainedOperatorHashes = new HashMap<>();
+			this.coordinatorProviders = new ArrayList<>();
+			this.streamGraph = streamGraph;
+		}
+
+		byte[] getHash(Integer streamNodeId) {
+			return hashes.get(streamNodeId);
+		}
+
+		private Integer getStartNodeId() {
+			return startNodeId;
+		}
+
+		private List<Tuple2<byte[], byte[]>> getChainedOperatorHashes(int startNodeId) {
+			return chainedOperatorHashes.get(startNodeId);
+		}
+
+		private List<OperatorCoordinator.Provider> getCoordinatorProviders() {
+			return coordinatorProviders;
+		}
+
+		private OperatorID addNodeToChain(int currentNodeId, String operatorName) {
+			List<Tuple2<byte[], byte[]>> operatorHashes =
+					chainedOperatorHashes.computeIfAbsent(startNodeId, k -> new ArrayList<>());
+
+			byte[] primaryHashBytes = hashes.get(currentNodeId);
+
+			for (Map<Integer, byte[]> legacyHash : legacyHashes) {
+				operatorHashes.add(new Tuple2<>(primaryHashBytes, legacyHash.get(currentNodeId)));
+			}
+
+			streamGraph
+					.getStreamNode(currentNodeId)
+					.getCoordinatorProvider(operatorName, new OperatorID(getHash(currentNodeId)))
+					.map(coordinatorProviders::add);
+			return new OperatorID(primaryHashBytes);
+		}
+
+		private OperatorChainInfo newChain(Integer startNodeId) {
+			return new OperatorChainInfo(startNodeId, hashes, legacyHashes, streamGraph);
+		}
 	}
 }

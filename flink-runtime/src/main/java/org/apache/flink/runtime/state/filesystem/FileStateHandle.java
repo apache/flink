@@ -37,10 +37,10 @@ public class FileStateHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = 350284443258002355L;
 
-	/** The path to the file in the filesystem, fully describing the file system */
+	/** The path to the file in the filesystem, fully describing the file system. */
 	private final Path filePath;
 
-	/** The size of the state in the file */
+	/** The size of the state in the file. */
 	private final long stateSize;
 
 	/**

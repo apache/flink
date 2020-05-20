@@ -109,7 +109,7 @@ public class FsStateBackendEntropyTest {
 		}
 	}
 
-	private static class TestEntropyAwareFs extends LocalFileSystem implements EntropyInjectingFileSystem {
+	static class TestEntropyAwareFs extends LocalFileSystem implements EntropyInjectingFileSystem {
 
 		@Override
 		public String getEntropyInjectionKey() {

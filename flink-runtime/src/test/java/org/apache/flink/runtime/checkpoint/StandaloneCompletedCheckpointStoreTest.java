@@ -174,6 +174,6 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 			checkpointId,
 			checkpointId,
 			Collections.emptyMap(),
-			CheckpointProperties.forSavepoint());
+			CheckpointProperties.forSavepoint(true));
 	}
 }

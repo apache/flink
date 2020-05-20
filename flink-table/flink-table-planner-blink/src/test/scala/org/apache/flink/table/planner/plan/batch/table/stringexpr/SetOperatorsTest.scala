@@ -33,8 +33,8 @@ class SetOperatorsTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTableSource[((Int, Int), String, (Int, Int))]("A", 'a, 'b, 'c)
 
-    val elements = t.where("b === 'two'").select("a").as("a1")
-    val in = t.select("*").where('c.in(elements))
+    val elements = t.where("b === 'two'").select($"a").as("a1")
+    val in = t.select($"*").where('c.in(elements))
 
     util.verifyPlan(in)
   }
@@ -44,7 +44,7 @@ class SetOperatorsTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Timestamp, String)]("A", 'a, 'b, 'c)
 
-    val in = t.select("b.in('1972-02-22 07:12:00.333'.toTimestamp)").as("b2")
+    val in = t.select($"b" in ("1972-02-22 07:12:00.333".toTimestamp)).as("b2")
 
     util.verifyPlan(in)
   }

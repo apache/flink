@@ -37,13 +37,11 @@ import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -62,7 +60,6 @@ import static org.junit.Assert.fail;
  * serializability is handled correctly.
  */
 @SuppressWarnings("serial")
-@Category(AlsoRunWithLegacyScheduler.class)
 @RunWith(Parameterized.class)
 public class WindowCheckpointingITCase extends TestLogger {
 

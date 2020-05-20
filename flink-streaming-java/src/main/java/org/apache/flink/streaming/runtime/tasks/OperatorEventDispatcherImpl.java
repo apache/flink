@@ -74,16 +74,16 @@ final class OperatorEventDispatcherImpl implements OperatorEventDispatcher {
 	}
 
 	@Override
-	public OperatorEventGateway registerEventHandler(OperatorID operator, OperatorEventHandler handler) {
-		final OperatorEventGateway gateway = new OperatorEventGatewayImpl(toCoordinator, operator);
+	public void registerEventHandler(OperatorID operator, OperatorEventHandler handler) {
 		final OperatorEventHandler prior = handlers.putIfAbsent(operator, handler);
-
-		if (prior == null) {
-			return gateway;
-		}
-		else {
+		if (prior != null) {
 			throw new IllegalStateException("already a handler registered for this operatorId");
 		}
+	}
+
+	@Override
+	public OperatorEventGateway getOperatorEventGateway(OperatorID operatorId) {
+		return new OperatorEventGatewayImpl(toCoordinator, operatorId);
 	}
 
 	// ------------------------------------------------------------------------

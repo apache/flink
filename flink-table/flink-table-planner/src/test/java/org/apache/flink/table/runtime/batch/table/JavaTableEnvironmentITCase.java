@@ -322,7 +322,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 					TypeInformation.of(new TypeHint<Either<String, Integer>>() { })
 				),
 				$("either"))
-			.select("either");
+			.select($("either"));
 
 		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
 		List<Row> results = ds.collect();
@@ -467,6 +467,19 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 			"Peter,28,{},true,[]\n" +
 			"Anna,56,{test1=test1},true,[]\n" +
 			"Lucy,42,{abc=cde},true,[]\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testFromValues() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+
+		Table table = tableEnv.fromValues(1L, 2L, 3L)
+			.select($("*"));
+
+		List<Row> results = tableEnv.toDataSet(table, Row.class).collect();
+		String expected = "1\n2\n3\n";
 		compareResultAsText(results, expected);
 	}
 

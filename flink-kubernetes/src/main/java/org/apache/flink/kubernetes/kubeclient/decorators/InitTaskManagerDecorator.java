@@ -59,6 +59,7 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 				.withAnnotations(kubernetesTaskManagerParameters.getAnnotations())
 				.endMetadata()
 			.editOrNewSpec()
+				.withRestartPolicy(Constants.RESTART_POLICY_OF_NEVER)
 				.withImagePullSecrets(kubernetesTaskManagerParameters.getImagePullSecrets())
 				.withNodeSelector(kubernetesTaskManagerParameters.getNodeSelector())
 				.withTolerations(kubernetesTaskManagerParameters.getTolerations().stream()
@@ -78,7 +79,8 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
 	private Container decorateMainContainer(Container container) {
 		final ResourceRequirements resourceRequirements = KubernetesUtils.getResourceRequirements(
 				kubernetesTaskManagerParameters.getTaskManagerMemoryMB(),
-				kubernetesTaskManagerParameters.getTaskManagerCPU());
+				kubernetesTaskManagerParameters.getTaskManagerCPU(),
+				kubernetesTaskManagerParameters.getTaskManagerExternalResources());
 
 		return new ContainerBuilder(container)
 				.withName(kubernetesTaskManagerParameters.getTaskManagerMainContainerName())

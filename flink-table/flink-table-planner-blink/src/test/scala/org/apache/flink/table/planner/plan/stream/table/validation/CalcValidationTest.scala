@@ -137,7 +137,7 @@ class CalcValidationTest extends TableTestBase {
     util.addFunction("weightedAvg", new WeightedAvg)
     util.addTableSource[(Int)](
       "MyTable", 'int)
-      .map("weightedAvg(int, int)") // do not support AggregateFunction as input
+      .map(call("weightedAvg", $"int", $"int")) // do not support AggregateFunction as input
   }
 
   @Test(expected = classOf[ValidationException])
@@ -147,6 +147,6 @@ class CalcValidationTest extends TableTestBase {
     util.addFunction("func", new TableFunc0)
     util.addTableSource[(String)](
       "MyTable", 'string)
-      .map("func(string) as a") // do not support TableFunction as input
+      .map(call("func", $"string") as "a") // do not support TableFunction as input
   }
 }

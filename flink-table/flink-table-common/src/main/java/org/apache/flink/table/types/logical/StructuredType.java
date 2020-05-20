@@ -319,8 +319,8 @@ public final class StructuredType extends UserDefinedType {
 	public LogicalType copy(boolean isNullable) {
 		return new StructuredType(
 			isNullable,
-			getOptionalObjectIdentifier().orElse(null),
-			attributes.stream().map(StructuredAttribute::copy).collect(Collectors.toList()),
+			getObjectIdentifier().orElse(null),
+			attributes,
 			isFinal(),
 			isInstantiable,
 			comparision,
@@ -331,11 +331,13 @@ public final class StructuredType extends UserDefinedType {
 
 	@Override
 	public String asSummaryString() {
-		if (getOptionalObjectIdentifier().isPresent()) {
+		if (getObjectIdentifier().isPresent()) {
 			return asSerializableString();
 		}
 		assert implementationClass != null;
-		return implementationClass.getName();
+		// we use *class* to make it visible that this type is unregistered and not confuse it
+		// with catalog types
+		return "*" + implementationClass.getName() + "*";
 	}
 
 	@Override
@@ -366,16 +368,16 @@ public final class StructuredType extends UserDefinedType {
 
 	@Override
 	public List<LogicalType> getChildren() {
-		final ArrayList<LogicalType> children = new ArrayList<>();
-		StructuredType currentType = this;
-		while (currentType != null) {
-			children.addAll(
-				currentType.attributes.stream()
-					.map(StructuredAttribute::getType)
-					.collect(Collectors.toList()));
-			currentType = currentType.superType;
+		final List<LogicalType> children = new ArrayList<>();
+		// add super fields first
+		if (superType != null) {
+			children.addAll(superType.getChildren());
 		}
-		Collections.reverse(children);
+		// then specific fields
+		children.addAll(
+			attributes.stream()
+				.map(StructuredAttribute::getType)
+				.collect(Collectors.toList()));
 		return Collections.unmodifiableList(children);
 	}
 

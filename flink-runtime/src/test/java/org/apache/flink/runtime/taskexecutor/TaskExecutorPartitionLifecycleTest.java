@@ -34,6 +34,7 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -76,6 +77,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -151,14 +153,17 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			}).build();
 
-		final JobManagerConnection jobManagerConnection = TaskSubmissionTestEnvironment.createJobManagerConnection(
-			jobId, jobMasterGateway, rpc, new NoOpTaskManagerActions(), timeout);
-
-		final JobManagerTable jobManagerTable = new JobManagerTable();
-		jobManagerTable.put(jobId, jobManagerConnection);
+		final DefaultJobTable jobTable = DefaultJobTable.create();
+		TaskSubmissionTestEnvironment.registerJobMasterConnection(
+			jobTable,
+			jobId,
+			rpc,
+			jobMasterGateway,
+			new NoOpTaskManagerActions(),
+			timeout);
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setJobManagerTable(jobManagerTable)
+			.setJobTable(jobTable)
 			.setShuffleEnvironment(new NettyShuffleEnvironmentBuilder().build())
 			.setTaskSlotTable(createTaskSlotTable())
 			.build();
@@ -197,7 +202,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			trackerIsTrackingPartitions.set(false);
 
 			// the TM should check whether partitions are still stored, and afterwards terminate the connection
-			releaseOrPromoteCall.accept(taskExecutor, jobId, resultPartitionId);
+			releaseOrPromoteCall.accept(taskExecutorGateway, jobId, resultPartitionId);
 
 			disconnectFuture.get();
 		} finally {
@@ -448,9 +453,13 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			final Configuration configuration = new Configuration();
 		return new TestingTaskExecutor(
 			rpc,
-			TaskManagerConfiguration.fromConfiguration(configuration, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration)),
+			TaskManagerConfiguration.fromConfiguration(
+				configuration,
+				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration),
+				InetAddress.getLoopbackAddress().getHostAddress()),
 			haServices,
 			taskManagerServices,
+			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 			new HeartbeatServices(10_000L, 30_000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			null,

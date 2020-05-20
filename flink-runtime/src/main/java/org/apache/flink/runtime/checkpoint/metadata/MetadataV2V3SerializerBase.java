@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
@@ -37,10 +36,12 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.function.BiConsumerWithException;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.BiFunctionWithException;
 
 import javax.annotation.Nullable;
 
@@ -88,6 +89,7 @@ public abstract class MetadataV2V3SerializerBase {
 	private static final byte KEY_GROUPS_HANDLE = 3;
 	private static final byte PARTITIONABLE_OPERATOR_STATE_HANDLE = 4;
 	private static final byte INCREMENTAL_KEY_GROUPS_HANDLE = 5;
+	private static final byte RELATIVE_STREAM_STATE_HANDLE = 6;
 
 	// ------------------------------------------------------------------------
 	//  (De)serialization entry points
@@ -113,7 +115,13 @@ public abstract class MetadataV2V3SerializerBase {
 		}
 	}
 
-	protected CheckpointMetadata deserializeMetadata(DataInputStream dis) throws IOException {
+	protected CheckpointMetadata deserializeMetadata(
+			DataInputStream dis,
+			@Nullable String externalPointer) throws IOException {
+
+		final DeserializationContext context = externalPointer == null
+				? null : new DeserializationContext(externalPointer);
+
 		// first: checkpoint ID
 		final long checkpointId = dis.readLong();
 		if (checkpointId < 0) {
@@ -142,7 +150,7 @@ public abstract class MetadataV2V3SerializerBase {
 		final List<OperatorState> operatorStates = new ArrayList<>(numTaskStates);
 
 		for (int i = 0; i < numTaskStates; i++) {
-			operatorStates.add(deserializeOperatorState(dis));
+			operatorStates.add(deserializeOperatorState(dis, context));
 		}
 
 		return new CheckpointMetadata(checkpointId, operatorStates, masterStates);
@@ -211,15 +219,11 @@ public abstract class MetadataV2V3SerializerBase {
 
 	protected abstract void serializeOperatorState(OperatorState operatorState, DataOutputStream dos) throws IOException;
 
-	protected abstract OperatorState deserializeOperatorState(DataInputStream dis) throws IOException;
-
-	// ------------------------------------------------------------------------
-	//  operator subtask state (de)serialization methods
-	// ------------------------------------------------------------------------
+	protected abstract OperatorState deserializeOperatorState(DataInputStream dis, @Nullable DeserializationContext context) throws IOException;
 
 	protected void serializeSubtaskState(OperatorSubtaskState subtaskState, DataOutputStream dos) throws IOException {
-		serializeSingleton(subtaskState.getManagedOperatorState(), dos, MetadataV2V3SerializerBase::serializeOperatorStateHandle);
-		serializeSingleton(subtaskState.getRawOperatorState(), dos, MetadataV2V3SerializerBase::serializeOperatorStateHandle);
+		serializeSingleton(subtaskState.getManagedOperatorState(), dos, this::serializeOperatorStateHandle);
+		serializeSingleton(subtaskState.getRawOperatorState(), dos, this::serializeOperatorStateHandle);
 		serializeKeyedStateCol(subtaskState.getManagedKeyedState(), dos);
 		serializeKeyedStateCol(subtaskState.getRawKeyedState(), dos);
 	}
@@ -228,32 +232,22 @@ public abstract class MetadataV2V3SerializerBase {
 		serializeKeyedStateHandle(extractSingleton(managedKeyedState), dos);
 	}
 
-	private <T extends StateObject> void serializeSingleton(
-			StateObjectCollection<T> stateObjectCollection,
-			DataOutputStream dos,
-			BiConsumerWithException<T, DataOutputStream, IOException> cons) throws IOException {
-		final T state = extractSingleton(stateObjectCollection);
-		if (state != null) {
-			dos.writeInt(1);
-			cons.accept(state, dos);
-		} else {
-			dos.writeInt(0);
-		}
-	}
+	protected OperatorSubtaskState deserializeSubtaskState(
+			DataInputStream dis,
+			@Nullable DeserializationContext context) throws IOException {
 
-	protected OperatorSubtaskState deserializeSubtaskState(DataInputStream dis) throws IOException {
 		final boolean hasManagedOperatorState = dis.readInt() != 0;
-		final OperatorStateHandle managedOperatorState = hasManagedOperatorState ? deserializeOperatorStateHandle(dis) : null;
+		final OperatorStateHandle managedOperatorState = hasManagedOperatorState ? deserializeOperatorStateHandle(dis, context) : null;
 
 		final boolean hasRawOperatorState = dis.readInt() != 0;
-		final OperatorStateHandle rawOperatorState = hasRawOperatorState ? deserializeOperatorStateHandle(dis) : null;
+		final OperatorStateHandle rawOperatorState = hasRawOperatorState ? deserializeOperatorStateHandle(dis, context) : null;
 
-		final KeyedStateHandle managedKeyedState = deserializeKeyedStateHandle(dis);
-		final KeyedStateHandle rawKeyedState = deserializeKeyedStateHandle(dis);
+		final KeyedStateHandle managedKeyedState = deserializeKeyedStateHandle(dis, context);
+		final KeyedStateHandle rawKeyedState = deserializeKeyedStateHandle(dis, context);
 
-		StateObjectCollection<InputChannelStateHandle> inputChannelState = deserializeInputChannelStateHandle(dis);
+		StateObjectCollection<InputChannelStateHandle> inputChannelState = deserializeInputChannelStateHandle(dis, context);
 
-		StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState = deserializeResultSubpartitionStateHandle(dis);
+		StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState = deserializeResultSubpartitionStateHandle(dis, context);
 
 		return new OperatorSubtaskState(
 			managedOperatorState,
@@ -264,10 +258,11 @@ public abstract class MetadataV2V3SerializerBase {
 			resultSubpartitionState);
 	}
 
-	@VisibleForTesting
-	public static void serializeKeyedStateHandle(
-			KeyedStateHandle stateHandle, DataOutputStream dos) throws IOException {
+	// ------------------------------------------------------------------------
+	//  keyed state
+	// ------------------------------------------------------------------------
 
+	void serializeKeyedStateHandle(KeyedStateHandle stateHandle, DataOutputStream dos) throws IOException {
 		if (stateHandle == null) {
 			dos.writeByte(NULL_HANDLE);
 		} else if (stateHandle instanceof KeyGroupsStateHandle) {
@@ -300,34 +295,10 @@ public abstract class MetadataV2V3SerializerBase {
 		}
 	}
 
-	private static void serializeStreamStateHandleMap(
-			Map<StateHandleID, StreamStateHandle> map,
-			DataOutputStream dos) throws IOException {
+	KeyedStateHandle deserializeKeyedStateHandle(
+			DataInputStream dis,
+			@Nullable DeserializationContext context) throws IOException {
 
-		dos.writeInt(map.size());
-		for (Map.Entry<StateHandleID, StreamStateHandle> entry : map.entrySet()) {
-			dos.writeUTF(entry.getKey().toString());
-			serializeStreamStateHandle(entry.getValue(), dos);
-		}
-	}
-
-	private static Map<StateHandleID, StreamStateHandle> deserializeStreamStateHandleMap(
-			DataInputStream dis) throws IOException {
-
-		final int size = dis.readInt();
-		Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
-
-		for (int i = 0; i < size; ++i) {
-			StateHandleID stateHandleID = new StateHandleID(dis.readUTF());
-			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis);
-			result.put(stateHandleID, stateHandle);
-		}
-
-		return result;
-	}
-
-	@VisibleForTesting
-	public static KeyedStateHandle deserializeKeyedStateHandle(DataInputStream dis) throws IOException {
 		final int type = dis.readByte();
 		if (NULL_HANDLE == type) {
 
@@ -344,7 +315,7 @@ public abstract class MetadataV2V3SerializerBase {
 			}
 			KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(
 				keyGroupRange, offsets);
-			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis);
+			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
 			return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
 		} else if (INCREMENTAL_KEY_GROUPS_HANDLE == type) {
 
@@ -355,9 +326,9 @@ public abstract class MetadataV2V3SerializerBase {
 			KeyGroupRange keyGroupRange =
 				KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
 
-			StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis);
-			Map<StateHandleID, StreamStateHandle> sharedStates = deserializeStreamStateHandleMap(dis);
-			Map<StateHandleID, StreamStateHandle> privateStates = deserializeStreamStateHandleMap(dis);
+			StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis, context);
+			Map<StateHandleID, StreamStateHandle> sharedStates = deserializeStreamStateHandleMap(dis, context);
+			Map<StateHandleID, StreamStateHandle> privateStates = deserializeStreamStateHandleMap(dis, context);
 
 			UUID uuid;
 
@@ -380,10 +351,7 @@ public abstract class MetadataV2V3SerializerBase {
 		}
 	}
 
-	@VisibleForTesting
-	public static void serializeOperatorStateHandle(
-		OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
-
+	void serializeOperatorStateHandle(OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
 		if (stateHandle != null) {
 			dos.writeByte(PARTITIONABLE_OPERATOR_STATE_HANDLE);
 			Map<String, OperatorStateHandle.StateMetaInfo> partitionOffsetsMap =
@@ -409,9 +377,9 @@ public abstract class MetadataV2V3SerializerBase {
 		}
 	}
 
-	@VisibleForTesting
-	public static OperatorStateHandle deserializeOperatorStateHandle(
-			DataInputStream dis) throws IOException {
+	OperatorStateHandle deserializeOperatorStateHandle(
+			DataInputStream dis,
+			@Nullable DeserializationContext context) throws IOException {
 
 		final int type = dis.readByte();
 		if (NULL_HANDLE == type) {
@@ -434,20 +402,52 @@ public abstract class MetadataV2V3SerializerBase {
 						new OperatorStateHandle.StateMetaInfo(offsets, mode);
 				offsetsMap.put(key, metaInfo);
 			}
-			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis);
+			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
 			return new OperatorStreamStateHandle(offsetsMap, stateHandle);
 		} else {
 			throw new IllegalStateException("Reading invalid OperatorStateHandle, type: " + type);
 		}
 	}
 
-	@VisibleForTesting
-	public static void serializeStreamStateHandle(
-			StreamStateHandle stateHandle, DataOutputStream dos) throws IOException {
+	// ------------------------------------------------------------------------
+	//  channel state (unaligned checkpoints)
+	// ------------------------------------------------------------------------
 
+	protected StateObjectCollection<ResultSubpartitionStateHandle> deserializeResultSubpartitionStateHandle(
+			DataInputStream dis,
+			@Nullable DeserializationContext context) throws IOException {
+		return StateObjectCollection.empty();
+	}
+
+	protected StateObjectCollection<InputChannelStateHandle> deserializeInputChannelStateHandle(
+			DataInputStream dis,
+			@Nullable DeserializationContext context) throws IOException {
+		return StateObjectCollection.empty();
+	}
+
+	protected void serializeResultSubpartitionStateHandle(
+			ResultSubpartitionStateHandle resultSubpartitionStateHandle,
+			DataOutputStream dos) throws IOException {
+	}
+
+	protected void serializeInputChannelStateHandle(
+			InputChannelStateHandle inputChannelStateHandle,
+			DataOutputStream dos) throws IOException {
+	}
+
+	// ------------------------------------------------------------------------
+	//  low-level state handles
+	// ------------------------------------------------------------------------
+
+	static void serializeStreamStateHandle(StreamStateHandle stateHandle, DataOutputStream dos) throws IOException {
 		if (stateHandle == null) {
 			dos.writeByte(NULL_HANDLE);
 
+		} else if (stateHandle instanceof RelativeFileStateHandle) {
+			dos.writeByte(RELATIVE_STREAM_STATE_HANDLE);
+			RelativeFileStateHandle relativeFileStateHandle = (RelativeFileStateHandle) stateHandle;
+			dos.writeUTF(relativeFileStateHandle.getRelativePath());
+			dos.writeLong(relativeFileStateHandle.getStateSize());
 		} else if (stateHandle instanceof FileStateHandle) {
 			dos.writeByte(FILE_STREAM_STATE_HANDLE);
 			FileStateHandle fileStateHandle = (FileStateHandle) stateHandle;
@@ -468,7 +468,11 @@ public abstract class MetadataV2V3SerializerBase {
 		dos.flush();
 	}
 
-	public static StreamStateHandle deserializeStreamStateHandle(DataInputStream dis) throws IOException {
+	@Nullable
+	static StreamStateHandle deserializeStreamStateHandle(
+			DataInputStream dis,
+			@Nullable DeserializationContext context) throws IOException {
+
 		final int type = dis.read();
 		if (NULL_HANDLE == type) {
 			return null;
@@ -482,8 +486,29 @@ public abstract class MetadataV2V3SerializerBase {
 			byte[] data = new byte[numBytes];
 			dis.readFully(data);
 			return new ByteStreamStateHandle(handleName, data);
+		} else if (RELATIVE_STREAM_STATE_HANDLE == type) {
+			if (context == null) {
+				throw new IOException("Cannot deserialize a RelativeFileStateHandle without a context to make it relative to.");
+			}
+			String relativePath = dis.readUTF();
+			long size = dis.readLong();
+			Path statePath = new Path(context.getExclusiveDirPath(), relativePath);
+			return new RelativeFileStateHandle(statePath, relativePath, size);
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
+		}
+	}
+
+	@Nullable
+	static ByteStreamStateHandle deserializeAndCheckByteStreamStateHandle(
+			DataInputStream dis,
+			@Nullable DeserializationContext context) throws IOException {
+
+		final StreamStateHandle handle = deserializeStreamStateHandle(dis, context);
+		if (handle == null || handle instanceof ByteStreamStateHandle) {
+			return (ByteStreamStateHandle) handle;
+		} else {
+			throw new IOException("Expected a ByteStreamStateHandle but found a " + handle.getClass().getName());
 		}
 	}
 
@@ -492,7 +517,7 @@ public abstract class MetadataV2V3SerializerBase {
 	// ------------------------------------------------------------------------
 
 	@Nullable
-	static <T> T extractSingleton(Collection<T> collection) {
+	private static <T> T extractSingleton(Collection<T> collection) {
 		if (collection == null || collection.isEmpty()) {
 			return null;
 		}
@@ -504,27 +529,104 @@ public abstract class MetadataV2V3SerializerBase {
 		}
 	}
 
-	protected StateObjectCollection<ResultSubpartitionStateHandle> deserializeResultSubpartitionStateHandle(DataInputStream dis) throws IOException {
-		return StateObjectCollection.empty();
+	private static <T extends StateObject> void serializeSingleton(
+			StateObjectCollection<T> stateObjectCollection,
+			DataOutputStream dos,
+			BiConsumerWithException<T, DataOutputStream, IOException> cons) throws IOException {
+		final T state = extractSingleton(stateObjectCollection);
+		if (state != null) {
+			dos.writeInt(1);
+			cons.accept(state, dos);
+		} else {
+			dos.writeInt(0);
+		}
 	}
 
-	protected StateObjectCollection<InputChannelStateHandle> deserializeInputChannelStateHandle(DataInputStream dis) throws IOException {
-		return StateObjectCollection.empty();
-	}
+	static <T extends StateObject> StateObjectCollection<T> deserializeCollection(
+		DataInputStream dis,
+		DeserializationContext context,
+		BiFunctionWithException<DataInputStream, DeserializationContext, T, IOException> s) throws IOException {
 
-	protected void serializeResultSubpartitionStateHandle(ResultSubpartitionStateHandle resultSubpartitionStateHandle, DataOutputStream dos) throws IOException {
-	}
-
-	protected void serializeInputChannelStateHandle(InputChannelStateHandle inputChannelStateHandle, DataOutputStream dos) throws IOException {
-	}
-
-	static <T extends StateObject> StateObjectCollection<T> deserializeCollection(DataInputStream dis, FunctionWithException<DataInputStream, T, IOException> s) throws IOException {
 		int size = dis.readInt();
 		List<T> result = new ArrayList<>();
 		for (int i = 0; i < size; i++) {
-			result.add(s.apply(dis));
+			result.add(s.apply(dis, context));
 		}
 		return new StateObjectCollection<>(result);
 	}
 
+	private static void serializeStreamStateHandleMap(
+		Map<StateHandleID, StreamStateHandle> map,
+		DataOutputStream dos) throws IOException {
+
+		dos.writeInt(map.size());
+		for (Map.Entry<StateHandleID, StreamStateHandle> entry : map.entrySet()) {
+			dos.writeUTF(entry.getKey().toString());
+			serializeStreamStateHandle(entry.getValue(), dos);
+		}
+	}
+
+	private static Map<StateHandleID, StreamStateHandle> deserializeStreamStateHandleMap(
+		DataInputStream dis,
+		@Nullable DeserializationContext context) throws IOException {
+
+		final int size = dis.readInt();
+		Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
+
+		for (int i = 0; i < size; ++i) {
+			StateHandleID stateHandleID = new StateHandleID(dis.readUTF());
+			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
+			result.put(stateHandleID, stateHandle);
+		}
+
+		return result;
+	}
+
+	// ------------------------------------------------------------------------
+	//  internal helper classes
+	// ------------------------------------------------------------------------
+
+	/**
+	 * A context that keeps information needed during serialization. This context is passed
+	 * along by the methods. In some sense, this replaces the member fields of the class, because
+	 * the serializer is supposed to be "singleton stateless", and because there are multiple instances
+	 * involved (metadata serializer, channel state serializer).
+	 *
+	 * <p>The alternative to passing this context along would be to change the serializers to
+	 * work as actual instances so that they can keep the state. We might still want to do that,
+	 * but at the time of implementing this, it seems the less invasive change to use this context,
+	 * and it also works with static methods and with different serializers instances that do not know
+	 * of each other.
+	 *
+	 * <p>This context is currently hardwired to the FileSystem-based State Backends.
+	 * At the moment, this works because those are the only ones producing relative file
+	 * paths handles, which are in turn the only ones needing this context.
+	 * In the future, we should refactor this, though, and make the DeserializationContext
+	 * a property of the used checkpoint storage. That makes
+	 */
+	protected static final class DeserializationContext {
+
+		private final String externalPointer;
+
+		private Path cachedExclusiveDirPath;
+
+		DeserializationContext(String externalPointer) {
+			this.externalPointer = externalPointer;
+		}
+
+		Path getExclusiveDirPath() throws IOException {
+			if (cachedExclusiveDirPath == null) {
+				cachedExclusiveDirPath = createExclusiveDirPath(externalPointer);
+			}
+			return cachedExclusiveDirPath;
+		}
+
+		private static Path createExclusiveDirPath(String externalPointer) throws IOException {
+			try {
+				return AbstractFsCheckpointStorage.resolveCheckpointPointer(externalPointer).getExclusiveCheckpointDir();
+			} catch (IOException e) {
+				throw new IOException("Could not parse external pointer as state base path", e);
+			}
+		}
+	}
 }

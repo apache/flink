@@ -122,7 +122,7 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
 		return Optional.empty();
 	}
 
-	private static <T1> TableSchema calculateSourceSchema(TableSource<T1> source, boolean isBatch) {
+	public static <T1> TableSchema calculateSourceSchema(TableSource<T1> source, boolean isBatch) {
 		TableSchema tableSchema = source.getTableSchema();
 		if (isBatch) {
 			return tableSchema;

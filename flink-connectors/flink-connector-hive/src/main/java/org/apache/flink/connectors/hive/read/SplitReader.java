@@ -46,4 +46,17 @@ public interface SplitReader extends Closeable {
 	 * @throws IOException Thrown, if an I/O error occurred.
 	 */
 	RowData nextRecord(RowData reuse) throws IOException;
+
+	/**
+	 * Seek to a particular row number.
+	 */
+	default void seekToRow(long rowCount, RowData reuse) throws IOException {
+		for (int i = 0; i < rowCount; i++) {
+			boolean end = reachedEnd();
+			if (end) {
+				throw new RuntimeException("Seek too many rows.");
+			}
+			nextRecord(reuse);
+		}
+	}
 }

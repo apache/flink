@@ -34,8 +34,7 @@ import org.junit.Test;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
@@ -98,11 +97,11 @@ public class DataTypeUtilsTest {
 			))
 			.build();
 
-		Map<String, DataType> dataTypes = new HashMap<>();
-		dataTypes.put("f0", DataTypes.INT());
-		dataTypes.put("f1", DataTypes.STRING());
-		dataTypes.put("f2", DataTypes.TIMESTAMP(5).bridgedTo(Timestamp.class));
-		dataTypes.put("f3", DataTypes.TIMESTAMP(3));
+		List<DataType> dataTypes = Arrays.asList(
+			DataTypes.INT(),
+			DataTypes.STRING(),
+			DataTypes.TIMESTAMP(5).bridgedTo(Timestamp.class),
+			DataTypes.TIMESTAMP(3));
 		FieldsDataType dataType = new FieldsDataType(logicalType, dataTypes);
 
 		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
@@ -131,7 +130,7 @@ public class DataTypeUtilsTest {
 			ObjectIdentifier.of("catalog", "database", "type"),
 			originalLogicalType)
 			.build();
-		DataType distinctDataType = new FieldsDataType(distinctLogicalType, dataType.getFieldDataTypes());
+		DataType distinctDataType = new FieldsDataType(distinctLogicalType, dataType.getChildren());
 
 		TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(distinctDataType);
 

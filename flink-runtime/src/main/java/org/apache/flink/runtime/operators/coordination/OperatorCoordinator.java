@@ -21,6 +21,8 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.concurrent.CompletableFuture;
 
@@ -30,6 +32,16 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>Operator coordinators are for example source and sink coordinators that discover and assign
  * work, or aggregate and commit metadata.
+ *
+ * <h2>Thread Model</h2>
+ *
+ * <p>All coordinator methods are called by the Job Manager's main thread (mailbox thread). That means that
+ * these methods must not, under any circumstances, perform blocking operations (like I/O or waiting on
+ * locks or futures). That would run a high risk of bringing down the entire JobManager.
+ *
+ * <p>Coordinators that involve more complex operations should hence spawn threads to handle the I/O work.
+ * The methods on the {@link Context} are safe to be called from another thread than the thread that
+ * calls the Coordinator's methods.
  */
 public interface OperatorCoordinator extends AutoCloseable {
 
@@ -61,7 +73,7 @@ public interface OperatorCoordinator extends AutoCloseable {
 	/**
 	 * Called when one of the subtasks of the task running the coordinated operator failed.
 	 */
-	void subtaskFailed(int subtask);
+	void subtaskFailed(int subtask, @Nullable Throwable reason);
 
 	// ------------------------------------------------------------------------
 

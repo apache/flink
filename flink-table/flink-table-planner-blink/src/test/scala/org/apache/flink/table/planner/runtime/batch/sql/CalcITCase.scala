@@ -31,16 +31,18 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
+import org.apache.flink.table.planner.factories.TestProjectableValuesTableFactory
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit._
 
@@ -1245,4 +1247,68 @@ class CalcITCase extends BatchTestBase {
       Seq(row(1), row(111), row(15), row(34), row(5), row(65), row(null))
     )
   }
+
+  @Test
+  def testSimpleProject(): Unit = {
+    val myTableDataId = TestProjectableValuesTableFactory.registerData(TestData.smallData3)
+    val ddl =
+      s"""
+         |CREATE TABLE SimpleTable (
+         |  a int,
+         |  b bigint,
+         |  c string
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      "select a, c from SimpleTable",
+      Seq(row(1, "Hi"), row(2, "Hello"), row(3, "Hello world"))
+    )
+  }
+
+  @Test
+  def testNestedProject(): Unit = {
+    val data = Seq(
+      row(1, row(row("HI", 11), row(111, true)), row("hi", 1111), "tom"),
+      row(2, row(row("HELLO", 22), row(222, false)), row("hello", 2222), "mary"),
+      row(3, row(row("HELLO WORLD", 33), row(333, true)), row("hello world", 3333), "benji")
+    )
+    val myTableDataId = TestProjectableValuesTableFactory.registerData(data)
+    val ddl =
+      s"""
+         |CREATE TABLE NestedTable (
+         |  id int,
+         |  deepNested row<nested1 row<name string, `value` int>,
+         |                 nested2 row<num int, flag boolean>>,
+         |  nested row<name string, `value` int>,
+         |  name string
+         |) WITH (
+         |  'connector' = 'projectable-values',
+         |  'nested-projection-supported' = 'false',
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      """
+        |select id,
+        |    deepNested.nested1.name AS nestedName,
+        |    nested.`value` AS nestedValue,
+        |    deepNested.nested2.flag AS nestedFlag,
+        |    deepNested.nested2.num AS nestedNum
+        |from NestedTable
+        |""".stripMargin,
+      Seq(row(1, "HI", 1111, true, 111),
+        row(2, "HELLO", 2222, false, 222),
+        row(3, "HELLO WORLD", 3333, true, 333))
+    )
+  }
+
 }

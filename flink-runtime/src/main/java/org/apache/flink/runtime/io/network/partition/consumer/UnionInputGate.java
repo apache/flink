@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
@@ -31,8 +32,8 @@ import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -79,8 +80,7 @@ public class UnionInputGate extends InputGate {
 	 */
 	private final LinkedHashSet<IndexedInputGate> inputGatesWithData = new LinkedHashSet<>();
 
-	/** Input channels across all unioned input gates. */
-	private final InputChannel[] inputChannels;
+	private final int[] inputChannelToInputGateIndex;
 
 	/**
 	 * A mapping from input gate index to (logical) channel index offset. Valid channel indexes go from 0
@@ -101,14 +101,16 @@ public class UnionInputGate extends InputGate {
 
 		final int maxGateIndex = Arrays.stream(inputGates).mapToInt(IndexedInputGate::getGateIndex).max().orElse(0);
 		inputGateChannelIndexOffsets = new int[maxGateIndex + 1];
+		int totalNumberOfInputChannels = Arrays.stream(inputGates).mapToInt(IndexedInputGate::getNumberOfInputChannels).sum();
+		inputChannelToInputGateIndex = new int[totalNumberOfInputChannels];
+
 		int currentNumberOfInputChannels = 0;
 		for (final IndexedInputGate inputGate : inputGates) {
 			inputGateChannelIndexOffsets[inputGate.getGateIndex()] = currentNumberOfInputChannels;
+			int previousNumberOfInputChannels = currentNumberOfInputChannels;
 			currentNumberOfInputChannels += inputGate.getNumberOfInputChannels();
+			Arrays.fill(inputChannelToInputGateIndex, previousNumberOfInputChannels, currentNumberOfInputChannels, inputGate.getGateIndex());
 		}
-		inputChannels = Arrays.stream(inputGates)
-			.flatMap(gate -> IntStream.range(0, gate.getNumberOfInputChannels()).mapToObj(gate::getChannel))
-			.toArray(InputChannel[]::new);
 
 		synchronized (inputGatesWithData) {
 			for (IndexedInputGate inputGate : inputGates) {
@@ -134,12 +136,13 @@ public class UnionInputGate extends InputGate {
 	 */
 	@Override
 	public int getNumberOfInputChannels() {
-		return inputChannels.length;
+		return inputChannelToInputGateIndex.length;
 	}
 
 	@Override
 	public InputChannel getChannel(int channelIndex) {
-		return inputChannels[channelIndex];
+		int gateIndex = this.inputChannelToInputGateIndex[channelIndex];
+		return inputGates[gateIndex].getChannel(channelIndex - inputGateChannelIndexOffsets[gateIndex]);
 	}
 
 	@Override
@@ -260,11 +263,23 @@ public class UnionInputGate extends InputGate {
 		// BEWARE: consumption resumption only happens for streaming jobs in which all
 		// slots are allocated together so there should be no UnknownInputChannel. We
 		// will refactor the code to not rely on this assumption in the future.
-		inputChannels[channelIndex].resumeConsumption();
+		getChannel(channelIndex).resumeConsumption();
 	}
 
 	@Override
 	public void setup() {
+	}
+
+	@Override
+	public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+		throw new UnsupportedOperationException("This method should never be called.");
+	}
+
+	@Override
+	public void requestPartitions() throws IOException {
+		for (InputGate inputGate : inputGates) {
+			inputGate.requestPartitions();
+		}
 	}
 
 	@Override

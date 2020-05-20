@@ -19,6 +19,7 @@
 package ${package};
 
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.walkthrough.common.table.SpendReportTableSink;
 import org.apache.flink.walkthrough.common.table.BoundedTransactionTableSource;
@@ -32,8 +33,10 @@ public class SpendReport {
 		ExecutionEnvironment env   = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
-		tEnv.registerTableSource("transactions", new BoundedTransactionTableSource());
-		tEnv.registerTableSink("spend_report", new SpendReportTableSink());
+		((TableEnvironmentInternal) tEnv).registerTableSourceInternal(
+				"transactions", new BoundedTransactionTableSource());
+		((TableEnvironmentInternal) tEnv).registerTableSinkInternal(
+				"spend_report", new SpendReportTableSink());
 		tEnv.registerFunction("truncateDateToHour", new TruncateDateToHour());
 
 		tEnv

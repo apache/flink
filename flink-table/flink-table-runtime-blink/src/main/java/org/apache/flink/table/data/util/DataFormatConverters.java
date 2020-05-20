@@ -1411,7 +1411,7 @@ public class DataFormatConverters {
 
 		@Override
 		RowData toInternalImpl(Row value) {
-			GenericRowData genericRow = new GenericRowData(converters.length);
+			GenericRowData genericRow = new GenericRowData(value.getKind(), converters.length);
 			for (int i = 0; i < converters.length; i++) {
 				genericRow.setField(i, converters[i].toInternal(value.getField(i)));
 			}
@@ -1420,7 +1420,7 @@ public class DataFormatConverters {
 
 		@Override
 		Row toExternalImpl(RowData value) {
-			Row row = new Row(converters.length);
+			Row row = new Row(value.getRowKind(), converters.length);
 			for (int i = 0; i < converters.length; i++) {
 				row.setField(i, converters[i].toExternal(value, i));
 			}

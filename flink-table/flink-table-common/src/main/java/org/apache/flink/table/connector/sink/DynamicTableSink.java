@@ -19,6 +19,8 @@
 package org.apache.flink.table.connector.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
@@ -123,6 +125,20 @@ public interface DynamicTableSink {
 	 * are {@link Serializable} and can be directly passed into the runtime implementation class.
 	 */
 	interface Context {
+
+		/**
+		 * Returns whether a runtime implementation can expect a finite number of rows.
+		 *
+		 * <p>This information might be derived from the session's execution mode and/or kind of query.
+		 */
+		boolean isBounded();
+
+		/**
+		 * Creates type information describing the internal data structures of the given {@link DataType}.
+		 *
+		 * @see TableSchema#toPhysicalRowDataType()
+		 */
+		TypeInformation<?> createTypeInformation(DataType consumedDataType);
 
 		/**
 		 * Creates a converter for mapping between Flink's internal data structures and objects specified

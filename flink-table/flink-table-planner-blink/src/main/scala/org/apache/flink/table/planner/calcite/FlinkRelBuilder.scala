@@ -20,14 +20,13 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory, SinkFactory}
+import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory}
 import org.apache.flink.table.planner.expressions.{PlannerWindowProperty, WindowProperty}
 import org.apache.flink.table.planner.plan.QueryOperationConverter
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, LogicalWatermarkAssigner, LogicalWindowAggregate, LogicalWindowTableAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
-import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelCollation
@@ -71,10 +70,6 @@ class FlinkRelBuilder(
     Util.first(context.unwrap(classOf[RankFactory]), FlinkRelFactories.DEFAULT_RANK_FACTORY)
   }
 
-  private val sinkFactory: SinkFactory = {
-    Util.first(context.unwrap(classOf[SinkFactory]), FlinkRelFactories.DEFAULT_SINK_FACTORY)
-  }
-
   override def getRelOptSchema: RelOptSchema = relOptSchema
 
   override def getCluster: RelOptCluster = relOptCluster
@@ -89,12 +84,6 @@ class FlinkRelBuilder(
     val input = build()
     val expand = expandFactory.createExpand(input, outputRowType, projects, expandIdIndex)
     push(expand)
-  }
-
-  def sink(sink: TableSink[_], sinkName: String): RelBuilder = {
-    val input = build()
-    val sinkNode = sinkFactory.createSink(input, sink, sinkName)
-    push(sinkNode)
   }
 
   def rank(

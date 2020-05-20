@@ -18,19 +18,21 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api._
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.factories.{TestProjectableValuesTableFactory, TestValuesTableFactory}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
@@ -39,12 +41,14 @@ import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.types.Row
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
 import org.junit.Assert._
-import org.junit.{Assert, Before}
+import org.junit.{After, Assert, Before}
 
 import _root_.java.lang.{Iterable => JIterable}
 import _root_.java.util.regex.Pattern
@@ -72,6 +76,12 @@ class BatchTestBase extends BatchAbstractTestBase {
   @Before
   def before(): Unit = {
     BatchTestBase.configForMiniCluster(conf)
+  }
+
+  @After
+  def after(): Unit = {
+    TestValuesTableFactory.clearAllData()
+    TestProjectableValuesTableFactory.clearAllRegisteredData()
   }
 
   /**
@@ -287,14 +297,22 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def parseQuery(sqlQuery: String): Table = tEnv.sqlQuery(sqlQuery)
 
-  def executeQuery(table: Table): Seq[Row] = TableUtils.collectToList(table).asScala
+  def executeQuery(table: Table): Seq[Row] = Lists.newArrayList(table.execute().collect()).asScala
 
   def executeQuery(sqlQuery: String): Seq[Row] = {
     val table = parseQuery(sqlQuery)
     executeQuery(table)
   }
 
-  private def prepareResult(seq: Seq[Row], isSorted: Boolean) = {
+  def execInsertSqlAndWaitResult(insert: String): JobExecutionResult = {
+    TableEnvUtil.execInsertSqlAndWaitResult(tEnv, insert)
+  }
+
+  def execInsertTableAndWaitResult(table: Table, targetPath: String): JobExecutionResult = {
+    TableEnvUtil.execInsertTableAndWaitResult(table, targetPath)
+  }
+
+  private def prepareResult(seq: Seq[Row], isSorted: Boolean): Seq[String] = {
     if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
   }
 
@@ -402,6 +420,18 @@ class BatchTestBase extends BatchAbstractTestBase {
     val boundedStream = env.createInput(new RangeInputFormat(start, end), typeInfo)
     boundedStream.setParallelism(1)
     boundedStream
+  }
+
+  /**
+   * Creates a new Row and assigns the given values to the Row's fields.
+   * We use [[rowOf()]] here to avoid conflicts with [[ImplicitExpressionConversions.row]].
+   */
+  protected def rowOf(args: Any*): Row = {
+    val row = new Row(args.length)
+    0 until args.length foreach {
+      i => row.setField(i, args(i))
+    }
+    row
   }
 }
 

@@ -23,12 +23,10 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
@@ -66,10 +64,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	private final boolean exitJvmOnOutOfMemory;
 
-	private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
-
-	private final String[] alwaysParentFirstLoaderPatterns;
-
 	@Nullable
 	private final String taskManagerLogPath;
 
@@ -78,6 +72,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	@Nullable
 	private final String taskManagerLogDir;
+
+	private final String taskManagerExternalAddress;
 
 	private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
@@ -90,11 +86,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			@Nullable Time maxRegistrationDuration,
 			Configuration configuration,
 			boolean exitJvmOnOutOfMemory,
-			FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
-			String[] alwaysParentFirstLoaderPatterns,
 			@Nullable String taskManagerLogPath,
 			@Nullable String taskManagerStdoutPath,
 			@Nullable String taskManagerLogDir,
+			String taskManagerExternalAddress,
 			RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 
 		this.numberSlots = numberSlots;
@@ -105,11 +100,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.maxRegistrationDuration = maxRegistrationDuration;
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
-		this.classLoaderResolveOrder = classLoaderResolveOrder;
-		this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
 		this.taskManagerLogPath = taskManagerLogPath;
 		this.taskManagerStdoutPath = taskManagerStdoutPath;
 		this.taskManagerLogDir = taskManagerLogDir;
+		this.taskManagerExternalAddress = taskManagerExternalAddress;
 		this.retryingRegistrationConfiguration = retryingRegistrationConfiguration;
 	}
 
@@ -149,14 +143,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		return exitJvmOnOutOfMemory;
 	}
 
-	public FlinkUserCodeClassLoaders.ResolveOrder getClassLoaderResolveOrder() {
-		return classLoaderResolveOrder;
-	}
-
-	public String[] getAlwaysParentFirstLoaderPatterns() {
-		return alwaysParentFirstLoaderPatterns;
-	}
-
 	@Nullable
 	public String getTaskManagerLogPath() {
 		return taskManagerLogPath;
@@ -172,6 +158,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		return taskManagerLogDir;
 	}
 
+	@Override
+	public String getTaskManagerExternalAddress() {
+		return taskManagerExternalAddress;
+	}
+
 	public RetryingRegistrationConfiguration getRetryingRegistrationConfiguration() {
 		return retryingRegistrationConfiguration;
 	}
@@ -182,7 +173,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public static TaskManagerConfiguration fromConfiguration(
 			Configuration configuration,
-			TaskExecutorResourceSpec taskExecutorResourceSpec) {
+			TaskExecutorResourceSpec taskExecutorResourceSpec,
+			String externalAddress) {
 		int numberSlots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 
 		if (numberSlots == -1) {
@@ -214,11 +206,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		final boolean exitOnOom = configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
 
-		final String classLoaderResolveOrder =
-			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
-
-		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(configuration);
-
 		final String taskManagerLogPath = configuration.getString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file"));
 		final String taskManagerStdoutPath;
 		final String taskManagerLogDir;
@@ -248,11 +235,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			finiteRegistrationDuration,
 			configuration,
 			exitOnOom,
-			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
-			alwaysParentFirstLoaderPatterns,
 			taskManagerLogPath,
 			taskManagerStdoutPath,
 			taskManagerLogDir,
+			externalAddress,
 			retryingRegistrationConfiguration);
 	}
 }

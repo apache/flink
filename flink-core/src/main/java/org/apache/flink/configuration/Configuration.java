@@ -741,7 +741,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	@Override
 	public <T> Optional<T> getOptional(ConfigOption<T> option) {
 		Optional<Object> rawValue = getRawValueFromOption(option);
-		Class clazz = option.getClazz();
+		Class<?> clazz = option.getClazz();
 
 		try {
 			if (option.isList()) {
@@ -864,7 +864,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	// --------------------------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")
-	private <T> T convertValue(Object rawValue, Class clazz) {
+	private <T> T convertValue(Object rawValue, Class<?> clazz) {
 		if (Integer.class.equals(clazz)) {
 			return (T) convertToInt(rawValue);
 		} else if (Long.class.equals(clazz)) {
@@ -878,7 +878,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		} else if (String.class.equals(clazz)) {
 			return (T) convertToString(rawValue);
 		} else if (clazz.isEnum()) {
-			return (T) convertToEnum(rawValue, clazz);
+			return (T) convertToEnum(rawValue, (Class<? extends Enum<?>>) clazz);
 		} else if (clazz == Duration.class) {
 			return (T) convertToDuration(rawValue);
 		} else if (clazz == MemorySize.class) {
@@ -891,7 +891,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T> T convertToList(Object rawValue, Class atomicClass) {
+	private <T> T convertToList(Object rawValue, Class<?> atomicClass) {
 		if (rawValue instanceof List) {
 			return (T) rawValue;
 		} else {
@@ -909,12 +909,10 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 			List<String> listOfRawProperties = StructuredOptionsSplitter.splitEscaped(o.toString(), ',');
 			return listOfRawProperties.stream()
 				.map(s -> StructuredOptionsSplitter.splitEscaped(s, ':'))
-				.map(pair -> {
+				.peek(pair -> {
 					if (pair.size() != 2) {
 						throw new IllegalArgumentException("Could not parse pair in the map " + pair);
 					}
-
-					return pair;
 				})
 				.collect(Collectors.toMap(
 					a -> a.get(0),
@@ -924,7 +922,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	}
 
 	@SuppressWarnings("unchecked")
-	private <E extends Enum<E>> E convertToEnum(Object o, Class<E> clazz) {
+	private <E extends Enum<?>> E convertToEnum(Object o, Class<E> clazz) {
 		if (o.getClass().equals(clazz)) {
 			return (E) o;
 		}

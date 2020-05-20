@@ -52,7 +52,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
@@ -86,7 +86,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     val resultTable = source
       .flatAggregate(top3('a))
       .select('f0, 'f1)
-      .as('v1, 'v2)
+      .as("v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
@@ -108,7 +108,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
       .groupBy('category)
       .select('category, 'v1.max)
 
@@ -135,7 +135,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)

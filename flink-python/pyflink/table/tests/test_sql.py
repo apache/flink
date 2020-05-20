@@ -35,7 +35,7 @@ class SqlTests(object):
         self.t_env.sql_update("create temporary function func1 as "
                               "'pyflink.table.tests.test_udf.add' language python")
         table = self.t_env.from_elements([(1, 2)]).alias("a, b").select("func1(a, b)")
-        plan = self.t_env.explain(table)
+        plan = table.explain()
         self.assertTrue(plan.find("PythonCalc(select=[add(f0, f1) AS _c0])") >= 0)
 
 

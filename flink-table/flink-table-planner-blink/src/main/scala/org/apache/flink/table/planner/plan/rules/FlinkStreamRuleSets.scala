@@ -162,9 +162,9 @@ object FlinkStreamRuleSets {
     */
   val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
     // push a filter down into the table scan
-    PushFilterIntoTableSourceScanRule.INSTANCE,
+    PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
     // push partition into the table scan
-    PushPartitionIntoTableSourceScanRule.INSTANCE
+    PushPartitionIntoLegacyTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -227,7 +227,8 @@ object FlinkStreamRuleSets {
   private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
     // scan optimization
     PushProjectIntoTableSourceScanRule.INSTANCE,
-    PushFilterIntoTableSourceScanRule.INSTANCE,
+    PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
+    PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
 
     // reorder sort and projection
     SortProjectTransposeRule.INSTANCE,
@@ -300,6 +301,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalUnion.CONVERTER,
     FlinkLogicalValues.CONVERTER,
     FlinkLogicalTableSourceScan.CONVERTER,
+    FlinkLogicalLegacyTableSourceScan.CONVERTER,
     FlinkLogicalTableFunctionScan.CONVERTER,
     FlinkLogicalDataStreamTableScan.CONVERTER,
     FlinkLogicalIntermediateTableScan.CONVERTER,
@@ -309,7 +311,8 @@ object FlinkStreamRuleSets {
     FlinkLogicalWindowTableAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
     FlinkLogicalMatch.CONVERTER,
-    FlinkLogicalSink.CONVERTER
+    FlinkLogicalSink.CONVERTER,
+    FlinkLogicalLegacySink.CONVERTER
   )
 
   /**
@@ -365,6 +368,7 @@ object FlinkStreamRuleSets {
     // source
     StreamExecDataStreamScanRule.INSTANCE,
     StreamExecTableSourceScanRule.INSTANCE,
+    StreamExecLegacyTableSourceScanRule.INSTANCE,
     StreamExecIntermediateTableScanRule.INSTANCE,
     StreamExecWatermarkAssignerRule.INSTANCE,
     StreamExecValuesRule.INSTANCE,
@@ -404,7 +408,8 @@ object FlinkStreamRuleSets {
     StreamExecCorrelateRule.INSTANCE,
     StreamExecPythonCorrelateRule.INSTANCE,
     // sink
-    StreamExecSinkRule.INSTANCE
+    StreamExecSinkRule.INSTANCE,
+    StreamExecLegacySinkRule.INSTANCE
   )
 
   /**

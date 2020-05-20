@@ -19,6 +19,7 @@
 package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
@@ -28,6 +29,7 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -59,7 +61,8 @@ import static org.apache.hadoop.mapreduce.lib.input.FileInputFormat.INPUT_DIR;
  * The HiveTableInputFormat are inspired by the HCatInputFormat and HadoopInputFormatBase.
  * It's used to read from hive partition/non-partition table.
  */
-public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, HiveTableInputSplit> {
+public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, HiveTableInputSplit>
+		implements CheckpointableInputFormat<HiveTableInputSplit, Long> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -88,12 +91,12 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 	//We should limit the input read count of this splits, -1 represents no limit.
 	private long limit;
 
+	private boolean useMapRedReader;
+
 	private transient long currentReadCount = 0L;
 
 	@VisibleForTesting
 	protected transient SplitReader reader;
-
-	private boolean useMapRedReader;
 
 	public HiveTableInputFormat(
 			JobConf jobConf,
@@ -115,6 +118,10 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 		int rowArity = catalogTable.getSchema().getFieldCount();
 		selectedFields = projectedFields != null ? projectedFields : IntStream.range(0, rowArity).toArray();
 		this.useMapRedReader = useMapRedReader;
+	}
+
+	public JobConf getJobConf() {
+		return jobConf;
 	}
 
 	@Override
@@ -160,7 +167,19 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 		jobConf.set(ColumnProjectionUtils.READ_COLUMN_IDS_CONF_STR, readColIDs);
 	}
 
-	private boolean isVectorizationUnsupported(LogicalType t) {
+	@Override
+	public void reopen(HiveTableInputSplit split, Long state) throws IOException {
+		this.open(split);
+		this.currentReadCount = state;
+		this.reader.seekToRow(state, new GenericRowData(selectedFields.length));
+	}
+
+	@Override
+	public Long getCurrentState() {
+		return currentReadCount;
+	}
+
+	private static boolean isVectorizationUnsupported(LogicalType t) {
 		switch (t.getTypeRoot()) {
 			case CHAR:
 			case VARCHAR:
@@ -258,6 +277,13 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 	@Override
 	public HiveTableInputSplit[] createInputSplits(int minNumSplits)
 			throws IOException {
+		return createInputSplits(minNumSplits, partitions, jobConf);
+	}
+
+	public static HiveTableInputSplit[] createInputSplits(
+			int minNumSplits,
+			List<HiveTablePartition> partitions,
+			JobConf jobConf) throws IOException {
 		List<HiveTableInputSplit> hiveSplits = new ArrayList<>();
 		int splitNum = 0;
 		for (HiveTablePartition partition : partitions) {
@@ -265,7 +291,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 			InputFormat format;
 			try {
 				format = (InputFormat)
-					Class.forName(sd.getInputFormat(), true, Thread.currentThread().getContextClassLoader()).newInstance();
+						Class.forName(sd.getInputFormat(), true, Thread.currentThread().getContextClassLoader()).newInstance();
 			} catch (Exception e) {
 				throw new FlinkHiveException("Unable to instantiate the hadoop input format", e);
 			}

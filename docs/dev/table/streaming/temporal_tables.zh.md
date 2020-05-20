@@ -176,7 +176,7 @@ ratesHistoryData.add(Tuple2.of("Euro", 119L));
 // 用上面的数据集创建并注册一个示例表
 // 在实际设置中，应使用自己的表替换它
 DataStream<Tuple2<String, Long>> ratesHistoryStream = env.fromCollection(ratesHistoryData);
-Table ratesHistory = tEnv.fromDataStream(ratesHistoryStream, "r_currency, r_rate, r_proctime.proctime");
+Table ratesHistory = tEnv.fromDataStream(ratesHistoryStream, $("r_currency"), $("r_rate"), $("r_proctime").proctime());
 
 tEnv.createTemporaryView("RatesHistory", ratesHistory);
 
@@ -210,7 +210,7 @@ tEnv.createTemporaryView("RatesHistory", ratesHistory)
 
 // 创建和注册时态表函数
 // 指定 "r_proctime" 为时间属性，指定 "r_currency" 为主键
-val rates = ratesHistory.createTemporalTableFunction('r_proctime, 'r_currency) // <==== (1)
+val rates = ratesHistory.createTemporalTableFunction($"r_proctime", $"r_currency") // <==== (1)
 tEnv.registerFunction("Rates", rates)                                          // <==== (2)
 {% endhighlight %}
 </div>

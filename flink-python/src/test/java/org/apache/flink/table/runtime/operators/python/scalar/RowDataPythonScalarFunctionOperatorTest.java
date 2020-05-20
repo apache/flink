@@ -125,7 +125,7 @@ public class RowDataPythonScalarFunctionOperatorTest
 				getRuntimeContext().getTaskName(),
 				resultReceiver,
 				scalarFunctions,
-				pythonEnvironmentManager,
+				PythonTestUtils.createTestEnvironmentManager(),
 				userDefinedFunctionInputType,
 				userDefinedFunctionOutputType,
 				jobOptions,

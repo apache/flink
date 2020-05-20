@@ -35,13 +35,13 @@ import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TestTableSourceWithTime}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.{Before, Test}
-
 import java.lang.{Integer => JInt, Long => JLong}
 import java.math.BigDecimal
 import java.sql.Timestamp
+
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -176,7 +176,7 @@ class TimeAttributesITCase extends AbstractTestBase {
   def testTableSink(): Unit = {
     MemoryTableSourceSinkUtil.clear()
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "testSink",
       (new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink).configure(
         Array[String]("rowtime", "floorDay", "ceilDay"),
@@ -549,7 +549,8 @@ class TimeAttributesITCase extends AbstractTestBase {
       fieldNames)
 
     val tableSource = new TestTableSourceWithTime(schema, rowType, rows, "rowtime", "proctime")
-    tEnv.registerTableSource("testTable", tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal("testTable", tableSource)
 
     val result = tEnv
       .scan("testTable")

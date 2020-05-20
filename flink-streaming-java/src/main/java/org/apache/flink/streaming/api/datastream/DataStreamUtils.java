@@ -22,20 +22,17 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.runtime.net.ConnectionUtils;
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
-import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
+import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
-import org.apache.flink.streaming.experimental.CollectSink;
-import org.apache.flink.streaming.experimental.SocketStreamIterator;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.Iterator;
+import java.util.UUID;
 
 /**
  * A collection of utilities for {@link DataStream DataStreams}.
@@ -47,44 +44,29 @@ public final class DataStreamUtils {
 	 * Returns an iterator to iterate over the elements of the DataStream.
 	 * @return The iterator
 	 */
-	public static <OUT> Iterator<OUT> collect(DataStream<OUT> stream) throws IOException {
-
+	public static <OUT> Iterator<OUT> collect(DataStream<OUT> stream) {
 		TypeSerializer<OUT> serializer = stream.getType().createSerializer(
-				stream.getExecutionEnvironment().getConfig());
+			stream.getExecutionEnvironment().getConfig());
+		String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
 
-		SocketStreamIterator<OUT> iter = new SocketStreamIterator<OUT>(serializer);
+		CollectSinkOperatorFactory<OUT> factory = new CollectSinkOperatorFactory<>(serializer, accumulatorName);
+		CollectSinkOperator<OUT> operator = (CollectSinkOperator<OUT>) factory.getOperator();
+		CollectResultIterator<OUT> iterator = new CollectResultIterator<>(
+			operator.getOperatorIdFuture(), serializer, accumulatorName);
+		CollectStreamSink<OUT> sink = new CollectStreamSink<>(stream, factory);
+		sink.name("Data stream collect sink");
 
-		//Find out what IP of us should be given to CollectSink, that it will be able to connect to
 		StreamExecutionEnvironment env = stream.getExecutionEnvironment();
-		InetAddress clientAddress;
+		env.addOperator(sink.getTransformation());
 
-		if (env instanceof RemoteStreamEnvironment) {
-			String host = ((RemoteStreamEnvironment) env).getHost();
-			int port = ((RemoteStreamEnvironment) env).getPort();
-			try {
-				clientAddress = ConnectionUtils.findConnectingAddress(new InetSocketAddress(host, port), 2000, 400);
-			}
-			catch (Exception e) {
-				throw new IOException("Could not determine an suitable network address to " +
-						"receive back data from the streaming program.", e);
-			}
-		} else if (env instanceof LocalStreamEnvironment) {
-			clientAddress = InetAddress.getLoopbackAddress();
-		} else {
-			try {
-				clientAddress = InetAddress.getLocalHost();
-			} catch (UnknownHostException e) {
-				throw new IOException("Could not determine this machines own local address to " +
-						"receive back data from the streaming program.", e);
-			}
+		try {
+			JobClient jobClient = env.executeAsync("Data Stream Collect");
+			iterator.setJobClient(jobClient);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to execute data stream", e);
 		}
 
-		DataStreamSink<OUT> sink = stream.addSink(new CollectSink<OUT>(clientAddress, iter.getPort(), serializer));
-		sink.setParallelism(1); // It would not work if multiple instances would connect to the same port
-
-		(new CallExecute(env, iter)).start();
-
-		return iter;
+		return iterator;
 	}
 
 	/**
@@ -140,27 +122,6 @@ public final class DataStreamUtils {
 			partitionTransformation,
 			keySelector,
 			typeInfo);
-	}
-
-	private static class CallExecute extends Thread {
-
-		private final StreamExecutionEnvironment toTrigger;
-		private final SocketStreamIterator<?> toNotify;
-
-		private CallExecute(StreamExecutionEnvironment toTrigger, SocketStreamIterator<?> toNotify) {
-			this.toTrigger = toTrigger;
-			this.toNotify = toNotify;
-		}
-
-		@Override
-		public void run(){
-			try {
-				toTrigger.execute();
-			}
-			catch (Throwable t) {
-				toNotify.notifyOfError(t);
-			}
-		}
 	}
 
 	// ------------------------------------------------------------------------

@@ -29,8 +29,8 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
@@ -52,10 +52,10 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
-import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
+import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -75,9 +75,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Simple environment setup for task executor task.
@@ -150,9 +148,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		}
 
 		this.testingRpcService = testingRpcService;
-		final JobManagerConnection jobManagerConnection = createJobManagerConnection(jobId, jobMasterGateway, testingRpcService, taskManagerActions, timeout);
-		final JobManagerTable jobManagerTable = new JobManagerTable();
-		jobManagerTable.put(jobId, jobManagerConnection);
+		final DefaultJobTable jobTable = DefaultJobTable.create();
+		registerJobMasterConnection(jobTable, jobId, testingRpcService, jobMasterGateway, taskManagerActions, timeout);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
 			false,
@@ -162,7 +159,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
 			.setShuffleEnvironment(shuffleEnvironment)
 			.setTaskSlotTable(taskSlotTable)
-			.setJobManagerTable(jobManagerTable)
+			.setJobTable(jobTable)
 			.setTaskStateManager(localStateStoresManager)
 			.build();
 
@@ -170,6 +167,26 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		taskExecutor.start();
 		taskExecutor.waitUntilStarted();
+	}
+
+	static void registerJobMasterConnection(
+			JobTable jobTable,
+			JobID jobId,
+			RpcService testingRpcService,
+			JobMasterGateway jobMasterGateway,
+			TaskManagerActions taskManagerActions,
+			Time timeout) {
+		final JobTable.Job job = jobTable.getOrCreateJob(jobId, () -> TestingJobServices.newBuilder().build());
+		job.connect(
+			ResourceID.generate(),
+			jobMasterGateway,
+			taskManagerActions,
+			new TestCheckpointResponder(),
+			new TestGlobalAggregateManager(),
+			new RpcResultPartitionConsumableNotifier(jobMasterGateway, testingRpcService.getExecutor(), timeout),
+			TestingPartitionProducerStateChecker.newBuilder()
+				.setPartitionProducerStateFunction((jobID, intermediateDataSetID, resultPartitionID) -> CompletableFuture.completedFuture(ExecutionState.RUNNING))
+				.build());
 	}
 
 	public TestingTaskExecutor getTaskExecutor() {
@@ -198,9 +215,13 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		return new TestingTaskExecutor(
 			testingRpcService,
-			TaskManagerConfiguration.fromConfiguration(copiedConf, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf)),
+			TaskManagerConfiguration.fromConfiguration(
+				copiedConf,
+				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf),
+				InetAddress.getLoopbackAddress().getHostAddress()),
 			haServices,
 			taskManagerServices,
+			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 			heartbeatServices,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
 			metricQueryServiceAddress,
@@ -208,26 +229,6 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			testingFatalErrorHandler,
 			new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
 			TaskManagerRunner.createBackPressureSampleService(configuration, testingRpcService.getScheduledExecutor()));
-	}
-
-	static JobManagerConnection createJobManagerConnection(JobID jobId, JobMasterGateway jobMasterGateway, RpcService testingRpcService, TaskManagerActions taskManagerActions, Time timeout) {
-		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
-		when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
-
-		final PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
-		when(partitionProducerStateChecker.requestPartitionProducerState(any(), any(), any()))
-			.thenReturn(CompletableFuture.completedFuture(ExecutionState.RUNNING));
-
-		return new JobManagerConnection(
-			jobId,
-			ResourceID.generate(),
-			jobMasterGateway,
-			taskManagerActions,
-			mock(CheckpointResponder.class),
-			new TestGlobalAggregateManager(),
-			libraryCacheManager,
-			new RpcResultPartitionConsumableNotifier(jobMasterGateway, testingRpcService.getExecutor(), timeout),
-			partitionProducerStateChecker);
 	}
 
 	private static ShuffleEnvironment<?, ?> createShuffleEnvironment(

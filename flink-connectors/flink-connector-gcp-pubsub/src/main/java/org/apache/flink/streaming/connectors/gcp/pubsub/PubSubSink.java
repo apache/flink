@@ -94,6 +94,8 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> implements Checkpointed
 
 	@Override
 	public void open(Configuration configuration) throws Exception {
+		serializationSchema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+
 		Publisher.Builder builder = Publisher
 			.newBuilder(ProjectTopicName.of(projectName, topicName))
 			.setCredentialsProvider(FixedCredentialsProvider.create(credentials));

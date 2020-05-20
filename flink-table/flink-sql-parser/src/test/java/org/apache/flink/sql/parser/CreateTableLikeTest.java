@@ -80,6 +80,8 @@ public class CreateTableLikeTest {
 			")\n" +
 			"LIKE b (\n" +
 			"   EXCLUDING PARTITIONS\n" +
+			"   EXCLUDING CONSTRAINTS\n" +
+			"   EXCLUDING WATERMARKS\n" +
 			"   OVERWRITING GENERATED\n" +
 			"   OVERWRITING OPTIONS\n" +
 			")")
@@ -92,6 +94,8 @@ public class CreateTableLikeTest {
 					pointsTo("b"),
 					hasOptions(
 						option(MergingStrategy.EXCLUDING, FeatureOption.PARTITIONS),
+						option(MergingStrategy.EXCLUDING, FeatureOption.CONSTRAINTS),
+						option(MergingStrategy.EXCLUDING, FeatureOption.WATERMARKS),
 						option(MergingStrategy.OVERWRITING, FeatureOption.GENERATED),
 						option(MergingStrategy.OVERWRITING, FeatureOption.OPTIONS)
 					)
