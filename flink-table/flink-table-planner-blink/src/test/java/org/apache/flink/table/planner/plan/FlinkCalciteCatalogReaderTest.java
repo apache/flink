@@ -79,6 +79,7 @@ public class FlinkCalciteCatalogReaderTest {
 				true),
 			FlinkStatistic.UNKNOWN(),
 			null,
+			null,
 			true,
 			false);
 

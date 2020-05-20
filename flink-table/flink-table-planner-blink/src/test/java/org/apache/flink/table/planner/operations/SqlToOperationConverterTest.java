@@ -56,6 +56,8 @@ import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.planner.calcite.CalciteParser;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
@@ -65,6 +67,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.After;
 import org.junit.Before;
@@ -110,12 +113,17 @@ public class SqlToOperationConverterTest {
 		tableConfig,
 		catalogManager,
 		moduleManager);
+	private SqlExprToRexConverterFactory sqlExprToRexConverterFactory = this::createSqlExprToRexConverter;
 	private final PlannerContext plannerContext =
 		new PlannerContext(tableConfig,
 			functionCatalog,
 			catalogManager,
-			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
+			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, sqlExprToRexConverterFactory, false)),
 			new ArrayList<>());
+
+	private SqlExprToRexConverter createSqlExprToRexConverter(RelDataType t) {
+		return plannerContext.createSqlExprToRexConverter(t);
+	}
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();

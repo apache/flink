@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.plan.stats.TableStats;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.linq4j.tree.Expression;
@@ -55,13 +56,20 @@ class DatabaseCalciteSchema extends FlinkSchema {
 	private final String databaseName;
 	private final String catalogName;
 	private final CatalogManager catalogManager;
+	private final SqlExprToRexConverterFactory converterFactory;
 	// Flag that tells if the current planner should work in a batch or streaming mode.
 	private final boolean isStreamingMode;
 
-	public DatabaseCalciteSchema(String databaseName, String catalogName, CatalogManager catalog, boolean isStreamingMode) {
+	public DatabaseCalciteSchema(
+			String databaseName,
+			String catalogName,
+			CatalogManager catalog,
+			SqlExprToRexConverterFactory converterFactory,
+			boolean isStreamingMode) {
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
 		this.catalogManager = catalog;
+		this.converterFactory = converterFactory;
 		this.isStreamingMode = isStreamingMode;
 	}
 
@@ -72,10 +80,12 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			.map(result -> {
 				CatalogBaseTable table = result.getTable();
 				FlinkStatistic statistic = getStatistic(result.isTemporary(), table, identifier);
-				return new CatalogSchemaTable(identifier,
+				return new CatalogSchemaTable(
+					identifier,
 					table,
 					statistic,
 					catalogManager.getCatalog(catalogName).orElseThrow(IllegalStateException::new),
+					converterFactory,
 					isStreamingMode,
 					result.isTemporary());
 			})
