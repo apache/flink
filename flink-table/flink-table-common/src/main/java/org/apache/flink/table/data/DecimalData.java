@@ -138,18 +138,7 @@ public final class DecimalData implements Comparable<DecimalData> {
 	 * @return the unscaled byte array of this {@link DecimalData}.
 	 */
 	public byte[] toUnscaledBytes() {
-		if (!isCompact()) {
-			return toBigDecimal().unscaledValue().toByteArray();
-		}
-
-		// big endian; consistent with BigInteger.toByteArray()
-		byte[] bytes = new byte[8];
-		long l = longVal;
-		for (int i = 0; i < 8; i++) {
-			bytes[7 - i] = (byte) l;
-			l >>>= 8;
-		}
-		return bytes;
+		return toBigDecimal().unscaledValue().toByteArray();
 	}
 
 	/**
@@ -231,17 +220,8 @@ public final class DecimalData implements Comparable<DecimalData> {
 	 * and scale.
 	 */
 	public static DecimalData fromUnscaledBytes(byte[] unscaledBytes, int precision, int scale) {
-		if (precision > MAX_COMPACT_PRECISION) {
-			BigDecimal bd = new BigDecimal(new BigInteger(unscaledBytes), scale);
-			return new DecimalData(precision, scale, -1, bd);
-		}
-		assert unscaledBytes.length == 8;
-		long l = 0;
-		for (int i = 0; i < 8; i++) {
-			l <<= 8;
-			l |= (unscaledBytes[i] & (0xff));
-		}
-		return new DecimalData(precision, scale, l, null);
+		BigDecimal bd = new BigDecimal(new BigInteger(unscaledBytes), scale);
+		return fromBigDecimal(bd, precision, scale);
 	}
 
 	/**
