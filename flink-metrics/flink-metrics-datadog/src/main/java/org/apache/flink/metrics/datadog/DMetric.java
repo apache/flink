@@ -78,4 +78,7 @@ public abstract class DMetric {
 
 	@JsonIgnore
 	public abstract Number getMetricValue();
+
+	public void ackReport() {
+	}
 }

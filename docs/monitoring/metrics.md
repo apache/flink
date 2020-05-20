@@ -770,6 +770,7 @@ Parameters:
 - `proxyHost` - (optional) The proxy host to use when sending to Datadog.
 - `proxyPort` - (optional) The proxy port to use when sending to Datadog, defaults to 8080.
 - `dataCenter` - (optional) The data center (`EU`/`US`) to connect to, defaults to `US`.
+- `maxMetricsPerRequest` - (optional) The maximum number of metrics to include in each request, defaults to 2000.
 
 Example configuration:
 
@@ -781,6 +782,7 @@ metrics.reporter.dghttp.tags: myflinkapp,prod
 metrics.reporter.dghttp.proxyHost: my.web.proxy.com
 metrics.reporter.dghttp.proxyPort: 8080
 metrics.reporter.dhhttp.dataCenter: US
+metrics.reporter.dhhttp.maxMetricsPerRequest: 2000
 
 {% endhighlight %}
 
