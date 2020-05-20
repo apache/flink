@@ -41,8 +41,6 @@ public class Constants {
 
 	public static final String FLINK_REST_SERVICE_SUFFIX = "-rest";
 
-	public static final String NAME_SEPARATOR = "-";
-
 	// Constants for label builder
 	public static final String LABEL_TYPE_KEY = "type";
 	public static final String LABEL_TYPE_NATIVE_TYPE = "flink-native-kubernetes";
