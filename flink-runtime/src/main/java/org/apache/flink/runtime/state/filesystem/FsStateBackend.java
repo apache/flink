@@ -363,22 +363,22 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		this.asynchronousSnapshots = original.asynchronousSnapshots.resolveUndefined(
 				configuration.get(CheckpointingOptions.ASYNC_SNAPSHOTS));
 
-		final int sizeThreshold = original.fileStateThreshold >= 0 ?
-				original.fileStateThreshold :
-				configuration.get(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD);
+		if (checkFileSateThresholdValid(original.fileStateThreshold)) {
+			this.fileStateThreshold = original.fileStateThreshold;
+		} else {
+			final int configuredStateThreshold = (int) configuration.get(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD).getBytes();
+			if (checkFileSateThresholdValid(configuredStateThreshold)) {
+				this.fileStateThreshold = configuredStateThreshold;
+			} else {
+				this.fileStateThreshold = (int) CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes();
 
-		if (sizeThreshold >= 0 && sizeThreshold <= MAX_FILE_STATE_THRESHOLD) {
-			this.fileStateThreshold = sizeThreshold;
-		}
-		else {
-			this.fileStateThreshold = CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue();
-
-			// because this is the only place we (unlikely) ever log, we lazily
-			// create the logger here
-			LoggerFactory.getLogger(AbstractFileStateBackend.class).warn(
+				// because this is the only place we (unlikely) ever log, we lazily
+				// create the logger here
+				LoggerFactory.getLogger(AbstractFileStateBackend.class).warn(
 					"Ignoring invalid file size threshold value ({}): {} - using default value {} instead.",
-					CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.key(), sizeThreshold,
+					CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.key(), configuredStateThreshold,
 					CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue());
+			}
 		}
 
 		final int bufferSize = original.writeBufferSize >= 0 ?
@@ -386,6 +386,10 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 			configuration.get(CheckpointingOptions.FS_WRITE_BUFFER_SIZE);
 
 		this.writeBufferSize = Math.max(bufferSize, this.fileStateThreshold);
+	}
+
+	private boolean checkFileSateThresholdValid(int fileStateThreshold) {
+		return fileStateThreshold >= 0 && fileStateThreshold <= MAX_FILE_STATE_THRESHOLD;
 	}
 
 	// ------------------------------------------------------------------------
@@ -432,7 +436,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	public int getMinFileSizeThreshold() {
 		return fileStateThreshold >= 0 ?
 				fileStateThreshold :
-				CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue();
+				(int) CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes();
 	}
 
 	/**
