@@ -51,7 +51,7 @@ public class HadoopOSSFileSystemITCase extends AbstractHadoopFileSystemITTest {
 		FileSystem.initialize(conf);
 		basePath = new Path(OSSTestCredentials.getTestBucketUri() + TEST_DATA_DIR);
 		fs = basePath.getFileSystem();
-		deadline = 0;
+		consistencyToleranceNS = 0;
 	}
 
 	@Test
