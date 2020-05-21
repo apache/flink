@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * A simple dummy implementation of a stream state handle that can be passed in tests.
@@ -59,6 +60,11 @@ public class EmptyStreamStateHandle implements StreamStateHandle {
 				return -1;
 			}
 		};
+	}
+
+	@Override
+	public Optional<byte[]> asBytesIfInMemory() {
+		return Optional.empty();
 	}
 
 	@Override
