@@ -40,7 +40,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.CONSTRAINT_UNIQUE;
+import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
@@ -140,7 +141,7 @@ public class SchemaValidator implements DescriptorValidator {
 		keys.add(SCHEMA + ".#." + SCHEMA_NAME);
 		keys.add(SCHEMA + ".#." + SCHEMA_FROM);
 		// computed column
-		keys.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
+		keys.add(SCHEMA + ".#." + EXPR);
 
 		// time attributes
 		keys.add(SCHEMA + ".#." + SCHEMA_PROCTIME);
@@ -157,6 +158,12 @@ public class SchemaValidator implements DescriptorValidator {
 		keys.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
 		keys.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
 		keys.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+
+		// table constraint
+		keys.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#." + DescriptorProperties.NAME);
+		keys.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#." + DescriptorProperties.TYPE);
+		keys.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#."
+				+ DescriptorProperties.CONSTRAINT_UNIQUE_COLUMNS);
 
 		return keys;
 	}
@@ -292,7 +299,7 @@ public class SchemaValidator implements DescriptorValidator {
 				boolean isRowtime = properties
 					.containsKey(SCHEMA + "." + i + "." + ROWTIME_TIMESTAMPS_TYPE);
 				boolean isGeneratedColumn = properties
-					.containsKey(SCHEMA + "." + i + "." + TABLE_SCHEMA_EXPR);
+					.containsKey(SCHEMA + "." + i + "." + EXPR);
 				// remove proctime/rowtime from mapping
 				if (isProctime || isRowtime || isGeneratedColumn) {
 					mapping.remove(name);

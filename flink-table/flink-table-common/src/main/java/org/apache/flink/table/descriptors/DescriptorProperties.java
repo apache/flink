@@ -26,6 +26,8 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
+import org.apache.flink.table.api.constraints.Constraint;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -74,30 +76,31 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class DescriptorProperties {
 
-	public static final String TABLE_SCHEMA_NAME = "name";
+	public static final String NAME = "name";
 
-	/**
-	 * @deprecated this will be removed in future version as it uses old type system.
-	 * 	 Please use {@link #TABLE_SCHEMA_DATA_TYPE} instead.
-	 */
-	@Deprecated
-	public static final String TABLE_SCHEMA_TYPE = "type";
+	public static final String TYPE = "type";
 
-	public static final String TABLE_SCHEMA_DATA_TYPE = "data-type";
+	public static final String DATA_TYPE = "data-type";
 
-	public static final String TABLE_SCHEMA_EXPR = "expr";
+	public static final String EXPR = "expr";
 
 	public static final String PARTITION_KEYS = "partition.keys";
-
-	public static final String PARTITION_KEYS_NAME = "name";
 
 	public static final String WATERMARK = "watermark";
 
 	public static final String WATERMARK_ROWTIME = "rowtime";
 
-	public static final String WATERMARK_STRATEGY_EXPR = "strategy.expr";
+	public static final String WATERMARK_STRATEGY = "strategy";
 
-	public static final String WATERMARK_STRATEGY_DATA_TYPE = "strategy.data-type";
+	public static final String WATERMARK_STRATEGY_EXPR = WATERMARK_STRATEGY + '.' + EXPR;
+
+	public static final String WATERMARK_STRATEGY_DATA_TYPE = WATERMARK_STRATEGY + '.' + DATA_TYPE;
+
+	public static final String CONSTRAINT_UNIQUE = "constraint.unique";
+
+	public static final String CONSTRAINT_UNIQUE_COLUMNS = "columns";
+
+	private static final Pattern SCHEMA_COLUMN_NAME_SUFFIX = Pattern.compile("\\d+\\.name");
 
 	private static final Consumer<String> EMPTY_CONSUMER = (value) -> {};
 
@@ -225,7 +228,7 @@ public class DescriptorProperties {
 
 		putIndexedOptionalProperties(
 			key,
-			Arrays.asList(TABLE_SCHEMA_NAME, TABLE_SCHEMA_DATA_TYPE, TABLE_SCHEMA_EXPR),
+			Arrays.asList(NAME, DATA_TYPE, EXPR),
 			values);
 
 		if (!schema.getWatermarkSpecs().isEmpty()) {
@@ -241,6 +244,19 @@ public class DescriptorProperties {
 				Arrays.asList(WATERMARK_ROWTIME, WATERMARK_STRATEGY_EXPR, WATERMARK_STRATEGY_DATA_TYPE),
 				watermarkValues);
 		}
+
+		if (schema.getPrimaryKey().isPresent()) {
+			final UniqueConstraint uniqueConstraint = schema.getPrimaryKey().get();
+			final List<List<String>> uniqueConstraintValues = new ArrayList<>();
+			uniqueConstraintValues.add(Arrays.asList(
+					uniqueConstraint.getName(),
+					uniqueConstraint.getType().name(),
+					String.join(",", uniqueConstraint.getColumns())));
+			putIndexedFixedProperties(
+					key + '.' + CONSTRAINT_UNIQUE,
+					Arrays.asList(NAME, TYPE, CONSTRAINT_UNIQUE_COLUMNS),
+					uniqueConstraintValues);
+		}
 	}
 
 	/**
@@ -251,7 +267,7 @@ public class DescriptorProperties {
 
 		putIndexedFixedProperties(
 				PARTITION_KEYS,
-				Collections.singletonList(PARTITION_KEYS_NAME),
+				Collections.singletonList(NAME),
 				keys.stream().map(Collections::singletonList).collect(Collectors.toList()));
 	}
 
@@ -610,7 +626,9 @@ public class DescriptorProperties {
 	public Optional<TableSchema> getOptionalTableSchema(String key) {
 		// filter for number of fields
 		final int fieldCount = properties.keySet().stream()
-			.filter((k) -> k.startsWith(key) && k.endsWith('.' + TABLE_SCHEMA_NAME))
+			.filter((k) -> k.startsWith(key)
+					// "key." is the prefix.
+					&& SCHEMA_COLUMN_NAME_SUFFIX.matcher(k.substring(key.length() + 1)).matches())
 			.mapToInt((k) -> 1)
 			.sum();
 
@@ -621,10 +639,10 @@ public class DescriptorProperties {
 		// validate fields and build schema
 		final TableSchema.Builder schemaBuilder = TableSchema.builder();
 		for (int i = 0; i < fieldCount; i++) {
-			final String nameKey = key + '.' + i + '.' + TABLE_SCHEMA_NAME;
-			final String legacyTypeKey = key + '.' + i + '.' + TABLE_SCHEMA_TYPE;
-			final String typeKey = key + '.' + i + '.' + TABLE_SCHEMA_DATA_TYPE;
-			final String exprKey = key + '.' + i + '.' + TABLE_SCHEMA_EXPR;
+			final String nameKey = key + '.' + i + '.' + NAME;
+			final String legacyTypeKey = key + '.' + i + '.' + TYPE;
+			final String typeKey = key + '.' + i + '.' + DATA_TYPE;
+			final String exprKey = key + '.' + i + '.' + EXPR;
 
 			final String name = optionalGet(nameKey).orElseThrow(exceptionSupplier(nameKey));
 
@@ -669,6 +687,26 @@ public class DescriptorProperties {
 			}
 		}
 
+		// Extract unique constraints.
+		String uniqueConstraintKey = key + '.' + CONSTRAINT_UNIQUE;
+		final int uniqueConstraintCnt = properties.keySet().stream()
+				.filter((k) -> k.startsWith(uniqueConstraintKey) && k.endsWith('.' + TYPE))
+				.mapToInt((k) -> 1)
+				.sum();
+		if (uniqueConstraintCnt > 0) {
+			for (int i = 0; i < uniqueConstraintCnt; i++) {
+				String nameKey = key + '.' + CONSTRAINT_UNIQUE + '.' + i + '.' + NAME;
+				String typeKey = key + '.' + CONSTRAINT_UNIQUE + '.' + i + '.' + TYPE;
+				String columnsKey = key + '.' + CONSTRAINT_UNIQUE + '.' + i + '.' + CONSTRAINT_UNIQUE_COLUMNS;
+				final String constraintName = optionalGet(nameKey).orElseThrow(exceptionSupplier(nameKey));
+				final String constraintType = optionalGet(typeKey).orElseThrow(exceptionSupplier(typeKey));
+				assert constraintType.equals(Constraint.ConstraintType.PRIMARY_KEY.name())
+						: String.format("%s constraint is not supported yet, "
+						+ "supported options: [%s]", constraintType, Constraint.ConstraintType.PRIMARY_KEY);
+				final String columns = optionalGet(columnsKey).orElseThrow(exceptionSupplier(columnsKey));
+				schemaBuilder.primaryKey(constraintName, columns.split(","));
+			}
+		}
 		return Optional.of(schemaBuilder.build());
 	}
 
@@ -684,7 +722,7 @@ public class DescriptorProperties {
 	 */
 	public List<String> getPartitionKeys() {
 		return getFixedIndexedProperties(
-				PARTITION_KEYS, Collections.singletonList(PARTITION_KEYS_NAME))
+				PARTITION_KEYS, Collections.singletonList(NAME))
 				.stream()
 				.map(map -> map.values().iterator().next())
 				.map(this::getString).collect(Collectors.toList());
@@ -1166,13 +1204,13 @@ public class DescriptorProperties {
 	public void validateTableSchema(String key, boolean isOptional) {
 		final Consumer<String> nameValidation = (fullKey) -> validateString(fullKey, false, 1);
 		final Consumer<String> typeValidation = (fullKey) -> {
-			String fallbackKey = fullKey.replace("." + TABLE_SCHEMA_DATA_TYPE, "." + TABLE_SCHEMA_TYPE);
+			String fallbackKey = fullKey.replace("." + DATA_TYPE, "." + TYPE);
 			validateDataType(fullKey, fallbackKey, false);
 		};
 
 		final Map<String, Consumer<String>> subKeys = new HashMap<>();
-		subKeys.put(TABLE_SCHEMA_NAME, nameValidation);
-		subKeys.put(TABLE_SCHEMA_DATA_TYPE, typeValidation);
+		subKeys.put(NAME, nameValidation);
+		subKeys.put(DATA_TYPE, typeValidation);
 
 		validateFixedIndexedProperties(
 			key,
