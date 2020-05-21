@@ -92,13 +92,6 @@ public class KubernetesUtils {
 	}
 
 	/**
-	 * Generate name of the internal Service.
-	 */
-	public static String getInternalServiceName(String clusterId) {
-		return clusterId;
-	}
-
-	/**
 	 * Generate name of the external Service.
 	 */
 	public static String getRestServiceName(String clusterId) {
