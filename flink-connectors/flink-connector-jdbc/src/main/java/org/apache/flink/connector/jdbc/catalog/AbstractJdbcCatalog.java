@@ -133,7 +133,7 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 
 		Map<Integer, String> keySeqColumnName = new HashMap<>();
 		String pkName = null;
-		while (rs.next())  {
+		while (rs.next()) {
 			String columnName = rs.getString("COLUMN_NAME");
 			pkName = rs.getString("PK_NAME"); // all the PK_NAME should be the same
 			int keySeq = rs.getInt("KEY_SEQ");
@@ -143,7 +143,7 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 		keySeqColumnName.forEach(pkFields::set);
 		if (!pkFields.isEmpty()) {
 			// PK_NAME maybe null according to the javadoc, generate an unique name in that case
-			pkName = pkName != null ? pkName : "pk_" + String.join("_", pkFields);
+			pkName = pkName == null ? "pk_" + String.join("_", pkFields) : pkName;
 			return Optional.of(UniqueConstraint.primaryKey(pkName, pkFields));
 		}
 		return Optional.empty();

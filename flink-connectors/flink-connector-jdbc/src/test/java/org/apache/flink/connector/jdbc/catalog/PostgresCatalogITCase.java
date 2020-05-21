@@ -25,6 +25,7 @@ import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
@@ -38,28 +39,35 @@ import static org.junit.Assert.assertEquals;
  */
 public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 
-	@Test
-	public void test_withoutSchema() throws Exception {
-		TableEnvironment tEnv = getTableEnvWithPgCatalog();
+	private TableEnvironment tEnv;
 
+	@Before
+	public void setup() {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+		this.tEnv = TableEnvironment.create(settings);
+		tEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
+
+		// use PG catalog
+		tEnv.registerCatalog(TEST_CATALOG_NAME, catalog);
+		tEnv.useCatalog(TEST_CATALOG_NAME);
+	}
+
+	@Test
+	public void testWithoutSchema() {
 		List<Row> results = Lists.newArrayList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE1)).execute().collect());
 		assertEquals("[1]", results.toString());
 	}
 
 	@Test
-	public void test_withSchema() throws Exception {
-		TableEnvironment tEnv = getTableEnvWithPgCatalog();
-
+	public void testWithSchema() {
 		List<Row> results = Lists.newArrayList(
 			tEnv.sqlQuery(String.format("select * from `%s`", PostgresTablePath.fromFlinkTableName(TABLE1))).execute().collect());
 		assertEquals("[1]", results.toString());
 	}
 
 	@Test
-	public void test_fullPath() throws Exception {
-		TableEnvironment tEnv = getTableEnvWithPgCatalog();
-
+	public void testFullPath() {
 		List<Row> results = Lists.newArrayList(
 			tEnv.sqlQuery(String.format("select * from %s.%s.`%s`",
 				TEST_CATALOG_NAME,
@@ -70,8 +78,6 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 
 	@Test
 	public void testInsert() {
-		TableEnvironment tEnv = getTableEnvWithPgCatalog();
-
 		TableEnvUtil.execInsertSqlAndWaitResult(
 			tEnv,
 			String.format("insert into %s select * from `%s`", TABLE4, TABLE1));
@@ -83,8 +89,6 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 
 	@Test
 	public void testGroupByInsert() {
-		TableEnvironment tEnv = getTableEnvWithPgCatalog();
-
 		TableEnvUtil.execInsertSqlAndWaitResult(
 			tEnv,
 			String.format(
@@ -103,9 +107,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 	}
 
 	@Test
-	public void testPrimitiveTypes() throws Exception {
-		TableEnvironment tEnv = getTableEnvWithPgCatalog();
-
+	public void testPrimitiveTypes() {
 		List<Row> results = Lists.newArrayList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE_PRIMITIVE_TYPE)).execute().collect());
 
@@ -113,9 +115,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 	}
 
 	@Test
-	public void testArrayTypes() throws Exception {
-		TableEnvironment tEnv = getTableEnvWithPgCatalog();
-
+	public void testArrayTypes() {
 		List<Row> results = Lists.newArrayList(
 			tEnv.sqlQuery(String.format("select * from %s", TABLE_ARRAY_TYPE)).execute().collect());
 
@@ -138,15 +138,5 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 				"[2015-01-01, 2020-01-01]," +
 				"[00:51:03, 00:59:03]]",
 			results.toString());
-	}
-
-	private TableEnvironment getTableEnvWithPgCatalog() {
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-		TableEnvironment tableEnv = TableEnvironment.create(settings);
-		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
-
-		tableEnv.registerCatalog(TEST_CATALOG_NAME, catalog);
-		tableEnv.useCatalog(TEST_CATALOG_NAME);
-		return tableEnv;
 	}
 }
