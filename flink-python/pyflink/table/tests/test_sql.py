@@ -67,20 +67,14 @@ class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
                                          "  'connector' = 'COLLECTION',"
                                          "   'is-bounded' = 'false'"
                                          ")")
-        self.assertIsNotNone(table_result)
         self.assertIsNone(table_result.get_job_client())
-        self.assertIsNotNone(table_result.get_table_schema())
         self.assert_equals(table_result.get_table_schema().get_field_names(), ["result"])
-        self.assertIsNotNone(table_result.get_result_kind())
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS)
         table_result.print()
 
         table_result = t_env.execute_sql("alter table tbl set ('k1' = 'a', 'k2' = 'b')")
-        self.assertIsNotNone(table_result)
         self.assertIsNone(table_result.get_job_client())
-        self.assertIsNotNone(table_result.get_table_schema())
         self.assert_equals(table_result.get_table_schema().get_field_names(), ["result"])
-        self.assertIsNotNone(table_result.get_result_kind())
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS)
         table_result.print()
 
@@ -90,30 +84,18 @@ class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
             "sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
         table_result = t_env.execute_sql("insert into sinks select * from tbl")
-        self.assertIsNotNone(table_result)
-        self.assertIsNotNone(table_result.get_job_client())
-        job_status_feature = table_result.get_job_client().get_job_status()
-        job_execution_result_feature = table_result.get_job_client().get_job_execution_result(
-            get_gateway().jvm.Thread.currentThread().getContextClassLoader())
-        job_execution_result = job_execution_result_feature.result()
-        self.assertIsNotNone(job_execution_result)
+        job_execution_result = table_result.get_job_client().get_job_execution_result(
+            get_gateway().jvm.Thread.currentThread().getContextClassLoader()).result()
         self.assertIsNotNone(job_execution_result.get_job_id())
         self.assertIsNotNone(job_execution_result.get_job_execution_result())
-        job_status = job_status_feature.result()
-        self.assertIsNotNone(job_status)
-        self.assertIsNotNone(table_result.get_table_schema())
         self.assert_equals(table_result.get_table_schema().get_field_names(),
                            ["default_catalog.default_database.sinks"])
-        self.assertIsNotNone(table_result.get_result_kind())
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS_WITH_CONTENT)
         table_result.print()
 
         table_result = t_env.execute_sql("drop table tbl")
-        self.assertIsNotNone(table_result)
         self.assertIsNone(table_result.get_job_client())
-        self.assertIsNotNone(table_result.get_table_schema())
         self.assert_equals(table_result.get_table_schema().get_field_names(), ["result"])
-        self.assertIsNotNone(table_result.get_result_kind())
         self.assertEqual(table_result.get_result_kind(), ResultKind.SUCCESS)
         table_result.print()
 
