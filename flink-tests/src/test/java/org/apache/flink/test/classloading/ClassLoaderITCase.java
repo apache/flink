@@ -313,7 +313,9 @@ public class ClassLoaderITCase extends TestLogger {
 				String.valueOf(parallelism),
 				checkpointDir.toURI().toString(),
 				"5000",
-				outputDir.toURI().toString()})
+				outputDir.toURI().toString(),
+				"false" // Disable unaligned checkpoints as this test is triggering concurrent savepoints/checkpoints
+			})
 			.build();
 
 		TestStreamEnvironment.setAsContext(
