@@ -38,7 +38,7 @@ public class FileSystemTestUtils {
 			long deadline) throws IOException, InterruptedException {
 		boolean dirExists;
 		while ((dirExists = fs.exists(path)) != expectedExists &&
-				System.nanoTime() < deadline) {
+				System.nanoTime() - deadline < 0) {
 			Thread.sleep(10);
 		}
 		assertEquals(expectedExists, dirExists);
