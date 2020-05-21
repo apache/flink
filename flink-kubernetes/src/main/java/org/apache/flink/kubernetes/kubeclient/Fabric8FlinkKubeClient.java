@@ -62,7 +62,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 	private final KubernetesClient internalClient;
 	private final String clusterId;
-	private final String nameSpace;
+	private final String namespace;
 
 	private final ExecutorService kubeClientExecutorService;
 
@@ -73,7 +73,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		this.internalClient = checkNotNull(client);
 		this.clusterId = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID));
 
-		this.nameSpace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
+		this.namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
 
 		this.kubeClientExecutorService = asyncExecutorFactory.get();
 	}
@@ -88,7 +88,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		final Deployment createdDeployment = this.internalClient
 			.apps()
 			.deployments()
-			.inNamespace(this.nameSpace)
+			.inNamespace(this.namespace)
 			.create(deployment);
 
 		// Note that we should use the uid of the created Deployment for the OwnerReference.
@@ -96,7 +96,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 		this.internalClient
 			.resourceList(accompanyingResources)
-			.inNamespace(this.nameSpace)
+			.inNamespace(this.namespace)
 			.createOrReplace();
 	}
 
@@ -107,13 +107,13 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 				final Deployment masterDeployment = this.internalClient
 					.apps()
 					.deployments()
-					.inNamespace(this.nameSpace)
+					.inNamespace(this.namespace)
 					.withName(KubernetesUtils.getDeploymentName(clusterId))
 					.get();
 
 				if (masterDeployment == null) {
 					throw new RuntimeException(
-						"Failed to find Deployment named " + clusterId + " in namespace " + this.nameSpace);
+						"Failed to find Deployment named " + clusterId + " in namespace " + this.namespace);
 				}
 
 				// Note that we should use the uid of the master Deployment for the OwnerReference.
@@ -125,7 +125,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 				this.internalClient
 					.pods()
-					.inNamespace(this.nameSpace)
+					.inNamespace(this.namespace)
 					.create(kubernetesPod.getInternalResource());
 				},
 			kubeClientExecutorService);
@@ -153,7 +153,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		// Return the external service.namespace directly when using ClusterIP.
 		if (serviceExposedType == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
 			return Optional.of(
-				new Endpoint(KubernetesUtils.getNamespacedExternalServiceName(clusterId,  nameSpace), restPort));
+				new Endpoint(KubernetesUtils.getNamespacedExternalServiceName(clusterId, namespace), restPort));
 		}
 
 		return getRestEndPointFromService(service, restPort);
@@ -178,7 +178,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		this.internalClient
 			.apps()
 			.deployments()
-			.inNamespace(this.nameSpace)
+			.inNamespace(this.namespace)
 			.withName(KubernetesUtils.getDeploymentName(clusterId))
 			.cascading(true)
 			.delete();
@@ -195,7 +195,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 		final Service service = this.internalClient
 			.services()
-			.inNamespace(nameSpace)
+			.inNamespace(namespace)
 			.withName(serviceName)
 			.fromServer()
 			.get();
