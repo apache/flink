@@ -1210,7 +1210,7 @@ class AggregateITCase(
     t1.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = List("1", "3")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertEquals(expected, sink.getRetractResults)
   }
 
   @Test
