@@ -18,7 +18,9 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.core.memory.HeapMemorySegment;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
@@ -42,6 +44,7 @@ import java.util.Random;
 
 import static org.apache.flink.core.fs.Path.fromLocalFile;
 import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
+import static org.apache.flink.core.memory.MemorySegmentFactory.wrap;
 import static org.apache.flink.runtime.state.CheckpointedStateScope.EXCLUSIVE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -147,7 +150,7 @@ public class ChannelStateCheckpointWriterTest {
 		Map<InputChannelInfo, Integer> offsetCounts = new HashMap<>();
 		offsetCounts.put(new InputChannelInfo(1, 1), 1);
 		offsetCounts.put(new InputChannelInfo(1, 2), 2);
-		offsetCounts.put(new InputChannelInfo(1, 3), 99);
+		offsetCounts.put(new InputChannelInfo(1, 3), 5);
 
 		ChannelStateWriteResult result = new ChannelStateWriteResult();
 		ChannelStateCheckpointWriter writer = createWriter(result);
@@ -172,8 +175,8 @@ public class ChannelStateCheckpointWriterTest {
 	}
 
 	private void write(ChannelStateCheckpointWriter writer, InputChannelInfo channelInfo, byte[] data) throws Exception {
-		NetworkBuffer buffer = new NetworkBuffer(HeapMemorySegment.FACTORY.allocateUnpooledSegment(data.length, null), FreeingBufferRecycler.INSTANCE);
-		buffer.setBytes(0, data);
+		MemorySegment segment = wrap(data);
+		NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, Buffer.DataType.DATA_BUFFER, segment.size());
 		writer.writeInput(channelInfo, buffer);
 	}
 
