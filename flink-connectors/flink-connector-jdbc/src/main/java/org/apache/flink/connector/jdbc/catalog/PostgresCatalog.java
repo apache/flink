@@ -49,6 +49,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.connector.jdbc.table.JdbcDynamicTableSourceSinkFactory.IDENTIFIER;
@@ -183,7 +184,10 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 		String dbUrl = baseUrl + tablePath.getDatabaseName();
 		try (Connection conn = DriverManager.getConnection(dbUrl, username, pwd)) {
 			DatabaseMetaData metaData = conn.getMetaData();
-			UniqueConstraint pk = getPrimaryKey(metaData, pgPath.getPgSchemaName(), pgPath.getPgTableName());
+			Optional<UniqueConstraint> primaryKey = getPrimaryKey(
+				metaData,
+				pgPath.getPgSchemaName(),
+				pgPath.getPgTableName());
 
 			PreparedStatement ps = conn.prepareStatement(
 				String.format("SELECT * FROM %s;", pgPath.getFullPath()));
@@ -203,9 +207,9 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 
 			TableSchema.Builder tableBuilder = new TableSchema.Builder()
 				.fields(names, types);
-			if (pk != null) {
-				tableBuilder.primaryKey(pk.getName(), pk.getColumns().toArray(new String[0]));
-			}
+			primaryKey.ifPresent(pk ->
+				tableBuilder.primaryKey(pk.getName(), pk.getColumns().toArray(new String[0]))
+			);
 			TableSchema tableSchema = tableBuilder.build();
 
 			Map<String, String> props = new HashMap<>();

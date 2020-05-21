@@ -55,14 +55,12 @@ import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.AbstractMap;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -126,31 +124,29 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 
 	// ------ retrieve PK constraint ------
 
-	protected UniqueConstraint getPrimaryKey(DatabaseMetaData metaData, String schema, String table) throws SQLException {
+	protected Optional<UniqueConstraint> getPrimaryKey(DatabaseMetaData metaData, String schema, String table) throws SQLException {
 
 		// According to the Javadoc of java.sql.DatabaseMetaData#getPrimaryKeys,
 		// the returned primary key columns are ordered by COLUMN_NAME, not by KEY_SEQ.
 		// We need to sort them based on the KEY_SEQ value.
 		ResultSet rs = metaData.getPrimaryKeys(null, schema, table);
 
-		List<Map.Entry<Integer, String>> columnsWithIndex = null;
+		Map<Integer, String> keySeqColumnName = new HashMap<>();
 		String pkName = null;
 		while (rs.next()) {
 			String columnName = rs.getString("COLUMN_NAME");
-			pkName = rs.getString("PK_NAME");
+			pkName = rs.getString("PK_NAME"); // all the PK_NAME should be the same
 			int keySeq = rs.getInt("KEY_SEQ");
-			if (columnsWithIndex == null) {
-				columnsWithIndex = new ArrayList<>();
-			}
-			columnsWithIndex.add(new AbstractMap.SimpleEntry<>(Integer.valueOf(keySeq), columnName));
+			keySeqColumnName.put(keySeq - 1, columnName); // KEY_SEQ is 1-based index
 		}
-		if (columnsWithIndex != null) {
-			// sort columns by KEY_SEQ
-			columnsWithIndex.sort(Comparator.comparingInt(Map.Entry::getKey));
-			List<String> cols = columnsWithIndex.stream().map(Map.Entry::getValue).collect(Collectors.toList());
-			return UniqueConstraint.primaryKey(pkName, cols);
+		List<String> pkFields = Arrays.asList(new String[keySeqColumnName.size()]); // initialize size
+		keySeqColumnName.forEach(pkFields::set);
+		if (!pkFields.isEmpty()) {
+			// PK_NAME maybe null according to the javadoc, generate an unique name in that case
+			pkName = pkName == null ? "pk_" + String.join("_", pkFields) : pkName;
+			return Optional.of(UniqueConstraint.primaryKey(pkName, pkFields));
 		}
-		return null;
+		return Optional.empty();
 	}
 
 	// ------ table factory ------
