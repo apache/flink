@@ -155,7 +155,7 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
 	}
 
 	public static void cleanupDirectoryWithRetry(FileSystem fs, Path path, long deadline) throws IOException, InterruptedException {
-		while (fs.exists(path) && System.nanoTime() < deadline) {
+		while (fs.exists(path) && System.nanoTime() - deadline < 0) {
 			fs.delete(path, true);
 			Thread.sleep(50L);
 		}
