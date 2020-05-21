@@ -202,19 +202,19 @@ public class HiveTableSinkTest {
 
 	@Test
 	public void testWriteNullValues() throws Exception {
-		hiveShell.execute("create database db1");
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tableEnv.useCatalog(hiveCatalog.getName());
+		tableEnv.executeSql("create database db1");
 		try {
 			// 17 data types
-			hiveShell.execute("create table db1.src" +
+			tableEnv.executeSql("create table db1.src" +
 					"(t tinyint,s smallint,i int,b bigint,f float,d double,de decimal(10,5),ts timestamp,dt date," +
 					"str string,ch char(5),vch varchar(8),bl boolean,bin binary,arr array<int>,mp map<int,string>,strt struct<f1:int,f2:string>)");
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
 					.addRow(new Object[]{null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null})
 					.commit();
 			hiveShell.execute("create table db1.dest like db1.src");
-			TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
-			tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-			tableEnv.useCatalog(hiveCatalog.getName());
 
 			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
 			List<String> results = hiveShell.executeQuery("select * from db1.dest");
@@ -224,7 +224,7 @@ public class HiveTableSinkTest {
 			assertEquals("NULL", cols[0]);
 			assertEquals(1, new HashSet<>(Arrays.asList(cols)).size());
 		} finally {
-			hiveShell.execute("drop database db1 cascade");
+			tableEnv.executeSql("drop database db1 cascade");
 		}
 	}
 
