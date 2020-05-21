@@ -109,7 +109,7 @@ public class HiveLookupJoinTest {
 			List<Row> results = Lists.newArrayList(flinkTable.execute().collect());
 			assertEquals("[1,a, 2,b, 3,c]", results.toString());
 		} finally {
-			hiveShell.execute("drop table build");
+			tableEnv.executeSql("drop table build");
 		}
 	}
 }
