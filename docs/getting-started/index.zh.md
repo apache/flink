@@ -38,15 +38,15 @@ under the License.
 
 通过 **Docker Playgrounds** 提供的 Flink 沙盒环境，你只需花几分钟做些简单设置，就可以开始探索和使用 Flink。
 
-* [**Flink Operations Playground**]({% link getting-started/docker-playgrounds/flink-operations-playground.zh.md %}) 向你展示了如何使用 Flink 编写流数据应用程序。你可以从中学习到 Flink 应用程序的故障恢复、升级、并行度提高、并行度降低和程序运行状态的指标监控等特性。
+* [**Flink Operations Playground**]({% link getting-started/docker-playgrounds/flink-operations-playground.zh.md %}) 向你展示了如何使用 Flink 编写流数据应用程序。你可以从中学习到 Flink 应用程序的故障恢复、升级、并行度修改和程序运行状态的指标监控等特性。
 
 ### Flink API 入门
 
 **代码练习**是快速入门的最佳方式，通过代码练习可以逐步深入地理解 Flink API。每个示例都演示了如何构建基础的 Flink 代码框架，并如何逐步将其扩展为简单的应用程序。
 
-* [**DataStream API 示例**]({% link getting-started/walkthroughs/datastream_api.zh.md %}) 展示了如何实现一个基本的 DataStream 应用程序，并把它扩展成有状态的应用程序。DataStream API 是 Flink 的主要抽象，可用于在 Java/Scala 语言中实现具有复杂时间语义的有状态数据流处理的应用程序。
+* [**DataStream API 教程**]({% link getting-started/walkthroughs/datastream_api.zh.md %})展示了如何实现一个基本的 DataStream 应用程序，并把它扩展成有状态的应用程序。DataStream API 是 Flink 的主要抽象，可用于在 Java/Scala 中实现具有复杂时间语义的有状态数据流处理的应用程序。
 
-Flink 的 **Table API** 是一套可以用于在 Java/Scala/Python 中编写类 SQL 查询的声明式关系型 API，使用 Table API，系统不但可以自动进行计算和优化，而且可以使用一致的语法和语义在批处理场景或流处理场景中运行。[Table API code walkthrough for Java and Scala]({% link getting-started/walkthroughs/table_api.zh.md %}) 演示了如何在批处理中简单的使用 Table API 进行查询，以及如何将其扩展为流处理中的查询。Python Table API 同上 [code walkthrough for the Python Table API]({% link getting-started/walkthroughs/python_table_api.zh.md %})。
+Flink 的 **Table API** 是一套可以用于在 Java/Scala/Python 中编写类 SQL 查询的声明式关系型 API，使用 Table API，系统不但可以自动进行计算和优化，而且可以使用一致的语法和语义在批处理场景或流处理场景中运行。[Java/Scala Table API 教程]({% link getting-started/walkthroughs/table_api.zh.md %})演示了如何在批处理中简单的使用 Table API 进行查询，以及如何将其扩展为流处理中的查询。Python Table API 同上 [Python Table API 教程]({% link getting-started/walkthroughs/python_table_api.zh.md %})。
 
 ### 通过实操进一步探索 Flink
 
