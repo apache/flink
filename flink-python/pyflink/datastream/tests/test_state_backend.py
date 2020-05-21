@@ -97,7 +97,7 @@ class FsStateBackendTests(PyFlinkTestCase):
 
         state_backend = FsStateBackend("file://var/checkpoints/")
 
-        self.assertEqual(state_backend.get_min_file_size_threshold(), 1024)
+        self.assertEqual(state_backend.get_min_file_size_threshold(), 20480)
 
         state_backend = FsStateBackend("file://var/checkpoints/", file_state_size_threshold=2048)
 
