@@ -30,6 +30,7 @@ import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -219,6 +220,9 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 
 		final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
 		assertThat(resultEndpoint.isPresent(), is(true));
+		assertThat(
+			resultEndpoint.get().getAddress(),
+			is(KubernetesUtils.getNamespacedExternalServiceName(CLUSTER_ID, NAMESPACE)));
 		assertThat(resultEndpoint.get().getPort(), is(REST_PORT));
 	}
 

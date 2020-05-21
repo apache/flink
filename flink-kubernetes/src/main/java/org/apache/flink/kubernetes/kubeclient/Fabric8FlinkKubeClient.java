@@ -150,10 +150,10 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		final KubernetesConfigOptions.ServiceExposedType serviceExposedType =
 			KubernetesConfigOptions.ServiceExposedType.valueOf(service.getSpec().getType());
 
-		// Return the service.namespace directly when use ClusterIP.
+		// Return the external service.namespace directly when using ClusterIP.
 		if (serviceExposedType == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
 			return Optional.of(
-				new Endpoint(KubernetesUtils.getInternalServiceName(clusterId) + "." + nameSpace, restPort));
+				new Endpoint(KubernetesUtils.getNamespacedExternalServiceName(clusterId,  nameSpace), restPort));
 		}
 
 		return getRestEndPointFromService(service, restPort);
