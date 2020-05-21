@@ -19,8 +19,8 @@
 package org.apache.flink.kubernetes;
 
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
 import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
@@ -107,7 +107,7 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
 			@Nullable ServiceStatus serviceStatus) {
 		final ServiceBuilder serviceBuilder = new ServiceBuilder()
 			.editOrNewMetadata()
-				.withName(KubernetesUtils.getRestServiceName(CLUSTER_ID))
+				.withName(ExternalServiceDecorator.getExternalServiceName(CLUSTER_ID))
 				.endMetadata()
 			.editOrNewSpec()
 				.withType(serviceExposedType.name())

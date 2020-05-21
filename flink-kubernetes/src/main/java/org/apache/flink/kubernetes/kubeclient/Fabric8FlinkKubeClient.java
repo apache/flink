@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.kubeclient;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
+import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPodsWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
@@ -153,7 +154,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 		// Return the external service.namespace directly when using ClusterIP.
 		if (serviceExposedType == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
 			return Optional.of(
-				new Endpoint(KubernetesUtils.getNamespacedExternalServiceName(clusterId, namespace), restPort));
+				new Endpoint(ExternalServiceDecorator.getNamespacedExternalServiceName(clusterId, namespace), restPort));
 		}
 
 		return getRestEndPointFromService(service, restPort);
@@ -191,7 +192,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 	@Override
 	public Optional<KubernetesService> getRestService(String clusterId) {
-		final String serviceName = KubernetesUtils.getRestServiceName(clusterId);
+		final String serviceName = ExternalServiceDecorator.getExternalServiceName(clusterId);
 
 		final Service service = this.internalClient
 			.services()
@@ -246,7 +247,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
 		if (servicePortCandidates.isEmpty()) {
 			throw new RuntimeException("Failed to find port \"" + Constants.REST_PORT_NAME + "\" in Service \"" +
-				KubernetesUtils.getRestServiceName(this.clusterId) + "\"");
+				ExternalServiceDecorator.getExternalServiceName(this.clusterId) + "\"");
 		}
 
 		final ServicePort externalServicePort = servicePortCandidates.get(0);

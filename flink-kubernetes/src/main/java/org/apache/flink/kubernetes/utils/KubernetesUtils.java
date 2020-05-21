@@ -92,20 +92,6 @@ public class KubernetesUtils {
 	}
 
 	/**
-	 * Generate name of the external Service.
-	 */
-	public static String getRestServiceName(String clusterId) {
-		return clusterId + Constants.FLINK_REST_SERVICE_SUFFIX;
-	}
-
-	/**
-	 * Generate namespaced name of the external Service.
-	 */
-	public static String getNamespacedExternalServiceName(String clusterId, String namespace) {
-		return getRestServiceName(clusterId) + "." + namespace;
-	}
-
-	/**
 	 * Generate name of the Deployment.
 	 */
 	public static String getDeploymentName(String clusterId) {
