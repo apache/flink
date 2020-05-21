@@ -172,6 +172,7 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 
 			this.reader = ParquetSplitReaderUtil.genPartColumnarRowReader(
 					utcTimestamp,
+					true,
 					conf.conf(),
 					fullFieldNames,
 					fullFieldTypes,

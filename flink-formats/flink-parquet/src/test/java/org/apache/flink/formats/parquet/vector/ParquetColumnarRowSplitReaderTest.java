@@ -205,6 +205,7 @@ public class ParquetColumnarRowSplitReaderTest {
 
 		ParquetColumnarRowSplitReader reader = new ParquetColumnarRowSplitReader(
 				false,
+				true,
 				new Configuration(),
 				fieldTypes,
 				new String[] {
@@ -402,6 +403,7 @@ public class ParquetColumnarRowSplitReaderTest {
 				new IntType()};
 		ParquetColumnarRowSplitReader reader = new ParquetColumnarRowSplitReader(
 				false,
+				true,
 				new Configuration(),
 				fieldTypes,
 				new String[] {"f7", "f2", "f4"},
@@ -494,6 +496,7 @@ public class ParquetColumnarRowSplitReaderTest {
 				new VarCharType(VarCharType.MAX_LENGTH)};
 		ParquetColumnarRowSplitReader reader = ParquetSplitReaderUtil.genPartColumnarRowReader(
 				false,
+				true,
 				new Configuration(),
 				IntStream.range(0, 28).mapToObj(i -> "f" + i).toArray(String[]::new),
 				Arrays.stream(fieldTypes)

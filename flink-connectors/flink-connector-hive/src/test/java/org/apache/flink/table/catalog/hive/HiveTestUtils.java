@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -124,6 +125,17 @@ public class HiveTestUtils {
 		StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
 		tableEnv.getConfig().getConfiguration().setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
 		return tableEnv;
+	}
+
+	public static TableEnvironment createTableEnvWithHiveCatalog(HiveCatalog catalog) {
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+		tableEnv.registerCatalog(catalog.getName(), catalog);
+		tableEnv.useCatalog(catalog.getName());
+		return tableEnv;
+	}
+
+	public static void waitForJobFinish(TableResult tableResult) throws Exception {
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 	}
 
 	// Insert into a single partition of a text table.

@@ -139,6 +139,7 @@ public class ParquetRowDataWriterTest {
 		// verify
 		ParquetColumnarRowSplitReader reader = ParquetSplitReaderUtil.genPartColumnarRowReader(
 				utcTimestamp,
+				true,
 				conf,
 				ROW_TYPE.getFieldNames().toArray(new String[0]),
 				ROW_TYPE.getChildren().stream()

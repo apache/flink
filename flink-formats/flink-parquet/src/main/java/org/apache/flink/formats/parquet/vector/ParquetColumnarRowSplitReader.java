@@ -26,6 +26,7 @@ import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 import org.apache.flink.table.data.vector.writable.WritableColumnVector;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -43,7 +44,10 @@ import org.apache.parquet.schema.Types;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createColumnReader;
 import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createWritableColumnVector;
@@ -105,6 +109,7 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 
 	public ParquetColumnarRowSplitReader(
 			boolean utcTimestamp,
+			boolean caseSensitive,
 			Configuration conf,
 			LogicalType[] selectedTypes,
 			String[] selectedFieldNames,
@@ -123,7 +128,7 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 		List<BlockMetaData> blocks = filterRowGroups(filter, footer.getBlocks(), fileSchema);
 
 		this.fileSchema = footer.getFileMetaData().getSchema();
-		this.requestedSchema = clipParquetSchema(fileSchema, selectedFieldNames);
+		this.requestedSchema = clipParquetSchema(fileSchema, selectedFieldNames, caseSensitive);
 		this.reader = new ParquetFileReader(
 				conf, footer.getFileMetaData(), path, blocks, requestedSchema.getColumns());
 
@@ -146,15 +151,39 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 	/**
 	 * Clips `parquetSchema` according to `fieldNames`.
 	 */
-	private static MessageType clipParquetSchema(GroupType parquetSchema, String[] fieldNames) {
+	private static MessageType clipParquetSchema(
+			GroupType parquetSchema, String[] fieldNames, boolean caseSensitive) {
 		Type[] types = new Type[fieldNames.length];
-		for (int i = 0; i < fieldNames.length; ++i) {
-			String fieldName = fieldNames[i];
-			if (parquetSchema.getFieldIndex(fieldName) < 0) {
-				throw new IllegalArgumentException(fieldName + " does not exist");
+		if (caseSensitive) {
+			for (int i = 0; i < fieldNames.length; ++i) {
+				String fieldName = fieldNames[i];
+				if (parquetSchema.getFieldIndex(fieldName) < 0) {
+					throw new IllegalArgumentException(fieldName + " does not exist");
+				}
+				types[i] = parquetSchema.getType(fieldName);
 			}
-			types[i] = parquetSchema.getType(fieldName);
+		} else {
+			Map<String, Type> caseInsensitiveFieldMap = new HashMap<>();
+			for (Type type : parquetSchema.getFields()) {
+				caseInsensitiveFieldMap.compute(type.getName().toLowerCase(Locale.ROOT),
+						(key, previousType) -> {
+					if (previousType != null) {
+						throw new FlinkRuntimeException(
+								"Parquet with case insensitive mode should have no duplicate key: " + key);
+					}
+					return type;
+				});
+			}
+			for (int i = 0; i < fieldNames.length; ++i) {
+				Type type = caseInsensitiveFieldMap.get(fieldNames[i].toLowerCase(Locale.ROOT));
+				if (type == null) {
+					throw new IllegalArgumentException(fieldNames[i] + " does not exist");
+				}
+				// TODO clip for array,map,row types.
+				types[i] = type;
+			}
 		}
+
 		return Types.buildMessage().addFields(types).named("flink-parquet");
 	}
 
