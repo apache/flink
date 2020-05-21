@@ -1779,6 +1779,11 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
+		public Optional<byte[]> asBytesIfInMemory() {
+			return Optional.empty();
+		}
+
+		@Override
 		public StreamStateHandle getDelegateStateHandle() {
 			throw new UnsupportedOperationException("Not implemented.");
 		}

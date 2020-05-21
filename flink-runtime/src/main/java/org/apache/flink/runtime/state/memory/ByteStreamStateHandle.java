@@ -23,6 +23,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * A state handle that contains stream state in a byte array.
@@ -53,6 +54,11 @@ public class ByteStreamStateHandle implements StreamStateHandle {
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
 		return new ByteStateHandleInputStream(data);
+	}
+
+	@Override
+	public Optional<byte[]> asBytesIfInMemory() {
+		return Optional.of(getData());
 	}
 
 	public byte[] getData() {
