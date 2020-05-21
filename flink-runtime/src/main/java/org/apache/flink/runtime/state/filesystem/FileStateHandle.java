@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -66,6 +67,11 @@ public class FileStateHandle implements StreamStateHandle {
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
 		return getFileSystem().open(filePath);
+	}
+
+	@Override
+	public Optional<byte[]> asBytesIfInMemory() {
+		return Optional.empty();
 	}
 
 	/**

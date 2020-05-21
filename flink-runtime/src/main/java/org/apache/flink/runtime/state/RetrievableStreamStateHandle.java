@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Optional;
 
 /**
  * Wrapper around a {@link StreamStateHandle} to make the referenced state object retrievable trough a simple get call.
@@ -62,6 +63,11 @@ public class RetrievableStreamStateHandle<T extends Serializable> implements
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
 		return wrappedStreamStateHandle.openInputStream();
+	}
+
+	@Override
+	public Optional<byte[]> asBytesIfInMemory() {
+		return wrappedStreamStateHandle.asBytesIfInMemory();
 	}
 
 	@Override

@@ -26,10 +26,13 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 
 import static java.lang.Math.addExact;
 import static java.lang.Math.min;
@@ -45,6 +48,10 @@ interface ChannelStateSerializer {
 	int readLength(InputStream stream) throws IOException;
 
 	int readData(InputStream stream, ChannelStateByteBuffer buffer, int bytes) throws IOException;
+
+	byte[] extractAndMerge(byte[] bytes, List<Long> offsets) throws IOException;
+
+	long getHeaderLength();
 }
 
 /**
@@ -171,4 +178,35 @@ class ChannelStateSerializerImpl implements ChannelStateSerializer {
 	private static int readInt(InputStream stream) throws IOException {
 		return new DataInputStream(stream).readInt();
 	}
+
+	@Override
+	public byte[] extractAndMerge(byte[] bytes, List<Long> offsets) throws IOException {
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		DataOutputStream dataOutputStream = new DataOutputStream(out);
+		byte[] merged = extractByOffsets(bytes, offsets);
+		writeHeader(dataOutputStream);
+		dataOutputStream.writeInt(merged.length);
+		dataOutputStream.write(merged, 0, merged.length);
+		dataOutputStream.close();
+		return out.toByteArray();
+	}
+
+	private byte[] extractByOffsets(byte[] data, List<Long> offsets) throws IOException {
+		DataInputStream lengthReadingStream = new DataInputStream(new ByteArrayInputStream(data, 0, data.length));
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		long prevOffset = 0;
+		for (long offset : offsets) {
+			lengthReadingStream.skipBytes((int) (offset - prevOffset));
+			int dataWithLengthOffset = (int) offset + Integer.BYTES;
+			out.write(data, dataWithLengthOffset, lengthReadingStream.readInt());
+			prevOffset = dataWithLengthOffset;
+		}
+		return out.toByteArray();
+	}
+
+	@Override
+	public long getHeaderLength() {
+		return Integer.BYTES;
+	}
+
 }
