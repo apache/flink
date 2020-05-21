@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -46,6 +47,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase;
 import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
 import org.apache.flink.table.planner.runtime.utils.TestingAppendRowDataSink;
 import org.apache.flink.table.planner.runtime.utils.TestingAppendSink;
@@ -81,6 +83,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.catalog.hive.HiveTestUtils.createTableEnvWithHiveCatalog;
+import static org.apache.flink.table.catalog.hive.HiveTestUtils.waitForJobFinish;
 import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -95,7 +99,7 @@ import static org.mockito.Mockito.spy;
  * Tests {@link HiveTableSource}.
  */
 @RunWith(FlinkStandaloneHiveRunner.class)
-public class HiveTableSourceTest {
+public class HiveTableSourceTest extends BatchAbstractTestBase {
 
 	@HiveSQL(files = {})
 	private static HiveShell hiveShell;
@@ -637,6 +641,35 @@ public class HiveTableSourceTest {
 		List<Row> results = Lists.newArrayList(
 				tableEnv.sqlQuery("select * from db1.src order by x").execute().collect());
 		assertEquals("[1,a, 2,b]", results.toString());
+	}
+
+	@Test
+	public void testParquetCaseInsensitive() throws Exception {
+		testCaseInsensitive("parquet");
+	}
+
+	private void testCaseInsensitive(String format) throws Exception {
+		TableEnvironment tEnv = createTableEnvWithHiveCatalog(hiveCatalog);
+		String folderURI = TEMPORARY_FOLDER.newFolder().toURI().toString();
+
+		// Flink to write sensitive fields to parquet file
+		tEnv.executeSql(String.format(
+				"create table parquet_t (I int, J int) with (" +
+						"'connector'='filesystem','format'='%s','path'='%s')",
+				format,
+				folderURI));
+		waitForJobFinish(tEnv.executeSql("insert into parquet_t select 1, 2"));
+		tEnv.executeSql("drop table parquet_t");
+
+		// Hive to read parquet file
+		tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+		tEnv.executeSql(String.format(
+				"create external table parquet_t (i int, j int) stored as %s location '%s'",
+				format,
+				folderURI));
+		Assert.assertEquals(
+				Row.of(1, 2),
+				tEnv.executeSql("select * from parquet_t").collect().next());
 	}
 
 	/**
