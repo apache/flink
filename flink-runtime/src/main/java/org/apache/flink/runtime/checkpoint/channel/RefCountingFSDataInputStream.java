@@ -39,13 +39,13 @@ class RefCountingFSDataInputStream extends FSDataInputStream {
 
 	private final SupplierWithException<FSDataInputStream, IOException> streamSupplier;
 	private FSDataInputStream stream;
-	private final ChannelStateDeserializer serializer;
+	private final ChannelStateSerializer serializer;
 	private int refCount = 0;
 	private State state = State.NEW;
 
 	private RefCountingFSDataInputStream(
 			SupplierWithException<FSDataInputStream, IOException> streamSupplier,
-			ChannelStateDeserializer serializer) {
+			ChannelStateSerializer serializer) {
 		this.streamSupplier = checkNotNull(streamSupplier);
 		this.serializer = checkNotNull(serializer);
 	}
@@ -105,9 +105,9 @@ class RefCountingFSDataInputStream extends FSDataInputStream {
 	@NotThreadSafe
 	static class RefCountingFSDataInputStreamFactory {
 		private final Map<StreamStateHandle, RefCountingFSDataInputStream> streams = new HashMap<>(); // not clearing: expecting short life
-		private final ChannelStateDeserializer serializer;
+		private final ChannelStateSerializer serializer;
 
-		RefCountingFSDataInputStreamFactory(ChannelStateDeserializer serializer) {
+		RefCountingFSDataInputStreamFactory(ChannelStateSerializer serializer) {
 			this.serializer = checkNotNull(serializer);
 		}
 
@@ -121,7 +121,7 @@ class RefCountingFSDataInputStream extends FSDataInputStream {
 			return stream;
 		}
 
-		ChannelStateDeserializer getSerializer() {
+		ChannelStateSerializer getSerializer() {
 			return serializer;
 		}
 	}

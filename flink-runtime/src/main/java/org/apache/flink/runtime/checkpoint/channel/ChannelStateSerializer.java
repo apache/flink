@@ -39,9 +39,6 @@ interface ChannelStateSerializer {
 	void writeHeader(DataOutputStream dataStream) throws IOException;
 
 	void writeData(DataOutputStream stream, Buffer... flinkBuffers) throws IOException;
-}
-
-interface ChannelStateDeserializer {
 
 	void readHeader(InputStream stream) throws IOException;
 
@@ -128,7 +125,7 @@ interface ChannelStateByteBuffer {
 	}
 }
 
-class ChannelStateSerializerImpl implements ChannelStateSerializer, ChannelStateDeserializer {
+class ChannelStateSerializerImpl implements ChannelStateSerializer {
 	private static final int SERIALIZATION_VERSION = 0;
 
 	@Override
