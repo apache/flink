@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -227,7 +228,7 @@ public class StateBackendLoadingTest {
 		final String savepointDir = new Path(tmp.newFolder().toURI()).toString();
 		final Path expectedCheckpointsPath = new Path(checkpointDir);
 		final Path expectedSavepointsPath = new Path(savepointDir);
-		final int threshold = 1000000;
+		final MemorySize threshold = MemorySize.parse("900kb");
 		final int minWriteBufferSize = 1024;
 		final boolean async = !CheckpointingOptions.ASYNC_SNAPSHOTS.defaultValue();
 
@@ -237,7 +238,7 @@ public class StateBackendLoadingTest {
 		config1.setString(backendKey, "filesystem");
 		config1.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
 		config1.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
-		config1.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
+		config1.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
 		config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
 		config1.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, async);
 
@@ -245,7 +246,7 @@ public class StateBackendLoadingTest {
 		config2.setString(backendKey, FsStateBackendFactory.class.getName());
 		config2.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
 		config2.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
-		config2.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
+		config2.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, threshold);
 		config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
 		config2.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, async);
 
@@ -262,10 +263,10 @@ public class StateBackendLoadingTest {
 		assertEquals(expectedCheckpointsPath, fs2.getCheckpointPath());
 		assertEquals(expectedSavepointsPath, fs1.getSavepointPath());
 		assertEquals(expectedSavepointsPath, fs2.getSavepointPath());
-		assertEquals(threshold, fs1.getMinFileSizeThreshold());
-		assertEquals(threshold, fs2.getMinFileSizeThreshold());
-		assertEquals(Math.max(threshold, minWriteBufferSize), fs1.getWriteBufferSize());
-		assertEquals(Math.max(threshold, minWriteBufferSize), fs2.getWriteBufferSize());
+		assertEquals(threshold.getBytes(), fs1.getMinFileSizeThreshold());
+		assertEquals(threshold.getBytes(), fs2.getMinFileSizeThreshold());
+		assertEquals(Math.max(threshold.getBytes(), minWriteBufferSize), fs1.getWriteBufferSize());
+		assertEquals(Math.max(threshold.getBytes(), minWriteBufferSize), fs2.getWriteBufferSize());
 		assertEquals(async, fs1.isUsingAsynchronousSnapshots());
 		assertEquals(async, fs2.isUsingAsynchronousSnapshots());
 	}
@@ -293,7 +294,7 @@ public class StateBackendLoadingTest {
 		config.setString(backendKey, "jobmanager"); // this should not be picked up 
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir); // this should not be picked up
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
-		config.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, 20); // this should not be picked up
+		config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.parse("20")); // this should not be picked up
 		config.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 3000000); // this should not be picked up
 
 		final StateBackend loadedBackend =

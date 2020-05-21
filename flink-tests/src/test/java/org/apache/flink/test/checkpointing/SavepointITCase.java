@@ -576,7 +576,7 @@ public class SavepointITCase extends TestLogger {
 			if (data == null) {
 				// We need this to be large, because we want to test with files
 				Random rand = new Random(getRuntimeContext().getIndexOfThisSubtask());
-				data = new byte[CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue() + 1];
+				data = new byte[(int) CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes() + 1];
 				rand.nextBytes(data);
 			}
 		}
@@ -833,7 +833,7 @@ public class SavepointITCase extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-		config.setInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, 0);
+		config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 		return config;
 	}
