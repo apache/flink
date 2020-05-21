@@ -25,10 +25,14 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -37,6 +41,8 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -95,6 +101,40 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
 				fail("Expected a slot allocation failure.");
 			} catch (ExecutionException ee) {
 				assertThat(ExceptionUtils.stripExecutionException(ee), equalTo(cause));
+			}
+		}
+	}
+
+	@Test
+	public void testFailingAllocationFailsRemappedPendingSlotRequests() throws Exception {
+		final List<AllocationID> allocations = new ArrayList<>();
+		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> allocations.add(slotRequest.getAllocationId()));
+
+		try (SlotPoolImpl slotPool = setUpSlotPool()) {
+			final CompletableFuture<PhysicalSlot> slotFuture1 = requestNewAllocatedSlot(slotPool, new SlotRequestId());
+			final CompletableFuture<PhysicalSlot> slotFuture2 = requestNewAllocatedSlot(slotPool, new SlotRequestId());
+
+			final AllocationID allocationId1 = allocations.get(0);
+			final AllocationID allocationId2 = allocations.get(1);
+
+			final TaskManagerLocation location = new LocalTaskManagerLocation();
+			final SlotOffer slotOffer = new SlotOffer(allocationId2, 0, ResourceProfile.ANY);
+			slotPool.registerTaskManager(location.getResourceID());
+			slotPool.offerSlot(location, new SimpleAckingTaskManagerGateway(), slotOffer);
+
+			assertThat(slotFuture1.isDone(), is(true));
+			assertThat(slotFuture2.isDone(), is(false));
+
+			final FlinkException cause = new FlinkException("Fail pending slot request failure.");
+			final Optional<ResourceID> responseFuture = slotPool.failAllocation(allocationId1, cause);
+
+			assertThat(responseFuture.isPresent(), is(false));
+
+			try {
+				slotFuture2.getNow(null);
+				fail("Expected a slot allocation failure.");
+			} catch (Throwable t) {
+				assertThat(ExceptionUtils.stripCompletionException(t), equalTo(cause));
 			}
 		}
 	}

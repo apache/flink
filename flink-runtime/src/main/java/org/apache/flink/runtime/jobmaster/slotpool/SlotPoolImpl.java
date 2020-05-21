@@ -547,10 +547,24 @@ public class SlotPoolImpl implements SlotPool {
 			log.debug("Fulfilling pending slot request [{}] early with returned slot [{}]",
 				pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());
 
+			// this allocation may become orphan once its corresponding request is removed
+			final AllocationID orphanedAllocationId = pendingRequests.getKeyB(pendingRequest.getSlotRequestId());
+
 			removePendingRequest(pendingRequest.getSlotRequestId());
 
 			allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
 			pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot);
+
+			// if the request that initiated the allocation is still pending, it should take over the orphaned allocation
+			// of the fulfilled request so that it can fail fast if the adopted allocation fails
+			if (orphanedAllocationId != null) {
+				final SlotRequestId initiatedRequestId = pendingRequests.getKeyA(allocatedSlot.getAllocationId());
+				if (initiatedRequestId != null) {
+					final PendingRequest initiatedRequest = pendingRequests.getByKeyA(initiatedRequestId);
+					// this re-insertion of initiatedRequestId will not affect its original insertion order
+					pendingRequests.put(initiatedRequestId, orphanedAllocationId, initiatedRequest);
+				}
+			}
 		} else {
 			log.debug("Adding returned slot [{}] to available slots", allocatedSlot.getAllocationId());
 			availableSlots.add(allocatedSlot, clock.relativeTimeMillis());
