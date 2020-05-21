@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -243,7 +242,7 @@ class AggregateITCase(
         mLocalTime(times(i)), decimal, int, long, chars(i)))
     }
 
-    val inputs = util.Random.shuffle(data)
+    val inputs = Random.shuffle(data)
 
     val rowType = new RowTypeInfo(
       Types.INT, Types.LOCAL_DATE_TIME, Types.LOCAL_DATE, Types.LOCAL_TIME,
@@ -1258,7 +1257,7 @@ class AggregateITCase(
 
   @Test
   def testAggregateOnChangelogSource(): Unit = {
-    val dataId = TestValuesTableFactory.registerChangelogData(TestData.userChangelog)
+    val dataId = TestValuesTableFactory.registerData(TestData.userChangelog)
     val ddl =
       s"""
          |CREATE TABLE user_logs (
@@ -1292,14 +1291,20 @@ class AggregateITCase(
   @Test
   def testAggregateOnInsertDeleteChangelogSource(): Unit = {
     // only contains INSERT and DELETE
-    val userChangelog = TestData.userChangelog.map { tuple =>
-      tuple.f0 match {
-        case RowKind.INSERT | RowKind.DELETE => tuple
-        case RowKind.UPDATE_BEFORE => JTuple2.of(RowKind.DELETE, tuple.f1)
-        case RowKind.UPDATE_AFTER => JTuple2.of(RowKind.INSERT, tuple.f1)
+    val userChangelog = TestData.userChangelog.map { row =>
+      row.getKind match {
+        case RowKind.INSERT | RowKind.DELETE => row
+        case RowKind.UPDATE_BEFORE =>
+          val ret = Row.copy(row)
+          ret.setKind(RowKind.DELETE)
+          ret
+        case RowKind.UPDATE_AFTER =>
+          val ret = Row.copy(row)
+          ret.setKind(RowKind.INSERT)
+          ret
       }
     }
-    val dataId = TestValuesTableFactory.registerChangelogData(userChangelog)
+    val dataId = TestValuesTableFactory.registerData(userChangelog)
     val ddl =
       s"""
          |CREATE TABLE user_logs (

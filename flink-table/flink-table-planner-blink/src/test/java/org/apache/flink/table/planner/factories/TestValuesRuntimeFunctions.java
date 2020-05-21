@@ -32,6 +32,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -175,16 +176,26 @@ final class TestValuesRuntimeFunctions {
 		private static final long serialVersionUID = 1L;
 		private final DataStructureConverter converter;
 		private final int[] keyIndices;
+		private final int expectedSize;
 
 		// we store key and value as adjacent elements in the ListState
 		private transient ListState<String> upsertResultState;
 		// [key, value] map result
 		private transient Map<String, String> localUpsertResult;
 
-		protected KeyedUpsertingSinkFunction(String tableName, DataStructureConverter converter, int[] keyIndices) {
+		// received count state
+		private transient ListState<Integer> receivedNumState;
+		private transient int receivedNum;
+
+		protected KeyedUpsertingSinkFunction(
+				String tableName,
+				DataStructureConverter converter,
+				int[] keyIndices,
+				int expectedSize) {
 			super(tableName);
 			this.converter = converter;
 			this.keyIndices = keyIndices;
+			this.expectedSize = expectedSize;
 		}
 
 		@Override
@@ -193,6 +204,8 @@ final class TestValuesRuntimeFunctions {
 			this.upsertResultState = context.getOperatorStateStore().getListState(
 				new ListStateDescriptor<>("sink-upsert-results", Types.STRING));
 			this.localUpsertResult = new HashMap<>();
+			this.receivedNumState = context.getOperatorStateStore().getListState(
+				new ListStateDescriptor<>("sink-received-num", Types.INT));
 
 			if (context.isRestored()) {
 				String key = null;
@@ -209,6 +222,10 @@ final class TestValuesRuntimeFunctions {
 				}
 				if (key != null) {
 					throw new RuntimeException("The upsertResultState is corrupt.");
+				}
+				for (int num : receivedNumState.get()) {
+					// should only be single element
+					this.receivedNum = num;
 				}
 			}
 
@@ -228,6 +245,7 @@ final class TestValuesRuntimeFunctions {
 				upsertResultState.add(entry.getKey());
 				upsertResultState.add(entry.getValue());
 			}
+			receivedNumState.update(Collections.singletonList(receivedNum));
 		}
 
 		@SuppressWarnings("rawtypes")
@@ -246,6 +264,12 @@ final class TestValuesRuntimeFunctions {
 					throw new RuntimeException("Tried to delete a value that wasn't inserted first. " +
 						"This is probably an incorrectly implemented test.");
 				}
+			}
+			receivedNum++;
+			if (expectedSize != -1 && receivedNum == expectedSize) {
+				// some sources are infinite (e.g. kafka),
+				// we throw a SuccessException to indicate job is finished.
+				throw new SuccessException();
 			}
 		}
 	}
