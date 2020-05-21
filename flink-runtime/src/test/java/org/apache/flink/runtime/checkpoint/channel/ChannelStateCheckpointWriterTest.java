@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import static java.util.Collections.singletonList;
 import static org.apache.flink.core.fs.Path.fromLocalFile;
 import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
 import static org.apache.flink.core.memory.MemorySegmentFactory.wrap;
@@ -151,19 +152,23 @@ public class ChannelStateCheckpointWriterTest {
 		offsetCounts.put(new InputChannelInfo(1, 1), 1);
 		offsetCounts.put(new InputChannelInfo(1, 2), 2);
 		offsetCounts.put(new InputChannelInfo(1, 3), 5);
+		int numBytes = 100;
 
 		ChannelStateWriteResult result = new ChannelStateWriteResult();
 		ChannelStateCheckpointWriter writer = createWriter(result);
 		for (Map.Entry<InputChannelInfo, Integer> e : offsetCounts.entrySet()) {
 			for (int i = 0; i < e.getValue(); i++) {
-				write(writer, e.getKey(), getData(100));
+				write(writer, e.getKey(), getData(numBytes));
 			}
 		}
 		writer.completeInput();
 		writer.completeOutput();
 
 		for (InputChannelStateHandle handle : result.inputChannelStateHandles.get()) {
-			assertEquals(handle.getOffsets().size(), (int) offsetCounts.remove(handle.getInfo()));
+			int headerSize = Integer.BYTES;
+			int lengthSize = Integer.BYTES;
+			assertEquals(singletonList((long) headerSize), handle.getOffsets());
+			assertEquals(headerSize + lengthSize + numBytes * offsetCounts.remove(handle.getInfo()), handle.getDelegate().getStateSize());
 		}
 		assertTrue(offsetCounts.isEmpty());
 	}

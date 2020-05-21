@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOut
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -40,10 +41,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
 
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static java.util.UUID.randomUUID;
 import static org.apache.flink.runtime.state.CheckpointedStateScope.EXCLUSIVE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -159,14 +162,8 @@ class ChannelStateCheckpointWriter {
 		}
 		dataStream.flush();
 		StreamStateHandle underlying = checkpointStream.closeAndGetHandle();
-		complete(
-				result.inputChannelStateHandles,
-				inputChannelOffsets,
-				(chan, offsets) -> new InputChannelStateHandle(chan, underlying, offsets));
-		complete(
-				result.resultSubpartitionStateHandles,
-				resultSubpartitionOffsets,
-				(chan, offsets) -> new ResultSubpartitionStateHandle(chan, underlying, offsets));
+		complete(underlying, result.inputChannelStateHandles, inputChannelOffsets, HandleFactory.INPUT_CHANNEL);
+		complete(underlying, result.resultSubpartitionStateHandles, resultSubpartitionOffsets, HandleFactory.RESULT_SUBPARTITION);
 	}
 
 	private void doComplete(boolean precondition, RunnableWithException complete, RunnableWithException... callbacks) throws Exception {
@@ -180,15 +177,32 @@ class ChannelStateCheckpointWriter {
 	}
 
 	private <I, H extends AbstractChannelStateHandle<I>> void complete(
+			StreamStateHandle underlying,
 			CompletableFuture<Collection<H>> future,
 			Map<I, List<Long>> offsets,
-			BiFunction<I, List<Long>, H> buildHandle) {
+			HandleFactory<I, H> handleFactory) throws IOException {
 		final Collection<H> handles = new ArrayList<>();
 		for (Map.Entry<I, List<Long>> e : offsets.entrySet()) {
-			handles.add(buildHandle.apply(e.getKey(), e.getValue()));
+			handles.add(createHandle(handleFactory, underlying, e.getKey(), e.getValue()));
 		}
 		future.complete(handles);
 		LOG.debug("channel state write completed, checkpointId: {}, handles: {}", checkpointId, handles);
+	}
+
+	private <I, H extends AbstractChannelStateHandle<I>> H createHandle(
+			HandleFactory<I, H> handleFactory,
+			StreamStateHandle underlying,
+			I channelInfo,
+			List<Long> offsets) throws IOException {
+		Optional<byte[]> bytes = underlying.asBytesIfInMemory(); // todo: consider restructuring channel state and removing this method: https://issues.apache.org/jira/browse/FLINK-17972
+		if (bytes.isPresent()) {
+			return handleFactory.create(
+				channelInfo,
+				new ByteStreamStateHandle(randomUUID().toString(), serializer.extractAndMerge(bytes.get(), offsets)),
+				singletonList(serializer.getHeaderLength()));
+		} else {
+			return handleFactory.create(channelInfo, underlying, offsets);
+		}
 	}
 
 	private void runWithChecks(RunnableWithException r) throws Exception {
@@ -206,4 +220,11 @@ class ChannelStateCheckpointWriter {
 		checkpointStream.close();
 	}
 
+	private interface HandleFactory<I, H extends AbstractChannelStateHandle<I>> {
+		H create(I info, StreamStateHandle underlying, List<Long> offsets);
+
+		HandleFactory<InputChannelInfo, InputChannelStateHandle> INPUT_CHANNEL = InputChannelStateHandle::new;
+
+		HandleFactory<ResultSubpartitionInfo, ResultSubpartitionStateHandle> RESULT_SUBPARTITION = ResultSubpartitionStateHandle::new;
+	}
 }

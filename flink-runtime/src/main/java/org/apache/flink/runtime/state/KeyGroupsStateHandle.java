@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * A handle to the partitioned stream operator state after it has been checkpointed. This state
@@ -115,6 +116,11 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
 		return stateHandle.openInputStream();
+	}
+
+	@Override
+	public Optional<byte[]> asBytesIfInMemory() {
+		return stateHandle.asBytesIfInMemory();
 	}
 
 	@Override
