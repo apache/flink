@@ -229,7 +229,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		// so that the client can know if the sink has been restarted
 		version = UUID.randomUUID().toString();
 
-		serverThread = new ServerThread();
+		serverThread = new ServerThread(serializer);
 		serverThread.start();
 
 		// sending socket server address to coordinator
@@ -325,6 +325,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 	 */
 	private class ServerThread extends Thread {
 
+		private final TypeSerializer<IN> serializer;
 		private final ServerSocket serverSocket;
 
 		private boolean running;
@@ -333,7 +334,8 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements Che
 		private DataInputViewStreamWrapper inStream;
 		private DataOutputViewStreamWrapper outStream;
 
-		private ServerThread() throws Exception {
+		private ServerThread(TypeSerializer<IN> serializer) throws Exception {
+			this.serializer = serializer.duplicate();
 			this.serverSocket = new ServerSocket(0, 0, getBindAddress());
 			this.running = true;
 		}
