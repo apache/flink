@@ -36,6 +36,7 @@ import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
@@ -71,6 +72,7 @@ import static org.junit.Assert.assertThat;
  * Tests for {@link DataTypeExtractor}.
  */
 @RunWith(Parameterized.class)
+@SuppressWarnings("unused")
 public class DataTypeExtractorTest {
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -398,12 +400,28 @@ public class DataTypeExtractorTest {
 				.forMethodOutput(IntegerVarArg.class)
 				.expectDataType(DataTypes.INT()),
 
-			// structured type with invalid constructor
 			TestSpec
-				.forType(SimplePojoWithInvalidConstructor.class)
+				.forType(
+					"Structured type with invalid constructor",
+					SimplePojoWithInvalidConstructor.class)
 				.expectErrorMessage(
 					"Class '" + SimplePojoWithInvalidConstructor.class.getName() + "' has neither a " +
-						"constructor that assigns all fields nor a default constructor.")
+						"constructor that assigns all fields nor a default constructor."),
+
+			TestSpec
+				.forType(
+					"Structured type with self reference",
+					PojoWithInvalidSelfReference.class)
+				.expectErrorMessage(
+					"Cyclic reference detected for class '" + PojoWithInvalidSelfReference.class.getName() + "'. Attributes " +
+						"of structured types must not (transitively) reference the structured type itself."),
+
+			TestSpec
+				.forType(
+					"Structured type with self reference that is avoided using RAW",
+					PojoWithRawSelfReference.class)
+				.lookupExpects(PojoWithRawSelfReference.class)
+				.expectDataType(getPojoWithRawSelfReferenceDataType())
 		);
 	}
 
@@ -550,10 +568,10 @@ public class DataTypeExtractorTest {
 		final StructuredType.Builder builder = StructuredType.newBuilder(simplePojoClass);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute("intField", new IntType(true)),
-				new StructuredType.StructuredAttribute("primitiveBooleanField", new BooleanType(false)),
-				new StructuredType.StructuredAttribute("primitiveIntField", new IntType(false)),
-				new StructuredType.StructuredAttribute("stringField", new VarCharType(VarCharType.MAX_LENGTH))));
+				new StructuredAttribute("intField", new IntType(true)),
+				new StructuredAttribute("primitiveBooleanField", new BooleanType(false)),
+				new StructuredAttribute("primitiveIntField", new IntType(false)),
+				new StructuredAttribute("stringField", new VarCharType(VarCharType.MAX_LENGTH))));
 		builder.setFinal(true);
 		builder.setInstantiable(true);
 		final StructuredType structuredType = builder.build();
@@ -575,13 +593,13 @@ public class DataTypeExtractorTest {
 		final StructuredType.Builder builder = StructuredType.newBuilder(complexPojoClass);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"mapField",
 					new MapType(new VarCharType(VarCharType.MAX_LENGTH), new IntType())),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"simplePojoField",
 					getSimplePojoDataType(simplePojoClass).getLogicalType()),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"someObject",
 					new TypeInformationRawType<>(new GenericTypeInfo<>(Object.class)))));
 		builder.setFinal(true);
@@ -604,13 +622,13 @@ public class DataTypeExtractorTest {
 		final StructuredType.Builder builder = StructuredType.newBuilder(pojoClass);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"z",
 					new BigIntType()),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"y",
 					new BooleanType()),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"x",
 					new IntType())));
 		builder.setFinal(true);
@@ -630,10 +648,10 @@ public class DataTypeExtractorTest {
 		final StructuredType.Builder builder = StructuredType.newBuilder(Tuple2.class);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"f0",
 					new IntType()),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"f1",
 					getInnerTupleDataType().getLogicalType())));
 		builder.setFinal(true);
@@ -652,10 +670,10 @@ public class DataTypeExtractorTest {
 		final StructuredType.Builder builder = StructuredType.newBuilder(Tuple2.class);
 		builder.attributes(
 			Arrays.asList(
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"f0",
 					new VarCharType(VarCharType.MAX_LENGTH)),
-				new StructuredType.StructuredAttribute(
+				new StructuredAttribute(
 					"f1",
 					new BooleanType())));
 		builder.setFinal(true);
@@ -668,6 +686,28 @@ public class DataTypeExtractorTest {
 		);
 
 		return new FieldsDataType(structuredType, Tuple2.class, fieldDataTypes);
+	}
+
+	private static DataType getPojoWithRawSelfReferenceDataType() {
+		final StructuredType.Builder builder = StructuredType.newBuilder(PojoWithRawSelfReference.class);
+		builder.attributes(
+			Arrays.asList(
+				new StructuredAttribute(
+					"integer",
+					new IntType()),
+				new StructuredAttribute(
+					"reference",
+					new TypeInformationRawType<>(new GenericTypeInfo<>(PojoWithRawSelfReference.class)))));
+		builder.setFinal(true);
+		builder.setInstantiable(true);
+		final StructuredType structuredType = builder.build();
+
+		final List<DataType> fieldDataTypes = Arrays.asList(
+			DataTypes.INT(),
+			DataTypes.RAW(new GenericTypeInfo<>(PojoWithRawSelfReference.class))
+		);
+
+		return new FieldsDataType(structuredType, PojoWithRawSelfReference.class, fieldDataTypes);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -969,5 +1009,33 @@ public class DataTypeExtractorTest {
 		public SimplePojoWithInvalidConstructor(Integer intField) {
 			this.intField = intField;
 		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Self reference in attribute.
+	 */
+	public static class PojoWithInvalidSelfReference {
+		public Integer integer;
+		public PojoWithInvalidSelfReferenceNested nestedPojo;
+	}
+
+	/**
+	 * Nested POJO for self reference test.
+	 */
+	public static class PojoWithInvalidSelfReferenceNested {
+		public PojoWithInvalidSelfReference reference;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Self reference in attribute that is fixed with RAW type.
+	 */
+	public static class PojoWithRawSelfReference {
+		public Integer integer;
+		@DataTypeHint(value = "RAW", bridgedTo = PojoWithRawSelfReference.class)
+		public PojoWithRawSelfReference reference;
 	}
 }
