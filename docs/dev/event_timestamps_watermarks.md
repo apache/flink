@@ -353,7 +353,7 @@ class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] 
 
 ### Writing a Punctuated WatermarkGenerator
 
-As mentioned above, a punctuated watermark generator will observe the stream of
+A punctuated watermark generator will observe the stream of
 events and emit a watermark whenever it sees a special element that carries
 watermark information.
 
