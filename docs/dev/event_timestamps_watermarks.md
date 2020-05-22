@@ -506,7 +506,7 @@ override def run(ctx: SourceContext[MyType]): Unit = {
 
 As a general rule, operators are required to completely process a given
 watermark before forwarding it downstream. For example, `WindowOperator` will
-first evaluate which windows should be fired, and only after producing all of
+first evaluate all windows that should be fired, and only after producing all of
 the output triggered by the watermark will the watermark itself be sent
 downstream. In other words, all elements produced due to occurrence of a
 watermark will be emitted before the watermark.
