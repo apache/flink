@@ -451,6 +451,21 @@ public final class ExtractionUtils {
 	}
 
 	/**
+	 * Validates if a given type is not already contained in the type hierarchy of a structured type.
+	 *
+	 * <p>Otherwise this would lead to infinite data type extraction cycles.
+	 */
+	static void validateStructuredSelfReference(Type t, List<Type> typeHierarchy) {
+		final Class<?> clazz = toClass(t);
+		if (clazz != null && !clazz.isInterface() && clazz != Object.class && typeHierarchy.contains(t)) {
+			throw extractionError(
+				"Cyclic reference detected for class '%s'. Attributes of structured types must not " +
+					"(transitively) reference the structured type itself.",
+				clazz.getName());
+		}
+	}
+
+	/**
 	 * Returns the fields of a class for a {@link StructuredType}.
 	 */
 	static List<Field> collectStructuredFields(Class<?> clazz) {
