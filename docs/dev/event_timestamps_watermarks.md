@@ -244,7 +244,7 @@ We will look at how to implement generators for each style next.
 
 ### Writing a Periodic WatermarkGenerator
 
-As mentioned above, a periodic generator observes stream events and generates
+A periodic generator observes stream events and generates
 watermarks periodically (possibly depending on the stream elements, or purely
 based on processing time).
 
