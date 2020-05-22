@@ -59,6 +59,7 @@ import static org.apache.flink.table.types.extraction.ExtractionUtils.resolveVar
 import static org.apache.flink.table.types.extraction.ExtractionUtils.toClass;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredClass;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredFieldReadability;
+import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredSelfReference;
 
 /**
  * Reflection-based utility that analyzes a given {@link java.lang.reflect.Type}, method, or class to
@@ -453,6 +454,7 @@ public final class DataTypeExtractor {
 		}
 
 		validateStructuredClass(clazz);
+		validateStructuredSelfReference(type, typeHierarchy);
 
 		final List<Field> fields = collectStructuredFields(clazz);
 
