@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -46,21 +47,29 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 
 	private final long size;
 
-	private final long offset;
+	private final long globalOffset;
 
-	private TumblingProcessingTimeWindows(long size, long offset) {
+	private Long staggerOffset = null;
+
+	private final WindowStagger windowStagger;
+
+	private TumblingProcessingTimeWindows(long size, long offset, WindowStagger windowStagger) {
 		if (Math.abs(offset) >= size) {
 			throw new IllegalArgumentException("TumblingProcessingTimeWindows parameters must satisfy abs(offset) < size");
 		}
 
 		this.size = size;
-		this.offset = offset;
+		this.globalOffset = offset;
+		this.windowStagger = windowStagger;
 	}
 
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		final long now = context.getCurrentProcessingTime();
-		long start = TimeWindow.getWindowStartWithOffset(now, offset, size);
+		if (staggerOffset == null) {
+			staggerOffset = windowStagger.getStaggerOffset(context.getCurrentProcessingTime(), size);
+		}
+		long start = TimeWindow.getWindowStartWithOffset(now, (globalOffset + staggerOffset) % size, size);
 		return Collections.singletonList(new TimeWindow(start, start + size));
 	}
 
@@ -86,7 +95,7 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	 * @return The time policy.
 	 */
 	public static TumblingProcessingTimeWindows of(Time size) {
-		return new TumblingProcessingTimeWindows(size.toMilliseconds(), 0);
+		return new TumblingProcessingTimeWindows(size.toMilliseconds(), 0, WindowStagger.ALIGNED);
 	}
 
 	/**
@@ -107,7 +116,23 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	 * @return The time policy.
 	 */
 	public static TumblingProcessingTimeWindows of(Time size, Time offset) {
-		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offset.toMilliseconds());
+		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offset.toMilliseconds(), WindowStagger.ALIGNED);
+	}
+
+	/**
+	 * Creates a new {@code TumblingProcessingTimeWindows} {@link WindowAssigner} that assigns
+	 * elements to time windows based on the element timestamp, offset and a staggering offset,
+	 * depending on the staggering policy.
+	 *
+	 * @param size The size of the generated windows.
+	 * @param offset The offset which window start would be shifted by.
+	 * @param windowStagger The utility that produces staggering offset in runtime.
+	 *
+	 * @return The time policy.
+	 */
+	@PublicEvolving
+	public static TumblingProcessingTimeWindows of(Time size, Time offset, WindowStagger windowStagger) {
+		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offset.toMilliseconds(), windowStagger);
 	}
 
 	@Override
