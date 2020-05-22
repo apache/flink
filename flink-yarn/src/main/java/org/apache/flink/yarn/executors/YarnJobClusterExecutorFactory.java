@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 
 import javax.annotation.Nonnull;
 
@@ -44,6 +45,10 @@ public class YarnJobClusterExecutorFactory implements PipelineExecutorFactory {
 
 	@Override
 	public PipelineExecutor getExecutor(@Nonnull final Configuration configuration) {
-		return new YarnJobClusterExecutor();
+		try {
+			return new YarnJobClusterExecutor();
+		} catch (NoClassDefFoundError e) {
+			throw new IllegalStateException(YarnDeploymentTarget.ERROR_MESSAGE);
+		}
 	}
 }

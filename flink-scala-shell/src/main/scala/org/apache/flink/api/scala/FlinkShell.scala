@@ -244,7 +244,7 @@ object FlinkShell {
       frontend.getCustomCommandLineOptions)
     val commandLine = CliFrontendParser.parse(commandLineOptions, args, true)
 
-    val customCLI = frontend.getActiveCustomCommandLine(commandLine)
+    val customCLI = frontend.validateAndGetActiveCommandLine(commandLine)
     val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine)
 
     val serviceLoader = new DefaultClusterClientServiceLoader
@@ -283,7 +283,7 @@ object FlinkShell {
       frontend.getCustomCommandLineOptions)
     val commandLine = CliFrontendParser.parse(commandLineOptions, args, true)
 
-    val customCLI = frontend.getActiveCustomCommandLine(commandLine)
+    val customCLI = frontend.validateAndGetActiveCommandLine(commandLine)
     val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine);
 
     (executorConfig, None)

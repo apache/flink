@@ -193,7 +193,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 				argsUnderTest,
 				true);
 
-		final CustomCommandLine customCommandLine = cli.getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine customCommandLine = cli.validateAndGetActiveCommandLine(commandLine);
 		assertTrue(customCommandLine instanceof ExecutorCLI);
 	}
 
