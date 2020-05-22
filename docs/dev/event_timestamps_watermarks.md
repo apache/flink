@@ -41,10 +41,9 @@ Timestamp assignment goes hand-in-hand with generating watermarks, which tell
 the system about progress in event time. You can configure this by specifying a
 `WatermarkGenerator`.
 
-The Flink API expects both `TimestampAssigner` and `WatermarkGenerator` to be
-bundled in a `WatermarkStrategy`. As you will see below, you usually don't have
-to do this by hand because you will mostly use the convenience helper
-`WatermarkStrategies`. Here is the interface for completess' sake:
+The Flink API expects a `WatermarkStrategy` that contains both a `TimestampAssigner` and `WatermarkGenerator`.
+A number of common strategies out of the box, available in the `WatermarkStrategies` helper, but users can also build their own strategies when required. 
+Here is the interface for completeness' sake:
 
 {% highlight java %}
 public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, WatermarkGeneratorSupplier<T>{
