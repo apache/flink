@@ -81,13 +81,16 @@ public class HBaseTypeUtils {
 	 * Serialize the Java Object to byte array with the given type.
 	 */
 	public static byte[] serializeFromObject(Object value, int typeIdx, Charset stringCharset) {
+		if (value == null){
+			return EMPTY_BYTES;
+		}
 		switch (typeIdx) {
 			case 0: // byte[]
 				return (byte[]) value;
 			case 1: // external String
-				return value == null ? EMPTY_BYTES : ((String) value).getBytes(stringCharset);
+				return ((String) value).getBytes(stringCharset);
 			case 2: // byte
-				return value == null ? EMPTY_BYTES : new byte[]{(byte) value};
+				return new byte[]{(byte) value};
 			case 3:
 				return Bytes.toBytes((short) value);
 			case 4:
