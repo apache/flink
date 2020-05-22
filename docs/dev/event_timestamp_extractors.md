@@ -38,7 +38,7 @@ serve as an example for custom implementations.
 
 ## Monotonously Increasing Timestamps
 
-The simplest special case for *periodic* watermark generation is the case where
+The simplest special case for *periodic* watermark generation is the when
 timestamps seen by a given source task occur in ascending order. In that case,
 the current timestamp can always act as a watermark, because no earlier
 timestamps will arrive.
