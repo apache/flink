@@ -24,16 +24,17 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
-import java.util.Optional;
+import java.time.Duration;
 
 /**
  * A {@link Trigger} that can turn any {@link Trigger} into a timeout {@code Trigger}.
  *
- * <p>Each element arriving will emit a ProcessingTimeTimer withing the interval,
- * you can control if the timer will be reset for each new event arriving,
- * by the resetTimerOnNewRecord flag.
- * you can control if the state will be cleared after reach the timeout, by the
- * shouldClearAtTimeout flag.
+ * <p>On the first arriving element a configurable processing-time timeout will be set. Using
+ * {@link
+ * #of(Trigger, Duration, boolean, boolean)}, you can also re-new the timer for each arriving
+ * element by specifying {@code resetTimerOnNewRecord} and you can specify whether {@link
+ * Trigger#clear(Window, TriggerContext)} should be called on timout via {@code
+ * shouldClearOnTimeout}.
  *
  * @param <T> The type of elements on which this trigger can operate.
  * @param <W> The type of {@link Window} on which this trigger can operate.
@@ -44,23 +45,28 @@ public class ProcessingTimeoutTrigger<T, W extends Window> extends Trigger<T, W>
 
 	private static final long serialVersionUID = 1L;
 
-	private Trigger<T, W> nestedTrigger;
+	private final Trigger<T, W> nestedTrigger;
 	private final long interval;
 	private final boolean resetTimerOnNewRecord;
-	private final boolean shouldClearAtTimeout;
+	private final boolean shouldClearOnTimeout;
 
 	private final ValueStateDescriptor<Long> timeoutStateDesc;
 
-	private ProcessingTimeoutTrigger(Trigger<T, W> nestedTrigger, long interval, boolean resetTimerOnNewRecord, boolean shouldClearAtTimeout) {
+	private ProcessingTimeoutTrigger(
+			Trigger<T, W> nestedTrigger,
+			long interval,
+			boolean resetTimerOnNewRecord,
+			boolean shouldClearOnTimeout) {
 		this.nestedTrigger = nestedTrigger;
 		this.interval = interval;
 		this.resetTimerOnNewRecord = resetTimerOnNewRecord;
-		this.shouldClearAtTimeout = shouldClearAtTimeout;
-		this.timeoutStateDesc = new ValueStateDescriptor<Long>("timeout", LongSerializer.INSTANCE);
+		this.shouldClearOnTimeout = shouldClearOnTimeout;
+		this.timeoutStateDesc = new ValueStateDescriptor<>("timeout", LongSerializer.INSTANCE);
 	}
 
 	@Override
-	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception {
+	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx)
+			throws Exception {
 		TriggerResult triggerResult = this.nestedTrigger.onElement(element, timestamp, window, ctx);
 		if (triggerResult.isFire()) {
 			this.clear(window, ctx);
@@ -69,14 +75,14 @@ public class ProcessingTimeoutTrigger<T, W extends Window> extends Trigger<T, W>
 
 		ValueState<Long> timeoutState = ctx.getPartitionedState(this.timeoutStateDesc);
 		long nextFireTimestamp = ctx.getCurrentProcessingTime() + this.interval;
-		Optional<Long> timeoutTimestamp = Optional.ofNullable(timeoutState.value());
-		if (timeoutTimestamp.isPresent() && resetTimerOnNewRecord) {
-			ctx.deleteProcessingTimeTimer(timeoutTimestamp.get());
+		Long timeoutTimestamp = timeoutState.value();
+		if (timeoutTimestamp != null && resetTimerOnNewRecord) {
+			ctx.deleteProcessingTimeTimer(timeoutTimestamp);
 			timeoutState.clear();
-			timeoutTimestamp = Optional.empty();
+			timeoutTimestamp = null;
 		}
 
-		if (timeoutTimestamp.isEmpty()) {
+		if (timeoutTimestamp == null) {
 			timeoutState.update(nextFireTimestamp);
 			ctx.registerProcessingTimeTimer(nextFireTimestamp);
 		}
@@ -85,18 +91,20 @@ public class ProcessingTimeoutTrigger<T, W extends Window> extends Trigger<T, W>
 	}
 
 	@Override
-	public TriggerResult onProcessingTime(long timestamp, W window, TriggerContext ctx) throws Exception {
+	public TriggerResult onProcessingTime(long timestamp, W window, TriggerContext ctx)
+			throws Exception {
 		TriggerResult triggerResult = this.nestedTrigger.onProcessingTime(timestamp, window, ctx);
-		if (shouldClearAtTimeout) {
+		if (shouldClearOnTimeout) {
 			this.clear(window, ctx);
 		}
 		return triggerResult.isPurge() ? TriggerResult.FIRE_AND_PURGE : TriggerResult.FIRE;
 	}
 
 	@Override
-	public TriggerResult onEventTime(long timestamp, W window, TriggerContext ctx) throws Exception {
+	public TriggerResult onEventTime(long timestamp, W window, TriggerContext ctx)
+			throws Exception {
 		TriggerResult triggerResult = this.nestedTrigger.onEventTime(timestamp, window, ctx);
-		if (shouldClearAtTimeout) {
+		if (shouldClearOnTimeout) {
 			this.clear(window, ctx);
 		}
 		return triggerResult.isPurge() ? TriggerResult.FIRE_AND_PURGE : TriggerResult.FIRE;
@@ -105,9 +113,9 @@ public class ProcessingTimeoutTrigger<T, W extends Window> extends Trigger<T, W>
 	@Override
 	public void clear(W window, TriggerContext ctx) throws Exception {
 		ValueState<Long> timeoutTimestampState = ctx.getPartitionedState(this.timeoutStateDesc);
-		Optional<Long> timeoutTimestamp = Optional.ofNullable(timeoutTimestampState.value());
-		if (timeoutTimestamp.isPresent()) {
-			ctx.deleteProcessingTimeTimer(timeoutTimestamp.get());
+		Long timeoutTimestamp = timeoutTimestampState.value();
+		if (timeoutTimestamp != null) {
+			ctx.deleteProcessingTimeTimer(timeoutTimestamp);
 			timeoutTimestampState.clear();
 		}
 		this.nestedTrigger.clear(window, ctx);
@@ -119,41 +127,54 @@ public class ProcessingTimeoutTrigger<T, W extends Window> extends Trigger<T, W>
 	}
 
 	/**
-	 * Creates a trigger that fire when the inner trigger is fired or when timeout is over, the first of both.
+	 * Creates a new {@link ProcessingTimeoutTrigger} that fires when the inner trigger is fired or
+	 * when the timeout timer fires.
 	 *
-	 * for example:
-	 * ProcessingTimeoutTrigger.of(CountTrigger.of(3),100), will create a CountTrigger with timeout of 100 millis.
-	 * So, if the first record arriving at t time, and the second record arriving at t+50 time,
-	 * the trigger will be fire when the third record will be arriving or when t+100 (our interval timeout) will be arriving.
+	 * <p>For example:
+	 * {@code ProcessingTimeoutTrigger.of(CountTrigger.of(3), 100)}, will create a CountTrigger with
+	 * timeout of 100 millis. So, if the first record arrives at time {@code t}, and the second
+	 * record arrives at time {@code t+50 }, the trigger will fire when the third record arrives or
+	 * when the time is {code t+100} (timeout).
 	 *
-	 * @param nestedTrigger the trigger to apply the {@link ProcessingTimeoutTrigger} on.
-	 * @param interval      the time in milliseconds to apply the timer when element arrive.
-	 * @param <T>           The type of the element.
-	 * @param <W>           The type of {@link Window Windows} on which this trigger can operate.
+	 * @param nestedTrigger the nested {@link Trigger}
+	 * @param timeout the timeout interval
+	 *
 	 * @return {@link ProcessingTimeoutTrigger} with the above configuration.
 	 */
-	public static <T, W extends Window> ProcessingTimeoutTrigger<T, W> of(Trigger<T, W> nestedTrigger, long interval) {
-		return new ProcessingTimeoutTrigger<>(nestedTrigger, interval, false, true);
+	public static <T, W extends Window> ProcessingTimeoutTrigger<T, W> of(
+			Trigger<T, W> nestedTrigger,
+			Duration timeout) {
+		return new ProcessingTimeoutTrigger<>(nestedTrigger, timeout.toMillis(), false, true);
 	}
 
 	/**
-	 * Creates a trigger that fire when the inner trigger is fired or when timeout is over, the first of both.
+	 * Creates a new {@link ProcessingTimeoutTrigger} that fires when the inner trigger is fired or
+	 * when the timeout timer fires.
 	 *
-	 * for example:
-	 * ProcessingTimeoutTrigger.of(CountTrigger.of(3),100,false,true), will create a CountTrigger with timeout of 100 millis.
-	 * So, if the first record arriving at t time, and the second record arriving at t+50 time,
-	 * the trigger will be fire when the third record will be arriving or when t+100 (our interval timeout) will be arriving.
+	 * <p>For example:
+	 * {@code ProcessingTimeoutTrigger.of(CountTrigger.of(3), 100, false, true)}, will create a
+	 * CountTrigger with timeout of 100 millis. So, if the first record arrives at time {@code t},
+	 * and the second record arrives at time {@code t+50 }, the trigger will fire when the third
+	 * record arrives or when the time is {code t+100} (timeout).
 	 *
-	 * @param nestedTrigger         the trigger to apply the {@link ProcessingTimeoutTrigger} on.
-	 * @param interval              the time in milliseconds to apply the timer when element arrive.
-	 * @param resetTimerOnNewRecord each time new element arrive, reset the timer and start a new one.
-	 * @param shouldClearAtTimeout  when timeout occurs and onProcessingTime is called, should clear the state of the {@param nestedTrigger}.
-	 * @param <T>                   The type of the element.
-	 * @param <W>                   The type of {@link Window Windows} on which this trigger can operate.
+	 * @param nestedTrigger the nested {@link Trigger}
+	 * @param timeout the timeout interval
+	 * @param resetTimerOnNewRecord each time a new element arrives, reset the timer and start a
+	 * 		new one
+	 * @param shouldClearOnTimeout whether to call {@link Trigger#clear(Window, TriggerContext)}
+	 * 		when the processing-time timer fires
+	 * @param <T> The type of the element.
+	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
+	 *
 	 * @return {@link ProcessingTimeoutTrigger} with the above configuration.
 	 */
-	public static <T, W extends Window> ProcessingTimeoutTrigger<T, W> of(Trigger<T, W> nestedTrigger, long interval, boolean resetTimerOnNewRecord, boolean shouldClearAtTimeout) {
-		return new ProcessingTimeoutTrigger<>(nestedTrigger, interval, resetTimerOnNewRecord, shouldClearAtTimeout);
+	public static <T, W extends Window> ProcessingTimeoutTrigger<T, W> of(
+			Trigger<T, W> nestedTrigger,
+			Duration timeout,
+			boolean resetTimerOnNewRecord,
+			boolean shouldClearOnTimeout) {
+		return new ProcessingTimeoutTrigger<>(
+				nestedTrigger, timeout.toMillis(), resetTimerOnNewRecord, shouldClearOnTimeout);
 	}
 
 }
