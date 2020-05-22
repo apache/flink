@@ -37,6 +37,11 @@ public enum YarnDeploymentTarget {
 	SESSION("yarn-session"),
 	APPLICATION("yarn-application");
 
+	public static final String ERROR_MESSAGE =
+			"No Executor found. Please make sure to export the HADOOP_CLASSPATH environment variable " +
+			"or have hadoop in your classpath. For more information refer to the \"Deployment & Operations\" " +
+			"section of the official Apache Flink documentation.";
+
 	private final String name;
 
 	YarnDeploymentTarget(final String name) {
