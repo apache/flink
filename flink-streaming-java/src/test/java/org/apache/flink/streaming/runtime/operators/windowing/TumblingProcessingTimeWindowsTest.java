@@ -63,7 +63,7 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 	}
 
 	@Test
-	public void testWindowAssignmentWithOffset() {
+	public void testWindowAssignmentWithGlobalOffset() {
 		WindowAssigner.WindowAssignerContext mockContext =
 				mock(WindowAssigner.WindowAssignerContext.class);
 
@@ -80,7 +80,7 @@ public class TumblingProcessingTimeWindowsTest extends TestLogger {
 	}
 
 	@Test
-	public void testWindowAssignmentWithNegativeOffset() {
+	public void testWindowAssignmentWithNegativeGlobalOffset() {
 		WindowAssigner.WindowAssignerContext mockContext =
 			mock(WindowAssigner.WindowAssignerContext.class);
 
