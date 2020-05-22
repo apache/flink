@@ -502,7 +502,7 @@ override def run(ctx: SourceContext[MyType]): Unit = {
 </div>
 </div>
 
-## How Operators Are Processing Watermarks
+## How Operators Process Watermarks
 
 As a general rule, operators are required to completely process a given
 watermark before forwarding it downstream. For example, `WindowOperator` will
