@@ -142,10 +142,14 @@ ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
 {% highlight sql%}
 ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF EXISTS] [catalog_name.][db_name.]function_name
-  AS identifier [LANGUAGE JAVA|SCALA|
+  AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
 {% endhighlight %}
 
-修改一个有 catalog 和数据库命名空间的 catalog function ，其需要指定 JAVA / SCALA 或其他 language tag 完整的 classpath。若函数不存在，删除会抛出异常。
+修改一个有 catalog 和数据库命名空间的 catalog function ，需要指定一个新的 identifier ，可指定 language tag 。若函数不存在，删除会抛出异常。
+
+如果 language tag 是 JAVA 或者 SCALA ，则 identifier 是 UDF 实现类的全限定名。关于 JAVA/SCALA UDF 的实现，请参考 [自定义函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html)。
+
+如果 language tag 是 PYTHON ， 则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html)。
 
 **TEMPORARY**
 
@@ -159,6 +163,6 @@ ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 若函数不存在，则不进行任何操作。
 
-**LANGUAGE JAVA\|SCALA**
+**LANGUAGE JAVA\|SCALA\|PYTHON**
 
-Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA 和 SCALA，且函数的默认语言为 JAVA。
+Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA，SCALA 和 PYTHON，且函数的默认语言为 JAVA。

@@ -142,10 +142,14 @@ Set one or more properties in the specified database. If a particular property i
 {% highlight sql%}
 ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
   [IF EXISTS] [catalog_name.][db_name.]function_name 
-  AS identifier [LANGUAGE JAVA|SCALA|
+  AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
 {% endhighlight %}
 
-Alter a catalog function with the new identifier which is full classpath for JAVA/SCALA and optional language tag. If a function doesn't exist in the catalog, an exception is thrown.
+Alter a catalog function with the new identifier and optional language tag. If a function doesn't exist in the catalog, an exception is thrown.
+
+If the language tag is JAVA/SCALA, the identifier is the full classpath of the UDF. For the implementation of Java/Scala UDF, please refer to [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html) for more details.
+
+If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({{ site.baseurl }}/dev/table/python/python_udfs.html) for more details.
 
 **TEMPORARY**
 
@@ -159,7 +163,7 @@ Alter temporary system function that has no namespace and overrides built-in fun
 
 If the function doesn't exist, nothing happens.
 
-**LANGUAGE JAVA\|SCALA**
+**LANGUAGE JAVA\|SCALA\|PYTHON**
 
-Language tag to instruct flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.
+Language tag to instruct flink runtime how to execute the function. Currently only JAVA, SCALA and PYTHON are supported, the default language for a function is JAVA.
 

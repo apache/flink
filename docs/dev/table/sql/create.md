@@ -253,10 +253,14 @@ The key and value of expression `key1=val1` should both be string literal.
 {% highlight sql%}
 CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
   [IF NOT EXISTS] [catalog_name.][db_name.]function_name 
-  AS identifier [LANGUAGE JAVA|SCALA]
+  AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
 {% endhighlight %}
 
-Create a catalog function that has catalog and database namespaces with the identifier which is full classpath for JAVA/SCALA and optional language tag. If a function with the same name already exists in the catalog, an exception is thrown.
+Create a catalog function that has catalog and database namespaces with the identifier and optional language tag. If a function with the same name already exists in the catalog, an exception is thrown.
+
+If the language tag is JAVA/SCALA, the identifier is the full classpath of the UDF. For the implementation of Java/Scala UDF, please refer to [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html) for more details.
+
+If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({{ site.baseurl }}/dev/table/python/python_udfs.html) for more details.
 
 **TEMPORARY**
 
@@ -270,6 +274,6 @@ Create temporary system function that has no namespace and overrides built-in fu
 
 If the function already exists, nothing happens.
 
-**LANGUAGE JAVA\|SCALA**
+**LANGUAGE JAVA\|SCALA\|PYTHON**
 
-Language tag to instruct Flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.
+Language tag to instruct Flink runtime how to execute the function. Currently only JAVA, SCALA and PYTHON are supported, the default language for a function is JAVA. 
