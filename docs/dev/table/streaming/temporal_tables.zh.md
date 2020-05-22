@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-时态表（Temporal Table）表示基于记录变更历史的表上（参数化）视图的概念，该视图返回表在某个特定时间点的内容。
+时态表（Temporal Table）代表基于表的（参数化）视图概念，该表记录变更历史，该视图返回表在某个特定时间点的内容。
 
 变更表可以是跟踪变化的历史记录表（例如数据库变更日志），也可以是有具体更改的维表（例如数据库表）。
 
@@ -38,7 +38,7 @@ under the License.
 
 ### 与记录变更历史的表相关
 
-假设我们有下表 `RatesHistory`。
+假设我们有表 `RatesHistory` 如下所示。
 
 {% highlight sql %}
 SELECT * FROM RatesHistory;
@@ -53,7 +53,7 @@ rowtime currency   rate
 11:49   Pounds      108
 {% endhighlight %}
 
-`RatesHistory` 表示一个关于日元且不断增长的货币汇率 append-only 表（汇率为1）。例如，`欧元`兑`日元`从 `09:00` 到 `10:45` 的汇率为 `114`。从 `10:45` 到 `11:15`，汇率为 `116`。
+`RatesHistory` 代表一个兑换日元货币汇率表（日元汇率为1），该表是不断增长的 append-only 表。例如，`欧元`兑`日元`从 `09:00` 到 `10:45` 的汇率为 `114`。从 `10:45` 到 `11:15`，汇率为 `116`。
 
 假设我们要输出 `10:58` 的所有当前汇率，则需要以下 SQL 查询来计算结果表：
 
@@ -83,7 +83,7 @@ rowtime currency   rate
 
 在上面的示例中，`currency` 是 `RatesHistory` 表的主键，而 `rowtime` 是时间戳属性。
 
-在Flink中, 这由[*时态表函数*](#temporal-table-function)表示.
+在 Flink 中，这由[*时态表函数*](#temporal-table-function)表示。
 
 ### 与维表变化相关
 
@@ -112,7 +112,7 @@ Euro        119
 Pounds      108
 {% endhighlight %}
 
-在Flink中，这由[*时态表*](#temporal-table)表示.
+在 Flink 中，这由[*时态表*](#temporal-table)表示。
 
 <a name="temporal-table-function"></a>
 
@@ -120,12 +120,12 @@ Pounds      108
 ------------------------
 
 为了访问时态表中的数据，必须传递一个[时间属性](time_attributes.html)，该属性确定将要返回的表的版本。
- Flink 使用[表函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html#table-functions) 的 SQL 语法提供一种表达它的方法。
+Flink 使用[表函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html#table-functions)的 SQL 语法提供一种表达它的方法。
 
 定义后，*时态表函数*将使用单个时间参数 timeAttribute 并返回一个行集合。
 该集合包含相对于给定时间属性的所有现有主键的行的最新版本。
 
-假设我们基于 `RatesHistory` 表定义了一个时态表函数，我们可以通过以下方式查询该函数 `Rates(timeAttribute)` ： 
+假设我们基于 `RatesHistory` 表定义了一个时态表函数，我们可以通过以下方式查询该函数 `Rates(timeAttribute)`： 
 
 {% highlight sql %}
 SELECT * FROM Rates('10:15');
@@ -145,9 +145,9 @@ rowtime currency   rate
 09:00   Yen           1
 {% endhighlight %}
 
-对 `Rates（timeAttribute）` 的每个查询都将返回给定 `timeAttribute` 的 `Rates` 状态。
+对 `Rates(timeAttribute)` 的每个查询都将返回给定 `timeAttribute` 的 `Rates` 状态。
 
-**注意**：当前 Flink 不支持使用常量时间属性参数直接查询时态表函数。目前，时态表函数只能在 join 中使用。上面的示例用于提供有关函数 `Rates(timeAttribute)` 返回内容的直观信息。
+**注意**：当前 Flink 不支持使用常量时间属性参数直接查询时态表函数。目前，时态表函数只能在 join 中使用。上面的示例用于为函数 `Rates(timeAttribute)` 返回内容提供直观信息。
 
 另请参阅有关[用于持续查询的 join ](joins.html)页面，以获取有关如何与时态表 join 的更多信息。
 
@@ -216,10 +216,10 @@ tEnv.registerFunction("Rates", rates)                                          /
 </div>
 </div>
 
-行 `(1)` 创建了一个 `rates` [时态表函数](#temporal-table-function),
+行`(1)`创建了一个 `rates` [时态表函数](#temporal-table-function)，
 这使我们可以在[ Table API ](../tableApi.html#joins)中使用 `rates` 函数。
 
-行 `(2)` 在表环境中注册名称为 `Rates` 的函数，这使我们可以在[ SQL ]({{ site.baseurl }}/zh/dev/table/sql/queries.html#joins)中使用 `Rates` 函数。
+行`(2)`在表环境中注册名称为 `Rates` 的函数，这使我们可以在[ SQL ]({{ site.baseurl }}/zh/dev/table/sql/queries.html#joins)中使用 `Rates` 函数。
 
 <a name="temporal-table"></a>
 
@@ -249,7 +249,7 @@ Euro        116
 Yen           1
 {% endhighlight %}
 
-**注意**：当前，Flink 不支持以固定时间直接查询时态表。目前，时态表只能在 join 中使用。上面的示例用于提供有关时态表 `LatestRates` 返回内容的直观信息。
+**注意**：当前，Flink 不支持以固定时间直接查询时态表。目前，时态表只能在 join 中使用。上面的示例用于为时态表 `LatestRates` 返回内容提供直观信息。
 
 另请参阅有关[用于持续查询的 join ](joins.html)页面，以获取有关如何与时态表 join 的更多信息。
 
@@ -291,6 +291,6 @@ tEnv.registerTableSource("Rates", rates)
 </div>
 </div>
 
-另请参阅有关[如何定义 LookupableTableSource ](../sourceSinks.html#defining-a-tablesource-for-lookups)的页面.
+另请参阅有关[如何定义 LookupableTableSource ](../sourceSinks.html#defining-a-tablesource-for-lookups)的页面。
 
 {% top %}
