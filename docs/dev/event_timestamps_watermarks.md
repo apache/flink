@@ -32,7 +32,7 @@ time*, *processing time*, and *ingestion time*, please refer to the
 
 ## Introduction to Watermark Strategies
 
-In order to work with *event time*, Flink needs to know the events'
+In order to work with *event time*, Flink needs to know the events
 *timestamps*, meaning each element in the stream needs to have its event
 timestamp *assigned*. This is usually done by accessing/extracting the
 timestamp from some field in the element by using a `TimestampAssigner`.
