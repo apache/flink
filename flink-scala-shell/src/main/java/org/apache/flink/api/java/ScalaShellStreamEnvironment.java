@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.JarUtils;
@@ -71,17 +72,38 @@ public class ScalaShellStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+		addDependentJars();
+		return super.execute(streamGraph);
+	}
+
+	@Override
+	public JobExecutionResult execute(String jobName) throws Exception {
+		addDependentJars();
+		return super.execute(jobName);
+	}
+
+	@Override
+	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
+		addDependentJars();
+		return super.executeAsync(streamGraph);
+	}
+
+	@Override
+	public JobClient executeAsync(String jobName) throws Exception {
+		addDependentJars();
+		return super.executeAsync(jobName);
+	}
+
+	public Configuration getClientConfiguration() {
+		return getConfiguration();
+	}
+
+	private void addDependentJars() throws Exception {
 		final Configuration configuration = getConfiguration();
 		checkState(configuration.getBoolean(DeploymentOptions.ATTACHED), "Only ATTACHED mode is supported by the scala shell.");
 
 		final List<URL> updatedJarFiles = getUpdatedJarFiles();
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, updatedJarFiles, URL::toString);
-
-		return super.execute(streamGraph);
-	}
-
-	public Configuration getClientConfiguration() {
-		return getConfiguration();
 	}
 
 	private List<URL> getUpdatedJarFiles() throws MalformedURLException {

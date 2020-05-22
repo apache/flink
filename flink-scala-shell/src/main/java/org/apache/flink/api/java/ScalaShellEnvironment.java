@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.util.JarUtils;
 
 import java.net.MalformedURLException;
@@ -70,15 +71,12 @@ public class ScalaShellEnvironment extends ExecutionEnvironment {
 		return checkNotNull(configuration);
 	}
 
-	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	private void addDependentJars() throws Exception {
 		final Configuration configuration = getConfiguration();
 		checkState(configuration.getBoolean(DeploymentOptions.ATTACHED), "Only ATTACHED mode is supported by the scala shell.");
 
 		final List<URL> updatedJarFiles = getUpdatedJarFiles();
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, updatedJarFiles, URL::toString);
-
-		return super.execute(jobName);
 	}
 
 	private List<URL> getUpdatedJarFiles() throws MalformedURLException {
@@ -86,6 +84,18 @@ public class ScalaShellEnvironment extends ExecutionEnvironment {
 		final List<URL> allJarFiles = new ArrayList<>(jarFiles);
 		allJarFiles.add(jarUrl);
 		return allJarFiles;
+	}
+
+	@Override
+	public JobExecutionResult execute(String jobName) throws Exception {
+		addDependentJars();
+		return super.execute(jobName);
+	}
+
+	@Override
+	public JobClient executeAsync(String jobName) throws Exception {
+		addDependentJars();
+		return super.executeAsync(jobName);
 	}
 
 	public static void disableAllContextAndOtherEnvironments() {
