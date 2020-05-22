@@ -46,26 +46,42 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 
 	private final long size;
 
-	private final long offset;
+	private final long globalOffset;
 
-	private TumblingProcessingTimeWindows(long size, long offset) {
+	private Long staggerOffset = null;
+
+	private final WindowStagger windowStagger;
+
+	private TumblingProcessingTimeWindows(long size, long offset, WindowStagger windowStagger) {
 		if (Math.abs(offset) >= size) {
 			throw new IllegalArgumentException("TumblingProcessingTimeWindows parameters must satisfy abs(offset) < size");
 		}
 
 		this.size = size;
-		this.offset = offset;
+		this.globalOffset = offset;
+		this.windowStagger = windowStagger;
 	}
 
 	@Override
 	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
 		final long now = context.getCurrentProcessingTime();
-		long start = TimeWindow.getWindowStartWithOffset(now, offset, size);
+		if (staggerOffset == null) {
+			staggerOffset = windowStagger.getStaggerOffset(context.getCurrentProcessingTime(), size);
+		}
+		long start = TimeWindow.getWindowStartWithOffset(now, (globalOffset + staggerOffset) % size, size);
 		return Collections.singletonList(new TimeWindow(start, start + size));
 	}
 
 	public long getSize() {
 		return size;
+	}
+
+	public long getGlobalOffset() {
+		return globalOffset;
+	}
+
+	public WindowStagger getWindowStagger() {
+		return windowStagger;
 	}
 
 	@Override
@@ -86,7 +102,7 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	 * @return The time policy.
 	 */
 	public static TumblingProcessingTimeWindows of(Time size) {
-		return new TumblingProcessingTimeWindows(size.toMilliseconds(), 0);
+		return new TumblingProcessingTimeWindows(size.toMilliseconds(), 0, WindowStagger.ALIGNED);
 	}
 
 	/**
@@ -107,7 +123,7 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	 * @return The time policy.
 	 */
 	public static TumblingProcessingTimeWindows of(Time size, Time offset) {
-		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offset.toMilliseconds());
+		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offset.toMilliseconds(), WindowStagger.ALIGNED);
 	}
 
 	@Override
