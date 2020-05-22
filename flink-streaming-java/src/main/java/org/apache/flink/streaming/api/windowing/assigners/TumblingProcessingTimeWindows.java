@@ -126,6 +126,21 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offset.toMilliseconds(), WindowStagger.ALIGNED);
 	}
 
+	/**
+	 * Creates a new {@code TumblingProcessingTimeWindows} {@link WindowAssigner} that assigns
+	 * elements to time windows based on the element timestamp, offset and a staggering offset sampled
+	 * from uniform distribution(0, window size) for each pane.
+	 *
+	 * @param size The size of the generated windows.
+	 * @param offset The offset which window start would be shifted by.
+	 * @param windowStagger The utility that produces staggering offset in runtime.
+	 *
+	 * @return The time policy.
+	 */
+	public static TumblingProcessingTimeWindows of(Time size, Time offset, WindowStagger windowStagger) throws Exception {
+		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offset.toMilliseconds(), windowStagger);
+	}
+
 	@Override
 	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new TimeWindow.Serializer();
