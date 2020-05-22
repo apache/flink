@@ -38,7 +38,7 @@ timestamp *assigned*. This is usually done by accessing/extracting the
 timestamp from some field in the element by using a `TimestampAssigner`.
 
 Timestamp assignment goes hand-in-hand with generating watermarks, which tell
-the system about progress in event time. You can configure this by speciying a
+the system about progress in event time. You can configure this by specifying a
 `WatermarkGenerator`.
 
 The Flink API expects both `TimestampAssigner` and `WatermarkGenerator` to be
