@@ -97,3 +97,7 @@ table_env.add_python_file('myDir')
 def my_udf():
     from utils import my_util
 {% endhighlight %}
+
+## Windows Support
+
+Starting from version 1.11, developing and debugging PyFlink job (i.e. running locally) on Windows is supported. But submitting PyFlink job (i.e. running remotely) on Windows is not supported yet. 
