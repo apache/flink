@@ -18,14 +18,14 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 
 /**
  * The interface provided by Flink task to the {@link SourceReader} to emit records
  * to downstream operators for message processing.
  */
-@Public
+@PublicEvolving
 public interface SourceOutput<T> extends WatermarkOutput {
 
 	/**

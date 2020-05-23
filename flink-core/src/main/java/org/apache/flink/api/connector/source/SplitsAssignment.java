@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.List;
 import java.util.Map;
@@ -29,7 +29,7 @@ import java.util.Map;
  * <p>The assignment is always incremental. In another word, splits in the assignment are simply
  * added to the existing assignment.
  */
-@Public
+@PublicEvolving
 public final class SplitsAssignment<SplitT extends SourceSplit> {
 	private final Map<Integer, List<SplitT>> assignment;
 
