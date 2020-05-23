@@ -345,6 +345,39 @@ public class ExpressionResolver {
 				dataType);
 		}
 
+		public CallExpression row(DataType dataType, ResolvedExpression... expression) {
+			final FunctionLookup.Result lookupOfRow = functionLookup
+				.lookupBuiltInFunction(BuiltInFunctionDefinitions.ROW);
+
+			return new CallExpression(
+				lookupOfRow.getFunctionIdentifier(),
+				lookupOfRow.getFunctionDefinition(),
+				Arrays.asList(expression),
+				dataType);
+		}
+
+		public CallExpression array(DataType dataType, ResolvedExpression... expression) {
+			final FunctionLookup.Result lookupOfArray = functionLookup
+				.lookupBuiltInFunction(BuiltInFunctionDefinitions.ARRAY);
+
+			return new CallExpression(
+				lookupOfArray.getFunctionIdentifier(),
+				lookupOfArray.getFunctionDefinition(),
+				Arrays.asList(expression),
+				dataType);
+		}
+
+		public CallExpression map(DataType dataType, ResolvedExpression... expression) {
+			final FunctionLookup.Result lookupOfArray = functionLookup
+				.lookupBuiltInFunction(BuiltInFunctionDefinitions.MAP);
+
+			return new CallExpression(
+				lookupOfArray.getFunctionIdentifier(),
+				lookupOfArray.getFunctionDefinition(),
+				Arrays.asList(expression),
+				dataType);
+		}
+
 		public CallExpression wrappingCall(BuiltInFunctionDefinition definition, ResolvedExpression expression) {
 			final FunctionLookup.Result lookupOfDefinition = functionLookup
 				.lookupBuiltInFunction(definition);

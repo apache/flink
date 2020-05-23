@@ -19,21 +19,20 @@ package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.GenericRow
-import org.apache.flink.table.dataformat.util.BaseRowUtil
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.UserDefinedAggregateFunction
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, _}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, _}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.dataview.{DataViewSpec, ListViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
-import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowProperty, PlannerWindowStart}
+import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.runtime.dataview.{StateListView, StateMapView}
-import org.apache.flink.table.runtime.generated.{AggsHandleFunction, GeneratedAggsHandleFunction, GeneratedNamespaceAggsHandleFunction, GeneratedNamespaceTableAggsHandleFunction, GeneratedTableAggsHandleFunction, NamespaceAggsHandleFunction, NamespaceTableAggsHandleFunction, TableAggsHandleFunction}
+import org.apache.flink.table.runtime.generated._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
@@ -359,22 +358,22 @@ class AggsHandlerCodeGenerator(
           }
 
           @Override
-          public void accumulate($BASE_ROW $ACCUMULATE_INPUT_TERM) throws Exception {
+          public void accumulate($ROW_DATA $ACCUMULATE_INPUT_TERM) throws Exception {
             $accumulateCode
           }
 
           @Override
-          public void retract($BASE_ROW $RETRACT_INPUT_TERM) throws Exception {
+          public void retract($ROW_DATA $RETRACT_INPUT_TERM) throws Exception {
             $retractCode
           }
 
           @Override
-          public void merge($BASE_ROW $MERGED_ACC_TERM) throws Exception {
+          public void merge($ROW_DATA $MERGED_ACC_TERM) throws Exception {
             $mergeCode
           }
 
           @Override
-          public void setAccumulators($BASE_ROW $ACC_TERM) throws Exception {
+          public void setAccumulators($ROW_DATA $ACC_TERM) throws Exception {
             $setAccumulatorsCode
           }
 
@@ -384,17 +383,17 @@ class AggsHandlerCodeGenerator(
           }
 
           @Override
-          public $BASE_ROW getAccumulators() throws Exception {
+          public $ROW_DATA getAccumulators() throws Exception {
             $getAccumulatorsCode
           }
 
           @Override
-          public $BASE_ROW createAccumulators() throws Exception {
+          public $ROW_DATA createAccumulators() throws Exception {
             $createAccumulatorsCode
           }
 
           @Override
-          public $BASE_ROW getValue() throws Exception {
+          public $ROW_DATA getValue() throws Exception {
             $getValueCode
           }
 
@@ -436,7 +435,7 @@ class AggsHandlerCodeGenerator(
     // gen converter
     val aggExternalType = aggInfoList.getActualAggregateInfos(0).externalResultType
     val recordInputName = newName("recordInput")
-    val recordToBaseRowCode = genRecordToBaseRow(aggExternalType, recordInputName)
+    val recordToRowDataCode = genRecordToRowData(aggExternalType, recordInputName)
 
     val functionName = newName(name)
     val functionCode =
@@ -457,22 +456,22 @@ class AggsHandlerCodeGenerator(
           }
 
           @Override
-          public void accumulate($BASE_ROW $ACCUMULATE_INPUT_TERM) throws Exception {
+          public void accumulate($ROW_DATA $ACCUMULATE_INPUT_TERM) throws Exception {
             $accumulateCode
           }
 
           @Override
-          public void retract($BASE_ROW $RETRACT_INPUT_TERM) throws Exception {
+          public void retract($ROW_DATA $RETRACT_INPUT_TERM) throws Exception {
             $retractCode
           }
 
           @Override
-          public void merge($BASE_ROW $MERGED_ACC_TERM) throws Exception {
+          public void merge($ROW_DATA $MERGED_ACC_TERM) throws Exception {
             $mergeCode
           }
 
           @Override
-          public void setAccumulators($BASE_ROW $ACC_TERM) throws Exception {
+          public void setAccumulators($ROW_DATA $ACC_TERM) throws Exception {
             $setAccumulatorsCode
           }
 
@@ -482,18 +481,18 @@ class AggsHandlerCodeGenerator(
           }
 
           @Override
-          public $BASE_ROW getAccumulators() throws Exception {
+          public $ROW_DATA getAccumulators() throws Exception {
             $getAccumulatorsCode
           }
 
           @Override
-          public $BASE_ROW createAccumulators() throws Exception {
+          public $ROW_DATA createAccumulators() throws Exception {
             $createAccumulatorsCode
           }
 
           @Override
           public void emitValue(
-            $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM, $BASE_ROW key, boolean isRetract)
+            $COLLECTOR<$ROW_DATA> $COLLECTOR_TERM, $ROW_DATA key, boolean isRetract)
             throws Exception {
 
             $MEMBER_COLLECTOR_TERM.reset(key, isRetract, $COLLECTOR_TERM);
@@ -511,8 +510,8 @@ class AggsHandlerCodeGenerator(
           }
 
           private class $CONVERT_COLLECTOR_TYPE_TERM implements $COLLECTOR {
-            private $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM;
-            private $BASE_ROW key;
+            private $COLLECTOR<$ROW_DATA> $COLLECTOR_TERM;
+            private $ROW_DATA key;
             private $JOINED_ROW result;
             private boolean isRetract = false;
             ${ctx.reuseMemberCode()}
@@ -523,24 +522,24 @@ class AggsHandlerCodeGenerator(
             }
 
             public void reset(
-              $BASE_ROW key, boolean isRetract, $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM) {
+              $ROW_DATA key, boolean isRetract, $COLLECTOR<$ROW_DATA> $COLLECTOR_TERM) {
               this.key = key;
               this.isRetract = isRetract;
               this.$COLLECTOR_TERM = $COLLECTOR_TERM;
             }
 
-            public $BASE_ROW convertToBaseRow(Object $recordInputName) throws Exception {
-              $recordToBaseRowCode
+            public $ROW_DATA convertToRowData(Object $recordInputName) throws Exception {
+              $recordToRowDataCode
             }
 
             @Override
             public void collect(Object $recordInputName) throws Exception {
-              $BASE_ROW tempBaseRow = convertToBaseRow($recordInputName);
-              result.replace(key, tempBaseRow);
+              $ROW_DATA tempRowData = convertToRowData($recordInputName);
+              result.replace(key, tempRowData);
               if (isRetract) {
-                result.setHeader(${className[BaseRowUtil]}.RETRACT_MSG);
+                result.setRowKind($ROW_KIND.DELETE);
               } else {
-                result.setHeader(${className[BaseRowUtil]}.ACCUMULATE_MSG);
+                result.setRowKind($ROW_KIND.INSERT);
               }
               $COLLECTOR_TERM.collect(result);
             }
@@ -597,40 +596,40 @@ class AggsHandlerCodeGenerator(
           }
 
           @Override
-          public void accumulate($BASE_ROW $ACCUMULATE_INPUT_TERM) throws Exception {
+          public void accumulate($ROW_DATA $ACCUMULATE_INPUT_TERM) throws Exception {
             $accumulateCode
           }
 
           @Override
-          public void retract($BASE_ROW $RETRACT_INPUT_TERM) throws Exception {
+          public void retract($ROW_DATA $RETRACT_INPUT_TERM) throws Exception {
             $retractCode
           }
 
           @Override
-          public void merge(Object ns, $BASE_ROW $MERGED_ACC_TERM) throws Exception {
+          public void merge(Object ns, $ROW_DATA $MERGED_ACC_TERM) throws Exception {
             $namespaceClassName $NAMESPACE_TERM = ($namespaceClassName) ns;
             $mergeCode
           }
 
           @Override
-          public void setAccumulators(Object ns, $BASE_ROW $ACC_TERM)
+          public void setAccumulators(Object ns, $ROW_DATA $ACC_TERM)
           throws Exception {
             $namespaceClassName $NAMESPACE_TERM = ($namespaceClassName) ns;
             $setAccumulatorsCode
           }
 
           @Override
-          public $BASE_ROW getAccumulators() throws Exception {
+          public $ROW_DATA getAccumulators() throws Exception {
             $getAccumulatorsCode
           }
 
           @Override
-          public $BASE_ROW createAccumulators() throws Exception {
+          public $ROW_DATA createAccumulators() throws Exception {
             $createAccumulatorsCode
           }
 
           @Override
-          public $BASE_ROW getValue(Object ns) throws Exception {
+          public $ROW_DATA getValue(Object ns) throws Exception {
             $namespaceClassName $NAMESPACE_TERM = ($namespaceClassName) ns;
             $getValueCode
           }
@@ -676,7 +675,7 @@ class AggsHandlerCodeGenerator(
     // gen converter
     val aggExternalType = aggInfoList.getActualAggregateInfos(0).externalResultType
     val recordInputName = newName("recordInput")
-    val recordToBaseRowCode = genRecordToBaseRow(aggExternalType, recordInputName)
+    val recordToRowDataCode = genRecordToRowData(aggExternalType, recordInputName)
 
     val functionName = newName(name)
     val functionCode =
@@ -698,41 +697,41 @@ class AggsHandlerCodeGenerator(
           }
 
           @Override
-          public void accumulate($BASE_ROW $ACCUMULATE_INPUT_TERM) throws Exception {
+          public void accumulate($ROW_DATA $ACCUMULATE_INPUT_TERM) throws Exception {
             $accumulateCode
           }
 
           @Override
-          public void retract($BASE_ROW $RETRACT_INPUT_TERM) throws Exception {
+          public void retract($ROW_DATA $RETRACT_INPUT_TERM) throws Exception {
             $retractCode
           }
 
           @Override
-          public void merge(Object ns, $BASE_ROW $MERGED_ACC_TERM) throws Exception {
+          public void merge(Object ns, $ROW_DATA $MERGED_ACC_TERM) throws Exception {
             $namespaceClassName $NAMESPACE_TERM = ($namespaceClassName) ns;
             $mergeCode
           }
 
           @Override
-          public void setAccumulators(Object ns, $BASE_ROW $ACC_TERM)
+          public void setAccumulators(Object ns, $ROW_DATA $ACC_TERM)
           throws Exception {
             $namespaceClassName $NAMESPACE_TERM = ($namespaceClassName) ns;
             $setAccumulatorsCode
           }
 
           @Override
-          public $BASE_ROW getAccumulators() throws Exception {
+          public $ROW_DATA getAccumulators() throws Exception {
             $getAccumulatorsCode
           }
 
           @Override
-          public $BASE_ROW createAccumulators() throws Exception {
+          public $ROW_DATA createAccumulators() throws Exception {
             $createAccumulatorsCode
           }
 
           @Override
-          public void emitValue(Object ns, $BASE_ROW $KEY_TERM,
-            $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM) throws Exception {
+          public void emitValue(Object ns, $ROW_DATA $KEY_TERM,
+            $COLLECTOR<$ROW_DATA> $COLLECTOR_TERM) throws Exception {
 
             $MEMBER_COLLECTOR_TERM.$COLLECTOR_TERM = $COLLECTOR_TERM;
             $namespaceClassName $NAMESPACE_TERM = ($namespaceClassName) ns;
@@ -751,9 +750,9 @@ class AggsHandlerCodeGenerator(
           }
 
           private class $CONVERT_COLLECTOR_TYPE_TERM implements $COLLECTOR {
-            public $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM;
-            private $BASE_ROW timeProperties;
-            private $BASE_ROW key;
+            public $COLLECTOR<$ROW_DATA> $COLLECTOR_TERM;
+            private $ROW_DATA timeProperties;
+            private $ROW_DATA key;
             private $JOINED_ROW outerResult;
             private $JOINED_ROW innerResult;
             ${ctx.reuseMemberCode()}
@@ -764,19 +763,19 @@ class AggsHandlerCodeGenerator(
               innerResult = new $JOINED_ROW();
             }
 
-            public void reset($BASE_ROW $KEY_TERM, $BASE_ROW timeProperties) {
+            public void reset($ROW_DATA $KEY_TERM, $ROW_DATA timeProperties) {
               this.timeProperties = timeProperties;
               this.key = $KEY_TERM;
             }
 
-            public $BASE_ROW convertToBaseRow(Object $recordInputName) throws Exception {
-              $recordToBaseRowCode
+            public $ROW_DATA convertToRowData(Object $recordInputName) throws Exception {
+              $recordToRowDataCode
             }
 
             @Override
             public void collect(Object $recordInputName) throws Exception {
-              $BASE_ROW tempBaseRow = convertToBaseRow($recordInputName);
-              innerResult.replace(tempBaseRow, timeProperties);
+              $ROW_DATA tempRowData = convertToRowData($recordInputName);
+              innerResult.replace(tempRowData, timeProperties);
               outerResult.replace(key, innerResult);
               $COLLECTOR_TERM.collect(outerResult);
             }
@@ -804,7 +803,7 @@ class AggsHandlerCodeGenerator(
     val resultExpr = exprGenerator.generateResultExpression(
       initAccExprs,
       accTypeInfo,
-      classOf[GenericRow],
+      classOf[GenericRowData],
       outRow = accTerm,
       reusedOutRow = false)
 
@@ -827,7 +826,7 @@ class AggsHandlerCodeGenerator(
     val resultExpr = exprGenerator.generateResultExpression(
       accExprs,
       accTypeInfo,
-      classOf[GenericRow],
+      classOf[GenericRowData],
       outRow = accTerm,
       reusedOutRow = false)
 
@@ -951,29 +950,29 @@ class AggsHandlerCodeGenerator(
       windowProperties: Seq[PlannerWindowProperty]): Seq[GeneratedExpression] = {
     windowProperties.map {
       case w: PlannerWindowStart =>
-        // return a Timestamp(Internal is SqlTimestamp)
+        // return a Timestamp(Internal is TimestampData)
         GeneratedExpression(
-          s"$SQL_TIMESTAMP.fromEpochMillis($NAMESPACE_TERM.getStart())",
+          s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getStart())",
           "false",
           "",
           w.resultType)
       case w: PlannerWindowEnd =>
-        // return a Timestamp(Internal is SqlTimestamp)
+        // return a Timestamp(Internal is TimestampData)
         GeneratedExpression(
-          s"$SQL_TIMESTAMP.fromEpochMillis($NAMESPACE_TERM.getEnd())",
+          s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd())",
           "false",
           "",
           w.resultType)
       case r: PlannerRowtimeAttribute =>
-        // return a rowtime, use SqlTimestamp as internal type
+        // return a rowtime, use TimestampData as internal type
         GeneratedExpression(
-          s"$SQL_TIMESTAMP.fromEpochMillis($NAMESPACE_TERM.getEnd() - 1)",
+          s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd() - 1)",
           "false",
           "",
           r.resultType)
       case p: PlannerProctimeAttribute =>
         // ignore this property, it will be null at the position later
-        GeneratedExpression(s"$SQL_TIMESTAMP.fromEpochMillis(-1L)", "true", "", p.resultType)
+        GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.resultType)
     }
   }
 
@@ -1004,7 +1003,7 @@ class AggsHandlerCodeGenerator(
     val resultExpr = exprGenerator.generateResultExpression(
       valueExprs,
       valueType,
-      classOf[GenericRow],
+      classOf[GenericRowData],
       outRow = aggValueTerm,
       reusedOutRow = false)
 
@@ -1034,7 +1033,7 @@ class AggsHandlerCodeGenerator(
         val resultExpr = exprGenerator.generateResultExpression(
           valueExprs,
           valueType,
-          classOf[GenericRow],
+          classOf[GenericRowData],
           outRow = aggValueTerm,
           reusedOutRow = false)
 
@@ -1050,14 +1049,14 @@ class AggsHandlerCodeGenerator(
     windowCode + aggBufferCodeGens(0).asInstanceOf[ImperativeAggCodeGen].emitValue
   }
 
-  private def genRecordToBaseRow(aggExternalType: DataType, recordInputName: String): String = {
+  private def genRecordToRowData(aggExternalType: DataType, recordInputName: String): String = {
     val resultType = fromDataTypeToLogicalType(aggExternalType)
-    val resultBaseRowType = PlannerTypeUtils.toRowType(resultType)
+    val resultRowType = PlannerTypeUtils.toRowType(resultType)
 
     val newCtx = CodeGeneratorContext(ctx.tableConfig)
     val exprGenerator = new ExprCodeGenerator(newCtx, false).bindInput(resultType)
     val resultExpr = exprGenerator.generateConverterResultExpression(
-      resultBaseRowType, classOf[GenericRow], "convertResult")
+      resultRowType, classOf[GenericRowData], "convertResult")
 
     val converterCode = CodeGenUtils.genToInternal(ctx, aggExternalType, recordInputName)
     val resultTypeClass = boxedTypeTermForType(resultType)
@@ -1119,10 +1118,10 @@ object AggsHandlerCodeGenerator {
   }
 
   /**
-    * Creates BinaryGeneric term which wraps the specific DataView term.
+    * Creates RawValueData term which wraps the specific DataView term.
     */
-  def createDataViewBinaryGenericTerm(spec: DataViewSpec): String = {
-    s"${createDataViewTerm(spec)}_binary_generic"
+  def createDataViewRawValueTerm(spec: DataViewSpec): String = {
+    s"${createDataViewTerm(spec)}_raw_value"
   }
 
   /**
@@ -1137,10 +1136,10 @@ object AggsHandlerCodeGenerator {
   }
 
   /**
-    * Creates BinaryGeneric term which wraps the specific DataView backup term.
+    * Creates RawValueData term which wraps the specific DataView backup term.
     */
-  def createDataViewBackupBinaryGenericTerm(spec: DataViewSpec): String = {
-    s"${createDataViewBackupTerm(spec)}_binary_generic"
+  def createDataViewBackupRawValueTerm(spec: DataViewSpec): String = {
+    s"${createDataViewBackupTerm(spec)}_raw_value"
   }
 
   def addReusableStateDataViews(
@@ -1155,12 +1154,12 @@ object AggsHandlerCodeGenerator {
         case MapViewSpec(_, _, _) => (className[StateMapView[_, _, _]], "getStateMapView")
       }
       val viewFieldTerm = createDataViewTerm(spec)
-      val viewFieldInternalTerm = createDataViewBinaryGenericTerm(spec)
+      val viewFieldInternalTerm = createDataViewRawValueTerm(spec)
       val viewTypeInfo = ctx.addReusableObject(spec.dataViewTypeInfo, "viewTypeInfo")
       val parameters = s""""${spec.stateId}", $viewTypeInfo"""
 
       ctx.addReusableMember(s"private $viewTypeTerm $viewFieldTerm;")
-      ctx.addReusableMember(s"private $BINARY_GENERIC $viewFieldInternalTerm;")
+      ctx.addReusableMember(s"private $BINARY_RAW_VALUE $viewFieldInternalTerm;")
 
       val openCode =
         s"""
@@ -1186,10 +1185,10 @@ object AggsHandlerCodeGenerator {
       // generate backup dataview codes
       if (enableBackupDataView) {
         val backupViewTerm = createDataViewBackupTerm(spec)
-        val backupViewInternalTerm = createDataViewBackupBinaryGenericTerm(spec)
+        val backupViewInternalTerm = createDataViewBackupRawValueTerm(spec)
         // create backup dataview
         ctx.addReusableMember(s"private $viewTypeTerm $backupViewTerm;")
-        ctx.addReusableMember(s"private $BINARY_GENERIC $backupViewInternalTerm;")
+        ctx.addReusableMember(s"private $BINARY_RAW_VALUE $backupViewInternalTerm;")
         val backupOpenCode =
           s"""
              |$backupViewTerm = ($viewTypeTerm) $STORE_TERM.$registerCall($parameters);

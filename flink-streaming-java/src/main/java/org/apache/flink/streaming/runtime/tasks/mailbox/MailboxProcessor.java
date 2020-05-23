@@ -210,6 +210,15 @@ public class MailboxProcessor implements Closeable {
 	}
 
 	/**
+	 * Check if the current thread is the mailbox thread.
+	 *
+	 * @return only true if called from the mailbox thread.
+	 */
+	public boolean isMailboxThread() {
+		return mailbox.isMailboxThread();
+	}
+
+	/**
 	 * Reports a throwable for rethrowing from the mailbox thread. This will clear and cancel all other pending mails.
 	 * @param throwable to report by rethrowing from the mailbox loop.
 	 */
@@ -320,6 +329,11 @@ public class MailboxProcessor implements Closeable {
 	@VisibleForTesting
 	public Meter getIdleTime() {
 		return idleTime;
+	}
+
+	@VisibleForTesting
+	public boolean hasMail() {
+		return mailbox.hasMail();
 	}
 
 	/**

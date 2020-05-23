@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.over.frame;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
 
@@ -45,7 +45,7 @@ import java.io.Serializable;
  * <p>Over AGG means that every Row has a corresponding output.
  * OverWindowFrame is called by:
  * 1.Get all data and invoke {@link #prepare(ResettableExternalBuffer)} for partition
- * 2.Then each Row is traversed one by one to invoke {@link #process(int, BaseRow)} to get the calculation
+ * 2.Then each Row is traversed one by one to invoke {@link #process(int, RowData)} to get the calculation
  * results of the currentRow.
  */
 public interface OverWindowFrame extends Serializable {
@@ -63,13 +63,13 @@ public interface OverWindowFrame extends Serializable {
 	/**
 	 * return the ACC of the window frame.
 	 */
-	BaseRow process(int index, BaseRow current) throws Exception;
+	RowData process(int index, RowData current) throws Exception;
 
 	/**
 	 * Get next row from iterator. Return null if iterator has no next.
 	 * TODO Maybe copy is repeated.
 	 */
-	static BinaryRow getNextOrNull(ResettableExternalBuffer.BufferIterator iterator) {
+	static BinaryRowData getNextOrNull(ResettableExternalBuffer.BufferIterator iterator) {
 		return iterator.advanceNext() ? iterator.getRow().copy() : null;
 	}
 }

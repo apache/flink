@@ -29,10 +29,11 @@ import org.apache.flink.util.ThrowableCatchingRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -73,6 +74,9 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 	/** An executor service with two threads. One for the fetcher and one for the future completing thread. */
 	private final ExecutorService executors;
 
+	/** Indicating the split fetcher manager has closed or not. */
+	private volatile boolean closed;
+
 	/**
 	 * Create a split fetcher manager.
 	 *
@@ -100,11 +104,12 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 		this.splitReaderFactory = splitReaderFactory;
 		this.uncaughtFetcherException = new AtomicReference<>(null);
 		this.fetcherIdGenerator = new AtomicInteger(0);
-		this.fetchers = new HashMap<>();
+		this.fetchers = new ConcurrentHashMap<>();
 
 		// Create the executor with a thread factory that fails the source reader if one of
 		// the fetcher thread exits abnormally.
 		this.executors = Executors.newCachedThreadPool(r -> new Thread(r, "SourceFetcher"));
+		this.closed = false;
 	}
 
 	public abstract void addSplits(List<SplitT> splitsToAdd);
@@ -113,7 +118,16 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 		executors.submit(new ThrowableCatchingRunnable(errorHandler, fetcher));
 	}
 
-	protected SplitFetcher<E, SplitT> createSplitFetcher() {
+	/**
+	 * Synchronize method to ensure no fetcher is created after the split fetcher manager has closed.
+	 *
+	 * @return the created split fetcher.
+	 * @throws IllegalStateException if the split fetcher manager has closed.
+	 */
+	protected synchronized SplitFetcher<E, SplitT> createSplitFetcher() {
+		if (closed) {
+			throw new IllegalStateException("The split fetcher manager has closed.");
+		}
 		// Create SplitReader.
 		SplitReader<E, SplitT> splitReader = splitReaderFactory.get();
 
@@ -127,7 +141,32 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 		return splitFetcher;
 	}
 
-	public void close(long timeoutMs) throws Exception {
+	/**
+	 * Check and shutdown the fetchers that have completed their work.
+	 *
+	 * @return true if all the fetchers have completed the work, false otherwise.
+	 */
+	public boolean maybeShutdownFinishedFetchers() {
+		Iterator<Map.Entry<Integer, SplitFetcher<E, SplitT>>> iter = fetchers.entrySet().iterator();
+		while (iter.hasNext()) {
+			Map.Entry<Integer, SplitFetcher<E, SplitT>> entry = iter.next();
+			SplitFetcher<E, SplitT> fetcher = entry.getValue();
+			if (fetcher.isIdle()) {
+				fetcher.shutdown();
+				iter.remove();
+			}
+		}
+		return fetchers.isEmpty();
+	}
+
+	/**
+	 * Close the split fetcher manager.
+	 *
+	 * @param timeoutMs the max time in milliseconds to wait.
+	 * @throws Exception when failed to close the split fetcher manager.
+	 */
+	public synchronized void close(long timeoutMs) throws Exception {
+		closed = true;
 		fetchers.values().forEach(SplitFetcher::shutdown);
 		executors.shutdown();
 		if (!executors.awaitTermination(timeoutMs, TimeUnit.MILLISECONDS)) {

@@ -20,7 +20,6 @@ package org.apache.flink.client.program;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.deployment.DetachedOnlyJobClientAdapter;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -48,7 +47,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
-	private final boolean forbidBlockingJobClient;
+	private final boolean suppressSysout;
 
 	private final boolean enforceSingleJobExecution;
 
@@ -59,9 +58,9 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader,
 			final boolean enforceSingleJobExecution,
-			final boolean forbidBlockingJobClient) {
+			final boolean suppressSysout) {
 		super(executorServiceLoader, configuration, userCodeClassLoader);
-		this.forbidBlockingJobClient = forbidBlockingJobClient;
+		this.suppressSysout = suppressSysout;
 		this.enforceSingleJobExecution = enforceSingleJobExecution;
 
 		this.jobCounter = 0;
@@ -102,14 +101,13 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	@Override
 	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
 		validateAllowedExecution();
-
 		final JobClient jobClient = super.executeAsync(streamGraph);
 
-		System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		if (!suppressSysout) {
+			System.out.println("Job has been submitted with JobID " + jobClient.getJobID());
+		}
 
-		return forbidBlockingJobClient
-				? new DetachedOnlyJobClientAdapter(jobClient)
-				: jobClient;
+		return jobClient;
 	}
 
 	private void validateAllowedExecution() {
@@ -126,13 +124,13 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			final Configuration configuration,
 			final ClassLoader userCodeClassLoader,
 			final boolean enforceSingleJobExecution,
-			final boolean disallowBlockingJobClient) {
+			final boolean suppressSysout) {
 		StreamExecutionEnvironmentFactory factory = () -> new StreamContextEnvironment(
 			executorServiceLoader,
 			configuration,
 			userCodeClassLoader,
 			enforceSingleJobExecution,
-			disallowBlockingJobClient);
+			suppressSysout);
 		initializeContextEnvironment(factory);
 	}
 

@@ -19,14 +19,17 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
+import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
+import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.io.Writable;
 
 import java.lang.reflect.Constructor;
@@ -37,6 +40,8 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -134,10 +139,7 @@ public class HiveShimV310 extends HiveShimV235 {
 	@Override
 	public Set<String> getNotNullColumns(IMetaStoreClient client, Configuration conf, String dbName, String tableName) {
 		try {
-			// HMS catalog (https://issues.apache.org/jira/browse/HIVE-18685) is an on-going feature and we currently
-			// just get the default catalog.
-			String hiveDefaultCatalog = (String) HiveReflectionUtils.invokeMethod(getMetaStoreUtilsClass(), null,
-					"getDefaultCatalog", new Class[]{Configuration.class}, new Object[]{conf});
+			String hiveDefaultCatalog = getHMSDefaultCatalog(conf);
 			Class requestClz = Class.forName("org.apache.hadoop.hive.metastore.api.NotNullConstraintsRequest");
 			Object request = requestClz.getDeclaredConstructor(String.class, String.class, String.class)
 					.newInstance(hiveDefaultCatalog, dbName, tableName);
@@ -238,5 +240,82 @@ public class HiveShimV310 extends HiveShimV235 {
 			throw new FlinkHiveException("Failed to create writable objects", e);
 		}
 		throw new FlinkHiveException("Unsupported primitive java value of class " + value.getClass().getName());
+	}
+
+	@Override
+	public void createTableWithConstraints(
+			IMetaStoreClient client,
+			Table table,
+			Configuration conf,
+			UniqueConstraint pk,
+			List<Byte> pkTraits,
+			List<String> notNullCols,
+			List<Byte> nnTraits) {
+		try {
+			List<Object> hivePKs = createHivePKs(table, pk, pkTraits);
+			List<Object> hiveNNs = createHiveNNs(table, conf, notNullCols, nnTraits);
+			// createTableWithConstraints takes PK, FK, UNIQUE, NN, DEFAULT, CHECK lists
+			HiveReflectionUtils.invokeMethod(
+					client.getClass(),
+					client,
+					"createTableWithConstraints",
+					new Class[]{Table.class, List.class, List.class, List.class, List.class, List.class, List.class},
+					new Object[]{table, hivePKs, Collections.emptyList(), Collections.emptyList(), hiveNNs,
+							Collections.emptyList(), Collections.emptyList()});
+		} catch (Exception e) {
+			throw new CatalogException("Failed to create Hive table with constraints", e);
+		}
+	}
+
+	List<Object> createHiveNNs(
+			Table table,
+			Configuration conf,
+			List<String> nnCols,
+			List<Byte> traits)
+			throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException,
+			IllegalAccessException, InstantiationException {
+		List<Object> res = new ArrayList<>();
+		if (!nnCols.isEmpty()) {
+			Preconditions.checkArgument(nnCols.size() == traits.size(), "Number of NN columns and traits mismatch");
+			Class nnClz = Class.forName("org.apache.hadoop.hive.metastore.api.SQLNotNullConstraint");
+			// NN constructor takes catName, dbName, tableName, colName, nnName, enable, validate, rely
+			Constructor constructor = nnClz.getConstructor(
+					String.class,
+					String.class,
+					String.class,
+					String.class,
+					String.class,
+					boolean.class,
+					boolean.class,
+					boolean.class);
+			String catName = getHMSDefaultCatalog(conf);
+			for (int i = 0; i < nnCols.size(); i++) {
+				String col = nnCols.get(i);
+				byte trait = traits.get(i);
+				boolean enable = HiveTableUtil.requireEnableConstraint(trait);
+				boolean validate = HiveTableUtil.requireValidateConstraint(trait);
+				boolean rely = HiveTableUtil.requireRelyConstraint(trait);
+				// just set nnName to null and HMS will automatically generate one for us
+				Object hiveNN = constructor.newInstance(
+						catName,
+						table.getDbName(),
+						table.getTableName(),
+						col,
+						null,
+						enable,
+						validate,
+						rely);
+				res.add(hiveNN);
+			}
+		}
+		return res;
+	}
+
+	String getHMSDefaultCatalog(Configuration conf)
+			throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+		// HMS catalog (https://issues.apache.org/jira/browse/HIVE-18685) is an on-going feature and we currently
+		// just get the default catalog.
+		return (String) HiveReflectionUtils.invokeMethod(getMetaStoreUtilsClass(), null,
+				"getDefaultCatalog", new Class[]{Configuration.class}, new Object[]{conf});
 	}
 }

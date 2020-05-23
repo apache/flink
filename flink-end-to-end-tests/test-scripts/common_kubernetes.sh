@@ -20,8 +20,6 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_docker.sh
 
-DOCKER_MODULE_DIR=${END_TO_END_DIR}/../flink-container/docker
-KUBERNETES_MODULE_DIR=${END_TO_END_DIR}/../flink-container/kubernetes
 CONTAINER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 MINIKUBE_START_RETRIES=3
 MINIKUBE_START_BACKOFF=5
@@ -31,17 +29,22 @@ NON_LINUX_ENV_NOTE="****** Please start/stop minikube manually in non-linux envi
 
 # If running tests on non-linux os, the kubectl and minikube should be installed manually
 function setup_kubernetes_for_linux {
+    if [[ `uname -i` == 'aarch64' ]]; then
+        local arch='arm64'
+    else
+        local arch='amd64'
+    fi
     # Download kubectl, which is a requirement for using minikube.
     if ! [ -x "$(command -v kubectl)" ]; then
         echo "Installing kubectl ..."
         local version=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-        curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/amd64/kubectl && \
+        curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/$arch/kubectl && \
             chmod +x kubectl && sudo mv kubectl /usr/local/bin/
     fi
     # Download minikube.
     if ! [ -x "$(command -v minikube)" ]; then
         echo "Installing minikube ..."
-        curl -Lo minikube https://storage.googleapis.com/minikube/releases/v1.8.2/minikube-linux-amd64 && \
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/v1.8.2/minikube-linux-$arch && \
             chmod +x minikube && sudo mv minikube /usr/local/bin/
     fi
 }
@@ -70,7 +73,8 @@ function start_kubernetes_if_not_running {
         # here.
         # Similarly, the kubelets are marking themself as "low disk space",
         # causing Flink to avoid this node (again, failing the test)
-        sudo CHANGE_MINIKUBE_NONE_USER=true minikube start --vm-driver=none \
+        # Use fixed version v1.16.9 because fabric8 kubernetes-client could not work with higher version under jdk 8u252
+        sudo CHANGE_MINIKUBE_NONE_USER=true minikube start --kubernetes-version v1.16.9 --vm-driver=none \
             --extra-config=kubelet.image-gc-high-threshold=99 \
             --extra-config=kubelet.image-gc-low-threshold=98 \
             --extra-config=kubelet.minimum-container-ttl-duration=120m \
@@ -124,6 +128,52 @@ function debug_and_show_logs {
     kubectl get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | while read pod;do
         kubectl logs $pod;
     done
+}
+
+function wait_rest_endpoint_up_k8s {
+  local jm_pod_name=$1
+  local successful_response_regex="Rest endpoint listening at"
+
+  echo "Waiting for jobmanager pod ${jm_pod_name} ready."
+  kubectl wait --for=condition=Ready --timeout=30s pod/$jm_pod_name || exit 1
+
+  # wait at most 30 seconds until the endpoint is up
+  local TIMEOUT=30
+  for i in $(seq 1 ${TIMEOUT}); do
+    QUERY_RESULT=$(kubectl logs $jm_pod_name 2> /dev/null)
+
+    # ensure the response adapts with the successful regex
+    if [[ ${QUERY_RESULT} =~ ${successful_response_regex} ]]; then
+      echo "REST endpoint is up."
+      return
+    fi
+
+    echo "Waiting for REST endpoint to come up..."
+    sleep 1
+  done
+  echo "REST endpoint has not started within a timeout of ${TIMEOUT} sec"
+  exit 1
+}
+
+function cleanup {
+    if [ $TRAPPED_EXIT_CODE != 0 ];then
+      debug_and_show_logs
+    fi
+    internal_cleanup
+    kubectl wait --for=delete pod --all=true
+    stop_kubernetes
+}
+
+function setConsoleLogging {
+    cat >> $FLINK_DIR/conf/log4j.properties <<END
+rootLogger.appenderRef.console.ref = ConsoleAppender
+
+# Log all infos to the console
+appender.console.name = ConsoleAppender
+appender.console.type = CONSOLE
+appender.console.layout.type = PatternLayout
+appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] %-60c %x - %m%n
+END
 }
 
 on_exit cleanup

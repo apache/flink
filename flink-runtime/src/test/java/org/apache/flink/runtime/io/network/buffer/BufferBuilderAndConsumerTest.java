@@ -22,6 +22,8 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -274,13 +276,15 @@ public class BufferBuilderAndConsumerTest {
 		buffer.recycleBuffer();
 	}
 
-	public static void assertContent(Buffer actualBuffer, BufferRecycler recycler, int... expected) {
+	public static void assertContent(Buffer actualBuffer, @Nullable BufferRecycler recycler, int... expected) {
 		IntBuffer actualIntBuffer = actualBuffer.getNioBufferReadable().asIntBuffer();
 		int[] actual = new int[actualIntBuffer.limit()];
 		actualIntBuffer.get(actual);
 		assertArrayEquals(expected, actual);
 
-		assertEquals(recycler, actualBuffer.getRecycler());
+		if (recycler != null) {
+			assertEquals(recycler, actualBuffer.getRecycler());
+		}
 	}
 
 	private static BufferBuilder createBufferBuilder() {

@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.hashtable;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.util.MathUtils;
 
@@ -456,7 +456,7 @@ public class BinaryHashBucketArea {
 	/**
 	 * Append record and insert to bucket.
 	 */
-	boolean appendRecordAndInsert(BinaryRow record, int hashCode) throws IOException {
+	boolean appendRecordAndInsert(BinaryRowData record, int hashCode) throws IOException {
 		final int posHashCode = findBucket(hashCode);
 		// get the bucket for the given hash code
 		final int bucketArrayPos = posHashCode >> table.bucketsPerSegmentBits;
@@ -487,7 +487,7 @@ public class BinaryHashBucketArea {
 			MemorySegment bucket,
 			int searchHashCode,
 			int bucketInSegmentOffset,
-			BinaryRow buildRowToInsert) {
+			BinaryRowData buildRowToInsert) {
 		int posInSegment = bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
 		int countInBucket = bucket.getShort(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
 		int numInBucket = 0;
@@ -504,7 +504,7 @@ public class BinaryHashBucketArea {
 					numInBucket++;
 					try {
 						view.setReadPosition(pointer);
-						BinaryRow row = table.binaryBuildSideSerializer.mapFromPages(table.reuseBuildRow, view);
+						BinaryRowData row = table.binaryBuildSideSerializer.mapFromPages(table.reuseBuildRow, view);
 						if (buildRowToInsert.equals(row)) {
 							return true;
 						}

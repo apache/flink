@@ -153,11 +153,10 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 	@Test
 	public void testReceiveBuffer() throws Exception {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
-		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = InputChannelBuilder.newBuilder()
-			.setMemorySegmentProvider(networkBufferPool)
-			.buildRemoteAndSetToGate(inputGate);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate);
 		try {
+			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments();
@@ -191,8 +190,12 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 		BufferCompressor compressor = new BufferCompressor(bufferSize, compressionCodec);
 		BufferDecompressor decompressor = new BufferDecompressor(bufferSize, compressionCodec);
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize, 2);
-		SingleInputGate inputGate = new SingleInputGateBuilder().setBufferDecompressor(decompressor).build();
-		RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, null, networkBufferPool);
+		SingleInputGate inputGate = new SingleInputGateBuilder()
+			.setBufferDecompressor(decompressor)
+			.setSegmentProvider(networkBufferPool)
+			.build();
+		RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, null);
+		inputGate.setInputChannels(inputChannel);
 
 		try {
 			BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
@@ -228,7 +231,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 	@Test
 	public void testThrowExceptionForNoAvailableBuffer() throws Exception {
 		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = spy(InputChannelBuilder.newBuilder().buildRemoteAndSetToGate(inputGate));
+		final RemoteInputChannel inputChannel = spy(InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate));
 
 		final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 		handler.addInputChannel(inputChannel);
@@ -309,27 +312,29 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
-		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel1 = createRemoteInputChannel(inputGate, client, networkBufferPool);
-		final RemoteInputChannel inputChannel2 = createRemoteInputChannel(inputGate, client, networkBufferPool);
+		final SingleInputGate inputGate = createSingleInputGate(2, networkBufferPool);
+		final RemoteInputChannel[] inputChannels = new RemoteInputChannel[2];
+		inputChannels[0] = createRemoteInputChannel(inputGate, client);
+		inputChannels[1] = createRemoteInputChannel(inputGate, client);
 		try {
+			inputGate.setInputChannels(inputChannels);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments();
 
-			inputChannel1.requestSubpartition(0);
-			inputChannel2.requestSubpartition(0);
+			inputChannels[0].requestSubpartition(0);
+			inputChannels[1].requestSubpartition(0);
 
 			// The two input channels should send partition requests
 			assertTrue(channel.isWritable());
 			Object readFromOutbound = channel.readOutbound();
 			assertThat(readFromOutbound, instanceOf(PartitionRequest.class));
-			assertEquals(inputChannel1.getInputChannelId(), ((PartitionRequest) readFromOutbound).receiverId);
+			assertEquals(inputChannels[0].getInputChannelId(), ((PartitionRequest) readFromOutbound).receiverId);
 			assertEquals(2, ((PartitionRequest) readFromOutbound).credit);
 
 			readFromOutbound = channel.readOutbound();
 			assertThat(readFromOutbound, instanceOf(PartitionRequest.class));
-			assertEquals(inputChannel2.getInputChannelId(), ((PartitionRequest) readFromOutbound).receiverId);
+			assertEquals(inputChannels[1].getInputChannelId(), ((PartitionRequest) readFromOutbound).receiverId);
 			assertEquals(2, ((PartitionRequest) readFromOutbound).credit);
 
 			// The buffer response will take one available buffer from input channel, and it will trigger
@@ -337,32 +342,32 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			final BufferResponse bufferResponse1 = createBufferResponse(
 				TestBufferFactory.createBuffer(32),
 				0,
-				inputChannel1.getInputChannelId(),
+				inputChannels[0].getInputChannelId(),
 				1,
 				allocator);
 			final BufferResponse bufferResponse2 = createBufferResponse(
 				TestBufferFactory.createBuffer(32),
 				0,
-				inputChannel2.getInputChannelId(),
+				inputChannels[1].getInputChannelId(),
 				1,
 				allocator);
 			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse1);
 			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse2);
 
-			assertEquals(2, inputChannel1.getUnannouncedCredit());
-			assertEquals(2, inputChannel2.getUnannouncedCredit());
+			assertEquals(2, inputChannels[0].getUnannouncedCredit());
+			assertEquals(2, inputChannels[1].getUnannouncedCredit());
 
 			channel.runPendingTasks();
 
 			// The two input channels should notify credits availability via the writable channel
 			readFromOutbound = channel.readOutbound();
 			assertThat(readFromOutbound, instanceOf(AddCredit.class));
-			assertEquals(inputChannel1.getInputChannelId(), ((AddCredit) readFromOutbound).receiverId);
+			assertEquals(inputChannels[0].getInputChannelId(), ((AddCredit) readFromOutbound).receiverId);
 			assertEquals(2, ((AddCredit) readFromOutbound).credit);
 
 			readFromOutbound = channel.readOutbound();
 			assertThat(readFromOutbound, instanceOf(AddCredit.class));
-			assertEquals(inputChannel2.getInputChannelId(), ((AddCredit) readFromOutbound).receiverId);
+			assertEquals(inputChannels[1].getInputChannelId(), ((AddCredit) readFromOutbound).receiverId);
 			assertEquals(2, ((AddCredit) readFromOutbound).credit);
 			assertNull(channel.readOutbound());
 
@@ -372,13 +377,13 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			final BufferResponse bufferResponse3 = createBufferResponse(
 				TestBufferFactory.createBuffer(32),
 				1,
-				inputChannel1.getInputChannelId(),
+				inputChannels[0].getInputChannelId(),
 				1,
 				allocator);
 			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse3);
 
-			assertEquals(1, inputChannel1.getUnannouncedCredit());
-			assertEquals(0, inputChannel2.getUnannouncedCredit());
+			assertEquals(1, inputChannels[0].getUnannouncedCredit());
+			assertEquals(0, inputChannels[1].getUnannouncedCredit());
 
 			channel.runPendingTasks();
 
@@ -395,8 +400,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			readFromOutbound = channel.readOutbound();
 			assertThat(readFromOutbound, instanceOf(AddCredit.class));
 			assertEquals(1, ((AddCredit) readFromOutbound).credit);
-			assertEquals(0, inputChannel1.getUnannouncedCredit());
-			assertEquals(0, inputChannel2.getUnannouncedCredit());
+			assertEquals(0, inputChannels[0].getUnannouncedCredit());
+			assertEquals(0, inputChannels[1].getUnannouncedCredit());
 
 			// no more messages
 			assertNull(channel.readOutbound());
@@ -418,9 +423,10 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
-		final SingleInputGate inputGate = createSingleInputGate(1);
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client, networkBufferPool);
+		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
 		try {
+			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments();
@@ -487,10 +493,10 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 		int bufferSize = 1024;
 
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize, 2);
-		SingleInputGate inputGate = createSingleInputGate(1);
+		SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
 		RemoteInputChannel inputChannel = new InputChannelBuilder()
-			.setMemorySegmentProvider(networkBufferPool)
-			.buildRemoteAndSetToGate(inputGate);
+			.buildRemoteChannel(inputGate);
+		inputGate.setInputChannels(inputChannel);
 		inputGate.assignExclusiveSegments();
 
 		CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();

@@ -32,7 +32,7 @@ LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-firs
 SortLimit(orderBy=[a DESC, b ASC], offset=[1], fetch=[10], global=[true])
 +- Exchange(distribution=[single])
    +- SortLimit(orderBy=[a DESC, b ASC], offset=[0], fetch=[11], global=[false])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -68,7 +68,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], offset=[10])
       <![CDATA[
 SortLimit(orderBy=[a DESC], offset=[10], fetch=[unlimited], global=[true])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -105,7 +105,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[5])
 SortLimit(orderBy=[a DESC], offset=[0], fetch=[5], global=[true])
 +- Exchange(distribution=[single])
    +- SortLimit(orderBy=[a DESC], offset=[0], fetch=[5], global=[false])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -124,7 +124,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], offset=[10])
       <![CDATA[
 SortLimit(orderBy=[a DESC], offset=[10], fetch=[unlimited], global=[true])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -161,7 +161,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[5])
 SortLimit(orderBy=[a DESC], offset=[0], fetch=[5], global=[true])
 +- Exchange(distribution=[single])
    +- SortLimit(orderBy=[a DESC], offset=[0], fetch=[5], global=[false])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -181,7 +181,7 @@ LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-firs
 SortLimit(orderBy=[a DESC, b ASC], offset=[1], fetch=[10], global=[true])
 +- Exchange(distribution=[single])
    +- SortLimit(orderBy=[a DESC, b ASC], offset=[0], fetch=[11], global=[false])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

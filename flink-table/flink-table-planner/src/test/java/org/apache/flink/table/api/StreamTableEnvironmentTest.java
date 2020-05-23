@@ -23,7 +23,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
@@ -40,7 +40,8 @@ public class StreamTableEnvironmentTest {
 	@Test
 	public void testPassingExecutionParameters() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useOldPlanner().build();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, settings);
 
 		tEnv.getConfig().addConfiguration(
 			new Configuration()

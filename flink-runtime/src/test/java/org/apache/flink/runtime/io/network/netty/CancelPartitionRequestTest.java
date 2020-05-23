@@ -211,12 +211,11 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
-		public boolean nextBufferIsEvent() {
-			return false;
+		public void resumeConsumption() {
 		}
 
 		@Override
-		public boolean isAvailable() {
+		public boolean isAvailable(int numCreditsAvailable) {
 			return true;
 		}
 

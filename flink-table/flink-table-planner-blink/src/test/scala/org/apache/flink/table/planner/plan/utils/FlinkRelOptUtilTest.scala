@@ -21,9 +21,9 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
-import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, _}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -41,7 +41,7 @@ class FlinkRelOptUtilTest {
 
   @Before
   def before(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
+    val settings = EnvironmentSettings.newInstance().build()
     val tEnv = TableEnvironmentImpl.create(settings)
     BatchTableEnvUtil.registerCollection(
       tEnv,

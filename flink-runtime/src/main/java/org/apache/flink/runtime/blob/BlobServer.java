@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -40,6 +41,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.security.MessageDigest;
@@ -188,8 +190,10 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 		}
 
 		final int finalBacklog = backlog;
+		final String bindHost = config.getOptional(JobManagerOptions.BIND_HOST).orElseGet(NetUtils::getWildcardIPAddress);
+
 		this.serverSocket = NetUtils.createSocketFromPorts(ports,
-				(port) -> socketFactory.createServerSocket(port, finalBacklog));
+				(port) -> socketFactory.createServerSocket(port, finalBacklog, InetAddress.getByName(bindHost)));
 
 		if (serverSocket == null) {
 			throw new IOException("Unable to open BLOB Server in specified port range: " + serverPortRange);

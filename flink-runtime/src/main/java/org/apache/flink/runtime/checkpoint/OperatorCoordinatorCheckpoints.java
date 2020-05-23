@@ -20,7 +20,6 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import java.util.ArrayList;
@@ -130,13 +129,9 @@ final class OperatorCoordinatorCheckpoints {
 	static final class CoordinatorSnapshot {
 
 		final OperatorCoordinatorCheckpointContext coordinator;
-		final StreamStateHandle state;
+		final ByteStreamStateHandle state;
 
-		CoordinatorSnapshot(OperatorCoordinatorCheckpointContext coordinator, StreamStateHandle state) {
-			// if this is not true any more, we need more elaborate dispose/cleanup handling
-			// see comment above the class.
-			assert state instanceof ByteStreamStateHandle;
-
+		CoordinatorSnapshot(OperatorCoordinatorCheckpointContext coordinator, ByteStreamStateHandle state) {
 			this.coordinator = coordinator;
 			this.state = state;
 		}

@@ -19,9 +19,11 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -71,6 +73,8 @@ public class FunctionDefinitionUtilTest {
 
 		assertTrue(((AggregateFunctionDefinition) fd2).getAggregateFunction()
 				instanceof TestAggFunctionWithoutResultType);
+		assertEquals(((AggregateFunctionDefinition) fd2).getResultTypeInfo(), Types.LONG);
+		assertEquals(((AggregateFunctionDefinition) fd2).getAccumulatorTypeInfo(), Types.STRING);
 
 	}
 
@@ -90,6 +94,8 @@ public class FunctionDefinitionUtilTest {
 
 		assertTrue(((TableAggregateFunctionDefinition) fd2).getTableAggregateFunction()
 				instanceof TestTableAggFunctionWithoutResultType);
+		assertEquals(((TableAggregateFunctionDefinition) fd2).getResultTypeInfo(), Types.LONG);
+		assertEquals(((TableAggregateFunctionDefinition) fd2).getAccumulatorTypeInfo(), Types.STRING);
 	}
 
 	/**
@@ -143,14 +149,14 @@ public class FunctionDefinitionUtilTest {
 	/**
 	 * Test function.
 	 */
-	public static class TestAggFunctionWithoutResultType extends AggregateFunction<Long, Long> {
+	public static class TestAggFunctionWithoutResultType extends AggregateFunction<Long, String> {
 		@Override
-		public Long createAccumulator() {
+		public String createAccumulator() {
 			return null;
 		}
 
 		@Override
-		public Long getValue(Long accumulator) {
+		public Long getValue(String accumulator) {
 			return null;
 		}
 	}
@@ -178,9 +184,9 @@ public class FunctionDefinitionUtilTest {
 	/**
 	 * Test function.
 	 */
-	public static class TestTableAggFunctionWithoutResultType extends TableAggregateFunction<Long, Long> {
+	public static class TestTableAggFunctionWithoutResultType extends TableAggregateFunction<Long, String> {
 		@Override
-		public Long createAccumulator() {
+		public String createAccumulator() {
 			return null;
 		}
 	}

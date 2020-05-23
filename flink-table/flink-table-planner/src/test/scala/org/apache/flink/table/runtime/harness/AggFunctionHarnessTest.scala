@@ -18,34 +18,34 @@
 
 package org.apache.flink.table.runtime.harness
 
-import java.lang.{Integer => JInt}
-import java.util.concurrent.ConcurrentLinkedQueue
-
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.dataview.StateMapView
 import org.apache.flink.table.runtime.aggregate.GroupAggProcessFunction
-import org.apache.flink.table.runtime.harness.HarnessTestBase.TestStreamQueryConfig
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertTrue
 import org.junit.Test
+
+import java.lang.{Integer => JInt}
+import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class AggFunctionHarnessTest extends HarnessTestBase {
-  private val queryConfig = new TestStreamQueryConfig(Time.seconds(0), Time.seconds(0))
 
   @Test
   def testCollectAggregate(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(
+      env, EnvironmentSettings.newInstance().useOldPlanner().build())
 
     val data = new mutable.MutableList[(JInt, String)]
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b)
@@ -62,7 +62,7 @@ class AggFunctionHarnessTest extends HarnessTestBase {
          |""".stripMargin)
 
     val testHarness = createHarnessTester[String, CRow, CRow](
-      sqlQuery.toRetractStream[Row](queryConfig), "groupBy")
+      sqlQuery.toRetractStream[Row], "groupBy")
 
     testHarness.setStateBackend(getStateBackend)
     testHarness.open()
@@ -110,7 +110,8 @@ class AggFunctionHarnessTest extends HarnessTestBase {
   @Test
   def testMinMaxAggFunctionWithRetract(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(
+      env, EnvironmentSettings.newInstance().useOldPlanner().build())
 
     val data = new mutable.MutableList[(JInt, JInt, String)]
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
@@ -127,7 +128,7 @@ class AggFunctionHarnessTest extends HarnessTestBase {
          |""".stripMargin)
 
     val testHarness = createHarnessTester[String, CRow, CRow](
-      sqlQuery.toRetractStream[Row](queryConfig), "groupBy")
+      sqlQuery.toRetractStream[Row], "groupBy")
 
     testHarness.setStateBackend(getStateBackend)
     testHarness.open()

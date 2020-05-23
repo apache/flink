@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
+import org.apache.flink.table.data.{RowData, JoinedRowData}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, ExpressionReducer, FunctionCodeGenerator}
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
@@ -96,7 +96,7 @@ object WindowJoinUtil {
       rightType: RowType,
       returnType: RelDataType,
       otherCondition: Option[RexNode],
-      funcName: String): GeneratedFunction[FlatJoinFunction[BaseRow, BaseRow, BaseRow]] = {
+      funcName: String): GeneratedFunction[FlatJoinFunction[RowData, RowData, RowData]] = {
 
     // whether input can be null
     val nullCheck = joinType match {
@@ -111,7 +111,7 @@ object WindowJoinUtil {
 
     val returnTypeInfo = FlinkTypeFactory.toLogicalRowType(returnType)
     val joinedRow = "joinedRow"
-    ctx.addReusableOutputRecord(returnTypeInfo, classOf[JoinedRow], joinedRow)
+    ctx.addReusableOutputRecord(returnTypeInfo, classOf[JoinedRowData], joinedRow)
 
     val exprGenerator = new ExprCodeGenerator(ctx, nullCheck)
       .bindInput(leftType)
@@ -142,7 +142,7 @@ object WindowJoinUtil {
     FunctionCodeGenerator.generateFunction(
       ctx,
       funcName,
-      classOf[FlatJoinFunction[BaseRow, BaseRow, BaseRow]],
+      classOf[FlatJoinFunction[RowData, RowData, RowData]],
       body,
       returnTypeInfo,
       leftType,

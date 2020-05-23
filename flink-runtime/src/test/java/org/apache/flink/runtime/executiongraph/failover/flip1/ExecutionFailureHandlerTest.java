@@ -47,7 +47,7 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 
 	private static final long RESTART_DELAY_MS = 1234L;
 
-	private SchedulingTopology<?, ?> schedulingTopology;
+	private SchedulingTopology schedulingTopology;
 
 	private TestFailoverStrategy failoverStrategy;
 

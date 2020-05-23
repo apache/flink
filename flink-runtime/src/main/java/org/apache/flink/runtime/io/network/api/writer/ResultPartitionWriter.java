@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 
 import javax.annotation.Nullable;
 
@@ -44,10 +45,10 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	void setup() throws IOException;
 
 	/**
-	 * Loads the previous output states with the given reader for unaligned checkpoint.
+	 * Reads the previous output states with the given reader for unaligned checkpoint.
 	 * It should be done before task processing the inputs.
 	 */
-	void initializeState(ChannelStateReader stateReader) throws IOException, InterruptedException;
+	void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException;
 
 	ResultPartitionID getPartitionId();
 
@@ -58,7 +59,7 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	/**
 	 * Requests a {@link BufferBuilder} from this partition for writing data.
 	 */
-	BufferBuilder getBufferBuilder() throws IOException, InterruptedException;
+	BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException;
 
 
 	/**
@@ -66,7 +67,7 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	 *
 	 * <p>Returns <code>null</code> if no buffer is available or the buffer provider has been destroyed.
 	 */
-	BufferBuilder tryGetBufferBuilder() throws IOException;
+	BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException;
 
 	/**
 	 * Adds the bufferConsumer to the subpartition with the given index.
@@ -79,7 +80,27 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	 *
 	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
 	 */
-	boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
+	boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex, boolean isPriorityEvent) throws IOException;
+
+	/**
+	 * Adds the bufferConsumer to the subpartition with the given index.
+	 *
+	 * <p>This method takes the ownership of the passed {@code bufferConsumer} and thus is responsible for releasing
+	 * it's resources.
+	 *
+	 * <p>To avoid problems with data re-ordering, before adding new {@link BufferConsumer} the previously added one
+	 * the given {@code subpartitionIndex} must be marked as {@link BufferConsumer#isFinished()}.
+	 *
+	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
+	 */
+	default boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
+		return addBufferConsumer(bufferConsumer, subpartitionIndex, false);
+	}
+
+	/**
+	 * Returns the subpartition with the given index.
+	 */
+	ResultSubpartition getSubpartition(int subpartitionIndex);
 
 	/**
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in all subpartitions.

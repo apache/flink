@@ -29,7 +29,11 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.portability import common_urns
 from apache_beam.typehints import typehints
 
-from pyflink.fn_execution import coder_impl
+from pyflink.fn_execution import coder_impl as slow_coder_impl
+try:
+    from pyflink.fn_execution import fast_coder_impl as coder_impl
+except ImportError:
+    coder_impl = slow_coder_impl
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.sdk_worker_main import pipeline_options
 from pyflink.table.types import Row, TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
@@ -128,6 +132,9 @@ class RowCoder(FlattenRowCoder):
     def _create_impl(self):
         return coder_impl.RowCoderImpl([c.get_impl() for c in self._field_coders])
 
+    def get_impl(self):
+        return self._create_impl()
+
     def to_type_hint(self):
         return Row
 
@@ -144,6 +151,9 @@ class CollectionCoder(FastCoder):
 
     def _create_impl(self):
         raise NotImplementedError
+
+    def get_impl(self):
+        return self._create_impl()
 
     def is_deterministic(self):
         return self._elem_coder.is_deterministic()
@@ -190,6 +200,9 @@ class MapCoder(FastCoder):
     def _create_impl(self):
         return coder_impl.MapCoderImpl(self._key_coder.get_impl(), self._value_coder.get_impl())
 
+    def get_impl(self):
+        return self._create_impl()
+
     def is_deterministic(self):
         return self._key_coder.is_deterministic() and self._value_coder.is_deterministic()
 
@@ -218,6 +231,9 @@ class DeterministicCoder(FastCoder, ABC):
 
     def is_deterministic(self):
         return True
+
+    def get_impl(self):
+        return self._create_impl()
 
 
 class BigIntCoder(DeterministicCoder):
@@ -262,7 +278,7 @@ class SmallIntCoder(DeterministicCoder):
     """
 
     def _create_impl(self):
-        return coder_impl.SmallIntImpl()
+        return coder_impl.SmallIntCoderImpl()
 
     def to_type_hint(self):
         return int
@@ -408,7 +424,7 @@ class ArrowCoder(DeterministicCoder):
         self._timezone = timezone
 
     def _create_impl(self):
-        return coder_impl.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
+        return slow_coder_impl.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
 
     def to_type_hint(self):
         import pandas as pd
@@ -457,6 +473,10 @@ class ArrowCoder(DeterministicCoder):
             elif field_type.type_name == flink_fn_execution_pb2.Schema.ARRAY:
                 return ArrayType(_to_data_type(field_type.collection_element_type),
                                  field_type.nullable)
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.ROW:
+                return RowType(
+                    [RowField(f.name, _to_data_type(f.type), f.description)
+                     for f in field_type.row_schema.fields], field_type.nullable)
             else:
                 raise ValueError("field_type %s is not supported." % field_type)
 

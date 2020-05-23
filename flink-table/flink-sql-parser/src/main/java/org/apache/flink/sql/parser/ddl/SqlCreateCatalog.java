@@ -18,9 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.error.SqlValidateException;
-
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -40,7 +37,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * CREATE CATALOG DDL sql call.
  */
-public class SqlCreateCatalog extends SqlCreate implements ExtendedSqlNode {
+public class SqlCreateCatalog extends SqlCreate {
 
 	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("CREATE CATALOG", SqlKind.OTHER_DDL);
 
@@ -99,11 +96,6 @@ public class SqlCreateCatalog extends SqlCreate implements ExtendedSqlNode {
 	}
 
 	public String catalogName() {
-		return catalogName.names.get(0);
-	}
-
-	@Override
-	public void validate() throws SqlValidateException {
-
+		return catalogName.getSimple();
 	}
 }

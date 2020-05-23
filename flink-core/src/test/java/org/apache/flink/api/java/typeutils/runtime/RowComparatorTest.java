@@ -27,6 +27,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
+
 import org.junit.BeforeClass;
 
 import java.io.Serializable;
@@ -51,20 +53,20 @@ public class RowComparatorTest extends ComparatorTestBase<Row> {
 	private static MyPojo testPojo3 = new MyPojo();
 
 	private static final Row[] data = new Row[]{
-		createRow(null, null, null, null, null),
-		createRow(0, null, null, null, null),
-		createRow(0, 0.0, null, null, null),
-		createRow(0, 0.0, "a", null, null),
-		createRow(1, 0.0, "a", null, null),
-		createRow(1, 1.0, "a", null, null),
-		createRow(1, 1.0, "b", null, null),
-		createRow(1, 1.0, "b", new Tuple3<>(1, false, (short) 2), null),
-		createRow(1, 1.0, "b", new Tuple3<>(2, false, (short) 2), null),
-		createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 2), null),
-		createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), null),
-		createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo1),
-		createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo2),
-		createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo3)
+		createRow(RowKind.INSERT, null, null, null, null, null),
+		createRow(RowKind.INSERT, 0, null, null, null, null),
+		createRow(RowKind.INSERT, 0, 0.0, null, null, null),
+		createRow(RowKind.INSERT, 0, 0.0, "a", null, null),
+		createRow(RowKind.INSERT, 1, 0.0, "a", null, null),
+		createRow(RowKind.INSERT, 1, 1.0, "a", null, null),
+		createRow(RowKind.INSERT, 1, 1.0, "b", null, null),
+		createRow(RowKind.UPDATE_AFTER, 1, 1.0, "b", new Tuple3<>(1, false, (short) 2), null),
+		createRow(RowKind.UPDATE_AFTER, 1, 1.0, "b", new Tuple3<>(2, false, (short) 2), null),
+		createRow(RowKind.UPDATE_AFTER, 1, 1.0, "b", new Tuple3<>(2, true, (short) 2), null),
+		createRow(RowKind.UPDATE_AFTER, 1, 1.0, "b", new Tuple3<>(2, true, (short) 3), null),
+		createRow(RowKind.DELETE, 1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo1),
+		createRow(RowKind.DELETE, 1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo2),
+		createRow(RowKind.DELETE, 1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo3)
 	};
 
 	@BeforeClass
@@ -110,8 +112,8 @@ public class RowComparatorTest extends ComparatorTestBase<Row> {
 		return true;
 	}
 
-	private static Row createRow(Object f0, Object f1, Object f2, Object f3, Object f4) {
-		Row row = new Row(5);
+	private static Row createRow(RowKind kind, Object f0, Object f1, Object f2, Object f3, Object f4) {
+		Row row = new Row(kind, 5);
 		row.setField(0, f0);
 		row.setField(1, f1);
 		row.setField(2, f2);

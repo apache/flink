@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.api.scala.{currentDate, currentTime, currentTimestamp, localTime, localTimestamp, nullOf, temporalOverlaps, _}
-import org.apache.flink.table.api.{DataTypes, Types}
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
+
 import org.junit.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
@@ -3398,15 +3398,15 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1017-11-29 22:58:58.998")
 
     val QUARTER = Seq(
-      "2018-03-01 22:58:58.998",
-      "2018-08-31 22:58:58.998",
+      "2018-02-28 22:58:58.998",
+      "2018-08-29 22:58:58.998",
       "2017-08-29 22:58:58.998",
       "2002-08-29 22:58:58.998",
       "1767-11-29 22:58:58.998")
 
     val MONTH = Seq(
       "2017-12-29 22:58:58.998",
-      "2018-03-01 22:58:58.998",
+      "2018-02-28 22:58:58.998",
       "2017-10-29 22:58:58.998",
       "2012-10-29 22:58:58.998",
       "1934-07-29 22:58:58.998")

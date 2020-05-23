@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.runtime.stream.table;
 
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -64,18 +66,17 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE TestTable(a INT, b BIGINT, c BIGINT) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE TestTable(a INT, b BIGINT, c BIGINT) WITH ('connector' = 'COLLECTION')");
 
-		tEnv().from("TestTable")
+		Table table = tEnv().from("TestTable")
 			.select(
 				$("a"),
 				call(new SimpleScalarFunction(), $("a"), $("b")),
 				call(new SimpleScalarFunction(), $("a"), $("b"))
 					.plus(1)
 					.minus(call(new SimpleScalarFunction(), $("a"), $("b")))
-			)
-			.insertInto("TestTable");
-		tEnv().execute("Test Job");
+			);
+		execInsertTableAndWaitResult(table, "TestTable");
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
@@ -98,14 +99,14 @@ public class FunctionITCase extends StreamingTestBase {
 		TestCollectionTableFactory.reset();
 		TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
 
-		tEnv().from("SourceTable")
+		TableResult tableResult = tEnv().from("SourceTable")
 			.joinLateral(call(new SimpleTableFunction(), $("s")).as("a", "b"))
 			.select($("a"), $("b"))
-			.insertInto("SinkTable");
-		tEnv().execute("Test Job");
+			.executeInsert("SinkTable");
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
@@ -116,14 +117,14 @@ public class FunctionITCase extends StreamingTestBase {
 		thrown.expectMessage("Currently, only table functions can emit rows.");
 
 		TestCollectionTableFactory.reset();
-		tEnv().sqlUpdate("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
 
-		tEnv().from("SourceTable")
+		TableResult tableResult = tEnv().from("SourceTable")
 			.joinLateral(call(new RowScalarFunction(), $("s")).as("a", "b"))
 			.select($("a"), $("b"))
-			.insertInto("SinkTable");
-		tEnv().execute("Test Job");
+			.executeInsert("SinkTable");
+		tableResult.getJobClient().get().getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
 	}
 
 	// --------------------------------------------------------------------------------------------

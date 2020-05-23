@@ -29,6 +29,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * {@link Dispatcher} services container.
@@ -62,7 +63,7 @@ public class DispatcherServices {
 	@Nonnull
 	private final HistoryServerArchivist historyServerArchivist;
 
-	@Nonnull
+	@Nullable
 	private final String metricQueryServiceAddress;
 
 	@Nonnull
@@ -80,7 +81,7 @@ public class DispatcherServices {
 			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			@Nonnull FatalErrorHandler fatalErrorHandler,
 			@Nonnull HistoryServerArchivist historyServerArchivist,
-			@Nonnull String metricQueryServiceAddress,
+			@Nullable String metricQueryServiceAddress,
 			@Nonnull JobManagerMetricGroup jobManagerMetricGroup,
 			@Nonnull JobGraphWriter jobGraphWriter,
 			@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
@@ -143,7 +144,7 @@ public class DispatcherServices {
 		return historyServerArchivist;
 	}
 
-	@Nonnull
+	@Nullable
 	public String getMetricQueryServiceAddress() {
 		return metricQueryServiceAddress;
 	}

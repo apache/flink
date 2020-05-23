@@ -115,6 +115,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.isA;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -2944,98 +2945,149 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	 * This test verifies that state is correctly assigned to key groups and that restore
 	 * restores the relevant key groups in the backend.
 	 *
-	 * <p>We have ten key groups. Initially, one backend is responsible for all ten key groups.
-	 * Then we snapshot, split up the state and restore in to backends where each is responsible
-	 * for five key groups. Then we make sure that the state is only available in the correct
-	 * backend.
-	 * @throws Exception
+	 * <p>We have 128 key groups. Initially, four backends with different states are responsible for all the key groups equally.
+	 * Different backends for the same operator may contains different states if we create the state in runtime (such as {@link DeltaTrigger#onElement}
+	 * Then we snapshot, split up the state and restore into 2 backends where each is responsible
+	 * for 64 key groups. Then we make sure that the state is only available in the correct backend.
 	 */
 	@Test
-	public void testKeyGroupSnapshotRestore() throws Exception {
-		final int MAX_PARALLELISM = 10;
+	public void testKeyGroupSnapshotRestoreScaleDown() throws Exception {
+		testKeyGroupSnapshotRestore(4, 2, 128);
+	}
+
+	/**
+	 * This test verifies that state is correctly assigned to key groups and that restore
+	 * restores the relevant key groups in the backend.
+	 *
+	 * <p>We have 128 key groups. Initially, two backends with different states are responsible for all the key groups equally.
+	 * Different backends for the same operator may contains different states if we create the state in runtime (such as {@link DeltaTrigger#onElement}
+	 * Then we snapshot, split up the state and restore into 4 backends where each is responsible
+	 * for 32 key groups. Then we make sure that the state is only available in the correct backend.
+	 */
+	@Test
+	public void testKeyGroupSnapshotRestoreScaleUp() throws Exception {
+		testKeyGroupSnapshotRestore(2, 4, 128);
+	}
+
+	/**
+	 * This test verifies that state is correctly assigned to key groups and that restore
+	 * restores the relevant key groups in the backend.
+	 *
+	 * <p>We have 128 key groups. Initially, two backends with different states are responsible for all the key groups equally.
+	 * Different backends for the same operator may contains different states if we create the state in runtime (such as {@link DeltaTrigger#onElement}
+	 * Then we snapshot, split up the state and restore into 2 backends where each is responsible
+	 * for 64 key groups. Then we make sure that the state is only available in the correct backend.
+	 */
+	@Test
+	public void testKeyGroupsSnapshotRestoreNoRescale() throws Exception {
+		testKeyGroupSnapshotRestore(2, 2, 128);
+	}
+
+	/**
+	 * Similar with testKeyGroupSnapshotRestoreScaleUp, but the KeyGroups were distributed unevenly.
+	 */
+	@Test
+	public void testKeyGroupsSnapshotRestoreScaleUpUnEvenDistribute() throws Exception {
+		testKeyGroupSnapshotRestore(15, 77, 128);
+	}
+
+	/**
+	 * Similar with testKeyGroupSnapshotRestoreScaleDown, but the KeyGroups were distributed unevenly.
+	 */
+	@Test
+	public void testKeyGroupsSnapshotRestoreScaleDownUnEvenDistribute() throws Exception {
+		testKeyGroupSnapshotRestore(77, 15, 128);
+	}
+
+	private void testKeyGroupSnapshotRestore(int sourceParallelism, int targetParallelism, int maxParallelism) throws Exception {
+		checkArgument(sourceParallelism > 0, "parallelism must be positive, current is %s.", sourceParallelism);
+		checkArgument(targetParallelism > 0, "parallelism must be positive, current is %s.", targetParallelism);
+		checkArgument(sourceParallelism <= maxParallelism, "Maximum parallelism must not be smaller than parallelism.");
+		checkArgument(targetParallelism <= maxParallelism, "Maximum parallelism must not be smaller than parallelism.");
+
+		Random random = new Random();
 
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-		final AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(
-				IntSerializer.INSTANCE,
-				MAX_PARALLELISM,
-				new KeyGroupRange(0, MAX_PARALLELISM - 1),
-				env);
-
-		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
-
-		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-
-		// keys that fall into the first half/second half of the key groups, respectively
-		int keyInFirstHalf = 17;
-		int keyInSecondHalf = 42;
-		Random rand = new Random(0);
-
-		// for each key, determine into which half of the key-group space they fall
-		int firstKeyHalf = KeyGroupRangeAssignment.assignKeyToParallelOperator(keyInFirstHalf, MAX_PARALLELISM, 2);
-		int secondKeyHalf = KeyGroupRangeAssignment.assignKeyToParallelOperator(keyInFirstHalf, MAX_PARALLELISM, 2);
-
-		while (firstKeyHalf == secondKeyHalf) {
-			keyInSecondHalf = rand.nextInt();
-			secondKeyHalf = KeyGroupRangeAssignment.assignKeyToParallelOperator(keyInSecondHalf, MAX_PARALLELISM, 2);
+		List<KeyGroupRange> keyGroupRanges = new ArrayList<>();
+		List<AbstractKeyedStateBackend<Integer>> stateBackends = new ArrayList<>();
+		for (int i = 0; i < sourceParallelism; ++i) {
+			keyGroupRanges.add(KeyGroupRange.of(maxParallelism * i / sourceParallelism, maxParallelism * (i + 1) / sourceParallelism - 1));
+			stateBackends.add(createKeyedBackend(IntSerializer.INSTANCE, maxParallelism, keyGroupRanges.get(i), env));
 		}
 
-		backend.setCurrentKey(keyInFirstHalf);
-		state.update("ShouldBeInFirstHalf");
+		List<ValueStateDescriptor<String>> stateDescriptors = new ArrayList<>(maxParallelism);
 
-		backend.setCurrentKey(keyInSecondHalf);
-		state.update("ShouldBeInSecondHalf");
+		for (int i = 0; i < maxParallelism; ++i) {
+			// all states have different name to mock that all the parallelisms of one operator have different states.
+			stateDescriptors.add(new ValueStateDescriptor<>("state" + i, String.class));
+		}
 
+		List<Integer> keyInKeyGroups = new ArrayList<>(maxParallelism);
+		List<String> expectedValue = new ArrayList<>(maxParallelism);
+		for (int i = 0; i < sourceParallelism; ++i) {
+			AbstractKeyedStateBackend<Integer> backend = stateBackends.get(i);
+			KeyGroupRange range = keyGroupRanges.get(i);
+			for (int j = range.getStartKeyGroup(); j <= range.getEndKeyGroup(); ++j) {
+				ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptors.get(j));
+				int keyInKeyGroup = getKeyInKeyGroup(random, maxParallelism, KeyGroupRange.of(j, j));
+				backend.setCurrentKey(keyInKeyGroup);
+				keyInKeyGroups.add(keyInKeyGroup);
+				String updateValue = i + ":" + j;
+				state.update(updateValue);
+				expectedValue.add(updateValue);
+			}
+		}
 
-		KeyedStateHandle snapshot = runSnapshot(
-			backend.snapshot(0, 0, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
-			sharedStateRegistry);
+		// snapshot
+		List<KeyedStateHandle> snapshots = new ArrayList<>(sourceParallelism);
+		for (int i = 0; i < sourceParallelism; ++i) {
+			snapshots.add(
+				runSnapshot(stateBackends.get(i).snapshot(0, 0, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
+				sharedStateRegistry));
+		}
 
-		List<KeyedStateHandle> firstHalfKeyGroupStates = StateAssignmentOperation.getKeyedStateHandles(
-				Collections.singletonList(snapshot),
-				KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(MAX_PARALLELISM, 2, 0));
+		for (int i = 0; i < sourceParallelism; ++i) {
+			stateBackends.get(i).dispose();
+		}
 
-		List<KeyedStateHandle> secondHalfKeyGroupStates = StateAssignmentOperation.getKeyedStateHandles(
-				Collections.singletonList(snapshot),
-				KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(MAX_PARALLELISM, 2, 1));
+		// redistribute the stateHandle
+		List<KeyGroupRange> keyGroupRangesRestore = new ArrayList<>();
+		for (int i = 0; i < targetParallelism; ++i) {
+			keyGroupRangesRestore.add(KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(maxParallelism, targetParallelism, i));
+		}
+		List<List<KeyedStateHandle>> keyGroupStatesAfterDistribute = new ArrayList<>(targetParallelism);
+		for (int i = 0; i < targetParallelism; ++i) {
+			List<KeyedStateHandle> keyedStateHandles = new ArrayList<>();
+			StateAssignmentOperation.extractIntersectingState(
+				snapshots,
+				keyGroupRangesRestore.get(i),
+				keyedStateHandles);
+			keyGroupStatesAfterDistribute.add(keyedStateHandles);
+		}
 
-		backend.dispose();
+		// restore and verify
+		List<AbstractKeyedStateBackend<Integer>> targetBackends = new ArrayList<>(targetParallelism);
 
-		// backend for the first half of the key group range
-		final AbstractKeyedStateBackend<Integer> firstHalfBackend = restoreKeyedBackend(
+		for (int i = 0; i < targetParallelism; ++i) {
+			AbstractKeyedStateBackend<Integer> backend = restoreKeyedBackend(
 				IntSerializer.INSTANCE,
-				MAX_PARALLELISM,
-				new KeyGroupRange(0, 4),
-				firstHalfKeyGroupStates,
+				maxParallelism,
+				keyGroupRangesRestore.get(i),
+				keyGroupStatesAfterDistribute.get(i),
 				env);
+			targetBackends.add(backend);
+			KeyGroupRange range = keyGroupRangesRestore.get(i);
+			for (int j = range.getStartKeyGroup(); j <= range.getEndKeyGroup(); ++j) {
+				ValueState<String> state = targetBackends.get(i).getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptors.get(j));
+				backend.setCurrentKey(keyInKeyGroups.get(j));
+				assertEquals(expectedValue.get(j), state.value());
+			}
+		}
 
-		// backend for the second half of the key group range
-		final AbstractKeyedStateBackend<Integer> secondHalfBackend = restoreKeyedBackend(
-				IntSerializer.INSTANCE,
-				MAX_PARALLELISM,
-				new KeyGroupRange(5, 9),
-				secondHalfKeyGroupStates,
-				env);
-
-
-		ValueState<String> firstHalfState = firstHalfBackend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-
-		firstHalfBackend.setCurrentKey(keyInFirstHalf);
-		assertTrue(firstHalfState.value().equals("ShouldBeInFirstHalf"));
-
-		firstHalfBackend.setCurrentKey(keyInSecondHalf);
-		assertTrue(firstHalfState.value() == null);
-
-		ValueState<String> secondHalfState = secondHalfBackend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-
-		secondHalfBackend.setCurrentKey(keyInFirstHalf);
-		assertTrue(secondHalfState.value() == null);
-
-		secondHalfBackend.setCurrentKey(keyInSecondHalf);
-		assertTrue(secondHalfState.value().equals("ShouldBeInSecondHalf"));
-
-		firstHalfBackend.dispose();
-		secondHalfBackend.dispose();
+		for (int i = 0; i < targetParallelism; ++i) {
+			targetBackends.get(i).dispose();
+		}
 	}
 
 	@Test
@@ -4033,6 +4085,19 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			return completableFuture;
 		}
 		return CompletableFuture.completedFuture(snapshotRunnableFuture.get());
+	}
+
+	/**
+	 * Returns an Integer key in specified keyGroupRange.
+	 */
+	private int getKeyInKeyGroup(Random random, int maxParallelism, KeyGroupRange keyGroupRange) {
+		int keyInKG = random.nextInt();
+		int kg = KeyGroupRangeAssignment.assignToKeyGroup(keyInKG, maxParallelism);
+		while (!keyGroupRange.contains(kg)) {
+			keyInKG = random.nextInt();
+			kg = KeyGroupRangeAssignment.assignToKeyGroup(keyInKG, maxParallelism);
+		}
+		return keyInKG;
 	}
 
 	/**

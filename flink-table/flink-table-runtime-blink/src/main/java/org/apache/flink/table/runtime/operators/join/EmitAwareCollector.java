@@ -18,17 +18,17 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
 /**
- * Collector to wrap a [[org.apache.flink.table.dataformat.BaseRow]] and to track whether a row has been
+ * Collector to wrap a [[org.apache.flink.table.dataformat.RowData]] and to track whether a row has been
  * emitted by the inner collector.
  */
-class EmitAwareCollector implements Collector<BaseRow> {
+class EmitAwareCollector implements Collector<RowData> {
 
 	private boolean emitted = false;
-	private Collector<BaseRow> innerCollector;
+	private Collector<RowData> innerCollector;
 
 	void reset() {
 		emitted = false;
@@ -38,12 +38,12 @@ class EmitAwareCollector implements Collector<BaseRow> {
 		return emitted;
 	}
 
-	void setInnerCollector(Collector<BaseRow> innerCollector) {
+	void setInnerCollector(Collector<RowData> innerCollector) {
 		this.innerCollector = innerCollector;
 	}
 
 	@Override
-	public void collect(BaseRow record) {
+	public void collect(RowData record) {
 		emitted = true;
 		innerCollector.collect(record);
 	}

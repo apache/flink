@@ -20,9 +20,13 @@ package org.apache.flink.client.deployment.application.executors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.deployment.application.EmbeddedJobClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 
 import java.util.Collection;
@@ -39,6 +43,8 @@ public class EmbeddedExecutorFactory implements PipelineExecutorFactory {
 
 	private final DispatcherGateway dispatcherGateway;
 
+	private final ScheduledExecutor retryExecutor;
+
 	/**
 	 * Creates an {@link EmbeddedExecutorFactory}.
 	 * @param submittedJobIds a list that is going to be filled with the job ids of the
@@ -48,9 +54,11 @@ public class EmbeddedExecutorFactory implements PipelineExecutorFactory {
 	 */
 	public EmbeddedExecutorFactory(
 			final Collection<JobID> submittedJobIds,
-			final DispatcherGateway dispatcherGateway) {
+			final DispatcherGateway dispatcherGateway,
+			final ScheduledExecutor retryExecutor) {
 		this.submittedJobIds = checkNotNull(submittedJobIds);
 		this.dispatcherGateway = checkNotNull(dispatcherGateway);
+		this.retryExecutor = checkNotNull(retryExecutor);
 	}
 
 	@Override
@@ -68,6 +76,12 @@ public class EmbeddedExecutorFactory implements PipelineExecutorFactory {
 	@Override
 	public PipelineExecutor getExecutor(final Configuration configuration) {
 		checkNotNull(configuration);
-		return new EmbeddedExecutor(submittedJobIds, dispatcherGateway);
+		return new EmbeddedExecutor(
+				submittedJobIds,
+				dispatcherGateway,
+				jobId -> {
+					final Time timeout = Time.milliseconds(configuration.get(ExecutionOptions.EMBEDDED_RPC_TIMEOUT).toMillis());
+					return new EmbeddedJobClient(jobId, dispatcherGateway, retryExecutor, timeout);
+				});
 	}
 }

@@ -24,6 +24,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.List;
 import java.util.Optional;
@@ -60,6 +61,9 @@ public interface CallContext {
 	/**
 	 * Returns the literal value of the argument at the given position, given that the argument is a
 	 * literal, is not null, and can be expressed as an instance of the provided class.
+	 *
+	 * <p>It supports conversions to default conversion classes of {@link LogicalType LogicalTypes}.
+	 * This method should not be called with other classes.
 	 *
 	 * <p>Use {@link #isArgumentLiteral(int)} before to check if the argument is actually a literal.
 	 */

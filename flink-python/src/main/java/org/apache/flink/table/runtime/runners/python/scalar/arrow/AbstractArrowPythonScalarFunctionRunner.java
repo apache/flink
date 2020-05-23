@@ -50,15 +50,7 @@ public abstract class AbstractArrowPythonScalarFunctionRunner<IN> extends Abstra
 	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1";
 
 	static {
-		// Arrow requires the property io.netty.tryReflectionSetAccessible to
-		// be set to true for JDK >= 9. Please refer to ARROW-5412 for more details.
-		if (System.getProperty("io.netty.tryReflectionSetAccessible") == null) {
-			System.setProperty("io.netty.tryReflectionSetAccessible", "true");
-		} else if (!io.netty.util.internal.PlatformDependent.hasDirectBufferNoCleanerConstructor()) {
-			throw new RuntimeException("Vectorized Python UDF depends on " +
-				"DirectByteBuffer.<init>(long, int) which is not available. Please set the " +
-				"system property 'io.netty.tryReflectionSetAccessible' to 'true'.");
-		}
+		ArrowUtils.checkArrowUsable();
 	}
 
 	/**
@@ -110,7 +102,7 @@ public abstract class AbstractArrowPythonScalarFunctionRunner<IN> extends Abstra
 	@Override
 	public void open() throws Exception {
 		super.open();
-		allocator = ArrowUtils.ROOT_ALLOCATOR.newChildAllocator("writer", 0, Long.MAX_VALUE);
+		allocator = ArrowUtils.getRootAllocator().newChildAllocator("writer", 0, Long.MAX_VALUE);
 		root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(getInputType()), allocator);
 		arrowWriter = createArrowWriter();
 		arrowStreamWriter = new ArrowStreamWriter(root, null, baos);

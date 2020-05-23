@@ -28,6 +28,8 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.MockSerializationSchema;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -47,8 +49,11 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Properties;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
@@ -99,8 +104,10 @@ public class FlinkKinesisProducerTest {
 
 	@Test
 	public void testProducerIsSerializable() {
-		FlinkKinesisProducer<String> consumer = new FlinkKinesisProducer<>(new SimpleStringSchema(), TestUtils.getStandardProperties());
-		assertTrue(InstantiationUtil.isSerializable(consumer));
+		FlinkKinesisProducer<String> producer = new FlinkKinesisProducer<>(
+			new SimpleStringSchema(),
+			TestUtils.getStandardProperties());
+		assertTrue(InstantiationUtil.isSerializable(producer));
 	}
 
 	// ----------------------------------------------------------------------
@@ -348,6 +355,22 @@ public class FlinkKinesisProducerTest {
 		producer.getPendingRecordFutures().get(3).set(result);
 
 		testHarness.close();
+	}
+
+	@Test
+	public void testOpen() throws Exception {
+		MockSerializationSchema<Object> serializationSchema = new MockSerializationSchema<>();
+
+		Properties config = TestUtils.getStandardProperties();
+		FlinkKinesisProducer<Object> producer = new FlinkKinesisProducer<>(
+			serializationSchema,
+			config);
+		AbstractStreamOperatorTestHarness<Object> testHarness = new AbstractStreamOperatorTestHarness<>(
+			new StreamSink<>(producer), 1, 1, 0
+		);
+
+		testHarness.open();
+		assertThat("Open method was not called", serializationSchema.isOpenCalled(), is(true));
 	}
 
 	// ----------------------------------------------------------------------

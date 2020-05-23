@@ -23,7 +23,7 @@ import org.apache.flink.types.Row;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static org.apache.flink.table.filesystem.PartitionPathUtils.generatePartitionPath;
+import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 
 /**
  * Test for {@link RowPartitionComputer}.

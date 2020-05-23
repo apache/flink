@@ -65,7 +65,7 @@ import static org.junit.Assert.assertThat;
 @RunWith(Parameterized.class)
 public class InputTypeStrategiesTest {
 
-	@Parameters
+	@Parameters(name = "{index}: {0}")
 	public static List<TestSpec> testData() {
 		return asList(
 			// wildcard with 2 arguments
@@ -142,9 +142,9 @@ public class InputTypeStrategiesTest {
 				.calledWithArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT())
 				.expectErrorMessage("Invalid number of arguments. At most 1 arguments expected but 2 passed."),
 
-			// OR with bridging class
 			TestSpec
 				.forStrategy(
+					"OR with bridging class",
 					or(
 						explicitSequence(DataTypes.STRING()),
 						explicitSequence(DataTypes.INT().bridgedTo(int.class)),
@@ -154,9 +154,9 @@ public class InputTypeStrategiesTest {
 				.expectSignature("f(STRING)\nf(INT)\nf(BOOLEAN)")
 				.expectArgumentTypes(DataTypes.INT().bridgedTo(int.class)),
 
-			// OR with implicit casting
 			TestSpec
 				.forStrategy(
+					"OR with implicit casting",
 					or(
 						explicitSequence(DataTypes.TINYINT()),
 						explicitSequence(DataTypes.INT()),
@@ -164,9 +164,40 @@ public class InputTypeStrategiesTest {
 				.calledWithArgumentTypes(DataTypes.SMALLINT())
 				.expectArgumentTypes(DataTypes.INT()),
 
-			// invalid type in OR
 			TestSpec
-				.forStrategy(or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.STRING())))
+				.forStrategy(
+					"OR with implicit casting of null",
+					or(
+						explicitSequence(DataTypes.STRING().notNull()),
+						explicitSequence(DataTypes.INT().notNull()),
+						explicitSequence(DataTypes.BIGINT())))
+				.calledWithArgumentTypes(DataTypes.NULL())
+				.expectArgumentTypes(DataTypes.BIGINT()),
+
+			TestSpec
+				.forStrategy(
+					"OR with implicit casting using first match",
+					or(
+						explicitSequence(DataTypes.VARCHAR(20)),
+						explicitSequence(DataTypes.VARCHAR(10))))
+				.calledWithArgumentTypes(DataTypes.VARCHAR(1))
+				.expectArgumentTypes(DataTypes.VARCHAR(20)),
+
+			TestSpec
+				.forStrategy(
+					"OR with invalid implicit casting of null",
+					or(
+						explicitSequence(DataTypes.STRING().notNull()),
+						explicitSequence(DataTypes.INT().notNull()),
+						explicitSequence(DataTypes.BIGINT().notNull())))
+				.calledWithArgumentTypes(DataTypes.NULL())
+				.expectErrorMessage("Invalid input arguments. Expected signatures are:\n" +
+					"f(STRING NOT NULL)\nf(INT NOT NULL)\nf(BIGINT NOT NULL)"),
+
+			TestSpec
+				.forStrategy(
+					"OR with invalid type",
+					or(explicitSequence(DataTypes.INT()), explicitSequence(DataTypes.STRING())))
 				.calledWithArgumentTypes(DataTypes.BOOLEAN())
 				.expectErrorMessage("Invalid input arguments. Expected signatures are:\nf(INT)\nf(STRING)"),
 
@@ -395,7 +426,62 @@ public class InputTypeStrategiesTest {
 				.forStrategy(WILDCARD)
 				.namedArguments("i", "s")
 				.typedArguments(DataTypes.INT(), DataTypes.STRING())
-				.expectSignature("f(i => INT, s => STRING)")
+				.expectSignature("f(i => INT, s => STRING)"),
+
+			TestSpec
+				.forStrategy(
+					"Wildcard with count verifies arguments number",
+					InputTypeStrategies.wildcardWithCount(ConstantArgumentCount.from(2)))
+				.calledWithArgumentTypes(DataTypes.STRING())
+				.expectErrorMessage("Invalid number of arguments. At least 2 arguments expected but 1 passed."),
+
+			TestSpec.forStrategy(
+				"Array strategy infers a common type",
+				InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+				.calledWithArgumentTypes(
+					DataTypes.INT().notNull(),
+					DataTypes.BIGINT().notNull(),
+					DataTypes.DOUBLE(),
+					DataTypes.DOUBLE().notNull())
+				.expectArgumentTypes(DataTypes.DOUBLE(), DataTypes.DOUBLE(), DataTypes.DOUBLE(), DataTypes.DOUBLE()),
+
+			TestSpec.forStrategy(
+				"Array strategy fails for no arguments",
+				InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+				.calledWithArgumentTypes()
+				.expectErrorMessage("Invalid number of arguments. At least 1 arguments expected but 0 passed."),
+
+			TestSpec.forStrategy(
+				"Array strategy fails for null arguments",
+				InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+				.calledWithArgumentTypes(DataTypes.NULL())
+				.expectErrorMessage("Invalid input arguments."),
+
+			TestSpec.forStrategy(
+				"Map strategy infers common types",
+				InputTypeStrategies.SPECIFIC_FOR_MAP)
+				.calledWithArgumentTypes(
+					DataTypes.INT().notNull(),
+					DataTypes.DOUBLE(),
+					DataTypes.BIGINT().notNull(),
+					DataTypes.FLOAT().notNull())
+				.expectArgumentTypes(
+					DataTypes.BIGINT().notNull(),
+					DataTypes.DOUBLE(),
+					DataTypes.BIGINT().notNull(),
+					DataTypes.DOUBLE()),
+
+			TestSpec.forStrategy(
+				"Map strategy fails for no arguments",
+				InputTypeStrategies.SPECIFIC_FOR_MAP)
+				.calledWithArgumentTypes()
+				.expectErrorMessage("Invalid number of arguments. At least 2 arguments expected but 0 passed."),
+
+			TestSpec.forStrategy(
+				"Map strategy fails for an odd number of arguments",
+				InputTypeStrategies.SPECIFIC_FOR_MAP)
+				.calledWithArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT())
+				.expectErrorMessage("Invalid number of arguments. 3 arguments passed.")
 		);
 	}
 
@@ -488,6 +574,8 @@ public class InputTypeStrategiesTest {
 
 	private static class TestSpec {
 
+		private final @Nullable String description;
+
 		private final InputTypeStrategy strategy;
 
 		private @Nullable List<String> namedArguments;
@@ -506,12 +594,17 @@ public class InputTypeStrategiesTest {
 
 		private @Nullable String expectedErrorMessage;
 
-		private TestSpec(InputTypeStrategy strategy) {
+		private TestSpec(@Nullable String description, InputTypeStrategy strategy) {
+			this.description = description;
 			this.strategy = strategy;
 		}
 
 		static TestSpec forStrategy(InputTypeStrategy strategy) {
-			return new TestSpec(strategy);
+			return new TestSpec(null, strategy);
+		}
+
+		static TestSpec forStrategy(String description, InputTypeStrategy strategy) {
+			return new TestSpec(description, strategy);
 		}
 
 		TestSpec namedArguments(String... names) {
@@ -552,6 +645,11 @@ public class InputTypeStrategiesTest {
 		TestSpec expectErrorMessage(String expectedErrorMessage) {
 			this.expectedErrorMessage = expectedErrorMessage;
 			return this;
+		}
+
+		@Override
+		public String toString() {
+			return description != null ? description : strategy.getClass().getSimpleName();
 		}
 	}
 }

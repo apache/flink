@@ -27,6 +27,7 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingState;
@@ -44,6 +45,7 @@ import org.apache.flink.metrics.MetricGroup;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
@@ -175,6 +177,15 @@ public interface RuntimeContext {
 	 */
 	@PublicEvolving
 	Histogram getHistogram(String name);
+
+	/**
+	 * Get the specific external resource information by the resourceName.
+	 *
+	 * @param resourceName of the required external resource
+	 * @return information set of the external resource identified by the resourceName
+	 */
+	@PublicEvolving
+	Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName);
 
 	// --------------------------------------------------------------------------------------------
 

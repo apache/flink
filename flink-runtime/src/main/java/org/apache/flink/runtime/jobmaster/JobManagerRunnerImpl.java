@@ -74,7 +74,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	/** Leader election for this job. */
 	private final LeaderElectionService leaderElectionService;
 
-	private final LibraryCacheManager libraryCacheManager;
+	private final LibraryCacheManager.ClassLoaderLease classLoaderLease;
 
 	private final Executor executor;
 
@@ -106,7 +106,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 			final JobGraph jobGraph,
 			final JobMasterServiceFactory jobMasterFactory,
 			final HighAvailabilityServices haServices,
-			final LibraryCacheManager libraryCacheManager,
+			final LibraryCacheManager.ClassLoaderLease classLoaderLease,
 			final Executor executor,
 			final FatalErrorHandler fatalErrorHandler) throws Exception {
 
@@ -117,23 +117,20 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		// make sure we cleanly shut down out JobManager services if initialization fails
 		try {
 			this.jobGraph = checkNotNull(jobGraph);
-			this.libraryCacheManager = checkNotNull(libraryCacheManager);
+			this.classLoaderLease = checkNotNull(classLoaderLease);
 			this.executor = checkNotNull(executor);
 			this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
 			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
 
 			// libraries and class loader first
+			final ClassLoader userCodeLoader;
 			try {
-				libraryCacheManager.registerJob(
-						jobGraph.getJobID(), jobGraph.getUserJarBlobKeys(), jobGraph.getClasspaths());
+				userCodeLoader = classLoaderLease.getOrResolveClassLoader(
+					jobGraph.getUserJarBlobKeys(),
+					jobGraph.getClasspaths());
 			} catch (IOException e) {
 				throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
-			}
-
-			final ClassLoader userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID());
-			if (userCodeLoader == null) {
-				throw new Exception("The user code class loader could not be initialized.");
 			}
 
 			// high availability services next
@@ -205,7 +202,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 							throwable = ExceptionUtils.firstOrSuppressed(t, ExceptionUtils.stripCompletionException(throwable));
 						}
 
-						libraryCacheManager.unregisterJob(jobGraph.getJobID());
+						classLoaderLease.release();
 
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(

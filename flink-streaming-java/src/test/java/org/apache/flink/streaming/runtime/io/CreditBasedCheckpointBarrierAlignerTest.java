@@ -18,31 +18,16 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
-import static org.junit.Assert.assertEquals;
-
 /**
- * Tests for the behaviors of the {@link CheckpointedInputGate} with {@link CachedBufferStorage}.
+ * Tests for the behaviors of the {@link CheckpointedInputGate}.
  */
 public class CreditBasedCheckpointBarrierAlignerTest extends CheckpointBarrierAlignerTestBase {
 
 	@Override
 	CheckpointedInputGate createBarrierBuffer(InputGate gate, AbstractInvokable toNotify) {
-		return new CheckpointedInputGate(gate, new CachedBufferStorage(PAGE_SIZE), "Testing", toNotify);
-	}
-
-	@Override
-	public void validateAlignmentBuffered(long actualBytesBuffered, BufferOrEvent... sequence) {
-		long expectedBuffered = 0;
-		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer()) {
-				expectedBuffered += PAGE_SIZE;
-			}
-		}
-
-		assertEquals("Wrong alignment buffered bytes", actualBytesBuffered, expectedBuffered);
+		return new CheckpointedInputGate(gate, "Testing", toNotify);
 	}
 }

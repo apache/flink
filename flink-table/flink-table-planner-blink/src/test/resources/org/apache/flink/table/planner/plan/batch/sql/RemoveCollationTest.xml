@@ -42,10 +42,10 @@ Calc(select=[EXPR$0])
       +- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d])
          :- Exchange(distribution=[hash[a]])
          :  +- Calc(select=[a, b], where=[LIKE(c, _UTF-16LE'He%')])
-         :     +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
          +- Exchange(distribution=[hash[d]])
             +- Calc(select=[d])
-               +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -75,10 +75,10 @@ Calc(select=[EXPR$0])
       +- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d])
          :- Exchange(distribution=[hash[a]])
          :  +- Calc(select=[a, b], where=[LIKE(c, _UTF-16LE'He%')])
-         :     +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
          +- Exchange(distribution=[hash[d]])
             +- Calc(select=[d])
-               +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -103,7 +103,7 @@ SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0)
    +- Exchange(distribution=[hash[a, b]])
       +- LocalSortAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
          +- Sort(orderBy=[a ASC, b ASC])
-            +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -133,7 +133,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], f1=[$3], f=[$4], cnt=[$5])
       <![CDATA[
 SortMergeJoin(joinType=[InnerJoin], where=[=(c, f)], select=[a, b, c, f1, f, cnt], rightSorted=[true])
 :- Exchange(distribution=[hash[c]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Calc(select=[f0 AS f1, f, cnt])
    +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
       +- SortAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])
@@ -142,7 +142,7 @@ SortMergeJoin(joinType=[InnerJoin], where=[=(c, f)], select=[a, b, c, f1, f, cnt
                +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
                   +- Sort(orderBy=[f ASC])
                      +- Calc(select=[f])
-                        +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -172,7 +172,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], f=[$3], f1=[$4])
       <![CDATA[
 SortMergeJoin(joinType=[InnerJoin], where=[=(c, f)], select=[a, b, c, f, f1], rightSorted=[true])
 :- Exchange(distribution=[hash[c]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Calc(select=[f, f0 AS f1])
    +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
       +- SortAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])
@@ -181,7 +181,7 @@ SortMergeJoin(joinType=[InnerJoin], where=[=(c, f)], select=[a, b, c, f, f1], ri
                +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
                   +- Sort(orderBy=[f ASC])
                      +- Calc(select=[f], where=[LIKE(f, _UTF-16LE'%llo%')])
-                        +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -211,7 +211,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], f1=[$3])
       <![CDATA[
 SortMergeJoin(joinType=[InnerJoin], where=[=(c, f1)], select=[a, b, c, f1])
 :- Exchange(distribution=[hash[c]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f1]])
    +- Calc(select=[f0 AS f1])
       +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
@@ -221,7 +221,7 @@ SortMergeJoin(joinType=[InnerJoin], where=[=(c, f1)], select=[a, b, c, f1])
                   +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
                      +- Sort(orderBy=[f ASC])
                         +- Calc(select=[f])
-                           +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -252,13 +252,13 @@ SortMergeJoin(joinType=[LeftOuterJoin], where=[=(a, d1)], select=[a, b, c, d, e,
 :- SortMergeJoin(joinType=[InnerJoin], where=[=(a, a1)], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
 :  :- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
 :  :  :- Exchange(distribution=[hash[a]])
-:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  :  +- Exchange(distribution=[hash[d]])
-:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 :  +- Exchange(distribution=[hash[a1]])
-:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
 +- Exchange(distribution=[hash[d1]])
-   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
 ]]>
     </Resource>
   </TestCase>
@@ -289,13 +289,13 @@ SortMergeJoin(joinType=[LeftOuterJoin], where=[=(a1, d1)], select=[a, b, c, d, e
 :- SortMergeJoin(joinType=[InnerJoin], where=[=(d, a1)], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
 :  :- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
 :  :  :- Exchange(distribution=[hash[a]])
-:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  :  +- Exchange(distribution=[hash[d]])
-:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 :  +- Exchange(distribution=[hash[a1]])
-:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
 +- Exchange(distribution=[hash[d1]])
-   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
 ]]>
     </Resource>
   </TestCase>
@@ -381,7 +381,7 @@ Calc(select=[id, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0, name1])
    :     :        :- Calc(select=[id, key, tb2_ids, tb3_ids, name, tb2_names])
    :     :        :  +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(id, tb1_id)], select=[id, key, tb2_ids, tb3_ids, name, tb1_id, tb2_names], rightSorted=[true])
    :     :        :     :- Exchange(distribution=[hash[id]])
-   :     :        :     :  +- TableSourceScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]], fields=[id, key, tb2_ids, tb3_ids, name], reuse_id=[1])
+   :     :        :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]], fields=[id, key, tb2_ids, tb3_ids, name], reuse_id=[1])
    :     :        :     +- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_LISTAGG(accDelimiter$0, concatAcc$1) AS tb2_names])
    :     :        :        +- Sort(orderBy=[tb1_id ASC])
    :     :        :           +- Exchange(distribution=[hash[tb1_id]])
@@ -394,7 +394,7 @@ Calc(select=[id, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0, name1])
    :     :        :                          :     +- Correlate(invocation=[split($cor0.tb2_ids)], correlate=[table(split($cor0.tb2_ids))], select=[id,key,tb2_ids,tb3_ids,name,f0], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) key, VARCHAR(2147483647) tb2_ids, VARCHAR(2147483647) tb3_ids, VARCHAR(2147483647) name, VARCHAR(2147483647) f0)], joinType=[INNER])
    :     :        :                          :        +- Reused(reference_id=[1])
    :     :        :                          +- Exchange(distribution=[hash[id]])
-   :     :        :                             +- TableSourceScan(table=[[default_catalog, default_database, tb2, source: [TestTableSource(id, name)]]], fields=[id, name])
+   :     :        :                             +- LegacyTableSourceScan(table=[[default_catalog, default_database, tb2, source: [TestTableSource(id, name)]]], fields=[id, name])
    :     :        +- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_LISTAGG(accDelimiter$0, concatAcc$1) AS tb3_names])
    :     :           +- Sort(orderBy=[tb1_id ASC])
    :     :              +- Exchange(distribution=[hash[tb1_id]])
@@ -407,11 +407,11 @@ Calc(select=[id, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0, name1])
    :     :                             :     +- Correlate(invocation=[split($cor1.tb3_ids)], correlate=[table(split($cor1.tb3_ids))], select=[id,key,tb2_ids,tb3_ids,name,f0], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) key, VARCHAR(2147483647) tb2_ids, VARCHAR(2147483647) tb3_ids, VARCHAR(2147483647) name, VARCHAR(2147483647) f0)], joinType=[INNER])
    :     :                             :        +- Reused(reference_id=[1])
    :     :                             +- Exchange(distribution=[hash[id]])
-   :     :                                +- TableSourceScan(table=[[default_catalog, default_database, tb3, source: [TestTableSource(id, name)]]], fields=[id, name])
+   :     :                                +- LegacyTableSourceScan(table=[[default_catalog, default_database, tb3, source: [TestTableSource(id, name)]]], fields=[id, name])
    :     +- Exchange(distribution=[hash[id]])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, tb4, source: [TestTableSource(id, name)]]], fields=[id, name])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, tb4, source: [TestTableSource(id, name)]]], fields=[id, name])
    +- Exchange(distribution=[hash[id]])
-      +- TableSourceScan(table=[[default_catalog, default_database, tb5, source: [TestTableSource(id, name)]]], fields=[id, name])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, tb5, source: [TestTableSource(id, name)]]], fields=[id, name])
 ]]>
     </Resource>
   </TestCase>
@@ -442,13 +442,13 @@ SortMergeJoin(joinType=[LeftOuterJoin], where=[AND(=(a, d1), =(b, e1))], select=
 :- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(a, a1), =(b, b1))], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
 :  :- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c, d, e, f])
 :  :  :- Exchange(distribution=[hash[a, b]])
-:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  :  +- Exchange(distribution=[hash[d, e]])
-:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 :  +- Exchange(distribution=[hash[a1, b1]])
-:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
 +- Exchange(distribution=[hash[d1, e1]])
-   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
 ]]>
     </Resource>
   </TestCase>
@@ -479,13 +479,13 @@ SortMergeJoin(joinType=[LeftOuterJoin], where=[AND(=(a1, d1), =(b1, e1))], selec
 :- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(d, a1), =(e, b1))], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
 :  :- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c, d, e, f])
 :  :  :- Exchange(distribution=[hash[a, b]])
-:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :  :  +- Exchange(distribution=[hash[d, e]])
-:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 :  +- Exchange(distribution=[hash[a1, b1]])
-:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
 +- Exchange(distribution=[hash[d1, e1]])
-   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
 ]]>
     </Resource>
   </TestCase>
@@ -518,7 +518,7 @@ Calc(select=[sum_b, /(CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT), w0$o0) AS av
             +- LocalSortAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
                +- Sort(orderBy=[a ASC])
                   +- Calc(select=[a, b])
-                     +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -544,7 +544,7 @@ Sort(orderBy=[a ASC])
    +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS cnt])
       +- Exchange(distribution=[hash[a, b]])
          +- LocalHashAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
-            +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -576,7 +576,7 @@ SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1])
          +- Exchange(distribution=[hash[a]])
             +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
                +- Sort(orderBy=[a ASC, b ASC])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -607,7 +607,7 @@ SortAggregate(isMerge=[false], groupBy=[a, b], select=[a, b, MAX(c) AS EXPR$2])
       +- Exchange(distribution=[hash[a]])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
             +- Sort(orderBy=[a ASC, b ASC])
-               +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -636,7 +636,7 @@ Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orde
    +- Exchange(distribution=[hash[a]])
       +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
          +- Sort(orderBy=[a ASC, b ASC])
-            +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -669,7 +669,7 @@ Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orde
          +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(c) AS count$0])
             +- Sort(orderBy=[a ASC])
                +- Calc(select=[a, c])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -701,7 +701,7 @@ SortAggregate(isMerge=[false], select=[COUNT(a) AS EXPR$0, SUM(b) AS EXPR$1])
          +- Exchange(distribution=[single])
             +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[false], select=[a, b, c])
                +- Sort(orderBy=[b ASC])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

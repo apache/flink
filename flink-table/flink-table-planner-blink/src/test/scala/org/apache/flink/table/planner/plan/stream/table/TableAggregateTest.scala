@@ -19,9 +19,10 @@
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.utils.{EmptyTableAggFunc, EmptyTableAggFuncWithIntResultType, TableTestBase}
+
 import org.junit.Test
 
 class TableAggregateTest extends TableTestBase {
@@ -64,7 +65,7 @@ class TableAggregateTest extends TableTestBase {
 
     val resultTable = table
       .flatAggregate(emptyFunc('b))
-      .select("*")
+      .select($"*")
 
     util.verifyPlan(resultTable)
   }
@@ -103,9 +104,9 @@ class TableAggregateTest extends TableTestBase {
     util.addFunction("func", func)
 
     val resultTable = table
-      .groupBy("c")
+      .groupBy($"c")
       .flatAggregate("func(a)")
-      .select("*")
+      .select($"*")
 
     util.verifyPlan(resultTable)
   }

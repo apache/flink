@@ -41,11 +41,11 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
 
         self.assertEqual(
             envrionment_settings._j_environment_settings.toPlannerProperties()[CLASS_NAME],
-            OLD_PLANNER_FACTORY)
+            BLINK_PLANNER_FACTORY)
 
         self.assertEqual(
             envrionment_settings._j_environment_settings.toExecutorProperties()[CLASS_NAME],
-            OLD_EXECUTOR_FACTORY)
+            BLINK_EXECUTOR_FACTORY)
 
         # test use_old_planner
         envrionment_settings = builder.use_old_planner().build()

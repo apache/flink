@@ -23,6 +23,7 @@ import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.connector.source.{Source, SourceSplit}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
@@ -658,6 +659,15 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
       override def cancel() = {}
     }
     addSource(sourceFunction)
+  }
+
+  /**
+    * Create a DataStream using a [[Source]].
+    */
+  def continuousSource[T: TypeInformation](
+      source: Source[T, _ <: SourceSplit, _],
+      sourceName: String): Unit = {
+    asScalaStream(javaEnv.continuousSource(source, sourceName))
   }
 
   /**

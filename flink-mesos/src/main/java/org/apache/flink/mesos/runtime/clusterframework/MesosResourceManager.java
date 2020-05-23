@@ -43,9 +43,7 @@ import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
-import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -54,6 +52,7 @@ import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTra
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -80,11 +79,11 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -126,8 +125,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	@Nullable
 	private final String webUiUrl;
 
-	private final Collection<ResourceProfile> slotsPerWorker;
-
 	/** Mesos scheduler driver. */
 	private SchedulerDriver schedulerDriver;
 
@@ -152,7 +149,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	public MesosResourceManager(
 			// base class
 			RpcService rpcService,
-			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
@@ -171,7 +167,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			ResourceManagerMetricGroup resourceManagerMetricGroup) {
 		super(
 			rpcService,
-			resourceManagerEndpointId,
 			resourceId,
 			highAvailabilityServices,
 			heartbeatServices,
@@ -198,10 +193,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		this.workersInNew = new HashMap<>(8);
 		this.workersInLaunch = new HashMap<>(8);
 		this.workersBeingReturned = new HashMap<>(8);
-
-		this.slotsPerWorker = TaskExecutorProcessUtils.createDefaultWorkerSlotProfiles(
-			taskManagerParameters.containeredParameters().getTaskExecutorProcessSpec(),
-			taskManagerParameters.containeredParameters().numSlots());
 	}
 
 	protected ActorRef createSelfActor() {
@@ -437,14 +428,14 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	}
 
 	@Override
-	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
-		if (!slotsPerWorker.iterator().next().isMatching(resourceProfile)) {
-			return Collections.emptyList();
-		}
+	public boolean startNewWorker(WorkerResourceSpec workerResourceSpec) {
+		Preconditions.checkArgument(Objects.equals(
+			workerResourceSpec,
+			WorkerResourceSpec.fromTaskExecutorProcessSpec(taskManagerParameters.containeredParameters().getTaskExecutorProcessSpec())));
 		LOG.info("Starting a new worker.");
 		try {
 			// generate new workers into persistent state and launch associated actors
-			MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newWorker(workerStore.newTaskID(), resourceProfile);
+			MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newWorker(workerStore.newTaskID(), workerResourceSpec);
 			workerStore.putWorker(worker);
 			workersInNew.put(extractResourceID(worker.taskID()), worker);
 
@@ -460,10 +451,10 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			// tell the launch coordinator to launch the new tasks
 			launchCoordinator.tell(new LaunchCoordinator.Launch(Collections.singletonList(launchable)), selfActor);
 
-			return slotsPerWorker;
+			return true;
 		} catch (Exception ex) {
 			onFatalError(new ResourceManagerException("Unable to request new workers.", ex));
-			return Collections.emptyList();
+			return false;
 		}
 	}
 
@@ -670,7 +661,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			assert(launched != null);
 			LOG.info("Worker {} failed with status: {}, reason: {}, message: {}.",
 				id, status.getState(), status.getReason(), status.getMessage());
-			startNewWorker(launched.profile());
+			startNewWorker(launched.workerResourceSpec());
 		}
 
 		closeTaskManagerConnection(id, new Exception(status.getMessage()));

@@ -39,6 +39,8 @@ public class NettyShuffleEnvironmentBuilder {
 	private static final String[] DEFAULT_TEMP_DIRS = {EnvironmentInformation.getTemporaryFileDirectory()};
 	private static final Duration DEFAULT_REQUEST_SEGMENTS_TIMEOUT = Duration.ofMillis(30000L);
 
+	private int bufferSize = DEFAULT_NETWORK_BUFFER_SIZE;
+
 	private int numNetworkBuffers = DEFAULT_NUM_NETWORK_BUFFERS;
 
 	private int partitionRequestInitialBackoff;
@@ -48,6 +50,8 @@ public class NettyShuffleEnvironmentBuilder {
 	private int networkBuffersPerChannel = 2;
 
 	private int floatingNetworkBuffersPerGate = 8;
+
+	private int maxBuffersPerChannel = Integer.MAX_VALUE;
 
 	private boolean blockingShuffleCompressionEnabled = false;
 
@@ -61,6 +65,11 @@ public class NettyShuffleEnvironmentBuilder {
 
 	public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
 		this.taskManagerLocation = taskManagerLocation;
+		return this;
+	}
+
+	public NettyShuffleEnvironmentBuilder setBufferSize(int bufferSize) {
+		this.bufferSize = bufferSize;
 		return this;
 	}
 
@@ -86,6 +95,11 @@ public class NettyShuffleEnvironmentBuilder {
 
 	public NettyShuffleEnvironmentBuilder setFloatingNetworkBuffersPerGate(int floatingNetworkBuffersPerGate) {
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+		return this;
+	}
+
+	public NettyShuffleEnvironmentBuilder setMaxBuffersPerChannel(int maxBuffersPerChannel) {
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
 		return this;
 	}
 
@@ -125,7 +139,8 @@ public class NettyShuffleEnvironmentBuilder {
 				BoundedBlockingSubpartitionType.AUTO,
 				false,
 				blockingShuffleCompressionEnabled,
-				compressionCodec),
+				compressionCodec,
+				maxBuffersPerChannel),
 			taskManagerLocation,
 			new TaskEventDispatcher(),
 			metricGroup);

@@ -79,6 +79,13 @@ public abstract class OrcSplitReader<T, BATCH> implements Closeable {
 		nextRow = 0;
 	}
 
+	/**
+	 * Seek to a particular row number.
+	 */
+	public void seekToRow(long rowCount) throws IOException {
+		orcRowsReader.seekToRow(rowCount);
+	}
+
 	@VisibleForTesting
 	public RecordReader getRecordReader() {
 		return orcRowsReader;

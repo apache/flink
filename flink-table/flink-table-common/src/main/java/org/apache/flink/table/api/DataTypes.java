@@ -661,8 +661,9 @@ public final class DataTypes {
 			.map(f -> Preconditions.checkNotNull(f, "Field definition must not be null."))
 			.map(f -> new RowField(f.name, f.dataType.getLogicalType(), f.description))
 			.collect(Collectors.toList());
-		final Map<String, DataType> fieldDataTypes = Stream.of(fields)
-			.collect(Collectors.toMap(f -> f.name, f -> f.dataType));
+		final List<DataType> fieldDataTypes = Stream.of(fields)
+			.map(f -> f.dataType)
+			.collect(Collectors.toList());
 		return new FieldsDataType(new RowType(logicalFields), fieldDataTypes);
 	}
 
@@ -717,6 +718,10 @@ public final class DataTypes {
 	 * as well as bridging to formats such as JSON or Avro that define such a type as well.
 	 *
 	 * <p>The null type is an extension to the SQL standard.
+	 *
+	 * <p>Note: The runtime does not support this type. It is a pure helper type during translation and
+	 * planning. Table columns cannot be declared with this type. Functions cannot declare return types
+	 * of this type.
 	 *
 	 * @see NullType
 	 */

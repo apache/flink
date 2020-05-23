@@ -18,8 +18,7 @@
 package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
 import org.hamcrest.Matchers.containsString
@@ -39,7 +38,7 @@ class TemporalJoinTest extends TableTestBase {
 
   val rates = util.addFunction(
     "Rates",
-    ratesHistory.createTemporalTableFunction("rowtime", "currency"))
+    ratesHistory.createTemporalTableFunction($"rowtime", $"currency"))
 
   @Test
   def testSimpleJoin(): Unit = {
@@ -69,7 +68,7 @@ class TemporalJoinTest extends TableTestBase {
 
     val ratesHistory = util.addDataStream[(Timestamp, String, String, Int, Int)](
       "RatesHistory", 'rowtime, 'comment, 'currency, 'rate, 'secondary_key)
-    val rates = ratesHistory.createTemporalTableFunction("rowtime", "currency")
+    val rates = ratesHistory.createTemporalTableFunction($"rowtime", $"currency")
     util.addFunction("Rates", rates)
 
     val sqlQuery =

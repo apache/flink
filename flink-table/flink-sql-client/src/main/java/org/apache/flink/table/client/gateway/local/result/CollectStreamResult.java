@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.experimental.SocketStreamIterator;
@@ -32,7 +33,6 @@ import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.CollectStreamTableSink;
-import org.apache.flink.table.client.gateway.local.ProgramDeployer;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 
@@ -86,18 +86,16 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 	}
 
 	@Override
-	public void startRetrieval(ProgramDeployer deployer) {
+	public void startRetrieval(JobClient jobClient) {
 		// start listener thread
 		retrievalThread.start();
 
-		jobExecutionResultFuture = deployer
-				.deploy()
-				.thenCompose(jobClient -> jobClient.getJobExecutionResult(classLoader))
+		jobExecutionResultFuture = jobClient.getJobExecutionResult(classLoader)
 				.whenComplete((unused, throwable) -> {
 					if (throwable != null) {
 						executionException.compareAndSet(
 								null,
-								new SqlExecutionException("Error while submitting job.", throwable));
+								new SqlExecutionException("Error while retrieving result.", throwable));
 					}
 				});
 	}

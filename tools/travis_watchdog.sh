@@ -25,7 +25,7 @@ if [ -z "$HERE" ] ; then
 	exit 1  # fail
 fi
 
-source "${HERE}/travis/stage.sh"
+source "${HERE}/ci/stage.sh"
 source "${HERE}/ci/maven-utils.sh"
 
 ARTIFACTS_DIR="${HERE}/artifacts"
@@ -39,7 +39,7 @@ echo "Build for commit ${TRAVIS_COMMIT} of ${TRAVIS_REPO_SLUG} [build ID: ${TRAV
 # =============================================================================
 
 # Number of seconds w/o output before printing a stack trace and killing $MVN
-MAX_NO_OUTPUT=${1:-300}
+MAX_NO_OUTPUT=${1:-900}
 
 # Number of seconds to sleep before checking the output again
 SLEEP_TIME=20
@@ -147,12 +147,13 @@ upload_artifacts_s3() {
 
 	# On Azure, publish ARTIFACTS_FILE as a build artifact
 	if [ ! -z "$TF_BUILD" ] ; then
+		TIMESTAMP=`date +%s` # append timestamp to name to allow multiple uploads for the same module
 		ARTIFACT_DIR="$(pwd)/artifact-dir"
 		mkdir $ARTIFACT_DIR
 		cp $ARTIFACTS_FILE $ARTIFACT_DIR/
 		
 		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$ARTIFACT_DIR"
-		echo "##vso[task.setvariable variable=ARTIFACT_NAME]$(echo $MODULE | tr -dc '[:alnum:]\n\r')"
+		echo "##vso[task.setvariable variable=ARTIFACT_NAME]$(echo $MODULE | tr -dc '[:alnum:]\n\r')-$TIMESTAMP"
 	fi
 
 	# upload to https://transfer.sh
@@ -222,7 +223,8 @@ watchdog () {
 
 			print_stacktraces | tee $TRACE_OUT
 
-			kill $(<$CMD_PID)
+			# Kill $CMD and all descendants
+			pkill -P $(<$CMD_PID)
 
 			exit 1
 		fi

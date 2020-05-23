@@ -207,7 +207,6 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
 
 		final TestingResourceManager resourceManager = new TestingResourceManager(
 			rpcService,
-			ResourceManager.RESOURCE_MANAGER_NAME + UUID.randomUUID(),
 			ResourceID.generate(),
 			highAvailabilityServices,
 			new HeartbeatServices(100000L, 1000000L),

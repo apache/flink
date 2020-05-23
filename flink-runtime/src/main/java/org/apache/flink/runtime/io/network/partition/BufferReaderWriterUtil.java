@@ -92,7 +92,8 @@ final class BufferReaderWriterUtil {
 
 		MemorySegment memorySegment = MemorySegmentFactory.wrapOffHeapMemory(buf);
 
-		return new NetworkBuffer(memorySegment, FreeingBufferRecycler.INSTANCE, !isEvent, isCompressed, size);
+		Buffer.DataType dataType = isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER;
+		return new NetworkBuffer(memorySegment, FreeingBufferRecycler.INSTANCE, dataType, isCompressed, size);
 	}
 
 	// ------------------------------------------------------------------------
@@ -172,7 +173,8 @@ final class BufferReaderWriterUtil {
 
 		readByteBufferFully(channel, targetBuf);
 
-		return new NetworkBuffer(memorySegment, bufferRecycler, !isEvent, isCompressed, size);
+		Buffer.DataType dataType = isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER;
+		return new NetworkBuffer(memorySegment, bufferRecycler, dataType, isCompressed, size);
 	}
 
 	static ByteBuffer allocatedHeaderBuffer() {

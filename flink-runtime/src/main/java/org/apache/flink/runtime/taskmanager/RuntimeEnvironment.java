@@ -29,10 +29,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
@@ -70,11 +71,12 @@ public class RuntimeEnvironment implements Environment {
 	private final TaskStateManager taskStateManager;
 	private final GlobalAggregateManager aggregateManager;
 	private final InputSplitProvider splitProvider;
+	private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
 	private final Map<String, Future<Path>> distCacheEntries;
 
 	private final ResultPartitionWriter[] writers;
-	private final InputGate[] inputGates;
+	private final IndexedInputGate[] inputGates;
 
 	private final TaskEventDispatcher taskEventDispatcher;
 
@@ -111,13 +113,14 @@ public class RuntimeEnvironment implements Environment {
 			InputSplitProvider splitProvider,
 			Map<String, Future<Path>> distCacheEntries,
 			ResultPartitionWriter[] writers,
-			InputGate[] inputGates,
+			IndexedInputGate[] inputGates,
 			TaskEventDispatcher taskEventDispatcher,
 			CheckpointResponder checkpointResponder,
 			TaskOperatorEventGateway operatorEventGateway,
 			TaskManagerRuntimeInfo taskManagerInfo,
 			TaskMetricGroup metrics,
-			Task containingTask) {
+			Task containingTask,
+			ExternalResourceInfoProvider externalResourceInfoProvider) {
 
 		this.jobId = checkNotNull(jobId);
 		this.jobVertexId = checkNotNull(jobVertexId);
@@ -144,6 +147,7 @@ public class RuntimeEnvironment implements Environment {
 		this.taskManagerInfo = checkNotNull(taskManagerInfo);
 		this.containingTask = containingTask;
 		this.metrics = metrics;
+		this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
 	}
 
 	// ------------------------------------------------------------------------
@@ -254,18 +258,23 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public InputGate getInputGate(int index) {
+	public IndexedInputGate getInputGate(int index) {
 		return inputGates[index];
 	}
 
 	@Override
-	public InputGate[] getAllInputGates() {
+	public IndexedInputGate[] getAllInputGates() {
 		return inputGates;
 	}
 
 	@Override
 	public TaskEventDispatcher getTaskEventDispatcher() {
 		return taskEventDispatcher;
+	}
+
+	@Override
+	public ExternalResourceInfoProvider getExternalResourceInfoProvider() {
+		return externalResourceInfoProvider;
 	}
 
 	@Override

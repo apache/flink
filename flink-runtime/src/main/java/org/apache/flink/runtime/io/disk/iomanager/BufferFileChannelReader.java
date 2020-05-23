@@ -62,10 +62,7 @@ public class BufferFileChannelReader {
 
 		fileChannel.read(buffer.getNioBuffer(0, size));
 		buffer.setSize(size);
-
-		if (!isBuffer) {
-			buffer.tagAsEvent();
-		}
+		buffer.setDataType(isBuffer ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.EVENT_BUFFER);
 
 		return fileChannel.size() - fileChannel.position() == 0;
 	}

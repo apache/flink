@@ -19,13 +19,13 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, Types}
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.DecimalType
 import org.apache.flink.types.Row
+
 import org.junit.{Ignore, Test}
 
 class DecimalTypeTest extends ExpressionTestBase {
@@ -132,7 +132,7 @@ class DecimalTypeTest extends ExpressionTestBase {
   @Ignore
   @Test
   def testDefaultDecimalCasting(): Unit = {
-    // from String
+//    // from String
     testTableApi(
       "123456789123456789123456789".cast(DataTypes.DECIMAL(38, 0)),
       "'123456789123456789123456789'.cast(DECIMAL)",
@@ -1219,6 +1219,11 @@ class DecimalTypeTest extends ExpressionTestBase {
     testSqlApi(
       "f66 between 0 and f63",
       "true")
+  }
+
+  @Test
+  def testCompareDecimalColWithNull(): Unit = {
+    testSqlApi("f35>cast(1234567890123.123 as decimal(20,16))", "null")
   }
 
   // ----------------------------------------------------------------------------------------------

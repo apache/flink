@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.function.Supplier;
 
 /**
@@ -33,6 +34,7 @@ import java.util.function.Supplier;
  * <ol>
  * <li>build a snapshot (invokable)</li>
  * <li>report snapshot to the JobManager</li>
+ * <li>action upon checkpoint notification</li>
  * <li>maintain storage locations</li>
  * </ol>
  */
@@ -43,7 +45,7 @@ interface SubtaskCheckpointCoordinator extends Closeable {
 
 	CheckpointStorageWorkerView getCheckpointStorage();
 
-	void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) throws Exception;
+	void abortCheckpointOnBarrier(long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) throws IOException;
 
 	void checkpointState(
 		CheckpointMetaData checkpointMetaData,
@@ -51,4 +53,28 @@ interface SubtaskCheckpointCoordinator extends Closeable {
 		CheckpointMetrics checkpointMetrics,
 		OperatorChain<?, ?> operatorChain,
 		Supplier<Boolean> isCanceled) throws Exception;
+
+	/**
+	 * Notified on the task side once a distributed checkpoint has been completed.
+	 *
+	 * @param checkpointId The checkpoint id to notify as been completed.
+	 * @param operatorChain The chain of operators executed by the task.
+	 * @param isRunning Whether the task is running.
+	 */
+	void notifyCheckpointComplete(
+		long checkpointId,
+		OperatorChain<?, ?> operatorChain,
+		Supplier<Boolean> isRunning) throws Exception;
+
+	/**
+	 * Notified on the task side once a distributed checkpoint has been aborted.
+	 *
+	 * @param checkpointId The checkpoint id to notify as been completed.
+	 * @param operatorChain The chain of operators executed by the task.
+	 * @param isRunning Whether the task is running.
+	 */
+	void notifyCheckpointAborted(
+		long checkpointId,
+		OperatorChain<?, ?> operatorChain,
+		Supplier<Boolean> isRunning) throws Exception;
 }

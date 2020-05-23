@@ -59,9 +59,9 @@ public interface ResourceManagerPartitionTracker {
 	CompletableFuture<Void> releaseClusterPartitions(IntermediateDataSetID dataSetId);
 
 	/**
-	 * Returns all data sets for which all partitions are being tracked.
+	 * Returns all data sets for which partitions are being tracked.
 	 *
-	 * @return completely tracked datasets
+	 * @return tracked datasets
 	 */
 	Map<IntermediateDataSetID, DataSetMetaInfo> listDataSets();
 }

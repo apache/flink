@@ -27,7 +27,7 @@ LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC], dir1=[ASC], dir2=[AS
       <![CDATA[
 Sort(orderBy=[a ASC, b ASC, c ASC])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e, f)]]], fields=[a, b, c, d, e, f])
 ]]>
     </Resource>
   </TestCase>

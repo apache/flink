@@ -18,14 +18,22 @@
 
 package org.apache.flink.table.planner.utils
 
+import java.util
+
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.api.{TableEnvironment, TableSchema}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
+import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
+import org.apache.flink.table.descriptors.Schema.SCHEMA
+import org.apache.flink.table.factories.StreamTableSourceFactory
+import org.apache.flink.table.planner.runtime.utils.TestData.{data3, type3}
 import org.apache.flink.table.sources._
+import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
@@ -74,5 +82,55 @@ class TestLimitableTableSource(
   }
 
   override def getTableSchema: TableSchema = TableSchema.fromTypeInfo(rowType)
+}
+
+object TestLimitableTableSource {
+  def createTemporaryTable(
+      tEnv: TableEnvironment,
+      data: Seq[Row],
+      schema: TableSchema,
+      tableName: String): Unit = {
+    val desc = new CustomConnectorDescriptor("TestLimitableTableSource", 1, false)
+    if (data != null && data.nonEmpty) {
+      desc.property("data", EncodingUtils.encodeObjectToString(data.toList))
+    }
+    tEnv.connect(desc)
+      .withSchema(new Schema().schema(schema))
+      .createTemporaryTable(tableName)
+  }
+}
+
+class TestLimitableTableSourceFactory extends StreamTableSourceFactory[Row] {
+  override def createStreamTableSource(
+      properties: util.Map[String, String]): StreamTableSource[Row] = {
+    val dp = new DescriptorProperties
+    dp.putProperties(properties)
+    val tableSchema = dp.getTableSchema(SCHEMA)
+
+    val serializedData = dp.getOptionalString("data").orElse(null)
+    val data = if (serializedData != null) {
+      EncodingUtils.decodeStringToObject(serializedData, classOf[List[Row]])
+    } else {
+      null
+    }
+
+    val limit = dp.getOptionalLong("limit").orElse(-1L)
+
+    val limitablePushedDown = dp.getOptionalBoolean("limitable-push-down").orElse(false)
+    new TestLimitableTableSource(
+      data, tableSchema.toRowType.asInstanceOf[RowTypeInfo], limit, limitablePushedDown)
+  }
+
+  override def requiredContext(): util.Map[String, String] = {
+    val context = new util.HashMap[String, String]()
+    context.put(CONNECTOR_TYPE, "TestLimitableTableSource")
+    context
+  }
+
+  override def supportedProperties(): util.List[String] = {
+    val supported = new util.ArrayList[String]()
+    supported.add("*")
+    supported
+  }
 }
 

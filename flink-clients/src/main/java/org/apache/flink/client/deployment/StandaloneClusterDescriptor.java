@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.deployment;
 
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -61,11 +62,18 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 	}
 
 	@Override
+	public ClusterClientProvider<StandaloneClusterId> deployApplicationCluster(
+			final ClusterSpecification clusterSpecification,
+			final ApplicationConfiguration applicationConfiguration) {
+		throw new UnsupportedOperationException("Application Mode not supported by standalone deployments.");
+	}
+
+	@Override
 	public ClusterClientProvider<StandaloneClusterId> deployJobCluster(
 			ClusterSpecification clusterSpecification,
 			JobGraph jobGraph,
 			boolean detached) {
-		throw new UnsupportedOperationException("Can't deploy a standalone per-job cluster.");
+		throw new UnsupportedOperationException("Per-Job Mode not supported by standalone deployments.");
 	}
 
 	@Override

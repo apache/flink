@@ -18,13 +18,15 @@
 package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.{RexCall, RexFieldAccess, RexInputRef, RexNode}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
+import org.apache.flink.api.common.functions.RichFlatMapFunction
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.functions.python.PythonFunctionInfo
-import org.apache.flink.table.plan.nodes.CommonPythonCorrelate.PYTHON_TABLE_FUNCTION_OPERATOR_NAME
+import org.apache.flink.table.plan.nodes.CommonPythonCorrelate.{PYTHON_TABLE_FUNCTION_OPERATOR_NAME, PYTHON_TABLE_FUNCTION_FLAT_MAP_NAME}
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.types.Row
 
 import scala.collection.mutable
 
@@ -54,16 +56,38 @@ trait CommonPythonCorrelate extends CommonPythonBase {
       .asInstanceOf[OneInputStreamOperator[CRow, CRow]]
   }
 
+  protected def getPythonTableFunctionFlatMap(
+      config: Configuration,
+      inputRowType: RowType,
+      outputRowType: RowType,
+      pythonFunctionInfo: PythonFunctionInfo,
+      udtfInputOffsets: Array[Int],
+      joinType: JoinRelType): RichFlatMapFunction[Row, Row] = {
+    val clazz = loadClass(PYTHON_TABLE_FUNCTION_FLAT_MAP_NAME)
+    val ctor = clazz.getConstructor(
+      classOf[Configuration],
+      classOf[PythonFunctionInfo],
+      classOf[RowType],
+      classOf[RowType],
+      classOf[Array[Int]],
+      classOf[JoinRelType])
+    ctor.newInstance(
+      config,
+      pythonFunctionInfo,
+      inputRowType,
+      outputRowType,
+      udtfInputOffsets,
+      joinType)
+      .asInstanceOf[RichFlatMapFunction[Row, Row]]
+  }
+
   protected def extractPythonTableFunctionInfo(
       pythonRexCall: RexCall): (Array[Int], PythonFunctionInfo) = {
     val inputNodes = new mutable.LinkedHashMap[RexNode, Integer]()
     val pythonTableFunctionInfo = createPythonFunctionInfo(pythonRexCall, inputNodes)
     val udtfInputOffsets = inputNodes.toArray
       .map(_._1)
-      .collect {
-        case inputRef: RexInputRef => inputRef.getIndex
-        case fac: RexFieldAccess => fac.getField.getIndex
-      }
+      .collect { case inputRef: RexInputRef => inputRef.getIndex }
     (udtfInputOffsets, pythonTableFunctionInfo)
   }
 }
@@ -71,4 +95,6 @@ trait CommonPythonCorrelate extends CommonPythonBase {
 object CommonPythonCorrelate {
   val PYTHON_TABLE_FUNCTION_OPERATOR_NAME =
     "org.apache.flink.table.runtime.operators.python.table.PythonTableFunctionOperator"
+  val PYTHON_TABLE_FUNCTION_FLAT_MAP_NAME =
+    "org.apache.flink.table.runtime.functions.python.PythonTableFunctionFlatMap"
 }

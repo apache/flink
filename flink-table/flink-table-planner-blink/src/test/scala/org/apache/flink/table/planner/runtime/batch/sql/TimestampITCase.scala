@@ -25,9 +25,8 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.planner.utils.TestDataTypeTableSource
 import org.apache.flink.types.Row
 import org.junit.Test
-
 import java.sql.Timestamp
-import java.time.{Instant, LocalDateTime, ZoneId}
+import java.time.{Instant, ZoneId}
 
 import scala.collection.mutable
 
@@ -41,12 +40,12 @@ class TimestampITCase extends BatchTestBase {
       Array(
         DataTypes.INT(),
         DataTypes.BIGINT(),
-        DataTypes.TIMESTAMP(9).bridgedTo(classOf[LocalDateTime]),
-        DataTypes.TIMESTAMP(9).bridgedTo(classOf[Timestamp]),
-        DataTypes.TIMESTAMP(3).bridgedTo(classOf[LocalDateTime]),
-        DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp]),
-        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).bridgedTo(classOf[Instant]),
-        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9).bridgedTo(classOf[Instant]))
+        DataTypes.TIMESTAMP(9),
+        DataTypes.TIMESTAMP(9),
+        DataTypes.TIMESTAMP(3),
+        DataTypes.TIMESTAMP(3),
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9),
+        DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9))
     ).build()
 
     val ints = List(1, 2, 3, 4, null)
@@ -61,10 +60,10 @@ class TimestampITCase extends BatchTestBase {
       null)
 
     val timestamps = List(
-      Timestamp.valueOf("1969-01-01 00:00:00.123456789"),
-      Timestamp.valueOf("1970-01-01 00:00:00.123456"),
-      Timestamp.valueOf("1970-01-01 00:00:00.123"),
-      Timestamp.valueOf("1972-01-01 00:00:00"),
+      Timestamp.valueOf("1969-01-01 00:00:00.123456789").toLocalDateTime,
+      Timestamp.valueOf("1970-01-01 00:00:00.123456").toLocalDateTime,
+      Timestamp.valueOf("1970-01-01 00:00:00.123").toLocalDateTime,
+      Timestamp.valueOf("1972-01-01 00:00:00").toLocalDateTime,
       null
     )
 
@@ -76,10 +75,10 @@ class TimestampITCase extends BatchTestBase {
       null)
 
     val timestampsWithMilli = List(
-      Timestamp.valueOf("1969-01-01 00:00:00.123"),
-      Timestamp.valueOf("1970-01-01 00:00:00.12"),
-      Timestamp.valueOf("1970-01-01 00:00:00.1"),
-      Timestamp.valueOf("1972-01-01 00:00:00"),
+      Timestamp.valueOf("1969-01-01 00:00:00.123").toLocalDateTime,
+      Timestamp.valueOf("1970-01-01 00:00:00.12").toLocalDateTime,
+      Timestamp.valueOf("1970-01-01 00:00:00.1").toLocalDateTime,
+      Timestamp.valueOf("1972-01-01 00:00:00").toLocalDateTime,
       null
     )
 
@@ -100,7 +99,7 @@ class TimestampITCase extends BatchTestBase {
         instantsOfTimestamp += null
       } else {
         // Assume the time zone of source side is UTC
-        val ldt = timestamps(i).toLocalDateTime
+        val ldt = timestamps(i)
         instantsOfTimestamp += ldt.toInstant(ZoneId.of("UTC").getRules.getOffset(ldt))
       }
     }
@@ -113,10 +112,7 @@ class TimestampITCase extends BatchTestBase {
         timestampsWithMilli(i), instantsOfDateTime(i), instantsOfTimestamp(i))
     }
 
-    val tableSource = new TestDataTypeTableSource(
-      tableSchema,
-      data.seq)
-    tEnv.registerTableSource("T", tableSource)
+    TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "T", data.seq)
   }
 
   @Test

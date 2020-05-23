@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import javax.annotation.Nullable;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -42,7 +44,7 @@ public final class MockOperatorCoordinator implements OperatorCoordinator {
 	}
 
 	@Override
-	public void subtaskFailed(int subtask) {
+	public void subtaskFailed(int subtask, @Nullable Throwable reason) {
 		throw new UnsupportedOperationException();
 	}
 

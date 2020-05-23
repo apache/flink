@@ -157,7 +157,7 @@ table_env.execute("python_job")
 // **********************
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 EnvironmentSettings fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build();
 StreamExecutionEnvironment fsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -168,7 +168,7 @@ StreamTableEnvironment fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSetti
 // FLINK BATCH QUERY
 // ******************
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 
 ExecutionEnvironment fbEnv = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment fbTableEnv = BatchTableEnvironment.create(fbEnv);
@@ -178,7 +178,7 @@ BatchTableEnvironment fbTableEnv = BatchTableEnvironment.create(fbEnv);
 // **********************
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 StreamExecutionEnvironment bsEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
@@ -205,7 +205,7 @@ TableEnvironment bbTableEnv = TableEnvironment.create(bbSettings);
 // **********************
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 
 val fsSettings = EnvironmentSettings.newInstance().useOldPlanner().inStreamingMode().build()
 val fsEnv = StreamExecutionEnvironment.getExecutionEnvironment
@@ -216,7 +216,7 @@ val fsTableEnv = StreamTableEnvironment.create(fsEnv, fsSettings)
 // FLINK BATCH QUERY
 // ******************
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.table.api.scala.BatchTableEnvironment
+import org.apache.flink.table.api.bridge.scala.BatchTableEnvironment
 
 val fbEnv = ExecutionEnvironment.getExecutionEnvironment
 val fbTableEnv = BatchTableEnvironment.create(fbEnv)
@@ -226,7 +226,7 @@ val fbTableEnv = BatchTableEnvironment.create(fbEnv)
 // **********************
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.EnvironmentSettings
-import org.apache.flink.table.api.scala.StreamTableEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 
 val bsEnv = StreamExecutionEnvironment.getExecutionEnvironment
 val bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
@@ -419,7 +419,7 @@ tableEnvironment.sqlUpdate("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
 用户可以指定一个 catalog 和数据库作为 "当前catalog" 和"当前数据库"。有了这些，那么刚刚提到的三元标识符的前两个部分就可以被省略了。如果前两部分的标识符没有指定，
 那么会使用当前的 catalog 和当前数据库。用户也可以通过 Table API 或 SQL 切换当前的 catalog 和当前的数据库。
 
-标识符遵循 SQL 标准，因此使用时需要用反引号（`` ` ``）进行转义。此外，所有 SQL 保留关键字都必须转义。
+标识符遵循 SQL 标准，因此使用时需要用反引号（`` ` ``）进行转义。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -437,10 +437,6 @@ tableEnv.createTemporaryView("exampleView", table);
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table);
-
-// register the view named 'View' in the catalog named 'custom_catalog' in the
-// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
-tableEnv.createTemporaryView("`View`", table);
 
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
@@ -469,10 +465,6 @@ tableEnv.createTemporaryView("exampleView", table)
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'other_database' 
 tableEnv.createTemporaryView("other_database.exampleView", table)
-
-// register the view named 'View' in the catalog named 'custom_catalog' in the
-// database named 'custom_database'. 'View' is a reserved keyword and must be escaped.  
-tableEnv.createTemporaryView("`View`", table)
 
 // register the view named 'example.View' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
@@ -511,9 +503,9 @@ TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 Table orders = tableEnv.from("Orders");
 // compute revenue for all customers from France
 Table revenue = orders
-  .filter("cCountry === 'FRANCE'")
-  .groupBy("cID, cName")
-  .select("cID, cName, revenue.sum AS revSum");
+  .filter($("cCountry").isEqual("FRANCE"))
+  .groupBy($("cID"), $("cName")
+  .select($("cID"), $("cName"), $("revenue").sum().as("revSum"));
 
 // emit or convert Table
 // execute query
@@ -531,15 +523,17 @@ val tableEnv = ... // see "Create a TableEnvironment" section
 val orders = tableEnv.from("Orders")
 // compute revenue for all customers from France
 val revenue = orders
-  .filter('cCountry === "FRANCE")
-  .groupBy('cID, 'cName)
-  .select('cID, 'cName, 'revenue.sum AS 'revSum)
+  .filter($"cCountry" === "FRANCE")
+  .groupBy($"cID", $"cName")
+  .select($"cID", $"cName", $"revenue".sum AS "revSum")
 
 // emit or convert Table
 // execute query
 {% endhighlight %}
 
-**Note:** The Scala Table API uses Scala Symbols, which start with a single tick (`'`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import `org.apache.flink.api.scala._` and `org.apache.flink.table.api.scala._` in order to use Scala implicit conversions.
+**Note:** The Scala Table API uses Scala String interpolation that starts with a dollar sign (`$`) to reference the attributes of a `Table`. The Table API uses Scala implicits. Make sure to import
+* `org.apache.flink.table.api._` - for implicit expression conversions 
+* `org.apache.flink.api.scala._` and `org.apache.flink.table.api.bridge.scala._` if you want to convert from/to DataStream.
 </div>
 
 <div data-lang="python" markdown="1">
@@ -569,7 +563,7 @@ revenue = orders \
 
 Flink SQL 是基于实现了SQL标准的 [Apache Calcite](https://calcite.apache.org) 的。SQL 查询由常规字符串指定。
 
-文档 [SQL]({{ site.baseurl }}/zh/dev/table/sql.html) 描述了Flink对流处理和批处理表的SQL支持。
+文档 [SQL]({{ site.baseurl }}/zh/dev/table/sql/index.html) 描述了Flink对流处理和批处理表的SQL支持。
 
 下面的示例演示了如何指定查询并将结果作为 `Table` 对象返回。
 
@@ -866,7 +860,7 @@ Table API 和 SQL 可以被很容易地集成并嵌入到 [DataStream]({{ site.b
 
 ### Scala 隐式转换
 
-Scala Table API 含有对 `DataSet`、`DataStream` 和 `Table` 类的隐式转换。 通过为 Scala DataStream API 导入 `org.apache.flink.table.api.scala._` 包以及 `org.apache.flink.api.scala._` 包，可以启用这些转换。
+Scala Table API 含有对 `DataSet`、`DataStream` 和 `Table` 类的隐式转换。 通过为 Scala DataStream API 导入 `org.apache.flink.table.api.bridge.scala._` 包以及 `org.apache.flink.api.scala._` 包，可以启用这些转换。
 
 ### 通过 DataSet 或 DataStream 创建`视图`
 
@@ -887,7 +881,7 @@ DataStream<Tuple2<Long, String>> stream = ...
 tableEnv.createTemporaryView("myTable", stream);
 
 // register the DataStream as View "myTable2" with fields "myLong", "myString"
-tableEnv.createTemporaryView("myTable2", stream, "myLong, myString");
+tableEnv.createTemporaryView("myTable2", stream, $("myLong"), $("myString"));
 {% endhighlight %}
 </div>
 
@@ -927,7 +921,7 @@ DataStream<Tuple2<Long, String>> stream = ...
 Table table1 = tableEnv.fromDataStream(stream);
 
 // Convert the DataStream into a Table with fields "myLong", "myString"
-Table table2 = tableEnv.fromDataStream(stream, "myLong, myString");
+Table table2 = tableEnv.fromDataStream(stream, $("myLong"), $("myString"));
 {% endhighlight %}
 </div>
 
@@ -939,11 +933,11 @@ val tableEnv = ... // see "Create a TableEnvironment" section
 
 val stream: DataStream[(Long, String)] = ...
 
-// convert the DataStream into a Table with default fields '_1, '_2
+// convert the DataStream into a Table with default fields "_1", "_2"
 val table1: Table = tableEnv.fromDataStream(stream)
 
-// convert the DataStream into a Table with fields 'myLong, 'myString
-val table2: Table = tableEnv.fromDataStream(stream, 'myLong, 'myString)
+// convert the DataStream into a Table with fields "myLong", "myString"
+val table2: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
 {% endhighlight %}
 </div>
 </div>
@@ -1099,10 +1093,10 @@ DataStream<Tuple2<Long, Integer>> stream = ...
 Table table = tableEnv.fromDataStream(stream);
 
 // convert DataStream into Table with field "myLong" only
-Table table = tableEnv.fromDataStream(stream, "myLong");
+Table table = tableEnv.fromDataStream(stream, $("myLong"));
 
 // convert DataStream into Table with field names "myLong" and "myInt"
-Table table = tableEnv.fromDataStream(stream, "myLong, myInt");
+Table table = tableEnv.fromDataStream(stream, $("myLong"), $("myInt"));
 {% endhighlight %}
 </div>
 
@@ -1117,10 +1111,10 @@ val stream: DataStream[(Long, Int)] = ...
 val table: Table = tableEnv.fromDataStream(stream)
 
 // convert DataStream into Table with field "myLong" only
-val table: Table = tableEnv.fromDataStream(stream, 'myLong)
+val table: Table = tableEnv.fromDataStream(stream, $"myLong")
 
 // convert DataStream into Table with field names "myLong" and "myInt"
-val table: Table = tableEnv.fromDataStream(stream, 'myLong, 'myInt)
+val table: Table = tableEnv.fromDataStream(stream, $"myLong", $"myInt")
 {% endhighlight %}
 </div>
 </div>
@@ -1143,13 +1137,13 @@ DataStream<Tuple2<Long, Integer>> stream = ...
 Table table = tableEnv.fromDataStream(stream);
 
 // convert DataStream into Table with field "f1" only
-Table table = tableEnv.fromDataStream(stream, "f1");
+Table table = tableEnv.fromDataStream(stream, $("f1"));
 
 // convert DataStream into Table with swapped fields
-Table table = tableEnv.fromDataStream(stream, "f1, f0");
+Table table = tableEnv.fromDataStream(stream, $("f1"), $("f0"));
 
 // convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
-Table table = tableEnv.fromDataStream(stream, "f1 as myInt, f0 as myLong");
+Table table = tableEnv.fromDataStream(stream, $("f1").as("myInt"), $("f0").as("myLong"));
 {% endhighlight %}
 </div>
 
@@ -1164,13 +1158,13 @@ val stream: DataStream[(Long, Int)] = ...
 val table: Table = tableEnv.fromDataStream(stream)
 
 // convert DataStream into Table with field "_2" only
-val table: Table = tableEnv.fromDataStream(stream, '_2)
+val table: Table = tableEnv.fromDataStream(stream, $"_2")
 
 // convert DataStream into Table with swapped fields
-val table: Table = tableEnv.fromDataStream(stream, '_2, '_1)
+val table: Table = tableEnv.fromDataStream(stream, $"_2", $"_1")
 
 // convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
-val table: Table = tableEnv.fromDataStream(stream, '_2 as 'myInt, '_1 as 'myLong)
+val table: Table = tableEnv.fromDataStream(stream, $"_2" as "myInt", $"_1" as "myLong")
 {% endhighlight %}
 </div>
 </div>
@@ -1191,7 +1185,7 @@ DataStream<Long> stream = ...
 Table table = tableEnv.fromDataStream(stream);
 
 // convert DataStream into Table with field name "myLong"
-Table table = tableEnv.fromDataStream(stream, "myLong");
+Table table = tableEnv.fromDataStream(stream, $("myLong"));
 {% endhighlight %}
 </div>
 
@@ -1206,7 +1200,7 @@ val stream: DataStream[Long] = ...
 val table: Table = tableEnv.fromDataStream(stream)
 
 // convert DataStream into Table with field name "myLong"
-val table: Table = tableEnv.fromDataStream(stream, 'myLong)
+val table: Table = tableEnv.fromDataStream(stream, $"myLong")
 {% endhighlight %}
 </div>
 </div>
@@ -1227,16 +1221,16 @@ DataStream<Tuple2<Long, String>> stream = ...
 Table table = tableEnv.fromDataStream(stream);
 
 // convert DataStream into Table with renamed field names "myLong", "myString" (position-based)
-Table table = tableEnv.fromDataStream(stream, "myLong, myString");
+Table table = tableEnv.fromDataStream(stream, $("myLong"), $("myString"));
 
 // convert DataStream into Table with reordered fields "f1", "f0" (name-based)
-Table table = tableEnv.fromDataStream(stream, "f1, f0");
+Table table = tableEnv.fromDataStream(stream, $("f1"), $("f0"));
 
 // convert DataStream into Table with projected field "f1" (name-based)
-Table table = tableEnv.fromDataStream(stream, "f1");
+Table table = tableEnv.fromDataStream(stream, $("f1"));
 
 // convert DataStream into Table with reordered and aliased fields "myString", "myLong" (name-based)
-Table table = tableEnv.fromDataStream(stream, "f1 as 'myString', f0 as 'myLong'");
+Table table = tableEnv.fromDataStream(stream, $("f1").as("myString"), $("f0").as("myLong"));
 {% endhighlight %}
 </div>
 
@@ -1251,16 +1245,16 @@ val stream: DataStream[(Long, String)] = ...
 val table: Table = tableEnv.fromDataStream(stream)
 
 // convert DataStream into Table with field names "myLong", "myString" (position-based)
-val table: Table = tableEnv.fromDataStream(stream, 'myLong, 'myString)
+val table: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
 
 // convert DataStream into Table with reordered fields "_2", "_1" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, '_2, '_1)
+val table: Table = tableEnv.fromDataStream(stream, $"_2", $"_1")
 
 // convert DataStream into Table with projected field "_2" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, '_2)
+val table: Table = tableEnv.fromDataStream(stream, $"_2")
 
 // convert DataStream into Table with reordered and aliased fields "myString", "myLong" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, '_2 as 'myString, '_1 as 'myLong)
+val table: Table = tableEnv.fromDataStream(stream, $"_2" as "myString", $"_1" as "myLong")
 
 // define case class
 case class Person(name: String, age: Int)
@@ -1270,10 +1264,10 @@ val streamCC: DataStream[Person] = ...
 val table = tableEnv.fromDataStream(streamCC)
 
 // convert DataStream into Table with field names 'myName, 'myAge (position-based)
-val table = tableEnv.fromDataStream(streamCC, 'myName, 'myAge)
+val table = tableEnv.fromDataStream(streamCC, $"myName", $"myAge")
 
 // convert DataStream into Table with reordered and aliased fields "myAge", "myName" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, 'age as 'myAge, 'name as 'myName)
+val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as "myName")
 
 {% endhighlight %}
 </div>
@@ -1281,7 +1275,7 @@ val table: Table = tableEnv.fromDataStream(stream, 'age as 'myAge, 'name as 'myN
 
 #### POJO 类型 （Java 和 Scala）
 
-Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{ site.baseurl }}/zh/dev/api_concepts.html#pojos).
+Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{ site.baseurl }}{% link dev/types_serialization.md %}#pojos).
 
 在不指定字段名称的情况下将 POJO 类型的 `DataStream` 或 `DataSet` 转换成 `Table` 时，将使用原始 POJO 类型字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（带有 `as` 关键字）来重命名，重新排序和投影。
 
@@ -1298,13 +1292,13 @@ DataStream<Person> stream = ...
 Table table = tableEnv.fromDataStream(stream);
 
 // convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
-Table table = tableEnv.fromDataStream(stream, "age as myAge, name as myName");
+Table table = tableEnv.fromDataStream(stream, $("age").as("myAge"), $("name").as("myName"));
 
 // convert DataStream into Table with projected field "name" (name-based)
-Table table = tableEnv.fromDataStream(stream, "name");
+Table table = tableEnv.fromDataStream(stream, $("name"));
 
 // convert DataStream into Table with projected and renamed field "myName" (name-based)
-Table table = tableEnv.fromDataStream(stream, "name as myName");
+Table table = tableEnv.fromDataStream(stream, $("name").as("myName"));
 {% endhighlight %}
 </div>
 
@@ -1320,13 +1314,13 @@ val stream: DataStream[Person] = ...
 val table: Table = tableEnv.fromDataStream(stream)
 
 // convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, 'age as 'myAge, 'name as 'myName)
+val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as "myName")
 
 // convert DataStream into Table with projected field "name" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, 'name)
+val table: Table = tableEnv.fromDataStream(stream, $"name")
 
 // convert DataStream into Table with projected and renamed field "myName" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName)
+val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
 {% endhighlight %}
 </div>
 </div>
@@ -1348,16 +1342,16 @@ DataStream<Row> stream = ...
 Table table = tableEnv.fromDataStream(stream);
 
 // convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
-Table table = tableEnv.fromDataStream(stream, "myName, myAge");
+Table table = tableEnv.fromDataStream(stream, $("myName"), $("myAge"));
 
 // convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
-Table table = tableEnv.fromDataStream(stream, "name as myName, age as myAge");
+Table table = tableEnv.fromDataStream(stream, $("name").as("myName"), $("age").as("myAge"));
 
 // convert DataStream into Table with projected field "name" (name-based)
-Table table = tableEnv.fromDataStream(stream, "name");
+Table table = tableEnv.fromDataStream(stream, $("name"));
 
 // convert DataStream into Table with projected and renamed field "myName" (name-based)
-Table table = tableEnv.fromDataStream(stream, "name as myName");
+Table table = tableEnv.fromDataStream(stream, $("name").as("myName"));
 {% endhighlight %}
 </div>
 
@@ -1373,16 +1367,16 @@ val stream: DataStream[Row] = ...
 val table: Table = tableEnv.fromDataStream(stream)
 
 // convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
-val table: Table = tableEnv.fromDataStream(stream, 'myName, 'myAge)
+val table: Table = tableEnv.fromDataStream(stream, $"myName", $"myAge")
 
 // convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName, 'age as 'myAge)
+val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName", $"age" as "myAge")
 
 // convert DataStream into Table with projected field "name" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, 'name)
+val table: Table = tableEnv.fromDataStream(stream, $"name")
 
 // convert DataStream into Table with projected and renamed field "myName" (name-based)
-val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName)
+val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
 {% endhighlight %}
 </div>
 </div>
@@ -1448,10 +1442,10 @@ StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 DataStream<Tuple2<Integer, String>> stream1 = env.fromElements(new Tuple2<>(1, "hello"));
 DataStream<Tuple2<Integer, String>> stream2 = env.fromElements(new Tuple2<>(1, "hello"));
 
-Table table1 = tEnv.fromDataStream(stream1, "count, word");
-Table table2 = tEnv.fromDataStream(stream2, "count, word");
+Table table1 = tEnv.fromDataStream(stream1, $("count"), $("word"));
+Table table2 = tEnv.fromDataStream(stream2, $("count"), $("word"));
 Table table = table1
-  .where("LIKE(word, 'F%')")
+  .where($("word").like("F%"))
   .unionAll(table2);
 
 String explanation = tEnv.explain(table);
@@ -1464,10 +1458,10 @@ System.out.println(explanation);
 val env = StreamExecutionEnvironment.getExecutionEnvironment
 val tEnv = StreamTableEnvironment.create(env)
 
-val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
-val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
+val table1 = env.fromElements((1, "hello")).toTable(tEnv, $"count", $"word")
+val table2 = env.fromElements((1, "hello")).toTable(tEnv, $"count", $"word")
 val table = table1
-  .where('word.like("F%"))
+  .where($"word".like("F%"))
   .unionAll(table2)
 
 val explanation: String = tEnv.explain(table)
@@ -1645,7 +1639,7 @@ tEnv.connect(new FileSystem("/sink/path2"))
     .withSchema(schema)
     .createTemporaryTable("MySink2");
 
-Table table1 = tEnv.from("MySource1").where("LIKE(word, 'F%')");
+Table table1 = tEnv.from("MySource1").where($("word").like("F%"));
 table1.insertInto("MySink1");
 
 Table table2 = table1.unionAll(tEnv.from("MySource2"));
@@ -1683,7 +1677,7 @@ tEnv.connect(new FileSystem("/sink/path2"))
     .withSchema(schema)
     .createTemporaryTable("MySink2")
 
-val table1 = tEnv.from("MySource1").where("LIKE(word, 'F%')")
+val table1 = tEnv.from("MySource1").where($"word".like("F%"))
 table1.insertInto("MySink1")
 
 val table2 = table1.unionAll(tEnv.from("MySource2"))
@@ -1738,11 +1732,11 @@ print(explanation)
 {% highlight text %}
 
 == Abstract Syntax Tree ==
-LogicalSink(name=[MySink1], fields=[count, word])
+LogicalLegacySink(name=[MySink1], fields=[count, word])
 +- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
 
-LogicalSink(name=[MySink2], fields=[count, word])
+LogicalLegacySink(name=[MySink2], fields=[count, word])
 +- LogicalUnion(all=[true])
    :- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
@@ -1752,10 +1746,10 @@ LogicalSink(name=[MySink2], fields=[count, word])
 Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')], reuse_id=[1])
 +- TableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
-Sink(name=[MySink1], fields=[count, word])
+LegacySink(name=[MySink1], fields=[count, word])
 +- Reused(reference_id=[1])
 
-Sink(name=[MySink2], fields=[count, word])
+LegacySink(name=[MySink2], fields=[count, word])
 +- Union(all=[true], union=[count, word])
    :- Reused(reference_id=[1])
    +- TableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])

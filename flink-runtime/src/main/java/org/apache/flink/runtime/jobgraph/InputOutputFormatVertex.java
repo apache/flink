@@ -23,6 +23,7 @@ import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 
 import java.util.HashMap;
@@ -48,11 +49,9 @@ public class InputOutputFormatVertex extends JobVertex {
 	public InputOutputFormatVertex(
 		String name,
 		JobVertexID id,
-		List<JobVertexID> alternativeIds,
-		List<OperatorID> operatorIds,
-		List<OperatorID> alternativeOperatorIds) {
+		List<OperatorIDPair> operatorIDPairs) {
 
-		super(name, id, alternativeIds, operatorIds, alternativeOperatorIds);
+		super(name, id, operatorIDPairs);
 	}
 
 	@Override

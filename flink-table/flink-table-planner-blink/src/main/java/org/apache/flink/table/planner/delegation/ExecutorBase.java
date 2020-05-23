@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.delegation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.TableConfig;
@@ -49,6 +50,11 @@ public abstract class ExecutorBase implements Executor {
 	@Override
 	public JobExecutionResult execute(Pipeline pipeline) throws Exception {
 		return executionEnvironment.execute((StreamGraph) pipeline);
+	}
+
+	@Override
+	public JobClient executeAsync(Pipeline pipeline) throws Exception {
+		return executionEnvironment.executeAsync((StreamGraph) pipeline);
 	}
 
 	protected String getNonEmptyJobName(String jobName) {

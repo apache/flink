@@ -33,13 +33,13 @@ import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.operators.sort.Sorter;
 import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
 import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.util.MutableObjectIterator;
@@ -67,7 +67,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * a set of blocking circularQueues, forming a closed loop. Memory is allocated using the
  * {@link MemoryManager} interface. Thus the component will not exceed the provided memory limits.
  */
-public class BinaryExternalSorter implements Sorter<BinaryRow> {
+public class BinaryExternalSorter implements Sorter<BinaryRowData> {
 
 	// ------------------------------------------------------------------------
 	//                              Constants
@@ -137,7 +137,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 	/**
 	 * Final result iterator.
 	 */
-	private volatile MutableObjectIterator<BinaryRow> iterator;
+	private volatile MutableObjectIterator<BinaryRowData> iterator;
 
 	/**
 	 * The exception that is set, if the iterator cannot be created.
@@ -183,7 +183,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 	//                         Constructor & Shutdown
 	// ------------------------------------------------------------------------
 
-	private final BinaryRowSerializer serializer;
+	private final BinaryRowDataSerializer serializer;
 
 	//metric
 	private long numSpillFiles;
@@ -192,8 +192,8 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 
 	public BinaryExternalSorter(
 			final Object owner, MemoryManager memoryManager, long reservedMemorySize,
-			IOManager ioManager, AbstractRowSerializer<BaseRow> inputSerializer,
-			BinaryRowSerializer serializer, NormalizedKeyComputer normalizedKeyComputer,
+			IOManager ioManager, AbstractRowDataSerializer<RowData> inputSerializer,
+			BinaryRowDataSerializer serializer, NormalizedKeyComputer normalizedKeyComputer,
 			RecordComparator comparator, Configuration conf) {
 		this(owner, memoryManager, reservedMemorySize, ioManager,
 				inputSerializer, serializer, normalizedKeyComputer, comparator,
@@ -202,8 +202,8 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 
 	public BinaryExternalSorter(
 			final Object owner, MemoryManager memoryManager, long reservedMemorySize,
-			IOManager ioManager, AbstractRowSerializer<BaseRow> inputSerializer,
-			BinaryRowSerializer serializer,
+			IOManager ioManager, AbstractRowDataSerializer<RowData> inputSerializer,
+			BinaryRowDataSerializer serializer,
 			NormalizedKeyComputer normalizedKeyComputer,
 			RecordComparator comparator, Configuration conf,
 			float startSpillingFraction) {
@@ -221,7 +221,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 		checkNotNull(ioManager);
 		checkNotNull(normalizedKeyComputer);
 		checkNotNull(memoryManager);
-		this.serializer = (BinaryRowSerializer) serializer.duplicate();
+		this.serializer = (BinaryRowDataSerializer) serializer.duplicate();
 		this.memorySegmentSize = memoryManager.getPageSize();
 
 		if (reservedMemorySize < SORTER_MIN_NUM_SORT_MEM) {
@@ -293,7 +293,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 		this.merger = new BinaryExternalMerger(
 				ioManager, memoryManager.getPageSize(),
 				maxNumFileHandles, channelManager,
-				(BinaryRowSerializer) serializer.duplicate(), comparator,
+				(BinaryRowDataSerializer) serializer.duplicate(), comparator,
 				compressionEnable, compressionCodecFactory, compressionBlockSize);
 
 		// start the thread that sorts the buffers
@@ -302,7 +302,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 		// start the thread that handles spilling to secondary storage
 		this.spillThread = getSpillingThread(
 				exceptionHandler, circularQueues, ioManager,
-				(BinaryRowSerializer) serializer.duplicate(), comparator);
+				(BinaryRowDataSerializer) serializer.duplicate(), comparator);
 
 		// start the thread that handles merging from second storage
 		this.mergeThread = getMergingThread(
@@ -452,7 +452,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 
 	private SpillingThread getSpillingThread(ExceptionHandler<IOException> exceptionHandler,
 			CircularQueues queues, IOManager ioManager,
-			BinaryRowSerializer serializer, RecordComparator comparator) {
+			BinaryRowDataSerializer serializer, RecordComparator comparator) {
 		return new SpillingThread(exceptionHandler, queues, ioManager, serializer, comparator);
 	}
 
@@ -464,7 +464,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 		return new MergingThread(exceptionHandler, queues, maxNumFileHandles, merger);
 	}
 
-	public void write(BaseRow current) throws IOException {
+	public void write(RowData current) throws IOException {
 		checkArgument(!writingDone, "Adding already done!");
 		try {
 			while (true) {
@@ -544,15 +544,15 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 	}
 
 	@VisibleForTesting
-	public void write(MutableObjectIterator<BinaryRow> iterator) throws IOException {
-		BinaryRow row = serializer.createInstance();
+	public void write(MutableObjectIterator<BinaryRowData> iterator) throws IOException {
+		BinaryRowData row = serializer.createInstance();
 		while ((row = iterator.next(row)) != null) {
 			write(row);
 		}
 	}
 
 	@Override
-	public MutableObjectIterator<BinaryRow> getIterator() throws InterruptedException {
+	public MutableObjectIterator<BinaryRowData> getIterator() throws InterruptedException {
 		if (!writingDone) {
 			writingDone = true;
 
@@ -592,7 +592,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 	 *
 	 * @param iterator The result iterator to set.
 	 */
-	private void setResultIterator(MutableObjectIterator<BinaryRow> iterator) {
+	private void setResultIterator(MutableObjectIterator<BinaryRowData> iterator) {
 		synchronized (this.iteratorLock) {
 			// set the result iterator only, if no exception has occurred
 			if (this.iteratorException == null) {
@@ -851,7 +851,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 
 		private final IOManager ioManager;                // I/O manager to create channels
 
-		private final BinaryRowSerializer serializer;     // The serializer for the data type
+		private final BinaryRowDataSerializer serializer;     // The serializer for the data type
 
 		private final RecordComparator comparator;
 
@@ -865,7 +865,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 		 */
 		public SpillingThread(ExceptionHandler<IOException> exceptionHandler,
 				CircularQueues queues, IOManager ioManager,
-				BinaryRowSerializer serializer, RecordComparator comparator) {
+				BinaryRowDataSerializer serializer, RecordComparator comparator) {
 			super(exceptionHandler, "SortMerger spilling thread", queues);
 			this.ioManager = ioManager;
 			this.serializer = serializer;
@@ -907,14 +907,14 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 
 			// ------------------- In-Memory Merge ------------------------
 			if (cacheOnly) {
-				List<MutableObjectIterator<BinaryRow>> iterators = new ArrayList<>(cache.size());
+				List<MutableObjectIterator<BinaryRowData>> iterators = new ArrayList<>(cache.size());
 
 				for (CircularElement cached : cache) {
 					iterators.add(cached.buffer.getIterator());
 				}
 
 				// set lazy iterator
-				List<BinaryRow> reusableEntries = new ArrayList<>();
+				List<BinaryRowData> reusableEntries = new ArrayList<>();
 				for (int i = 0; i < iterators.size(); i++) {
 					reusableEntries.add(serializer.createInstance());
 				}
@@ -1104,7 +1104,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 				// because `finalMergeChannelIDs` must become smaller
 
 				List<FileIOChannel> openChannels = new ArrayList<>();
-				BinaryMergeIterator<BinaryRow> iterator = merger.getMergingIterator(
+				BinaryMergeIterator<BinaryRowData> iterator = merger.getMergingIterator(
 					finalMergeChannelIDs, openChannels);
 				channelManager.addOpenChannels(openChannels);
 

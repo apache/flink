@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.BooleanMinWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.ByteMinWithRetractAggFunction;
@@ -35,7 +36,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFu
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.StringMinWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.TimeMinWithRetractAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction.TimestampMinWithRetractAggFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
 
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -273,24 +274,24 @@ public final class MinWithRetractAggFunctionTest {
 	/**
 	 * Test for DecimalMinWithRetractAggFunction.
 	 */
-	public static final class DecimalMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTestBase<Decimal> {
+	public static final class DecimalMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTestBase<DecimalData> {
 
 		private int precision = 20;
 		private int scale = 6;
 
 		@Override
-		protected List<List<Decimal>> getInputValueSets() {
+		protected List<List<DecimalData>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							Decimal.castFrom("1", precision, scale),
-							Decimal.castFrom("1000", precision, scale),
-							Decimal.castFrom("-1", precision, scale),
-							Decimal.castFrom("-999.998999", precision, scale),
+							DecimalDataUtils.castFrom("1", precision, scale),
+							DecimalDataUtils.castFrom("1000", precision, scale),
+							DecimalDataUtils.castFrom("-1", precision, scale),
+							DecimalDataUtils.castFrom("-999.998999", precision, scale),
 							null,
-							Decimal.castFrom("0", precision, scale),
-							Decimal.castFrom("-999.999", precision, scale),
+							DecimalDataUtils.castFrom("0", precision, scale),
+							DecimalDataUtils.castFrom("-999.999", precision, scale),
 							null,
-							Decimal.castFrom("999.999", precision, scale)
+							DecimalDataUtils.castFrom("999.999", precision, scale)
 					),
 					Arrays.asList(
 							null,
@@ -301,23 +302,23 @@ public final class MinWithRetractAggFunctionTest {
 					),
 					Arrays.asList(
 							null,
-							Decimal.castFrom("0", precision, scale)
+							DecimalDataUtils.castFrom("0", precision, scale)
 					)
 			);
 		}
 
 		@Override
-		protected List<Decimal> getExpectedResults() {
+		protected List<DecimalData> getExpectedResults() {
 			return Arrays.asList(
-					Decimal.castFrom("-999.999", precision, scale),
+					DecimalDataUtils.castFrom("-999.999", precision, scale),
 					null,
-					Decimal.castFrom("0", precision, scale)
+					DecimalDataUtils.castFrom("0", precision, scale)
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Decimal, MinWithRetractAccumulator<Decimal>> getAggregator() {
-			return new DecimalMinWithRetractAggFunction(DecimalTypeInfo.of(precision, scale));
+		protected AggregateFunction<DecimalData, MinWithRetractAccumulator<DecimalData>> getAggregator() {
+			return new DecimalMinWithRetractAggFunction(DecimalDataTypeInfo.of(precision, scale));
 		}
 	}
 
@@ -325,19 +326,19 @@ public final class MinWithRetractAggFunctionTest {
 	 * Test for StringMinWithRetractAggFunction.
 	 */
 	public static final class StringMinWithRetractAggFunctionTest
-			extends MinWithRetractAggFunctionTestBase<BinaryString> {
+			extends MinWithRetractAggFunctionTestBase<StringData> {
 
 		@Override
-		protected List<List<BinaryString>> getInputValueSets() {
+		protected List<List<StringData>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							BinaryString.fromString("abc"),
-							BinaryString.fromString("def"),
-							BinaryString.fromString("ghi"),
+							StringData.fromString("abc"),
+							StringData.fromString("def"),
+							StringData.fromString("ghi"),
 							null,
-							BinaryString.fromString("jkl"),
+							StringData.fromString("jkl"),
 							null,
-							BinaryString.fromString("zzz")
+							StringData.fromString("zzz")
 					),
 					Arrays.asList(
 							null,
@@ -345,28 +346,28 @@ public final class MinWithRetractAggFunctionTest {
 					),
 					Arrays.asList(
 							null,
-							BinaryString.fromString("a")
+							StringData.fromString("a")
 					),
 					Arrays.asList(
-							BinaryString.fromString("x"),
+							StringData.fromString("x"),
 							null,
-							BinaryString.fromString("e")
+							StringData.fromString("e")
 					)
 			);
 		}
 
 		@Override
-		protected List<BinaryString> getExpectedResults() {
+		protected List<StringData> getExpectedResults() {
 			return Arrays.asList(
-					BinaryString.fromString("abc"),
+					StringData.fromString("abc"),
 					null,
-					BinaryString.fromString("a"),
-					BinaryString.fromString("e")
+					StringData.fromString("a"),
+					StringData.fromString("e")
 			);
 		}
 
 		@Override
-		protected AggregateFunction<BinaryString, MinWithRetractAccumulator<BinaryString>> getAggregator() {
+		protected AggregateFunction<StringData, MinWithRetractAccumulator<StringData>> getAggregator() {
 			return new StringMinWithRetractAggFunction();
 		}
 	}
@@ -375,17 +376,17 @@ public final class MinWithRetractAggFunctionTest {
 	 * Test for TimestampMinWithRetractAggFunction.
 	 */
 	public static final class TimestampMinWithRetractAggFunctionTest
-			extends MinWithRetractAggFunctionTestBase<SqlTimestamp> {
+			extends MinWithRetractAggFunctionTestBase<TimestampData> {
 
 		@Override
-		protected List<List<SqlTimestamp>> getInputValueSets() {
+		protected List<List<TimestampData>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							SqlTimestamp.fromEpochMillis(0),
-							SqlTimestamp.fromEpochMillis(1000),
-							SqlTimestamp.fromEpochMillis(100),
+							TimestampData.fromEpochMillis(0),
+							TimestampData.fromEpochMillis(1000),
+							TimestampData.fromEpochMillis(100),
 							null,
-							SqlTimestamp.fromEpochMillis(10)
+							TimestampData.fromEpochMillis(10)
 					),
 					Arrays.asList(
 							null,
@@ -396,22 +397,22 @@ public final class MinWithRetractAggFunctionTest {
 					),
 					Arrays.asList(
 							null,
-							SqlTimestamp.fromEpochMillis(1)
+							TimestampData.fromEpochMillis(1)
 					)
 			);
 		}
 
 		@Override
-		protected List<SqlTimestamp> getExpectedResults() {
+		protected List<TimestampData> getExpectedResults() {
 			return Arrays.asList(
-					SqlTimestamp.fromEpochMillis(0),
+					TimestampData.fromEpochMillis(0),
 					null,
-					SqlTimestamp.fromEpochMillis(1)
+					TimestampData.fromEpochMillis(1)
 			);
 		}
 
 		@Override
-		protected AggregateFunction<SqlTimestamp, MinWithRetractAccumulator<SqlTimestamp>> getAggregator() {
+		protected AggregateFunction<TimestampData, MinWithRetractAccumulator<TimestampData>> getAggregator() {
 			return new TimestampMinWithRetractAggFunction(3);
 		}
 	}
@@ -420,18 +421,18 @@ public final class MinWithRetractAggFunctionTest {
 	 * Test for TimestampMinWithRetractAggFunction, precision is 9.
 	 */
 	public static final class Timestamp9MinWithRetractAggFunctionTest
-			extends MinWithRetractAggFunctionTestBase<SqlTimestamp> {
+			extends MinWithRetractAggFunctionTestBase<TimestampData> {
 
 		@Override
-		protected List<List<SqlTimestamp>> getInputValueSets() {
+		protected List<List<TimestampData>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							SqlTimestamp.fromEpochMillis(0, 1),
-							SqlTimestamp.fromEpochMillis(0, 2),
-							SqlTimestamp.fromEpochMillis(1000, 0),
-							SqlTimestamp.fromEpochMillis(100, 0),
+							TimestampData.fromEpochMillis(0, 1),
+							TimestampData.fromEpochMillis(0, 2),
+							TimestampData.fromEpochMillis(1000, 0),
+							TimestampData.fromEpochMillis(100, 0),
 							null,
-							SqlTimestamp.fromEpochMillis(10, 0)
+							TimestampData.fromEpochMillis(10, 0)
 					),
 					Arrays.asList(
 							null,
@@ -442,23 +443,23 @@ public final class MinWithRetractAggFunctionTest {
 					),
 					Arrays.asList(
 							null,
-							SqlTimestamp.fromEpochMillis(1, 1),
-							SqlTimestamp.fromEpochMillis(1, 2)
+							TimestampData.fromEpochMillis(1, 1),
+							TimestampData.fromEpochMillis(1, 2)
 					)
 			);
 		}
 
 		@Override
-		protected List<SqlTimestamp> getExpectedResults() {
+		protected List<TimestampData> getExpectedResults() {
 			return Arrays.asList(
-					SqlTimestamp.fromEpochMillis(0, 1),
+					TimestampData.fromEpochMillis(0, 1),
 					null,
-					SqlTimestamp.fromEpochMillis(1, 1)
+					TimestampData.fromEpochMillis(1, 1)
 			);
 		}
 
 		@Override
-		protected AggregateFunction<SqlTimestamp, MinWithRetractAccumulator<SqlTimestamp>> getAggregator() {
+		protected AggregateFunction<TimestampData, MinWithRetractAccumulator<TimestampData>> getAggregator() {
 			return new TimestampMinWithRetractAggFunction(9);
 		}
 	}

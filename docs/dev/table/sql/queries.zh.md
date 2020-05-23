@@ -47,13 +47,13 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 
 // 使用 SQL 查询内联的（未注册的）表
-Table table = tableEnv.fromDataStream(ds, "user, product, amount");
+Table table = tableEnv.fromDataStream(ds, $("user"), $("product"), $("amount"));
 Table result = tableEnv.sqlQuery(
   "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
 
 // SQL 查询一个已经注册的表
 // 根据视图 "Orders" 创建一个 DataStream
-tableEnv.createTemporaryView("Orders", ds, "user, product, amount");
+tableEnv.createTemporaryView("Orders", ds, $("user"), $("product"), $("amount"));
 // 在表上执行 SQL 查询并得到以新表返回的结果
 Table result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
@@ -84,13 +84,13 @@ val tableEnv = StreamTableEnvironment.create(env)
 val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
 
 // 使用 SQL 查询内联的（未注册的）表
-val table = ds.toTable(tableEnv, 'user, 'product, 'amount)
+val table = ds.toTable(tableEnv, $"user", $"product", $"amount")
 val result = tableEnv.sqlQuery(
   s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
 
 // SQL 查询一个已经注册的表
 // 使用名称 "Orders" 注册一个 DataStream 
-tableEnv.createTemporaryView("Orders", ds, 'user, 'product, 'amount)
+tableEnv.createTemporaryView("Orders", ds, $"user", $"product", $"amount")
 // 在表上执行 SQL 查询并得到以新表返回的结果
 val result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
@@ -908,7 +908,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // 读取外部数据源的 DataStream
 val ds: DataStream[(String, String, String, Long)] = env.addSource(...)
 // 注册名为 “ShopSales” 的 DataStream
-tableEnv.createTemporaryView("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
+tableEnv.createTemporaryView("ShopSales", ds, $"product_id", $"category", $"product_name", $"sales")
 
 
 // 选择每个分类中销量前5的产品
@@ -942,7 +942,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // 从外部数据源读取 DataStream
 DataStream<Tuple3<String, String, String, Long>> ds = env.addSource(...);
 // 把 DataStream 注册为表，表名是 “ShopSales”
-tableEnv.createTemporaryView("ShopSales", ds, "product_id, category, product_name, sales");
+tableEnv.createTemporaryView("ShopSales", ds, $("product_id"), $("category"), $("product_name"), $("sales"));
 
 // 选择每个分类中销量前5的产品
 Table result1 = tableEnv.sqlQuery(
@@ -963,7 +963,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // 从外部数据源读取 DataStream
 val ds: DataStream[(String, String, String, Long)] = env.addSource(...)
 // 注册名为 “ShopSales” 的数据源
-tableEnv.createTemporaryView("ShopSales", ds, 'product_id, 'category, 'product_name, 'sales)
+tableEnv.createTemporaryView("ShopSales", ds, $"product_id", $"category", $"product_name", $"sales")
 
 
 // 选择每个分类中销量前5的产品
@@ -1021,7 +1021,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // 从外部数据源读取 DataStream
 DataStream<Tuple3<String, String, String, Integer>> ds = env.addSource(...);
 // 注册名为 “Orders” 的 DataStream
-tableEnv.createTemporaryView("Orders", ds, "order_id, user, product, number, proctime.proctime");
+tableEnv.createTemporaryView("Orders", ds, $("order_id"), $("user"), $("product"), $("number"), $("proctime").proctime());
 
 // 由于不应该出现两个订单有同一个order_id，所以根据 order_id 去除重复的行，并保留第一行
 Table result1 = tableEnv.sqlQuery(
@@ -1042,7 +1042,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // 从外部数据源读取 DataStream
 val ds: DataStream[(String, String, String, Int)] = env.addSource(...)
 // 注册名为 “Orders” 的 DataStream
-tableEnv.createTemporaryView("Orders", ds, 'order_id, 'user, 'product, 'number, 'proctime.proctime)
+tableEnv.createTemporaryView("Orders", ds, $"order_id", $"user", $"product", $"number", $"proctime".proctime)
 
 // 由于不应该出现两个订单有同一个order_id，所以根据 order_id 去除重复的行，并保留第一行
 val result1 = tableEnv.sqlQuery(
@@ -1157,7 +1157,7 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 // 从外部数据源读取 DataSource
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
 // 使用“Orders”作为表名把 DataStream 注册为表
-tableEnv.createTemporaryView("Orders", ds, "user, product, amount, proctime.proctime, rowtime.rowtime");
+tableEnv.createTemporaryView("Orders", ds, $("user"), $("product"), $("amount"), $("proctime").proctime(), $("rowtime").rowtime());
 
 // 计算每日的 SUM(amount)（使用事件时间）
 Table result1 = tableEnv.sqlQuery(
@@ -1194,7 +1194,7 @@ val tableEnv = StreamTableEnvironment.create(env)
 // 从外部数据源读取 DataSource
 val ds: DataStream[(Long, String, Int)] = env.addSource(...)
 // 计算每日（使用处理时间）的 SUM(amount) 
-tableEnv.createTemporaryView("Orders", ds, 'user, 'product, 'amount, 'proctime.proctime, 'rowtime.rowtime)
+tableEnv.createTemporaryView("Orders", ds, $"user", $"product", $"amount", $"proctime".proctime, $"rowtime".rowtime)
 
 // 计算每日的 SUM(amount) （使用事件时间）
 val result1 = tableEnv.sqlQuery(

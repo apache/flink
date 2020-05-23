@@ -36,7 +36,7 @@ LogicalProject(a1=[$0], a2=[$1])
 Calc(select=[a1, a2])
 +- NestedLoopJoin(joinType=[InnerJoin], where=[<(a1, cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
    :- Exchange(distribution=[any], shuffle_mode=[BATCH])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
    +- Exchange(distribution=[broadcast])
       +- HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS cnt])
          +- Exchange(distribution=[single])
@@ -69,8 +69,8 @@ Calc(select=[a1])
    :     +- Exchange(distribution=[single])
    :        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
    :           +- Calc(select=[0 AS $f0])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
-   +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
 ]]>
     </Resource>
   </TestCase>
@@ -97,8 +97,8 @@ Calc(select=[a1])
    :     +- Exchange(distribution=[single])
    :        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
    :           +- Calc(select=[0 AS $f0])
-   :              +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
-   +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
 ]]>
     </Resource>
   </TestCase>
@@ -120,13 +120,13 @@ LogicalProject(a2=[$1])
       <![CDATA[
 Calc(select=[a2])
 +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[>(a1, cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
-   :- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+   :- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
    +- Exchange(distribution=[broadcast])
       +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS cnt])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
                +- Calc(select=[0 AS $f0])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
 ]]>
     </Resource>
   </TestCase>
@@ -149,7 +149,7 @@ LogicalProject(a1=[$0], a_sum=[$2])
 NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, a_sum], build=[right], singleRowJoin=[true])
 :- Exchange(distribution=[any], shuffle_mode=[BATCH])
 :  +- Calc(select=[a1])
-:     +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[+($f0, $f1) AS a_sum])
       +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0, Final_SUM(sum$1) AS $f1])
@@ -177,13 +177,13 @@ LogicalProject(a2=[$1])
       <![CDATA[
 Calc(select=[a2])
 +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(a1, cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
-   :- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+   :- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
    +- Exchange(distribution=[broadcast])
       +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS cnt])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
                +- Calc(select=[0 AS $f0])
-                  +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
 ]]>
     </Resource>
   </TestCase>
@@ -208,12 +208,12 @@ LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
     <Resource name="planAfter">
       <![CDATA[
 NestedLoopJoin(joinType=[InnerJoin], where=[AND(<(a1, b1), =(a2, b2))], select=[a1, a2, b1, b2], build=[right], singleRowJoin=[true])
-:- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+:- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
 +- Exchange(distribution=[broadcast])
    +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS b1, Final_MAX(max$1) AS b2])
       +- Exchange(distribution=[single])
          +- LocalHashAggregate(select=[Partial_MIN(b1) AS min$0, Partial_MAX(b2) AS max$1])
-            +- TableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
 ]]>
     </Resource>
   </TestCase>
@@ -241,7 +241,7 @@ Calc(select=[a2, EXPR$1])
    :- HashAggregate(isMerge=[true], groupBy=[a2], select=[a2, Final_SUM(sum$0) AS EXPR$1])
    :  +- Exchange(distribution=[hash[a2]])
    :     +- LocalHashAggregate(groupBy=[a2], select=[a2, Partial_SUM(a1) AS sum$0])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
    +- Exchange(distribution=[broadcast])
       +- SortAggregate(isMerge=[false], select=[SINGLE_VALUE(EXPR$0) AS $f0])
          +- Calc(select=[*($f0, 0.1:DECIMAL(2, 1)) AS EXPR$0])

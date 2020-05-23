@@ -20,13 +20,14 @@ package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.utils.{TableAggSum, Top3, Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -52,7 +53,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
@@ -86,7 +87,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     val resultTable = source
       .flatAggregate(top3('a))
       .select('f0, 'f1)
-      .as('v1, 'v2)
+      .as("v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
@@ -108,7 +109,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
       .groupBy('category)
       .select('category, 'v1.max)
 
@@ -135,7 +136,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       .groupBy('b)
       .flatAggregate(top3('a))
       .select('b, 'f0, 'f1)
-      .as('category, 'v1, 'v2)
+      .as("category", "v1", "v2")
 
     val sink = new TestingRetractSink()
     resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)

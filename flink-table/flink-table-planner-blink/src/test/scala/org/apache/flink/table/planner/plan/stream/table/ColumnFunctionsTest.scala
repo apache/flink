@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Over, Slide}
+import org.apache.flink.table.api._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.planner.utils.{CountAggFunction, TableFunc0, TableTestBase}
@@ -140,7 +139,7 @@ class ColumnFunctionsTest extends TableTestBase {
   @Test
   def testWindowGroupBy(): Unit = {
     val t = util.addDataStream[(Int, Long, String, Int)]("T1",'a, 'rowtime.rowtime, 'c, 'd)
-      .as('a, 'b, 'c, 'd)
+      .as("a", "b", "c", "d")
 
     val tab1 = t
       .window(Slide over 3.milli every 10.milli on withColumns('b) as 'w)

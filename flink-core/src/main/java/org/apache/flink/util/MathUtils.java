@@ -207,6 +207,17 @@ public final class MathUtils {
 		return in ^ Long.MIN_VALUE;
 	}
 
+	/**
+	 * Divide and rounding up to integer.
+	 * E.g., divideRoundUp(3, 2) returns 2.
+	 * @param dividend value to be divided by the divisor
+	 * @param divisor value by which the dividend is to be divided
+	 * @return the quotient rounding up to integer
+	 */
+	public static int divideRoundUp(int dividend, int divisor) {
+		return (dividend - 1) / divisor + 1;
+	}
+
 	// ============================================================================================
 
 	/**

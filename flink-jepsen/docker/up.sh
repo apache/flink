@@ -23,7 +23,7 @@ dockerdir=$(dirname $0)
 dockerdir=$(cd ${dockerdir}; pwd)
 
 if [ ! -f ./id_rsa ]; then
-    ssh-keygen -t rsa -N "" -f ./id_rsa
+    ssh-keygen -m PEM -t rsa -N "" -f ./id_rsa
 fi
 
 export JEPSEN_ROOT=${dockerdir}/../

@@ -20,12 +20,12 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
+import org.apache.flink.table.runtime.typeutils.{LegacyInstantTypeInfo, LegacyLocalDateTimeTypeInfo}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
 
@@ -35,7 +35,6 @@ import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.time.{Instant, ZoneId, ZoneOffset}
 import java.util.{Locale, TimeZone}
-import org.apache.flink.table.runtime.typeutils.{LegacyInstantTypeInfo, LegacyLocalDateTimeTypeInfo}
 
 class TemporalTypesTest extends ExpressionTestBase {
 
@@ -1230,6 +1229,22 @@ class TemporalTypesTest extends ExpressionTestBase {
         "'yyyy-MM-dd HH:mm:ss.SSSSSSSSS')",
       "2018-03-14 01:02:03.123456789")
 
+  }
+
+  @Test
+  def testTimestampDiff(): Unit = {
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2019-09-01 00:00:00', TIMESTAMP '2020-03-01 00:00:00')",
+      "6")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2019-09-01 00:00:00', TIMESTAMP '2016-08-01 00:00:00')",
+      "-37")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2019-09-01', DATE '2020-03-01')",
+      "6")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2019-09-01', DATE '2016-08-01')",
+      "-37")
   }
 
   // ----------------------------------------------------------------------------------------------

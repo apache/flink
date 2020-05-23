@@ -66,6 +66,10 @@ public final class NoOpTaskLocalStateStoreImpl implements OwnedTaskLocalStateSto
 	}
 
 	@Override
+	public void abortCheckpoint(long abortedCheckpointId) {
+	}
+
+	@Override
 	public void pruneMatchingCheckpoints(LongPredicate matcher) {
 	}
 }

@@ -26,17 +26,25 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.util.MathUtils;
+import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -73,7 +81,7 @@ public final class PerJobMiniClusterFactory {
 	/**
 	 * Starts a {@link MiniCluster} and submits a job.
 	 */
-	public CompletableFuture<? extends JobClient> submitJob(JobGraph jobGraph) throws Exception {
+	public CompletableFuture<JobClient> submitJob(JobGraph jobGraph) throws Exception {
 		MiniClusterConfiguration miniClusterConfig = getMiniClusterConfig(jobGraph.getMaximumParallelism());
 		MiniCluster miniCluster = miniClusterFactory.apply(miniClusterConfig);
 		miniCluster.start();
@@ -86,7 +94,8 @@ public final class PerJobMiniClusterFactory {
 					// We failed to create the JobClient and must shutdown to ensure cleanup.
 					shutDownCluster(miniCluster);
 				}
-			});
+			})
+			.thenApply(Function.identity());
 	}
 
 	private MiniClusterConfiguration getMiniClusterConfig(int maximumParallelism) {
@@ -100,8 +109,10 @@ public final class PerJobMiniClusterFactory {
 			ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
 			ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER);
 
-		// we have to use the maximum parallelism as a default here, otherwise streaming pipelines would not run
-		int numSlotsPerTaskManager = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, maximumParallelism);
+		int numSlotsPerTaskManager = configuration.getOptional(TaskManagerOptions.NUM_TASK_SLOTS)
+			.orElseGet(() -> maximumParallelism > 0 ?
+				MathUtils.divideRoundUp(maximumParallelism, numTaskManagers) :
+				TaskManagerOptions.NUM_TASK_SLOTS.defaultValue());
 
 		return new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)
@@ -123,7 +134,7 @@ public final class PerJobMiniClusterFactory {
 	/**
 	 * A {@link JobClient} for a {@link PerJobMiniClusterFactory}.
 	 */
-	private static final class PerJobMiniClusterJobClient implements JobClient {
+	private static final class PerJobMiniClusterJobClient implements JobClient, CoordinationRequestGateway {
 
 		private final JobID jobID;
 		private final MiniCluster miniCluster;
@@ -177,6 +188,16 @@ public final class PerJobMiniClusterFactory {
 					throw new CompletionException("Failed to convert JobResult to JobExecutionResult.", e);
 				}
 			});
+		}
+
+		@Override
+		public CompletableFuture<CoordinationResponse> sendCoordinationRequest(OperatorID operatorId, CoordinationRequest request) {
+			try {
+				SerializedValue<CoordinationRequest> serializedRequest = new SerializedValue<>(request);
+				return miniCluster.deliverCoordinationRequestToCoordinator(jobID, operatorId, serializedRequest);
+			} catch (IOException e) {
+				return FutureUtils.completedExceptionally(e);
+			}
 		}
 	}
 }

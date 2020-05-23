@@ -23,7 +23,6 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogDescriptor;
-import org.apache.flink.table.descriptors.CatalogDescriptor;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.util.TestLogger;
@@ -31,12 +30,14 @@ import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -46,8 +47,14 @@ import static org.junit.Assert.assertEquals;
  * Test for {@link HiveCatalog} created by {@link HiveCatalogFactory}.
  */
 public class HiveCatalogFactoryTest extends TestLogger {
+
+	private static final URL CONF_DIR = Thread.currentThread().getContextClassLoader().getResource("test-catalog-factory-conf");
+
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	@Test
 	public void test() {
@@ -55,7 +62,8 @@ public class HiveCatalogFactoryTest extends TestLogger {
 
 		final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, null);
 
-		final CatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
+		final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
+		catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
 
 		final Map<String, String> properties = catalogDescriptor.toProperties();
 
@@ -92,7 +100,8 @@ public class HiveCatalogFactoryTest extends TestLogger {
 		CommonTestUtils.setEnv(newEnv);
 
 		// create HiveCatalog use the Hadoop Configuration
-		final CatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
+		final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
+		catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
 		final Map<String, String> properties = catalogDescriptor.toProperties();
 		final HiveConf hiveConf;
 		try {
@@ -107,6 +116,14 @@ public class HiveCatalogFactoryTest extends TestLogger {
 		for (String key : customProps.keySet()) {
 			assertEquals(customProps.get(key), hiveConf.get(key, null));
 		}
+	}
+
+	@Test
+	public void testDisallowEmbedded() {
+		expectedException.expect(IllegalArgumentException.class);
+		final Map<String, String> properties = new HiveCatalogDescriptor().toProperties();
+
+		TableFactoryService.find(CatalogFactory.class, properties).createCatalog("my_catalog", properties);
 	}
 
 	private static void checkEquals(HiveCatalog c1, HiveCatalog c2) {

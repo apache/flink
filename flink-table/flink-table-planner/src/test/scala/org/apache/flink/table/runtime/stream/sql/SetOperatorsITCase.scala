@@ -20,18 +20,22 @@ package org.apache.flink.table.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class SetOperatorsITCase extends StreamingWithStateTestBase {
 
+  val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+  val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
+  val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
+
   @Test
   def testInUncorrelatedWithConditionAndAgg(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery =
@@ -57,10 +61,10 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
     )
 
     tEnv.registerTable("tableA",
-      env.fromCollection(dataA).toTable(tEnv).as('a, 'b, 'c))
+      env.fromCollection(dataA).toTable(tEnv).as("a", "b", "c"))
 
     tEnv.registerTable("tableB",
-      env.fromCollection(dataB).toTable(tEnv).as('x, 'y))
+      env.fromCollection(dataB).toTable(tEnv).as("x", "y"))
 
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -75,8 +79,6 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
 
   @Test
   def testInWithMultiUncorrelatedCondition(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery =
@@ -106,13 +108,13 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
     )
 
     tEnv.registerTable("tableA",
-      env.fromCollection(dataA).toTable(tEnv).as('a, 'b, 'c))
+      env.fromCollection(dataA).toTable(tEnv).as("a", "b", "c"))
 
     tEnv.registerTable("tableB",
-      env.fromCollection(dataB).toTable(tEnv).as('x, 'y))
+      env.fromCollection(dataB).toTable(tEnv).as("x", "y"))
 
     tEnv.registerTable("tableC",
-      env.fromCollection(dataC).toTable(tEnv).as('w, 'z))
+      env.fromCollection(dataC).toTable(tEnv).as("w", "z"))
 
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)
@@ -127,8 +129,6 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
 
   @Test
   def testNotInUncorrelated(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
     StreamITCase.clear
 
     val sqlQuery =
@@ -151,10 +151,10 @@ class SetOperatorsITCase extends StreamingWithStateTestBase {
     )
 
     tEnv.registerTable("tableA",
-      env.fromCollection(dataA).toTable(tEnv).as('a, 'b, 'c))
+      env.fromCollection(dataA).toTable(tEnv).as("a", "b", "c"))
 
     tEnv.registerTable("tableB",
-      env.fromCollection(dataB).toTable(tEnv).as('x, 'y))
+      env.fromCollection(dataB).toTable(tEnv).as("x", "y"))
 
     val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     results.addSink(new StreamITCase.RetractingSink)

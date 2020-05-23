@@ -31,7 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.filesystem.PartitionPathUtils.searchPartSpecAndPaths;
+import static org.apache.flink.table.utils.PartitionPathUtils.searchPartSpecAndPaths;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**

@@ -34,6 +34,7 @@ import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -51,8 +52,6 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -78,6 +77,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -100,11 +100,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 	private static final Time timeout = Time.seconds(10L);
 
-	private static TestingRpcService RPC;
-
-	private static MetricRegistryImpl metricRegistry;
-
-	private String metricQueryServiceAddress;
+	private static TestingRpcService rpc;
 
 	private final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 	private final SettableLeaderRetrievalService jobManagerLeaderRetriever = new SettableLeaderRetrievalService();
@@ -116,27 +112,23 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
 	@Before
 	public void setup() {
-		metricRegistry.startQueryService(RPC, new ResourceID("mqs"));
-		metricQueryServiceAddress = metricRegistry.getMetricQueryServiceGatewayRpcAddress();
 		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
 		haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
 	}
 
 	@After
 	public void shutdown() {
-		RPC.clearGateways();
+		rpc.clearGateways();
 	}
 
 	@BeforeClass
 	public static void setupClass() {
-		RPC = new TestingRpcService();
-		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+		rpc = new TestingRpcService();
 	}
 
 	@AfterClass
 	public static void shutdownClass() throws ExecutionException, InterruptedException {
-		RPC.stopService().get();
-		metricRegistry.shutdown().get();
+		rpc.stopService().get();
 	}
 
 	@Test
@@ -161,14 +153,17 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			}).build();
 
-		final JobManagerConnection jobManagerConnection = TaskSubmissionTestEnvironment.createJobManagerConnection(
-			jobId, jobMasterGateway, RPC, new NoOpTaskManagerActions(), timeout);
-
-		final JobManagerTable jobManagerTable = new JobManagerTable();
-		jobManagerTable.put(jobId, jobManagerConnection);
+		final DefaultJobTable jobTable = DefaultJobTable.create();
+		TaskSubmissionTestEnvironment.registerJobMasterConnection(
+			jobTable,
+			jobId,
+			rpc,
+			jobMasterGateway,
+			new NoOpTaskManagerActions(),
+			timeout);
 
 		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setJobManagerTable(jobManagerTable)
+			.setJobTable(jobTable)
 			.setShuffleEnvironment(new NettyShuffleEnvironmentBuilder().build())
 			.setTaskSlotTable(createTaskSlotTable())
 			.build();
@@ -184,7 +179,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		final ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor = PartitionTestUtils.createPartitionDeploymentDescriptor(ResultPartitionType.BLOCKING);
 		final ResultPartitionID resultPartitionId = resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID();
 
-		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker, metricQueryServiceAddress);
+		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker);
 
 		try {
 			taskExecutor.start();
@@ -207,7 +202,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			trackerIsTrackingPartitions.set(false);
 
 			// the TM should check whether partitions are still stored, and afterwards terminate the connection
-			releaseOrPromoteCall.accept(taskExecutor, jobId, resultPartitionId);
+			releaseOrPromoteCall.accept(taskExecutorGateway, jobId, resultPartitionId);
 
 			disconnectFuture.get();
 		} finally {
@@ -348,7 +343,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		partitionTracker.setStartTrackingPartitionsConsumer((jobId, partitionInfo) -> startTrackingFuture.complete(partitionInfo.getResultPartitionId()));
 		C partitionTrackerSetupResult = partitionTrackerSetup.accept(partitionTracker);
 
-		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker, metricQueryServiceAddress);
+		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker);
 
 		final CompletableFuture<SlotReport> initialSlotReportFuture = new CompletableFuture<>();
 
@@ -370,8 +365,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
 
 			final String jobMasterAddress = "jm";
-			RPC.registerGateway(jobMasterAddress, jobMasterGateway);
-			RPC.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+			rpc.registerGateway(jobMasterAddress, jobMasterGateway);
+			rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
 
 			// inform the task manager about the job leader
 			taskManagerServices.getJobLeaderService().addJob(jobId, jobMasterAddress);
@@ -454,24 +449,27 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 		}
 	}
 
-	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, TaskExecutorPartitionTracker partitionTracker, String metricQueryServiceAddress) throws IOException {
-		final Configuration configuration = new Configuration();
-
+	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, TaskExecutorPartitionTracker partitionTracker) throws IOException {
+			final Configuration configuration = new Configuration();
 		return new TestingTaskExecutor(
-			RPC,
-			TaskManagerConfiguration.fromConfiguration(configuration, TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration)),
+			rpc,
+			TaskManagerConfiguration.fromConfiguration(
+				configuration,
+				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration),
+				InetAddress.getLoopbackAddress().getHostAddress()),
 			haServices,
 			taskManagerServices,
+			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 			new HeartbeatServices(10_000L, 30_000L),
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			metricQueryServiceAddress,
+			null,
 			new BlobCacheService(
 				configuration,
 				new VoidBlobStore(),
 				null),
 			new TestingFatalErrorHandler(),
 			partitionTracker,
-			TaskManagerRunner.createBackPressureSampleService(configuration, RPC.getScheduledExecutor()));
+			TaskManagerRunner.createBackPressureSampleService(configuration, rpc.getScheduledExecutor()));
 	}
 
 	private static TaskSlotTable<Task> createTaskSlotTable() {

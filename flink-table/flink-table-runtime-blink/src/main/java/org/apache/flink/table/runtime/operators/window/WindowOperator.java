@@ -40,8 +40,8 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.operators.window.assigners.MergingWindowAssigner;
@@ -52,7 +52,7 @@ import org.apache.flink.table.runtime.operators.window.internal.InternalWindowPr
 import org.apache.flink.table.runtime.operators.window.internal.MergingWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.internal.PanedWindowProcessFunction;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
-import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -86,18 +86,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * belongs.
  *
  * <p>The parameter types:
- * {@code <IN>}: BaseRow
- * {@code <OUT>}: JoinedRow(KEY, AGG_RESULT)
- * {@code <KEY>}: GenericRow
- * {@code <AGG_RESULT>}: GenericRow
- * {@code <ACC>}: GenericRow
+ * {@code <IN>}: RowData
+ * {@code <OUT>}: JoinedRowData(KEY, AGG_RESULT)
+ * {@code <KEY>}: GenericRowData
+ * {@code <AGG_RESULT>}: GenericRowData
+ * {@code <ACC>}: GenericRowData
  *
  * @param <K> The type of key returned by the {@code KeySelector}.
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
  */
 public abstract class WindowOperator<K, W extends Window>
-		extends AbstractStreamOperator<BaseRow>
-		implements OneInputStreamOperator<BaseRow, BaseRow>, Triggerable<K, W> {
+		extends AbstractStreamOperator<RowData>
+		implements OneInputStreamOperator<RowData, RowData>, Triggerable<K, W> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -124,7 +124,7 @@ public abstract class WindowOperator<K, W extends Window>
 
 	private final LogicalType[] windowPropertyTypes;
 
-	protected final boolean sendRetraction;
+	protected final boolean produceUpdates;
 
 	private final int rowtimeIndex;
 
@@ -147,16 +147,16 @@ public abstract class WindowOperator<K, W extends Window>
 	protected transient InternalWindowProcessFunction<K, W> windowFunction;
 
 	/** This is used for emitting elements with a given timestamp. */
-	protected transient TimestampedCollector<BaseRow> collector;
+	protected transient TimestampedCollector<RowData> collector;
 
 	/** Flag to prevent duplicate function.close() calls in close() and dispose(). */
 	private transient boolean functionsClosed = false;
 
 	private transient InternalTimerService<W> internalTimerService;
 
-	private transient InternalValueState<K, W, BaseRow> windowState;
+	private transient InternalValueState<K, W, RowData> windowState;
 
-	protected transient InternalValueState<K, W, BaseRow> previousState;
+	protected transient InternalValueState<K, W, RowData> previousState;
 
 	private transient TriggerContext triggerContext;
 
@@ -178,7 +178,7 @@ public abstract class WindowOperator<K, W extends Window>
 			LogicalType[] aggResultTypes,
 			LogicalType[] windowPropertyTypes,
 			int rowtimeIndex,
-			boolean sendRetraction,
+			boolean produceUpdates,
 			long allowedLateness) {
 		checkArgument(allowedLateness >= 0);
 		this.windowAggregator = checkNotNull(windowAggregator);
@@ -190,7 +190,7 @@ public abstract class WindowOperator<K, W extends Window>
 		this.aggResultTypes = checkNotNull(aggResultTypes);
 		this.windowPropertyTypes = checkNotNull(windowPropertyTypes);
 		this.allowedLateness = allowedLateness;
-		this.sendRetraction = sendRetraction;
+		this.produceUpdates = produceUpdates;
 
 		// rowtime index should >= 0 when in event time mode
 		checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
@@ -208,7 +208,7 @@ public abstract class WindowOperator<K, W extends Window>
 			LogicalType[] aggResultTypes,
 			LogicalType[] windowPropertyTypes,
 			int rowtimeIndex,
-			boolean sendRetraction,
+			boolean produceUpdates,
 			long allowedLateness) {
 		checkArgument(allowedLateness >= 0);
 		this.windowAssigner = checkNotNull(windowAssigner);
@@ -219,7 +219,7 @@ public abstract class WindowOperator<K, W extends Window>
 		this.aggResultTypes = checkNotNull(aggResultTypes);
 		this.windowPropertyTypes = checkNotNull(windowPropertyTypes);
 		this.allowedLateness = allowedLateness;
-		this.sendRetraction = sendRetraction;
+		this.produceUpdates = produceUpdates;
 
 		// rowtime index should >= 0 when in event time mode
 		checkArgument(!windowAssigner.isEventTime() || rowtimeIndex >= 0);
@@ -244,17 +244,17 @@ public abstract class WindowOperator<K, W extends Window>
 		triggerContext = new TriggerContext();
 		triggerContext.open();
 
-		StateDescriptor<ValueState<BaseRow>, BaseRow> windowStateDescriptor = new ValueStateDescriptor<>(
+		StateDescriptor<ValueState<RowData>, RowData> windowStateDescriptor = new ValueStateDescriptor<>(
 				"window-aggs",
-				new BaseRowSerializer(getExecutionConfig(), accumulatorTypes));
-		this.windowState = (InternalValueState<K, W, BaseRow>) getOrCreateKeyedState(windowSerializer, windowStateDescriptor);
+				new RowDataSerializer(getExecutionConfig(), accumulatorTypes));
+		this.windowState = (InternalValueState<K, W, RowData>) getOrCreateKeyedState(windowSerializer, windowStateDescriptor);
 
-		if (sendRetraction) {
+		if (produceUpdates) {
 			LogicalType[] valueTypes = ArrayUtils.addAll(aggResultTypes, windowPropertyTypes);
-			StateDescriptor<ValueState<BaseRow>, BaseRow> previousStateDescriptor = new ValueStateDescriptor<>(
+			StateDescriptor<ValueState<RowData>, RowData> previousStateDescriptor = new ValueStateDescriptor<>(
 					"previous-aggs",
-					new BaseRowSerializer(getExecutionConfig(), valueTypes));
-			this.previousState = (InternalValueState<K, W, BaseRow>) getOrCreateKeyedState(windowSerializer, previousStateDescriptor);
+					new RowDataSerializer(getExecutionConfig(), valueTypes));
+			this.previousState = (InternalValueState<K, W, RowData>) getOrCreateKeyedState(windowSerializer, previousStateDescriptor);
 		}
 
 		compileGeneratedCode();
@@ -320,8 +320,8 @@ public abstract class WindowOperator<K, W extends Window>
 	}
 
 	@Override
-	public void processElement(StreamRecord<BaseRow> record) throws Exception {
-		BaseRow inputRow = record.getValue();
+	public void processElement(StreamRecord<RowData> record) throws Exception {
+		RowData inputRow = record.getValue();
 		long timestamp;
 		if (windowAssigner.isEventTime()) {
 			timestamp = inputRow.getLong(rowtimeIndex);
@@ -336,13 +336,13 @@ public abstract class WindowOperator<K, W extends Window>
 			isElementDropped = false;
 
 			windowState.setCurrentNamespace(window);
-			BaseRow acc = windowState.value();
+			RowData acc = windowState.value();
 			if (acc == null) {
 				acc = windowAggregator.createAccumulators();
 			}
 			windowAggregator.setAccumulators(window, acc);
 
-			if (BaseRowUtil.isAccumulateMsg(inputRow)) {
+			if (RowDataUtil.isAccumulateMsg(inputRow)) {
 				windowAggregator.accumulate(inputRow);
 			} else {
 				windowAggregator.retract(inputRow);
@@ -481,13 +481,13 @@ public abstract class WindowOperator<K, W extends Window>
 		}
 
 		@Override
-		public BaseRow getWindowAccumulators(W window) throws Exception {
+		public RowData getWindowAccumulators(W window) throws Exception {
 			windowState.setCurrentNamespace(window);
 			return windowState.value();
 		}
 
 		@Override
-		public void setWindowAccumulators(W window, BaseRow acc) throws Exception {
+		public void setWindowAccumulators(W window, RowData acc) throws Exception {
 			windowState.setCurrentNamespace(window);
 			windowState.update(acc);
 		}
@@ -549,7 +549,7 @@ public abstract class WindowOperator<K, W extends Window>
 			trigger.open(this);
 		}
 
-		boolean onElement(BaseRow row, long timestamp) throws Exception {
+		boolean onElement(RowData row, long timestamp) throws Exception {
 			return trigger.onElement(row, timestamp, window);
 		}
 

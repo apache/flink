@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.executors.AbstractJobClusterExecutor;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.yarn.YarnClusterClientFactory;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 
@@ -33,7 +34,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 @Internal
 public class YarnJobClusterExecutor extends AbstractJobClusterExecutor<ApplicationId, YarnClusterClientFactory> {
 
-	public static final String NAME = "yarn-per-job";
+	public static final String NAME = YarnDeploymentTarget.PER_JOB.getName();
 
 	public YarnJobClusterExecutor() {
 		super(new YarnClusterClientFactory());

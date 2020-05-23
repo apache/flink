@@ -18,19 +18,19 @@
 
 package org.apache.flink.table.planner.utils
 
-import java.lang.{Integer => JInt, Iterable => JIterable}
-import java.sql.Timestamp
-import java.util
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.dataview.MapView
-import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.functions.TableAggregateFunction
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.table.types.logical.IntType
 import org.apache.flink.util.Collector
+
+import java.lang.{Integer => JInt, Iterable => JIterable}
+import java.sql.Timestamp
+import java.util
 
 import scala.collection.mutable.ListBuffer
 
@@ -245,27 +245,27 @@ class Top3WithRetractInput
 
 /****** Function for testing internal accumulator type ******/
 
-class TableAggSum extends TableAggregateFunction[JInt, GenericRow] {
+class TableAggSum extends TableAggregateFunction[JInt, GenericRowData] {
 
-  override def createAccumulator(): GenericRow = {
-    val acc = new GenericRow(1)
-    acc.setInt(0, 0)
+  override def createAccumulator(): GenericRowData = {
+    val acc = new GenericRowData(1)
+    acc.setField(0, 0)
     acc
   }
 
-  def accumulate(acc: GenericRow, v: Int): Unit = {
-    acc.setInt(0, acc.getInt(0) + v)
+  def accumulate(acc: GenericRowData, v: Int): Unit = {
+    acc.setField(0, acc.getInt(0) + v)
   }
 
-  def emitValue(acc: GenericRow, out: Collector[JInt]): Unit = {
+  def emitValue(acc: GenericRowData, out: Collector[JInt]): Unit = {
     // output two records
     val result = acc.getInt(0)
     out.collect(result)
     out.collect(result)
   }
 
-  override def getAccumulatorType: TypeInformation[GenericRow] = {
-    new BaseRowTypeInfo(new IntType()).asInstanceOf[TypeInformation[GenericRow]]
+  override def getAccumulatorType: TypeInformation[GenericRowData] = {
+    new RowDataTypeInfo(new IntType()).asInstanceOf[TypeInformation[GenericRowData]]
   }
 }
 

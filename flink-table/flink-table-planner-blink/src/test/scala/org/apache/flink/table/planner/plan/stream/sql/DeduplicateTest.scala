@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.{Before, Test}
@@ -106,7 +105,8 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     thrown.expect(classOf[TableException])
-    thrown.expectMessage("Retraction on windowed GroupBy Aggregate is not supported yet")
+    thrown.expectMessage("GroupWindowAggregate doesn't support consuming update " +
+      "and delete changes which is produced by node Rank(")
     util.verifyExplain(windowSql)
   }
 

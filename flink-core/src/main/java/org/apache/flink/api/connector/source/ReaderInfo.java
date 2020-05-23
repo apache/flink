@@ -21,12 +21,16 @@ package org.apache.flink.api.connector.source;
 import org.apache.flink.annotation.Public;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * A container class hosting the information of a {@link SourceReader}.
  */
 @Public
 public final class ReaderInfo implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
 	private final int subtaskId;
 	private final String location;
 
@@ -47,5 +51,19 @@ public final class ReaderInfo implements Serializable {
 	 */
 	public String getLocation() {
 		return location;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(subtaskId, location);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (!(obj instanceof ReaderInfo)) {
+			return false;
+		}
+		ReaderInfo other = (ReaderInfo) obj;
+		return subtaskId == other.subtaskId && location.equals(other.location);
 	}
 }

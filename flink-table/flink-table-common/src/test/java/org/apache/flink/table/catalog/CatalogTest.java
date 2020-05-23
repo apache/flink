@@ -628,6 +628,16 @@ public abstract class CatalogTest {
 	}
 
 	@Test
+	public void testCreatePythonFunction() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		CatalogFunction pythonFunction = createPythonFunction();
+		catalog.createFunction(path1, createPythonFunction(), false);
+
+		CatalogFunction actual = catalog.getFunction(path1);
+		checkEquals(pythonFunction, actual);
+	}
+
+	@Test
 	public void testCreateFunction_DatabaseNotExistException() throws Exception {
 		assertFalse(catalog.databaseExists(db1));
 
@@ -661,6 +671,23 @@ public abstract class CatalogTest {
 		checkEquals(func, catalog.getFunction(path1));
 
 		CatalogFunction newFunc = createAnotherFunction();
+		catalog.alterFunction(path1, newFunc, false);
+		CatalogFunction actual = catalog.getFunction(path1);
+
+		assertFalse(func.getClassName().equals(actual.getClassName()));
+		checkEquals(newFunc, actual);
+	}
+
+	@Test
+	public void testAlterPythonFunction() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+
+		CatalogFunction func = createFunction();
+		catalog.createFunction(path1, func, false);
+
+		checkEquals(func, catalog.getFunction(path1));
+
+		CatalogFunction newFunc = createPythonFunction();
 		catalog.alterFunction(path1, newFunc, false);
 		CatalogFunction actual = catalog.getFunction(path1);
 
@@ -1218,6 +1245,11 @@ public abstract class CatalogTest {
 	 * @return a CatalogFunction instance
 	 */
 	protected abstract CatalogFunction createFunction();
+
+	/**
+	 * Create a Python CatalogFunction instance by specific catalog implementation.
+	 */
+	protected abstract CatalogFunction createPythonFunction();
 
 	/**
 	 * Create another CatalogFunction instance by specific catalog implementation.

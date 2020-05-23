@@ -48,10 +48,19 @@ public interface BufferPoolFactory {
 	 * 		minimum number of network buffers in this pool
 	 * @param maxUsedBuffers
 	 * 		maximum number of network buffers this pool offers
-	 * 	@param bufferPoolOwner
+	 * @param bufferPoolOwner
 	 * 	    the owner of this buffer pool to release memory when needed
+	 * @param numSubpartitions
+	 * 		number of subpartitions in this pool
+	 * @param maxBuffersPerChannel
+	 * 		maximum number of buffers to use for each channel
 	 */
-	BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers, BufferPoolOwner bufferPoolOwner) throws IOException;
+	BufferPool createBufferPool(
+		int numRequiredBuffers,
+		int maxUsedBuffers,
+		BufferPoolOwner bufferPoolOwner,
+		int numSubpartitions,
+		int maxBuffersPerChannel) throws IOException;
 
 	/**
 	 * Destroy callback for updating factory book keeping.

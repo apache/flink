@@ -62,7 +62,7 @@ public class PluginFileSystemFactory implements FileSystemFactory {
 		}
 	}
 
-	private static class ClassLoaderFixingFileSystem extends FileSystem {
+	static class ClassLoaderFixingFileSystem extends FileSystem {
 		private final FileSystem inner;
 		private final ClassLoader loader;
 
@@ -184,6 +184,10 @@ public class PluginFileSystemFactory implements FileSystemFactory {
 			try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
 				return inner.rename(src, dst);
 			}
+		}
+
+		public FileSystem getInner() {
+			return inner;
 		}
 	}
 }

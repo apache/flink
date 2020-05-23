@@ -19,6 +19,7 @@
 package org.apache.flink.table.sinks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -38,6 +39,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
@@ -47,7 +49,9 @@ import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMA
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELD_DELIMITER;
+import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_NUM_FILES;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_TYPE_VALUE;
+import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_WRITE_MODE;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 import static org.apache.flink.table.sources.CsvTableSourceFactoryBase.getFieldLogicalTypes;
 
@@ -78,10 +82,14 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
 		properties.add(FORMAT_FIELD_DELIMITER);
 		properties.add(CONNECTOR_PATH);
+		properties.add(FORMAT_WRITE_MODE);
+		properties.add(FORMAT_NUM_FILES);
+
 		// schema
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_DATA_TYPE);
 		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
+		properties.add(SCHEMA + ".#." + DescriptorProperties.TABLE_SCHEMA_EXPR);
 		// schema watermark
 		properties.add(SCHEMA + "." + DescriptorProperties.WATERMARK + ".*");
 		return properties;
@@ -117,6 +125,10 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 
 		String path = params.getString(CONNECTOR_PATH);
 		String fieldDelimiter = params.getOptionalString(FORMAT_FIELD_DELIMITER).orElse(",");
+		Optional<String> writeModeParm = params.getOptionalString(FORMAT_WRITE_MODE);
+		FileSystem.WriteMode writeMode =
+				(writeModeParm.isPresent()) ? FileSystem.WriteMode.valueOf(writeModeParm.get()) : null;
+		int numFiles = params.getOptionalInt(FORMAT_NUM_FILES).orElse(-1);
 
 		// bridge to java.sql.Timestamp/Time/Date
 		DataType[] dataTypes = Arrays.stream(tableSchema.getFieldDataTypes())
@@ -137,8 +149,8 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 		return new CsvTableSink(
 			path,
 			fieldDelimiter,
-			-1,
-			null,
+			numFiles,
+			writeMode,
 			tableSchema.getFieldNames(),
 			dataTypes);
 	}

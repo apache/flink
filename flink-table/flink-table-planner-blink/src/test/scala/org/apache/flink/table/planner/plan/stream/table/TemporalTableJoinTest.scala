@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
@@ -29,7 +28,7 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATO
 
 import org.hamcrest.Matchers.{equalTo, startsWith}
 import org.junit.Assert.{assertEquals, assertThat}
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import java.sql.Timestamp
 
@@ -37,52 +36,47 @@ class TemporalTableJoinTest extends TableTestBase {
 
   val util: TableTestUtil = streamTestUtil()
 
-  val orders = util.addDataStream[(Long, String, Timestamp)](
+  val orders: Table = util.addDataStream[(Long, String, Timestamp)](
     "Orders", 'o_amount, 'o_currency, 'o_rowtime.rowtime)
 
-  val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
+  val ratesHistory: Table = util.addDataStream[(String, Int, Timestamp)](
     "RatesHistory", 'currency, 'rate, 'rowtime.rowtime)
 
-  val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
+  val rates: TemporalTableFunction = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
   util.addFunction("Rates", rates)
 
-  val proctimeOrders = util.addDataStream[(Long, String)](
+  val proctimeOrders: Table = util.addDataStream[(Long, String)](
     "ProctimeOrders", 'o_amount, 'o_currency, 'o_proctime.proctime)
 
-  val proctimeRatesHistory = util.addDataStream[(String, Int)](
+  val proctimeRatesHistory: Table = util.addDataStream[(String, Int)](
     "ProctimeRatesHistory", 'currency, 'rate, 'proctime.proctime)
 
-  val proctimeRates = proctimeRatesHistory.createTemporalTableFunction('proctime, 'currency)
+  val proctimeRates: TemporalTableFunction =
+    proctimeRatesHistory.createTemporalTableFunction('proctime, 'currency)
 
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testSimpleJoin(): Unit = {
     val result = orders
       .joinLateral(rates('o_rowtime), 'currency === 'o_currency)
-      .select("o_amount * rate").as("rate")
+      .select($"o_amount" * $"rate").as("rate")
 
     util.verifyPlan(result)
   }
 
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testSimpleJoin2(): Unit = {
     val resultJava = orders
-      .joinLateral("Rates(o_rowtime)", "currency = o_currency")
-      .select("o_amount * rate").as("rate")
+      .joinLateral(call("Rates", $"o_rowtime"), $"currency" === $"o_currency")
+      .select($"o_amount" * $"rate").as("rate")
 
     util.verifyPlan(resultJava)
   }
 
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testSimpleProctimeJoin(): Unit = {
     val result = proctimeOrders
       .joinLateral(proctimeRates('o_proctime), 'currency === 'o_currency)
-      .select("o_amount * rate").as("rate")
+      .select($"o_amount" * $"rate").as("rate")
 
     util.verifyPlan(result)
   }
@@ -92,15 +86,13 @@ class TemporalTableJoinTest extends TableTestBase {
     * Important thing here is that we have complex OR join condition
     * and there are some columns that are not being used (are being pruned).
     */
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testComplexJoin(): Unit = {
     val util = streamTestUtil()
     val thirdTable = util.addDataStream[(String, Int)]("ThirdTable", 't3_comment, 't3_secondary_key)
     val orders = util.addDataStream[(Timestamp, String, Long, String, Int)](
       "Orders", 'rowtime, 'o_comment, 'o_amount, 'o_currency, 'o_secondary_key)
-      .as('o_rowtime, 'o_comment, 'o_amount, 'o_currency, 'o_secondary_key)
+      .as("o_rowtime", "o_comment", "o_amount", "o_currency", "o_secondary_key")
 
     val ratesHistory = util.addDataStream[(Timestamp, String, String, Int, Int)](
       "RatesHistory", 'rowtime, 'comment, 'currency, 'rate, 'secondary_key)
@@ -112,28 +104,26 @@ class TemporalTableJoinTest extends TableTestBase {
     val result = orders
       .joinLateral(rates('o_rowtime))
       .filter('currency === 'o_currency || 'secondary_key === 'o_secondary_key)
-      .select('o_amount * 'rate, 'secondary_key).as('rate, 'secondary_key)
+      .select('o_amount * 'rate, 'secondary_key).as("rate", "secondary_key")
       .join(thirdTable, 't3_secondary_key === 'secondary_key)
 
     util.verifyPlan(result)
   }
 
-  // TODO
-  @Ignore("Fix bug in LogicalCorrelateToTemporalTableJoinRule")
   @Test
   def testTemporalTableFunctionOnTopOfQuery(): Unit = {
     val filteredRatesHistory = ratesHistory
       .filter('rate > 100)
       .select('currency, 'rate * 2, 'rowtime)
-      .as('currency, 'rate, 'rowtime)
+      .as("currency", "rate", "rowtime")
 
     val filteredRates = filteredRatesHistory.createTemporalTableFunction('rowtime, 'currency)
     util.addFunction("FilteredRates", filteredRates)
 
     val result = orders
       .joinLateral(filteredRates('o_rowtime), 'currency === 'o_currency)
-      .select("o_amount * rate")
-      .as('rate)
+      .select($"o_amount" * $"rate")
+      .as("rate")
 
     util.verifyPlan(result)
   }
@@ -147,7 +137,7 @@ class TemporalTableJoinTest extends TableTestBase {
       .joinLateral(rates(
         java.sql.Timestamp.valueOf("2016-06-27 10:10:42.123")),
         'o_currency === 'currency)
-      .select("o_amount * rate")
+      .select($"o_amount" * $"rate")
 
     util.verifyPlan(result)
   }
@@ -159,7 +149,7 @@ class TemporalTableJoinTest extends TableTestBase {
 
   @Test
   def testValidStringFieldReference(): Unit = {
-    val rates = ratesHistory.createTemporalTableFunction("rowtime", "currency")
+    val rates = ratesHistory.createTemporalTableFunction($"rowtime", $"currency")
     assertRatesFunction(ratesHistory.getSchema, rates)
   }
 

@@ -407,6 +407,43 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test
+	public void testMaxBuffersPerChannelAndAvailability() throws IOException, InterruptedException {
+		localBufferPool.lazyDestroy();
+		localBufferPool = new LocalBufferPool(networkBufferPool, 1, Integer.MAX_VALUE, null, 3, 1);
+		localBufferPool.setNumBuffers(10);
+
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+
+		// request one segment from subpartitin-0 and subpartition-1 respectively
+		final BufferBuilder bufferBuilder01 = localBufferPool.requestBufferBuilderBlocking(0);
+		final BufferBuilder bufferBuilder11 = localBufferPool.requestBufferBuilderBlocking(1);
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+
+		// request one segment from subpartition-0
+		final BufferBuilder bufferBuilder02 = localBufferPool.requestBufferBuilderBlocking(0);
+		assertFalse(localBufferPool.getAvailableFuture().isDone());
+
+		final BufferBuilder bufferBuilder03 = localBufferPool.requestBufferBuilderBlocking(0);
+		final BufferBuilder bufferBuilder21 = localBufferPool.requestBufferBuilderBlocking(2);
+		final BufferBuilder bufferBuilder22 = localBufferPool.requestBufferBuilderBlocking(2);
+		assertFalse(localBufferPool.getAvailableFuture().isDone());
+
+		// recycle segments
+		bufferBuilder11.getRecycler().recycle(bufferBuilder11.getMemorySegment());
+		assertFalse(localBufferPool.getAvailableFuture().isDone());
+		bufferBuilder21.getRecycler().recycle(bufferBuilder21.getMemorySegment());
+		assertFalse(localBufferPool.getAvailableFuture().isDone());
+		bufferBuilder02.getRecycler().recycle(bufferBuilder02.getMemorySegment());
+		assertFalse(localBufferPool.getAvailableFuture().isDone());
+		bufferBuilder01.getRecycler().recycle(bufferBuilder01.getMemorySegment());
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+		bufferBuilder03.getRecycler().recycle(bufferBuilder03.getMemorySegment());
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+		bufferBuilder22.getRecycler().recycle(bufferBuilder22.getMemorySegment());
+		assertTrue(localBufferPool.getAvailableFuture().isDone());
+	}
+
+	@Test
 	public void testIsAvailableOrNot() throws Exception {
 
 		// the local buffer pool should be in available state initially

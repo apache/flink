@@ -68,6 +68,7 @@ public final class ApiExpressionUtils {
 	 *
 	 * <p>It converts:
 	 * <ul>
+	 *     <li>{@code null} to null literal</li>
 	 *     <li>{@link Row} to a call to a row constructor expression</li>
 	 *     <li>{@link Map} to a call to a map constructor expression</li>
 	 *     <li>{@link List} to a call to an array constructor expression</li>
@@ -82,7 +83,9 @@ public final class ApiExpressionUtils {
 	 * @param expression An object to convert to an expression
 	 */
 	public static Expression objectToExpression(Object expression) {
-		if (expression instanceof ApiExpression) {
+		if (expression == null) {
+			return valueLiteral(null, DataTypes.NULL());
+		} else if (expression instanceof ApiExpression) {
 			return ((ApiExpression) expression).toExpr();
 		} else if (expression instanceof Expression) {
 			return (Expression) expression;
@@ -90,10 +93,13 @@ public final class ApiExpressionUtils {
 			return convertRow((Row) expression);
 		} else if (expression instanceof Map) {
 			return convertJavaMap((Map<?, ?>) expression);
-		} else if (expression instanceof List) {
-			return convertJavaList((List<?>) expression);
+		} else if (expression instanceof byte[]) {
+			// BINARY LITERAL
+			return valueLiteral(expression);
 		} else if (expression.getClass().isArray()) {
 			return convertArray(expression);
+		} else if (expression instanceof List) {
+			return convertJavaList((List<?>) expression);
 		} else {
 			return convertScala(expression).orElseGet(() -> valueLiteral(expression));
 		}
@@ -203,7 +209,7 @@ public final class ApiExpressionUtils {
 			throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
 		Class<?> decimalClass = Class.forName("scala.math.BigDecimal");
 		if (decimalClass.equals(obj.getClass())) {
-			Method toJava = decimalClass.getMethod("bigDecimal");
+			Method toJava = decimalClass.getMethod("underlying");
 			BigDecimal bigDecimal = (BigDecimal) toJava.invoke(obj);
 			return Optional.of(valueLiteral(bigDecimal));
 		}
@@ -284,8 +290,8 @@ public final class ApiExpressionUtils {
 	}
 
 	public static Expression toMonthInterval(Expression e, int multiplier) {
-		return ExpressionUtils.extractValue(e, Integer.class)
-			.map((v) -> intervalOfMonths(v * multiplier))
+		return ExpressionUtils.extractValue(e, BigDecimal.class)
+			.map((v) -> intervalOfMonths(v.intValue() * multiplier))
 			.orElseThrow(() -> new ValidationException("Invalid constant for year-month interval: " + e));
 	}
 
@@ -296,8 +302,8 @@ public final class ApiExpressionUtils {
 	}
 
 	public static Expression toMilliInterval(Expression e, long multiplier) {
-		return ExpressionUtils.extractValue(e, Long.class)
-			.map((v) -> intervalOfMillis(v * multiplier))
+		return ExpressionUtils.extractValue(e, BigDecimal.class)
+			.map((v) -> intervalOfMillis(v.longValue() * multiplier))
 			.orElseThrow(() -> new ValidationException("Invalid constant for day-time interval: " + e));
 	}
 
@@ -308,8 +314,8 @@ public final class ApiExpressionUtils {
 	}
 
 	public static Expression toRowInterval(Expression e) {
-		return ExpressionUtils.extractValue(e, Long.class)
-			.map(ApiExpressionUtils::valueLiteral)
+		return ExpressionUtils.extractValue(e, BigDecimal.class)
+			.map(bd -> ApiExpressionUtils.valueLiteral(bd.longValue()))
 			.orElseThrow(() -> new ValidationException("Invalid constant for row interval: " + e));
 	}
 

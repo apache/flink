@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.dataformat.SqlTimestamp;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -84,7 +84,7 @@ public class JavaUserDefinedScalarFunctions {
 	 * Concatenate inputs as strings.
 	 */
 	public static class JavaFunc1 extends ScalarFunction {
-		public String eval(Integer a, int b,  SqlTimestamp c) {
+		public String eval(Integer a, int b,  TimestampData c) {
 			Long ts = (c == null) ? null : c.getMillisecond();
 			return a + " and " + b + " and " + ts;
 		}
@@ -140,14 +140,14 @@ public class JavaUserDefinedScalarFunctions {
 			openCalled = true;
 		}
 
-		public Timestamp eval(SqlTimestamp sqlTimestamp, Integer offset) {
+		public Timestamp eval(TimestampData timestampData, Integer offset) {
 			if (!openCalled) {
 				fail("Open was not called before run.");
 			}
-			if (sqlTimestamp == null || offset == null) {
+			if (timestampData == null || offset == null) {
 				return null;
 			} else {
-				long ts = sqlTimestamp.getMillisecond() - offset;
+				long ts = timestampData.getMillisecond() - offset;
 				int tzOffset = TimeZone.getDefault().getOffset(ts);
 				return new Timestamp(ts - tzOffset);
 			}

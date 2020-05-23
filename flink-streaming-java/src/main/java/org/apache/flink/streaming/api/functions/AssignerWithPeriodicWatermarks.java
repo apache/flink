@@ -50,6 +50,7 @@ import javax.annotation.Nullable;
  *
  * @see org.apache.flink.streaming.api.watermark.Watermark
  */
+@Deprecated
 public interface AssignerWithPeriodicWatermarks<T> extends TimestampAssigner<T> {
 
 	/**

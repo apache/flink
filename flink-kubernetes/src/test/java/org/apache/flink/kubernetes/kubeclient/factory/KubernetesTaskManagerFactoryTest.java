@@ -24,7 +24,6 @@ import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerPa
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
@@ -39,9 +38,9 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 
 	private Pod resultPod;
 
-	@Before
-	public void setup() throws Exception {
-		super.setup();
+	@Override
+	protected void onSetup() throws Exception {
+		super.onSetup();
 
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
 		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
@@ -50,7 +49,7 @@ public class KubernetesTaskManagerFactoryTest extends KubernetesTaskManagerTestB
 		generateHadoopConfFileItems();
 
 		this.resultPod =
-			KubernetesTaskManagerFactory.createTaskManagerComponent(kubernetesTaskManagerParameters).getInternalResource();
+			KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(kubernetesTaskManagerParameters).getInternalResource();
 	}
 
 	@Test

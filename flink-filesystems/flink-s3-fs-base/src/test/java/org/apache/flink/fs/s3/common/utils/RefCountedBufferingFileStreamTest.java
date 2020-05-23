@@ -134,11 +134,11 @@ public class RefCountedBufferingFileStreamTest {
 		return new RefCountedBufferingFileStream(getRefCountedFileWithContent(), BUFFER_SIZE);
 	}
 
-	private RefCountedFile getRefCountedFileWithContent() throws IOException {
+	private RefCountedFileWithStream getRefCountedFileWithContent() throws IOException {
 		final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
 		final OutputStream out = Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
 
-		return RefCountedFile.newFile(newFile, out);
+		return RefCountedFileWithStream.newFile(newFile, out);
 	}
 
 	private static byte[] bytesOf(String str) {

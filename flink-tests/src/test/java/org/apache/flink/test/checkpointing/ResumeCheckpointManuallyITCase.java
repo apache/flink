@@ -29,7 +29,6 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -40,13 +39,11 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.state.ManualWindowSpeedITCase;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
@@ -70,7 +67,6 @@ import static org.junit.Assert.assertNotNull;
  *
  * <p>This tests considers full and incremental checkpoints and was introduced to guard against problems like FLINK-6964.
  */
-@Category(AlsoRunWithLegacyScheduler.class)
 public class ResumeCheckpointManuallyITCase extends TestLogger {
 
 	private static final int PARALLELISM = 2;
@@ -298,15 +294,13 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 	private static String runJobAndGetExternalizedCheckpoint(StateBackend backend, File checkpointDir, @Nullable String externalCheckpoint, ClusterClient<?> client) throws Exception {
 		JobGraph initialJobGraph = getJobGraph(backend, externalCheckpoint);
 		NotifyingInfiniteTupleSource.countDownLatch = new CountDownLatch(PARALLELISM);
-		NotifyingInfiniteTupleSource.checkpointCompletedLatch = new CountDownLatch(PARALLELISM);
 
 		ClientUtils.submitJob(client, initialJobGraph);
 
 		// wait until all sources have been started
 		NotifyingInfiniteTupleSource.countDownLatch.await();
-		// wait the checkpoint completing
-		NotifyingInfiniteTupleSource.checkpointCompletedLatch.await();
 
+		waitUntilExternalizedCheckpointCreated(checkpointDir, initialJobGraph.getJobID());
 		client.cancel(initialJobGraph.getJobID()).get();
 		waitUntilCanceled(initialJobGraph.getJobID(), client);
 
@@ -319,6 +313,16 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 			throw new AssertionError("No complete checkpoint could be found.");
 		} else {
 			return checkpoint.get().toString();
+		}
+	}
+
+	private static void waitUntilExternalizedCheckpointCreated(File checkpointDir, JobID jobId) throws InterruptedException, IOException {
+		while (true) {
+			Thread.sleep(50);
+			Optional<Path> externalizedCheckpoint = findExternalizedCheckpoint(checkpointDir, jobId);
+			if (externalizedCheckpoint.isPresent()) {
+				break;
+			}
 		}
 	}
 
@@ -373,15 +377,11 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 	/**
 	 * Infinite source which notifies when all of its sub tasks have been started via the count down latch.
 	 */
-	public static class NotifyingInfiniteTupleSource
-		extends ManualWindowSpeedITCase.InfiniteTupleSource
-		implements CheckpointListener {
+	public static class NotifyingInfiniteTupleSource extends ManualWindowSpeedITCase.InfiniteTupleSource {
 
 		private static final long serialVersionUID = 8120981235081181746L;
 
 		private static CountDownLatch countDownLatch;
-
-		private static CountDownLatch checkpointCompletedLatch;
 
 		public NotifyingInfiniteTupleSource(int numKeys) {
 			super(numKeys);
@@ -394,13 +394,6 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 			}
 
 			super.run(out);
-		}
-
-		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
-			if (checkpointCompletedLatch != null) {
-				checkpointCompletedLatch.countDown();
-			}
 		}
 	}
 }

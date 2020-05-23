@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.runtime.batch.table
 
-import java.lang.Iterable
-
 import org.apache.flink.api.common.functions.MapPartitionFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.Literal
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.expressions.utils.Func20
 import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
@@ -33,9 +31,12 @@ import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
+
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import java.lang.{Iterable => JIterable}
 
 import scala.collection.JavaConverters._
 
@@ -71,8 +72,8 @@ class JoinITCase(
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as("d", "e", "f", "g", "h")
 
     val joinT = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
 
@@ -483,7 +484,7 @@ class JoinITCase(
       new MapPartitionFunction[(Int, Long, String), (Integer, Long, String)] {
 
         override def mapPartition(
-            vals: Iterable[(Int, Long, String)],
+            vals: JIterable[(Int, Long, String)],
             out: Collector[(Integer, Long, String)]): Unit = {
           val it = vals.iterator()
           while (it.hasNext) {
@@ -501,7 +502,7 @@ class JoinITCase(
       new MapPartitionFunction[(Int, Long, Int, String, Long), (Integer, Long, Int, String, Long)] {
 
         override def mapPartition(
-            vals: Iterable[(Int, Long, Int, String, Long)],
+            vals: JIterable[(Int, Long, Int, String, Long)],
             out: Collector[(Integer, Long, Int, String, Long)]): Unit = {
           val it = vals.iterator()
           while (it.hasNext) {

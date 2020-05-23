@@ -103,7 +103,9 @@ public final class ScalaCaseClassSerializerSnapshot<T extends scala.Product>
 	}
 
 	@Override
-	protected boolean isOuterSnapshotCompatible(ScalaCaseClassSerializer<T> newSerializer) {
-		return Objects.equals(type, newSerializer.getTupleClass());
+	protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(ScalaCaseClassSerializer<T> newSerializer) {
+		return (Objects.equals(type, newSerializer.getTupleClass()))
+			? OuterSchemaCompatibility.COMPATIBLE_AS_IS
+			: OuterSchemaCompatibility.INCOMPATIBLE;
 	}
 }

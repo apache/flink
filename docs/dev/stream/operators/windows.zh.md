@@ -94,7 +94,7 @@ Using the `keyBy(...)` will split your infinite stream into logical keyed stream
 stream is not keyed.
 
 In the case of keyed streams, any attribute of your incoming events can be used as a key
-(more details [here]({{ site.baseurl }}/dev/api_concepts.html#specifying-keys)). Having a keyed stream will
+(more details [here]({% link dev/stream/state/state.zh.md %}#keyed-datastream)). Having a keyed stream will
 allow your windowed computation to be performed in parallel by multiple tasks, as each logical keyed stream can be processed
 independently from the rest. All elements referring to the same key will be sent to the same parallel task.
 

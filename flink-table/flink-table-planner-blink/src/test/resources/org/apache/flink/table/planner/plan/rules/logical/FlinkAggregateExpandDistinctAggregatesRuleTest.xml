@@ -35,7 +35,7 @@ FlinkLogicalCalc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2, EXPR$3])
       +- FlinkLogicalAggregate(group=[{0, 1, 2}], EXPR$1=[COUNT($0)], EXPR$2=[SUM($3)])
          +- FlinkLogicalExpand(projects=[a, b, $e, b_0])
             +- FlinkLogicalCalc(select=[a, b])
-               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -58,7 +58,7 @@ FlinkLogicalCalc(select=[EXPR$0, EXPR$1])
    +- FlinkLogicalCalc(select=[b, a, c, =(CASE(=($e, 1:BIGINT), 1:BIGINT, 2:BIGINT), 1) AS $g_1, =(CASE(=($e, 1:BIGINT), 1:BIGINT, 2:BIGINT), 2) AS $g_2])
       +- FlinkLogicalAggregate(group=[{0, 1, 2, 3}])
          +- FlinkLogicalExpand(projects=[a, b, c, $e])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -80,7 +80,7 @@ FlinkLogicalAggregate(group=[{}], EXPR$0=[COUNT($0) FILTER $4], EXPR$1=[SUM($1) 
    +- FlinkLogicalAggregate(group=[{0, 1, 2}], EXPR$2=[MAX($3)], EXPR$3=[MIN($3)])
       +- FlinkLogicalExpand(projects=[a, b, $e, a_0])
          +- FlinkLogicalCalc(select=[a, b])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -103,7 +103,7 @@ FlinkLogicalCalc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3])
    +- FlinkLogicalCalc(select=[c, a, b, EXPR$2, EXPR$3, =(CASE(=($e, 2:BIGINT), 1:BIGINT, =($e, 4:BIGINT), 2:BIGINT, 3:BIGINT), 1) AS $g_1, =(CASE(=($e, 2:BIGINT), 1:BIGINT, =($e, 4:BIGINT), 2:BIGINT, 3:BIGINT), 2) AS $g_2, =(CASE(=($e, 2:BIGINT), 1:BIGINT, =($e, 4:BIGINT), 2:BIGINT, 3:BIGINT), 3) AS $g_3])
       +- FlinkLogicalAggregate(group=[{0, 1, 2, 3}], EXPR$2=[MAX($4)], EXPR$3=[MIN($4)])
          +- FlinkLogicalExpand(projects=[a, b, c, $e, a_0])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -126,7 +126,7 @@ FlinkLogicalAggregate(group=[{}], EXPR$0=[COUNT($0) FILTER $3], EXPR$1=[SUM($1) 
    +- FlinkLogicalAggregate(group=[{0, 1, 2, 3, 4}])
       +- FlinkLogicalExpand(projects=[a, b, c, $f3, $e])
          +- FlinkLogicalCalc(select=[a, b, c, IS TRUE(>(a, 5)) AS $f3])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -151,7 +151,7 @@ FlinkLogicalCalc(select=[EXPR$0, EXPR$1])
          +- FlinkLogicalExpand(projects=[c, d, a, b, $e, $e_0])
             +- FlinkLogicalExpand(projects=[c, d, a, b, $e])
                +- FlinkLogicalCalc(select=[c, d, a, b])
-                  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -174,7 +174,7 @@ FlinkLogicalAggregate(group=[{}], EXPR$0=[COUNT($0) FILTER $3], EXPR$1=[SUM($0) 
    +- FlinkLogicalAggregate(group=[{0, 1, 2}], EXPR$2=[MAX($3)])
       +- FlinkLogicalExpand(projects=[a, $f1, $e, a_0])
          +- FlinkLogicalCalc(select=[a, IS TRUE(>(b, 0)) AS $f1])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -197,7 +197,7 @@ FlinkLogicalCalc(select=[EXPR$0, EXPR$1, EXPR$2])
    +- FlinkLogicalAggregate(group=[{0, 1, 2, 3}])
       +- FlinkLogicalExpand(projects=[b, c, a, $e])
          +- FlinkLogicalCalc(select=[b, c, a])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -221,7 +221,7 @@ FlinkLogicalCalc(select=[EXPR$0, EXPR$1, CASE(IS NOT NULL(EXPR$2), EXPR$2, 0) AS
       +- FlinkLogicalAggregate(group=[{0, 1, 2, 4}], EXPR$2=[COUNT($3)])
          +- FlinkLogicalExpand(projects=[a, $f1, b, c, $e])
             +- FlinkLogicalCalc(select=[a, IS TRUE(>(c, 0)) AS $f1, b, c])
-               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -245,7 +245,7 @@ FlinkLogicalCalc(select=[EXPR$0, EXPR$1, CAST(EXPR$2) AS EXPR$2])
       +- FlinkLogicalAggregate(group=[{0, 1, 3, 4, 5, 6}], EXPR$2=[COUNT($2)])
          +- FlinkLogicalExpand(projects=[a, b, c, d, e, $e, $e_0])
             +- FlinkLogicalExpand(projects=[a, b, c, d, e, $e])
-               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+               +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -269,7 +269,7 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[MIN($3) FILTER $8], EXPR$2=[MIN($4) F
    +- FlinkLogicalAggregate(group=[{0, 3, 4, 5, 6, 7}], EXPR$1=[MAX($1)], EXPR$2=[MAX($1) FILTER $2])
       +- FlinkLogicalExpand(projects=[d, e, $f2, c, $f4, b, $f6, $e])
          +- FlinkLogicalCalc(select=[d, e, IS TRUE(<(a, 10)) AS $f2, c, IS TRUE(>(a, 5)) AS $f4, b, IS TRUE(>(b, 3)) AS $f6])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -292,7 +292,7 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $4], EXPR$2=[COUNT($
    +- FlinkLogicalAggregate(group=[{0, 1, 2, 3, 4, 5}])
       +- FlinkLogicalExpand(projects=[d, c, $f2, b, $f4, $e])
          +- FlinkLogicalCalc(select=[d, c, IS TRUE(>(a, 0)) AS $f2, b, IS TRUE(>(b, 1)) AS $f4])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -315,7 +315,7 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $4], EXPR$2=[COUNT($
    +- FlinkLogicalAggregate(group=[{0, 1, 2, 3, 4}])
       +- FlinkLogicalExpand(projects=[d, c, $f2, $f3, $e])
          +- FlinkLogicalCalc(select=[d, c, IS TRUE(>(a, 10)) AS $f2, IS TRUE(<(a, 10)) AS $f3])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -338,7 +338,7 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $5], EXPR$2=[COUNT($
    +- FlinkLogicalAggregate(group=[{0, 1, 2, 4}], EXPR$3=[MAX($3)], EXPR$4=[MIN($3)])
       +- FlinkLogicalExpand(projects=[d, c, $f2, e, $e])
          +- FlinkLogicalCalc(select=[d, c, IS TRUE(>(a, 0)) AS $f2, e])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -358,7 +358,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
 FlinkLogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
 +- FlinkLogicalAggregate(group=[{0}])
    +- FlinkLogicalCalc(select=[a])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -380,7 +380,7 @@ FlinkLogicalAggregate(group=[{}], EXPR$0=[COUNT($0) FILTER $2], EXPR$1=[MIN($1) 
    +- FlinkLogicalAggregate(group=[{0, 1, 3}], EXPR$1=[SUM($2)])
       +- FlinkLogicalExpand(projects=[a, $f1, b, $e])
          +- FlinkLogicalCalc(select=[a, IS TRUE(>(a, 0)) AS $f1, b])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -403,7 +403,7 @@ FlinkLogicalCalc(select=[CASE(IS NOT NULL(EXPR$0), EXPR$0, 0) AS EXPR$0, EXPR$1]
       +- FlinkLogicalAggregate(group=[{2, 3}], EXPR$0=[COUNT($0) FILTER $1])
          +- FlinkLogicalExpand(projects=[a, $f1, b, $e])
             +- FlinkLogicalCalc(select=[a, IS TRUE(>(a, 0)) AS $f1, b])
-               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -428,7 +428,7 @@ FlinkLogicalCalc(select=[EXPR$0, EXPR$1])
          +- FlinkLogicalExpand(projects=[b, c, a, $e, b_0, $e_0])
             +- FlinkLogicalExpand(projects=[b, c, a, $e, b_0])
                +- FlinkLogicalCalc(select=[b, c, a])
-                  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -453,7 +453,7 @@ FlinkLogicalCalc(select=[CAST(EXPR$0) AS EXPR$0, EXPR$1])
          +- FlinkLogicalExpand(projects=[c, d, a, b, $e, $e_0])
             +- FlinkLogicalExpand(projects=[c, d, a, b, $e])
                +- FlinkLogicalCalc(select=[c, d, a, b])
-                  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -473,7 +473,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0, $1)])
 FlinkLogicalAggregate(group=[{}], EXPR$0=[COUNT($0, $1)])
 +- FlinkLogicalAggregate(group=[{0, 1}])
    +- FlinkLogicalCalc(select=[a, b])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -496,7 +496,7 @@ FlinkLogicalCalc(select=[EXPR$0])
    +- FlinkLogicalAggregate(group=[{0, 1, 2, 3, 4}])
       +- FlinkLogicalExpand(projects=[c, d, a, b, $e])
          +- FlinkLogicalCalc(select=[c, d, a, b])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -519,7 +519,7 @@ FlinkLogicalCalc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2, EXPR$3])
       +- FlinkLogicalAggregate(group=[{0, 1, 2}], EXPR$1=[COUNT()])
          +- FlinkLogicalExpand(projects=[a, b, $e])
             +- FlinkLogicalCalc(select=[a, b])
-               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -542,7 +542,7 @@ FlinkLogicalCalc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2])
       +- FlinkLogicalAggregate(group=[{0, 1, 2}], EXPR$1=[COUNT($0)])
          +- FlinkLogicalExpand(projects=[a, b, $e])
             +- FlinkLogicalCalc(select=[a, b])
-               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -565,7 +565,7 @@ FlinkLogicalCalc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2])
       +- FlinkLogicalAggregate(group=[{0, 1, 2}], EXPR$1=[COUNT()])
          +- FlinkLogicalExpand(projects=[a, b, $e])
             +- FlinkLogicalCalc(select=[a, b])
-               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -585,7 +585,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2])
 FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($2)])
 +- FlinkLogicalAggregate(group=[{0, 1, 2}])
    +- FlinkLogicalCalc(select=[d, IS TRUE(>(a, 0)) AS $f2, CASE(IS TRUE(>(a, 0)), c, null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS i$c])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -606,7 +606,7 @@ FlinkLogicalCalc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2, EXPR$3])
    +- FlinkLogicalCalc(select=[a, b, c, EXPR$1, =(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT), 1) AS $g_1, =(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT), 2) AS $g_2, =(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT), 3) AS $g_3])
       +- FlinkLogicalAggregate(group=[{0, 1, 2, 3}], EXPR$1=[COUNT()])
          +- FlinkLogicalExpand(projects=[a, b, c, $e])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

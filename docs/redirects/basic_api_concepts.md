@@ -1,7 +1,7 @@
 ---
 title: "Basic API Concepts"
 layout: redirect
-redirect: /dev/api_concepts.html
+redirect: /dev/datastream_api.html
 permalink: /apis/common/index.html
 ---
 <!--

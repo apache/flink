@@ -183,7 +183,10 @@ public class StatefulSequenceSourceTest {
 		runner2.join();
 	}
 
-	private static class BlockingSourceContext implements SourceFunction.SourceContext<Long> {
+	/**
+	 * Test SourceContext.
+	 */
+	public static class BlockingSourceContext implements SourceFunction.SourceContext<Long> {
 
 		private final String name;
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
 
 import javax.annotation.Nullable;
@@ -45,7 +45,7 @@ public class BoundedOutOfOrderWatermarkGenerator extends WatermarkGenerator {
 
 	@Nullable
 	@Override
-	public Long currentWatermark(BaseRow row) {
+	public Long currentWatermark(RowData row) {
 		return row.getLong(rowtimeIndex) - delay;
 	}
 }

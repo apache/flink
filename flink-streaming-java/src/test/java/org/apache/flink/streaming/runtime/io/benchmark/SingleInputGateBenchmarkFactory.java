@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.io.benchmark;
 
-import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -86,8 +85,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				connectionManager,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
-				metrics,
-				networkBufferPool);
+				metrics);
 		}
 	}
 
@@ -116,12 +114,13 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				taskEventPublisher,
 				initialBackoff,
 				maxBackoff,
-				metrics);
+				metrics.getNumBytesInLocalCounter(),
+				metrics.getNumBuffersInLocalCounter());
 		}
 
 		@Override
-		public void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
-			super.requestSubpartition(channelIndex);
+		public void requestSubpartition(int subpartitionIndex) throws IOException {
+			super.requestSubpartition(getChannelIndex());
 		}
 
 		@Override
@@ -150,8 +149,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				ConnectionManager connectionManager,
 				int initialBackOff,
 				int maxBackoff,
-				InputChannelMetrics metrics,
-				MemorySegmentProvider memorySegmentProvider) {
+				InputChannelMetrics metrics) {
 			super(
 				inputGate,
 				channelIndex,
@@ -160,13 +158,13 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				connectionManager,
 				initialBackOff,
 				maxBackoff,
-				metrics,
-				memorySegmentProvider);
+				metrics.getNumBytesInRemoteCounter(),
+				metrics.getNumBuffersInRemoteCounter());
 		}
 
 		@Override
 		public void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
-			super.requestSubpartition(channelIndex);
+			super.requestSubpartition(getChannelIndex());
 		}
 
 		@Override

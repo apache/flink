@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
+import org.apache.flink.table.connector.source.ScanTableSource
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.StreamTableSource
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
@@ -39,14 +39,14 @@ class StreamExecTableSourceScanRule
     FlinkConventions.STREAM_PHYSICAL,
     "StreamExecTableSourceScanRule") {
 
-  /** Rule must only match if TableScan targets a [[StreamTableSource]] */
+  /** Rule must only match if TableScan targets a [[ScanTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
-    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable])
     tableSourceTable match {
-      case tst: TableSourceTable[_] =>
+      case tst: TableSourceTable =>
         tst.tableSource match {
-          case _: StreamTableSource[_] => true
+          case _: ScanTableSource => true
           case _ => false
         }
       case _ => false
@@ -54,17 +54,18 @@ class StreamExecTableSourceScanRule
   }
 
   def convert(rel: RelNode): RelNode = {
-    val scan: FlinkLogicalTableSourceScan = rel.asInstanceOf[FlinkLogicalTableSourceScan]
+    val scan = rel.asInstanceOf[FlinkLogicalTableSourceScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
 
     new StreamExecTableSourceScan(
       rel.getCluster,
       traitSet,
-      scan.getTable.asInstanceOf[TableSourceTable[_]]
+      scan.getTable.asInstanceOf[TableSourceTable]
     )
   }
 }
 
 object StreamExecTableSourceScanRule {
-  val INSTANCE: RelOptRule = new StreamExecTableSourceScanRule
+  val INSTANCE = new StreamExecTableSourceScanRule
 }
+

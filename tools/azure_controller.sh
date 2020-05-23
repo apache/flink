@@ -25,8 +25,8 @@ if [ -z "$HERE" ] ; then
     exit 1  # fail
 fi
 
-source "${HERE}/travis/stage.sh"
-source "${HERE}/travis/shade.sh"
+source "${HERE}/ci/stage.sh"
+source "${HERE}/ci/shade.sh"
 source "${HERE}/ci/maven-utils.sh"
 
 echo $M2_HOME
@@ -123,6 +123,7 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
             ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-table_*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-table-blink*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-python*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-sql-client_*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-elasticsearch-base/target/flink-*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-kafka-base/target/flink-*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-table/flink-table-planner/target/flink-table-planner*tests.jar" | xargs rm -rf
@@ -183,7 +184,7 @@ elif [ $STAGE != "$STAGE_CLEANUP" ]; then
     fi
 
 
-    TEST="$STAGE" "./tools/travis_watchdog.sh" 300
+    TEST="$STAGE" "./tools/travis_watchdog.sh" 900
     EXIT_CODE=$?
 elif [ $STAGE == "$STAGE_CLEANUP" ]; then
     echo "Cleaning up $CACHE_BUILD_DIR"

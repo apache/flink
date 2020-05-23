@@ -50,7 +50,7 @@ public class TaskManagerSlot implements TaskManagerSlotInformation {
 	/** Allocation id for which this slot has been allocated. */
 	private AllocationID allocationId;
 
-	/** Allocation id for which this slot has been allocated. */
+	/** Job id for which this slot has been allocated. */
 	@Nullable
 	private JobID jobId;
 

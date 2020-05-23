@@ -20,8 +20,11 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -69,11 +72,12 @@ public class TaskManagerServices {
 	private final KvStateService kvStateService;
 	private final BroadcastVariableManager broadcastVariableManager;
 	private final TaskSlotTable<Task> taskSlotTable;
-	private final JobManagerTable jobManagerTable;
+	private final JobTable jobTable;
 	private final JobLeaderService jobLeaderService;
 	private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
 	private final TaskEventDispatcher taskEventDispatcher;
 	private final ExecutorService ioExecutor;
+	private final LibraryCacheManager libraryCacheManager;
 
 	TaskManagerServices(
 		UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
@@ -83,11 +87,12 @@ public class TaskManagerServices {
 		KvStateService kvStateService,
 		BroadcastVariableManager broadcastVariableManager,
 		TaskSlotTable<Task> taskSlotTable,
-		JobManagerTable jobManagerTable,
+		JobTable jobTable,
 		JobLeaderService jobLeaderService,
 		TaskExecutorLocalStateStoresManager taskManagerStateStore,
 		TaskEventDispatcher taskEventDispatcher,
-		ExecutorService ioExecutor) {
+		ExecutorService ioExecutor,
+		LibraryCacheManager libraryCacheManager) {
 
 		this.unresolvedTaskManagerLocation = Preconditions.checkNotNull(unresolvedTaskManagerLocation);
 		this.managedMemorySize = managedMemorySize;
@@ -96,11 +101,12 @@ public class TaskManagerServices {
 		this.kvStateService = Preconditions.checkNotNull(kvStateService);
 		this.broadcastVariableManager = Preconditions.checkNotNull(broadcastVariableManager);
 		this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
-		this.jobManagerTable = Preconditions.checkNotNull(jobManagerTable);
+		this.jobTable = Preconditions.checkNotNull(jobTable);
 		this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
 		this.taskManagerStateStore = Preconditions.checkNotNull(taskManagerStateStore);
 		this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
 		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
+		this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -135,8 +141,8 @@ public class TaskManagerServices {
 		return taskSlotTable;
 	}
 
-	public JobManagerTable getJobManagerTable() {
-		return jobManagerTable;
+	public JobTable getJobTable() {
+		return jobTable;
 	}
 
 	public JobLeaderService getJobLeaderService() {
@@ -153,6 +159,10 @@ public class TaskManagerServices {
 
 	public Executor getIOExecutor() {
 		return ioExecutor;
+	}
+
+	public LibraryCacheManager getLibraryCacheManager() {
+		return libraryCacheManager;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -208,6 +218,18 @@ public class TaskManagerServices {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
+		try {
+			jobTable.close();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			libraryCacheManager.shutdown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
 		taskEventDispatcher.clearAll();
 
 		if (exception != null) {
@@ -223,6 +245,7 @@ public class TaskManagerServices {
 	 * Creates and returns the task manager services.
 	 *
 	 * @param taskManagerServicesConfiguration task manager configuration
+	 * @param permanentBlobService permanentBlobService used by the services
 	 * @param taskManagerMetricGroup metric group of the task manager
 	 * @param taskIOExecutor executor for async IO operations
 	 * @return task manager components
@@ -230,6 +253,7 @@ public class TaskManagerServices {
 	 */
 	public static TaskManagerServices fromConfiguration(
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration,
+			PermanentBlobService permanentBlobService,
 			MetricGroup taskManagerMetricGroup,
 			Executor taskIOExecutor) throws Exception {
 
@@ -267,9 +291,9 @@ public class TaskManagerServices {
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
 			taskManagerServicesConfiguration.getPageSize());
 
-		final JobManagerTable jobManagerTable = new JobManagerTable();
+		final JobTable jobTable = DefaultJobTable.create();
 
-		final JobLeaderService jobLeaderService = new JobLeaderService(unresolvedTaskManagerLocation, taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
+		final JobLeaderService jobLeaderService = new DefaultJobLeaderService(unresolvedTaskManagerLocation, taskManagerServicesConfiguration.getRetryingRegistrationConfiguration());
 
 		final String[] stateRootDirectoryStrings = taskManagerServicesConfiguration.getLocalRecoveryStateRootDirectories();
 
@@ -286,6 +310,12 @@ public class TaskManagerServices {
 
 		final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(new ExecutorThreadFactory("taskexecutor-io"));
 
+		final LibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
+			permanentBlobService,
+			BlobLibraryCacheManager.defaultClassLoaderFactory(
+				taskManagerServicesConfiguration.getClassLoaderResolveOrder(),
+				taskManagerServicesConfiguration.getAlwaysParentFirstLoaderPatterns()));
+
 		return new TaskManagerServices(
 			unresolvedTaskManagerLocation,
 			taskManagerServicesConfiguration.getManagedMemorySize().getBytes(),
@@ -294,11 +324,12 @@ public class TaskManagerServices {
 			kvStateService,
 			broadcastVariableManager,
 			taskSlotTable,
-			jobManagerTable,
+			jobTable,
 			jobLeaderService,
 			taskStateManager,
 			taskEventDispatcher,
-			ioExecutor);
+			ioExecutor,
+			libraryCacheManager);
 	}
 
 	private static TaskSlotTable<Task> createTaskSlotTable(

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.expressions;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
@@ -29,7 +30,9 @@ import java.util.Map;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.table.api.Expressions.array;
+import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.map;
+import static org.apache.flink.table.api.Expressions.nullOf;
 import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.objectToExpression;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unwrapFromApi;
@@ -73,9 +76,16 @@ public class ObjectToExpressionTest {
 
 	@Test
 	public void testRowConversion() {
-		Expression expr = objectToExpression(Row.of(1, "ABC", new int[]{1, 2, 3}));
+		Expression expr = objectToExpression(Row.of(1, "ABC", new int[]{1, 2, 3}, new byte[]{1, 2, 3}, null));
 
-		assertThatEquals(expr, row(1, "ABC", array(1, 2, 3)));
+		assertThatEquals(
+			expr,
+			row(
+				1,
+				"ABC",
+				array(1, 2, 3),
+				lit(new byte[]{1, 2, 3}, DataTypes.BINARY(3).notNull()),
+				nullOf(DataTypes.NULL())));
 	}
 
 	private static void assertThatEquals(Expression actual, Expression expected) {

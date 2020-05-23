@@ -21,7 +21,6 @@ package org.apache.flink.python.env;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 import org.junit.AfterClass;
@@ -42,6 +41,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYFLINK_GATEWAY_DISABLED;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_ARCHIVES_DIR;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_FILES_DIR;
 import static org.apache.flink.python.env.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_CACHE;
@@ -255,24 +255,6 @@ public class ProcessPythonEnvironmentManagerTest {
 	}
 
 	@Test
-	public void testCreateEnvironment() throws Exception {
-		PythonDependencyInfo dependencyInfo = new PythonDependencyInfo(
-			new HashMap<>(), null, null, new HashMap<>(), "python");
-
-		try (ProcessPythonEnvironmentManager environmentManager = createBasicPythonEnvironmentManager(dependencyInfo)) {
-			environmentManager.open();
-			RunnerApi.Environment environment = environmentManager.createEnvironment();
-			RunnerApi.ProcessPayload payload = RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
-
-			assertEquals(
-				String.join(File.separator, environmentManager.getBaseDirectory(), "pyflink-udf-runner.sh"),
-				payload.getCommand());
-			Map<String, String> expectedEnv = getBasicExpectedEnv(environmentManager);
-			assertEquals(expectedEnv, payload.getEnvMap());
-		}
-	}
-
-	@Test
 	public void testCreateRetrievalToken() throws Exception {
 		PythonDependencyInfo dependencyInfo = new PythonDependencyInfo(
 			new HashMap<>(),
@@ -379,6 +361,7 @@ public class ProcessPythonEnvironmentManagerTest {
 		String tmpBase = environmentManager.getBaseDirectory();
 		map.put("python", "python");
 		map.put("BOOT_LOG_DIR", tmpBase);
+		map.put(PYFLINK_GATEWAY_DISABLED, "true");
 		return map;
 	}
 

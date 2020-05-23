@@ -47,11 +47,11 @@ and [savepoints]({{ site.baseurl }}{%link ops/state/savepoints.md %}).
 Knowledge about the state also allows for rescaling Flink applications, meaning
 that Flink takes care of redistributing state across parallel instances.
 
-[Queryable state]({{ site.baseurl }}{% link dev/stream/state/queryable_state.md
+[Queryable state]({% link dev/stream/state/queryable_state.md
 %}) allows you to access state from outside of Flink during runtime.
 
 When working with state, it might also be useful to read about [Flink's state
-backends]({{ site.baseurl }}{% link ops/state/state_backends.md %}). Flink
+backends]({% link ops/state/state_backends.md %}). Flink
 provides different state backends that specify how and where state is stored.
 
 * This will be replaced by the TOC
@@ -115,15 +115,15 @@ streams are reset to the point of the state snapshot. Any records that are
 processed as part of the restarted parallel dataflow are guaranteed to not have
 affected the previously checkpointed state.
 
-{% info Note %} By default, checkpointing is disabled. See [Checkpointing]({{
-site.baseurl }}{% link dev/stream/state/checkpointing.md %}) for details on how
-to enable and configure checkpointing.
+{% info Note %} By default, checkpointing is disabled. See [Checkpointing]({%
+link dev/stream/state/checkpointing.md %}) for details on how to enable and
+configure checkpointing.
 
 {% info Note %} For this mechanism to realize its full guarantees, the data
 stream source (such as message queue or broker) needs to be able to rewind the
 stream to a defined recent point. [Apache Kafka](http://kafka.apache.org) has
 this ability and Flink's connector to Kafka exploits this. See [Fault
-Tolerance Guarantees of Data Sources and Sinks]({{ site.baseurl }}{% link
+Tolerance Guarantees of Data Sources and Sinks]({% link
 dev/connectors/guarantees.md %}) for more information about the guarantees
 provided by Flink's connectors.
 
@@ -247,7 +247,7 @@ If state was snapshotted incrementally, the operators start with the state of
 the latest full snapshot and then apply a series of incremental snapshot
 updates to that state.
 
-See [Restart Strategies]({{ site.baseurl }}{% link dev/task_failure_recovery.md
+See [Restart Strategies]({% link dev/task_failure_recovery.md
 %}#restart-strategies) for more information.
 
 ### State Backends
@@ -255,7 +255,7 @@ See [Restart Strategies]({{ site.baseurl }}{% link dev/task_failure_recovery.md
 `TODO: expand this section`
 
 The exact data structures in which the key/values indexes are stored depends on
-the chosen [state backend]({{ site.baseurl }}{% link
+the chosen [state backend]({% link
 ops/state/state_backends.md %}). One state backend stores data in an in-memory
 hash map, another state backend uses [RocksDB](http://rocksdb.org) as the
 key/value store.  In addition to defining the data structure that holds the
@@ -276,7 +276,7 @@ All programs that use checkpointing can resume execution from a **savepoint**.
 Savepoints allow both updating your programs and your Flink cluster without
 losing any state.
 
-[Savepoints]({{ site.baseurl }}{% link ops/state/savepoints.md %}) are
+[Savepoints]({% link ops/state/savepoints.md %}) are
 **manually triggered checkpoints**, which take a snapshot of the program and
 write it out to a state backend. They rely on the regular checkpointing
 mechanism for this.

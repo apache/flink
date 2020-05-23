@@ -40,6 +40,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -58,13 +59,11 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 	public void testFailingCompletedCheckpointStoreAdd() throws Exception {
 		JobID jid = new JobID();
 
-		final ManuallyTriggeredScheduledExecutor mainThreadExecutor =
+		final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
 			new ManuallyTriggeredScheduledExecutor();
 
 		final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
 		final ExecutionVertex vertex = CheckpointCoordinatorTestingUtils.mockExecutionVertex(executionAttemptId);
-
-		final long triggerTimestamp = 1L;
 
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord =
@@ -72,12 +71,12 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 				.setJobId(jid)
 				.setTasks(new ExecutionVertex[] { vertex })
 				.setCompletedCheckpointStore(new FailingCompletedCheckpointStore())
-				.setMainThreadExecutor(mainThreadExecutor)
+				.setTimer(manuallyTriggeredScheduledExecutor)
 				.build();
 
-		coord.triggerCheckpoint(triggerTimestamp, false);
+		coord.triggerCheckpoint(false);
 
-		mainThreadExecutor.triggerAll();
+		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 
@@ -109,9 +108,13 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 		AcknowledgeCheckpoint acknowledgeMessage = new AcknowledgeCheckpoint(jid, executionAttemptId, checkpointId, new CheckpointMetrics(), subtaskState);
 
-		coord.receiveAcknowledgeMessage(acknowledgeMessage, "Unknown location");
-		// CheckpointCoordinator#completePendingCheckpoint is async, we have to finish the completion manually
-		mainThreadExecutor.triggerAll();
+		try {
+			coord.receiveAcknowledgeMessage(acknowledgeMessage, "Unknown location");
+			fail("Expected a checkpoint exception because the completed checkpoint store could not " +
+				"store the completed checkpoint.");
+		} catch (CheckpointException e) {
+			// ignore because we expected this exception
+		}
 
 		// make sure that the pending checkpoint has been discarded after we could not complete it
 		assertTrue(pendingCheckpoint.isDiscarded());

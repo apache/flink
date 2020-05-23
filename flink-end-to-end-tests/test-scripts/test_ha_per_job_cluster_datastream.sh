@@ -20,14 +20,19 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_ha.sh
 
+TEST_TIMEOUT_SECONDS=540
 TEST_PROGRAM_JAR_NAME=DataStreamAllroundTestProgram.jar
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/${TEST_PROGRAM_JAR_NAME}
 FLINK_LIB_DIR=${FLINK_DIR}/lib
 JOB_ID="00000000000000000000000000000000"
 
+#
+# NOTE: This script requires at least Bash version >= 4. Mac OS in 2020 still ships 3.x
+#
+
 function ha_cleanup() {
   stop_watchdogs
-  kill_all 'StandaloneJobClusterEntryPoint'
+  kill_all 'StandaloneApplicationClusterEntryPoint'
 }
 
 on_exit ha_cleanup
@@ -123,7 +128,7 @@ function run_ha_test() {
     wait_job_running ${JOB_ID}
 
     # start the watchdog that keeps the number of JMs stable
-    start_ha_jm_watchdog 1 "StandaloneJobClusterEntryPoint" run_job ${PARALLELISM} ${BACKEND} ${ASYNC} ${INCREM}
+    start_ha_jm_watchdog 1 "StandaloneApplicationClusterEntryPoint" run_job ${PARALLELISM} ${BACKEND} ${ASYNC} ${INCREM}
 
     # start the watchdog that keeps the number of TMs stable
     start_ha_tm_watchdog ${JOB_ID} ${neededTaskmanagers}
@@ -134,7 +139,7 @@ function run_ha_test() {
     for (( c=1; c<=${JM_KILLS}; c++ )); do
         # kill the JM and wait for watchdog to
         # create a new one which will take over
-        kill_single 'StandaloneJobClusterEntryPoint'
+        kill_single 'StandaloneApplicationClusterEntryPoint'
         # let the job start and take some checkpoints
         wait_num_of_occurence_in_logs "Completed checkpoint [1-9]* for job ${JOB_ID}" 2 "standalonejob-${c}"
     done
@@ -148,4 +153,23 @@ STATE_BACKEND_TYPE=${1:-file}
 STATE_BACKEND_FILE_ASYNC=${2:-true}
 STATE_BACKEND_ROCKS_INCREMENTAL=${3:-false}
 
-run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL}
+function kill_test_watchdog() {
+    local watchdog_pid=`cat $TEST_DATA_DIR/job_watchdog.pid`
+    echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
+    kill $watchdog_pid
+}
+on_exit kill_test_watchdog
+
+( 
+    cmdpid=$BASHPID; 
+    (sleep $TEST_TIMEOUT_SECONDS; # set a timeout of 10 minutes for this test
+    echo "Test (pid: $cmdpid) did not finish after $TEST_TIMEOUT_SECONDS seconds."
+    echo "Printing Flink logs and killing it:"
+    cat ${FLINK_DIR}/log/* 
+    kill "$cmdpid") & watchdog_pid=$!
+    echo $watchdog_pid > $TEST_DATA_DIR/job_watchdog.pid
+    
+    run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL}
+)
+
+

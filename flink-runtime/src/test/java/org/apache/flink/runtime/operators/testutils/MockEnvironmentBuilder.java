@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators.testutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -54,9 +54,10 @@ public class MockEnvironmentBuilder {
 	private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 	private IOManager ioManager;
 	private MemoryManager memoryManager = buildMemoryManager(1024 * MemoryManager.DEFAULT_PAGE_SIZE);
+	private ExternalResourceInfoProvider externalResourceInfoProvider = ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
 
 	private MemoryManager buildMemoryManager(long memorySize) {
-		return MemoryManagerBuilder.newBuilder().setMemorySize(MemoryType.OFF_HEAP, memorySize).build();
+		return MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
 	}
 
 	public MockEnvironmentBuilder setTaskName(String taskName) {
@@ -144,6 +145,11 @@ public class MockEnvironmentBuilder {
 		return this;
 	}
 
+	public MockEnvironmentBuilder setExternalResourceInfoProvider(ExternalResourceInfoProvider externalResourceInfoProvider) {
+		this.externalResourceInfoProvider = externalResourceInfoProvider;
+		return this;
+	}
+
 	public MockEnvironment build() {
 		if (ioManager == null) {
 			ioManager = new IOManagerAsync();
@@ -165,6 +171,7 @@ public class MockEnvironmentBuilder {
 			userCodeClassLoader,
 			taskMetricGroup,
 			taskManagerRuntimeInfo,
-			memoryManager);
+			memoryManager,
+			externalResourceInfoProvider);
 	}
 }

@@ -25,16 +25,16 @@ import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
 import org.apache.flink.streaming.api.operators.{StreamFlatMap, StreamMap, TwoInputStreamOperator}
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, TwoInputTransformation, UnionTransformation}
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, KeySelectorUtil, UpdatingPlanChecker, WindowJoinUtil}
+import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, KeySelectorUtil, WindowJoinUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin}
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
 import org.apache.flink.util.Collector
 
 import org.apache.calcite.plan._
@@ -66,7 +66,7 @@ class StreamExecWindowJoin(
     remainCondition: Option[RexNode])
   extends BiRel(cluster, traitSet, leftRel, rightRel)
   with StreamPhysicalRel
-  with StreamExecNode[BaseRow] {
+  with StreamExecNode[RowData] {
 
   if (containsPythonCall(remainCondition.get)) {
     throw new TableException("Only inner join condition with equality predicates supports the " +
@@ -76,14 +76,6 @@ class StreamExecWindowJoin(
 
   // TODO remove FlinkJoinType
   private lazy val flinkJoinType: FlinkJoinType = JoinTypeUtil.getFlinkJoinType(joinType)
-
-  override def producesUpdates: Boolean = false
-
-  override def needsUpdatesAsRetraction(input: RelNode): Boolean = false
-
-  override def consumesRetractions: Boolean = false
-
-  override def producesRetractions: Boolean = false
 
   override def requireWatermark: Boolean = isRowTime
 
@@ -130,19 +122,11 @@ class StreamExecWindowJoin(
   }
 
   override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[BaseRow] = {
-    val isLeftAppendOnly = UpdatingPlanChecker.isAppendOnly(left)
-    val isRightAppendOnly = UpdatingPlanChecker.isAppendOnly(right)
-    if (!isLeftAppendOnly || !isRightAppendOnly) {
-      throw new TableException(
-        "Window Join: Windowed stream join does not support updates.\n" +
-          "please re-check window join statement according to description above.")
-    }
-
+      planner: StreamPlanner): Transformation[RowData] = {
     val leftPlan = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
     val rightPlan = getInputNodes.get(1).translateToPlan(planner)
-      .asInstanceOf[Transformation[BaseRow]]
+      .asInstanceOf[Transformation[RowData]]
 
     flinkJoinType match {
       case FlinkJoinType.INNER |
@@ -151,7 +135,7 @@ class StreamExecWindowJoin(
            FlinkJoinType.FULL =>
         val leftRowType = FlinkTypeFactory.toLogicalRowType(getLeft.getRowType)
         val rightRowType = FlinkTypeFactory.toLogicalRowType(getRight.getRowType)
-        val returnType = BaseRowTypeInfo.of(
+        val returnType = RowDataTypeInfo.of(
           FlinkTypeFactory.toLogicalRowType(getRowType))
 
         val relativeWindowSize = leftUpperBound - leftLowerBound
@@ -210,63 +194,63 @@ class StreamExecWindowJoin(
   }
 
   private def createNegativeWindowSizeJoin(
-      leftPlan: Transformation[BaseRow],
-      rightPlan: Transformation[BaseRow],
+      leftPlan: Transformation[RowData],
+      rightPlan: Transformation[RowData],
       leftArity: Int,
       rightArity: Int,
-      returnTypeInfo: BaseRowTypeInfo): Transformation[BaseRow] = {
+      returnTypeInfo: RowDataTypeInfo): Transformation[RowData] = {
     // We filter all records instead of adding an empty source to preserve the watermarks.
-    val allFilter = new FlatMapFunction[BaseRow, BaseRow] with ResultTypeQueryable[BaseRow] {
-      override def flatMap(value: BaseRow, out: Collector[BaseRow]): Unit = {}
+    val allFilter = new FlatMapFunction[RowData, RowData] with ResultTypeQueryable[RowData] {
+      override def flatMap(value: RowData, out: Collector[RowData]): Unit = {}
 
-      override def getProducedType: BaseRowTypeInfo = returnTypeInfo
+      override def getProducedType: RowDataTypeInfo = returnTypeInfo
     }
 
-    val leftPadder = new MapFunction[BaseRow, BaseRow] with ResultTypeQueryable[BaseRow] {
+    val leftPadder = new MapFunction[RowData, RowData] with ResultTypeQueryable[RowData] {
       val paddingUtil = new OuterJoinPaddingUtil(leftArity, rightArity)
 
-      override def map(value: BaseRow): BaseRow = paddingUtil.padLeft(value)
+      override def map(value: RowData): RowData = paddingUtil.padLeft(value)
 
-      override def getProducedType: BaseRowTypeInfo = returnTypeInfo
+      override def getProducedType: RowDataTypeInfo = returnTypeInfo
     }
 
-    val rightPadder = new MapFunction[BaseRow, BaseRow] with ResultTypeQueryable[BaseRow] {
+    val rightPadder = new MapFunction[RowData, RowData] with ResultTypeQueryable[RowData] {
       val paddingUtil = new OuterJoinPaddingUtil(leftArity, rightArity)
 
-      override def map(value: BaseRow): BaseRow = paddingUtil.padRight(value)
+      override def map(value: RowData): RowData = paddingUtil.padRight(value)
 
-      override def getProducedType: BaseRowTypeInfo = returnTypeInfo
+      override def getProducedType: RowDataTypeInfo = returnTypeInfo
     }
 
     val leftParallelism = leftPlan.getParallelism
     val rightParallelism = rightPlan.getParallelism
 
-    val filterAllLeftStream = new OneInputTransformation[BaseRow, BaseRow](
+    val filterAllLeftStream = new OneInputTransformation[RowData, RowData](
       leftPlan,
       "filter all left input transformation",
-      new StreamFlatMap[BaseRow, BaseRow](allFilter),
+      new StreamFlatMap[RowData, RowData](allFilter),
       returnTypeInfo,
       leftParallelism)
 
-    val filterAllRightStream = new OneInputTransformation[BaseRow, BaseRow](
+    val filterAllRightStream = new OneInputTransformation[RowData, RowData](
       rightPlan,
       "filter all right input transformation",
-      new StreamFlatMap[BaseRow, BaseRow](allFilter),
+      new StreamFlatMap[RowData, RowData](allFilter),
       returnTypeInfo,
       rightParallelism)
 
-    val padLeftStream = new OneInputTransformation[BaseRow, BaseRow](
+    val padLeftStream = new OneInputTransformation[RowData, RowData](
       leftPlan,
       "pad left input transformation",
-      new StreamMap[BaseRow, BaseRow](leftPadder),
+      new StreamMap[RowData, RowData](leftPadder),
       returnTypeInfo,
       leftParallelism
     )
 
-    val padRightStream = new OneInputTransformation[BaseRow, BaseRow](
+    val padRightStream = new OneInputTransformation[RowData, RowData](
       rightPlan,
       "pad right input transformation",
-      new StreamMap[BaseRow, BaseRow](rightPadder),
+      new StreamMap[RowData, RowData](rightPadder),
       returnTypeInfo,
       rightParallelism
     )
@@ -283,14 +267,14 @@ class StreamExecWindowJoin(
   }
 
   private def createProcTimeJoin(
-      leftPlan: Transformation[BaseRow],
-      rightPlan: Transformation[BaseRow],
-      returnTypeInfo: BaseRowTypeInfo,
-      joinFunction: GeneratedFunction[FlatJoinFunction[BaseRow, BaseRow, BaseRow]],
+      leftPlan: Transformation[RowData],
+      rightPlan: Transformation[RowData],
+      returnTypeInfo: RowDataTypeInfo,
+      joinFunction: GeneratedFunction[FlatJoinFunction[RowData, RowData, RowData]],
       leftKeys: Array[Int],
-      rightKeys: Array[Int]): Transformation[BaseRow] = {
-    val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[BaseRowTypeInfo]
+      rightKeys: Array[Int]): Transformation[RowData] = {
+    val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
     val procJoinFunc = new ProcTimeBoundedStreamJoin(
       flinkJoinType,
       leftLowerBound,
@@ -299,12 +283,12 @@ class StreamExecWindowJoin(
       rightTypeInfo,
       joinFunction)
 
-    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    val ret = new TwoInputTransformation[RowData, RowData, RowData](
       leftPlan,
       rightPlan,
       getRelDetailedDescription,
       new KeyedCoProcessOperator(procJoinFunc).
-        asInstanceOf[TwoInputStreamOperator[BaseRow,BaseRow,BaseRow]],
+        asInstanceOf[TwoInputStreamOperator[RowData,RowData,RowData]],
       returnTypeInfo,
       leftPlan.getParallelism
     )
@@ -315,23 +299,23 @@ class StreamExecWindowJoin(
     }
 
     // set KeyType and Selector for state
-    val leftSelect = KeySelectorUtil.getBaseRowSelector(leftKeys, leftTypeInfo)
-    val rightSelect = KeySelectorUtil.getBaseRowSelector(rightKeys, rightTypeInfo)
+    val leftSelect = KeySelectorUtil.getRowDataSelector(leftKeys, leftTypeInfo)
+    val rightSelect = KeySelectorUtil.getRowDataSelector(rightKeys, rightTypeInfo)
     ret.setStateKeySelectors(leftSelect, rightSelect)
     ret.setStateKeyType(leftSelect.getProducedType)
     ret
   }
 
   private def createRowTimeJoin(
-      leftPlan: Transformation[BaseRow],
-      rightPlan: Transformation[BaseRow],
-      returnTypeInfo: BaseRowTypeInfo,
-      joinFunction: GeneratedFunction[FlatJoinFunction[BaseRow, BaseRow, BaseRow]],
+      leftPlan: Transformation[RowData],
+      rightPlan: Transformation[RowData],
+      returnTypeInfo: RowDataTypeInfo,
+      joinFunction: GeneratedFunction[FlatJoinFunction[RowData, RowData, RowData]],
       leftKeys: Array[Int],
       rightKeys: Array[Int]
-  ): Transformation[BaseRow] = {
-    val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[BaseRowTypeInfo]
-    val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[BaseRowTypeInfo]
+  ): Transformation[RowData] = {
+    val leftTypeInfo = leftPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val rightTypeInfo = rightPlan.getOutputType.asInstanceOf[RowDataTypeInfo]
     val rowJoinFunc = new RowTimeBoundedStreamJoin(
       flinkJoinType,
       leftLowerBound,
@@ -343,12 +327,12 @@ class StreamExecWindowJoin(
       leftTimeIndex,
       rightTimeIndex)
 
-    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    val ret = new TwoInputTransformation[RowData, RowData, RowData](
       leftPlan,
       rightPlan,
       getRelDetailedDescription,
       new KeyedCoProcessOperatorWithWatermarkDelay(rowJoinFunc, rowJoinFunc.getMaxOutputDelay)
-        .asInstanceOf[TwoInputStreamOperator[BaseRow,BaseRow,BaseRow]],
+        .asInstanceOf[TwoInputStreamOperator[RowData,RowData,RowData]],
       returnTypeInfo,
       leftPlan.getParallelism
     )
@@ -359,8 +343,8 @@ class StreamExecWindowJoin(
     }
 
     // set KeyType and Selector for state
-    val leftSelector = KeySelectorUtil.getBaseRowSelector(leftKeys, leftTypeInfo)
-    val rightSelector = KeySelectorUtil.getBaseRowSelector(rightKeys, rightTypeInfo)
+    val leftSelector = KeySelectorUtil.getRowDataSelector(leftKeys, leftTypeInfo)
+    val rightSelector = KeySelectorUtil.getRowDataSelector(rightKeys, rightTypeInfo)
     ret.setStateKeySelectors(leftSelector, rightSelector)
     ret.setStateKeyType(leftSelector.getProducedType)
     ret
