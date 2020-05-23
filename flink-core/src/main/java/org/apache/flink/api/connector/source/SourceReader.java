@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.InputStatus;
 
 import java.util.List;
@@ -31,7 +31,7 @@ import java.util.concurrent.CompletableFuture;
  * @param <T> The type of the record emitted by this source reader.
  * @param <SplitT> The type of the the source splits.
  */
-@Public
+@PublicEvolving
 public interface SourceReader<T, SplitT extends SourceSplit> extends AutoCloseable {
 
 	/**

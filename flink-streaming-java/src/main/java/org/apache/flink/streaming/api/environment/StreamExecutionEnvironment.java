@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -1612,7 +1613,7 @@ public class StreamExecutionEnvironment {
 	 * 		type of the returned stream
 	 * @return the data stream constructed
 	 */
-	@PublicEvolving
+	@Experimental
 	public <OUT> DataStreamSource<OUT> continuousSource(Source<OUT, ?, ?> source, String sourceName) {
 		return continuousSource(source, sourceName, null);
 	}
@@ -1630,7 +1631,7 @@ public class StreamExecutionEnvironment {
 	 * 		the user defined type information for the stream
 	 * @return the data stream constructed
 	 */
-	@PublicEvolving
+	@Experimental
 	public <OUT> DataStreamSource<OUT> continuousSource(
 			Source<OUT, ?, ?> source,
 			String sourceName,

@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.MetricGroup;
 
 /**
  * The class that expose some context from runtime to the {@link SourceReader}.
  */
-@Public
+@PublicEvolving
 public interface SourceReaderContext {
 
 	/**

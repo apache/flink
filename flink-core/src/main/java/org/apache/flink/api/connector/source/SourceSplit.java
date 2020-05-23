@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * An interface for all the Split types to extend.
  */
-@Public
+@PublicEvolving
 public interface SourceSplit {
 
 	/**

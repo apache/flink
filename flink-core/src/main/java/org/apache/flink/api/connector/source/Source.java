@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
@@ -33,7 +33,7 @@ import java.io.Serializable;
  * @param <SplitT>   The type of splits handled by the source.
  * @param <EnumChkT> The type of the enumerator checkpoints.
  */
-@Public
+@PublicEvolving
 public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Serializable {
 
 	/**
