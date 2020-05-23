@@ -93,12 +93,12 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 		// ------------------- methods from SourceOutput -------------
 
 		@Override
-		public void collect(T record) throws Exception {
+		public void collect(T record) {
 			output.collect(new StreamRecord<>(record));
 		}
 
 		@Override
-		public void collect(T record, long timestamp) throws Exception {
+		public void collect(T record, long timestamp) {
 			output.collect(new StreamRecord<>(record, timestamp));
 		}
 

@@ -33,7 +33,7 @@ public interface SourceOutput<T> extends WatermarkOutput {
 	 *
 	 * @param record the record to emit.
 	 */
-	void collect(T record) throws Exception;
+	void collect(T record);
 
 	/**
 	 * Emit a record with timestamp.
@@ -41,5 +41,5 @@ public interface SourceOutput<T> extends WatermarkOutput {
 	 * @param record the record to emit.
 	 * @param timestamp the timestamp of the record.
 	 */
-	void collect(T record, long timestamp) throws Exception;
+	void collect(T record, long timestamp);
 }
