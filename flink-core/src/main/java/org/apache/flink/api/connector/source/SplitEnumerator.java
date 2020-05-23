@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.IOException;
 import java.util.List;
@@ -28,7 +28,7 @@ import java.util.List;
  * 1. discover the splits for the {@link SourceReader} to read.
  * 2. assign the splits to the source reader.
  */
-@Public
+@PublicEvolving
 public interface SplitEnumerator<SplitT extends SourceSplit, CheckpointT> extends AutoCloseable {
 
 	/**
