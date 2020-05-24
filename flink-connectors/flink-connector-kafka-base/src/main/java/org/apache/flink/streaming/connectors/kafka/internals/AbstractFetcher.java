@@ -394,15 +394,18 @@ public abstract class AbstractFetcher<T, KPH> {
 
 			case WITH_WATERMARK_GENERATOR: {
 				for (Map.Entry<KafkaTopicPartition, Long> partitionEntry : partitionsToInitialOffsets.entrySet()) {
-					KPH kafkaHandle = createKafkaPartitionHandle(partitionEntry.getKey());
+					final KafkaTopicPartition kafkaTopicPartition = partitionEntry.getKey();
+					KPH kafkaHandle = createKafkaPartitionHandle(kafkaTopicPartition);
 					WatermarkStrategy<T> deserializedWatermarkStrategy = watermarkStrategy.deserializeValue(
 							userCodeClassLoader);
 
-					int outputId = watermarkOutputMultiplexer.registerNewOutput();
+					// the format of the ID does not matter, as long as it is unique
+					final String partitionId = kafkaTopicPartition.getTopic() + '-' + kafkaTopicPartition.getPartition();
+					watermarkOutputMultiplexer.registerNewOutput(partitionId);
 					WatermarkOutput immediateOutput =
-							watermarkOutputMultiplexer.getImmediateOutput(outputId);
+							watermarkOutputMultiplexer.getImmediateOutput(partitionId);
 					WatermarkOutput deferredOutput =
-							watermarkOutputMultiplexer.getDeferredOutput(outputId);
+							watermarkOutputMultiplexer.getDeferredOutput(partitionId);
 
 					KafkaTopicPartitionStateWithWatermarkGenerator<T, KPH> partitionState =
 							new KafkaTopicPartitionStateWithWatermarkGenerator<>(
