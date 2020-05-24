@@ -58,7 +58,6 @@ public class DataStreamStateTTLTestProgram {
 		TtlTestConfig config = TtlTestConfig.fromArgs(pt);
 		StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(config.ttl)
 			.cleanupFullSnapshot()
-			.cleanupInBackground()
 			.build();
 
 		env
