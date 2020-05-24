@@ -59,7 +59,6 @@ public class StateTtlConfigTest {
 	public void testStateTtlConfigBuildWithCleanupInBackground() {
 		StateTtlConfig ttlConfig = StateTtlConfig
 			.newBuilder(Time.seconds(1))
-			.cleanupInBackground()
 			.build();
 
 		assertThat(ttlConfig.getCleanupStrategies(), notNullValue());

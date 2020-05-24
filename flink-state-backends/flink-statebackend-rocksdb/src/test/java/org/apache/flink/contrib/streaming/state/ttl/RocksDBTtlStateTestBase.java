@@ -99,7 +99,6 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
 		}
 
 		StateDescriptor<?, ?> stateDesc = initTest(getConfBuilder(TTL)
-			.cleanupInBackground()
 			.setStateVisibility(StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp)
 			.build());
 
