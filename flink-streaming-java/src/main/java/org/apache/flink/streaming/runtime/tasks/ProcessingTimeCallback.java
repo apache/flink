@@ -25,6 +25,7 @@ import org.apache.flink.annotation.Internal;
  * {@link ProcessingTimeService}.
  */
 @Internal
+@FunctionalInterface
 public interface ProcessingTimeCallback {
 
 	/**
