@@ -126,16 +126,24 @@ public class SystemProcessingTimeService implements TimerService {
 
 	@Override
 	public ScheduledFuture<?> scheduleAtFixedRate(ProcessingTimeCallback callback, long initialDelay, long period) {
-		long nextTimestamp = getCurrentProcessingTime() + initialDelay;
+		return scheduleRepeatedly(callback, initialDelay, period, false);
+	}
+
+	@Override
+	public ScheduledFuture<?> scheduleWithFixedDelay(ProcessingTimeCallback callback, long initialDelay, long period) {
+		return scheduleRepeatedly(callback, initialDelay, period, true);
+	}
+
+	private ScheduledFuture<?> scheduleRepeatedly(ProcessingTimeCallback callback, long initialDelay, long period, boolean fixedDelay) {
+		final long nextTimestamp = getCurrentProcessingTime() + initialDelay;
+		final Runnable task = wrapOnTimerCallback(callback, nextTimestamp, period);
 
 		// we directly try to register the timer and only react to the status on exception
 		// that way we save unnecessary volatile accesses for each timer
 		try {
-			return timerService.scheduleAtFixedRate(
-				wrapOnTimerCallback(callback, nextTimestamp, period),
-				initialDelay,
-				period,
-				TimeUnit.MILLISECONDS);
+			return fixedDelay
+					? timerService.scheduleWithFixedDelay(task, initialDelay, period, TimeUnit.MILLISECONDS)
+					: timerService.scheduleAtFixedRate(task, initialDelay, period, TimeUnit.MILLISECONDS);
 		} catch (RejectedExecutionException e) {
 			final int status = this.status.get();
 			if (status == STATUS_QUIESCED) {

@@ -77,6 +77,16 @@ class ProcessingTimeServiceImpl implements ProcessingTimeService {
 	}
 
 	@Override
+	public ScheduledFuture<?> scheduleWithFixedDelay(ProcessingTimeCallback callback, long initialDelay, long period) {
+		if (isQuiesced()) {
+			return new NeverCompleteFuture(initialDelay);
+		}
+
+		return timerService.scheduleWithFixedDelay(
+			addQuiesceProcessingToCallback(processingTimeCallbackWrapper.apply(callback)), initialDelay, period);
+	}
+
+	@Override
 	public CompletableFuture<Void> quiesce() {
 		if (!quiesced) {
 			quiesced = true;

@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Defines the current processing time and handles all related actions,
@@ -48,12 +49,28 @@ public interface ProcessingTimeService {
 	/**
 	 * Registers a task to be executed repeatedly at a fixed rate.
 	 *
+	 * <p>This call behaves similar to
+	 * {@link org.apache.flink.runtime.concurrent.ScheduledExecutor#scheduleAtFixedRate(Runnable, long, long, TimeUnit)}.
+	 *
 	 * @param callback to be executed after the initial delay and then after each period
 	 * @param initialDelay initial delay to start executing callback
 	 * @param period after the initial delay after which the callback is executed
 	 * @return Scheduled future representing the task to be executed repeatedly
 	 */
 	ScheduledFuture<?> scheduleAtFixedRate(ProcessingTimeCallback callback, long initialDelay, long period);
+
+	/**
+	 * Registers a task to be executed repeatedly with a fixed delay.
+	 *
+	 * <p>This call behaves similar to
+	 * {@link org.apache.flink.runtime.concurrent.ScheduledExecutor#scheduleWithFixedDelay(Runnable, long, long, TimeUnit)}.
+	 *
+	 * @param callback to be executed after the initial delay and then after each period
+	 * @param initialDelay initial delay to start executing callback
+	 * @param period after the initial delay after which the callback is executed
+	 * @return Scheduled future representing the task to be executed repeatedly
+	 */
+	ScheduledFuture<?> scheduleWithFixedDelay(ProcessingTimeCallback callback, long initialDelay, long period);
 
 	/**
 	 * This method puts the service into a state where it does not register new timers, but
