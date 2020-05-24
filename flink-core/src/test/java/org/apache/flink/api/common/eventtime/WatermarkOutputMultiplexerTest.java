@@ -20,10 +20,15 @@ package org.apache.flink.api.common.eventtime;
 
 import org.junit.Test;
 
+import java.util.UUID;
+
 import static org.apache.flink.api.common.eventtime.WatermarkMatchers.watermark;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link WatermarkOutputMultiplexer}.
@@ -261,9 +266,10 @@ public class WatermarkOutputMultiplexerTest {
 		WatermarkOutputMultiplexer multiplexer =
 				new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
 
-		int outputId = multiplexer.registerNewOutput();
-		WatermarkOutput immediateOutput = multiplexer.getImmediateOutput(outputId);
-		WatermarkOutput deferredOutput = multiplexer.getDeferredOutput(outputId);
+		final String id = "test-id";
+		multiplexer.registerNewOutput(id);
+		WatermarkOutput immediateOutput = multiplexer.getImmediateOutput(id);
+		WatermarkOutput deferredOutput = multiplexer.getDeferredOutput(id);
 
 		deferredOutput.emitWatermark(new Watermark(5));
 		multiplexer.onPeriodicEmit();
@@ -284,9 +290,10 @@ public class WatermarkOutputMultiplexerTest {
 		WatermarkOutputMultiplexer multiplexer =
 				new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
 
-		int outputId = multiplexer.registerNewOutput();
-		WatermarkOutput immediateOutput = multiplexer.getImmediateOutput(outputId);
-		WatermarkOutput deferredOutput = multiplexer.getDeferredOutput(outputId);
+		final String id = "1234-test";
+		multiplexer.registerNewOutput(id);
+		WatermarkOutput immediateOutput = multiplexer.getImmediateOutput(id);
+		WatermarkOutput deferredOutput = multiplexer.getDeferredOutput(id);
 
 		deferredOutput.emitWatermark(new Watermark(5));
 		immediateOutput.emitWatermark(new Watermark(2));
@@ -294,13 +301,86 @@ public class WatermarkOutputMultiplexerTest {
 		assertThat(underlyingWatermarkOutput.lastWatermark(), is(nullValue()));
 	}
 
+	@Test
+	public void testRemoveUnblocksWatermarks() {
+		final TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+		final WatermarkOutputMultiplexer multiplexer = new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+		final long lowTimestamp = 156765L;
+		final long highTimestamp = lowTimestamp + 10;
+
+		multiplexer.registerNewOutput("lower");
+		multiplexer.registerNewOutput("higher");
+		multiplexer.getImmediateOutput("lower").emitWatermark(new Watermark(lowTimestamp));
+
+		multiplexer.unregisterOutput("lower");
+		multiplexer.getImmediateOutput("higher").emitWatermark(new Watermark(highTimestamp));
+
+		assertEquals(highTimestamp, underlyingWatermarkOutput.lastWatermark().getTimestamp());
+	}
+
+	@Test
+	public void testRemoveOfLowestDoesNotImmediatelyAdvanceWatermark() {
+		final TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+		final WatermarkOutputMultiplexer multiplexer = new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+		final long lowTimestamp = -4343L;
+		final long highTimestamp = lowTimestamp + 10;
+
+		multiplexer.registerNewOutput("lower");
+		multiplexer.registerNewOutput("higher");
+		multiplexer.getImmediateOutput("lower").emitWatermark(new Watermark(lowTimestamp));
+		multiplexer.getImmediateOutput("higher").emitWatermark(new Watermark(highTimestamp));
+
+		multiplexer.unregisterOutput("lower");
+
+		assertEquals(lowTimestamp, underlyingWatermarkOutput.lastWatermark().getTimestamp());
+	}
+
+	@Test
+	public void testRemoveOfHighestDoesNotRetractWatermark() {
+		final TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+		final WatermarkOutputMultiplexer multiplexer = new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+		final long lowTimestamp = 1L;
+		final long highTimestamp = 2L;
+
+		multiplexer.registerNewOutput("higher");
+		multiplexer.getImmediateOutput("higher").emitWatermark(new Watermark(highTimestamp));
+		multiplexer.unregisterOutput("higher");
+
+		multiplexer.registerNewOutput("lower");
+		multiplexer.getImmediateOutput("lower").emitWatermark(new Watermark(lowTimestamp));
+
+		assertEquals(highTimestamp, underlyingWatermarkOutput.lastWatermark().getTimestamp());
+	}
+
+	@Test
+	public void testRemoveRegisteredReturnValue() {
+		final TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+		final WatermarkOutputMultiplexer multiplexer = new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+		multiplexer.registerNewOutput("does-exist");
+
+		final boolean unregistered = multiplexer.unregisterOutput("does-exist");
+
+		assertTrue(unregistered);
+	}
+
+	@Test
+	public void testRemoveNotRegisteredReturnValue() {
+		final TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+		final WatermarkOutputMultiplexer multiplexer = new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+		final boolean unregistered = multiplexer.unregisterOutput("does-not-exist");
+
+		assertFalse(unregistered);
+	}
+
 	/**
 	 * Convenience method so we don't have to go through the output ID dance when we only want an
 	 * immediate output for a given output ID.
 	 */
 	private static WatermarkOutput createImmediateOutput(WatermarkOutputMultiplexer multiplexer) {
-		int outputId = multiplexer.registerNewOutput();
-		return multiplexer.getImmediateOutput(outputId);
+		final String id = UUID.randomUUID().toString();
+		multiplexer.registerNewOutput(id);
+		return multiplexer.getImmediateOutput(id);
 	}
 
 	/**
@@ -308,8 +388,9 @@ public class WatermarkOutputMultiplexerTest {
 	 * deferred output for a given output ID.
 	 */
 	private static WatermarkOutput createDeferredOutput(WatermarkOutputMultiplexer multiplexer) {
-		int outputId = multiplexer.registerNewOutput();
-		return multiplexer.getDeferredOutput(outputId);
+		final String id = UUID.randomUUID().toString();
+		multiplexer.registerNewOutput(id);
+		return multiplexer.getDeferredOutput(id);
 	}
 
 	private static TestingWatermarkOutput createTestingWatermarkOutput() {
