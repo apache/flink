@@ -282,7 +282,7 @@ public class StateTtlConfig implements Serializable {
 		 * https://github.com/facebook/rocksdb/blob/master/include/rocksdb/compaction_filter.h#L69
 		 * It means that the TTL filter should be tested for List state taking into account this caveat.
 		 *
-		 * @deprecated Use more general configuration method {@link #cleanupInBackground()} instead
+		 * @deprecated Use more general configuration method {@link #cleanupInRocksdbCompactFilter(long)} instead
 		 */
 		@Nonnull
 		@Deprecated
@@ -305,22 +305,6 @@ public class StateTtlConfig implements Serializable {
 			strategies.put(
 				CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER,
 				new RocksdbCompactFilterCleanupStrategy(queryTimeAfterNumEntries));
-			return this;
-		}
-
-		/**
-		 * Enable default cleanup of expired state in background (enabled by default).
-		 *
-		 * <p>Depending on actually used backend, the corresponding default cleanup will kick in if supported.
-		 * If some specific cleanup is also configured, e.g. {@link #cleanupIncrementally(int, boolean)} or
-		 * {@link #cleanupInRocksdbCompactFilter()}, then the specific one will kick in instead of default.
-		 *
-		 * @deprecated enabled by default, no need to enable it manually
-		 */
-		@Nonnull
-		@Deprecated
-		public Builder cleanupInBackground() {
-			isCleanupInBackground = true;
 			return this;
 		}
 
