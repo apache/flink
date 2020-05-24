@@ -213,14 +213,19 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 			RowData lastKey = lastEntry.getKey();
 			List<RowData> lastList = (List<RowData>) lastEntry.getValue();
 			// remove last one
-			RowData lastElement = lastList.remove(lastList.size() - 1);
-			if (lastList.isEmpty()) {
+			int size = lastList.size();
+			RowData lastElement = null;
+			if (size > 0) {
+				lastElement = lastList.get(size - 1);
+			}
+			if (size <= 1) {
 				buffer.removeAll(lastKey);
 				dataState.remove(lastKey);
 			} else {
+				buffer.remove(lastKey, lastElement);
 				dataState.put(lastKey, lastList);
 			}
-			if (input.equals(lastElement)) {
+			if (size == 0 || input.equals(lastElement)) {
 				return;
 			} else {
 				// lastElement shouldn't be null
