@@ -295,12 +295,13 @@ public class PostgresCatalogTestBase {
 	public static TestTable getSerialTable() {
 		return new TestTable(
 			TableSchema.builder()
-				.field("f0", DataTypes.SMALLINT())
-				.field("f1", DataTypes.INT())
-				.field("f2", DataTypes.SMALLINT())
-				.field("f3", DataTypes.INT())
-				.field("f4", DataTypes.BIGINT())
-				.field("f5", DataTypes.BIGINT())
+				// serial fields are returned as not null by ResultSetMetaData.columnNoNulls
+				.field("f0", DataTypes.SMALLINT().notNull())
+				.field("f1", DataTypes.INT().notNull())
+				.field("f2", DataTypes.SMALLINT().notNull())
+				.field("f3", DataTypes.INT().notNull())
+				.field("f4", DataTypes.BIGINT().notNull())
+				.field("f5", DataTypes.BIGINT().notNull())
 				.build(),
 			"f0 smallserial, " +
 				"f1 serial, " +
@@ -308,12 +309,12 @@ public class PostgresCatalogTestBase {
 				"f3 serial4, " +
 				"f4 serial8, " +
 				"f5 bigserial",
-			"0," +
-				"1," +
-				"2," +
-				"3," +
-				"4," +
-				"5"
+			"2767," +
+				"2147483647," +
+				"32767," +
+				"2147483647," +
+				"9223372036854775807," +
+				"9223372036854775807"
 		);
 	}
 

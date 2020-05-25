@@ -232,9 +232,9 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
 
 	// Postgres jdbc driver maps several alias to real type, we use real type rather than alias:
 	// serial2 <=> int2
+	// smallserial <=> int2
 	// serial4 <=> serial
 	// serial8 <=> bigserial
-	// smallserial <=> int2
 	// smallint <=> int2
 	// integer <=> int4
 	// int <=> int4
