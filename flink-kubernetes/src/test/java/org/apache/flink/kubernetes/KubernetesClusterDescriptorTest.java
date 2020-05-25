@@ -210,10 +210,10 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 			.get(0);
 
 		assertEquals(
-			clusterSpecification.getMasterMemoryMB() + Constants.RESOURCE_UNIT_MB,
+			String.valueOf(clusterSpecification.getMasterMemoryMB()),
 			jmContainer.getResources().getRequests().get(Constants.RESOURCE_NAME_MEMORY).getAmount());
 		assertEquals(
-			clusterSpecification.getMasterMemoryMB() + Constants.RESOURCE_UNIT_MB,
+			String.valueOf(clusterSpecification.getMasterMemoryMB()),
 			jmContainer.getResources().getLimits().get(Constants.RESOURCE_NAME_MEMORY).getAmount());
 	}
 }

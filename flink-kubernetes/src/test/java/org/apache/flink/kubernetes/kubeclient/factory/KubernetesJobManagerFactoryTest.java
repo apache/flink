@@ -135,7 +135,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
 		final Map<String, Quantity> requests = resultedMainContainer.getResources().getRequests();
 		assertEquals(Double.toString(JOB_MANAGER_CPU), requests.get("cpu").getAmount());
-		assertEquals(JOB_MANAGER_MEMORY + "Mi", requests.get("memory").getAmount());
+		assertEquals(String.valueOf(JOB_MANAGER_MEMORY), requests.get("memory").getAmount());
 
 		assertEquals(1, resultedMainContainer.getCommand().size());
 		assertEquals(3, resultedMainContainer.getArgs().size());

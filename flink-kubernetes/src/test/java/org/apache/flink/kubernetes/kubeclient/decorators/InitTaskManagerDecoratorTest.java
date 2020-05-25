@@ -127,11 +127,11 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 
 		final Map<String, Quantity> requests = resourceRequirements.getRequests();
 		assertEquals(Double.toString(TASK_MANAGER_CPU), requests.get("cpu").getAmount());
-		assertEquals(TOTAL_PROCESS_MEMORY + "Mi", requests.get("memory").getAmount());
+		assertEquals(String.valueOf(TOTAL_PROCESS_MEMORY), requests.get("memory").getAmount());
 
 		final Map<String, Quantity> limits = resourceRequirements.getLimits();
 		assertEquals(Double.toString(TASK_MANAGER_CPU), limits.get("cpu").getAmount());
-		assertEquals(TOTAL_PROCESS_MEMORY + "Mi", limits.get("memory").getAmount());
+		assertEquals(String.valueOf(TOTAL_PROCESS_MEMORY), limits.get("memory").getAmount());
 	}
 
 	@Test
