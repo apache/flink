@@ -241,38 +241,6 @@ object FlinkRelOptUtil {
     }
   }
 
-  private def fix(operands: util.List[RexNode], before: Int, after: Int): Unit = {
-    if (before == after) {
-      return
-    }
-    operands.indices.foreach { i =>
-      val node = operands.get(i)
-      operands.set(i, RexUtil.shift(node, before, after - before))
-    }
-  }
-
-  /**
-    * Categorizes whether a bit set contains bits left and right of a line.
-    */
-  private object Side extends Enumeration {
-    type Side = Value
-    val LEFT, RIGHT, BOTH, EMPTY = Value
-
-    private[plan] def of(bitSet: ImmutableBitSet, middle: Int): Side = {
-      val firstBit = bitSet.nextSetBit(0)
-      if (firstBit < 0) {
-        return EMPTY
-      }
-      if (firstBit >= middle) {
-        return RIGHT
-      }
-      if (bitSet.nextSetBit(middle) < 0) {
-        return LEFT
-      }
-      BOTH
-    }
-  }
-
   /**
     * Partitions the [[RexNode]] in two [[RexNode]] according to a predicate.
     * The result is a pair of RexNode: the first RexNode consists of RexNode that satisfy the
