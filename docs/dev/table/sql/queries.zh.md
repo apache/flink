@@ -198,9 +198,18 @@ tableReference:
   [ [ AS ] alias [ '(' columnAlias [, columnAlias ]* ')' ] ]
 
 tablePrimary:
-  [ TABLE ] [ [ catalogName . ] schemaName . ] tableName
+  [ TABLE ] [ [ catalogName . ] schemaName . ] tableName [ dynamicTableOptions ]
   | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
   | UNNEST '(' expression ')'
+
+dynamicTableOptions:
+  /*+ OPTIONS(key=val [, key=val]*) */
+
+key:
+  stringLiteral
+
+val:
+  stringLiteral
 
 values:
   VALUES expression [, expression ]*

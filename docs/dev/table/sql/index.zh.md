@@ -33,6 +33,7 @@ under the License.
 - [DROP TABLE, DATABASE, FUNCTION](drop.html)
 - [ALTER TABLE, DATABASE, FUNCTION](alter.html)
 - [INSERT](insert.html)
+- [SQL HINTS](hints.html)
 
 ## 数据类型
 
