@@ -28,9 +28,10 @@ MAX_NO_OUTPUT=${MAX_NO_OUTPUT:-900}
 # Number of seconds to sleep before checking the output again
 SLEEP_TIME=${SLEEP_TIME:-20}
 
-CMD_OUT=${CMD_OUT:-"/tmp/watchdog.out"}
-CMD_PID=${CMD_PID:-"/tmp/watchdog.pid"}
-CMD_EXIT=${CMD_EXIT:-"/tmp/watchdog.exit"}
+# Internal fields
+CMD_OUT="/tmp/watchdog.out"
+CMD_PID="/tmp/watchdog.pid"
+CMD_EXIT="/tmp/watchdog.exit"
 
 
 # =============================================
@@ -61,7 +62,7 @@ watchdog () {
 			echo "=============================================================================="
 
 			# run timeout callback
-			$WATCHDOG_CALLBACK_ON_TIMEOUT
+			$CALLBACK_ON_TIMEOUT
 
 			echo "Killing process with pid=$(<$CMD_PID) and all descendants"
 			pkill -P $(<$CMD_PID) # kill descendants
@@ -72,14 +73,6 @@ watchdog () {
 	done
 }
 
-assume_available () {
-	VAR=$1
-	MSG=$2
-	if [ -z "$VAR" ] ; then
-		echo "ERROR: Environment variable '$VAR' is not set but expected by watchdog.sh. Purpose of the variable: $MSG"
-		exit 1
-	fi
-}
 
 # =============================================
 # main function
@@ -88,12 +81,7 @@ assume_available () {
 # entrypoint
 function run_with_watchdog() {
 	local cmd="$1"
-
-	# check preconditions
-	assume_available CMD_OUT "used for writing the process output (to check for activity)"
-	assume_available CMD_PID "location of file to write process id to"
-	assume_available CMD_EXIT "location of file to writ exit code to"
-	assume_available WATCHDOG_CALLBACK_ON_TIMEOUT "bash function to call on timeout"
+	local CALLBACK_ON_TIMEOUT="$2"
 
 	watchdog &
 	WD_PID=$!

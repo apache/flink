@@ -66,11 +66,7 @@ jobs:
     condition: eq('${{parameters.jdk}}', 'jdk11')
   # Compile
   - script: |
-      ${{parameters.environment}} ./tools/ci/compile.sh
-      EXIT_CODE=$?
-      if [ $EXIT_CODE != 0 ]; then
-        exit $EXIT_CODE
-      fi
+      ${{parameters.environment}} ./tools/ci/compile.sh || exit $?
       ./tools/azure-pipelines/create_build_artifact.sh
     displayName: Compile
 
@@ -120,6 +116,9 @@ jobs:
       path: $(FLINK_ARTIFACT_DIR)
       artifact: FlinkCompileArtifact-${{parameters.stage_name}}
 
+  - script: ./tools/azure-pipelines/unpack_build_artifact.sh
+    displayName: "Unpack Build artifact"
+
   - task: Cache@2
     inputs:
       key: $(CACHE_KEY)
@@ -140,22 +139,13 @@ jobs:
 
   # Test
   - script: |
-      ./tools/azure-pipelines/unpack_build_artifact.sh
-      export DEBUG_FILES="$AGENT_TEMPDIRECTORY/debug_files"
-      export DEBUG_FILES_NAME="$(echo $(module) | tr -dc '[:alnum:]\n\r')-$(date +%s)"
-      echo "##vso[task.setvariable variable=DEBUG_FILES]$DEBUG_FILES"
-      echo "##vso[task.setvariable variable=DEBUG_FILES_NAME]$DEBUG_FILES_NAME"
-      mkdir -p $DEBUG_FILES || { echo "FAILURE: cannot create log directory '${DEBUG_FILES}'." ; exit 1; }
-
-      ${{parameters.environment}} ./tools/ci/test_controller.sh $(module)
-      EXIT_CODE=$?
+      source ./tools/azure-pipelines/debug_files_utils.sh
+      debug_files_prepare $(module)
       
-      echo "Compressing debug files"
-      tar -zcvf $DEBUG_FILES/$DEBUG_FILES_NAME.tgz -C $DEBUG_FILES .
-      # clean directory
-      find $DEBUG_FILES -not -name '*.tgz' -delete
-
-      exit $EXIT_CODE
+      ${{parameters.environment}} ./tools/ci/test_controller.sh $(module) ; TEST_EXIT_CODE=$?
+    
+      debug_files_compress
+      exit $TEST_EXIT_CODE
     displayName: Test - $(module)
     env:
       IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
@@ -169,10 +159,10 @@ jobs:
 
   # upload debug artifacts
   - task: PublishPipelineArtifact@1
-    condition: and(succeededOrFailed(), not(eq('$(DEBUG_FILES)', '')))
+    condition: and(succeededOrFailed(), not(eq('$(DEBUG_FILES_OUTPUT_DIR)', '')))
     displayName: Upload Logs
     inputs:
-      targetPath: $(DEBUG_FILES)
+      targetPath: $(DEBUG_FILES_OUTPUT_DIR)
       artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
 
 - job: e2e_${{parameters.stage_name}}
@@ -191,6 +181,12 @@ jobs:
         restoreKeys: $(CACHE_FALLBACK_KEY)
         path: $(MAVEN_CACHE_FOLDER)
       displayName: Cache Maven local repo
+      continueOnError: true
+    - task: Cache@2
+      inputs:
+        key: e2e-cache | flink-end-to-end-tests/**/*.java, !**/avro/**
+        path: $(E2E_CACHE_FOLDER)
+      displayName: Cache E2E files
       continueOnError: true
     - script: |
         echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"

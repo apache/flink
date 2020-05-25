@@ -17,24 +17,18 @@
 # limitations under the License.
 ################################################################################
 
-echo "Creating build artifact dir $FLINK_ARTIFACT_DIR"
+function debug_files_prepare {
+	MODULE=$1
+	export DEBUG_FILES_OUTPUT_DIR="$AGENT_TEMPDIRECTORY/debug_files"
+	export DEBUG_FILES_NAME="$(echo $MODULE | tr -dc '[:alnum:]\n\r')-$(date +%s)"
+	echo "##vso[task.setvariable variable=DEBUG_FILES_OUTPUT_DIR]$DEBUG_FILES_OUTPUT_DIR"
+	echo "##vso[task.setvariable variable=DEBUG_FILES_NAME]$DEBUG_FILES_NAME"
+	mkdir -p $DEBUG_FILES_OUTPUT_DIR || { echo "FAILURE: cannot create log directory '${DEBUG_FILES_OUTPUT_DIR}'." ; exit 1; }
+}
 
-cp -r . "$FLINK_ARTIFACT_DIR"
-
-echo "Minimizing artifact files"
-
-# reduces the size of the artifact directory to speed up
-# the packing&upload / download&unpacking process
-# by removing files not required for subsequent stages
-
-# jars are re-built in subsequent stages, so no need to cache them (cannot be avoided)
-find "$FLINK_ARTIFACT_DIR" -maxdepth 8 -type f -name '*.jar' | xargs rm -rf
-
-# .git directory
-# not deleting this can cause build stability issues
-# merging the cached version sometimes fails
-rm -rf "$FLINK_ARTIFACT_DIR/.git"
-
-# AZ Pipelines has a problem with links.
-rm "$FLINK_ARTIFACT_DIR/build-target"
-
+function debug_files_compress {
+	echo "Compressing debug files"
+	tar -zcvf $DEBUG_FILES_OUTPUT_DIR/$DEBUG_FILES_NAME.tgz -C $DEBUG_FILES_OUTPUT_DIR .
+	# clean directory
+	find $DEBUG_FILES_OUTPUT_DIR -not -name '*.tgz' -delete
+}

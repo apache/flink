@@ -38,13 +38,13 @@ STAGE=$1
 # =============================================================================
 
 # check preconditions
-if [ -z "$DEBUG_FILES" ] ; then
-	echo "ERROR: Environment variable 'DEBUG_FILES' is not set but expected by test_controller.sh. Tests may use this location to store debugging files."
+if [ -z "$DEBUG_FILES_OUTPUT_DIR" ] ; then
+	echo "ERROR: Environment variable 'DEBUG_FILES_OUTPUT_DIR' is not set but expected by test_controller.sh. Tests may use this location to store debugging files."
 	exit 1
 fi
 
-if [ ! -d "$DEBUG_FILES" ] ; then
-	echo "ERROR: Environment variable DEBUG_FILES=$DEBUG_FILES points to a directory that does not exist"
+if [ ! -d "$DEBUG_FILES_OUTPUT_DIR" ] ; then
+	echo "ERROR: Environment variable DEBUG_FILES_OUTPUT_DIR=$DEBUG_FILES_OUTPUT_DIR points to a directory that does not exist"
 	exit 1
 fi
 
@@ -74,14 +74,14 @@ export IS_CI=true
 # =============================================================================
 
 LOG4J_PROPERTIES=${HERE}/log4j-ci.properties
-MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
+MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
 
 MVN_COMMON_OPTIONS="-Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="-DskipTests"
 MVN_COMPILE_MODULES=$(get_compile_modules_for_stage ${STAGE})
 
-WATCHDOG_CALLBACK_ON_TIMEOUT="print_stacktraces | tee ${DEBUG_FILES}/jps-traces.out"
-run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install"
+CALLBACK_ON_TIMEOUT="print_stacktraces | tee ${DEBUG_FILES_OUTPUT_DIR}/jps-traces.out"
+run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install" $CALLBACK_ON_TIMEOUT
 EXIT_CODE=$?
 
 if [ $EXIT_CODE != 0 ]; then
@@ -97,18 +97,18 @@ fi
 # =============================================================================
 
 if [ $STAGE == $STAGE_PYTHON ]; then
-	run_with_watchdog "./flink-python/dev/lint-python.sh"
+	run_with_watchdog "./flink-python/dev/lint-python.sh" $CALLBACK_ON_TIMEOUT
 	EXIT_CODE=$?
 else
 	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl"
 	MVN_TEST_MODULES=$(get_test_modules_for_stage ${STAGE})
 
-	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
+	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify" $CALLBACK_ON_TIMEOUT
 	EXIT_CODE=$?
 fi
 
 # =============================================================================
-# Step 3: Put extra logs into $DEBUG_FILES
+# Step 3: Put extra logs into $DEBUG_FILES_OUTPUT_DIR
 # =============================================================================
 
 # only misc builds flink-yarn-tests
@@ -118,7 +118,7 @@ case $STAGE in
 	;;
 esac
 
-collect_coredumps $(pwd) $DEBUG_FILES
+collect_coredumps $(pwd) $DEBUG_FILES_OUTPUT_DIR
 
 # Exit code for CI build success/failure
 exit $EXIT_CODE
