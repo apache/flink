@@ -20,7 +20,6 @@ package org.apache.flink.api.java;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
@@ -71,27 +70,9 @@ public class ScalaShellStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		addDependentJars();
-		return super.execute(streamGraph);
-	}
-
-	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		addDependentJars();
-		return super.execute(jobName);
-	}
-
-	@Override
 	public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
 		addDependentJars();
 		return super.executeAsync(streamGraph);
-	}
-
-	@Override
-	public JobClient executeAsync(String jobName) throws Exception {
-		addDependentJars();
-		return super.executeAsync(jobName);
 	}
 
 	public Configuration getClientConfiguration() {

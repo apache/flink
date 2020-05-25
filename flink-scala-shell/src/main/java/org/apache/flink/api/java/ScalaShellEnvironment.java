@@ -20,7 +20,6 @@ package org.apache.flink.api.java;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.scala.FlinkILoop;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
@@ -84,12 +83,6 @@ public class ScalaShellEnvironment extends ExecutionEnvironment {
 		final List<URL> allJarFiles = new ArrayList<>(jarFiles);
 		allJarFiles.add(jarUrl);
 		return allJarFiles;
-	}
-
-	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		addDependentJars();
-		return super.execute(jobName);
 	}
 
 	@Override
