@@ -78,7 +78,7 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 
 	private transient TaskTracker taskTracker;
 
-	private transient long currentWatermark = Long.MIN_VALUE;
+	private transient long currentWatermark;
 
 	private transient List<PartitionCommitPolicy> policies;
 
@@ -98,6 +98,7 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
+		currentWatermark = Long.MIN_VALUE;
 		FileSystem fileSystem = locationPath.getFileSystem();
 		this.trigger = PartitionCommitTrigger.create(
 				context.isRestored(),
