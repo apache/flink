@@ -183,6 +183,13 @@ abstract class DistinctAggregateTestBase extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
+  @Test
+  def testDistinctAggWithDuplicateFilterField(): Unit = {
+    val sqlQuery = "SELECT a, COUNT(c) FILTER (WHERE b > 1),\n" +
+      "COUNT(DISTINCT d) FILTER (WHERE b > 1) FROM MyTable2 GROUP BY a"
+    util.verifyPlan(sqlQuery)
+  }
+
   @Test(expected = classOf[RuntimeException])
   def testTooManyDistinctAggOnDifferentColumn(): Unit = {
     // max group count must be less than 64

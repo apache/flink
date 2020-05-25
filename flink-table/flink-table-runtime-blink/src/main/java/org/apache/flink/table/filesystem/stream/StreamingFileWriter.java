@@ -61,7 +61,7 @@ public class StreamingFileWriter extends AbstractStreamOperator<CommitMessage>
 
 	private transient StreamingFileSinkHelper<RowData> helper;
 
-	private transient long currentWatermark = Long.MIN_VALUE;
+	private transient long currentWatermark;
 
 	private transient Set<String> inactivePartitions;
 
@@ -87,6 +87,7 @@ public class StreamingFileWriter extends AbstractStreamOperator<CommitMessage>
 				bucketCheckInterval);
 
 		inactivePartitions = new HashSet<>();
+		currentWatermark = Long.MIN_VALUE;
 		listener.setInactiveConsumer(b -> inactivePartitions.add(b));
 	}
 

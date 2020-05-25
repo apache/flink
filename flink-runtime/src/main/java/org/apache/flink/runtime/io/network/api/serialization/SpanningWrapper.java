@@ -50,7 +50,7 @@ import static org.apache.flink.runtime.io.network.api.serialization.NonSpanningW
 import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
 import static org.apache.flink.util.CloseableIterator.empty;
 import static org.apache.flink.util.FileUtils.writeCompletely;
-import static org.apache.flink.util.IOUtils.closeAllQuietly;
+import static org.apache.flink.util.IOUtils.closeQuietly;
 
 final class SpanningWrapper {
 
@@ -249,7 +249,17 @@ final class SpanningWrapper {
 		leftOverLimit = 0;
 		accumulatedRecordBytes = 0;
 
-		closeAllQuietly(spillingChannel, spillFileReader, () -> spillFile.release());
+		if (spillingChannel != null) {
+			closeQuietly(spillingChannel);
+		}
+		if (spillFileReader != null) {
+			closeQuietly(spillFileReader);
+		}
+		if (spillFile != null) {
+			// It's important to avoid AtomicInteger access inside `release()` on the hot path
+			closeQuietly(() -> spillFile.release());
+		}
+
 		spillingChannel = null;
 		spillFileReader = null;
 		spillFile = null;

@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -66,7 +67,7 @@ public class InputProcessorUtil {
 	 * @return a pair of {@link CheckpointedInputGate} created for two corresponding
 	 * {@link InputGate}s supplied as parameters.
 	 */
-	public static CheckpointedInputGate[] createCheckpointedInputGatePair(
+	public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
 			AbstractInvokable toNotifyOnCheckpoint,
 			StreamConfig config,
 			ChannelStateWriter channelStateWriter,
@@ -79,11 +80,26 @@ public class InputProcessorUtil {
 			unionedInputGates[i] = InputGateUtil.createInputGate(inputGates[i].toArray(new IndexedInputGate[0]));
 		}
 
+		IntStream numberOfInputChannelsPerGate =
+			Arrays
+				.stream(inputGates)
+				.flatMap(collection -> collection.stream())
+				.sorted(Comparator.comparingInt(IndexedInputGate::getGateIndex))
+				.mapToInt(InputGate::getNumberOfInputChannels);
+
 		Map<InputGate, Integer> inputGateToChannelIndexOffset = generateInputGateToChannelIndexOffsetMap(unionedInputGates);
+		// Note that numberOfInputChannelsPerGate and inputGateToChannelIndexOffset have a bit different
+		// indexing and purposes.
+		//
+		// The numberOfInputChannelsPerGate is indexed based on flattened input gates, and sorted based on GateIndex,
+		// so that it can be used in combination with InputChannelInfo class.
+		//
+		// The inputGateToChannelIndexOffset is based upon unioned input gates and it's use for translating channel
+		// indexes from perspective of UnionInputGate to perspective of SingleInputGate.
 
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			config,
-			Arrays.stream(inputGates).flatMapToInt(collection -> collection.stream().mapToInt(InputGate::getNumberOfInputChannels)),
+			numberOfInputChannelsPerGate,
 			channelStateWriter,
 			taskName,
 			generateChannelIndexToInputGateMap(unionedInputGates),
