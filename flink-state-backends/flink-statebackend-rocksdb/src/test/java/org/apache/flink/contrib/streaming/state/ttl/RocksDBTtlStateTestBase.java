@@ -38,7 +38,6 @@ import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
 
-import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TTL_COMPACT_FILTER_ENABLED;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
@@ -70,7 +69,6 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
 		}
 		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
 		Configuration config = new Configuration();
-		config.setBoolean(TTL_COMPACT_FILTER_ENABLED, true);
 		backend = backend.configure(config, Thread.currentThread().getContextClassLoader());
 		backend.setDbStoragePath(dbPath);
 		return backend;
