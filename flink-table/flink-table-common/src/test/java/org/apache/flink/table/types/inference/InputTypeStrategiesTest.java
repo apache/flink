@@ -24,6 +24,8 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
 import org.junit.Rule;
@@ -52,6 +54,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.WILDCAR
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.explicitSequence;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
@@ -481,7 +484,85 @@ public class InputTypeStrategiesTest {
 				"Map strategy fails for an odd number of arguments",
 				InputTypeStrategies.SPECIFIC_FOR_MAP)
 				.calledWithArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT())
-				.expectErrorMessage("Invalid number of arguments. 3 arguments passed.")
+				.expectErrorMessage("Invalid number of arguments. 3 arguments passed."),
+
+			TestSpec
+				.forStrategy(
+					"Logical type roots instead of concrete data types",
+					sequence(
+						logical(LogicalTypeRoot.VARCHAR),
+						logical(LogicalTypeRoot.DECIMAL, true),
+						logical(LogicalTypeRoot.DECIMAL),
+						logical(LogicalTypeRoot.BOOLEAN),
+						logical(LogicalTypeRoot.INTEGER, false),
+						logical(LogicalTypeRoot.INTEGER)))
+				.calledWithArgumentTypes(
+					DataTypes.NULL(),
+					DataTypes.INT(),
+					DataTypes.DOUBLE(),
+					DataTypes.BOOLEAN().notNull(),
+					DataTypes.INT().notNull(),
+					DataTypes.INT().notNull())
+				.expectSignature(
+					"f(<VARCHAR>, <DECIMAL NULL>, <DECIMAL>, <BOOLEAN>, <INTEGER NOT NULL>, <INTEGER>)")
+				.expectArgumentTypes(
+					DataTypes.VARCHAR(1),
+					DataTypes.DECIMAL(10, 0),
+					DataTypes.DECIMAL(30, 15),
+					DataTypes.BOOLEAN().notNull(),
+					DataTypes.INT().notNull(),
+					DataTypes.INT().notNull()),
+
+			TestSpec
+				.forStrategy(
+					"Logical type roots with wrong implicit cast",
+					sequence(logical(LogicalTypeRoot.VARCHAR)))
+				.calledWithArgumentTypes(DataTypes.INT())
+				.expectSignature("f(<VARCHAR>)")
+				.expectErrorMessage(
+					"Unsupported argument type. Expected type root 'VARCHAR' but actual type was 'INT'."),
+
+			TestSpec
+				.forStrategy(
+					"Logical type roots with wrong nullability",
+					sequence(logical(LogicalTypeRoot.VARCHAR, false)))
+				.calledWithArgumentTypes(DataTypes.VARCHAR(5))
+				.expectSignature("f(<VARCHAR NOT NULL>)")
+				.expectErrorMessage(
+					"Unsupported argument type. Expected nullable type of root 'VARCHAR' but actual type was 'VARCHAR(5)'."),
+
+			TestSpec
+				.forStrategy(
+					"Logical type family instead of concrete data types",
+					sequence(
+						logical(LogicalTypeFamily.CHARACTER_STRING, true),
+						logical(LogicalTypeFamily.EXACT_NUMERIC),
+						logical(LogicalTypeFamily.APPROXIMATE_NUMERIC),
+						logical(LogicalTypeFamily.APPROXIMATE_NUMERIC),
+						logical(LogicalTypeFamily.APPROXIMATE_NUMERIC, false)))
+				.calledWithArgumentTypes(
+					DataTypes.NULL(),
+					DataTypes.TINYINT(),
+					DataTypes.INT(),
+					DataTypes.BIGINT().notNull(),
+					DataTypes.DECIMAL(10, 2).notNull())
+				.expectSignature(
+					"f(<CHARACTER_STRING NULL>, <EXACT_NUMERIC>, <APPROXIMATE_NUMERIC>, <APPROXIMATE_NUMERIC>, <APPROXIMATE_NUMERIC NOT NULL>)")
+				.expectArgumentTypes(
+					DataTypes.VARCHAR(1),
+					DataTypes.TINYINT(),
+					DataTypes.DOUBLE(), // widening with preserved nullability
+					DataTypes.DOUBLE().notNull(), // widening with preserved nullability
+					DataTypes.DOUBLE().notNull()),
+
+			TestSpec
+				.forStrategy(
+					"Logical type family with invalid type",
+					sequence(logical(LogicalTypeFamily.EXACT_NUMERIC)))
+				.calledWithArgumentTypes(DataTypes.FLOAT())
+				.expectSignature("f(<EXACT_NUMERIC>)")
+				.expectErrorMessage(
+					"Unsupported argument type. Expected type of family 'EXACT_NUMERIC' but actual type was 'FLOAT'.")
 		);
 	}
 

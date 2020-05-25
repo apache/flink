@@ -24,14 +24,18 @@ import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ArrayInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.FamilyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.LiteralArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MapInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OutputArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.RootArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.VaryingSequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.WildcardInputTypeStrategy;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.util.Arrays;
 import java.util.List;
@@ -167,6 +171,38 @@ public final class InputTypeStrategies {
 	 */
 	public static ExplicitArgumentTypeStrategy explicit(DataType expectedDataType) {
 		return new ExplicitArgumentTypeStrategy(expectedDataType);
+	}
+
+	/**
+	 * Strategy for an argument that corresponds to a given {@link LogicalTypeRoot}.
+	 * Implicit casts will be inserted if possible.
+	 */
+	public static RootArgumentTypeStrategy logical(LogicalTypeRoot expectedRoot) {
+		return new RootArgumentTypeStrategy(expectedRoot, null);
+	}
+
+	/**
+	 * Strategy for an argument that corresponds to a given {@link LogicalTypeRoot} and nullability.
+	 * Implicit casts will be inserted if possible.
+	 */
+	public static RootArgumentTypeStrategy logical(LogicalTypeRoot expectedRoot, boolean expectedNullability) {
+		return new RootArgumentTypeStrategy(expectedRoot, expectedNullability);
+	}
+
+	/**
+	 * Strategy for an argument that corresponds to a given {@link LogicalTypeFamily}.
+	 * Implicit casts will be inserted if possible.
+	 */
+	public static FamilyArgumentTypeStrategy logical(LogicalTypeFamily expectedFamily) {
+		return new FamilyArgumentTypeStrategy(expectedFamily, null);
+	}
+
+	/**
+	 * Strategy for an argument that corresponds to a given {@link LogicalTypeFamily} and nullability.
+	 * Implicit casts will be inserted if possible.
+	 */
+	public static FamilyArgumentTypeStrategy logical(LogicalTypeFamily expectedFamily, boolean expectedNullability) {
+		return new FamilyArgumentTypeStrategy(expectedFamily, expectedNullability);
 	}
 
 	/**
