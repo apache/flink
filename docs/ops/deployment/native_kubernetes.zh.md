@@ -24,7 +24,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-本页面描述了如何在 [Kubernetes](https://kubernetes.io) 原生的部署 Flink session 集群。
+本页面描述了如何在 [Kubernetes](https://kubernetes.io) 原生地部署 Flink session 集群。
 
 * This will be replaced by the TOC
 {:toc}
@@ -46,7 +46,7 @@ Flink 的原生 Kubernetes 集成仍处于试验阶段。在以后的版本中�
 
 按照以下说明在 Kubernetes 集群中启动 Flink Session。
 
-session 将启动所有必需的 Flink 服务（JobManager 和 TaskManagers），以便你可以将程序提交到集群。
+Session 集群将启动所有必需的 Flink 服务（JobManager 和 TaskManagers），以便你可以将程序提交到集群。
 注意你可以在每个 session 上运行多个程序。
 
 {% highlight bash %}
@@ -58,7 +58,7 @@ $ ./bin/kubernetes-session.sh
 **示例**: 执行以下命令启动 session 集群，每个 TaskManager 分配 4 GB 内存、2 CPUs、4 slots：
 
 在此示例中，我们覆盖了 `resourcemanager.taskmanager-timeout` 配置，为了使运行 taskmanager 的 pod 停留时间比默认的 30 秒更长。
-尽管此设置可能造成更多的云成本，但在某些情况下更快地启动新作业，并且在开发过程中，你有更多的时间检查作业的日志文件。
+尽管此设置可能在云环境下增加成本，但在某些情况下更快地启动新作业，并且在开发过程中，你有更多的时间检查作业的日志文件。
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh \
@@ -77,7 +77,7 @@ $ ./bin/kubernetes-session.sh \
 ### 自定义 Flink Docker 镜像
 
 如果要使用自定义的 Docker 镜像部署 Flink 容器，请查看 [Flink Docker 镜像文档](docker.html)、[镜像 tags](docker.html#image-tags)、[如何自定义 Flink Docker 镜像](docker.html#customize-flink-image)和[启用插件](docker.html#using-plugins)。
-如果创建了自定义的 Docker 镜像，则可以通过设置 [`kubernetes.container.image`](../config.html#kubernetes-container-image) 配置项来提供它：
+如果创建了自定义的 Docker 镜像，则可以通过设置 [`kubernetes.container.image`](../config.html#kubernetes-container-image) 配置项来指定它：
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh \
@@ -114,7 +114,7 @@ $ kubectl port-forward service/<ServiceName> 8081
 你可以在 kube 配置文件找到它。
 
 - `LoadBalancer`：默认值，使用云提供商的负载均衡器在外部暴露服务。
-由于云提供商和 Kubernetes 需要一些时间来准备负载均衡器，因此你可以在客户端日志中获得一个 `NodePort` 的 JobManager Web 界面。
+由于云提供商和 Kubernetes 需要一些时间来准备负载均衡器，因为你可能在客户端日志中获得一个 `NodePort` 的 JobManager Web 界面。
 你可以使用 `kubectl get services/<ClusterId>` 获取 EXTERNAL-IP 然后手动构建负载均衡器 JobManager Web 界面 `http://<EXTERNAL-IP>:8081`。
 
 - `ExternalName`：将服务映射到 DNS 名称，当前版本不支持。
@@ -123,7 +123,7 @@ $ kubectl port-forward service/<ServiceName> 8081
 
 ### 连接现有 Session
 
-默认情况下，Kubernetes session 以分离模式启动，这意味着 Flink 客户端在将所有资源提交到 Kubernetes 集群后会退出。使用以下命令来连接现有 session。
+默认情况下，Kubernetes session 以后台模式启动，这意味着 Flink 客户端在将所有资源提交到 Kubernetes 集群后会退出。使用以下命令来连接现有 session。
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh -Dkubernetes.cluster-id=<ClusterId> -Dexecution.attached=true
@@ -167,11 +167,11 @@ appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m
 
 如果 pod 正在运行，可以使用 `kubectl exec -it <PodName> bash` 进入 pod 并查看日志或调试进程。
 
-## Flink Kubernetes 应用程序
+## Flink Kubernetes Application
 
-### 启动 Flink 应用程序
+### 启动 Flink Application
 
-应用程序模式允许用户创建单个镜像，其中包含他们的作业和 Flink 运行时，该镜像将按需自动创建和销毁集群组件。Flink 社区为任何用例提供了基础镜像 [customized](docker.html#customize-flink-image)。
+Application 模式允许用户创建单个镜像，其中包含他们的作业和 Flink 运行时，该镜像将按需自动创建和销毁集群组件。Flink 社区提供了可以构建[多用途自定义镜像](docker.html#customize-flink-image)的基础镜像。
 
 {% highlight dockerfile %}
 FROM flink
@@ -179,7 +179,7 @@ RUN mkdir -p $FLINK_HOME/usrlib
 COPY /path/of/my-flink-job-*.jar $FLINK_HOME/usrlib/my-flink-job.jar
 {% endhighlight %}
 
-使用以下命令启动 Flink 应用程序。
+使用以下命令启动 Flink Application。
 {% highlight bash %}
 $ ./bin/flink run-application -p 8 -t kubernetes-application \
   -Dkubernetes.cluster-id=<ClusterId> \
@@ -190,14 +190,14 @@ $ ./bin/flink run-application -p 8 -t kubernetes-application \
   local:///opt/flink/usrlib/my-flink-job.jar
 {% endhighlight %}
 
-注意：应用程序模式只支持 "local" 作为 schema。默认 jar 位于镜像中，而不是 Flink 客户端中。
+注意：Application 模式只支持 "local" 作为 schema。默认 jar 位于镜像中，而不是 Flink 客户端中。
 
 注意：镜像的 "$FLINK_HOME/usrlib" 目录下的所有 jar 将会被加到用户 classpath 中。
 
-### 停止 Flink 应用程序
+### 停止 Flink Application
 
-当应用程序停止时，所有 Flink 集群资源都会自动销毁。
-与往常一样，在手动取消作业或完成作业的情况下，作业可能会停止。
+当 Application 停止时，所有 Flink 集群资源都会自动销毁。
+与往常一样，作业可能会在手动取消或执行完的情况下停止。
 
 {% highlight bash %}
 $ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterID> <JobID>
@@ -244,10 +244,10 @@ $ kubectl create clusterrolebinding flink-role-binding-flink --clusterrole=edit 
 
 创建 Flink Kubernetes session 集群时，Flink 客户端首先将连接到 Kubernetes ApiServer 提交集群描述信息，包括 ConfigMap 描述信息、Job Manager Service 描述信息、Job Manager Deployment 描述信息和 Owner Reference。
 Kubernetes 将创建 Flink master 的 deployment，在此期间 Kubelet 将拉取镜像，准备并挂载卷，然后执行 start 命令。
-master pod 启动后，Dispatcher 和 KubernetesResourceManager 都可用并且集群准备好接受作业。
+master pod 启动后，Dispatcher 和 KubernetesResourceManager 服务会相继启动，然后集群准备完成，并等待提交作业。
 
 当用户通过 Flink 客户端提交作业时，将通过客户端生成 jobGraph 并将其与用户 jar 一起上传到 Dispatcher。
-然后将生成该作业的 JobMaster。
+然后 Dispatcher 会为每个 job 启动一个单独的 JobMaster。
 
 JobMaster 向 KubernetesResourceManager 请求被称为 slots 的资源。
 如果没有可用的 slots，KubernetesResourceManager 将拉起 TaskManager pod 并且把它们注册到集群中。
