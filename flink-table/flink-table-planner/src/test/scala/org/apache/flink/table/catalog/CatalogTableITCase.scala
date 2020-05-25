@@ -563,9 +563,9 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(createTable2)
 
     expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("Temporary table or view with identifier "
+    expectedEx.expectMessage("Temporary table with identifier "
       + "'`default_catalog`.`default_database`.`t1`' exists. "
-      + "Drop it first before removing the permanent table or view.")
+      + "Drop it first before removing the permanent table.")
     tableEnv.executeSql("drop table t1")
   }
 
@@ -584,7 +584,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(createTable1)
 
     expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("Table or view with identifier "
+    expectedEx.expectMessage("View with identifier "
       + "'default_catalog.default_database.t1' does not exist.")
     tableEnv.executeSql("drop view t1")
   }

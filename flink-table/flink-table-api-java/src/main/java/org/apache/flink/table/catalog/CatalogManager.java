@@ -686,8 +686,8 @@ public final class CatalogManager {
 	public void dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
 		dropTableInternal(
 				objectIdentifier,
-				table -> table instanceof CatalogTable,
-				ignoreIfNotExists);
+				ignoreIfNotExists,
+				true);
 	}
 
 	/**
@@ -700,20 +700,24 @@ public final class CatalogManager {
 	public void dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
 		dropTableInternal(
 				objectIdentifier,
-				table -> table instanceof CatalogView,
-				ignoreIfNotExists);
+				ignoreIfNotExists,
+				false);
 	}
 
 	private void dropTableInternal(
 			ObjectIdentifier objectIdentifier,
-			Predicate<CatalogBaseTable> filter,
-			boolean ignoreIfNotExists) {
+			boolean ignoreIfNotExists,
+			boolean isDropTable) {
+		Predicate<CatalogBaseTable> filter = isDropTable
+				? table -> table instanceof CatalogTable
+				: table -> table instanceof CatalogView;
 		// Same name temporary table or view exists.
 		if (filter.test(temporaryTables.get(objectIdentifier))) {
+			String tableOrView = isDropTable ? "table" : "view";
 			throw new ValidationException(String.format(
-					"Temporary table or view with identifier '%s' exists. "
-							+ "Drop it first before removing the permanent table or view.",
-					objectIdentifier));
+					"Temporary %s with identifier '%s' exists. "
+							+ "Drop it first before removing the permanent %s.",
+					tableOrView, objectIdentifier, tableOrView));
 		}
 		final Optional<TableLookupResult> resultOpt = getPermanentTable(objectIdentifier);
 		if (resultOpt.isPresent() && filter.test(resultOpt.get().getTable())) {
@@ -723,9 +727,10 @@ public final class CatalogManager {
 					ignoreIfNotExists,
 					"DropTable");
 		} else if (!ignoreIfNotExists) {
+			String tableOrView = isDropTable ? "Table" : "View";
 			throw new ValidationException(String.format(
-					"Table or view with identifier '%s' does not exist.",
-					objectIdentifier.asSummaryString()));
+					"%s with identifier '%s' does not exist.",
+					tableOrView, objectIdentifier.asSummaryString()));
 		}
 	}
 
