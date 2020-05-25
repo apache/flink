@@ -88,7 +88,7 @@ public class CheckpointingOptions {
 	@Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
 	public static final ConfigOption<Boolean> LOCAL_RECOVERY = ConfigOptions
 			.key("state.backend.local-recovery")
-			.defaultValue(false)
+			.defaultValue(true)
 			.withDescription("This option configures local recovery for this state backend. By default, local recovery is " +
 				"deactivated. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does " +
 				"not support local recovery and ignore this option.");
