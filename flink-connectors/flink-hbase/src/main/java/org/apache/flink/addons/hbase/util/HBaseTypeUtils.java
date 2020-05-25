@@ -29,6 +29,7 @@ import java.nio.charset.Charset;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Arrays;
 
 /**
  * A utility class to process data exchange with HBase type system.
@@ -42,6 +43,9 @@ public class HBaseTypeUtils {
 	 * Deserialize byte array to Java Object with the given type.
 	 */
 	public static Object deserializeToObject(byte[] value, int typeIdx, Charset stringCharset) {
+		if (Arrays.equals(value, EMPTY_BYTES)){
+			return null;
+		}
 		switch (typeIdx) {
 			case 0: // byte[]
 				return value;
