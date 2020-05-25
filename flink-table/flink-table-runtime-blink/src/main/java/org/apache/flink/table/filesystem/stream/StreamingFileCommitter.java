@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.filesystem.EmptyMetaStoreFactory;
 import org.apache.flink.table.filesystem.MetastoreCommitPolicy;
 import org.apache.flink.table.filesystem.PartitionCommitPolicy;
 import org.apache.flink.table.filesystem.TableMetaStoreFactory;
@@ -93,6 +94,9 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 		this.partitionKeys = partitionKeys;
 		this.metaStoreFactory = metaStoreFactory;
 		this.conf = conf;
+		PartitionCommitPolicy.validatePolicyChain(
+				metaStoreFactory instanceof EmptyMetaStoreFactory,
+				conf.get(SINK_PARTITION_COMMIT_POLICY_KIND));
 	}
 
 	@Override
