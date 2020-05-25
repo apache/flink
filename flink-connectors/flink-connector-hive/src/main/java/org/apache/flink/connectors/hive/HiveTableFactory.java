@@ -27,7 +27,6 @@ import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -42,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A table factory implementation for Hive catalog.
  */
 public class HiveTableFactory
-		implements TableSourceFactory<RowData>, TableSinkFactory<Row> {
+		implements TableSourceFactory<RowData>, TableSinkFactory {
 
 	private final HiveConf hiveConf;
 
@@ -79,7 +78,7 @@ public class HiveTableFactory
 	}
 
 	@Override
-	public TableSink<Row> createTableSink(TableSinkFactory.Context context) {
+	public TableSink createTableSink(TableSinkFactory.Context context) {
 		CatalogTable table = checkNotNull(context.getTable());
 		Preconditions.checkArgument(table instanceof CatalogTableImpl);
 
