@@ -105,7 +105,6 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		expectedBuilder.setRestClientFactory(new Elasticsearch7UpsertTableSink.AuthRestClientFactory("elastic",
 			"123456", "/myapp"));
 //		expectedBuilder.setRestClientFactory(new Elasticsearch7UpsertTableSink.DefaultRestClientFactory("/myapp"));
-
 		assertEquals(expectedBuilder, testSink.builder);
 	}
 

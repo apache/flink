@@ -56,7 +56,6 @@ import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchU
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.BULK_FLUSH_INTERVAL;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.BULK_FLUSH_MAX_ACTIONS;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.BULK_FLUSH_MAX_SIZE;
-import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CONNECTOR_ENABLE_AUTH;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CONNECTOR_USERNAME;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.CONNECTOR_PASSWORD;
 import static org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption.DISABLE_FLUSH_ON_CHECKPOINT;
@@ -192,8 +191,8 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 		Optional.ofNullable(sinkOptions.get(BULK_FLUSH_BACKOFF_DELAY))
 			.ifPresent(v -> builder.setBulkFlushBackoffDelay(Long.valueOf(v)));
 
-		Boolean enableAuth = Optional.ofNullable(sinkOptions.get(CONNECTOR_ENABLE_AUTH)).map(Boolean::valueOf).orElse(false);
-		if (enableAuth) {
+		if (Optional.ofNullable(sinkOptions.get(CONNECTOR_USERNAME)).isPresent() &&
+			Optional.ofNullable(sinkOptions.get(CONNECTOR_PASSWORD)).isPresent()) {
 			builder.setRestClientFactory(new AuthRestClientFactory(
 				sinkOptions.get(CONNECTOR_USERNAME),
 				sinkOptions.get(CONNECTOR_PASSWORD),

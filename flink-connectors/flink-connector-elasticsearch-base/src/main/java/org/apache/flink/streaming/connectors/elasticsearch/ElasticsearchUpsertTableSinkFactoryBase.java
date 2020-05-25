@@ -70,7 +70,6 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_CONNECTION_PATH_PREFIX;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_DOCUMENT_TYPE;
-import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_ENABLE_AUTH;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_FAILURE_HANDLER;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_FAILURE_HANDLER_CLASS;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_FAILURE_HANDLER_VALUE_CUSTOM;
@@ -132,7 +131,6 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_PORT);
 		properties.add(CONNECTOR_HOSTS + ".#." + CONNECTOR_HOSTS_PROTOCOL);
 		properties.add(CONNECTOR_INDEX);
-		properties.add(CONNECTOR_ENABLE_AUTH);
 		properties.add(CONNECTOR_USERNAME);
 		properties.add(CONNECTOR_PASSWORD);
 		properties.add(CONNECTOR_DOCUMENT_TYPE);
@@ -277,14 +275,8 @@ public abstract class ElasticsearchUpsertTableSinkFactoryBase implements StreamT
 	private Map<SinkOption, String> getSinkOptions(DescriptorProperties descriptorProperties) {
 		final Map<SinkOption, String> options = new HashMap<>();
 
-		descriptorProperties.getOptionalBoolean(CONNECTOR_ENABLE_AUTH)
-			.ifPresent(v -> {
-				if (v) {
-					options.put(SinkOption.CONNECTOR_ENABLE_AUTH, String.valueOf(v));
-					options.put(SinkOption.CONNECTOR_USERNAME, descriptorProperties.getString(CONNECTOR_USERNAME));
-					options.put(SinkOption.CONNECTOR_PASSWORD, descriptorProperties.getString(CONNECTOR_PASSWORD));
-				}
-			});
+		mapSinkOption(descriptorProperties, options, CONNECTOR_USERNAME, SinkOption.CONNECTOR_USERNAME);
+		mapSinkOption(descriptorProperties, options, CONNECTOR_PASSWORD, SinkOption.CONNECTOR_PASSWORD);
 
 		descriptorProperties.getOptionalBoolean(CONNECTOR_FLUSH_ON_CHECKPOINT)
 			.ifPresent(v -> options.put(SinkOption.DISABLE_FLUSH_ON_CHECKPOINT, String.valueOf(!v)));

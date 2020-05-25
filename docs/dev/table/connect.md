@@ -966,6 +966,10 @@ CREATE TABLE MyUserTable (
   'connector.username' = 'elastic',   -- optional: ElasticSearch username
   'connector.password' = '123456',   -- optional: ElasticSearch password
 
+  -- optional: configure Elasticsearch cluster username and password 
+  'connector.username' = 'elastic',   -- optional: Elasticsearch username
+  'connector.password' = '123456',   -- optional: Elasticsearch password
+
   -- optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
   'connector.flush-on-checkpoint' = 'true',   -- optional: disables flushing on checkpoint (see notes below!)
                                               -- ("true" by default)
@@ -1003,6 +1007,10 @@ CREATE TABLE MyUserTable (
     .host("localhost", 9200, "http")   // required: one or more Elasticsearch hosts to connect to
     .index("MyUsers")                  // required: Elasticsearch index
     .documentType("user")              // required: Elasticsearch document type
+
+    //optional: configure Elasticsearch cluster username and password 
+    .userName("elastic")    //optional: Elasticsearch cluster username
+    .password("123456")    //optional: Elasticsearch cluster password
 
     .keyDelimiter("$")        // optional: delimiter for composite keys ("_" by default)
                               //   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
@@ -1046,6 +1054,10 @@ CREATE TABLE MyUserTable (
     .index("MyUsers")                  # required: Elasticsearch index
     .document_type("user")             # required: Elasticsearch document type
 
+    //optional: configure ElasticSearch cluster username and password 
+    .userName("elastic")    //optional: Elasticsearch cluster username
+    .password("123456")    //optional: Elasticsearch cluster password
+
     .key_delimiter("$")       # optional: delimiter for composite keys ("_" by default)
                               #   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
     .key_null_literal("n/a")  # optional: representation for null fields in keys ("null" by default)
@@ -1087,6 +1099,9 @@ connector:
     hosts: http://host_name:9092;http://host_name:9093  # required: one or more Elasticsearch hosts to connect to
     index: "MyUsers"        # required: Elasticsearch index
     document-type: "user"   # required: Elasticsearch document type
+
+    username: "elastic"     # optional: Elasticsearch cluster username
+    password: "123456"      # optional: Elasticsearch cluster password
 
     key-delimiter: "$"      # optional: delimiter for composite keys ("_" by default)
                             #   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"

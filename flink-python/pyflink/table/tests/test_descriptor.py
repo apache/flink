@@ -195,6 +195,24 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
+    def test_username(self):
+        elasticsearch = Elasticsearch().userName("elastic")
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.username': 'elastic',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        self.assertEqual(expected, properties)
+
+    def test_password(self):
+        elasticsearch = Elasticsearch().password("123456")
+
+        properties = elasticsearch.to_properties()
+        expected = {'connector.password': '123456',
+                    'connector.type': 'elasticsearch',
+                    'connector.property-version': '1'}
+        self.assertEqual(expected, properties)
+
     def test_key_delimiter(self):
         elasticsearch = Elasticsearch().key_delimiter("$")
 

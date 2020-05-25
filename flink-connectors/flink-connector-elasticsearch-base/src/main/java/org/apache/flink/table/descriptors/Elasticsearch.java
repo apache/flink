@@ -39,7 +39,6 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_CONNECTION_MAX_RETRY_TIMEOUT;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_CONNECTION_PATH_PREFIX;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_DOCUMENT_TYPE;
-import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_ENABLE_AUTH;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_FAILURE_HANDLER;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_FAILURE_HANDLER_CLASS;
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_FLUSH_ON_CHECKPOINT;
@@ -93,14 +92,6 @@ public class Elasticsearch extends ConnectorDescriptor {
 				port,
 				Preconditions.checkNotNull(protocol));
 		hosts.add(host);
-		return this;
-	}
-
-	/**
-	 * Enable the Elasticsearch Cluster Auth.
-	 */
-	public Elasticsearch enableAuth() {
-		internalProperties.putBoolean(CONNECTOR_ENABLE_AUTH, true);
 		return this;
 	}
 
