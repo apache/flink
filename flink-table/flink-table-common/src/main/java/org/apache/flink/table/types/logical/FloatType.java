@@ -33,6 +33,8 @@ import java.util.Set;
 @PublicEvolving
 public final class FloatType extends LogicalType {
 
+	public static final int PRECISION = 7; // adopted from Calcite
+
 	private static final String FORMAT = "FLOAT";
 
 	private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(
