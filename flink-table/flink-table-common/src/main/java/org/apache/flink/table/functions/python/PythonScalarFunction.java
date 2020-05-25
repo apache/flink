@@ -20,7 +20,16 @@ package org.apache.flink.table.functions.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.utils.TypeConversions;
+
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * The wrapper of user defined python scalar function.
@@ -88,6 +97,17 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
 	@Override
 	public TypeInformation getResultType(Class[] signature) {
 		return resultType;
+	}
+
+	@Override
+	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+		final List<DataType> argumentDataTypes = Stream.of(inputTypes)
+			.map(TypeConversions::fromLegacyInfoToDataType)
+			.collect(Collectors.toList());
+		return TypeInference.newBuilder()
+			.typedArguments(argumentDataTypes)
+			.outputTypeStrategy(TypeStrategies.explicit(TypeConversions.fromLegacyInfoToDataType(resultType)))
+			.build();
 	}
 
 	@Override
