@@ -647,22 +647,22 @@ public class TableEnvHiveConnectorTest {
 
 	@Test
 	public void testNonExistingPartitionFolder() throws Exception {
-		hiveShell.execute("create database db1");
+		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+		tableEnv.executeSql("create database db1");
 		try {
-			hiveShell.execute("create table db1.part (x int) partitioned by (p int)");
+			tableEnv.executeSql("create table db1.part (x int) partitioned by (p int)");
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part").addRow(new Object[]{1}).commit("p=1");
 			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "part").addRow(new Object[]{2}).commit("p=2");
-			hiveShell.execute("alter table db1.part add partition (p=3)");
+			tableEnv.executeSql("alter table db1.part add partition (p=3)");
 			// remove one partition
 			Path toRemove = new Path(hiveCatalog.getHiveTable(new ObjectPath("db1", "part")).getSd().getLocation(), "p=2");
 			FileSystem fs = toRemove.getFileSystem(hiveShell.getHiveConf());
 			fs.delete(toRemove, true);
 
-			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 			List<Row> results = Lists.newArrayList(tableEnv.sqlQuery("select * from db1.part").execute().collect());
 			assertEquals("[1,1]", results.toString());
 		} finally {
-			hiveShell.execute("drop database db1 cascade");
+			tableEnv.executeSql("drop database db1 cascade");
 		}
 	}
 
