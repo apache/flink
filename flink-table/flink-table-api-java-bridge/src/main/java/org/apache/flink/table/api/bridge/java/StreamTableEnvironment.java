@@ -35,6 +35,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.UserDefinedFunction;
 
 /**
  * This table environment is the entry point and central context for creating Table and SQL
@@ -152,7 +153,13 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * @param name The name under which the function is registered.
 	 * @param tableFunction The TableFunction to register.
 	 * @param <T> The type of the output row.
+	 *
+	 * @deprecated Use {@link #createTemporarySystemFunction(String, UserDefinedFunction)} instead. Please
+	 *             note that the new method also uses the new type system and reflective extraction logic. It
+	 *             might be necessary to update the function implementation as well. See the documentation of
+	 *             {@link TableFunction} for more information on the new function design.
 	 */
+	@Deprecated
 	<T> void registerFunction(String name, TableFunction<T> tableFunction);
 
 	/**

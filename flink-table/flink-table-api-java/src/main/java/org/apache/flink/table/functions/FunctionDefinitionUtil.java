@@ -60,18 +60,11 @@ public class FunctionDefinitionUtil {
 	}
 
 	private static FunctionDefinition createFunctionDefinitionInternal(String name, UserDefinedFunction udf) {
-		if (udf instanceof ScalarFunction) {
-			return new ScalarFunctionDefinition(
-				name,
-				(ScalarFunction) udf
-			);
-		} else if (udf instanceof TableFunction) {
-			TableFunction t = (TableFunction) udf;
-			return new TableFunctionDefinition(
-				name,
-				t,
-				UserDefinedFunctionHelper.getReturnTypeOfTableFunction(t)
-			);
+		if (udf instanceof ScalarFunction || udf instanceof TableFunction) {
+			// table and scalar function use the new type inference
+			// once the other functions have been updated, this entire class will not be necessary
+			// anymore and can be replaced with UserDefinedFunctionHelper.instantiateFunction
+			return udf;
 		} else if (udf instanceof AggregateFunction) {
 			AggregateFunction a = (AggregateFunction) udf;
 

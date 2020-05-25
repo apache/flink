@@ -655,14 +655,28 @@ public class ExecutionContext<ClusterID> {
 		if (tableEnv instanceof StreamTableEnvironment) {
 			StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
 			functions.forEach((k, v) -> {
-				if (v instanceof ScalarFunction) {
-					streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
-				} else if (v instanceof AggregateFunction) {
-					streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
-				} else if (v instanceof TableFunction) {
-					streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
-				} else {
-					throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+				// Blink planner uses FLIP-65 functions for scalar and table functions
+				// aggregate functions still use the old type inference
+				if (environment.getExecution().isBlinkPlanner()) {
+					if (v instanceof ScalarFunction || v instanceof TableFunction) {
+						streamTableEnvironment.createTemporarySystemFunction(k, (UserDefinedFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+					}
+				}
+				// legacy
+				else {
+					if (v instanceof ScalarFunction) {
+						streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+					} else if (v instanceof TableFunction) {
+						streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+					}
 				}
 			});
 		} else {
