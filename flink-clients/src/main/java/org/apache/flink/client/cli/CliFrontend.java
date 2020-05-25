@@ -1093,11 +1093,7 @@ public class CliFrontend {
 				return cli;
 			}
 		}
-
-		throw new IllegalStateException(
-				"No valid command-line found. If you were targeting a Yarn cluster, please make sure to have " +
-				"hadoop in your classpath. For more information refer to the \"Deployment &  Operations\" section " +
-				"of the official Apache Flink documentation ");
+		throw new IllegalStateException("No valid command-line found.");
 	}
 
 	/**

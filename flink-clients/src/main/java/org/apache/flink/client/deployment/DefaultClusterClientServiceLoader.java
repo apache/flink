@@ -72,10 +72,10 @@ public class DefaultClusterClientServiceLoader implements ClusterClientServiceLo
 
 		if (compatibleFactories.isEmpty()) {
 			throw new IllegalStateException(
-					"No ClusterClientFactory found to execute the application." +
-					" If you were targeting a Yarn cluster, please make sure to have " +
-					"hadoop in your classpath. For more information refer to the " +
-					"\"Deployment &  Operations\" section of the official Apache Flink documentation.");
+					"No ClusterClientFactory found. If you were targeting a Yarn cluster, " +
+					"please make sure to export the HADOOP_CLASSPATH environment variable or have hadoop in your " +
+					"classpath. For more information refer to the \"Deployment & Operations\" section of the official " +
+					"Apache Flink documentation.");
 		}
 
 		return (ClusterClientFactory<ClusterID>) compatibleFactories.get(0);
