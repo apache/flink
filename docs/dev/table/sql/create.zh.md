@@ -131,6 +131,7 @@ CREATE TABLE [catalog_name.][db_name.]table_name
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
+  [ LIKE source_table [( <like_options> )] ]
 
 <column_definition>:
   column_name column_type [COMMENT column_comment]
@@ -140,6 +141,12 @@ CREATE TABLE [catalog_name.][db_name.]table_name
 
 <watermark_definition>:
   WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
+
+<like_options>:
+{
+   { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
+ | { INCLUDING | EXCLUDING | OVERWRITING } { GENERATED | OPTIONS | WATERMARKS } 
+}[, ...]
 
 {% endhighlight %}
 
@@ -209,14 +216,14 @@ CREATE TABLE Orders (
 
 **注意：** 使用 `CREATE TABLE` 语句注册的表均可用作 table source 和 table sink。 在被 DML 语句引用前，我们无法决定其实际用于 source 抑或是 sink。
 
-**LIKE clause**
+**LIKE**
 
-The `LIKE` clause is a variant/combination of SQL features (Feature T171, “LIKE clause in table definition” and Feature T173, “Extended LIKE clause in table definition”). The clause can be used to create a table based on a definition of an existing table. Additionally, users
-can extend the original table or exclude certain parts of it. In contrast to the SQL standard the clause must be defined at the top-level of a CREATE statement. That is because the clause applies to multiple parts of the definition and not only to the schema part.
+`LIKE` 子句来源于两种 SQL 特性的变体/组合（Feature T171，“表定义中的 LIKE 语法” 和 Feature T173，“表定义中的 LIKE 语法扩展”）。LIKE 子句可以基于现有表的定义去创建新表，并且可以扩展或排除原始表中的某些部分。与 SQL 标准相反，LIKE 子句必须在 CREATE 语句中定义，并且是基于 CREATE 语句的更上层定义，这是因为 LIKE 子句可以用于定义表的多个部分，而不仅仅是 schema 部分。
 
-You can use the clause to reuse (and potentially overwrite) certain connector properties or add watermarks to tables defined externally. For example, you can add a watermark to a table defined in Apache Hive. 
+你可以使用该子句，重用（或改写）指定的连接器配置属性或者可以向外部表添加 watermark 定义，例如可以向 Apache Hive 中定义的表添加 watermark 定义。
 
-Consider the example statement below:
+示例如下：
+
 {% highlight sql %}
 CREATE TABLE Orders (
     user BIGINT,
@@ -228,16 +235,17 @@ CREATE TABLE Orders (
 );
 
 CREATE TABLE Orders_with_watermark (
-    -- Add watermark definition
+    -- 添加 watermark 定义
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
 ) WITH (
-    -- Overwrite the startup-mode
+    -- 改写 startup-mode 属性
     'scan.startup.mode' = 'latest-offset'
 )
 LIKE Orders;
 {% endhighlight %}
 
-The resulting table `Orders_with_watermark` will be equivalent to a table created with a following statement:
+结果表 `Orders_with_watermark` 等效于使用以下语句创建的表：
+
 {% highlight sql %}
 CREATE TABLE Orders_with_watermark (
     user BIGINT,
@@ -250,27 +258,28 @@ CREATE TABLE Orders_with_watermark (
 );
 {% endhighlight %}
 
-The merging logic of table features can be controlled with `like options`.
+表属性的合并逻辑可以用 `like options` 来控制。
 
-You can control the merging behavior of:
+可以控制合并的表属性如下：
 
-* CONSTRAINTS - constraints such as primary and unique keys
-* GENERATED - computed columns
-* OPTIONS - connector options that describe connector and format properties
-* PARTITIONS - partition of the tables
-* WATERMARKS - watermark declarations
+* CONSTRAINTS - 主键和唯一键约束
+* GENERATED - 计算列
+* OPTIONS - 连接器信息、格式化方式等配置项
+* PARTITIONS - 表分区信息
+* WATERMARKS - watermark 定义
 
-with three different merging strategies:
+并且有三种不同的表属性合并策略：
 
-* INCLUDING - Includes the feature of the source table, fails on duplicate entries, e.g. if an option with the same key exists in both tables.
-* EXCLUDING - Does not include the given feature of the source table.
-* OVERWRITING - Includes the feature of the source table, overwrites duplicate entries of the source table with properties of the new table, e.g. if an option with the same key exists in both tables, the one from the current statement will be used.
+* INCLUDING - 新表包含源表（source table）所有的表属性，如果和源表的表属性重复则会直接失败，例如新表和源表存在相同 key 的属性。
+* EXCLUDING - 新表不包含源表指定的任何表属性。
+* OVERWRITING - 新表包含源表的表属性，但如果出现重复项，则会用新表的表属性覆盖源表中的重复表属性，例如，两个表中都存在相同 key 的属性，则会使用当前语句中定义的 key 的属性值。
 
-Additionally, you can use the `INCLUDING/EXCLUDING ALL` option to specify what should be the strategy if there was no specific strategy defined, i.e. if you use `EXCLUDING ALL INCLUDING WATERMARKS` only the watermarks will be included from the source table.
+并且你可以使用 `INCLUDING/EXCLUDING ALL` 这种声明方式来指定使用怎样的合并策略，例如使用 `EXCLUDING ALL INCLUDING WATERMARKS`，那么代表只有源表的 WATERMARKS 属性才会被包含进新表。
 
-Example:
+示例如下：
 {% highlight sql %}
--- A source table stored in a filesystem
+
+-- 存储在文件系统的源表
 CREATE TABLE Orders_in_file (
     user BIGINT,
     product STRING,
@@ -284,25 +293,25 @@ WITH (
     'path' = '...'
 );
 
--- A corresponding table we want to store in kafka
+-- 对应存储在 kafka 的源表
 CREATE TABLE Orders_in_kafka (
-    -- Add watermark definition
+    -- 添加 watermark 定义
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
 ) WITH (
     'connector': 'kafka'
     ...
 )
 LIKE Orders_in_file (
-    -- Exclude everything besides the computed columns which we need to generate the watermark for.
-    -- We do not want to have the partitions or filesystem options as those do not apply to kafka. 
+    -- 排除需要生成 watermark 的计算列之外的所有内容。
+    -- 去除不适用于 kafka 的所有分区和文件系统的相关属性。
     EXCLUDING ALL
     INCLUDING GENERATED
 );
 {% endhighlight %}
 
-If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used as a default.
+如果未提供 like 配置项（like options），默认将使用 `INCLUDING ALL OVERWRITING OPTIONS` 的合并策略。
 
-**NOTE** You cannot control the behavior of merging physical fields. Those will be merged as if you applied the `INCLUDING` strategy.
+**注意：** 您无法选择物理列的合并策略，当物理列进行合并时就如使用了 `INCLUDING` 策略。
 
 {% top %}
 
