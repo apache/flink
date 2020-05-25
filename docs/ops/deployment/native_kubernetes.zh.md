@@ -36,7 +36,7 @@ Flink 的原生 Kubernetes 集成仍处于试验阶段。在以后的版本中�
 ## 要求
 
 - Kubernetes 版本 1.9 或以上。
-- KubeConfig 可以访问列表、删除 pods 和 services，可以通过`~/.kube/config` 配置。你可以通过运行 `kubectl auth can-i <list|create|edit|delete> pods` 来验证权限。
+- KubeConfig 可以查看、创建、删除 pods 和 services，可以通过`~/.kube/config` 配置。你可以通过运行 `kubectl auth can-i <list|create|edit|delete> pods` 来验证权限。
 - 启用 Kubernetes DNS。
 - 具有 [RBAC](#rbac) 权限的 Service Account 可以创建、删除 pods。
 
@@ -55,10 +55,10 @@ $ ./bin/kubernetes-session.sh
 
 所有 Kubernetes 配置项都可以在我们的[配置指南]({{ site.baseurl }}/zh/ops/config.html#kubernetes)中找到。
 
-**示例**: 发布以下命令启动 session 集群，每个 TaskManager 分配 4 GB 内存、2 CPUs、4 slots：
+**示例**: 执行以下命令启动 session 集群，每个 TaskManager 分配 4 GB 内存、2 CPUs、4 slots：
 
 在此示例中，我们覆盖了 `resourcemanager.taskmanager-timeout` 配置，为了使运行 taskmanager 的 pod 停留时间比默认的 30 秒更长。
-尽管此设置可能造成更多的云成本，但它有这样的效果，在某些情况下更快地启动新作业，并且在开发过程中，你有更多的时间检查作业的日志文件。
+尽管此设置可能造成更多的云成本，但在某些情况下更快地启动新作业，并且在开发过程中，你有更多的时间检查作业的日志文件。
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh \
@@ -76,8 +76,7 @@ $ ./bin/kubernetes-session.sh \
 
 ### 自定义 Flink Docker 镜像
 
-如果要使用自定义的 Docker 镜像部署 Flink 容器，请查看 [Flink Docker 镜像文档](docker.html)、
-[镜像 tags ](docker.html#image-tags)、[如何自定义 Flink Docker 镜像](docker.html#customize-flink-image)和[启用插件](docker.html#using-plugins)。
+如果要使用自定义的 Docker 镜像部署 Flink 容器，请查看 [Flink Docker 镜像文档](docker.html)、[镜像 tags](docker.html#image-tags)、[如何自定义 Flink Docker 镜像](docker.html#customize-flink-image)和[启用插件](docker.html#using-plugins)。
 如果创建了自定义的 Docker 镜像，则可以通过设置 [`kubernetes.container.image`](../config.html#kubernetes-container-image) 配置项来提供它：
 
 {% highlight bash %}
@@ -116,7 +115,7 @@ $ kubectl port-forward service/<ServiceName> 8081
 
 - `LoadBalancer`：默认值，使用云提供商的负载均衡器在外部暴露服务。
 由于云提供商和 Kubernetes 需要一些时间来准备负载均衡器，因此你可以在客户端日志中获得一个 `NodePort` 的 JobManager Web 界面。
-你可以使用 `kubectl get services/<ClusterId>`获取 EXTERNAL-IP 然后手动构建负载均衡器 JobManager Web 界面 `http://<EXTERNAL-IP>:8081`。
+你可以使用 `kubectl get services/<ClusterId>` 获取 EXTERNAL-IP 然后手动构建负载均衡器 JobManager Web 界面 `http://<EXTERNAL-IP>:8081`。
 
 - `ExternalName`：将服务映射到 DNS 名称，当前版本不支持。
 
@@ -155,7 +154,7 @@ $ kubectl delete deployment/<ClusterID>
 
 1. 在 Flink 客户端的 log4j.properties 中增加新的 appender。
 2. 在 log4j.properties 的 rootLogger 中增加如下 'appenderRef'，`rootLogger.appenderRef.console.ref = ConsoleAppender`。
-3. 通过增加配置项`-Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"`来删除重定向的参数。
+3. 通过增加配置项 `-Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"` 来删除重定向的参数。
 4. 停止并重启你的 session。现在你可以使用 `kubectl logs` 查看日志了。
 
 {% highlight bash %}
@@ -172,7 +171,7 @@ appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m
 
 ### 启动 Flink 应用程序
 
-应用程序模式允许用户创建单个镜像，其中包含他们的作业和 Flink 运行时，该镜像将根据所需自动创建和销毁集群组件。Flink 社区为任何用例提供了基础镜像 [customized](docker.html#customize-flink-image)。
+应用程序模式允许用户创建单个镜像，其中包含他们的作业和 Flink 运行时，该镜像将按需自动创建和销毁集群组件。Flink 社区为任何用例提供了基础镜像 [customized](docker.html#customize-flink-image)。
 
 {% highlight dockerfile %}
 FROM flink
@@ -180,7 +179,7 @@ RUN mkdir -p $FLINK_HOME/usrlib
 COPY /path/of/my-flink-job-*.jar $FLINK_HOME/usrlib/my-flink-job.jar
 {% endhighlight %}
 
-Use the following command to start a Flink application.
+使用以下命令启动 Flink 应用程序。
 {% highlight bash %}
 $ ./bin/flink run-application -p 8 -t kubernetes-application \
   -Dkubernetes.cluster-id=<ClusterId> \
@@ -191,9 +190,9 @@ $ ./bin/flink run-application -p 8 -t kubernetes-application \
   local:///opt/flink/usrlib/my-flink-job.jar
 {% endhighlight %}
 
-注意：应用程序模式只支持 "local" 作为 schema。假设 jar 位于镜像中，而不是 Flink 客户端中。
+注意：应用程序模式只支持 "local" 作为 schema。默认 jar 位于镜像中，而不是 Flink 客户端中。
 
-注意：镜像的"$FLINK_HOME/usrlib" 目录下的所有 jar 将会被加到用户 classpath 中。
+注意：镜像的 "$FLINK_HOME/usrlib" 目录下的所有 jar 将会被加到用户 classpath 中。
 
 ### 停止 Flink 应用程序
 
@@ -210,7 +209,7 @@ $ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterI
 
 [Kubernetes 中的命名空间](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/)是一种在多个用户之间划分集群资源的方法（通过资源配额）。
 它类似于 Yarn 集群中的队列概念。Flink on Kubernetes 可以使用命名空间来启动 Flink 集群。
-启动 Flink 集群时，可以使用`-Dkubernetes.namespace=default` 参数来指定命名空间。
+启动 Flink 集群时，可以使用 `-Dkubernetes.namespace=default` 参数来指定命名空间。
 
 [资源配额](https://kubernetes.io/docs/concepts/policy/resource-quotas/)提供了限制每个命名空间的合计资源消耗的约束。
 它可以按类型限制可在命名空间中创建的对象数量，以及该项目中的资源可能消耗的计算资源总量。
@@ -228,7 +227,7 @@ $ kubectl create clusterrolebinding flink-role-binding-default --clusterrole=edi
 {% endhighlight %}
 
 如果你不想使用`默认`服务账户，使用以下命令创建一个新的 `flink` 服务账户并设置角色绑定。
-然后使用配置项`-Dkubernetes.jobmanager.service-account=flink` 来使 JobManager pod 使用 `flink` 服务账户去创建和删除 TaskManager pod。
+然后使用配置项 `-Dkubernetes.jobmanager.service-account=flink` 来使 JobManager pod 使用 `flink` 服务账户去创建和删除 TaskManager pod。
 
 {% highlight bash %}
 $ kubectl create serviceaccount flink
@@ -245,7 +244,7 @@ $ kubectl create clusterrolebinding flink-role-binding-flink --clusterrole=edit 
 
 创建 Flink Kubernetes session 集群时，Flink 客户端首先将连接到 Kubernetes ApiServer 提交集群描述信息，包括 ConfigMap 描述信息、Job Manager Service 描述信息、Job Manager Deployment 描述信息和 Owner Reference。
 Kubernetes 将创建 Flink master 的 deployment，在此期间 Kubelet 将拉取镜像，准备并挂载卷，然后执行 start 命令。
-master pod 启动后，Dispatcher 和 KubernetesResourceManager 都可用并且集群准备好接受一个或更多作业。
+master pod 启动后，Dispatcher 和 KubernetesResourceManager 都可用并且集群准备好接受作业。
 
 当用户通过 Flink 客户端提交作业时，将通过客户端生成 jobGraph 并将其与用户 jar 一起上传到 Dispatcher。
 然后将生成该作业的 JobMaster。
