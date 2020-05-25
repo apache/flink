@@ -80,49 +80,6 @@ case class PlannerResolvedFieldReference(
   }
 }
 
-case class Alias(child: PlannerExpression, name: String, extraNames: Seq[String] = Seq())
-    extends UnaryExpression with NamedExpression {
-
-  override def toString = s"$child as '$name"
-
-  override private[flink] def resultType: TypeInformation[_] = child.resultType
-
-  override private[flink] def makeCopy(anyRefs: Array[AnyRef]): this.type = {
-    val child: PlannerExpression = anyRefs.head.asInstanceOf[PlannerExpression]
-    copy(child, name, extraNames).asInstanceOf[this.type]
-  }
-
-  override private[flink] def toAttribute: Attribute = {
-    if (valid) {
-      PlannerResolvedFieldReference(name, child.resultType)
-    } else {
-      UnresolvedFieldReference(name)
-    }
-  }
-
-  override private[flink] def validateInput(): ValidationResult = {
-    if (name == "*") {
-      ValidationFailure("Alias can not accept '*' as name.")
-    } else {
-      ValidationSuccess
-    }
-  }
-}
-
-case class UnresolvedAlias(child: PlannerExpression) extends UnaryExpression with NamedExpression {
-
-  override private[flink] def name: String =
-    throw new UnresolvedException("Invalid call to name on UnresolvedAlias")
-
-  override private[flink] def toAttribute: Attribute =
-    throw new UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
-
-  override private[flink] def resultType: TypeInformation[_] =
-    throw new UnresolvedException("Invalid call to resultType on UnresolvedAlias")
-
-  override private[flink] lazy val valid = false
-}
-
 case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None) extends Attribute {
 
   override private[flink] def resultType: TypeInformation[_] =
