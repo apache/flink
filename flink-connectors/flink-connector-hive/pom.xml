@@ -1105,6 +1105,14 @@ under the License.
 					<version>4.1.44.Final</version>
 					<scope>provided</scope>
 				</dependency>
+
+				<!-- Required by orc tests -->
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+					<version>${hivemetastore.hadoop.version}</version>
+					<scope>test</scope>
+				</dependency>
 			</dependencies>
 
 		</profile>
