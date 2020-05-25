@@ -26,6 +26,8 @@ import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DistinctType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -279,6 +281,16 @@ public final class LogicalTypeChecks {
 		@Override
 		public Integer visit(BigIntType bigIntType) {
 			return BigIntType.PRECISION;
+		}
+
+		@Override
+		public Integer visit(FloatType floatType) {
+			return FloatType.PRECISION;
+		}
+
+		@Override
+		public Integer visit(DoubleType doubleType) {
+			return DoubleType.PRECISION;
 		}
 
 		@Override
