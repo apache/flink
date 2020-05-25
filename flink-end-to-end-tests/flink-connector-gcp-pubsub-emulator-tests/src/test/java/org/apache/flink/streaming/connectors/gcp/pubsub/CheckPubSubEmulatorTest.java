@@ -75,6 +75,13 @@ public class CheckPubSubEmulatorTest extends GCloudUnitTestBase {
 			.get();
 
 		List<ReceivedMessage> receivedMessages = pubsubHelper.pullMessages(PROJECT_NAME, SUBSCRIPTION_NAME, 1);
+
+		//TODO this is just to test if we need to wait longer, or if something has gone wrong and the message will never arrive
+		if (receivedMessages.isEmpty()) {
+			LOG.error("Message did not arrive, gonna wait 60s and try to pull again.");
+			Thread.sleep(30 * 1000);
+			receivedMessages = pubsubHelper.pullMessages(PROJECT_NAME, SUBSCRIPTION_NAME, 1);
+		}
 		assertEquals(1, receivedMessages.size());
 		assertEquals("Hello World PULL", receivedMessages.get(0).getMessage().getData().toStringUtf8());
 
