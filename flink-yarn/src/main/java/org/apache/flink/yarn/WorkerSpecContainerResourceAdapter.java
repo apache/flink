@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -166,15 +167,20 @@ class WorkerSpecContainerResourceAdapter {
 	 * This class is for {@link WorkerSpecContainerResourceAdapter} internal usages only, to overcome the problem that
 	 * hash codes are calculated inconsistently across different {@link Resource} implementations.
 	 */
-	private static final class InternalContainerResource {
+	@VisibleForTesting
+	static final class InternalContainerResource {
 		private final int memory;
 		private final int vcores;
 		private final Map<String, Long> externalResources;
 
-		private InternalContainerResource(final int memory, final int vcores, final Map<String, Long> externalResources) {
+		@VisibleForTesting
+		InternalContainerResource(final int memory, final int vcores, final Map<String, Long> externalResources) {
 			this.memory = memory;
 			this.vcores = vcores;
-			this.externalResources = externalResources;
+			this.externalResources = externalResources.entrySet()
+						.stream()
+						.filter(entry -> !entry.getValue().equals(0L))
+						.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 		}
 
 		private InternalContainerResource(final Resource resource) {
