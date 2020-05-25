@@ -20,7 +20,6 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
@@ -46,7 +45,7 @@ public class ExternalServiceDecorator extends AbstractKubernetesStepDecorator {
 	@Override
 	public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
 		final String serviceName =
-			KubernetesUtils.getRestServiceName(kubernetesJobManagerParameters.getClusterId());
+			getExternalServiceName(kubernetesJobManagerParameters.getClusterId());
 
 		final Service externalService = new ServiceBuilder()
 			.withApiVersion(Constants.API_VERSION)
@@ -67,5 +66,19 @@ public class ExternalServiceDecorator extends AbstractKubernetesStepDecorator {
 			.build();
 
 		return Collections.singletonList(externalService);
+	}
+
+	/**
+	 * Generate name of the external Service.
+	 */
+	public static String getExternalServiceName(String clusterId) {
+		return clusterId + Constants.FLINK_REST_SERVICE_SUFFIX;
+	}
+
+	/**
+	 * Generate namespaced name of the external Service.
+	 */
+	public static String getNamespacedExternalServiceName(String clusterId, String namespace) {
+		return getExternalServiceName(clusterId) + "." + namespace;
 	}
 }

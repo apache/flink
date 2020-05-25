@@ -30,8 +30,8 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
+import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import io.fabric8.kubernetes.api.model.Container;
@@ -191,8 +191,9 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 		// Check updated flink config options
 		assertEquals(String.valueOf(Constants.BLOB_SERVER_PORT), flinkConfig.getString(BlobServerOptions.PORT));
 		assertEquals(String.valueOf(Constants.TASK_MANAGER_RPC_PORT), flinkConfig.getString(TaskManagerOptions.RPC_PORT));
-		assertEquals(KubernetesUtils.getInternalServiceName(CLUSTER_ID) + "." +
-			NAMESPACE, flinkConfig.getString(JobManagerOptions.ADDRESS));
+		assertEquals(
+			InternalServiceDecorator.getNamespacedInternalServiceName(CLUSTER_ID, NAMESPACE),
+			flinkConfig.getString(JobManagerOptions.ADDRESS));
 
 		final Deployment jmDeployment = kubeClient
 			.apps()

@@ -21,7 +21,6 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
@@ -53,7 +52,7 @@ public class InternalServiceDecorator extends AbstractKubernetesStepDecorator {
 			return Collections.emptyList();
 		}
 
-		final String serviceName = KubernetesUtils.getInternalServiceName(kubernetesJobManagerParameters.getClusterId());
+		final String serviceName = getInternalServiceName(kubernetesJobManagerParameters.getClusterId());
 
 		final Service headlessService = new ServiceBuilder()
 			.withApiVersion(Constants.API_VERSION)
@@ -77,9 +76,26 @@ public class InternalServiceDecorator extends AbstractKubernetesStepDecorator {
 
 		// Set job manager address to namespaced service name
 		final String namespace = kubernetesJobManagerParameters.getNamespace();
-		kubernetesJobManagerParameters.getFlinkConfiguration().setString(JobManagerOptions.ADDRESS, serviceName + "." + namespace);
+		kubernetesJobManagerParameters.getFlinkConfiguration().setString(
+			JobManagerOptions.ADDRESS,
+			getNamespacedInternalServiceName(serviceName, namespace));
 
 		return Collections.singletonList(headlessService);
+	}
+
+
+	/**
+	 * Generate name of the internal Service.
+	 */
+	public static String getInternalServiceName(String clusterId) {
+		return clusterId;
+	}
+
+	/**
+	 * Generate namespaced name of the internal Service.
+	 */
+	public static String getNamespacedInternalServiceName(String clusterId, String namespace) {
+		return getInternalServiceName(clusterId) + "." + namespace;
 	}
 }
 
