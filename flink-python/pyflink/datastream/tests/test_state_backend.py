@@ -154,16 +154,6 @@ class RocksDBStateBackendTests(PyFlinkTestCase):
         state_backend.set_db_storage_paths(*storage_path)
         self.assertEqual(state_backend.get_db_storage_paths(), expected)
 
-    def test_get_set_ttl_compaction_filter(self):
-
-        state_backend = RocksDBStateBackend("file://var/checkpoints/")
-
-        self.assertTrue(state_backend.is_ttl_compaction_filter_enabled())
-
-        state_backend.disable_ttl_compaction_filter()
-
-        self.assertFalse(state_backend.is_ttl_compaction_filter_enabled())
-
     def test_get_set_predefined_options(self):
 
         state_backend = RocksDBStateBackend("file://var/checkpoints/")

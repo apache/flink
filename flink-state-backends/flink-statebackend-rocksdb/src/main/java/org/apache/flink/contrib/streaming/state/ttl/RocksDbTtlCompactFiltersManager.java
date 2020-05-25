@@ -52,16 +52,12 @@ import java.util.LinkedHashMap;
 public class RocksDbTtlCompactFiltersManager {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkCompactionFilter.class);
 
-	/** Enables RocksDb compaction filter for State with TTL. */
-	private final boolean enableTtlCompactionFilter;
-
 	private final TtlTimeProvider ttlTimeProvider;
 
 	/** Registered compaction filter factories. */
 	private final LinkedHashMap<String, FlinkCompactionFilterFactory> compactionFilterFactories;
 
-	public RocksDbTtlCompactFiltersManager(boolean enableTtlCompactionFilter, TtlTimeProvider ttlTimeProvider) {
-		this.enableTtlCompactionFilter = enableTtlCompactionFilter;
+	public RocksDbTtlCompactFiltersManager(TtlTimeProvider ttlTimeProvider) {
 		this.ttlTimeProvider = ttlTimeProvider;
 		this.compactionFilterFactories = new LinkedHashMap<>();
 	}
@@ -70,7 +66,7 @@ public class RocksDbTtlCompactFiltersManager {
 		@Nonnull RegisteredStateMetaInfoBase metaInfoBase,
 		@Nonnull ColumnFamilyOptions options) {
 
-		if (enableTtlCompactionFilter && metaInfoBase instanceof RegisteredKeyValueStateBackendMetaInfo) {
+		if (metaInfoBase instanceof RegisteredKeyValueStateBackendMetaInfo) {
 			RegisteredKeyValueStateBackendMetaInfo kvMetaInfoBase = (RegisteredKeyValueStateBackendMetaInfo) metaInfoBase;
 			if (TtlStateFactory.TtlSerializer.isTtlStateSerializer(kvMetaInfoBase.getStateSerializer())) {
 				createAndSetCompactFilterFactory(metaInfoBase.getName(), options);
@@ -109,11 +105,6 @@ public class RocksDbTtlCompactFiltersManager {
 			TypeSerializer<?> stateSerializer) {
 		StateTtlConfig ttlConfig = stateDesc.getTtlConfig();
 		if (ttlConfig.isEnabled() && ttlConfig.getCleanupStrategies().inRocksdbCompactFilter()) {
-			if (!enableTtlCompactionFilter) {
-				LOG.warn("Cannot configure RocksDB TTL compaction filter for state <{}>: " +
-					"feature is disabled for the state backend.", stateDesc.getName());
-				return;
-			}
 			FlinkCompactionFilterFactory compactionFilterFactory = compactionFilterFactories.get(stateDesc.getName());
 			Preconditions.checkNotNull(compactionFilterFactory);
 			long ttl = ttlConfig.getTtl().toMilliseconds();
