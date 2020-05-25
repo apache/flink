@@ -252,9 +252,6 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 
 	@Test
 	public void testTimestampUDF() throws Exception {
-//		hiveCatalog.createFunction(new ObjectPath("default", "myyear"),
-//				new CatalogFunctionImpl(UDFYear.class.getCanonicalName()),
-//				false);
 
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
@@ -278,9 +275,6 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 
 	@Test
 	public void testDateUDF() throws Exception {
-//		hiveCatalog.createFunction(new ObjectPath("default", "mymonth"),
-//				new CatalogFunctionImpl(UDFMonth.class.getCanonicalName()),
-//				false);
 
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
