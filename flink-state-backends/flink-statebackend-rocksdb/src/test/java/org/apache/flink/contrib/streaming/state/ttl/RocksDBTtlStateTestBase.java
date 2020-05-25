@@ -162,11 +162,11 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
 
 		setTimeAndCompact(stateDesc, 170L);
 		sbetc.setCurrentKey("k1");
-		assertTrue(ctx().isOriginalEmptyValue());
+		assertTrue("Expired original state should be unavailable", ctx().isOriginalEmptyValue());
 		assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
 
 		sbetc.setCurrentKey("k2");
-		assertTrue(ctx().isOriginalEmptyValue());
+		assertTrue("Expired original state should be unavailable", ctx().isOriginalEmptyValue());
 		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
 	}
 

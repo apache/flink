@@ -209,7 +209,7 @@ public abstract class TtlStateTestBase {
 
 		timeProvider.time = 300;
 		assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
-		assertTrue(ctx().isOriginalEmptyValue());
+		assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
 	}
 
 	@Test
@@ -223,7 +223,7 @@ public abstract class TtlStateTestBase {
 
 		timeProvider.time = 120;
 		assertEquals(EXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
-		assertTrue(ctx().isOriginalEmptyValue());
+		assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
 		assertEquals("Expired state should be cleared on access", ctx().emptyValue, ctx().get());
 	}
 
@@ -248,7 +248,7 @@ public abstract class TtlStateTestBase {
 
 		timeProvider.time = 250;
 		assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
-		assertTrue(ctx().isOriginalEmptyValue());
+		assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
 	}
 
 	@Test
@@ -510,7 +510,7 @@ public abstract class TtlStateTestBase {
 	private void checkExpiredKeys(int startKey, int endKey) throws Exception {
 		for (int i = startKey; i < endKey; i++) {
 			sbetc.setCurrentKey(Integer.toString(i));
-			assertTrue(ctx().isOriginalEmptyValue());
+			assertTrue("Original state should be cleared", ctx().isOriginalEmptyValue());
 		}
 	}
 
