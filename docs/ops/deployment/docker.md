@@ -334,7 +334,7 @@ The next chapters show examples of configuration files to run Flink.
 * Access the *Flink Master* container
 
     ```sh
-    docker exec -it $(docker ps --filter name=jobmanager --format={{.ID}}) /bin/sh
+    docker exec -it $(docker ps --filter name=jobmanager --format={% raw %}{{.ID}}{% endraw %}) /bin/sh
     ```
 
 * Kill the cluster
@@ -360,7 +360,7 @@ The next chapters show examples of configuration files to run Flink.
 
     ```sh
     JOB_CLASS_NAME="com.job.ClassName"
-    MASTER_CONTAINER=$(docker ps --filter name=jobmanager --format={{.ID}})
+    MASTER_CONTAINER=$(docker ps --filter name=jobmanager --format={% raw %}{{.ID}}{% endraw %}))
     docker cp path/to/jar "${MASTER_CONTAINER}":/job.jar
     docker exec -t -i "${MASTER_CONTAINER}" flink run -d -c ${JOB_CLASS_NAME} /job.jar
     ```
