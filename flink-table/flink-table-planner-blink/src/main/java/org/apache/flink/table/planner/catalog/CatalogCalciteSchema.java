@@ -43,6 +43,8 @@ public class CatalogCalciteSchema extends FlinkSchema {
 	private final CatalogManager catalogManager;
 	// Flag that tells if the current planner should work in a batch or streaming mode.
 	private final boolean isStreamingMode;
+	// The SQL expression converter factory is used to derive correct result type of computed column,
+	// because the date type of computed column from catalog table is not trusted.
 	private final SqlExprToRexConverterFactory converterFactory;
 
 	public CatalogCalciteSchema(

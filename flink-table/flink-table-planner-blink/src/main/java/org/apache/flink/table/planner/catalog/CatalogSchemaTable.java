@@ -84,7 +84,9 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 	 * @param catalogBaseTable CatalogBaseTable instance which exists in the catalog
 	 * @param statistic Table statistics
 	 * @param catalog The catalog which the schema table belongs to
-	 * @param converterFactory SqlExprToRexConverterFactory to convert compute column
+	 * @param converterFactory The SQL expression converter factory is used to derive correct result
+	 *                         type of computed column, because the date type of computed column
+	 *                         from catalog table is not trusted.
 	 * @param isStreaming If the table is for streaming mode
 	 * @param isTemporary If the table is temporary
 	 */
