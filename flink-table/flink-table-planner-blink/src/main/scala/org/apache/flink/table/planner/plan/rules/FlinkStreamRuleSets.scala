@@ -109,7 +109,7 @@ object FlinkStreamRuleSets {
       List(
         //removes constant keys from an Agg
         AggregateProjectPullUpConstantsRule.INSTANCE,
-        //fix: FLINK-17553
+        //fix: FLINK-17553 unsupported call error when constant exists in group window key
         ProjectMergeRule.INSTANCE,
         StreamLogicalWindowAggregateRule.INSTANCE,
         // slices a project into sections which contain window agg functions
