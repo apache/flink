@@ -910,6 +910,10 @@ under the License.
 									<shadedPattern>org.apache.flink.connectors.hive.fs.hdfs</shadedPattern>
 								</relocation>
 								<relocation>
+									<pattern>org.apache.flink.formats.parquet</pattern>
+									<shadedPattern>org.apache.flink.connectors.hive.formats.parquet</shadedPattern>
+								</relocation>
+								<relocation>
 									<pattern>org.apache.parquet</pattern>
 									<shadedPattern>org.apache.flink.shaded.org.apache.parquet</shadedPattern>
 								</relocation>
@@ -918,6 +922,22 @@ under the License.
 									<shadedPattern>org.apache.flink.reshaded.parquet</shadedPattern>
 								</relocation>
 							</relocations>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:flink-orc_${scala.binary.version}</artifact>
+									<excludes>
+										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.flink:flink-parquet_${scala.binary.version}</artifact>
+									<excludes>
+										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
