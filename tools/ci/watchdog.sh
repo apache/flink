@@ -18,8 +18,8 @@
 ################################################################################
 
 #
-# This file contains a watchdog tool to run monitor and potentially kill tasks
-# not producing any output for n seconds.
+# This file contains a watchdog tool to monitor a task and potentially kill it after
+# not producing any output for $MAX_NO_OUTPUT seconds.
 #
 
 # Number of seconds w/o output before printing a stack trace and killing the watched process
@@ -74,8 +74,9 @@ watchdog () {
 
 assume_available () {
 	VAR=$1
+	MSG=$2
 	if [ -z "$VAR" ] ; then
-		echo "ERROR: Environment variable '$VAR' is not set but expected by watchdog.sh"
+		echo "ERROR: Environment variable '$VAR' is not set but expected by watchdog.sh. Purpose of the variable: $MSG"
 		exit 1
 	fi
 }
@@ -89,10 +90,10 @@ function run_with_watchdog() {
 	local cmd="$1"
 
 	# check preconditions
-	assume_available CMD_OUT # used for writing the process output (to check for activity)
-	assume_available CMD_PID # location of file to write process id to
-	assume_available CMD_EXIT # location of file to writ exit code to
-	assume_available WATCHDOG_CALLBACK_ON_TIMEOUT # bash function to call on timeout
+	assume_available CMD_OUT "used for writing the process output (to check for activity)"
+	assume_available CMD_PID "location of file to write process id to"
+	assume_available CMD_EXIT "location of file to writ exit code to"
+	assume_available WATCHDOG_CALLBACK_ON_TIMEOUT "bash function to call on timeout"
 
 	watchdog &
 	WD_PID=$!

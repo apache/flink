@@ -77,7 +77,7 @@ jobs:
   # upload artifacts for next stage
   - task: PublishPipelineArtifact@1
     inputs:
-      path: $(FLINK_ARTIFACT_DIR)
+      targetPath: $(FLINK_ARTIFACT_DIR)
       artifact: FlinkCompileArtifact-${{parameters.stage_name}}
 
 - job: test_${{parameters.stage_name}}
@@ -172,7 +172,7 @@ jobs:
     condition: and(succeededOrFailed(), not(eq('$(DEBUG_FILES)', '')))
     displayName: Upload Logs
     inputs:
-      path: $(DEBUG_FILES)
+      targetPath: $(DEBUG_FILES)
       artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
 
 - job: e2e_${{parameters.stage_name}}
@@ -219,7 +219,7 @@ jobs:
       condition: and(succeededOrFailed(), not(eq(variables['ARTIFACT_DIR'], '')))
       displayName: Upload Logs
       inputs:
-        path: $(ARTIFACT_DIR)
+        targetPath: $(ARTIFACT_DIR)
         artifact: logs-${{parameters.stage_name}}-e2e
         
 

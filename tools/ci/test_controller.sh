@@ -31,7 +31,7 @@ source "${HERE}/stage.sh"
 source "${HERE}/maven-utils.sh"
 source "${HERE}/controller_utils.sh"
 source "${HERE}/watchdog.sh"
-TEST=$1
+STAGE=$1
 
 # =============================================================================
 # Step 0: Check & print environment information & configure env
@@ -39,7 +39,7 @@ TEST=$1
 
 # check preconditions
 if [ -z "$DEBUG_FILES" ] ; then
-	echo "ERROR: Environment variable 'DEBUG_FILES' is not set but expected by test_controller.sh"
+	echo "ERROR: Environment variable 'DEBUG_FILES' is not set but expected by test_controller.sh. Tests may use this location to store debugging files."
 	exit 1
 fi
 
@@ -48,8 +48,8 @@ if [ ! -d "$DEBUG_FILES" ] ; then
 	exit 1
 fi
 
-if [ -z "$TEST" ] ; then
-	echo "ERROR: Environment variable 'TEST' is not set but expected by test_controller.sh"
+if [ -z "$STAGE" ] ; then
+	echo "ERROR: Environment variable 'STAGE' is not set but expected by test_controller.sh. THe variable refers to the stage being executed."
 	exit 1
 fi
 
@@ -70,20 +70,17 @@ export JAVA_TOOL_OPTIONS="-XX:+HeapDumpOnOutOfMemoryError"
 export IS_CI=true
 
 # =============================================================================
-# Step 1: Compile Flink (again)
+# Step 1: Rebuild jars and install Flink to local maven repository
 # =============================================================================
-
-WATCHDOG_CALLBACK_ON_TIMEOUT="print_stacktraces | tee ${DEBUG_FILES}/jps-traces.out"
 
 LOG4J_PROPERTIES=${HERE}/log4j-ci.properties
 MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
-# Maven command to run. We set the forkCount manually, because otherwise Maven sees too many cores
-# on some CI environments. Set forkCountTestPackage to 1 for container-based environment (4 GiB memory)
-# and 2 for sudo-enabled environment (7.5 GiB memory).
+
 MVN_COMMON_OPTIONS="-Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="-DskipTests"
-MVN_COMPILE_MODULES=$(get_compile_modules_for_stage ${TEST})
+MVN_COMPILE_MODULES=$(get_compile_modules_for_stage ${STAGE})
 
+WATCHDOG_CALLBACK_ON_TIMEOUT="print_stacktraces | tee ${DEBUG_FILES}/jps-traces.out"
 run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES install"
 EXIT_CODE=$?
 
@@ -99,12 +96,12 @@ fi
 # Step 2: Run tests
 # =============================================================================
 
-if [ $TEST == $STAGE_PYTHON ]; then
+if [ $STAGE == $STAGE_PYTHON ]; then
 	run_with_watchdog "./flink-python/dev/lint-python.sh"
 	EXIT_CODE=$?
 else
 	MVN_TEST_OPTIONS="-Dflink.tests.with-openssl"
-	MVN_TEST_MODULES=$(get_test_modules_for_stage ${TEST})
+	MVN_TEST_MODULES=$(get_test_modules_for_stage ${STAGE})
 
 	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
 	EXIT_CODE=$?
@@ -115,13 +112,13 @@ fi
 # =============================================================================
 
 # only misc builds flink-yarn-tests
-case $TEST in
+case $STAGE in
 	(misc)
 		put_yarn_logs_to_artifacts
 	;;
 esac
 
-collect_coredumps `pwd` $DEBUG_FILES
+collect_coredumps $(pwd) $DEBUG_FILES
 
 # Exit code for CI build success/failure
 exit $EXIT_CODE
