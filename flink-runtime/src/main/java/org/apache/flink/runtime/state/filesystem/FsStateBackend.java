@@ -44,6 +44,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 
+import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -363,21 +365,23 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		this.asynchronousSnapshots = original.asynchronousSnapshots.resolveUndefined(
 				configuration.get(CheckpointingOptions.ASYNC_SNAPSHOTS));
 
-		if (checkFileSateThresholdValid(original.fileStateThreshold)) {
+		if (getValidFileStateThreshold(original.fileStateThreshold) >= 0) {
 			this.fileStateThreshold = original.fileStateThreshold;
 		} else {
-			final int configuredStateThreshold = (int) configuration.get(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD).getBytes();
-			if (checkFileSateThresholdValid(configuredStateThreshold)) {
+			final int configuredStateThreshold =
+				getValidFileStateThreshold(configuration.get(FS_SMALL_FILE_THRESHOLD).getBytes());
+
+			if (configuredStateThreshold >= 0) {
 				this.fileStateThreshold = configuredStateThreshold;
 			} else {
-				this.fileStateThreshold = (int) CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes();
+				this.fileStateThreshold = MathUtils.checkedDownCast(FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes());
 
 				// because this is the only place we (unlikely) ever log, we lazily
 				// create the logger here
 				LoggerFactory.getLogger(AbstractFileStateBackend.class).warn(
 					"Ignoring invalid file size threshold value ({}): {} - using default value {} instead.",
-					CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.key(), configuredStateThreshold,
-					CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue());
+					FS_SMALL_FILE_THRESHOLD.key(), configuration.get(FS_SMALL_FILE_THRESHOLD).getBytes(),
+					FS_SMALL_FILE_THRESHOLD.defaultValue());
 			}
 		}
 
@@ -388,8 +392,11 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		this.writeBufferSize = Math.max(bufferSize, this.fileStateThreshold);
 	}
 
-	private boolean checkFileSateThresholdValid(int fileStateThreshold) {
-		return fileStateThreshold >= 0 && fileStateThreshold <= MAX_FILE_STATE_THRESHOLD;
+	private int getValidFileStateThreshold(long fileStateThreshold) {
+		if (fileStateThreshold >= 0 && fileStateThreshold <= MAX_FILE_STATE_THRESHOLD) {
+			return (int) fileStateThreshold;
+		}
+		return -1;
 	}
 
 	// ------------------------------------------------------------------------
@@ -436,7 +443,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	public int getMinFileSizeThreshold() {
 		return fileStateThreshold >= 0 ?
 				fileStateThreshold :
-				(int) CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes();
+				MathUtils.checkedDownCast(FS_SMALL_FILE_THRESHOLD.defaultValue().getBytes());
 	}
 
 	/**
