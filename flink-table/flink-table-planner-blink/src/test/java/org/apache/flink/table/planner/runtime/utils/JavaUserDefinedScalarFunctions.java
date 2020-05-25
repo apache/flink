@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.runtime.utils;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionContext;
@@ -140,7 +140,9 @@ public class JavaUserDefinedScalarFunctions {
 			openCalled = true;
 		}
 
-		public Timestamp eval(TimestampData timestampData, Integer offset) {
+		public @DataTypeHint("TIMESTAMP(3)") Timestamp eval(
+				@DataTypeHint("TIMESTAMP(3)") TimestampData timestampData,
+				Integer offset) {
 			if (!openCalled) {
 				fail("Open was not called before run.");
 			}
@@ -151,11 +153,6 @@ public class JavaUserDefinedScalarFunctions {
 				int tzOffset = TimeZone.getDefault().getOffset(ts);
 				return new Timestamp(ts - tzOffset);
 			}
-		}
-
-		@Override
-		public TypeInformation<?> getResultType(Class<?>[] signature) {
-			return Types.SQL_TIMESTAMP;
 		}
 
 		@Override

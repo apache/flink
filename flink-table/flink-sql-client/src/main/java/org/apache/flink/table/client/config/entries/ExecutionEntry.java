@@ -221,6 +221,15 @@ public class ExecutionEntry extends ConfigEntry {
 		return false;
 	}
 
+	public boolean isBlinkPlanner() {
+		final String planner = properties.getOptionalString(EXECUTION_PLANNER)
+			.orElse(EXECUTION_PLANNER_VALUE_BLINK);
+		if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
+			return false;
+		}
+		return true;
+	}
+
 	public TimeCharacteristic getTimeCharacteristic() {
 		return properties.getOptionalString(EXECUTION_TIME_CHARACTERISTIC)
 			.flatMap((v) -> {

@@ -19,8 +19,9 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.calcite.rex.{RexCall, RexNode}
-import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.functions.FunctionDefinition
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionKind}
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 
 import scala.collection.JavaConversions._
@@ -91,13 +92,14 @@ object PythonUtil {
       rexCall.getOperator match {
         case sfc: ScalarSqlFunction => isPythonFunction(sfc.scalarFunction)
         case tfc: TableSqlFunction => isPythonFunction(tfc.udtf)
+        case bsf: BridgingSqlFunction => isPythonFunction(bsf.getDefinition)
         case _ => false
     }
 
-    private def isPythonFunction(userDefinedFunction: UserDefinedFunction): Boolean = {
-      userDefinedFunction.isInstanceOf[PythonFunction] &&
+    private def isPythonFunction(functionDefinition: FunctionDefinition): Boolean = {
+      functionDefinition.isInstanceOf[PythonFunction] &&
         (pythonFunctionKind.isEmpty ||
-          userDefinedFunction.asInstanceOf[PythonFunction].getPythonFunctionKind ==
+          functionDefinition.asInstanceOf[PythonFunction].getPythonFunctionKind ==
             pythonFunctionKind.get)
     }
 
