@@ -393,15 +393,6 @@ class CalcITCase(
     val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
-
-  // new type inference for functions is only supported in the Blink planner
-  @Test(expected = classOf[ValidationException])
-  def testUnsupportedNewFunctionTypeInference(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
-    tEnv.createTemporarySystemFunction("testFunc", new Func13(">>"))
-    tEnv.sqlQuery("SELECT testFunc('fail')").toDataSet[Row]
-  }
 }
 
 object MyHashCode extends ScalarFunction {
