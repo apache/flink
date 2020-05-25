@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -55,7 +56,7 @@ public class TransactionalIdsGenerator {
 		checkArgument(safeScaleDownFactor > 0);
 		checkArgument(subtaskIndex >= 0);
 
-		this.prefix = checkNotNull(prefix);
+		this.prefix = EncodingUtils.hex(EncodingUtils.md5(checkNotNull(prefix)));
 		this.subtaskIndex = subtaskIndex;
 		this.totalNumberOfSubtasks = totalNumberOfSubtasks;
 		this.poolSize = poolSize;

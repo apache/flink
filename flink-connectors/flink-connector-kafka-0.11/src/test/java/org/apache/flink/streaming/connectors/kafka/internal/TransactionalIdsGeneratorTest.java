@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.table.utils.EncodingUtils;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -40,8 +42,9 @@ public class TransactionalIdsGeneratorTest {
 	public void testGenerateIdsToUse() {
 		TransactionalIdsGenerator generator = new TransactionalIdsGenerator("test", 2, SUBTASKS_COUNT, POOL_SIZE, SAFE_SCALE_DOWN_FACTOR);
 
+		String md5Prefix = md5Hex("test");
 		assertEquals(
-			new HashSet<>(Arrays.asList("test-42", "test-43", "test-44")),
+			new HashSet<>(Arrays.asList(md5Prefix + "-42", md5Prefix + "-43", md5Prefix + "-44")),
 			generator.generateIdsToUse(36));
 	}
 
@@ -52,8 +55,9 @@ public class TransactionalIdsGeneratorTest {
 	public void testTaskNameMayContainPercentSign() {
 		TransactionalIdsGenerator generator = new TransactionalIdsGenerator("%pattern%", 2, SUBTASKS_COUNT, POOL_SIZE, SAFE_SCALE_DOWN_FACTOR);
 
+		String md5Prefix = md5Hex("%pattern%");
 		assertEquals(
-			new HashSet<>(Arrays.asList("%pattern%-42", "%pattern%-43", "%pattern%-44")),
+			new HashSet<>(Arrays.asList(md5Prefix + "-42", md5Prefix + "-43", md5Prefix + "-44")),
 			generator.generateIdsToUse(36));
 	}
 
@@ -87,5 +91,9 @@ public class TransactionalIdsGeneratorTest {
 		HashSet<T> actual = new HashSet<>(first);
 		actual.retainAll(second);
 		assertEquals(Collections.emptySet(), actual);
+	}
+
+	private String md5Hex(String prefix) {
+		return EncodingUtils.hex(EncodingUtils.md5(prefix));
 	}
 }
