@@ -682,20 +682,60 @@ public final class CatalogManager {
 	 * Drops a table in a given fully qualified path.
 	 *
 	 * @param objectIdentifier The fully qualified path of the table to drop.
-	 * @param ignoreIfNotExists If false exception will be thrown if the table or database or catalog to be altered
+	 * @param ignoreIfNotExists If false exception will be thrown if the table to drop
 	 *                          does not exist.
 	 */
 	public void dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-		if (temporaryTables.containsKey(objectIdentifier)) {
-			throw new ValidationException(String.format(
-				"Temporary table with identifier '%s' exists. Drop it first before removing the permanent table.",
-				objectIdentifier));
+		dropTableInternal(
+				objectIdentifier,
+				table -> table instanceof CatalogTable,
+				ignoreIfNotExists);
+	}
+
+	/**
+	 * Drops a view in a given fully qualified path.
+	 *
+	 * @param objectIdentifier The fully qualified path of the view to drop.
+	 * @param ignoreIfNotExists If false exception will be thrown if the view to drop
+	 *                          does not exist.
+	 */
+	public void dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+		dropTableInternal(
+				objectIdentifier,
+				table -> table instanceof CatalogView,
+				ignoreIfNotExists);
+	}
+
+	private void dropTableInternal(
+			ObjectIdentifier objectIdentifier,
+			Predicate<CatalogBaseTable> filter,
+			boolean ignoreIfNotExists) {
+		final Optional<TableLookupResult> resultOpt = getTable(objectIdentifier);
+		if (resultOpt.isPresent()) {
+			final TableLookupResult result = resultOpt.get();
+			if (filter.test(result.getTable())) {
+				if (result.isTemporary()) {
+					// Same name temporary table or view exists.
+					throw new ValidationException(String.format(
+							"Temporary table or view with identifier '%s' exists. "
+									+ "Drop it first before removing the permanent table or view.",
+							objectIdentifier));
+				}
+			} else if (!ignoreIfNotExists) {
+				// To drop a table but the object identifier represents a view(or vise versa).
+				throw new ValidationException(String.format(
+						"Table or view with identifier '%s' does not exist.",
+						objectIdentifier.asSummaryString()));
+			} else {
+				// Table or view does not exist with ignoreIfNotExists true, do nothing.
+				return;
+			}
 		}
 		execute(
-			(catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),
-			objectIdentifier,
-			ignoreIfNotExists,
-			"DropTable");
+				(catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),
+				objectIdentifier,
+				ignoreIfNotExists,
+				"DropTable");
 	}
 
 	/**

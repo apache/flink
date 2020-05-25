@@ -765,7 +765,7 @@ abstract class TableEnvImpl(
             dropViewOperation.getViewIdentifier,
             dropViewOperation.isIfExists)
         } else {
-          catalogManager.dropTable(
+          catalogManager.dropView(
             dropViewOperation.getViewIdentifier,
             dropViewOperation.isIfExists)
         }
