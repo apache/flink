@@ -136,9 +136,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkResult(
       sql,
       Seq(
-        row(1,0,1,4),
-        row(2,0,0,7),
-        row(3,0,0,3)
+        row(1,4,1,4),
+        row(2,7,0,7),
+        row(3,3,0,3)
       )
     )
   }
