@@ -24,6 +24,7 @@ import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ArrayInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FamilyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.LiteralArgumentTypeStrategy;
@@ -41,6 +42,7 @@ import org.apache.flink.table.types.logical.StructuredType.StructuredComparision
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -215,6 +217,15 @@ public final class InputTypeStrategies {
 	 */
 	public static FamilyArgumentTypeStrategy logical(LogicalTypeFamily expectedFamily, boolean expectedNullability) {
 		return new FamilyArgumentTypeStrategy(expectedFamily, expectedNullability);
+	}
+
+	/**
+	 * Strategy for an argument that must fulfill a given constraint.
+	 */
+	public static ConstraintArgumentTypeStrategy constraint(
+			String constraintMessage,
+			Function<List<DataType>, Boolean> evaluator) {
+		return new ConstraintArgumentTypeStrategy(constraintMessage, evaluator);
 	}
 
 	/**
