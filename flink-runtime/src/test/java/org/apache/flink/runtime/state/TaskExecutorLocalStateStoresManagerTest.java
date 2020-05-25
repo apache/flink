@@ -113,7 +113,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 				localStateRootDirectories[i]);
 		}
 
-		Assert.assertFalse(taskStateManager.isLocalRecoveryEnabled());
+		Assert.assertTrue(taskStateManager.isLocalRecoveryEnabled());
 	}
 
 	/**
