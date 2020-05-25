@@ -132,12 +132,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 			case CHAR:
 			case VARCHAR:
 				int length = options.get(lenKey);
-				return new RandomGenerator<StringData>() {
-					@Override
-					public StringData next() {
-						return StringData.fromString(random.nextHexString(length));
-					}
-				};
+				return getRandomStringGenerator(length);
 			case TINYINT:
 				return RandomGenerator.byteGenerator(
 						options.get(minKey.intType().defaultValue((int) Byte.MIN_VALUE)).byteValue(),
@@ -167,6 +162,15 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 		}
 	}
 
+	private static RandomGenerator<StringData> getRandomStringGenerator(int length) {
+		return new RandomGenerator<StringData>() {
+			@Override
+			public StringData next() {
+				return StringData.fromString(random.nextHexString(length));
+			}
+		};
+	}
+
 	private DataGenerator createSequenceGenerator(String name, DataType type, ReadableConfig options) {
 		OptionBuilder startKey = key(FIELDS + "." + name + "." + START);
 		OptionBuilder endKey = key(FIELDS + "." + name + "." + END);
@@ -179,14 +183,9 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 		switch (type.getLogicalType().getTypeRoot()) {
 			case CHAR:
 			case VARCHAR:
-			return new SequenceGenerator<StringData>(
+			return getSequenceStringGenerator(
 					options.get(startKey.longType().noDefaultValue()),
-					options.get(endKey.longType().noDefaultValue())) {
-				@Override
-				public StringData next() {
-					return StringData.fromString(valuesToEmit.poll().toString());
-				}
-			};
+					options.get(endKey.longType().noDefaultValue()));
 			case TINYINT:
 				return SequenceGenerator.byteGenerator(
 						options.get(startKey.intType().noDefaultValue()).byteValue(),
@@ -216,6 +215,15 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 		}
 	}
 
+	private static SequenceGenerator<StringData> getSequenceStringGenerator(long start, long end) {
+		return new SequenceGenerator<StringData>(start, end) {
+			@Override
+			public StringData next() {
+				return StringData.fromString(valuesToEmit.poll().toString());
+			}
+		};
+	}
+
 	/**
 	 * A {@link StreamTableSource} that emits each number from a given interval exactly once,
 	 * possibly in parallel. See {@link StatefulSequenceSource}.
@@ -239,7 +247,9 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 
 		@VisibleForTesting
 		DataGeneratorSource<RowData> createSource() {
-			return new DataGeneratorSource<>(new DataGenTableSource.RowGenerator(), rowsPerSecond);
+			return new DataGeneratorSource<>(
+					new RowGenerator(fieldGenerators, schema.getFieldNames()),
+					rowsPerSecond);
 		}
 
 		@Override
@@ -256,37 +266,47 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 		public ChangelogMode getChangelogMode() {
 			return ChangelogMode.insertOnly();
 		}
+	}
 
-		private class RowGenerator implements DataGenerator<RowData> {
+	private static class RowGenerator implements DataGenerator<RowData> {
 
-			@Override
-			public void open(
-					String name,
-					FunctionInitializationContext context,
-					RuntimeContext runtimeContext) throws Exception {
-				for (int i = 0; i < fieldGenerators.length; i++) {
-					fieldGenerators[i].open(schema.getFieldName(i).get(), context, runtimeContext);
+		private static final long serialVersionUID = 1L;
+
+		private final DataGenerator[] fieldGenerators;
+		private final String[] fieldNames;
+
+		private RowGenerator(DataGenerator[] fieldGenerators, String[] fieldNames) {
+			this.fieldGenerators = fieldGenerators;
+			this.fieldNames = fieldNames;
+		}
+
+		@Override
+		public void open(
+				String name,
+				FunctionInitializationContext context,
+				RuntimeContext runtimeContext) throws Exception {
+			for (int i = 0; i < fieldGenerators.length; i++) {
+				fieldGenerators[i].open(fieldNames[i], context, runtimeContext);
+			}
+		}
+
+		@Override
+		public boolean hasNext() {
+			for (DataGenerator generator : fieldGenerators) {
+				if (!generator.hasNext()) {
+					return false;
 				}
 			}
+			return true;
+		}
 
-			@Override
-			public boolean hasNext() {
-				for (DataGenerator generator : fieldGenerators) {
-					if (!generator.hasNext()) {
-						return false;
-					}
-				}
-				return true;
+		@Override
+		public RowData next() {
+			GenericRowData row = new GenericRowData(fieldNames.length);
+			for (int i = 0; i < fieldGenerators.length; i++) {
+				row.setField(i, fieldGenerators[i].next());
 			}
-
-			@Override
-			public RowData next() {
-				GenericRowData row = new GenericRowData(schema.getFieldCount());
-				for (int i = 0; i < fieldGenerators.length; i++) {
-					row.setField(i, fieldGenerators[i].next());
-				}
-				return row;
-			}
+			return row;
 		}
 	}
 }

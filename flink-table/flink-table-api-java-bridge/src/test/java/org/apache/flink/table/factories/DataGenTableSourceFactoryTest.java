@@ -32,6 +32,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.DataGenTableSourceFactory.DataGenTableSource;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -90,6 +91,9 @@ public class DataGenTableSourceFactoryTest {
 
 		DataGenTableSource dataGenTableSource = (DataGenTableSource) source;
 		DataGeneratorSource<RowData> gen = dataGenTableSource.createSource();
+
+		// test java serialization.
+		gen = InstantiationUtil.clone(gen);
 
 		StreamSource<RowData, DataGeneratorSource<RowData>> src = new StreamSource<>(gen);
 		AbstractStreamOperatorTestHarness<RowData> testHarness =
