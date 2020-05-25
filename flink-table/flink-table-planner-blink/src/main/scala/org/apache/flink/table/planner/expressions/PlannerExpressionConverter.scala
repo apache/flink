@@ -149,14 +149,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       case fd: FunctionDefinition =>
         fd match {
 
-          case AS =>
-            assert(args.size >= 2)
-            val name = getValue[String](args(1))
-            val extraNames = args
-              .drop(2)
-              .map(e => getValue[String](e))
-            Alias(args.head, name, extraNames)
-
           case FLATTEN =>
             assert(args.size == 1)
             Flattening(args.head)
