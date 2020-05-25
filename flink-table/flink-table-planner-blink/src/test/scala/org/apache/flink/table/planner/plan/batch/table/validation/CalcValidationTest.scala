@@ -85,14 +85,6 @@ class CalcValidationTest extends TableTestBase {
     }
 
     try {
-      util.addTableSource[(Int, Long, String)]("Table2")
-      .select('_1 as '*, '_2 as 'b, '_1 as 'c)
-      fail("ValidationException expected")
-    } catch {
-      case _: ValidationException => //ignore
-    }
-
-    try {
       util.addTableSource[(Int, Long, String)]("Table3").as("*", "b", "c")
       fail("ValidationException expected")
     } catch {

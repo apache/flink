@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Field;
@@ -35,6 +36,11 @@ import java.util.Set;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 
 /**
  * Dictionary of function definitions for all built-in functions.
@@ -886,7 +892,12 @@ public final class BuiltInFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("as")
 			.kind(OTHER)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				varyingSequence(
+					or(OUTPUT_IF_NULL, InputTypeStrategies.ANY),
+					and(InputTypeStrategies.LITERAL, logical(LogicalTypeFamily.CHARACTER_STRING)),
+					and(InputTypeStrategies.LITERAL, logical(LogicalTypeFamily.CHARACTER_STRING))))
+			.outputTypeStrategy(TypeStrategies.argument(0))
 			.build();
 	public static final BuiltInFunctionDefinition STREAM_RECORD_TIMESTAMP =
 		new BuiltInFunctionDefinition.Builder()
