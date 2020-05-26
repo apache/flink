@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import org.junit.Test;
 
@@ -57,10 +58,10 @@ public class MaterializedCollectStreamResultTest {
 
 			result.isRetrieving = true;
 
-			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
-			result.processRecord(Tuple2.of(true, Row.of("B", 1)));
-			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
-			result.processRecord(Tuple2.of(true, Row.of("C", 2)));
+			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "A", 1)));
+			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "B", 1)));
+			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "A", 1)));
+			result.processRecord(Tuple2.of(true, Row.ofKind(RowKind.INSERT, "C", 2)));
 
 			assertEquals(TypedResult.payload(4), result.snapshot(1));
 
@@ -69,7 +70,7 @@ public class MaterializedCollectStreamResultTest {
 			assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(3));
 			assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(4));
 
-			result.processRecord(Tuple2.of(false, Row.of("A", 1)));
+			result.processRecord(Tuple2.of(false, Row.ofKind(RowKind.UPDATE_BEFORE, "A", 1)));
 
 			assertEquals(TypedResult.payload(3), result.snapshot(1));
 
@@ -77,8 +78,8 @@ public class MaterializedCollectStreamResultTest {
 			assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(2));
 			assertEquals(Collections.singletonList(Row.of("C", 2)), result.retrievePage(3));
 
-			result.processRecord(Tuple2.of(false, Row.of("C", 2)));
-			result.processRecord(Tuple2.of(false, Row.of("A", 1)));
+			result.processRecord(Tuple2.of(false, Row.ofKind(RowKind.UPDATE_BEFORE, "C", 2)));
+			result.processRecord(Tuple2.of(false, Row.ofKind(RowKind.UPDATE_BEFORE, "A", 1)));
 
 			assertEquals(TypedResult.payload(1), result.snapshot(1));
 

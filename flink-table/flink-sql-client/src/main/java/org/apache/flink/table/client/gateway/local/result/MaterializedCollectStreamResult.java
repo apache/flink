@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -186,6 +187,10 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 	@Override
 	protected void processRecord(Tuple2<Boolean, Row> change) {
 		synchronized (resultLock) {
+			// Always set the RowKind to INSERT, so that we can compare rows correctly (RowKind will be ignored),
+			// just use the Boolean of Tuple2<Boolean, Row> to figure out whether it is insert or delete.
+			change.f1.setKind(RowKind.INSERT);
+
 			// insert
 			if (change.f0) {
 				processInsert(change.f1);
