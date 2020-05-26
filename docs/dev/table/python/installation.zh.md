@@ -26,7 +26,7 @@ under the License.
 {:toc}
 
 ## 环境要求
-<span class="label label-info">Note</span> PyFlink 需要特定的Python 版本（3.5, 3.6 或 3.7）。请运行如下的命令确保版本满足要求。
+<span class="label label-info">注意</span> PyFlink 需要特定的Python 版本（3.5, 3.6 或 3.7）。请运行如下的命令确保版本满足要求。
 
 {% highlight bash %}
 $ python --version
@@ -43,4 +43,4 @@ $ python -m pip install apache-flink
 
 你也可以从源码手动构建 PyFlink，具体可以参见[开发指南]({{ site.baseurl }}/zh/flinkDev/building.html#build-pyflink).
 
-<span class="label label-info">Note</span> 从 Flink 1.11 版本开始, PyFlink 作业可以支持在 Windows 系统上本地运行，因此你也可以在 Windows 上开发和调试 PyFlink 作业了。
+<span class="label label-info">注意</span> 从 Flink 1.11 版本开始, PyFlink 作业可以支持在 Windows 系统上本地运行，因此你也可以在 Windows 上开发和调试 PyFlink 作业了。
