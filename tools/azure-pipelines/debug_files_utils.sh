@@ -28,7 +28,8 @@ function debug_files_prepare {
 
 function debug_files_compress {
 	echo "Compressing debug files"
-	tar -zcvf $DEBUG_FILES_OUTPUT_DIR/$DEBUG_FILES_NAME.tgz -C $DEBUG_FILES_OUTPUT_DIR .
+	tar -zcvf /tmp/$DEBUG_FILES_NAME.tgz -C $DEBUG_FILES_OUTPUT_DIR .
 	# clean directory
-	find $DEBUG_FILES_OUTPUT_DIR -not -name '*.tgz' -delete
+	find $DEBUG_FILES_OUTPUT_DIR -delete
+	mv /tmp/$DEBUG_FILES_NAME.tgz $DEBUG_FILES_OUTPUT_DIR
 }
