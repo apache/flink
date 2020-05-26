@@ -20,11 +20,13 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.TestExternalTableSourceFactory.TestExternalTableSource;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.table.utils.ParserMock;
 
 import org.apache.calcite.schema.Table;
 import org.junit.Test;
@@ -53,7 +55,10 @@ public class DatabaseCalciteSchemaTest {
 		CatalogManager catalogManager = CatalogManagerMocks.preparedCatalogManager()
 			.defaultCatalog(catalogName, catalog)
 			.build();
-		DatabaseCalciteSchema calciteSchema = new DatabaseCalciteSchema(true,
+		catalogManager.setCatalogTableSchemaResolver(new CatalogTableSchemaResolver(new ParserMock(), true));
+
+		DatabaseCalciteSchema calciteSchema = new DatabaseCalciteSchema(
+			true,
 			databaseName,
 			catalogName,
 			catalogManager,
@@ -75,6 +80,10 @@ public class DatabaseCalciteSchemaTest {
 
 		@Override
 		public CatalogTable copy() {
+			return this;
+		}
+
+		public CatalogTable copy(TableSchema tableSchema) {
 			return this;
 		}
 

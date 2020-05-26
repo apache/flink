@@ -179,6 +179,7 @@ class LegacyTableSourceTest extends TableTestBase {
     util.verifyPlan(t)
   }
 
+  @Test
   def testProjectWithoutProctime(): Unit = {
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
@@ -198,6 +199,7 @@ class LegacyTableSourceTest extends TableTestBase {
     util.verifyPlan(t)
   }
 
+  @Test
   def testProjectOnlyProctime(): Unit = {
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
@@ -217,6 +219,7 @@ class LegacyTableSourceTest extends TableTestBase {
     util.verifyPlan(t)
   }
 
+  @Test
   def testProjectOnlyRowtime(): Unit = {
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),

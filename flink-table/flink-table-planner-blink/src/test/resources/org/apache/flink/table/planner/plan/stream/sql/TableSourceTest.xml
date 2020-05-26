@@ -40,24 +40,24 @@ Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedVa
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testProcTimeTableSourceSimple">
+  <TestCase name="testProjectOnlyRowtime">
     <Resource name="sql">
-      <![CDATA[SELECT pTime, id, name, val FROM procTimeT]]>
+      <![CDATA[SELECT rtime FROM T]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(pTime=[$3], id=[$0], name=[$2], val=[$1])
-+- LogicalWatermarkAssigner(rowtime=[pTime], watermark=[$3])
-   +- LogicalProject(id=[$0], val=[$1], name=[$2], pTime=[PROCTIME()])
-      +- LogicalTableScan(table=[[default_catalog, default_database, procTimeT]])
+LogicalProject(rtime=[$1])
++- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
+   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[pTime, id, name, val])
-+- WatermarkAssigner(rowtime=[pTime], watermark=[pTime])
-   +- Calc(select=[id, val, name, PROCTIME() AS pTime])
-      +- TableSourceScan(table=[[default_catalog, default_database, procTimeT]], fields=[id, val, name])
+Calc(select=[rtime])
++- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
+   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
 ]]>
     </Resource>
   </TestCase>
@@ -77,48 +77,6 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- TableSourceScan(table=[[default_catalog, default_database, T, project=[]]], fields=[])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testProjectWithoutRowtime">
-    <Resource name="sql">
-      <![CDATA[SELECT ptime, name, val, id FROM T]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(ptime=[$4], name=[$3], val=[$2], id=[$0])
-+- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
-   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
-+- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
-   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
-      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testProjectWithRowtimeProctime">
-    <Resource name="sql">
-      <![CDATA[SELECT name, val, id FROM T]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(name=[$3], val=[$2], id=[$0])
-+- LogicalWatermarkAssigner(rowtime=[ptime], watermark=[$4])
-   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[name, val, id])
-+- WatermarkAssigner(rowtime=[ptime], watermark=[ptime])
-   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
-      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
 ]]>
     </Resource>
   </TestCase>
@@ -153,6 +111,27 @@ Calc(select=[name, w$end AS EXPR$1, EXPR$2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProjectWithoutProctime">
+    <Resource name="sql">
+      <![CDATA[select name, val, rtime, id from T]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(name=[$3], val=[$2], rtime=[$1], id=[$0])
++- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
+   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[name, val, rtime, id])
++- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
+   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTableSourceWithTimestampRowTimeField">
     <Resource name="sql">
       <![CDATA[SELECT rowtime, id, name, val FROM rowTimeT]]>
@@ -169,6 +148,27 @@ LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
 Calc(select=[rowtime, id, name, val])
 +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
    +- TableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithoutRowtime">
+    <Resource name="sql">
+      <![CDATA[SELECT ptime, name, val, id FROM T]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(ptime=[$4], name=[$3], val=[$2], id=[$0])
++- LogicalWatermarkAssigner(rowtime=[rtime], watermark=[$1])
+   +- LogicalProject(id=[$0], rtime=[$1], val=[$2], name=[$3], ptime=[PROCTIME()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
++- WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
+   +- Calc(select=[id, rtime, val, name, PROCTIME() AS ptime])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, rtime, val, name])
 ]]>
     </Resource>
   </TestCase>
