@@ -70,14 +70,16 @@ final class StrategyUtils {
 					return newDataType.nullable();
 				} else if (Objects.equals(expectedNullability, Boolean.FALSE)) {
 					return newDataType.notNull();
+				} else if (actualType.isNullable()) {
+					return newDataType.nullable();
 				}
-				return newDataType;
+				return newDataType.notNull();
 			})
 			// preserve bridging class if possible
 			.map(newDataType -> {
 				final Class<?> clazz = actualDataType.getConversionClass();
 				final LogicalType newType = newDataType.getLogicalType();
-				if (newType.supportsInputConversion(clazz)) {
+				if (newType.supportsOutputConversion(clazz)) {
 					return newDataType.bridgedTo(clazz);
 				}
 				return newDataType;

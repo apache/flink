@@ -494,20 +494,23 @@ public class InputTypeStrategiesTest {
 						logical(LogicalTypeRoot.DECIMAL, true),
 						logical(LogicalTypeRoot.DECIMAL),
 						logical(LogicalTypeRoot.BOOLEAN),
-						logical(LogicalTypeRoot.INTEGER, false)))
+						logical(LogicalTypeRoot.INTEGER, false),
+						logical(LogicalTypeRoot.INTEGER)))
 				.calledWithArgumentTypes(
 					DataTypes.NULL(),
 					DataTypes.INT(),
 					DataTypes.DOUBLE(),
 					DataTypes.BOOLEAN().notNull(),
+					DataTypes.INT().notNull(),
 					DataTypes.INT().notNull())
 				.expectSignature(
-					"f(<VARCHAR>, <DECIMAL NULL>, <DECIMAL>, <BOOLEAN>, <INTEGER NOT NULL>)")
+					"f(<VARCHAR>, <DECIMAL NULL>, <DECIMAL>, <BOOLEAN>, <INTEGER NOT NULL>, <INTEGER>)")
 				.expectArgumentTypes(
 					DataTypes.VARCHAR(1),
 					DataTypes.DECIMAL(10, 0),
 					DataTypes.DECIMAL(30, 15),
 					DataTypes.BOOLEAN().notNull(),
+					DataTypes.INT().notNull(),
 					DataTypes.INT().notNull()),
 
 			TestSpec
@@ -541,15 +544,15 @@ public class InputTypeStrategiesTest {
 					DataTypes.NULL(),
 					DataTypes.TINYINT(),
 					DataTypes.INT(),
-					DataTypes.BIGINT(),
+					DataTypes.BIGINT().notNull(),
 					DataTypes.DECIMAL(10, 2).notNull())
 				.expectSignature(
 					"f(<CHARACTER_STRING NULL>, <EXACT_NUMERIC>, <APPROXIMATE_NUMERIC>, <APPROXIMATE_NUMERIC>, <APPROXIMATE_NUMERIC NOT NULL>)")
 				.expectArgumentTypes(
 					DataTypes.VARCHAR(1),
 					DataTypes.TINYINT(),
-					DataTypes.DOUBLE(),
-					DataTypes.DOUBLE(),
+					DataTypes.DOUBLE(), // widening with preserved nullability
+					DataTypes.DOUBLE().notNull(), // widening with preserved nullability
 					DataTypes.DOUBLE().notNull()),
 
 			TestSpec
