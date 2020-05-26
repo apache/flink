@@ -74,8 +74,8 @@ See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/pro
 
 ## Kafka Consumer
 
-Flink's Kafka consumer - `FlinkKafkaConsumer` (or `FlinkKafkaConsumer011` for Kafka 0.11.x version,
-or just `FlinkKafkaConsumer010` for Kafka 0.10.x versions) - provides access to read from one or more Kafka topics.
+Flink's Kafka consumer - `FlinkKafkaConsumer` (or `FlinkKafkaConsumer011` for Kafka 0.11.x,
+or `FlinkKafkaConsumer010` for Kafka 0.10.x) - provides access to read from one or more Kafka topics.
 
 The constructor accepts the following arguments:
 
