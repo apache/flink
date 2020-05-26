@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+import org.apache.flink.yarn.util.TestUtils;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -207,7 +208,7 @@ public abstract class YarnTestBase extends TestLogger {
 	private static String getYarnClasspath() {
 		final String start = "../flink-yarn-tests";
 		try {
-			File classPathFile = findFile(start, (dir, name) -> name.equals("yarn.classpath"));
+			File classPathFile = TestUtils.findFile(start, (dir, name) -> name.equals("yarn.classpath"));
 			return FileUtils.readFileToString(classPathFile); // potential NPE is supposed to be fatal
 		} catch (Throwable t) {
 			LOG.error("Error while getting YARN classpath in {}", new File(start).getAbsoluteFile(), t);
@@ -305,29 +306,6 @@ public abstract class YarnTestBase extends TestLogger {
 		return YARN_CONFIGURATION;
 	}
 
-	/**
-	 * Locate a file or directory.
-	 */
-	public static File findFile(String startAt, FilenameFilter fnf) {
-		File root = new File(startAt);
-		String[] files = root.list();
-		if (files == null) {
-			return null;
-		}
-		for (String file : files) {
-			File f = new File(startAt + File.separator + file);
-			if (f.isDirectory()) {
-				File r = findFile(f.getAbsolutePath(), fnf);
-				if (r != null) {
-					return r;
-				}
-			} else if (fnf.accept(f.getParentFile(), f.getName())) {
-				return f;
-			}
-		}
-		return null;
-	}
-
 	@Nonnull
 	YarnClusterDescriptor createYarnClusterDescriptor(org.apache.flink.configuration.Configuration flinkConfiguration) {
 		final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptorWithoutLibDir(flinkConfiguration);
@@ -344,16 +322,6 @@ public abstract class YarnTestBase extends TestLogger {
 				true);
 		yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.toURI()));
 		return yarnClusterDescriptor;
-	}
-
-	/**
-	 * Filter to find root dir of the flink-yarn dist.
-	 */
-	public static class RootDirFilenameFilter implements FilenameFilter {
-		@Override
-		public boolean accept(File dir, String name) {
-			return name.startsWith("flink-dist") && name.endsWith(".jar") && dir.toString().contains("/lib");
-		}
 	}
 
 	/**
@@ -428,7 +396,7 @@ public abstract class YarnTestBase extends TestLogger {
 		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to be a directory", cwd.isDirectory());
 
 		List<String> prohibitedExcerpts = new ArrayList<>();
-		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
+		File foundFile = TestUtils.findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
 			// scan each file for prohibited strings.
@@ -519,7 +487,7 @@ public abstract class YarnTestBase extends TestLogger {
 			return false;
 		}
 
-		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
+		File foundFile = TestUtils.findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
 				if (fileName != null && !name.equals(fileName)) {
@@ -562,7 +530,7 @@ public abstract class YarnTestBase extends TestLogger {
 			return false;
 		}
 
-		File containerTokens = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
+		File containerTokens = TestUtils.findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
 				return name.equals(containerId + ".tokens");
@@ -589,7 +557,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 	public static String getContainerIdByLogName(String logName) {
 		File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
-		File containerLog = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
+		File containerLog = TestUtils.findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
 				return name.equals(logName);
@@ -653,7 +621,7 @@ public abstract class YarnTestBase extends TestLogger {
 		System.setProperty("user.home", homeDir.getAbsolutePath());
 		String uberjarStartLoc = "..";
 		LOG.info("Trying to locate uberjar in {}", new File(uberjarStartLoc).getAbsolutePath());
-		flinkUberjar = findFile(uberjarStartLoc, new RootDirFilenameFilter());
+		flinkUberjar = TestUtils.findFile(uberjarStartLoc, new TestUtils.RootDirFilenameFilter());
 		Assert.assertNotNull("Flink uberjar not found", flinkUberjar);
 		String flinkDistRootDir = flinkUberjar.getParentFile().getParent();
 		flinkLibFolder = flinkUberjar.getParentFile(); // the uberjar is located in lib/
@@ -681,7 +649,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 			Map<String, String> map = new HashMap<String, String>(System.getenv());
 
-			File flinkConfDirPath = findFile(flinkDistRootDir, new ContainsName(new String[]{"flink-conf.yaml"}));
+			File flinkConfDirPath = TestUtils.findFile(flinkDistRootDir, new ContainsName(new String[]{"flink-conf.yaml"}));
 			Assert.assertNotNull(flinkConfDirPath);
 
 			final String confDirPath = flinkConfDirPath.getParentFile().getAbsolutePath();
