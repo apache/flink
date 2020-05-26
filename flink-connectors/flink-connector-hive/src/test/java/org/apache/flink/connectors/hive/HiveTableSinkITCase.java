@@ -78,7 +78,7 @@ import static org.junit.Assert.assertEquals;
  * Tests {@link HiveTableSink}.
  */
 @RunWith(FlinkStandaloneHiveRunner.class)
-public class HiveTableSinkTest {
+public class HiveTableSinkITCase {
 
 	@HiveSQL(files = {})
 	private static HiveShell hiveShell;
