@@ -394,8 +394,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
                     columnFamilyHandles,
                     keyGroupRange,
                     initialHandle.getKeyGroupRange(),
-                    keyGroupPrefixBytes,
-                    writeBatchSize);
+                    keyGroupPrefixBytes);
         } catch (RocksDBException e) {
             String errMsg = "Failed to clip DB after initialization.";
             logger.error(errMsg, e);
