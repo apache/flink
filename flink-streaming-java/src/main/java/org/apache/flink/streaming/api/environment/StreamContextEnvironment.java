@@ -24,12 +24,15 @@ import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -60,8 +63,26 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-		JobClient jobClient = executeAsync(streamGraph);
+		final JobClient jobClient = executeAsync(streamGraph);
+		final List<JobListener> jobListeners = getJobListeners();
 
+		try {
+			final JobExecutionResult  jobExecutionResult = getJobExecutionResult(jobClient);
+			jobListeners.forEach(jobListener ->
+					jobListener.onJobExecuted(jobExecutionResult, null));
+			return jobExecutionResult;
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener ->
+					jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t)));
+			ExceptionUtils.rethrowException(t);
+
+			// never reached, only make javac happy
+			return null;
+		}
+	}
+
+	private JobExecutionResult getJobExecutionResult(final JobClient jobClient) throws Exception {
+		checkNotNull(jobClient);
 		JobExecutionResult jobExecutionResult;
 		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
 			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
