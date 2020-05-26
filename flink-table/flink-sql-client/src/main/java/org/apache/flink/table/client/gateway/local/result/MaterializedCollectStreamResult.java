@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -205,6 +206,11 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 	// --------------------------------------------------------------------------------------------
 
 	private void processInsert(Row row) {
+		// Always set the RowKind to INSERT, so that we can compare rows correctly in sql-client,
+		// (RowKind will be ignored). Just use the Boolean of Tuple<Boolean, Row> to figure out
+		// whether it is insert or delete.
+		row.setKind(RowKind.INSERT);
+
 		// limit the materialized table
 		if (materializedTable.size() - validRowPosition >= maxRowCount) {
 			cleanUp();
@@ -214,6 +220,11 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 	}
 
 	private void processDelete(Row row) {
+		// Always set the RowKind to INSERT, so that we can compare rows correctly here
+		// (RowKind will be ignored), just use the Boolean of Tuple<Boolean, Row> to figure out
+		// whether it is insert or delete.
+		row.setKind(RowKind.INSERT);
+
 		// delete the newest record first to minimize per-page changes
 		final Integer cachedPos = rowPositionCache.get(row);
 		final int startSearchPos;
