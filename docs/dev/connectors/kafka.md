@@ -30,7 +30,7 @@ Flink provides an [Apache Kafka](https://kafka.apache.org) connector for reading
 
 ## Dependency
 
-Apache Flink ships with multiple Kafka connectors; universal, 0.10, and 0.11.
+Apache Flink ships with multiple Kafka connectors: universal, 0.10, and 0.11.
 This universal Kafka connector attempts to track the latest version of the Kafka client.
 The version of the client it uses may change between Flink releases.
 Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.
