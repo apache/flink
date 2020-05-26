@@ -36,12 +36,19 @@ import org.apache.flink.annotation.Public;
 public interface TimestampAssigner<T> {
 
 	/**
+	 * The value that is passed to {@link #extractTimestamp} when there is no previous timestamp
+	 * attached to the record.
+	 */
+	long NO_TIMESTAMP = Long.MIN_VALUE;
+
+	/**
 	 * Assigns a timestamp to an element, in milliseconds since the Epoch. This is independent of
 	 * any particular time zone or calendar.
 	 *
 	 * <p>The method is passed the previously assigned timestamp of the element.
 	 * That previous timestamp may have been assigned from a previous assigner. If the element did
-	 * not carry a timestamp before, this value is {@code Long.MIN_VALUE}.
+	 * not carry a timestamp before, this value is {@link #NO_TIMESTAMP} (= {@code Long.MIN_VALUE}:
+	 * {@value Long#MIN_VALUE}).
 	 *
 	 * @param element The element that the timestamp will be assigned to.
 	 * @param recordTimestamp The current internal timestamp of the element,
