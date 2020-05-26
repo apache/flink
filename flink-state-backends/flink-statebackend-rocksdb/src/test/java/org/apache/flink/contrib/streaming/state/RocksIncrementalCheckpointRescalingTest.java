@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.contrib.streaming.state.writer.WriteBatchMechanism;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -41,11 +42,24 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
+import java.util.Arrays;
 import java.util.List;
 
 /** Tests to guard rescaling from checkpoint. */
+@RunWith(Parameterized.class)
 public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
+
+    @Parameters(name = "WriteBatchMechanism={0}")
+    public static List<Object> writeBatchMechanisms() {
+        return Arrays.asList(WriteBatchMechanism.values());
+    }
+
+    @Parameter public WriteBatchMechanism writeBatchMechanism;
 
     @Rule public TemporaryFolder rootFolder = new TemporaryFolder();
 
@@ -461,7 +475,11 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
     }
 
     private StateBackend getStateBackend() throws Exception {
-        return new RocksDBStateBackend("file://" + rootFolder.newFolder().getAbsolutePath(), true);
+        RocksDBStateBackend backend =
+                new RocksDBStateBackend("file://" + rootFolder.newFolder().getAbsolutePath(), true);
+        Configuration config = new Configuration();
+        config.set(RocksDBConfigurableOptions.WRITE_BATCH_MECHANISM, writeBatchMechanism);
+        return backend.configure(config, Thread.currentThread().getContextClassLoader());
     }
 
     /** A simple keyed function for tests. */

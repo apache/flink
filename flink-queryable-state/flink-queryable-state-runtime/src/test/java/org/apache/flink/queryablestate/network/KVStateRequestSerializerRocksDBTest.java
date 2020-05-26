@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBTestUtils;
+import org.apache.flink.contrib.streaming.state.writer.WriteBatchMechanism;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -32,6 +33,11 @@ import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Additional tests for the serialization and deserialization using the KvStateSerializer with a
@@ -39,7 +45,17 @@ import org.junit.rules.TemporaryFolder;
  */
 public final class KVStateRequestSerializerRocksDBTest {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+	@Parameters(name = "WriteBatchMechanism={0}")
+	public static List<Object> writeBatchMechanisms() {
+		return Arrays.asList(WriteBatchMechanism.values());
+	}
+
+	@Parameter
+	public WriteBatchMechanism writeBatchMechanism;
+
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     /**
      * Tests list serialization and deserialization match.
@@ -53,7 +69,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 
         final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
                 RocksDBTestUtils.builderForTestDefaults(
-                                temporaryFolder.getRoot(), LongSerializer.INSTANCE)
+                                temporaryFolder.getRoot(), LongSerializer.INSTANCE, writeBatchMechanism)
                         .build();
 
         longHeapKeyedStateBackend.setCurrentKey(key);
@@ -80,7 +96,7 @@ public final class KVStateRequestSerializerRocksDBTest {
         // objects for RocksDB state list serialisation
         final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
                 RocksDBTestUtils.builderForTestDefaults(
-                                temporaryFolder.getRoot(), LongSerializer.INSTANCE)
+                                temporaryFolder.getRoot(), LongSerializer.INSTANCE, writeBatchMechanism)
                         .build();
 
         longHeapKeyedStateBackend.setCurrentKey(key);

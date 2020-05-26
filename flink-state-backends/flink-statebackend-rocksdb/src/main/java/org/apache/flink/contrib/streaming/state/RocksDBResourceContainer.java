@@ -26,6 +26,7 @@ import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.Options;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.TableFormatConfig;
 import org.rocksdb.WriteOptions;
@@ -79,6 +80,13 @@ public final class RocksDBResourceContainer implements AutoCloseable {
         this.optionsFactory = optionsFactory;
         this.sharedResources = sharedResources;
         this.handlesToClose = new ArrayList<>();
+    }
+
+    /** Gets the RocksDB {@link Options} to be used for RocksDB operations. */
+    public Options getOptions() {
+        Options opt = new Options(getDbOptions(), getColumnOptions());
+        handlesToClose.add(opt);
+        return opt;
     }
 
     /** Gets the RocksDB {@link DBOptions} to be used for RocksDB instances. */

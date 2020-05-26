@@ -140,10 +140,6 @@ public class RocksDBResource extends ExternalResource {
         return batchWrapper;
     }
 
-    public RocksDBWriterFactory getWriteFactory() {
-        return writeFactory;
-    }
-
     /** Creates and returns a new column family with the given name. */
     public ColumnFamilyHandle createNewColumnFamily(String name) {
         try {
@@ -185,7 +181,6 @@ public class RocksDBResource extends ExternalResource {
                                         "default".getBytes(), columnFamilyOptions)),
                         columnFamilyHandles);
         this.batchWrapper = new RocksDBWriteBatchWrapper(rocksDB, writeOptions);
-        this.writeFactory = new RocksDBWriterFactory();
     }
 
     @Override

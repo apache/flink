@@ -19,7 +19,10 @@
 package org.apache.flink.contrib.streaming.state.benchmark;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBSSTIngestWriter;
 import org.apache.flink.contrib.streaming.state.writer.RocksDBWriteBatchWrapper;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriter;
 import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.util.TestLogger;
 
@@ -59,7 +62,7 @@ import java.util.List;
  * <p>Write gives user 1.5x performance improvements when disableWAL is true, this is useful for
  * batch writing scenario, e.g. RocksDBMapState.putAll(Map) & RocksDBMapState.clear().
  */
-public class RocksDBWriteBatchPerformanceTest extends TestLogger {
+public class RocksDBWriterPerformanceTest extends TestLogger {
 
     @Rule public TemporaryFolder folder = new TemporaryFolder();
 
@@ -76,29 +79,38 @@ public class RocksDBWriteBatchPerformanceTest extends TestLogger {
 
         List<Tuple2<byte[], byte[]>> data = new ArrayList<>(num);
         for (int i = 0; i < num; ++i) {
-            data.add(new Tuple2<>((KEY_PREFIX + i).getBytes(), VALUE.getBytes()));
+            data.add(
+                    new Tuple2<>(
+                            String.format("%s-%08X", KEY_PREFIX, i).getBytes(), VALUE.getBytes()));
         }
 
-        log.info("--------------> put VS WriteBatch with disableWAL=false <--------------");
+        log.warn("--------------> performance with disableWAL=false <--------------");
 
         long t1 = benchMarkHelper(data, false, WRITETYPE.PUT);
         long t2 = benchMarkHelper(data, false, WRITETYPE.WRITE_BATCH);
 
-        log.info("Single Put with disableWAL is false for {} records costs {}", num, t1);
-        log.info("WriteBatch with disableWAL is false for {} records costs {}", num, t2);
+        log.warn("Single Put with disableWAL is false for {} records costs {}", num, t1);
+        log.warn("WriteBatch with disableWAL is false for {} records costs {}", num, t2);
 
-        log.info("--------------> put VS WriteBatch with disableWAL=true <--------------");
+        log.warn("--------------> performance with disableWAL=true <--------------");
 
         t1 = benchMarkHelper(data, true, WRITETYPE.PUT);
         t2 = benchMarkHelper(data, true, WRITETYPE.WRITE_BATCH);
 
-        log.info("Single Put with disableWAL is true for {} records costs {}", num, t1);
-        log.info("WriteBatch with disableWAL is true for {} records costs {}", num, t2);
+        log.warn("Single Put with disableWAL is true for {} records costs {}", num, t1);
+        log.warn("WriteBatch with disableWAL is true for {} records costs {}", num, t2);
+
+        log.warn("--------------> performance of SstIngest <--------------");
+
+        long t3 = benchMarkHelper(data, true, WRITETYPE.SST_INGEST);
+
+        log.warn("SstIngest for {} records costs {}", num, t3);
     }
 
     private enum WRITETYPE {
         PUT,
-        WRITE_BATCH
+        WRITE_BATCH,
+        SST_INGEST
     }
 
     private long benchMarkHelper(
@@ -128,13 +140,32 @@ public class RocksDBWriteBatchPerformanceTest extends TestLogger {
                         ColumnFamilyHandle handle =
                                 db.createColumnFamily(
                                         new ColumnFamilyDescriptor("test".getBytes()));
-                        RocksDBWriteBatchWrapper writeBatchWrapper =
-                                new RocksDBWriteBatchWrapper(db, options)) {
+                        RocksDBWriter writer = new RocksDBWriteBatchWrapper(db, options)) {
                     long t1 = System.nanoTime();
                     for (Tuple2<byte[], byte[]> item : data) {
-                        writeBatchWrapper.put(handle, item.f0, item.f1);
+                        writer.put(handle, item.f0, item.f1);
                     }
-                    writeBatchWrapper.flush();
+                    writer.flush();
+                    return System.nanoTime() - t1;
+                }
+            case SST_INGEST:
+                try (RocksDB db = RocksDB.open(rocksDir.getAbsolutePath());
+                        // @lgo: fixme: plumb through options and ingestOptions.
+                        ColumnFamilyHandle handle =
+                                db.createColumnFamily(
+                                        new ColumnFamilyDescriptor("test".getBytes()));
+                        RocksDBWriter writer =
+                                new RocksDBSSTIngestWriter(
+                                        db,
+                                        MemorySize.parse("16mb").getBytes(),
+                                        null,
+                                        null,
+                                        folder.newFolder())) {
+                    long t1 = System.nanoTime();
+                    for (Tuple2<byte[], byte[]> item : data) {
+                        writer.put(handle, item.f0, item.f1);
+                    }
+                    writer.flush();
                     return System.nanoTime() - t1;
                 }
             default:

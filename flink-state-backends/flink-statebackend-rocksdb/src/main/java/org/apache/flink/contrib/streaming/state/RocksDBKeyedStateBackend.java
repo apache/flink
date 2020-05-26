@@ -751,7 +751,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         Snapshot rocksDBSnapshot = db.getSnapshot();
         try (RocksIteratorWrapper iterator =
                         RocksDBOperationUtils.getRocksIterator(db, stateMetaInfo.f0, readOptions);
-                RocksDBWriter writer = writeFactory.defaultPutWriter(db, getWriteOptions())) {
+                // @lgo: fixme plumb through envOptions.
+                RocksDBWriter writer =
+                        writeFactory.defaultPutWriter(
+                                db, optionsContainer.getOptions(), null, this.getWriteOptions())) {
             iterator.seekToFirst();
 
             DataInputDeserializer serializedValueInput = new DataInputDeserializer();

@@ -18,6 +18,10 @@
 
 package org.apache.flink.contrib.streaming.state.ttl;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.writer.WriteBatchMechanism;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -25,6 +29,11 @@ import org.apache.flink.util.TernaryBoolean;
 public class FullSnapshotRocksDbTtlStateTest extends RocksDBTtlStateTestBase {
     @Override
     StateBackend createStateBackend() {
-        return createStateBackend(TernaryBoolean.FALSE);
+        RocksDBStateBackend backend = createStateBackend(TernaryBoolean.FALSE);
+        Configuration config = new Configuration();
+        config.set(
+                RocksDBConfigurableOptions.WRITE_BATCH_MECHANISM, WriteBatchMechanism.WRITE_BATCH);
+        backend = backend.configure(config, Thread.currentThread().getContextClassLoader());
+        return backend;
     }
 }

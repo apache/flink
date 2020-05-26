@@ -19,6 +19,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.contrib.streaming.state.writer.WriteBatchMechanism;
 import org.apache.flink.runtime.state.StateBackendMigrationTestBase;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 
@@ -26,20 +27,34 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 /** Tests for the partitioned state part of {@link RocksDBStateBackend}. */
 @RunWith(Parameterized.class)
 public class RocksDBStateBackendMigrationTest
         extends StateBackendMigrationTestBase<RocksDBStateBackend> {
 
-    @Parameterized.Parameters(name = "Incremental checkpointing: {0}")
-    public static Collection<Boolean> parameters() {
-        return Arrays.asList(false, true);
+    // @lgo: consider adding benchmark for state migration code.
+
+    @Parameterized.Parameters(name = "IncrementalCheckpointing={0} WriteBatchMechanism={1}")
+    public static Collection<Object[]> parameters() {
+        // Create test parameters for each combination of
+        // IncrementalCheckpointing and writeBatchMechanism
+        List<Object[]> parameters = new ArrayList<>();
+        for (WriteBatchMechanism writeBatchMechanism : WriteBatchMechanism.values()) {
+            for (boolean incrementalCheckpointing : new boolean[] {true, false}) {
+                parameters.add(new Object[] {incrementalCheckpointing, writeBatchMechanism});
+            }
+        }
+        return parameters;
     }
 
     @Parameterized.Parameter public boolean enableIncrementalCheckpointing;
+
+    @Parameterized.Parameter(1)
+    public WriteBatchMechanism writeBatchMechanism;
 
     // Store it because we need it for the cleanup test.
     private String dbPath;
@@ -56,6 +71,7 @@ public class RocksDBStateBackendMigrationTest
         configuration.set(
                 RocksDBOptions.TIMER_SERVICE_FACTORY,
                 RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+        configuration.set(RocksDBConfigurableOptions.WRITE_BATCH_MECHANISM, writeBatchMechanism);
         backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
         backend.setDbStoragePath(dbPath);
         return backend;

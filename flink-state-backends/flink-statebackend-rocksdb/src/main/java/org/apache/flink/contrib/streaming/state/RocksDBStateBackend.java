@@ -26,6 +26,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.contrib.streaming.state.writer.RocksDBWriteBatchWrapper;
 import org.apache.flink.contrib.streaming.state.writer.RocksDBWriterFactory;
+import org.apache.flink.contrib.streaming.state.writer.WriteBatchMechanism;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
@@ -75,6 +76,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_MECHANISM;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
@@ -169,6 +171,9 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
      * 2mb.
      */
     private long writeBatchSize;
+
+    /** The mechanism to use for doing write batching, with {@link RocksDBWriterFactory}. */
+    private WriteBatchMechanism writeBatchMechanism;
 
     // ------------------------------------------------------------------------
 
@@ -329,6 +334,12 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
             this.writeBatchSize = config.get(WRITE_BATCH_SIZE).getBytes();
         } else {
             this.writeBatchSize = original.writeBatchSize;
+        }
+
+        if (original.writeBatchMechanism == null) {
+            this.writeBatchMechanism = config.get(WRITE_BATCH_MECHANISM);
+        } else {
+            this.writeBatchMechanism = original.writeBatchMechanism;
         }
 
         this.memoryConfiguration =
@@ -564,7 +575,8 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
         }
         final RocksDBResourceContainer resourceContainer =
                 createOptionsAndResourceContainer(sharedResources);
-        final RocksDBWriterFactory writeFactory = new RocksDBWriterFactory(getWriteBatchSize());
+        final RocksDBWriterFactory writeFactory =
+                new RocksDBWriterFactory(getWriteBatchMechanism(), getWriteBatchSize(), tempDir);
 
         ExecutionConfig executionConfig = env.getExecutionConfig();
         StreamCompressionDecorator keyGroupCompressionDecorator =
@@ -912,6 +924,13 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
         return writeBatchSize == UNDEFINED_WRITE_BATCH_SIZE
                 ? WRITE_BATCH_SIZE.defaultValue().getBytes()
                 : writeBatchSize;
+    }
+
+    /** Gets the max batch size will be used in {@link RocksDBWriteBatchWrapper}. */
+    public WriteBatchMechanism getWriteBatchMechanism() {
+        return writeBatchMechanism == null
+                ? WRITE_BATCH_MECHANISM.defaultValue()
+                : writeBatchMechanism;
     }
 
     /**

@@ -39,6 +39,7 @@ import org.apache.flink.util.StateMigrationException;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.Options;
 import org.rocksdb.RocksDBException;
 
 import javax.annotation.Nonnull;
@@ -141,8 +142,10 @@ public class RocksDBFullRestoreOperation<K> extends AbstractRocksDBRestoreOperat
             ThrowingIterator<KeyGroup> keyGroups, List<ColumnFamilyHandle> columnFamilies)
             throws IOException, RocksDBException, StateMigrationException {
         // for all key-groups in the current state handle...
-        // @lgo: fixme plumb through the optionsContainer for writeOptions.
-        try (RocksDBWriter writer = writerFactory.defaultPutWriter(db, null)) {
+        try (ColumnFamilyOptions columnFamilyOptions = new ColumnFamilyOptions();
+                Options options = new Options(dbOptions, columnFamilyOptions);
+                // @lgo: fixme plumb through the optionsContainer for writeOptions.
+                RocksDBWriter writer = writerFactory.defaultPutWriter(db, options, null, null)) {
             while (keyGroups.hasNext()) {
                 KeyGroup keyGroup = keyGroups.next();
                 try (ThrowingIterator<KeyGroupEntry> groupEntries = keyGroup.getKeyGroupEntries()) {

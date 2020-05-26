@@ -25,20 +25,15 @@ import org.apache.flink.contrib.streaming.state.writer.WriteBatchMechanism;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.TernaryBoolean;
 
-/** Test suite for rocksdb state TTL with incremental snapshot strategy. */
-public class IncSnapshotRocksDbTtlStateTest extends RocksDBTtlStateTestBase {
+/** Test suite for rocksdb state TTL with full snapshot strategy. */
+public class FullSnapshotSstIngestRocksDbTtlStateTest extends RocksDBTtlStateTestBase {
     @Override
     StateBackend createStateBackend() {
-        RocksDBStateBackend backend = createStateBackend(TernaryBoolean.TRUE);
+        RocksDBStateBackend backend = createStateBackend(TernaryBoolean.FALSE);
         Configuration config = new Configuration();
         config.set(
-                RocksDBConfigurableOptions.WRITE_BATCH_MECHANISM, WriteBatchMechanism.WRITE_BATCH);
+                RocksDBConfigurableOptions.WRITE_BATCH_MECHANISM, WriteBatchMechanism.SST_INGEST);
         backend = backend.configure(config, Thread.currentThread().getContextClassLoader());
         return backend;
-    }
-
-    @Override
-    public boolean fullSnapshot() {
-        return false;
     }
 }

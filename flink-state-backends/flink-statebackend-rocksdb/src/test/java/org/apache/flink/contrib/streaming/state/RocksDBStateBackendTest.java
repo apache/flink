@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.contrib.streaming.state.writer.WriteBatchMechanism;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -64,7 +65,6 @@ import org.rocksdb.Snapshot;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -98,12 +98,23 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
     private ValueState<Integer> testState1;
     private ValueState<String> testState2;
 
-    @Parameterized.Parameters(name = "Incremental checkpointing: {0}")
-    public static Collection<Boolean> parameters() {
-        return Arrays.asList(false, true);
+    @Parameterized.Parameters(name = "IncrementalCheckpointing={0} WriteBatchMechanism={1}")
+    public static Collection<Object[]> parameters() {
+        // Create test parameters for each combination of
+        // IncrementalCheckpointing and writeBatchMechanism
+        List<Object[]> parameters = new ArrayList<>();
+        for (WriteBatchMechanism writeBatchMechanism : WriteBatchMechanism.values()) {
+            for (boolean incrementalCheckpointing : new boolean[] {true, false}) {
+                parameters.add(new Object[] {incrementalCheckpointing, writeBatchMechanism});
+            }
+        }
+        return parameters;
     }
 
     @Parameterized.Parameter public boolean enableIncrementalCheckpointing;
+
+    @Parameterized.Parameter(1)
+    public WriteBatchMechanism writeBatchMechanism;
 
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -139,6 +150,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
         configuration.set(
                 RocksDBOptions.TIMER_SERVICE_FACTORY,
                 RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+        configuration.set(RocksDBConfigurableOptions.WRITE_BATCH_MECHANISM, writeBatchMechanism);
         backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
         backend.setDbStoragePath(dbPath);
         return backend;
@@ -192,7 +204,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
                                 IntSerializer.INSTANCE,
                                 spy(db),
                                 defaultCFHandle,
-                                optionsContainer.getColumnOptions())
+                                optionsContainer.getColumnOptions(),
+                                writeBatchMechanism)
                         .setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
                         .build();
 
@@ -275,7 +288,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
                                     IntSerializer.INSTANCE,
                                     db,
                                     defaultCFHandle,
-                                    columnFamilyOptions)
+                                    columnFamilyOptions,
+                                    writeBatchMechanism)
                             .setEnableIncrementalCheckpointing(enableIncrementalCheckpointing)
                             .build();
 

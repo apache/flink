@@ -52,6 +52,7 @@ import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.Options;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
@@ -329,7 +330,10 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
                                     (IncrementalRemoteKeyedStateHandle) rawStateHandle,
                                     temporaryRestoreInstancePath);
                     // @lgo: fixme plumb through the optionsContainer for writeOptions.
-                    RocksDBWriter writer = writerFactory.defaultPutWriter(this.db, null)) {
+                    ColumnFamilyOptions columnFamilyOptions = new ColumnFamilyOptions();
+                    Options options = new Options(dbOptions, columnFamilyOptions);
+                    RocksDBWriter writer =
+                            writerFactory.defaultPutWriter(this.db, options, null, null)) {
 
                 List<ColumnFamilyDescriptor> tmpColumnFamilyDescriptors =
                         tmpRestoreDBInfo.columnFamilyDescriptors;

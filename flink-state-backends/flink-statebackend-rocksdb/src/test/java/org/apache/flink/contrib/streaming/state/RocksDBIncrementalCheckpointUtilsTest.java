@@ -132,7 +132,7 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
 
         RocksDBWriterFactory writerFactory =
                 new RocksDBWriterFactory(
-                        RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes());
+                        RocksDBConfigurableOptions.WRITE_BATCH_MECHANISM.defaultValue());
 
         try (RocksDB rocksDB = RocksDB.open(tmp.newFolder().getAbsolutePath());
                 ColumnFamilyHandle columnFamilyHandle =

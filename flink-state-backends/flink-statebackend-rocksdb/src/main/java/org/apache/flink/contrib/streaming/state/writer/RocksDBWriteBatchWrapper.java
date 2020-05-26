@@ -33,12 +33,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * It's a wrapper class around RocksDB's {@link WriteBatch} for writing in bulk.
+ * {@link RocksDBWriteBatchWrapper} is a wrapper class around RocksDB's {@link WriteBatch} for
+ * writing in bulk.
  *
  * <p>IMPORTANT: This class is not thread safe.
  *
- * <p>@lgo: TODO describe in detail what this writer is good for: all non-puts, small amounts of
- * batching.
+ * <p>Use {@link RocksDBWriteBatchWrapper} for general purpose writes to RocksDB. It is ideal for
+ * synchronous path writes where a few writes ae being done. When doing batch writes of ordered
+ * data, prefer {@link RocksDBSSTIngestWriter}.
  */
 public class RocksDBWriteBatchWrapper implements RocksDBWriter {
 

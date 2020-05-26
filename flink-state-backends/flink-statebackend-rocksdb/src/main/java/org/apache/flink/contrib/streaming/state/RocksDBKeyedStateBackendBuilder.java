@@ -113,9 +113,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
     private RocksDBNativeMetricOptions nativeMetricOptions;
     private int numberOfTransferingThreads;
-    private long writeBatchSize =
-            RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes();
-    private RocksDBWriterFactory writeFactory;
+    private final RocksDBWriterFactory writeFactory;
 
     private RocksDB injectedTestDB; // for testing
     private ColumnFamilyHandle injectedDefaultColumnFamilyHandle; // for testing
@@ -233,12 +231,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
     RocksDBKeyedStateBackendBuilder<K> setWriteBatchSize(long writeBatchSize) {
         checkArgument(writeBatchSize >= 0, "Write batch size should be non negative.");
-        this.writeBatchSize = writeBatchSize;
+        this.writeFactory.setWriteBatchSize(writeBatchSize);
         return this;
-    }
-
-    private long getWriteBatchSize() {
-        return writeBatchSize;
     }
 
     private RocksDBWriterFactory getWriterFactory() {
@@ -452,7 +446,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     restoreStateHandles,
                     ttlCompactFiltersManager,
                     optionsContainer.getWriteBufferManagerCapacity(),
-                    this.getWriterFactory());
+                    getWriterFactory());
         } else {
             return new RocksDBFullRestoreOperation<>(
                     keyGroupRange,
@@ -471,7 +465,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     restoreStateHandles,
                     ttlCompactFiltersManager,
                     optionsContainer.getWriteBufferManagerCapacity(),
-                    this.getWriterFactory());
+                    getWriterFactory());
         }
     }
 
