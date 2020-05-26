@@ -140,7 +140,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		stopJobSignal = YarnTestJob.StopJobSignal.usingMarkerFile(FOLDER.newFile().toPath());
 		job = YarnTestJob.stoppableJob(stopJobSignal);
 		final File testingJar =
-			YarnTestBase.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
+			TestUtils.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
 
 		assertThat(testingJar, notNullValue());
 

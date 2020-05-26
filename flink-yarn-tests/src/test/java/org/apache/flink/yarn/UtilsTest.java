@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.yarn.util.TestUtils;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
@@ -66,7 +67,7 @@ public class UtilsTest extends TestLogger {
 
 	@Test
 	public void testUberjarLocator() {
-		File dir = YarnTestBase.findFile("..", new YarnTestBase.RootDirFilenameFilter());
+		File dir = TestUtils.findFile("..", new TestUtils.RootDirFilenameFilter());
 		Assert.assertNotNull(dir);
 		Assert.assertTrue(dir.getName().endsWith(".jar"));
 		dir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
