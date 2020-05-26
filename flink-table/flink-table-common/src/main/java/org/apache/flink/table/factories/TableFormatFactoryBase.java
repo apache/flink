@@ -31,7 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.DescriptorProperties.CONSTRAINT_UNIQUE;
 import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
@@ -122,10 +121,8 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 			properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
 			properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 			// table constraint
-			properties.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#." + DescriptorProperties.NAME);
-			properties.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#." + DescriptorProperties.TYPE);
-			properties.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#."
-					+ DescriptorProperties.CONSTRAINT_UNIQUE_COLUMNS);
+			properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+			properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 		}
 		properties.addAll(supportedFormatProperties());
 		return properties;

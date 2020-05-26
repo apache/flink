@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.descriptors.DescriptorProperties.CONSTRAINT_UNIQUE;
 import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
@@ -160,10 +159,8 @@ public class SchemaValidator implements DescriptorValidator {
 		keys.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 
 		// table constraint
-		keys.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#." + DescriptorProperties.NAME);
-		keys.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#." + DescriptorProperties.TYPE);
-		keys.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#."
-				+ DescriptorProperties.CONSTRAINT_UNIQUE_COLUMNS);
+		keys.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+		keys.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 
 		return keys;
 	}

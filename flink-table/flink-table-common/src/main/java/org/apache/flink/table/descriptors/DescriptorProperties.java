@@ -26,8 +26,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
-import org.apache.flink.table.api.constraints.Constraint;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -96,9 +94,9 @@ public class DescriptorProperties {
 
 	public static final String WATERMARK_STRATEGY_DATA_TYPE = WATERMARK_STRATEGY + '.' + DATA_TYPE;
 
-	public static final String CONSTRAINT_UNIQUE = "constraint.unique";
+	public static final String PRIMARY_KEY_NAME = "primary-key.name";
 
-	public static final String CONSTRAINT_UNIQUE_COLUMNS = "columns";
+	public static final String PRIMARY_KEY_COLUMNS = "primary-key.columns";
 
 	private static final Pattern SCHEMA_COLUMN_NAME_SUFFIX = Pattern.compile("\\d+\\.name");
 
@@ -245,18 +243,10 @@ public class DescriptorProperties {
 				watermarkValues);
 		}
 
-		if (schema.getPrimaryKey().isPresent()) {
-			final UniqueConstraint uniqueConstraint = schema.getPrimaryKey().get();
-			final List<List<String>> uniqueConstraintValues = new ArrayList<>();
-			uniqueConstraintValues.add(Arrays.asList(
-					uniqueConstraint.getName(),
-					uniqueConstraint.getType().name(),
-					String.join(",", uniqueConstraint.getColumns())));
-			putIndexedFixedProperties(
-					key + '.' + CONSTRAINT_UNIQUE,
-					Arrays.asList(NAME, TYPE, CONSTRAINT_UNIQUE_COLUMNS),
-					uniqueConstraintValues);
-		}
+		schema.getPrimaryKey().ifPresent(pk -> {
+			putString(key + '.' + PRIMARY_KEY_NAME, pk.getName());
+			putString(key + '.' + PRIMARY_KEY_COLUMNS, String.join(",", pk.getColumns()));
+		});
 	}
 
 	/**
@@ -688,24 +678,12 @@ public class DescriptorProperties {
 		}
 
 		// Extract unique constraints.
-		String uniqueConstraintKey = key + '.' + CONSTRAINT_UNIQUE;
-		final int uniqueConstraintCnt = properties.keySet().stream()
-				.filter((k) -> k.startsWith(uniqueConstraintKey) && k.endsWith('.' + TYPE))
-				.mapToInt((k) -> 1)
-				.sum();
-		if (uniqueConstraintCnt > 0) {
-			for (int i = 0; i < uniqueConstraintCnt; i++) {
-				String nameKey = key + '.' + CONSTRAINT_UNIQUE + '.' + i + '.' + NAME;
-				String typeKey = key + '.' + CONSTRAINT_UNIQUE + '.' + i + '.' + TYPE;
-				String columnsKey = key + '.' + CONSTRAINT_UNIQUE + '.' + i + '.' + CONSTRAINT_UNIQUE_COLUMNS;
-				final String constraintName = optionalGet(nameKey).orElseThrow(exceptionSupplier(nameKey));
-				final String constraintType = optionalGet(typeKey).orElseThrow(exceptionSupplier(typeKey));
-				assert constraintType.equals(Constraint.ConstraintType.PRIMARY_KEY.name())
-						: String.format("%s constraint is not supported yet, "
-						+ "supported options: [%s]", constraintType, Constraint.ConstraintType.PRIMARY_KEY);
-				final String columns = optionalGet(columnsKey).orElseThrow(exceptionSupplier(columnsKey));
-				schemaBuilder.primaryKey(constraintName, columns.split(","));
-			}
+		String pkConstraintNameKey = key + '.' + PRIMARY_KEY_NAME;
+		final Optional<String> pkConstraintNameOpt = optionalGet(pkConstraintNameKey);
+		if (pkConstraintNameOpt.isPresent()) {
+			final String pkColumnsKey = key + '.' + PRIMARY_KEY_COLUMNS;
+			final String columns = optionalGet(pkColumnsKey).orElseThrow(exceptionSupplier(pkColumnsKey));
+			schemaBuilder.primaryKey(pkConstraintNameOpt.get(), columns.split(","));
 		}
 		return Optional.of(schemaBuilder.build());
 	}

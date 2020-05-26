@@ -145,10 +145,8 @@ class InMemoryTableFactory(terminationCount: Int)
     properties.add(SCHEMA + ".#." + EXPR)
 
     // table constraint
-    properties.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#." + DescriptorProperties.NAME)
-    properties.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#." + DescriptorProperties.TYPE)
-    properties.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#."
-      + DescriptorProperties.CONSTRAINT_UNIQUE_COLUMNS)
+    properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+    properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 
     properties
   }

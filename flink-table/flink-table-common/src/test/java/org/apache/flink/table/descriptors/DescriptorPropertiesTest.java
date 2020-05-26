@@ -207,9 +207,8 @@ public class DescriptorPropertiesTest {
 		expected.put("schema.watermark.0.rowtime", "f1.q2");
 		expected.put("schema.watermark.0.strategy.expr", "`f1`.`q2` - INTERVAL '5' SECOND");
 		expected.put("schema.watermark.0.strategy.data-type", "TIMESTAMP(3)");
-		expected.put("schema.constraint.unique.0.name", "constraint1");
-		expected.put("schema.constraint.unique.0.type", "PRIMARY_KEY");
-		expected.put("schema.constraint.unique.0.columns", "f0,f2");
+		expected.put("schema.primary-key.name", "constraint1");
+		expected.put("schema.primary-key.columns", "f0,f2");
 		assertEquals(expected, actual);
 
 		TableSchema restored = properties.getTableSchema("schema");

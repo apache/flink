@@ -55,7 +55,6 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
-import static org.apache.flink.table.descriptors.DescriptorProperties.CONSTRAINT_UNIQUE;
 import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
@@ -201,10 +200,8 @@ public class HBaseTableFactory implements StreamTableSourceFactory<Row>, StreamT
 		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
 
 		// table constraint
-		properties.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#." + DescriptorProperties.NAME);
-		properties.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#." + DescriptorProperties.TYPE);
-		properties.add(SCHEMA + "." + CONSTRAINT_UNIQUE + ".#."
-				+ DescriptorProperties.CONSTRAINT_UNIQUE_COLUMNS);
+		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+		properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 
 		return properties;
 	}
