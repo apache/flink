@@ -146,7 +146,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 			tEnv.sqlQuery(String.format("select * from %s", TABLE_SERIAL_TYPE)).execute().collect());
 
 		assertEquals("[" +
-				"2767," +
+				"32767," +
 				"2147483647," +
 				"32767," +
 				"2147483647," +
