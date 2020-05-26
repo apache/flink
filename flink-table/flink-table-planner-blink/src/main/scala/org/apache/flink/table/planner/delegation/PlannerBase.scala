@@ -31,7 +31,7 @@ import org.apache.flink.table.factories.{FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.planner.JMap
-import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, SqlExprToRexConverter, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
@@ -51,6 +51,7 @@ import org.apache.flink.table.utils.TableSchemaUtils
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.tools.FrameworkConfig
 
 import java.util
@@ -83,13 +84,19 @@ abstract class PlannerBase(
   // temporary utility until we don't use planner expressions anymore
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
+  private val sqlExprToRexConverterFactory = new SqlExprToRexConverterFactory {
+    override def create(tableRowType: RelDataType): SqlExprToRexConverter =
+      plannerContext.createSqlExprToRexConverter(tableRowType)
+  }
+
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
     new PlannerContext(
       config,
       functionCatalog,
       catalogManager,
-      asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
+      asRootSchema(new CatalogManagerCalciteSchema(
+        catalogManager, sqlExprToRexConverterFactory, isStreamingMode)),
       getTraitDefs.toList
     )
 

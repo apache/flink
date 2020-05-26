@@ -24,7 +24,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.data.{GenericRowData, TimestampData}
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory, SqlExprToRexConverter, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
@@ -34,7 +34,7 @@ import org.apache.flink.table.utils.CatalogManagerMocks
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.ConventionTraitDef
-
+import org.apache.calcite.rel.`type`.RelDataType
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
@@ -50,11 +50,16 @@ class WatermarkGeneratorCodeGenTest {
   val config = new TableConfig
   val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
   val functionCatalog = new FunctionCatalog(config, catalogManager, new ModuleManager)
+  private val sqlExprToRexConverterFactory = new SqlExprToRexConverterFactory {
+    override def create(tableRowType: RelDataType): SqlExprToRexConverter =
+      createSqlExprToRexConverter(tableRowType)
+  }
   val plannerContext = new PlannerContext(
     config,
     functionCatalog,
     catalogManager,
-    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
+    asRootSchema(new CatalogManagerCalciteSchema(
+      catalogManager, sqlExprToRexConverterFactory, false)),
     Collections.singletonList(ConventionTraitDef.INSTANCE))
   val planner: FlinkPlannerImpl = plannerContext.createFlinkPlanner(
     catalogManager.getCurrentCatalog,
@@ -68,6 +73,9 @@ class WatermarkGeneratorCodeGenTest {
     GenericRowData.of(TimestampData.fromEpochMillis(4000L), JInt.valueOf(10)),
     GenericRowData.of(TimestampData.fromEpochMillis(6000L), JInt.valueOf(8))
   )
+
+  private def createSqlExprToRexConverter(tableRowType: RelDataType): SqlExprToRexConverter =
+    plannerContext.createSqlExprToRexConverter(tableRowType)
 
   @Test
   def testAscendingWatermark(): Unit = {
