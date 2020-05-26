@@ -491,7 +491,7 @@ public class InputTypeStrategiesTest {
 					"Logical type roots instead of concrete data types",
 					sequence(
 						logical(LogicalTypeRoot.VARCHAR),
-						logical(LogicalTypeRoot.DECIMAL),
+						logical(LogicalTypeRoot.DECIMAL, true),
 						logical(LogicalTypeRoot.DECIMAL),
 						logical(LogicalTypeRoot.BOOLEAN),
 						logical(LogicalTypeRoot.INTEGER, false)))
@@ -502,12 +502,12 @@ public class InputTypeStrategiesTest {
 					DataTypes.BOOLEAN().notNull(),
 					DataTypes.INT().notNull())
 				.expectSignature(
-					"f(<VARCHAR>, <DECIMAL>, <DECIMAL>, <BOOLEAN>, <INTEGER NOT NULL>)")
+					"f(<VARCHAR>, <DECIMAL NULL>, <DECIMAL>, <BOOLEAN>, <INTEGER NOT NULL>)")
 				.expectArgumentTypes(
 					DataTypes.VARCHAR(1),
 					DataTypes.DECIMAL(10, 0),
 					DataTypes.DECIMAL(30, 15),
-					DataTypes.BOOLEAN(),
+					DataTypes.BOOLEAN().notNull(),
 					DataTypes.INT().notNull()),
 
 			TestSpec
@@ -532,22 +532,34 @@ public class InputTypeStrategiesTest {
 				.forStrategy(
 					"Logical type family instead of concrete data types",
 					sequence(
-						logical(LogicalTypeFamily.CHARACTER_STRING),
+						logical(LogicalTypeFamily.CHARACTER_STRING, true),
 						logical(LogicalTypeFamily.EXACT_NUMERIC),
+						logical(LogicalTypeFamily.APPROXIMATE_NUMERIC),
 						logical(LogicalTypeFamily.APPROXIMATE_NUMERIC),
 						logical(LogicalTypeFamily.APPROXIMATE_NUMERIC, false)))
 				.calledWithArgumentTypes(
 					DataTypes.NULL(),
 					DataTypes.TINYINT(),
 					DataTypes.INT(),
+					DataTypes.BIGINT(),
 					DataTypes.DECIMAL(10, 2).notNull())
 				.expectSignature(
-					"f(<CHARACTER_STRING>, <EXACT_NUMERIC>, <APPROXIMATE_NUMERIC>, <APPROXIMATE_NUMERIC NOT NULL>)")
+					"f(<CHARACTER_STRING NULL>, <EXACT_NUMERIC>, <APPROXIMATE_NUMERIC>, <APPROXIMATE_NUMERIC>, <APPROXIMATE_NUMERIC NOT NULL>)")
 				.expectArgumentTypes(
 					DataTypes.VARCHAR(1),
 					DataTypes.TINYINT(),
 					DataTypes.DOUBLE(),
-					DataTypes.DOUBLE().notNull())
+					DataTypes.DOUBLE(),
+					DataTypes.DOUBLE().notNull()),
+
+			TestSpec
+				.forStrategy(
+					"Logical type family with invalid type",
+					sequence(logical(LogicalTypeFamily.EXACT_NUMERIC)))
+				.calledWithArgumentTypes(DataTypes.FLOAT())
+				.expectSignature("f(<EXACT_NUMERIC>)")
+				.expectErrorMessage(
+					"Unsupported argument type. Expected type of family 'EXACT_NUMERIC' but actual type was 'FLOAT'.")
 		);
 	}
 

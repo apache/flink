@@ -178,7 +178,7 @@ public final class InputTypeStrategies {
 	 * Implicit casts will be inserted if possible.
 	 */
 	public static RootArgumentTypeStrategy logical(LogicalTypeRoot expectedRoot) {
-		return new RootArgumentTypeStrategy(expectedRoot, true);
+		return new RootArgumentTypeStrategy(expectedRoot, null);
 	}
 
 	/**
@@ -194,7 +194,7 @@ public final class InputTypeStrategies {
 	 * Implicit casts will be inserted if possible.
 	 */
 	public static FamilyArgumentTypeStrategy logical(LogicalTypeFamily expectedFamily) {
-		return new FamilyArgumentTypeStrategy(expectedFamily, true);
+		return new FamilyArgumentTypeStrategy(expectedFamily, null);
 	}
 
 	/**

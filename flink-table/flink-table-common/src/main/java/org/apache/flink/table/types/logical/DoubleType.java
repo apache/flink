@@ -33,7 +33,7 @@ import java.util.Set;
 @PublicEvolving
 public final class DoubleType extends LogicalType {
 
-	public static final int PRECISION = 15;
+	public static final int PRECISION = 15; // adopted from Calcite
 
 	private static final String FORMAT = "DOUBLE";
 
