@@ -87,7 +87,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 							// the jvm exits
 							jobClient.cancel().get(1, TimeUnit.SECONDS);
 						},
-						ContextEnvironment.class.getSimpleName(),
+						StreamContextEnvironment.class.getSimpleName(),
 						LOG);
 					jobExecutionResultFuture.whenComplete((ignored, throwable) ->
 						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
