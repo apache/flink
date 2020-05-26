@@ -39,7 +39,7 @@ public class YarnJobClusterExecutorFactory implements PipelineExecutorFactory {
 	}
 
 	@Override
-	public boolean isCompatibleWith(@	Nonnull final Configuration configuration) {
+	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
 		return YarnJobClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
 	}
 
