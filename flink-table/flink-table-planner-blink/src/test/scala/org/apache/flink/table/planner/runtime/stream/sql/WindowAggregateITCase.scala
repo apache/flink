@@ -361,7 +361,6 @@ class WindowAggregateITCase(mode: StateBackendMode)
     tEnv.explain(true)
   }
 
-
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
     val preLateFireInterval = getMillisecondFromConfigDuration(tableConfig,
