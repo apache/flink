@@ -35,7 +35,7 @@ This universal Kafka connector attempts to track the latest version of the Kafka
 The version of the client it uses may change between Flink releases.
 Modern Kafka clients are backwards compatible with broker versions 0.10.0 or later.
 For most users the universal Kafka connector is the most appropriate.
-However, for Kafka 0.11.x and 0.10.x versions, we recommend using dedicated ``0.11`` and ``0.10`` respectively.
+However, for Kafka versions 0.11.x and 0.10.x, we recommend using the dedicated ``0.11`` and ``0.10`` connectors, respectively.
 For details on Kafka compatibility, please refer to the official [Kafka documentation](https://kafka.apache.org/protocol.html#protocol_compatibility).
 
 <div class="codetabs" markdown="1">
