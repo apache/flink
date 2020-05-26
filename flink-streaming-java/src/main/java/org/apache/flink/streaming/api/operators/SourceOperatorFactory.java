@@ -28,11 +28,12 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.source.coordinator.SourceCoordinatorProvider;
-import org.apache.flink.streaming.api.operators.source.NoOpWatermarkGenerator;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 
 import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The Factory class for {@link SourceOperator}.
@@ -46,17 +47,21 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 	private final Source<OUT, ?, ?> source;
 
 	/** The event time setup (timestamp assigners, watermark generators, etc.). */
-	private final WatermarkStrategy<OUT> watermarkStrategy = (ctx) -> new NoOpWatermarkGenerator<>();
+	private final WatermarkStrategy<OUT> watermarkStrategy;
 
 	/** The number of worker thread for the source coordinator. */
 	private final int numCoordinatorWorkerThread;
 
-	public SourceOperatorFactory(Source<OUT, ?, ?> source) {
-		this(source, 1);
+	public SourceOperatorFactory(Source<OUT, ?, ?> source, WatermarkStrategy<OUT> watermarkStrategy) {
+		this(source, watermarkStrategy, 1);
 	}
 
-	public SourceOperatorFactory(Source<OUT, ?, ?> source, int numCoordinatorWorkerThread) {
-		this.source = source;
+	public SourceOperatorFactory(
+			Source<OUT, ?, ?> source,
+			WatermarkStrategy<OUT> watermarkStrategy,
+			int numCoordinatorWorkerThread) {
+		this.source = checkNotNull(source);
+		this.watermarkStrategy = checkNotNull(watermarkStrategy);
 		this.numCoordinatorWorkerThread = numCoordinatorWorkerThread;
 	}
 
