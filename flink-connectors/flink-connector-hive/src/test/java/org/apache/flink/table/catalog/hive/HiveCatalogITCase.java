@@ -44,6 +44,7 @@ import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,6 +57,7 @@ import java.io.FileReader;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -259,5 +261,50 @@ public class HiveCatalogITCase {
 		String expected = "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
 				"2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n";
 		assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkPath))));
+	}
+
+	@Test
+	public void testBatchReadWriteCsvWithProctime() {
+		testReadWriteCsvWithProctime(false);
+	}
+
+	@Test
+	public void testStreamReadWriteCsvWithProctime() {
+		testReadWriteCsvWithProctime(true);
+	}
+
+	private void testReadWriteCsvWithProctime(boolean isStreaming) {
+		EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance().useBlinkPlanner();
+		if (isStreaming) {
+			builder = builder.inStreamingMode();
+		} else {
+			builder = builder.inBatchMode();
+		}
+		EnvironmentSettings settings = builder.build();
+		TableEnvironment tableEnv = TableEnvironment.create(settings);
+		tableEnv.getConfig().getConfiguration().setInteger(
+				ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+
+		tableEnv.registerCatalog("myhive", hiveCatalog);
+		tableEnv.useCatalog("myhive");
+
+		String srcPath = this.getClass().getResource("/csv/test3.csv").getPath();
+
+		tableEnv.executeSql("CREATE TABLE proctime_src (" +
+				"price DECIMAL(10, 2)," +
+				"currency STRING," +
+				"ts6 TIMESTAMP(6)," +
+				"ts AS CAST(ts6 AS TIMESTAMP(3))," +
+				"WATERMARK FOR ts AS ts," +
+				"l_proctime AS PROCTIME( )) " + // test " " in proctime()
+				String.format("WITH (" +
+						"'connector.type' = 'filesystem'," +
+						"'connector.path' = 'file://%s'," +
+						"'format.type' = 'csv')", srcPath));
+
+		ArrayList<Row> rows = Lists.newArrayList(
+				tableEnv.executeSql("SELECT * FROM proctime_src").collect());
+		Assert.assertEquals(5, rows.size());
+		tableEnv.executeSql("DROP TABLE proctime_src");
 	}
 }

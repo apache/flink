@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 
@@ -43,12 +44,15 @@ public class PlannerMocks {
 			tableConfig,
 			catalogManager,
 			moduleManager);
+		AtomicReference<PlannerContext> reference = new AtomicReference<>();
 		PlannerContext plannerContext = new PlannerContext(
 			tableConfig,
 			functionCatalog,
 			catalogManager,
-			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
+			asRootSchema(new CatalogManagerCalciteSchema(
+					catalogManager, t -> reference.get().createSqlExprToRexConverter(t), false)),
 			new ArrayList<>());
+		reference.set(plannerContext);
 		return plannerContext.createFlinkPlanner(
 			catalogManager.getCurrentCatalog(),
 			catalogManager.getCurrentDatabase());

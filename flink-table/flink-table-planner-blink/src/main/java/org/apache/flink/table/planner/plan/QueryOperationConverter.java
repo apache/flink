@@ -462,9 +462,9 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				tableIdentifier = catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(refId));
 			}
 
-			RelDataType rowType = TableSourceUtil.getSourceRowType(relBuilder.getTypeFactory(),
-				tableSourceOperation.getTableSchema(),
-				scala.Option.apply(tableSource),
+			RelDataType rowType = TableSourceUtil.getSourceRowTypeFromSource(
+				relBuilder.getTypeFactory(),
+				tableSource,
 				!isBatch);
 			LegacyTableSourceTable<?> tableSourceTable = new LegacyTableSourceTable<>(
 				relBuilder.getRelOptSchema(),
