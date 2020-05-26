@@ -116,7 +116,7 @@ public class YARNITCase extends YarnTestBase {
 				.setSlotsPerTaskManager(1)
 				.createClusterSpecification();
 
-			File testingJar = YarnTestBase.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
+			File testingJar = TestUtils.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
 
 			jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
 			try (ClusterClient<ApplicationId> clusterClient = yarnClusterDescriptor

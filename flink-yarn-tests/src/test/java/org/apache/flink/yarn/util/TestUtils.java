@@ -36,6 +36,29 @@ public class TestUtils {
 	}
 
 	/**
+	 * Locate a file or directory.
+	 */
+	public static File findFile(String startAt, FilenameFilter fnf) {
+		File root = new File(startAt);
+		String[] files = root.list();
+		if (files == null) {
+			return null;
+		}
+		for (String file : files) {
+			File f = new File(startAt + File.separator + file);
+			if (f.isDirectory()) {
+				File r = findFile(f.getAbsolutePath(), fnf);
+				if (r != null) {
+					return r;
+				}
+			} else if (fnf.accept(f.getParentFile(), f.getName())) {
+				return f;
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Filename filter which finds the test jar for the given name.
 	 */
 	public static class TestJarFinder implements FilenameFilter {
@@ -50,6 +73,16 @@ public class TestUtils {
 		public boolean accept(File dir, String name) {
 			return name.startsWith(jarName) && name.endsWith("-tests.jar") &&
 				dir.getAbsolutePath().contains(File.separator + jarName + File.separator);
+		}
+	}
+
+	/**
+	 * Filter to find root dir of the flink-yarn dist.
+	 */
+	public static class RootDirFilenameFilter implements FilenameFilter {
+		@Override
+		public boolean accept(File dir, String name) {
+			return name.startsWith("flink-dist") && name.endsWith(".jar") && dir.toString().contains("/lib");
 		}
 	}
 }
