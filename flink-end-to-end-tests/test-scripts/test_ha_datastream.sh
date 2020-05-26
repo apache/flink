@@ -24,7 +24,7 @@ source "$(dirname "$0")"/common_ha.sh
 # NOTE: This script requires at least Bash version >= 4. Mac OS in 2020 still ships 3.x
 #
 
-TEST_TIMEOUT_SECONDS=540
+TEST_TIMEOUT_SECONDS=900
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
 
@@ -115,7 +115,7 @@ on_exit kill_test_watchdog
 
 ( 
     cmdpid=$BASHPID; 
-    (sleep $TEST_TIMEOUT_SECONDS; # set a timeout of 10 minutes for this test
+    (sleep $TEST_TIMEOUT_SECONDS; # set a timeout for this test
     echo "Test (pid: $cmdpid) did not finish after $TEST_TIMEOUT_SECONDS seconds."
     echo "Printing Flink logs and killing it:"
     cat ${FLINK_DIR}/log/* 

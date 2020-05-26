@@ -20,7 +20,7 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_ha.sh
 
-TEST_TIMEOUT_SECONDS=540
+TEST_TIMEOUT_SECONDS=900
 TEST_PROGRAM_JAR_NAME=DataStreamAllroundTestProgram.jar
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/${TEST_PROGRAM_JAR_NAME}
 FLINK_LIB_DIR=${FLINK_DIR}/lib
@@ -165,7 +165,7 @@ on_exit kill_test_watchdog
 
 ( 
     cmdpid=$BASHPID; 
-    (sleep $TEST_TIMEOUT_SECONDS; # set a timeout of 10 minutes for this test
+    (sleep $TEST_TIMEOUT_SECONDS; # set a timeout for this test
     echo "Test (pid: $cmdpid) did not finish after $TEST_TIMEOUT_SECONDS seconds."
     echo "Printing Flink logs and killing it:"
     cat ${FLINK_DIR}/log/* 
