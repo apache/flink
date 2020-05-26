@@ -162,7 +162,7 @@ Therefore, if deserialization still fails, the consumer will fall into a non-sto
 
 ### Kafka Consumers Start Position Configuration
 
-The Flink Kafka Consumer allows configuring how the start position for Kafka partitions are determined.
+The Flink Kafka Consumer allows configuring how the start positions for Kafka partitions are determined.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
