@@ -5,14 +5,23 @@ distributed coordination of Apache Flink®.
 
 ## Test Coverage
 Jepsen is a framework built to test the behavior of distributed systems
-under faults. The tests in this particular project deploy Flink on YARN, Mesos, or as a standalone cluster, submit a
-job, and examine the availability of the job after injecting faults.
-A job is said to be available if all the tasks of the job are running.
+under faults. The tests in this particular project deploy Flink on YARN, Mesos, or as a standalone cluster,
+submit one or multiple jobs, and examine the availability of the job(s) after injecting faults.
+Optionally, we can cancel the job(s) during the test.
 The faults that can be currently introduced to the Flink cluster include:
 
 * Killing of TaskManager/JobManager processes
 * Stopping HDFS NameNode
 * Network partitions
+
+### Checking Correctness
+We define a job to be available if all the tasks of the job are running.
+Our correctness model prescribes that:
+* Jobs should become available within the [_job recovery grace period_](#command-line-options--configuration)
+after the last injected fault. Note that some faults happen at a single point in time (e.g., killing of processes).
+Other faults, such as network splits, happen during a period of time, and can thus be interleaving.
+As long as there are active faults, jobs are allowed to be unavailable.
+* If jobs are canceled, they must become unavailable within 10 seconds of the cancellation.
 
 ## Usage
 
