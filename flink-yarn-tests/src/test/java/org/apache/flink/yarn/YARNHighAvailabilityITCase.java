@@ -43,7 +43,7 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 import org.apache.flink.yarn.testjob.YarnTestJob;
-import org.apache.flink.yarn.util.YarnTestUtils;
+import org.apache.flink.yarn.util.TestUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
@@ -140,7 +140,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		stopJobSignal = YarnTestJob.StopJobSignal.usingMarkerFile(FOLDER.newFile().toPath());
 		job = YarnTestJob.stoppableJob(stopJobSignal);
 		final File testingJar =
-			YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
+			YarnTestBase.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
 
 		assertThat(testingJar, notNullValue());
 

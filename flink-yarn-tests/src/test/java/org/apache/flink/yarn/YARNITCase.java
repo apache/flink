@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.testjob.YarnTestCacheJob;
-import org.apache.flink.yarn.util.YarnTestUtils;
+import org.apache.flink.yarn.util.TestUtils;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -116,7 +116,7 @@ public class YARNITCase extends YarnTestBase {
 				.setSlotsPerTaskManager(1)
 				.createClusterSpecification();
 
-			File testingJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
+			File testingJar = YarnTestBase.findFile("..", new TestUtils.TestJarFinder("flink-yarn-tests"));
 
 			jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
 			try (ClusterClient<ApplicationId> clusterClient = yarnClusterDescriptor

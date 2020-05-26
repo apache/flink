@@ -51,7 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
+import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
