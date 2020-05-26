@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.stream.sql
 
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.utils._
 
 import org.junit.Test
@@ -76,7 +77,9 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
-  def testProcTimeTableSourceSimple(): Unit = {
+  def testProctimeOnWatermarkSpec(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Watermark can not be defined for a processing time attribute column.")
     val ddl =
       s"""
          |CREATE TABLE procTimeT (
@@ -93,27 +96,6 @@ class TableSourceTest extends TableTestBase {
     util.tableEnv.executeSql(ddl)
 
     util.verifyPlan("SELECT pTime, id, name, val FROM procTimeT")
-  }
-
-  @Test
-  def testProjectWithRowtimeProctime(): Unit = {
-    val ddl =
-      s"""
-         |CREATE TABLE T (
-         |  id int,
-         |  rtime timestamp(3),
-         |  val bigint,
-         |  name varchar(32),
-         |  ptime as PROCTIME(),
-         |  watermark for ptime as ptime
-         |) WITH (
-         |  'connector' = 'values',
-         |  'bounded' = 'false'
-         |)
-       """.stripMargin
-    util.tableEnv.executeSql(ddl)
-
-    util.verifyPlan("SELECT name, val, id FROM T")
   }
 
   @Test
@@ -137,6 +119,7 @@ class TableSourceTest extends TableTestBase {
     util.verifyPlan("SELECT ptime, name, val, id FROM T")
   }
 
+  @Test
   def testProjectWithoutProctime(): Unit = {
     val ddl =
       s"""
@@ -157,26 +140,7 @@ class TableSourceTest extends TableTestBase {
     util.verifyPlan("select name, val, rtime, id from T")
   }
 
-  def testProjectOnlyProctime(): Unit = {
-    val ddl =
-      s"""
-         |CREATE TABLE T (
-         |  id int,
-         |  rtime timestamp(3),
-         |  val bigint,
-         |  name varchar(32),
-         |  ptime as PROCTIME(),
-         |  watermark for ptime as ptime
-         |) WITH (
-         |  'connector' = 'values',
-         |  'bounded' = 'false'
-         |)
-       """.stripMargin
-    util.tableEnv.executeSql(ddl)
-
-    util.verifyPlan("SELECT ptime FROM T")
-  }
-
+  @Test
   def testProjectOnlyRowtime(): Unit = {
     val ddl =
       s"""

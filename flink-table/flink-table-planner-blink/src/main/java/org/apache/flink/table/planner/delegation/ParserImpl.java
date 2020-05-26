@@ -19,19 +19,28 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.calcite.CalciteParser;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
+import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.operations.SqlToOperationConverter;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.TypeConversions;
 
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -46,14 +55,17 @@ public class ParserImpl implements Parser {
 	// multiple statements parsing
 	private final Supplier<FlinkPlannerImpl> validatorSupplier;
 	private final Supplier<CalciteParser> calciteParserSupplier;
+	private final Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator;
 
 	public ParserImpl(
 			CatalogManager catalogManager,
 			Supplier<FlinkPlannerImpl> validatorSupplier,
-			Supplier<CalciteParser> calciteParserSupplier) {
+			Supplier<CalciteParser> calciteParserSupplier,
+			Function<TableSchema, SqlExprToRexConverter> sqlExprToRexConverterCreator) {
 		this.catalogManager = catalogManager;
 		this.validatorSupplier = validatorSupplier;
 		this.calciteParserSupplier = calciteParserSupplier;
+		this.sqlExprToRexConverterCreator = sqlExprToRexConverterCreator;
 	}
 
 	@Override
@@ -73,5 +85,13 @@ public class ParserImpl implements Parser {
 		CalciteParser parser = calciteParserSupplier.get();
 		SqlIdentifier sqlIdentifier = parser.parseIdentifier(identifier);
 		return UnresolvedIdentifier.of(sqlIdentifier.names);
+	}
+
+	@Override
+	public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
+		SqlExprToRexConverter sqlExprToRexConverter = sqlExprToRexConverterCreator.apply(inputSchema);
+		RexNode rexNode = sqlExprToRexConverter.convertToRexNode(sqlExpression);
+		LogicalType logicalType = FlinkTypeFactory.toLogicalType(rexNode.getType());
+		return new RexNodeExpression(rexNode, TypeConversions.fromLogicalToDataType(logicalType));
 	}
 }

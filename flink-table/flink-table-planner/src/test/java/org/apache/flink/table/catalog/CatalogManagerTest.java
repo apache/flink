@@ -19,7 +19,9 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.utils.ParserMock;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -110,6 +112,7 @@ public class CatalogManagerTest extends TestLogger {
 			.builtin(
 				database(BUILTIN_DEFAULT_DATABASE_NAME))
 			.build();
+		manager.setCatalogTableSchemaResolver(new CatalogTableSchemaResolver(new ParserMock(), true));
 
 		CatalogTest.TestTable table = new CatalogTest.TestTable();
 		manager.createTemporaryTable(table, tempIdentifier, true);

@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.planner.sources
 
-import org.apache.flink.table.api.{DataTypes, TableColumn, TableSchema, ValidationException, WatermarkSpec}
+import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException, WatermarkSpec}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions.{CallExpression, Expression, ResolvedExpression, ResolvedFieldReference}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.types.DataTypePrecisionFixer
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
@@ -39,7 +37,7 @@ import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalValues
-import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 
 import _root_.java.sql.Timestamp
@@ -119,67 +117,6 @@ object TableSourceUtil {
   }
 
   /**
-    * Returns schema of the selected fields of the given [[TableSchema]].
-    *
-    * @param converterFactory converter to convert computed columns.
-    * @param typeFactory Type factory to create the type
-    * @param tableSchema Table schema to derive table field names and data types
-    * @param streaming Flag to determine whether the schema of a stream or batch table is created
-    * @return The row type for the selected fields of the given [[TableSchema]], this type would
-    *         also be patched with time attributes defined in the give [[WatermarkSpec]]
-    */
-  def getSourceRowTypeFromSchema(
-      converterFactory: SqlExprToRexConverterFactory,
-      typeFactory: FlinkTypeFactory,
-      tableSchema: TableSchema,
-      streaming: Boolean): RelDataType = {
-    val fieldNames = tableSchema.getFieldNames
-    var fieldTypes = tableSchema.getFieldDataTypes.map(fromDataTypeToLogicalType)
-
-    // TODO: [FLINK-14473] we only support top-level rowtime attribute right now
-    val rowTimeIdx = if (tableSchema.getWatermarkSpecs.nonEmpty) {
-      val rowtime = tableSchema.getWatermarkSpecs.head.getRowtimeAttribute
-      if (rowtime.contains(".")) {
-        throw new ValidationException(
-          s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
-      }
-      Some(fieldNames.indexOf(rowtime))
-    } else {
-      None
-    }
-
-    val converter = converterFactory.create(
-      typeFactory.buildRelNodeRowType(fieldNames, fieldTypes))
-    def isProctime(column: TableColumn): Boolean = {
-      toScala(column.getExpr).exists { expr =>
-        converter.convertToRexNode(expr) match {
-          case call: RexCall => call.getOperator == FlinkSqlOperatorTable.PROCTIME
-          case _ => false
-        }
-      }
-    }
-
-    fieldTypes = fieldTypes.zipWithIndex.map {
-      case (originalType, i) =>
-        if (streaming && rowTimeIdx.exists(_.equals(i))) {
-          new TimestampType(
-            originalType.isNullable,
-            TimestampKind.ROWTIME,
-            originalType.asInstanceOf[TimestampType].getPrecision)
-        } else if (isProctime(tableSchema.getTableColumn(i).get())) {
-          new TimestampType(
-            originalType.isNullable,
-            TimestampKind.PROCTIME,
-            originalType.asInstanceOf[TimestampType].getPrecision)
-        } else {
-          originalType
-        }
-    }
-
-    typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
-  }
-
-  /**
     * Returns schema of the selected fields of the given [[TableSource]].
     *
     * <p> The watermark strategy specifications should either come from the [[TableSchema]]
@@ -221,6 +158,36 @@ object TableSourceUtil {
       }
     }
     typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
+  }
+
+  /**
+   * Returns schema of the selected fields of the given [[TableSource]].
+   *
+   * <p> The watermark strategy specifications should either come from the [[TableSchema]]
+   * or [[TableSource]].
+   *
+   * @param typeFactory Type factory to create the type
+   * @param tableSchema Table schema to derive table field names and data types
+   * @param tableSource Table source to derive watermark strategies
+   * @param streaming Flag to determine whether the schema of a stream or batch table is created
+   * @return The row type for the selected fields of the given [[TableSource]], this type would
+   *         also be patched with time attributes defined in the give [[WatermarkSpec]]
+   */
+  def getSourceRowType(
+      typeFactory: FlinkTypeFactory,
+      tableSchema: TableSchema,
+      tableSource: Option[TableSource[_]],
+      streaming: Boolean): RelDataType = {
+
+    val fieldNames = tableSchema.getFieldNames
+    val fieldDataTypes = tableSchema.getFieldDataTypes
+
+    if (tableSource.isDefined) {
+      getSourceRowTypeFromSource(typeFactory, tableSource.get, streaming)
+    } else {
+      val fieldTypes = fieldDataTypes.map(fromDataTypeToLogicalType)
+      typeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
+    }
   }
 
   /**

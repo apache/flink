@@ -23,7 +23,6 @@ import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
@@ -34,7 +33,6 @@ import org.apache.calcite.config.CalciteConnectionProperty;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Table;
 import org.junit.Before;
@@ -76,22 +74,9 @@ public class FlinkCalciteCatalogReaderTest {
 		// Mock CatalogSchemaTable.
 		CatalogSchemaTable mockTable = new CatalogSchemaTable(
 			ObjectIdentifier.of("a", "b", "c"),
-			ConnectorCatalogTable.source(
-				new TestTableSource(true, TableSchema.builder().build()),
-				true),
+			ConnectorCatalogTable.source(new TestTableSource(true, TableSchema.builder().build()), true),
 			FlinkStatistic.UNKNOWN(),
 			null,
-			tableRowType -> new SqlExprToRexConverter() {
-				@Override
-				public RexNode convertToRexNode(String expr) {
-					return null;
-				}
-
-				@Override
-				public RexNode[] convertToRexNodes(String[] exprs) {
-					return new RexNode[0];
-				}
-			},
 			true,
 			false);
 

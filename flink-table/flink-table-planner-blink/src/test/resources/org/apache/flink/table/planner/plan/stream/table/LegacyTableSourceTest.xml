@@ -61,6 +61,34 @@ Calc(select=[PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, val])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProjectOnlyProctime">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(ptime=[$3])
++- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]], fields=[id, rtime, val, ptime, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectOnlyRowtime">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(rtime=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[rtime])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]], fields=[id, rtime, val, ptime, name])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testProjectWithMapping">
     <Resource name="planBefore">
       <![CDATA[
@@ -72,34 +100,6 @@ LogicalProject(name=[$4], rtime=[$1], val=[$2])
       <![CDATA[
 Calc(select=[name, rtime, val])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: p-rtime, p-id, p-name, p-val)]]], fields=[id, rtime, val, ptime, name])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testProjectWithoutRowtime">
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(ptime=[$3], name=[$4], val=[$2], id=[$0])
-+- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]], fields=[id, rtime, val, ptime, name])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testProjectWithRowtimeProctime">
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(name=[$4], val=[$2], id=[$0])
-+- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[name, val, id])
-+- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]], fields=[id, rtime, val, ptime, name])
 ]]>
     </Resource>
   </TestCase>
@@ -122,6 +122,34 @@ Calc(select=[name, EXPR$0, EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProjectWithoutProctime">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(name=[$4], val=[$2], rtime=[$1], id=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[name, val, rtime, id])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, rtime, val, name)]]], fields=[id, rtime, val, ptime, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithRowtimeProctime">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(name=[$4], val=[$2], id=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[name, val, id])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]], fields=[id, rtime, val, ptime, name])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTableSourceWithTimestampRowTimeField">
     <Resource name="planBefore">
       <![CDATA[
@@ -133,6 +161,20 @@ LogicalProject(rowtime=[$1], id=[$0], name=[$3], val=[$2])
       <![CDATA[
 Calc(select=[rowtime, id, name, val])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, rowTimeT]], fields=[id, rowtime, val, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithoutRowtime">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(ptime=[$3], name=[$4], val=[$2], id=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name, val, rtime)]]], fields=[id, rtime, val, ptime, name])
 ]]>
     </Resource>
   </TestCase>

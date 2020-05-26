@@ -32,7 +32,6 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.plan.stats.TableStats;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.linq4j.tree.Expression;
@@ -56,9 +55,6 @@ class DatabaseCalciteSchema extends FlinkSchema {
 	private final String databaseName;
 	private final String catalogName;
 	private final CatalogManager catalogManager;
-	// The SQL expression converter factory is used to derive correct result type of computed column,
-	// because the date type of computed column from catalog table is not trusted.
-	private final SqlExprToRexConverterFactory converterFactory;
 	// Flag that tells if the current planner should work in a batch or streaming mode.
 	private final boolean isStreamingMode;
 
@@ -66,12 +62,10 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			String databaseName,
 			String catalogName,
 			CatalogManager catalog,
-			SqlExprToRexConverterFactory converterFactory,
 			boolean isStreamingMode) {
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
 		this.catalogManager = catalog;
-		this.converterFactory = converterFactory;
 		this.isStreamingMode = isStreamingMode;
 	}
 
@@ -87,7 +81,6 @@ class DatabaseCalciteSchema extends FlinkSchema {
 					table,
 					statistic,
 					catalogManager.getCatalog(catalogName).orElseThrow(IllegalStateException::new),
-					converterFactory,
 					isStreamingMode,
 					result.isTemporary());
 			})

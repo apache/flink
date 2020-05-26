@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.stream.table
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class TableSourceTest extends TableTestBase {
 
@@ -48,7 +48,6 @@ class TableSourceTest extends TableTestBase {
     util.verifyPlan(t)
   }
 
-  @Ignore("remove ignore once FLINK-17753 is fixed")
   @Test
   def testRowTimeTableSourceGroupWindow(): Unit = {
     val ddl =
@@ -75,15 +74,15 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
-  def testProcTimeTableSourceSimple(): Unit = {
+  def testRowTimeTableSourceGroupWindowWithNotNullRowTimeType(): Unit = {
     val ddl =
       s"""
-         |CREATE TABLE procTimeT (
+         |CREATE TABLE rowTimeT (
          |  id int,
+         |  rowtime timestamp(3) not null,
          |  val bigint,
          |  name varchar(32),
-         |  proctime as PROCTIME(),
-         |  watermark for proctime as proctime
+         |  watermark for rowtime as rowtime - INTERVAL '5' SECONDS
          |) WITH (
          |  'connector' = 'values',
          |  'bounded' = 'false'
@@ -91,7 +90,11 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    val t = util.tableEnv.from("procTimeT").select($"proctime", $"id", $"name", $"val")
+    val t = util.tableEnv.from("rowTimeT")
+      .where($"val" > 100)
+      .window(Tumble over 10.minutes on 'rowtime as 'w)
+      .groupBy('name, 'w)
+      .select('name, 'w.end, 'val.avg)
     util.verifyPlan(t)
   }
 
@@ -119,28 +122,6 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
-  def testProjectWithRowtimeProctime(): Unit = {
-    val ddl =
-      s"""
-         |CREATE TABLE T (
-         |  id int,
-         |  rtime timestamp(3),
-         |  val bigint,
-         |  name varchar(32),
-         |  ptime as PROCTIME(),
-         |  watermark for ptime as ptime
-         |) WITH (
-         |  'connector' = 'values',
-         |  'bounded' = 'false'
-         |)
-       """.stripMargin
-    util.tableEnv.executeSql(ddl)
-
-    val t = util.tableEnv.from("T").select('name, 'val, 'id)
-    util.verifyPlan(t)
-  }
-
-  @Test
   def testProjectWithoutRowtime(): Unit = {
     val ddl =
       s"""
@@ -162,6 +143,7 @@ class TableSourceTest extends TableTestBase {
     util.verifyPlan(t)
   }
 
+  @Test
   def testProjectWithoutProctime(): Unit = {
     val ddl =
       s"""
@@ -183,7 +165,11 @@ class TableSourceTest extends TableTestBase {
     util.verifyPlan(t)
   }
 
-  def testProjectOnlyProctime(): Unit = {
+  @Test
+  def testProctimeOnWatermarkSpec(): Unit = {
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Watermark can not be defined for a processing time attribute column.")
+
     val ddl =
       s"""
          |CREATE TABLE T (
@@ -204,6 +190,7 @@ class TableSourceTest extends TableTestBase {
     util.verifyPlan(t)
   }
 
+  @Test
   def testProjectOnlyRowtime(): Unit = {
     val ddl =
       s"""

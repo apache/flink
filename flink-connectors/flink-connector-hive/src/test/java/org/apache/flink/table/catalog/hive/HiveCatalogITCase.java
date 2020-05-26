@@ -68,6 +68,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -281,6 +282,32 @@ public class HiveCatalogITCase {
 	}
 
 	private void testReadWriteCsvWithProctime(boolean isStreaming) {
+		TableEnvironment tableEnv = prepareTable(isStreaming);
+		ArrayList<Row> rows = Lists.newArrayList(
+				tableEnv.executeSql("SELECT * FROM proctime_src").collect());
+		Assert.assertEquals(5, rows.size());
+		tableEnv.executeSql("DROP TABLE proctime_src");
+	}
+
+	@Test
+	public void testTableApiWithProctimeForBatch() {
+		testTableApiWithProctime(false);
+	}
+
+	@Test
+	public void testTableApiWithProctimeForStreaming() {
+		testTableApiWithProctime(true);
+	}
+
+	private void testTableApiWithProctime(boolean isStreaming) {
+		TableEnvironment tableEnv = prepareTable(isStreaming);
+		ArrayList<Row> rows = Lists.newArrayList(
+				tableEnv.from("proctime_src").select($("price"), $("ts"), $("l_proctime")).execute().collect());
+		Assert.assertEquals(5, rows.size());
+		tableEnv.executeSql("DROP TABLE proctime_src");
+	}
+
+	private TableEnvironment prepareTable(boolean isStreaming) {
 		EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance().useBlinkPlanner();
 		if (isStreaming) {
 			builder = builder.inStreamingMode();
@@ -308,10 +335,7 @@ public class HiveCatalogITCase {
 						"'connector.path' = 'file://%s'," +
 						"'format.type' = 'csv')", srcPath));
 
-		ArrayList<Row> rows = Lists.newArrayList(
-				tableEnv.executeSql("SELECT * FROM proctime_src").collect());
-		Assert.assertEquals(5, rows.size());
-		tableEnv.executeSql("DROP TABLE proctime_src");
+		return tableEnv;
 	}
 
 	@Test

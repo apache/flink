@@ -199,6 +199,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			Planner planner,
 			boolean isStreamingMode) {
 		this.catalogManager = catalogManager;
+		this.catalogManager.setCatalogTableSchemaResolver(
+				new CatalogTableSchemaResolver(planner.getParser(), isStreamingMode));
 		this.moduleManager = moduleManager;
 		this.execEnv = executor;
 
@@ -490,8 +492,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	private Optional<CatalogQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
 		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
 
-		return catalogManager.getTable(tableIdentifier)
-			.map(t -> new CatalogQueryOperation(tableIdentifier, t.getTable().getSchema()));
+		return catalogManager.getTable(tableIdentifier).map(t -> {
+			return new CatalogQueryOperation(tableIdentifier, t.getTable().getSchema());
+		});
 	}
 
 	@Override

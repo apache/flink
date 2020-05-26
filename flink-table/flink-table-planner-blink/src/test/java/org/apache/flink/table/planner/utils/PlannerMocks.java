@@ -19,16 +19,18 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
+import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 
@@ -37,25 +39,31 @@ import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
  */
 public class PlannerMocks {
 	public static FlinkPlannerImpl createDefaultPlanner() {
+		final boolean isStreamingMode = false;
 		TableConfig tableConfig = new TableConfig();
 		CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
 		ModuleManager moduleManager = new ModuleManager();
 		FunctionCatalog functionCatalog = new FunctionCatalog(
-			tableConfig,
-			catalogManager,
-			moduleManager);
-		AtomicReference<PlannerContext> reference = new AtomicReference<>();
+				tableConfig,
+				catalogManager,
+				moduleManager);
 		PlannerContext plannerContext = new PlannerContext(
-			tableConfig,
-			functionCatalog,
-			catalogManager,
-			asRootSchema(new CatalogManagerCalciteSchema(
-					catalogManager, t -> reference.get().createSqlExprToRexConverter(t), false)),
-			new ArrayList<>());
-		reference.set(plannerContext);
-		return plannerContext.createFlinkPlanner(
-			catalogManager.getCurrentCatalog(),
-			catalogManager.getCurrentDatabase());
+				tableConfig,
+				functionCatalog,
+				catalogManager,
+				asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
+				new ArrayList<>());
+		FlinkPlannerImpl planner = plannerContext.createFlinkPlanner(
+				catalogManager.getCurrentCatalog(),
+				catalogManager.getCurrentDatabase());
+		Parser parser = new ParserImpl(
+				catalogManager,
+				() -> planner,
+				planner::parser,
+				t -> plannerContext.createSqlExprToRexConverter(plannerContext.getTypeFactory().buildRelNodeRowType(t))
+		);
+		catalogManager.setCatalogTableSchemaResolver(new CatalogTableSchemaResolver(parser, isStreamingMode));
+		return planner;
 	}
 
 	private PlannerMocks() {

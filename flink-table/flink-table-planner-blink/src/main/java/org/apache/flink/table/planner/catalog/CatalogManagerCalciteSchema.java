@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.schema.Schema;
@@ -45,17 +44,12 @@ public class CatalogManagerCalciteSchema extends FlinkSchema {
 	private final CatalogManager catalogManager;
 	// Flag that tells if the current planner should work in a batch or streaming mode.
 	private final boolean isStreamingMode;
-	// The SQL expression converter factory is used to derive correct result type of computed column,
-	// because the date type of computed column from catalog table is not trusted.
-	private final SqlExprToRexConverterFactory converterFactory;
 
 	public CatalogManagerCalciteSchema(
 			CatalogManager catalogManager,
-			SqlExprToRexConverterFactory converterFactory,
 			boolean isStreamingMode) {
 		this.catalogManager = catalogManager;
 		this.isStreamingMode = isStreamingMode;
-		this.converterFactory = converterFactory;
 	}
 
 	@Override
@@ -71,7 +65,7 @@ public class CatalogManagerCalciteSchema extends FlinkSchema {
 	@Override
 	public Schema getSubSchema(String name) {
 		if (catalogManager.schemaExists(name)) {
-			return new CatalogCalciteSchema(name, catalogManager, converterFactory, isStreamingMode);
+			return new CatalogCalciteSchema(name, catalogManager, isStreamingMode);
 		} else {
 			return null;
 		}

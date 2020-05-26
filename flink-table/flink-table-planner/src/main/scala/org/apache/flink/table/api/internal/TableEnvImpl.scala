@@ -127,6 +127,8 @@ abstract class TableEnvImpl(
     }
   )
 
+  catalogManager.setCatalogTableSchemaResolver(new CatalogTableSchemaResolver(parser, false))
+
   def getConfig: TableConfig = config
 
   private val UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
