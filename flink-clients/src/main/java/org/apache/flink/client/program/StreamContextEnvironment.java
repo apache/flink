@@ -24,16 +24,19 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -71,31 +74,44 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 		JobClient jobClient = executeAsync(streamGraph);
 
 		JobExecutionResult jobExecutionResult;
-		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
-			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
+		List<JobListener> jobListeners =  getJobListeners();
+		try {
+			if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
+				CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
 					jobClient.getJobExecutionResult(getUserClassloader());
 
-			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
-				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
+				if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+					Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
 						() -> {
 							// wait a smidgen to allow the async request to go through before
 							// the jvm exits
 							jobClient.cancel().get(1, TimeUnit.SECONDS);
 						},
-						StreamContextEnvironment.class.getSimpleName(),
+						ContextEnvironment.class.getSimpleName(),
 						LOG);
-				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
-						ShutdownHookUtil.removeShutdownHook(
-							shutdownHook, StreamContextEnvironment.class.getSimpleName(), LOG));
+					jobExecutionResultFuture.whenComplete((ignored, throwable) ->
+						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
+				}
+
+				jobExecutionResult = jobExecutionResultFuture.get();
+				System.out.println(jobExecutionResult);
+			} else {
+				jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 			}
 
-			jobExecutionResult = jobExecutionResultFuture.get();
-			System.out.println(jobExecutionResult);
-		} else {
-			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
-		}
+			jobListeners.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
 
-		return jobExecutionResult;
+			return jobExecutionResult;
+
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> {
+				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+			});
+			ExceptionUtils.rethrowException(t);
+
+			// never reached, only make javac happy
+			return null;
+		}
 	}
 
 	@Override
