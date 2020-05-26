@@ -82,6 +82,24 @@ Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProcTimeTableSourceOverWindow">
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalFilter(condition=[>($2, 100)])
++- LogicalProject(id=[$0], name=[$2], valSum=[AS(SUM($1) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST RANGE BETWEEN 7200000 PRECEDING AND CURRENT ROW), _UTF-16LE'valSum')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, procTimeT]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[id, name, w0$o0 AS valSum], where=[>(w0$o0, 100)])
++- OverAggregate(partitionBy=[id], orderBy=[$3 ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[id, val, name, $3, SUM(val) AS w0$o0])
+   +- Exchange(distribution=[hash[id]])
+      +- Calc(select=[id, val, name, PROCTIME() AS $3])
+         +- TableSourceScan(table=[[default_catalog, default_database, procTimeT]], fields=[id, val, name])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testProjectWithRowtimeProctime">
     <Resource name="planBefore">
       <![CDATA[
