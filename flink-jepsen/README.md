@@ -14,10 +14,6 @@ The faults that can be currently introduced to the Flink cluster include:
 * Stopping HDFS NameNode
 * Network partitions
 
-There are many more properties other than job availability that could be
-verified but are not yet fully covered by this project, e.g., end-to-end exactly-once processing
-semantics.
-
 ## Usage
 
 ### Setting up the Environment
