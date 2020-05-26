@@ -37,9 +37,15 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 
 	boolean isParallel;
 
-	public DataStreamSource(StreamExecutionEnvironment environment,
-			TypeInformation<T> outTypeInfo, StreamSource<T, ?> operator,
-			boolean isParallel, String sourceName) {
+	/**
+	 * The constructor used to create legacy sources.
+	 */
+	public DataStreamSource(
+			StreamExecutionEnvironment environment,
+			TypeInformation<T> outTypeInfo,
+			StreamSource<T, ?> operator,
+			boolean isParallel,
+			String sourceName) {
 		super(environment, new LegacySourceTransformation<>(sourceName, operator, outTypeInfo, environment.getParallelism()));
 
 		this.isParallel = isParallel;
@@ -48,11 +54,17 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 		}
 	}
 
+	/**
+	 * Constructor for "deep" sources that manually set up (one or more) custom configured complex operators.
+	 */
 	public DataStreamSource(SingleOutputStreamOperator<T> operator) {
 		super(operator.environment, operator.getTransformation());
 		this.isParallel = true;
 	}
 
+	/**
+	 * Constructor for new Sources (FLIP-27).
+	 */
 	public DataStreamSource(
 			StreamExecutionEnvironment environment,
 			Source<T, ?, ?> source,
