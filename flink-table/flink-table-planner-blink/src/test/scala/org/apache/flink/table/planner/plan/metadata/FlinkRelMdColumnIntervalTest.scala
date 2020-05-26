@@ -332,16 +332,15 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     Array(logicalRankWithVariableRange, flinkLogicalRankWithVariableRange,
       streamRankWithVariableRange).foreach {
       rank =>
-        assertEquals(ValueInterval(0, null), mq.getColumnInterval(logicalRankWithVariableRange, 0))
-        assertNull(mq.getColumnInterval(logicalRankWithVariableRange, 1))
-        assertEquals(ValueInterval(2.7D, 4.8D), mq.getColumnInterval
-        (logicalRankWithVariableRange, 2))
-        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(logicalRankWithVariableRange, 3))
+        assertEquals(ValueInterval(0, null), mq.getColumnInterval(rank, 0))
+        assertNull(mq.getColumnInterval(rank, 1))
+        assertEquals(ValueInterval(2.7D, 4.8D), mq.getColumnInterval(rank, 2))
+        assertEquals(ValueInterval(12, 18), mq.getColumnInterval(rank, 3))
         assertEquals(ValueInterval(161.0D, 172.1D),
-          mq.getColumnInterval(logicalRankWithVariableRange, 4))
-        assertNull(mq.getColumnInterval(logicalRankWithVariableRange, 5))
-        assertNull(mq.getColumnInterval(logicalRankWithVariableRange, 6))
-        assertEquals(ValueInterval(1, 18), mq.getColumnInterval(logicalRankWithVariableRange, 7))
+          mq.getColumnInterval(rank, 4))
+        assertNull(mq.getColumnInterval(rank, 5))
+        assertNull(mq.getColumnInterval(rank, 6))
+        assertEquals(ValueInterval(1, 18), mq.getColumnInterval(rank, 7))
     }
 
     Array(logicalRowNumber, flinkLogicalRowNumber, streamRowNumber).foreach {

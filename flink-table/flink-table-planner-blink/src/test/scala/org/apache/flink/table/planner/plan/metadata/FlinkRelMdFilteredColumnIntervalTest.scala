@@ -145,10 +145,10 @@ class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       assertEquals(ValueInterval(2.7, null), mq.getFilteredColumnInterval(agg, 2, -1))
     }
     Array(streamLocalAgg, batchLocalAgg).foreach { agg =>
-      assertEquals(ValueInterval(12, 18), mq.getFilteredColumnInterval(streamLocalAgg, 0, -1))
-      assertNull(mq.getFilteredColumnInterval(streamLocalAgg, 1, -1))
-      assertNull(mq.getFilteredColumnInterval(streamLocalAgg, 2, -1))
-      assertEquals(ValueInterval(2.7, null), mq.getFilteredColumnInterval(streamLocalAgg, 3, -1))
+      assertEquals(ValueInterval(12, 18), mq.getFilteredColumnInterval(agg, 0, -1))
+      assertNull(mq.getFilteredColumnInterval(agg, 1, -1))
+      assertNull(mq.getFilteredColumnInterval(agg, 2, -1))
+      assertEquals(ValueInterval(2.7, null), mq.getFilteredColumnInterval(agg, 3, -1))
     }
 
     Array(logicalAggWithAuxGroup, flinkLogicalAggWithAuxGroup,
