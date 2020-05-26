@@ -669,8 +669,10 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def continuousSource[T: TypeInformation](
       source: Source[T, _ <: SourceSplit, _],
       watermarkStrategy: WatermarkStrategy[T],
-      sourceName: String): Unit = {
-    asScalaStream(javaEnv.continuousSource(source, watermarkStrategy, sourceName))
+      sourceName: String): DataStream[T] = {
+
+    val typeInfo = implicitly[TypeInformation[T]]
+    asScalaStream(javaEnv.continuousSource(source, watermarkStrategy, sourceName, typeInfo))
   }
 
   /**

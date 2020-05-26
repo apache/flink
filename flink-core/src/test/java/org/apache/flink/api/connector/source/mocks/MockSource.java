@@ -35,6 +35,9 @@ import java.util.Set;
  * A mock {@link Source} for unit tests.
  */
 public class MockSource implements Source<Integer, MockSourceSplit, Set<MockSourceSplit>> {
+
+	private static final long serialVersionUID = 1L;
+
 	private final Boundedness boundedness;
 	private final int numSplits;
 	private List<MockSourceReader> createdReaders;
