@@ -799,3 +799,32 @@ function extract_job_id_from_job_submission_return() {
     echo "$JOB_ID"
 }
 
+
+#
+# NOTE: This function requires at least Bash version >= 4. Mac OS in 2020 still ships 3.x
+#
+kill_test_watchdog() {
+    local watchdog_pid=`cat $TEST_DATA_DIR/job_watchdog.pid`
+    echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
+    kill $watchdog_pid
+}
+
+run_test_with_timeout() {
+  local TEST_TIMEOUT_SECONDS=$1
+  shift
+  local TEST_COMMAND=$@
+
+  on_exit kill_test_watchdog
+
+  (
+      cmdpid=$BASHPID
+      (sleep $TEST_TIMEOUT_SECONDS # set a timeout for this test
+      echo "Test (pid: $cmdpid) did not finish after $TEST_TIMEOUT_SECONDS seconds."
+      echo "Printing Flink logs and killing it:"
+      cat ${FLINK_DIR}/log/*
+      kill "$cmdpid") & watchdog_pid=$!
+      echo $watchdog_pid > $TEST_DATA_DIR/job_watchdog.pid
+      # invoke
+      $TEST_COMMAND
+  )
+}
