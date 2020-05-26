@@ -25,7 +25,7 @@ import java.io.FilenameFilter;
 /**
  * Utility methods for YARN tests.
  */
-public class YarnTestUtils {
+public class TestUtils {
 	public static File getTestJarPath(String fileName) throws FileNotFoundException {
 		File f = new File("target/programs/" + fileName);
 		if (!f.exists()) {
