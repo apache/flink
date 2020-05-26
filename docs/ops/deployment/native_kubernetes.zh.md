@@ -58,7 +58,7 @@ $ ./bin/kubernetes-session.sh
 **示例**: 执行以下命令启动 session 集群，每个 TaskManager 分配 4 GB 内存、2 CPUs、4 slots：
 
 在此示例中，我们覆盖了 `resourcemanager.taskmanager-timeout` 配置，为了使运行 taskmanager 的 pod 停留时间比默认的 30 秒更长。
-尽管此设置可能在云环境下增加成本，但在某些情况下更快地启动新作业，并且在开发过程中，你有更多的时间检查作业的日志文件。
+尽管此设置可能在云环境下增加成本，但在某些情况下能够更快地启动新作业，并且在开发过程中，你有更多的时间检查作业的日志文件。
 
 {% highlight bash %}
 $ ./bin/kubernetes-session.sh \
@@ -214,6 +214,7 @@ $ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterI
 [资源配额](https://kubernetes.io/docs/concepts/policy/resource-quotas/)提供了限制每个命名空间的合计资源消耗的约束。
 它可以按类型限制可在命名空间中创建的对象数量，以及该项目中的资源可能消耗的计算资源总量。
 
+<a name="rbac"></a>
 ### 基于角色的访问控制
 
 基于角色的访问控制（[RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)）是一种在企业内部基于单个用户的角色来调节对计算或网络资源的访问的方法。
