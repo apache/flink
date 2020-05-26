@@ -36,6 +36,9 @@ import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysAndNamesp
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriteBatchWrapper;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriter;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriterFactory;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -77,7 +80,6 @@ import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
@@ -96,7 +98,6 @@ import java.util.stream.StreamSupport;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBSnapshotTransformFactoryAdaptor.wrapStateSnapshotTransformFactory;
 import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -139,6 +140,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                                     (StateFactory) RocksDBReducingState::create))
                     .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
+    /**
+     * Factory to create a {@link org.apache.flink.contrib.streaming.state.writer.RocksDBWriter},
+     * for doing batch-writes to {@link RocksDB}.
+     */
+    private final RocksDBWriterFactory writeFactory;
+
     private interface StateFactory {
         <K, N, SV, S extends State, IS extends S> IS createState(
                 StateDescriptor<S, SV> stateDesc,
@@ -171,9 +178,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      * misuse, see FLINK-17800 for more details.
      */
     private final ReadOptions readOptions;
-
-    /** The max memory size for one batch in {@link RocksDBWriteBatchWrapper}. */
-    private final long writeBatchSize;
 
     /**
      * Information about the k/v states, maintained in the order as we create them. This is used to
@@ -246,14 +250,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             ResourceGuard rocksDBResourceGuard,
             RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy,
             RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy,
-            RocksDBWriteBatchWrapper writeBatchWrapper,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             RocksDBNativeMetricMonitor nativeMetricMonitor,
             SerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder,
             PriorityQueueSetFactory priorityQueueFactory,
             RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             InternalKeyContext<K> keyContext,
-            @Nonnegative long writeBatchSize) {
+            @Nonnull RocksDBWriterFactory writeFactory) {
 
         super(
                 kvStateRegistry,
@@ -277,15 +280,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.kvStateInformation = kvStateInformation;
 
+        // @lgo: fixme should this instead be configured elsewhere?
         this.writeOptions = optionsContainer.getWriteOptions();
         this.readOptions = optionsContainer.getReadOptions();
-        checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative value.");
-        this.writeBatchSize = writeBatchSize;
         this.db = db;
         this.rocksDBResourceGuard = rocksDBResourceGuard;
         this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
         this.savepointSnapshotStrategy = savepointSnapshotStrategy;
-        this.writeBatchWrapper = writeBatchWrapper;
+        this.writeFactory = writeFactory;
+        this.writeBatchWrapper = writeFactory.writeBatchWriter(this.db, this.writeOptions);
         this.defaultColumnFamily = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
         this.sharedRocksKeyBuilder = sharedRocksKeyBuilder;
@@ -493,6 +496,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     public ReadOptions getReadOptions() {
         return readOptions;
+    }
+
+    public RocksDBWriterFactory getWriteFactory() {
+        return writeFactory;
     }
 
     SerializedCompositeKeyBuilder<K> getSharedRocksKeyBuilder() {
@@ -744,8 +751,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         Snapshot rocksDBSnapshot = db.getSnapshot();
         try (RocksIteratorWrapper iterator =
                         RocksDBOperationUtils.getRocksIterator(db, stateMetaInfo.f0, readOptions);
-                RocksDBWriteBatchWrapper batchWriter =
-                        new RocksDBWriteBatchWrapper(db, getWriteOptions(), getWriteBatchSize())) {
+                RocksDBWriter writer = writeFactory.defaultPutWriter(db, getWriteOptions())) {
             iterator.seekToFirst();
 
             DataInputDeserializer serializedValueInput = new DataInputDeserializer();
@@ -759,7 +765,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                         stateMetaInfo.f1.getPreviousStateSerializer(),
                         stateMetaInfo.f1.getStateSerializer());
 
-                batchWriter.put(
+                writer.put(
                         stateMetaInfo.f0,
                         iterator.key(),
                         migratedSerializedValueOutput.getCopyOfBuffer());
@@ -862,10 +868,5 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     public void compactState(StateDescriptor<?, ?> stateDesc) throws RocksDBException {
         RocksDbKvStateInfo kvStateInfo = kvStateInformation.get(stateDesc.getName());
         db.compactRange(kvStateInfo.columnFamilyHandle);
-    }
-
-    @Nonnegative
-    long getWriteBatchSize() {
-        return writeBatchSize;
     }
 }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
+package org.apache.flink.contrib.streaming.state.writer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.IOUtils;
@@ -36,8 +36,11 @@ import javax.annotation.Nullable;
  * It's a wrapper class around RocksDB's {@link WriteBatch} for writing in bulk.
  *
  * <p>IMPORTANT: This class is not thread safe.
+ *
+ * <p>@lgo: TODO describe in detail what this writer is good for: all non-puts, small amounts of
+ * batching.
  */
-public class RocksDBWriteBatchWrapper implements AutoCloseable {
+public class RocksDBWriteBatchWrapper implements RocksDBWriter {
 
     private static final int MIN_CAPACITY = 100;
     private static final int MAX_CAPACITY = 1000;

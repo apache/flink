@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriterFactory;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
@@ -46,7 +47,7 @@ public final class RocksDBTestUtils {
             File instanceBasePath, TypeSerializer<K> keySerializer) {
 
         final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
-
+        RocksDBWriterFactory writerFactory = new RocksDBWriterFactory();
         return new RocksDBKeyedStateBackendBuilder<>(
                 "no-op",
                 ClassLoader.getSystemClassLoader(),
@@ -64,7 +65,8 @@ public final class RocksDBTestUtils {
                 new UnregisteredMetricsGroup(),
                 Collections.emptyList(),
                 UncompressedStreamCompressionDecorator.INSTANCE,
-                new CloseableRegistry());
+                new CloseableRegistry(),
+                writerFactory);
     }
 
     public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDB(
@@ -95,13 +97,13 @@ public final class RocksDBTestUtils {
                 UncompressedStreamCompressionDecorator.INSTANCE,
                 db,
                 defaultCFHandle,
-                new CloseableRegistry());
+                new CloseableRegistry(),
+                new RocksDBWriterFactory());
     }
 
     public static <K> RocksDBKeyedStateBackend<K> createKeyedStateBackend(
             RocksDBStateBackend rocksDbBackend, Environment env, TypeSerializer<K> keySerializer)
             throws IOException {
-
         return (RocksDBKeyedStateBackend<K>)
                 rocksDbBackend.createKeyedStateBackend(
                         env,

@@ -33,6 +33,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
 import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriterFactory;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -125,7 +126,8 @@ public class StateBackendBenchmarkUtils {
                         new UnregisteredMetricsGroup(),
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
-                        new CloseableRegistry());
+                        new CloseableRegistry(),
+                        new RocksDBWriterFactory());
         try {
             return builder.build();
         } catch (Exception e) {

@@ -17,6 +17,8 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriteBatchWrapper;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriterFactory;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -85,7 +87,7 @@ public class RocksDBIncrementalCheckpointUtils {
             @Nonnull KeyGroupRange targetKeyGroupRange,
             @Nonnull KeyGroupRange currentKeyGroupRange,
             @Nonnegative int keyGroupPrefixBytes,
-            @Nonnegative long writeBatchSize)
+            @Nonnull RocksDBWriterFactory writerFactory)
             throws RocksDBException {
 
         final byte[] beginKeyGroupBytes = new byte[keyGroupPrefixBytes];
@@ -97,7 +99,7 @@ public class RocksDBIncrementalCheckpointUtils {
             CompositeKeySerializationUtils.serializeKeyGroup(
                     targetKeyGroupRange.getStartKeyGroup(), endKeyGroupBytes);
             deleteRange(
-                    db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes, writeBatchSize);
+                    db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes, writerFactory);
         }
 
         if (currentKeyGroupRange.getEndKeyGroup() > targetKeyGroupRange.getEndKeyGroup()) {
@@ -106,7 +108,7 @@ public class RocksDBIncrementalCheckpointUtils {
             CompositeKeySerializationUtils.serializeKeyGroup(
                     currentKeyGroupRange.getEndKeyGroup() + 1, endKeyGroupBytes);
             deleteRange(
-                    db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes, writeBatchSize);
+                    db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes, writerFactory);
         }
     }
 
@@ -123,7 +125,7 @@ public class RocksDBIncrementalCheckpointUtils {
             List<ColumnFamilyHandle> columnFamilyHandles,
             byte[] beginKeyBytes,
             byte[] endKeyBytes,
-            @Nonnegative long writeBatchSize)
+            @Nonnull RocksDBWriterFactory writerFactory)
             throws RocksDBException {
 
         for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
@@ -131,15 +133,14 @@ public class RocksDBIncrementalCheckpointUtils {
                     RocksIteratorWrapper iteratorWrapper =
                             RocksDBOperationUtils.getRocksIterator(
                                     db, columnFamilyHandle, readOptions);
-                    RocksDBWriteBatchWrapper writeBatchWrapper =
-                            new RocksDBWriteBatchWrapper(db, writeBatchSize)) {
+                    RocksDBWriteBatchWrapper writer = writerFactory.writeBatchWriter(db)) {
 
                 iteratorWrapper.seek(beginKeyBytes);
 
                 while (iteratorWrapper.isValid()) {
                     final byte[] currentKey = iteratorWrapper.key();
                     if (beforeThePrefixBytes(currentKey, endKeyBytes)) {
-                        writeBatchWrapper.remove(columnFamilyHandle, currentKey);
+                        writer.remove(columnFamilyHandle, currentKey);
                     } else {
                         break;
                     }

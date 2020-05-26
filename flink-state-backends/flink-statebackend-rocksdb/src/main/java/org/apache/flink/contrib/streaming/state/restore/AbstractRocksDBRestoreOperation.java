@@ -25,6 +25,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricMonitor;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBOperationUtils;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriterFactory;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.metrics.MetricGroup;
@@ -76,6 +77,7 @@ public abstract class AbstractRocksDBRestoreOperation<K>
     protected final File instanceBasePath;
     protected final File instanceRocksDBPath;
     protected final String dbPath;
+    protected final RocksDBWriterFactory writerFactory;
     protected List<ColumnFamilyHandle> columnFamilyHandles;
     protected List<ColumnFamilyDescriptor> columnFamilyDescriptors;
     protected final StateSerializerProvider<K> keySerializerProvider;
@@ -118,7 +120,8 @@ public abstract class AbstractRocksDBRestoreOperation<K>
             MetricGroup metricGroup,
             @Nonnull Collection<KeyedStateHandle> stateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-            Long writeBufferManagerCapacity) {
+            Long writeBufferManagerCapacity,
+            @Nonnull RocksDBWriterFactory writerFactory) {
         this.keyGroupRange = keyGroupRange;
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.numberOfTransferringThreads = numberOfTransferringThreads;
@@ -138,6 +141,7 @@ public abstract class AbstractRocksDBRestoreOperation<K>
         this.columnFamilyHandles = new ArrayList<>(1);
         this.columnFamilyDescriptors = Collections.emptyList();
         this.writeBufferManagerCapacity = writeBufferManagerCapacity;
+        this.writerFactory = writerFactory;
     }
 
     void openDB() throws IOException {

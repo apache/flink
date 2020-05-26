@@ -24,6 +24,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriteBatchWrapper;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriterFactory;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
@@ -562,6 +564,7 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
         }
         final RocksDBResourceContainer resourceContainer =
                 createOptionsAndResourceContainer(sharedResources);
+        final RocksDBWriterFactory writeFactory = new RocksDBWriterFactory(getWriteBatchSize());
 
         ExecutionConfig executionConfig = env.getExecutionConfig();
         StreamCompressionDecorator keyGroupCompressionDecorator =
@@ -584,12 +587,12 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
                                 metricGroup,
                                 stateHandles,
                                 keyGroupCompressionDecorator,
-                                cancelStreamRegistry)
+                                cancelStreamRegistry,
+                                writeFactory)
                         .setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
                         .setNumberOfTransferingThreads(getNumberOfTransferThreads())
                         .setNativeMetricOptions(
-                                resourceContainer.getMemoryWatcherOptions(defaultMetricOptions))
-                        .setWriteBatchSize(getWriteBatchSize());
+                                resourceContainer.getMemoryWatcherOptions(defaultMetricOptions));
         return builder.build();
     }
 

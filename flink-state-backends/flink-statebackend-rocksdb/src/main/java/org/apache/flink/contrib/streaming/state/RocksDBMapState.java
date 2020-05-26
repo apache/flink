@@ -24,6 +24,8 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriteBatchWrapper;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriter;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
@@ -144,16 +146,15 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
             return;
         }
 
-        try (RocksDBWriteBatchWrapper writeBatchWrapper =
-                new RocksDBWriteBatchWrapper(
-                        backend.db, writeOptions, backend.getWriteBatchSize())) {
+        try (RocksDBWriter writer =
+                backend.getWriteFactory().writeBatchWriter(backend.db, writeOptions)) {
             for (Map.Entry<UK, UV> entry : map.entrySet()) {
                 byte[] rawKeyBytes =
                         serializeCurrentKeyWithGroupAndNamespacePlusUserKey(
                                 entry.getKey(), userKeySerializer);
                 byte[] rawValueBytes =
                         serializeValueNullSensitive(entry.getValue(), userValueSerializer);
-                writeBatchWrapper.put(columnFamily, rawKeyBytes, rawValueBytes);
+                writer.put(columnFamily, rawKeyBytes, rawValueBytes);
             }
         }
     }
@@ -282,11 +283,9 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
             try (RocksIteratorWrapper iterator =
                             RocksDBOperationUtils.getRocksIterator(
                                     backend.db, columnFamily, backend.getReadOptions());
-                    RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper =
-                            new RocksDBWriteBatchWrapper(
-                                    backend.db,
-                                    backend.getWriteOptions(),
-                                    backend.getWriteBatchSize())) {
+                    RocksDBWriteBatchWrapper writer =
+                            backend.getWriteFactory()
+                                    .writeBatchWriter(backend.db, backend.getWriteOptions())) {
 
                 final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
                 iterator.seek(keyPrefixBytes);
@@ -294,7 +293,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
                 while (iterator.isValid()) {
                     byte[] keyBytes = iterator.key();
                     if (startWithKeyPrefix(keyPrefixBytes, keyBytes)) {
-                        rocksDBWriteBatchWrapper.remove(columnFamily, keyBytes);
+                        writer.remove(columnFamily, keyBytes);
                     } else {
                         break;
                     }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.state;
+package org.apache.flink.contrib.streaming.state.writer;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 

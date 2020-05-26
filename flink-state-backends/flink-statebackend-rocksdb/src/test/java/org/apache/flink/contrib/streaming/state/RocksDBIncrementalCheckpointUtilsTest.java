@@ -18,6 +18,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.contrib.streaming.state.writer.RocksDBWriterFactory;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -129,6 +130,10 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
             int keyGroupPrefixBytes)
             throws RocksDBException, IOException {
 
+        RocksDBWriterFactory writerFactory =
+                new RocksDBWriterFactory(
+                        RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes());
+
         try (RocksDB rocksDB = RocksDB.open(tmp.newFolder().getAbsolutePath());
                 ColumnFamilyHandle columnFamilyHandle =
                         rocksDB.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()))) {
@@ -169,7 +174,7 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
                     targetGroupRange,
                     currentGroupRange,
                     keyGroupPrefixBytes,
-                    RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes());
+                    writerFactory);
 
             for (int i = currentGroupRangeStart; i <= currentGroupRangeEnd; ++i) {
                 for (int j = 0; j < 100; ++j) {

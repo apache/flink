@@ -65,6 +65,7 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
 
     protected final V defaultValue;
 
+    // @lgo: should this be moved elsewhere?
     protected final WriteOptions writeOptions;
 
     protected final DataOutputSerializer dataOutputView;
