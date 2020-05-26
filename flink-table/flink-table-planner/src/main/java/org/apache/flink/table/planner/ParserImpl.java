@@ -19,11 +19,13 @@
 package org.apache.flink.table.planner;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.CalciteParser;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.sqlexec.SqlToOperationConverter;
 
@@ -77,5 +79,10 @@ public class ParserImpl implements Parser {
 		CalciteParser parser = calciteParserSupplier.get();
 		SqlIdentifier sqlIdentifier = parser.parseIdentifier(identifier);
 		return UnresolvedIdentifier.of(sqlIdentifier.names);
+	}
+
+	@Override
+	public ResolvedExpression parseSqlExpression(String sqlExpression, TableSchema inputSchema) {
+		throw new UnsupportedOperationException();
 	}
 }

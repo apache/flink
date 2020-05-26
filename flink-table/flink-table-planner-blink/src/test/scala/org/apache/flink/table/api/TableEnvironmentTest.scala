@@ -1060,7 +1060,7 @@ class TableEnvironmentTest {
         Row.of("f25", "STRING", Boolean.box(false), null, null, null),
         Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
           "PRI(f24, f26)", null, null),
-        Row.of("ts", "TIMESTAMP(3)", Boolean.box(true), null, "TO_TIMESTAMP(`f25`)",
+        Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "TO_TIMESTAMP(`f25`)",
           "`ts` - INTERVAL '1' SECOND")
       ).iterator(),
       tableResult1.collect())
