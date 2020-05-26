@@ -309,7 +309,7 @@ public class PostgresCatalogTestBase {
 				"f3 serial4, " +
 				"f4 serial8, " +
 				"f5 bigserial",
-			"2767," +
+			"32767," +
 				"2147483647," +
 				"32767," +
 				"2147483647," +
