@@ -60,17 +60,17 @@ public final class ThreadDumpInfo implements ResponseBody, Serializable {
 
 		public static final String FIELD_NAME_THREAD_NAME = "threadName";
 
-		public static final String FIELD_NAME_THREAD_INFO = "stringifiedThreadInfo";
+		public static final String FIELD_NAME_THREAD_INFO = "stringFieldThreadInfo";
 
 		@JsonProperty(FIELD_NAME_THREAD_NAME)
 		private final String threadName;
 
 		@JsonProperty(FIELD_NAME_THREAD_INFO)
-		private final String stringifiedThreadInfo;
+		private final String stringFieldThreadInfo;
 
-		private ThreadInfo(String threadName, String stringifiedThreadInfo) {
+		private ThreadInfo(String threadName, String stringFieldThreadInfo) {
 			this.threadName = threadName;
-			this.stringifiedThreadInfo = stringifiedThreadInfo;
+			this.stringFieldThreadInfo = stringFieldThreadInfo;
 		}
 
 		@JsonCreator
@@ -84,13 +84,13 @@ public final class ThreadDumpInfo implements ResponseBody, Serializable {
 			return threadName;
 		}
 
-		public String getStringifiedThreadInfo() {
-			return stringifiedThreadInfo;
+		public String getStringFieldThreadInfo() {
+			return stringFieldThreadInfo;
 		}
 
 		@Override
 		public String toString() {
-			return stringifiedThreadInfo;
+			return stringFieldThreadInfo;
 		}
 
 		@Override
@@ -103,12 +103,12 @@ public final class ThreadDumpInfo implements ResponseBody, Serializable {
 			}
 			ThreadInfo that = (ThreadInfo) o;
 			return Objects.equals(threadName, that.threadName) &&
-				Objects.equals(stringifiedThreadInfo, that.stringifiedThreadInfo);
+				Objects.equals(stringFieldThreadInfo, that.stringFieldThreadInfo);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(threadName, stringifiedThreadInfo);
+			return Objects.hash(threadName, stringFieldThreadInfo);
 		}
 	}
 }
