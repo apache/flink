@@ -41,7 +41,7 @@ import java.time.Duration;
 import java.util.Collections;
 
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
-import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
+import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 
 /**
  * Test cases for the deployment of Yarn Flink application clusters.
