@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.scala
 
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolving}
+import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -667,8 +668,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   @Experimental
   def continuousSource[T: TypeInformation](
       source: Source[T, _ <: SourceSplit, _],
+      watermarkStrategy: WatermarkStrategy[T],
       sourceName: String): Unit = {
-    asScalaStream(javaEnv.continuousSource(source, sourceName))
+    asScalaStream(javaEnv.continuousSource(source, watermarkStrategy, sourceName))
   }
 
   /**

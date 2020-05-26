@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.WatermarkStrategies;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -250,8 +251,10 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	@Test
 	public void testOperatorCoordinatorAddedToJobVertex() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Integer> stream =
-				env.continuousSource(new MockSource(Boundedness.BOUNDED, 1), "TestingSource");
+		DataStream<Integer> stream = env.continuousSource(
+				new MockSource(Boundedness.BOUNDED, 1),
+				WatermarkStrategies.<Integer>noWatermarks().build(),
+				"TestingSource");
 
 		OneInputTransformation<Integer, Integer> resultTransform = new OneInputTransformation<Integer, Integer>(
 				stream.getTransformation(),
@@ -458,8 +461,10 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	@Test
 	public void testCoordinatedOperator() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStream<Integer> source =
-				env.continuousSource(new MockSource(Boundedness.BOUNDED, 1), "TestSource");
+		DataStream<Integer> source = env.continuousSource(
+				new MockSource(Boundedness.BOUNDED, 1),
+				WatermarkStrategies.<Integer>noWatermarks().build(),
+				"TestSource");
 		source.addSink(new DiscardingSink<>());
 
 		StreamGraph streamGraph = env.getStreamGraph();

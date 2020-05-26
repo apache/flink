@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Source;
@@ -68,12 +69,13 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 	public DataStreamSource(
 			StreamExecutionEnvironment environment,
 			Source<T, ?, ?> source,
+			WatermarkStrategy<T> timestampsAndWatermarks,
 			TypeInformation<T> outTypeInfo,
 			String sourceName) {
 		super(environment,
 				new SourceTransformation<>(
 						sourceName,
-						new SourceOperatorFactory<>(source),
+						new SourceOperatorFactory<>(source, timestampsAndWatermarks),
 						outTypeInfo,
 						environment.getParallelism()));
 	}
