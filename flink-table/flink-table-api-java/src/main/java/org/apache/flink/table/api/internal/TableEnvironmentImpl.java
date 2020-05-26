@@ -490,8 +490,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	private Optional<CatalogQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
 		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(identifier);
 
-		return catalogManager.getTable(tableIdentifier)
-			.map(t -> new CatalogQueryOperation(tableIdentifier, t.getTable().getSchema()));
+		return catalogManager.getTable(tableIdentifier).map(t -> {
+			CatalogTableSchemaResolver resolver = new CatalogTableSchemaResolver(parser);
+			TableSchema newTableSchema = resolver.resolve(t.getTable().getSchema(), isStreamingMode);
+			return new CatalogQueryOperation(tableIdentifier, newTableSchema);
+		});
 	}
 
 	@Override

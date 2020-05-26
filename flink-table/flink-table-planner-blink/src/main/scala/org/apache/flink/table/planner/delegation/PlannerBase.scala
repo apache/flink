@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.internal.CatalogTableSchemaResolver
 import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException, TableSchema}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
@@ -89,17 +90,6 @@ abstract class PlannerBase(
       plannerContext.createSqlExprToRexConverter(tableRowType)
   }
 
-  @VisibleForTesting
-  private[flink] val plannerContext: PlannerContext =
-    new PlannerContext(
-      config,
-      functionCatalog,
-      catalogManager,
-      asRootSchema(new CatalogManagerCalciteSchema(
-        catalogManager, sqlExprToRexConverterFactory, isStreamingMode)),
-      getTraitDefs.toList
-    )
-
   private val parser: Parser = new ParserImpl(
     catalogManager,
     new JSupplier[FlinkPlannerImpl] {
@@ -110,8 +100,25 @@ abstract class PlannerBase(
     // parsing statements
     new JSupplier[CalciteParser] {
       override def get(): CalciteParser = plannerContext.createCalciteParser()
+    },
+    new JSupplier[SqlExprToRexConverterFactory] {
+      override def get(): SqlExprToRexConverterFactory = sqlExprToRexConverterFactory
+    },
+    new JSupplier[FlinkTypeFactory] {
+      override def get(): FlinkTypeFactory = plannerContext.getTypeFactory
     }
   )
+
+  @VisibleForTesting
+  private[flink] val plannerContext: PlannerContext =
+    new PlannerContext(
+      config,
+      functionCatalog,
+      catalogManager,
+      asRootSchema(new CatalogManagerCalciteSchema(
+        catalogManager, new CatalogTableSchemaResolver(parser), isStreamingMode)),
+      getTraitDefs.toList
+    )
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = {

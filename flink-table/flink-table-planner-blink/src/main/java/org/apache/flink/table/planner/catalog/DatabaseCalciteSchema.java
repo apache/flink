@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.catalog;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -32,7 +33,6 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.plan.stats.TableStats;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.linq4j.tree.Expression;
@@ -56,9 +56,9 @@ class DatabaseCalciteSchema extends FlinkSchema {
 	private final String databaseName;
 	private final String catalogName;
 	private final CatalogManager catalogManager;
-	// The SQL expression converter factory is used to derive correct result type of computed column,
+	// The CatalogTableSchemaResolver is used to derive correct result type of computed column,
 	// because the date type of computed column from catalog table is not trusted.
-	private final SqlExprToRexConverterFactory converterFactory;
+	private final CatalogTableSchemaResolver schemaResolver;
 	// Flag that tells if the current planner should work in a batch or streaming mode.
 	private final boolean isStreamingMode;
 
@@ -66,12 +66,12 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			String databaseName,
 			String catalogName,
 			CatalogManager catalog,
-			SqlExprToRexConverterFactory converterFactory,
+			CatalogTableSchemaResolver schemaResolver,
 			boolean isStreamingMode) {
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
 		this.catalogManager = catalog;
-		this.converterFactory = converterFactory;
+		this.schemaResolver = schemaResolver;
 		this.isStreamingMode = isStreamingMode;
 	}
 
@@ -87,7 +87,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 					table,
 					statistic,
 					catalogManager.getCatalog(catalogName).orElseThrow(IllegalStateException::new),
-					converterFactory,
+					schemaResolver,
 					isStreamingMode,
 					result.isTemporary());
 			})
