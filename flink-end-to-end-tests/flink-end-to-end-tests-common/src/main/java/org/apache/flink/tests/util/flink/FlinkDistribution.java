@@ -228,6 +228,10 @@ final class FlinkDistribution {
 					break;
 				case MOVE:
 					Files.move(sourceJar, targetJar);
+					if (operation.getSource() == JarLocation.PLUGINS) {
+						// plugin system crashes on startup if a plugin directory is empty
+						Files.delete(sourceJar.getParent());
+					}
 					break;
 				default:
 					throw new IllegalStateException();
