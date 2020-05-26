@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
@@ -61,7 +62,9 @@ import java.util.function.Consumer;
 import static org.apache.flink.util.CoreMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Abstract test base for {@link KafkaDynamicTableFactoryBase}.
@@ -153,6 +156,34 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 		final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
 		final SourceFunction<RowData> sourceFunction = sourceFunctionProvider.createSourceFunction();
 		assertThat(sourceFunction, instanceOf(getExpectedConsumerClass()));
+		//  Test commitOnCheckpoints flag should be true when set consumer group
+		assertTrue(((FlinkKafkaConsumerBase) sourceFunction).getEnableCommitOnCheckpoints());
+	}
+
+	@Test
+	public void testTableSourceCommitOnCheckpointsDisabled() {
+		//Construct table source using options and table source factory
+		ObjectIdentifier objectIdentifier = ObjectIdentifier.of(
+			"default",
+			"default",
+			"scanTable");
+		Map<String, String> tableOptions = getFullSourceOptions();
+		tableOptions.remove("properties.group.id");
+		CatalogTable catalogTable = createKafkaSourceCatalogTable(tableOptions);
+		final DynamicTableSource tableSource = FactoryUtil.createTableSource(null,
+			objectIdentifier,
+			catalogTable,
+			new Configuration(),
+			Thread.currentThread().getContextClassLoader());
+
+		// Test commitOnCheckpoints flag should be false when do not set consumer group.
+		assertThat(tableSource, instanceOf(KafkaDynamicSourceBase.class));
+		ScanTableSource.ScanRuntimeProvider providerWithoutGroupId = ((KafkaDynamicSourceBase) tableSource)
+			.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+		assertThat(providerWithoutGroupId, instanceOf(SourceFunctionProvider.class));
+		final SourceFunctionProvider functionProviderWithoutGroupId = (SourceFunctionProvider) providerWithoutGroupId;
+		final SourceFunction<RowData> function = functionProviderWithoutGroupId.createSourceFunction();
+		assertFalse(((FlinkKafkaConsumerBase) function).getEnableCommitOnCheckpoints());
 	}
 
 	@Test

@@ -1119,7 +1119,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	}
 
 	@VisibleForTesting
-	boolean getEnableCommitOnCheckpoints() {
+	public boolean getEnableCommitOnCheckpoints() {
 		return enableCommitOnCheckpoints;
 	}
 

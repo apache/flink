@@ -209,6 +209,7 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 				kafkaConsumer.setStartFromTimestamp(startupTimestampMillis);
 				break;
 			}
+		kafkaConsumer.setCommitOffsetsOnCheckpoints(properties.getProperty("group.id") != null);
 		return kafkaConsumer;
 	}
 }
