@@ -40,6 +40,8 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlBinaryOperator, SqlKind}
 import org.apache.calcite.util.Util
 
+import java.math.{BigDecimal => JBigDecimal}
+
 import scala.collection.JavaConversions._
 
 /**
@@ -75,14 +77,30 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
         (minValue == null && maxValue == null) || (max == null && min == null))
 
       if (minValue != null || maxValue != null) {
-        ValueInterval(minValue, maxValue)
+        ValueInterval(convertNumberToBigDecimal(minValue), convertNumberToBigDecimal(maxValue))
       } else if (max != null || min != null) {
-        ValueInterval(min, max)
+        ValueInterval(convertNumberToBigDecimal(min), convertNumberToBigDecimal(max))
       } else {
         null
       }
     } else {
       null
+    }
+  }
+
+  private def convertNumberToBigDecimal(number: Number): Number = {
+    if (number != null) {
+      new JBigDecimal(number.toString)
+    } else {
+      number
+    }
+  }
+
+  private def convertNumberToBigDecimal(comparable: Comparable[_]): Comparable[_] = {
+    if (comparable != null && comparable.isInstanceOf[Number]) {
+      new JBigDecimal(comparable.toString)
+    } else {
+      comparable
     }
   }
 
@@ -99,7 +117,9 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     if (tuples.isEmpty) {
       EmptyValueInterval
     } else {
-      val values = tuples.map(t => FlinkRelOptUtil.getLiteralValue(t.get(index))).filter(_ != null)
+      val values = tuples.map {
+        t => FlinkRelOptUtil.getLiteralValueByBroadType(t.get(index))
+      }.filter(_ != null)
       if (values.isEmpty) {
         EmptyValueInterval
       } else {
@@ -135,7 +155,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     projects.get(index) match {
       case inputRef: RexInputRef => fmq.getColumnInterval(project.getInput, inputRef.getIndex)
       case literal: RexLiteral =>
-        val literalValue = FlinkRelOptUtil.getLiteralValue(literal)
+        val literalValue = FlinkRelOptUtil.getLiteralValueByBroadType(literal)
         if (literalValue == null) {
           ValueInterval.empty
         } else {
@@ -211,7 +231,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
         }
 
       case literal: RexLiteral =>
-        val literalValue = FlinkRelOptUtil.getLiteralValue(literal)
+        val literalValue = FlinkRelOptUtil.getLiteralValueByBroadType(literal)
         if (literalValue == null) {
           ValueInterval.empty
         } else {
@@ -235,7 +255,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
         fmq.getColumnInterval(baseNode.getInput, inputRef.getIndex)
 
       case literal: RexLiteral =>
-        val literalValue = FlinkRelOptUtil.getLiteralValue(literal)
+        val literalValue = FlinkRelOptUtil.getLiteralValueByBroadType(literal)
         if (literalValue == null) {
           ValueInterval.empty
         } else {
@@ -310,7 +330,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
         case inputRef: RexInputRef =>
           Some(fmq.getColumnInterval(expand.getInput, inputRef.getIndex))
         case l: RexLiteral if l.getTypeName eq SqlTypeName.DECIMAL =>
-          val v = l.getValueAs(classOf[java.lang.Long])
+          val v = l.getValueAs(classOf[JBigDecimal])
           Some(ValueInterval(v, v))
         case l: RexLiteral if l.getValue == null =>
           None
@@ -342,17 +362,14 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rank).getOrElse(-1)
     if (index == rankFunColumnIndex) {
       rank.rankRange match {
-        case r: ConstantRankRange => ValueInterval(r.getRankStart, r.getRankEnd)
+        case r: ConstantRankRange =>
+          ValueInterval(JBigDecimal.valueOf(r.getRankStart), JBigDecimal.valueOf(r.getRankEnd))
         case v: VariableRankRange =>
           val interval = fmq.getColumnInterval(rank.getInput, v.getRankEndIndex)
           interval match {
             case hasUpper: WithUpper =>
-              val lower = ColumnIntervalUtil.convertStringToNumber("1", hasUpper.upper.getClass)
-              lower match {
-                case Some(l) =>
-                  ValueInterval(l, hasUpper.upper, includeUpper = hasUpper.includeUpper)
-                case _ => null
-              }
+              val lower = JBigDecimal.valueOf(1)
+              ValueInterval(lower, hasUpper.upper, includeUpper = hasUpper.includeUpper)
             case _ => null
           }
       }
@@ -646,7 +663,8 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
               } else {
                 null
               }
-            case COUNT => RightSemiInfiniteValueInterval(0, includeLower = true)
+            case COUNT =>
+              RightSemiInfiniteValueInterval(JBigDecimal.valueOf(0), includeLower = true)
             // TODO add more built-in agg functions
             case _ => null
           }

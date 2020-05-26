@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.planner.JBoolean
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
-import org.apache.flink.table.planner.{JBoolean, JByte, JDouble, JFloat, JLong, JShort}
 
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan.RelOptUtil
@@ -30,13 +30,11 @@ import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, Rex
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.util.ImmutableBitSet
 import org.apache.commons.math3.util.ArithmeticUtils
 
 import java.io.{PrintWriter, StringWriter}
 import java.math.BigDecimal
 import java.sql.{Date, Time, Timestamp}
-import java.util
 import java.util.Calendar
 
 import scala.collection.JavaConversions._
@@ -207,25 +205,22 @@ object FlinkRelOptUtil {
   }
 
   /**
-    * Gets values of RexLiteral
+    * Gets values of [[RexLiteral]] by its broad type.
+   *
+   * <p> All number value (TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE, DECIMAL)
+   * will be converted to BigDecimal
     *
     * @param literal input RexLiteral
-    * @return values of the input RexLiteral
+    * @return value of the input RexLiteral
     */
-  def getLiteralValue(literal: RexLiteral): Comparable[_] = {
+  def getLiteralValueByBroadType(literal: RexLiteral): Comparable[_] = {
     if (literal.isNull) {
       null
     } else {
-      val literalType = literal.getType
-      literalType.getSqlTypeName match {
+      literal.getTypeName match {
         case BOOLEAN => RexLiteral.booleanValue(literal)
-        case TINYINT => literal.getValueAs(classOf[JByte])
-        case SMALLINT => literal.getValueAs(classOf[JShort])
-        case INTEGER => literal.getValueAs(classOf[Integer])
-        case BIGINT => literal.getValueAs(classOf[JLong])
-        case FLOAT => literal.getValueAs(classOf[JFloat])
-        case DOUBLE => literal.getValueAs(classOf[JDouble])
-        case DECIMAL => literal.getValue3.asInstanceOf[BigDecimal]
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DECIMAL =>
+          literal.getValue3.asInstanceOf[BigDecimal]
         case VARCHAR | CHAR => literal.getValueAs(classOf[String])
 
         // temporal types
@@ -236,7 +231,8 @@ object FlinkRelOptUtil {
         case TIMESTAMP =>
           new Timestamp(literal.getValueAs(classOf[Calendar]).getTimeInMillis)
         case _ =>
-          throw new IllegalArgumentException(s"Literal type $literalType is not supported!")
+          throw new IllegalArgumentException(
+            s"Literal type ${literal.getTypeName} is not supported!")
       }
     }
   }
