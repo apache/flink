@@ -1961,6 +1961,9 @@ under the License.
 							<onlyModified>true</onlyModified>
 							<includes>
 								<include>@org.apache.flink.annotation.Public</include>
+								<!-- The following line is un-commented by tools/releasing/update_japicmp_configuration.sh
+								 	as part of the release process -->
+								<!--<include>@org.apache.flink.annotation.PublicEvolving</include>-->
 							</includes>
 							<excludes>
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
