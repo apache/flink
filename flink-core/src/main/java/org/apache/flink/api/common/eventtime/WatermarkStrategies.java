@@ -175,6 +175,14 @@ public final class WatermarkStrategies<T> {
 		return new WatermarkStrategies<>(new FromWatermarkGeneratorSupplier<>(generatorSupplier));
 	}
 
+	/**
+	 * Starts building a watermark strategy that generates no watermarks at all.
+	 * This may be useful in scenarios that do pure processing-time based stream processing.
+	 */
+	public static <T> WatermarkStrategies<T> noWatermarks() {
+		return new WatermarkStrategies<>((ctx) -> new NoWatermarksGenerator<>());
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static final class FromWatermarkGeneratorSupplier<T> implements WatermarkStrategy<T> {
