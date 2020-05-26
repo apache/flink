@@ -907,17 +907,37 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
-									<shadedPattern>org.apache.flink.connectors.hive.fs.hdfs</shadedPattern>
+									<shadedPattern>org.apache.flink.hive.shaded.fs.hdfs</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.flink.formats.parquet</pattern>
+									<shadedPattern>org.apache.flink.hive.shaded.formats.parquet</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.parquet</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.apache.parquet</shadedPattern>
+									<shadedPattern>org.apache.flink.hive.shaded.parquet</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>shaded.parquet</pattern>
-									<shadedPattern>org.apache.flink.reshaded.parquet</shadedPattern>
+									<shadedPattern>org.apache.flink.hive.reshaded.parquet</shadedPattern>
 								</relocation>
 							</relocations>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:flink-orc_${scala.binary.version}</artifact>
+									<excludes>
+										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.flink:flink-parquet_${scala.binary.version}</artifact>
+									<excludes>
+										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
