@@ -69,7 +69,7 @@ public class ClusterOptions {
 		.intType()
 		.noDefaultValue()
 		.withDescription("The size of the IO executor pool used by the cluster to execute blocking IO operations (Master as well as TaskManager processes). " +
-			"By default it will use the number of CPU cores (hardware contexts) that the cluster process has access to. " +
+			"By default it will use 4 * the number of CPU cores (hardware contexts) that the cluster process has access to. " +
 			"Increasing the pool size allows to run more IO operations concurrently.");
 
 	@Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
