@@ -251,7 +251,8 @@ object TraversableSerializerUpgradeTest {
 
     override def testDataMatcher: Matcher[Seq[Int]] = is(Seq(1, 2, 3))
 
-    override def schemaCompatibilityMatcher(version: MigrationVersion): Matcher[TypeSerializerSchemaCompatibility[Seq[Int]]] =
+    override def schemaCompatibilityMatcher(version: MigrationVersion):
+        Matcher[TypeSerializerSchemaCompatibility[Seq[Int]]] =
       TypeSerializerMatchers.isCompatibleAsIs[Seq[Int]]()
   }
 
@@ -269,7 +270,8 @@ object TraversableSerializerUpgradeTest {
 
     override def testDataMatcher: Matcher[Set[Int]] = is(Set(2, 3, 4))
 
-    override def schemaCompatibilityMatcher(version: MigrationVersion): Matcher[TypeSerializerSchemaCompatibility[Set[Int]]] =
+    override def schemaCompatibilityMatcher(version: MigrationVersion):
+        Matcher[TypeSerializerSchemaCompatibility[Set[Int]]] =
       TypeSerializerMatchers.isCompatibleAsIs[Set[Int]]()
   }
 
