@@ -63,9 +63,6 @@ public class Buckets<IN, BucketID> {
 
 	private final RollingPolicy<IN, BucketID> rollingPolicy;
 
-	@Nullable
-	private final BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener;
-
 	// --------------------------- runtime fields -----------------------------
 
 	private final int subtaskIndex;
@@ -77,6 +74,9 @@ public class Buckets<IN, BucketID> {
 	private long maxPartCounter;
 
 	private final OutputFileConfig outputFileConfig;
+
+	@Nullable
+	private BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener;
 
 	// --------------------------- State Related Fields -----------------------------
 
@@ -97,7 +97,6 @@ public class Buckets<IN, BucketID> {
 			final BucketFactory<IN, BucketID> bucketFactory,
 			final BucketWriter<IN, BucketID> bucketWriter,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
-			@Nullable final BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener,
 			final int subtaskIndex,
 			final OutputFileConfig outputFileConfig) {
 
@@ -106,7 +105,6 @@ public class Buckets<IN, BucketID> {
 		this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
 		this.bucketWriter = Preconditions.checkNotNull(bucketWriter);
 		this.rollingPolicy = Preconditions.checkNotNull(rollingPolicy);
-		this.bucketLifeCycleListener = bucketLifeCycleListener;
 		this.subtaskIndex = subtaskIndex;
 
 		this.outputFileConfig = Preconditions.checkNotNull(outputFileConfig);
@@ -119,6 +117,10 @@ public class Buckets<IN, BucketID> {
 			bucketWriter.getProperties().getPendingFileRecoverableSerializer(),
 			bucketAssigner.getSerializer());
 		this.maxPartCounter = 0L;
+	}
+
+	public void setBucketLifeCycleListener(BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener) {
+		this.bucketLifeCycleListener = Preconditions.checkNotNull(bucketLifeCycleListener);
 	}
 
 	/**

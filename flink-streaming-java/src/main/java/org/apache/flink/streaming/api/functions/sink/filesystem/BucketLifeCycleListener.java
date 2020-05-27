@@ -20,13 +20,11 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
 
-import java.io.Serializable;
-
 /**
  * Listener about the status of {@link Bucket}.
  */
 @Internal
-public interface BucketLifeCycleListener<IN, BucketID> extends Serializable {
+public interface BucketLifeCycleListener<IN, BucketID> {
 
 	/**
 	 * Notifies a new bucket has been created.
