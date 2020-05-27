@@ -132,7 +132,8 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
   @Test
   def testMetastorePolicy(): Unit = {
     thrown.expectMessage(
-      "Can not configure a metastore partition commit policy for a table without metastore.")
+      "Can not configure a 'metastore' partition commit policy for a file system table." +
+          " You can only configure 'metastore' partition commit policy for a hive table.")
     test(partition = true, "metastore")
   }
 
