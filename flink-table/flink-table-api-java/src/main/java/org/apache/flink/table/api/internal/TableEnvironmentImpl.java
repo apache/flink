@@ -889,7 +889,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 						dropViewOperation.getViewIdentifier(),
 						dropViewOperation.isIfExists());
 			} else {
-				catalogManager.dropTable(
+				catalogManager.dropView(
 						dropViewOperation.getViewIdentifier(),
 						dropViewOperation.isIfExists());
 			}
