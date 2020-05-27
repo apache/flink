@@ -49,6 +49,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.streaming.api.TimeCharacteristic.EventTime;
 import static org.apache.flink.streaming.api.TimeCharacteristic.IngestionTime;
@@ -56,6 +57,7 @@ import static org.apache.flink.streaming.api.TimeCharacteristic.ProcessingTime;
 import static org.apache.flink.streaming.connectors.kafka.shuffle.FlinkKafkaShuffle.PARTITION_NUMBER;
 import static org.apache.flink.streaming.connectors.kafka.shuffle.FlinkKafkaShuffle.PRODUCER_PARALLELISM;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
@@ -69,71 +71,155 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
 	/**
 	 * To test no data is lost or duplicated end-2-end with the default time characteristic: ProcessingTime.
 	 *
-	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
+	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1;
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testSimpleProcessingTime() throws Exception {
-		testKafkaShuffle(200000, ProcessingTime);
+	public void testSimpleProcessingTimeSameEnv() throws Exception {
+		testKafkaShuffle(200000, ProcessingTime, true);
+	}
+
+	/**
+	 * To test no data is lost or duplicated end-2-end with the default time characteristic: ProcessingTime.
+	 *
+	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1;
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testSimpleProcessingTimeDifferentEnv() throws Exception {
+		testKafkaShuffle(200000, ProcessingTime, false);
 	}
 
 	/**
 	 * To test no data is lost or duplicated end-2-end with time characteristic: IngestionTime.
 	 *
 	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testSimpleIngestionTime() throws Exception {
-		testKafkaShuffle(200000, IngestionTime);
+	public void testSimpleIngestionTimeSameEnv() throws Exception {
+		testKafkaShuffle(200000, IngestionTime, true);
+	}
+
+	/**
+	 * To test no data is lost or duplicated end-2-end with time characteristic: IngestionTime.
+	 *
+	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testSimpleIngestionTimeDifferentEnv() throws Exception {
+		testKafkaShuffle(200000, IngestionTime, false);
 	}
 
 	/**
 	 * To test no data is lost or duplicated end-2-end with time characteristic: EventTime.
 	 *
 	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testSimpleEventTime() throws Exception {
-		testKafkaShuffle(100000, EventTime);
+	public void testSimpleEventTimeSameEnv() throws Exception {
+		testKafkaShuffle(100000, EventTime, true);
+	}
+
+	/**
+	 * To test no data is lost or duplicated end-2-end with time characteristic: EventTime.
+	 *
+	 * <p>Producer Parallelism = 1; Kafka Partition # = 1; Consumer Parallelism = 1.
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testSimpleEventTimeDifferentEnv() throws Exception {
+		testKafkaShuffle(100000, EventTime, false);
 	}
 
 	/**
 	 * To test data is partitioned to the right partition with time characteristic: ProcessingTime.
 	 *
 	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testAssignedToPartitionProcessingTime() throws Exception {
-		testAssignedToPartition(300000, ProcessingTime);
+	public void testAssignedToPartitionProcessingTimeSameEnv() throws Exception {
+		testAssignedToPartition(300000, ProcessingTime, true);
+	}
+
+	/**
+	 * To test data is partitioned to the right partition with time characteristic: ProcessingTime.
+	 *
+	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testAssignedToPartitionProcessingTimeDifferentEnv() throws Exception {
+		testAssignedToPartition(300000, ProcessingTime, false);
 	}
 
 	/**
 	 * To test data is partitioned to the right partition with time characteristic: IngestionTime.
 	 *
 	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testAssignedToPartitionIngestionTime() throws Exception {
-		testAssignedToPartition(300000, IngestionTime);
+	public void testAssignedToPartitionIngestionTimeSameEnv() throws Exception {
+		testAssignedToPartition(300000, IngestionTime, true);
+	}
+
+	/**
+	 * To test data is partitioned to the right partition with time characteristic: IngestionTime.
+	 *
+	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testAssignedToPartitionIngestionTimeDifferentEnv() throws Exception {
+		testAssignedToPartition(300000, IngestionTime, false);
 	}
 
 	/**
 	 * To test data is partitioned to the right partition with time characteristic: EventTime.
 	 *
 	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testAssignedToPartitionEventTime() throws Exception {
-		testAssignedToPartition(100000, EventTime);
+	public void testAssignedToPartitionEventTimeSameEnv() throws Exception {
+		testAssignedToPartition(100000, EventTime, true);
+	}
+
+	/**
+	 * To test data is partitioned to the right partition with time characteristic: EventTime.
+	 *
+	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testAssignedToPartitionEventTimeDifferentEnv() throws Exception {
+		testAssignedToPartition(100000, EventTime, false);
 	}
 
 	/**
 	 * To test watermark is monotonically incremental with randomized watermark.
 	 *
 	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in the same environment
 	 */
 	@Test
-	public void testWatermarkIncremental() throws Exception {
-		testWatermarkIncremental(100000);
+	public void testWatermarkIncrementalSameEnv() throws Exception {
+		testWatermarkIncremental(100000, true);
+	}
+
+	/**
+	 * To test watermark is monotonically incremental with randomized watermark.
+	 *
+	 * <p>Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3.
+	 * producer and consumer run in different environments
+	 */
+	@Test
+	public void testWatermarkIncrementalDifferentEnv() throws Exception {
+		testWatermarkIncremental(100000, false);
 	}
 
 	/**
@@ -240,16 +326,21 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
 	 */
 	private void testKafkaShuffle(
 			int numElementsPerProducer,
-			TimeCharacteristic timeCharacteristic) throws Exception {
-		String topic = topic("test_simple", timeCharacteristic);
+			TimeCharacteristic timeCharacteristic,
+			boolean sameEnvironment) throws Exception {
+		String topic = topic("test_simple", timeCharacteristic, sameEnvironment);
 		final int numberOfPartitions = 1;
 		final int producerParallelism = 1;
 
 		createTestTopic(topic, numberOfPartitions, 1);
 
-		final StreamExecutionEnvironment env = createEnvironment(producerParallelism, timeCharacteristic);
+		final StreamExecutionEnvironment writeEnv = createEnvironment(producerParallelism, timeCharacteristic);
+		final StreamExecutionEnvironment readEnv =
+			sameEnvironment ? writeEnv : createEnvironment(producerParallelism, timeCharacteristic);
+
 		createKafkaShuffle(
-				env,
+				writeEnv,
+				readEnv,
 				topic,
 				numElementsPerProducer,
 				producerParallelism,
@@ -258,7 +349,17 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
 			.map(new ElementCountNoMoreThanValidator(numElementsPerProducer * producerParallelism)).setParallelism(1)
 			.map(new ElementCountNoLessThanValidator(numElementsPerProducer * producerParallelism)).setParallelism(1);
 
-		tryExecute(env, topic);
+		CompletableFuture<String> completableFuture = CompletableFuture.completedFuture("Failed");
+		if (!sameEnvironment) {
+			completableFuture = asyncExecute(writeEnv);
+		}
+
+		tryExecute(readEnv, topic);
+
+		if (!sameEnvironment) {
+			String result = completableFuture.get();
+			assertEquals("Succeed", result);
+		}
 
 		deleteTestTopic(topic);
 	}
@@ -271,17 +372,21 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
 	 */
 	private void testAssignedToPartition(
 			int numElementsPerProducer,
-			TimeCharacteristic timeCharacteristic) throws Exception {
-		String topic = topic("test_assigned_to_partition", timeCharacteristic);
+			TimeCharacteristic timeCharacteristic,
+			boolean sameEnvironment) throws Exception {
+		String topic = topic("test_assigned_to_partition", timeCharacteristic, sameEnvironment);
 		final int numberOfPartitions = 3;
 		final int producerParallelism = 2;
 
 		createTestTopic(topic, numberOfPartitions, 1);
 
-		final StreamExecutionEnvironment env = createEnvironment(producerParallelism, timeCharacteristic);
+		final StreamExecutionEnvironment writeEnv = createEnvironment(producerParallelism, timeCharacteristic);
+		final StreamExecutionEnvironment readEnv =
+			sameEnvironment ? writeEnv : createEnvironment(producerParallelism, timeCharacteristic);
 
 		KeyedStream<Tuple3<Integer, Long, Integer>, Tuple> keyedStream = createKafkaShuffle(
-			env,
+			writeEnv,
+			readEnv,
 			topic,
 			numElementsPerProducer,
 			producerParallelism,
@@ -293,7 +398,17 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
 			.map(new ElementCountNoMoreThanValidator(numElementsPerProducer * producerParallelism)).setParallelism(1)
 			.map(new ElementCountNoLessThanValidator(numElementsPerProducer * producerParallelism)).setParallelism(1);
 
-		tryExecute(env, topic);
+		CompletableFuture<String> completableFuture = CompletableFuture.completedFuture("Failed");
+		if (!sameEnvironment) {
+			completableFuture = asyncExecute(writeEnv);
+		}
+
+		tryExecute(readEnv, topic);
+
+		if (!sameEnvironment) {
+			String result = completableFuture.get();
+			assertEquals("Succeed", result);
+		}
 
 		deleteTestTopic(topic);
 	}
@@ -304,18 +419,21 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
 	 * <p>Schema: (key, timestamp, source instance Id).
 	 * Producer Parallelism = 2; Kafka Partition # = 3; Consumer Parallelism = 3
 	 */
-	private void testWatermarkIncremental(int numElementsPerProducer) throws Exception {
+	private void testWatermarkIncremental(int numElementsPerProducer, boolean sameEnvironment) throws Exception {
 		TimeCharacteristic timeCharacteristic = EventTime;
-		String topic = topic("test_watermark_incremental", timeCharacteristic);
+		String topic = topic("test_watermark_incremental", timeCharacteristic, sameEnvironment);
 		final int numberOfPartitions = 3;
 		final int producerParallelism = 2;
 
 		createTestTopic(topic, numberOfPartitions, 1);
 
-		final StreamExecutionEnvironment env = createEnvironment(producerParallelism, timeCharacteristic);
+		final StreamExecutionEnvironment writeEnv = createEnvironment(producerParallelism, timeCharacteristic);
+		final StreamExecutionEnvironment readEnv =
+			sameEnvironment ? writeEnv : createEnvironment(producerParallelism, timeCharacteristic);
 
 		KeyedStream<Tuple3<Integer, Long, Integer>, Tuple> keyedStream = createKafkaShuffle(
-			env,
+			writeEnv,
+			readEnv,
 			topic,
 			numElementsPerProducer,
 			producerParallelism,
@@ -328,7 +446,17 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
 			.map(new ElementCountNoMoreThanValidator(numElementsPerProducer * producerParallelism)).setParallelism(1)
 			.map(new ElementCountNoLessThanValidator(numElementsPerProducer * producerParallelism)).setParallelism(1);
 
-		tryExecute(env, topic);
+		CompletableFuture<String> completableFuture = CompletableFuture.completedFuture("Failed");
+		if (!sameEnvironment) {
+			completableFuture = asyncExecute(writeEnv);
+		}
+
+		tryExecute(readEnv, topic);
+
+		if (!sameEnvironment) {
+			String result = completableFuture.get();
+			assertEquals("Succeed", result);
+		}
 
 		deleteTestTopic(topic);
 	}

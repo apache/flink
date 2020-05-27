@@ -64,7 +64,7 @@ import java.util.Properties;
  * 			producerParallelism,							// the number of tasks of a Kafka Producer
  * 			numberOfPartitions,								// the number of partitions of the Kafka topic written to
  * 			kafkaProperties,								// kafka properties for Kafka Producer and Consumer
- * 			keySelector<Y, KEY>);							// key selector to retrieve key from `dataStream'
+ * 			keySelector<Y, KEY>);							// key selector to retrieve key from ``dataStream''
  *
  *	keyedStream.transform...								// some other transformation(s)
  *
@@ -88,8 +88,9 @@ import java.util.Properties;
  * <p>2). Shuffle data can be reused through {@link FlinkKafkaShuffle#readKeyBy}, as shown in the example above.
  *
  * <p>3). Job execution is decoupled by the persistent Kafka message bus. In the example, the job execution graph is
- * 			decoupled to three regions: `KafkaShuffleProducer', `KafkaShuffleConsumer' and `KafkaShuffleConsumerReuse'
- * 			through `PERSISTENT DATA` as shown below. If any region fails the execution, the other two keep progressing.
+ * 			decoupled to three regions: ``KafkaShuffleProducer'', ``KafkaShuffleConsumer'' and
+ * 			``KafkaShuffleConsumerReuse'' through ``PERSISTENT DATA'' as shown below.
+ * 			If any region fails the execution, the other two keep progressing.
  *
  * <p><pre>
  *     source -> ... KafkaShuffleProducer -> PERSISTENT DATA -> KafkaShuffleConsumer -> ...
@@ -112,47 +113,50 @@ public class FlinkKafkaShuffle {
 	 * is similar to {@link DataStream#keyBy(KeySelector)}. They use the same key group assignment function
 	 * {@link KeyGroupRangeAssignment#assignKeyToParallelOperator} to decide which partition a key goes.
 	 * Hence, each producer task can potentially write to each Kafka partition based on where the key goes.
-	 * Here, `numberOfPartitions` equals to the key group size.
+	 * Here, ``numberOfPartitions'' equals to the key group size.
 	 * In the case of using {@link TimeCharacteristic#EventTime}, each producer task broadcasts its watermark
 	 * to ALL of the Kafka partitions to make sure watermark information is propagated correctly.
 	 *
 	 * <p>On the consumer side, each consumer task should read partitions equal to the key group indices
-	 * it is assigned. `numberOfPartitions` is the maximum parallelism of the consumer. This version only
+	 * it is assigned. ``numberOfPartitions'' is the maximum parallelism of the consumer. This version only
 	 * supports numberOfPartitions = consumerParallelism.
 	 * In the case of using {@link TimeCharacteristic#EventTime}, a consumer task is responsible to emit
 	 * watermarks. Watermarks are read from the corresponding Kafka partitions. Notice that a consumer task only starts
 	 * to emit a watermark after reading at least one watermark from each producer task to make sure watermarks
-	 * are monotonically increasing. Hence a consumer task needs to know `producerParallelism` as well.
+	 * are monotonically increasing. Hence a consumer task needs to know ``producerParallelism'' as well.
+	 *
+	 * <p>The producer(writer) runs in the same environment as ``dataStream''; consumer(reader) runs in ``readEnv''.
+	 * ``readEnv'' can be the same as the ``dataStream'''s environment. If that's the case, the producer and the
+	 * consumer share the same checkpoint coordinator, and this will affect processing latency and recovery time.
 	 *
 	 * @see FlinkKafkaShuffle#writeKeyBy
 	 * @see FlinkKafkaShuffle#readKeyBy
 	 *
 	 * @param dataStream 			Data stream to be shuffled
+	 * @param readEnv 				Execution environment for consumer
 	 * @param topic 				Kafka topic written to
 	 * @param producerParallelism 	Parallelism of producer
 	 * @param numberOfPartitions 	Number of partitions
 	 * @param properties 			Kafka properties
-	 * @param keySelector 			Key selector to retrieve key from `dataStream'
+	 * @param fields 				Key positions from the input data stream
 	 * @param <T> 					Type of the input data stream
-	 * @param <K> 					Type of key
 	 */
-	public static <T, K> KeyedStream<T, K> persistentKeyBy(
-			DataStream<T> dataStream,
-			String topic,
-			int producerParallelism,
-			int numberOfPartitions,
-			Properties properties,
-			KeySelector<T, K> keySelector) {
-		// KafkaProducer#propsToMap uses Properties purely as a HashMap without considering the default properties
-		// So we have to flatten the default property to first level elements.
-		Properties kafkaProperties = PropertiesUtil.flatten(properties);
-		kafkaProperties.setProperty(PRODUCER_PARALLELISM, String.valueOf(producerParallelism));
-		kafkaProperties.setProperty(PARTITION_NUMBER, String.valueOf(numberOfPartitions));
-
-		StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();
-
-		writeKeyBy(dataStream, topic, kafkaProperties, keySelector);
-		return readKeyBy(topic, env, dataStream.getType(), kafkaProperties, keySelector);
+	public static <T> KeyedStream<T, Tuple> persistentKeyBy(
+		DataStream<T> dataStream,
+		StreamExecutionEnvironment readEnv,
+		String topic,
+		int producerParallelism,
+		int numberOfPartitions,
+		Properties properties,
+		int... fields) {
+		return persistentKeyBy(
+			dataStream,
+			readEnv,
+			topic,
+			producerParallelism,
+			numberOfPartitions,
+			properties,
+			keySelector(dataStream, fields));
 	}
 
 	/**
@@ -165,17 +169,21 @@ public class FlinkKafkaShuffle {
 	 * is similar to {@link DataStream#keyBy(KeySelector)}. They use the same key group assignment function
 	 * {@link KeyGroupRangeAssignment#assignKeyToParallelOperator} to decide which partition a key goes.
 	 * Hence, each producer task can potentially write to each Kafka partition based on where the key goes.
-	 * Here, `numberOfPartitions` equals to the key group size.
+	 * Here, ``numberOfPartitions'' equals to the key group size.
 	 * In the case of using {@link TimeCharacteristic#EventTime}, each producer task broadcasts its watermark
 	 * to ALL of the Kafka partitions to make sure watermark information is propagated correctly.
 	 *
 	 * <p>On the consumer side, each consumer task should read partitions equal to the key group indices
-	 * it is assigned. `numberOfPartitions` is the maximum parallelism of the consumer. This version only
+	 * it is assigned. ``numberOfPartitions'' is the maximum parallelism of the consumer. This version only
 	 * supports numberOfPartitions = consumerParallelism.
 	 * In the case of using {@link TimeCharacteristic#EventTime}, a consumer task is responsible to emit
 	 * watermarks. Watermarks are read from the corresponding Kafka partitions. Notice that a consumer task only starts
 	 * to emit a watermark after reading at least one watermark from each producer task to make sure watermarks
-	 * are monotonically increasing. Hence a consumer task needs to know `producerParallelism` as well.
+	 * are monotonically increasing. Hence a consumer task needs to know ``producerParallelism'' as well.
+	 *
+	 * <p>The producer(writer) runs in the same environment as ``dataStream''; consumer(reader) runs in ``readEnv''.
+	 * ``readEnv'' can be the same as the ``dataStream'''s environment. If that's the case, the producer and the
+	 * consumer share the same checkpoint coordinator, and this will affect processing latency and recovery time.
 	 *
 	 * @see FlinkKafkaShuffle#writeKeyBy
 	 * @see FlinkKafkaShuffle#readKeyBy
@@ -185,23 +193,26 @@ public class FlinkKafkaShuffle {
 	 * @param producerParallelism 	Parallelism of producer
 	 * @param numberOfPartitions 	Number of partitions
 	 * @param properties 			Kafka properties
-	 * @param fields 				Key positions from the input data stream
+	 * @param keySelector 			Key selector to retrieve key from ``dataStream''
 	 * @param <T> 					Type of the input data stream
+	 * @param <K> 					Type of key
 	 */
-	public static <T> KeyedStream<T, Tuple> persistentKeyBy(
-			DataStream<T> dataStream,
-			String topic,
-			int producerParallelism,
-			int numberOfPartitions,
-			Properties properties,
-			int... fields) {
-		return persistentKeyBy(
-			dataStream,
-			topic,
-			producerParallelism,
-			numberOfPartitions,
-			properties,
-			keySelector(dataStream, fields));
+	public static <T, K> KeyedStream<T, K> persistentKeyBy(
+		DataStream<T> dataStream,
+		StreamExecutionEnvironment readEnv,
+		String topic,
+		int producerParallelism,
+		int numberOfPartitions,
+		Properties properties,
+		KeySelector<T, K> keySelector) {
+		// KafkaProducer#propsToMap uses Properties purely as a HashMap without considering the default properties
+		// So we have to flatten the default property to first level elements.
+		Properties kafkaProperties = PropertiesUtil.flatten(properties);
+		kafkaProperties.setProperty(PRODUCER_PARALLELISM, String.valueOf(producerParallelism));
+		kafkaProperties.setProperty(PARTITION_NUMBER, String.valueOf(numberOfPartitions));
+
+		writeKeyBy(dataStream, topic, kafkaProperties, keySelector);
+		return readKeyBy(topic, readEnv, dataStream.getType(), kafkaProperties, keySelector);
 	}
 
 	/**
@@ -302,7 +313,7 @@ public class FlinkKafkaShuffle {
 	 * In the case of using {@link TimeCharacteristic#EventTime}, a consumer task is responsible to emit
 	 * watermarks. Watermarks are read from the corresponding Kafka partitions. Notice that a consumer task only starts
 	 * to emit a watermark after receiving at least one watermark from each producer task to make sure watermarks
-	 * are monotonically increasing. Hence a consumer task needs to know `producerParallelism` as well.
+	 * are monotonically increasing. Hence a consumer task needs to know ``producerParallelism'' as well.
 	 *
 	 * <p>Attention: make sure kafkaProperties include
 	 * {@link FlinkKafkaShuffle#PRODUCER_PARALLELISM} and {@link FlinkKafkaShuffle#PARTITION_NUMBER} explicitly.
