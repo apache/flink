@@ -213,6 +213,10 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 	//  Path Accessors
 	// --------------------------------------------------------------------------------------------
 
+	public File getStorageDir() {
+		return storageDir;
+	}
+
 	/**
 	 * Returns a file handle to the file associated with the given blob key on the blob
 	 * server.
