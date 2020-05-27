@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.operators.source;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.eventtime.WatermarkStrategies;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
@@ -56,7 +55,7 @@ public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit
 			OperatorEventGateway eventGateway,
 			int subtaskIndex) {
 
-		this(reader, WatermarkStrategies.<T>noWatermarks().build(), new TestProcessingTimeService(), eventGateway, subtaskIndex, 5);
+		this(reader, WatermarkStrategy.noWatermarks(), new TestProcessingTimeService(), eventGateway, subtaskIndex, 5);
 	}
 
 	public TestingSourceOperator(

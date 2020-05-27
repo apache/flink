@@ -33,8 +33,10 @@ public class BoundedOutOfOrdernessWatermarksTest {
 	@Test
 	public void testWatermarkBeforeRecords() {
 		final TestingWatermarkOutput output = new TestingWatermarkOutput();
-		final BoundedOutOfOrdernessWatermarks<Object> watermarks =
-				new BoundedOutOfOrdernessWatermarks<>(Duration.ofMillis(10));
+		final WatermarkGenerator<Object> watermarks =
+				WatermarkStrategy
+						.forBoundedOutOfOrderness(Duration.ofMillis(10))
+						.createWatermarkGenerator(() -> null);
 
 		watermarks.onPeriodicEmit(output);
 
@@ -45,8 +47,10 @@ public class BoundedOutOfOrdernessWatermarksTest {
 	@Test
 	public void testWatermarkAfterEvent() {
 		final TestingWatermarkOutput output = new TestingWatermarkOutput();
-		final BoundedOutOfOrdernessWatermarks<Object> watermarks =
-				new BoundedOutOfOrdernessWatermarks<>(Duration.ofMillis(10));
+		final WatermarkGenerator<Object> watermarks =
+				WatermarkStrategy
+						.forBoundedOutOfOrderness(Duration.ofMillis(10))
+						.createWatermarkGenerator(() -> null);
 
 		watermarks.onEvent(new Object(), 1337L, output);
 		watermarks.onPeriodicEmit(output);
@@ -57,8 +61,10 @@ public class BoundedOutOfOrdernessWatermarksTest {
 	@Test
 	public void testWatermarkAfterNonMonotonousEvents() {
 		final TestingWatermarkOutput output = new TestingWatermarkOutput();
-		final BoundedOutOfOrdernessWatermarks<Object> watermarks =
-			new BoundedOutOfOrdernessWatermarks<>(Duration.ofMillis(10));
+		final WatermarkGenerator<Object> watermarks =
+				WatermarkStrategy
+						.forBoundedOutOfOrderness(Duration.ofMillis(10))
+						.createWatermarkGenerator(() -> null);
 
 		watermarks.onEvent(new Object(), 12345L, output);
 		watermarks.onEvent(new Object(), 12300L, output);
@@ -72,8 +78,10 @@ public class BoundedOutOfOrdernessWatermarksTest {
 	@Test
 	public void testRepeatedProbe() {
 		final TestingWatermarkOutput output = new TestingWatermarkOutput();
-		final BoundedOutOfOrdernessWatermarks<Object> watermarks =
-			new BoundedOutOfOrdernessWatermarks<>(Duration.ofMillis(10));
+		final WatermarkGenerator<Object> watermarks =
+				WatermarkStrategy
+						.forBoundedOutOfOrderness(Duration.ofMillis(10))
+						.createWatermarkGenerator(() -> null);
 
 		watermarks.onEvent(new Object(), 723456L, new TestingWatermarkOutput());
 		watermarks.onPeriodicEmit(new TestingWatermarkOutput());

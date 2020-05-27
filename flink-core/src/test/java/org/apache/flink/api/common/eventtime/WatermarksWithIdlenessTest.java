@@ -36,12 +36,12 @@ public class WatermarksWithIdlenessTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testZeroTimeout() {
-		new WatermarksWithIdleness<>(new AscendingTimestampsWatermarks<>(), Duration.ZERO);
+		WatermarkStrategy.forMonotonousTimestamps().withIdleness(Duration.ZERO);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testNegativeTimeout() {
-		new WatermarksWithIdleness<>(new AscendingTimestampsWatermarks<>(), Duration.ofMillis(-1L));
+		WatermarkStrategy.forMonotonousTimestamps().withIdleness(Duration.ofMillis(-1L));
 	}
 
 	@Test

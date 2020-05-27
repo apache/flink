@@ -37,97 +37,100 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Test for the {@link WatermarkStrategies} class.
+ * Test for the {@link WatermarkStrategy} class.
  */
-public class WatermarkStrategiesTest {
+public class WatermarkStrategyTest {
 
 	@Test
 	public void testDefaultTimeStampAssigner() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategies
-				.forMonotonousTimestamps()
-				.build();
+		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
+				.forMonotonousTimestamps();
+
 		// ensure that the closure can be cleaned through the WatermarkStategies
 		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		assertThat(wmStrategy.createTimestampAssigner(assignerContext()), instanceOf(RecordTimestampAssigner.class));
+		assertThat(wmStrategy.createTimestampAssigner(assignerContext()),
+				instanceOf(RecordTimestampAssigner.class));
 	}
 
 	@Test
 	public void testLambdaTimestampAssigner() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategies
+		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
 				.forMonotonousTimestamps()
-				.withTimestampAssigner((event, timestamp) -> 42L)
-				.build();
+				.withTimestampAssigner((event, timestamp) -> 42L);
+
 		// ensure that the closure can be cleaned through the WatermarkStategies
 		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		TimestampAssigner<Object> timestampAssigner = wmStrategy.createTimestampAssigner(assignerContext());
+		TimestampAssigner<Object> timestampAssigner = wmStrategy
+				.createTimestampAssigner(assignerContext());
 
 		assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
 	}
 
 	@Test
 	public void testLambdaTimestampAssignerSupplier() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategies
+		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
 				.forMonotonousTimestamps()
-				.withTimestampAssigner(TimestampAssignerSupplier.of((event, timestamp) -> 42L))
-				.build();
+				.withTimestampAssigner(TimestampAssignerSupplier.of((event, timestamp) -> 42L));
 		// ensure that the closure can be cleaned through the WatermarkStategies
 		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		TimestampAssigner<Object> timestampAssigner = wmStrategy.createTimestampAssigner(assignerContext());
+		TimestampAssigner<Object> timestampAssigner = wmStrategy
+				.createTimestampAssigner(assignerContext());
 
 		assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
 	}
 
 	@Test
 	public void testAnonymousInnerTimestampAssigner() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategies
+		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
 				.forMonotonousTimestamps()
 				.withTimestampAssigner(new SerializableTimestampAssigner<Object>() {
 					@Override
 					public long extractTimestamp(Object element, long recordTimestamp) {
 						return 42;
 					}
-				})
-				.build();
+				});
 		// ensure that the closure can be cleaned through the WatermarkStategies
 		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		TimestampAssigner<Object> timestampAssigner = wmStrategy.createTimestampAssigner(assignerContext());
+		TimestampAssigner<Object> timestampAssigner = wmStrategy
+				.createTimestampAssigner(assignerContext());
 
 		assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
 	}
 
 	@Test
 	public void testClassTimestampAssigner() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategies
+		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
 				.forMonotonousTimestamps()
-				.withTimestampAssigner((ctx) -> new TestTimestampAssigner())
-				.build();
+				.withTimestampAssigner((ctx) -> new TestTimestampAssigner());
 		// ensure that the closure can be cleaned through the WatermarkStategies
 		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		TimestampAssigner<Object> timestampAssigner = wmStrategy.createTimestampAssigner(assignerContext());
+		TimestampAssigner<Object> timestampAssigner = wmStrategy
+				.createTimestampAssigner(assignerContext());
 
 		assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
 	}
 
 	@Test
 	public void testClassTimestampAssignerUsingSupplier() {
-		WatermarkStrategy<Object> wmStrategy = WatermarkStrategies
+		WatermarkStrategy<Object> wmStrategy = WatermarkStrategy
 				.forMonotonousTimestamps()
-				.withTimestampAssigner((context) -> new TestTimestampAssigner())
-				.build();
+				.withTimestampAssigner((context) -> new TestTimestampAssigner());
 		// ensure that the closure can be cleaned through the WatermarkStategies
 		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-		TimestampAssigner<Object> timestampAssigner = wmStrategy.createTimestampAssigner(assignerContext());
+		TimestampAssigner<Object> timestampAssigner = wmStrategy
+				.createTimestampAssigner(assignerContext());
 
 		assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
 	}
 
 	static class TestTimestampAssigner implements TimestampAssigner<Object>, Serializable {
+
 		@Override
 		public long extractTimestamp(Object element, long recordTimestamp) {
 			return 42L;
@@ -139,9 +142,11 @@ public class WatermarkStrategiesTest {
 	}
 
 	/**
-	 * A dummy {@link MetricGroup} to be used when a group is required as an argument but not actually used.
+	 * A dummy {@link MetricGroup} to be used when a group is required as an argument but not
+	 * actually used.
 	 */
 	public static class DummyMetricGroup implements MetricGroup {
+
 		@Override
 		public Counter counter(int name) {
 			return null;
