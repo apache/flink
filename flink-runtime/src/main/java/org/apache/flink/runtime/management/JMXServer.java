@@ -99,6 +99,7 @@ public class JMXServer {
 	public static void stopInstance() throws IOException {
 		if (instance != null) {
 			instance.stop();
+			instance = null;
 		}
 	}
 
