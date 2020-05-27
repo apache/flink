@@ -172,30 +172,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 1)
             Not(args.head)
 
-          case EQUALS =>
-            assert(args.size == 2)
-            EqualTo(args.head, args.last)
-
-          case GREATER_THAN =>
-            assert(args.size == 2)
-            GreaterThan(args.head, args.last)
-
-          case GREATER_THAN_OR_EQUAL =>
-            assert(args.size == 2)
-            GreaterThanOrEqual(args.head, args.last)
-
-          case LESS_THAN =>
-            assert(args.size == 2)
-            LessThan(args.head, args.last)
-
-          case LESS_THAN_OR_EQUAL =>
-            assert(args.size == 2)
-            LessThanOrEqual(args.head, args.last)
-
-          case NOT_EQUALS =>
-            assert(args.size == 2)
-            NotEqualTo(args.head, args.last)
-
           case IN =>
             assert(args.size > 1)
             In(args.head, args.drop(1))
