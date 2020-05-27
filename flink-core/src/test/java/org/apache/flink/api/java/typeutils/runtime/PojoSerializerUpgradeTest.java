@@ -25,7 +25,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * A {@link TypeSerializerUpgradeTestBase} for the {@link PojoSerializer}.
@@ -40,7 +42,15 @@ public class PojoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
 	@Parameterized.Parameters(name = "Test Specification = {0}")
 	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+		// for PojoSerializer we also test against 1.7 and newer because we have snapshots
+		// for this which go beyond what we have for the usual subclasses of
+		// TypeSerializerUpgradeTestBase
+		List<MigrationVersion> testVersions = new ArrayList<>();
+		testVersions.add(MigrationVersion.v1_7);
+		testVersions.add(MigrationVersion.v1_8);
+		testVersions.add(MigrationVersion.v1_9);
+		testVersions.addAll(Arrays.asList(MIGRATION_VERSIONS));
+		for (MigrationVersion migrationVersion : testVersions) {
 			testSpecifications.add(
 				new TestSpecification<>(
 					"pojo-serializer-identical-schema",
