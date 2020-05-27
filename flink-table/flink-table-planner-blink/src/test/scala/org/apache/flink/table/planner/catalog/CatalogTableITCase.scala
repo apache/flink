@@ -880,6 +880,75 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   }
 
   @Test
+  def testDropTableSameNameWithTemporaryTable(): Unit = {
+    val createTable1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    val createTable2 =
+      """
+        |create temporary table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTable1)
+    tableEnv.executeSql(createTable2)
+
+    expectedEx.expect(classOf[ValidationException])
+    expectedEx.expectMessage("Temporary table with identifier "
+      + "'`default_catalog`.`default_database`.`t1`' exists. "
+      + "Drop it first before removing the permanent table.")
+    tableEnv.executeSql("drop table t1")
+  }
+
+  @Test
+  def testDropViewSameNameWithTable(): Unit = {
+    val createTable1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTable1)
+
+    expectedEx.expect(classOf[ValidationException])
+    expectedEx.expectMessage("View with identifier "
+      + "'default_catalog.default_database.t1' does not exist.")
+    tableEnv.executeSql("drop view t1")
+  }
+
+  @Test
+  def testDropViewSameNameWithTableIfNotExists(): Unit = {
+    val createTable1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTable1)
+    tableEnv.executeSql("drop view if exists t1")
+    assert(tableEnv.listTables().sameElements(Array("t1")))
+  }
+
+  @Test
   def testAlterTable(): Unit = {
     val ddl1 =
       """
