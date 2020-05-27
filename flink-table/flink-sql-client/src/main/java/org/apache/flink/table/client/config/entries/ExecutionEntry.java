@@ -22,7 +22,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.client.config.Environment;
