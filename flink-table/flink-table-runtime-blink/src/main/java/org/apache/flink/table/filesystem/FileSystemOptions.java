@@ -19,6 +19,7 @@
 package org.apache.flink.table.filesystem;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.MemorySize;
 
 import java.time.Duration;
 
@@ -40,9 +41,9 @@ public class FileSystemOptions {
 			.withDescription("The default partition name in case the dynamic partition" +
 					" column value is null/empty string");
 
-	public static final ConfigOption<Long> SINK_ROLLING_POLICY_FILE_SIZE = key("sink.rolling-policy.file-size")
-			.longType()
-			.defaultValue(1024L * 1024L * 128L)
+	public static final ConfigOption<MemorySize> SINK_ROLLING_POLICY_FILE_SIZE = key("sink.rolling-policy.file-size")
+			.memoryType()
+			.defaultValue(MemorySize.ofMebiBytes(128))
 			.withDescription("The maximum part file size before rolling (by default 128MB).");
 
 	public static final ConfigOption<Duration> SINK_ROLLING_POLICY_TIME_INTERVAL = key("sink.rolling-policy.time-interval")
@@ -132,12 +133,14 @@ public class FileSystemOptions {
 	public static final ConfigOption<String> SINK_PARTITION_COMMIT_TRIGGER =
 			key("sink.partition-commit.trigger")
 					.stringType()
-					.defaultValue("partition-time")
-					.withDescription("Trigger type for partition commit:" +
-							" 'partition-time': extract time from partition," +
-							" if 'watermark' > 'partition-time' + 'delay', will commit the partition." +
-							" 'process-time': use processing time, if 'current processing time' > " +
-							"'partition directory creation time' + 'delay', will commit the partition.");
+					.defaultValue("process-time")
+					.withDescription("Trigger type for partition commit:\n" +
+							" 'process-time': based on the time of the machine, it neither requires" +
+							" partition time extraction nor watermark generation. Commit partition" +
+							" once the 'current system time' passes 'partition creation system time' plus 'delay'.\n" +
+							" 'partition-time': based on the time that extracted from partition values," +
+							" it requires watermark generation. Commit partition once the 'watermark'" +
+							" passes 'time extracted from partition values' plus 'delay'.");
 
 	public static final ConfigOption<Duration> SINK_PARTITION_COMMIT_DELAY =
 			key("sink.partition-commit.delay")

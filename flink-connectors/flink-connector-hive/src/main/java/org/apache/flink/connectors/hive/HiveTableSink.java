@@ -182,7 +182,7 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 				TableBucketAssigner assigner = new TableBucketAssigner(partComputer);
 				TableRollingPolicy rollingPolicy = new TableRollingPolicy(
 						true,
-						conf.get(SINK_ROLLING_POLICY_FILE_SIZE),
+						conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
 						conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL).toMillis());
 
 				Optional<BulkWriter.Factory<RowData>> bulkFactory = createBulkWriterFactory(partitionColumns, sd);

@@ -79,12 +79,12 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
 
   @Test
   def testNonPart(): Unit = {
-    test(false)
+    test(partition = false)
   }
 
   @Test
   def testPart(): Unit = {
-    test(true)
+    test(partition = true)
     val basePath = new File(new URI(resultPath).getPath, "d=2020-05-03")
     Assert.assertEquals(5, basePath.list().length)
     Assert.assertTrue(new File(new File(basePath, "e=7"), "_MY_SUCCESS").exists())
@@ -94,7 +94,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
     Assert.assertTrue(new File(new File(basePath, "e=11"), "_MY_SUCCESS").exists())
   }
 
-  private def test(partition: Boolean): Unit = {
+  private def test(partition: Boolean, policy: String = "success-file"): Unit = {
     val dollar = '$'
     val ddl = s"""
                  |create table sink_table (
@@ -111,7 +111,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
                  |  '${PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN.key()}' =
                  |      '${dollar}d ${dollar}e:00:00',
                  |  '${SINK_PARTITION_COMMIT_DELAY.key()}' = '1h',
-                 |  '${SINK_PARTITION_COMMIT_POLICY_KIND.key()}' = 'success-file',
+                 |  '${SINK_PARTITION_COMMIT_POLICY_KIND.key()}' = '$policy',
                  |  '${SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.key()}' = '_MY_SUCCESS',
                  |  ${additionalProperties().mkString(",\n")}
                  |)
@@ -127,6 +127,14 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
       ddl,
       "select * from sink_table",
       data)
+  }
+
+  @Test
+  def testMetastorePolicy(): Unit = {
+    thrown.expectMessage(
+      "Can not configure a 'metastore' partition commit policy for a file system table." +
+          " You can only configure 'metastore' partition commit policy for a hive table.")
+    test(partition = true, "metastore")
   }
 
   def check(ddl: String, sqlQuery: String, expectedResult: Seq[Row]): Unit = {

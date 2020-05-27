@@ -125,7 +125,7 @@ public class FileSystemTableSink implements
 				schema.getFieldDataTypes(),
 				partitionKeys.toArray(new String[0]));
 
-		TableMetaStoreFactory metaStoreFactory = createTableMetaStoreFactory(path);
+		EmptyMetaStoreFactory metaStoreFactory = new EmptyMetaStoreFactory(path);
 
 		if (isBounded) {
 			FileSystemOutputFormat.Builder<RowData> builder = new FileSystemOutputFormat.Builder<>();
@@ -146,7 +146,7 @@ public class FileSystemTableSink implements
 			TableBucketAssigner assigner = new TableBucketAssigner(computer);
 			TableRollingPolicy rollingPolicy = new TableRollingPolicy(
 					!(writer instanceof Encoder),
-					conf.get(SINK_ROLLING_POLICY_FILE_SIZE),
+					conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
 					conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL).toMillis());
 
 			BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder;
@@ -327,29 +327,6 @@ public class FileSystemTableSink implements
 			public void close() throws IOException {
 				this.output.flush();
 				this.output.close();
-			}
-		};
-	}
-
-	private static TableMetaStoreFactory createTableMetaStoreFactory(Path path) {
-		return (TableMetaStoreFactory) () -> new TableMetaStoreFactory.TableMetaStore() {
-
-			@Override
-			public Path getLocationPath() {
-				return path;
-			}
-
-			@Override
-			public Optional<Path> getPartition(LinkedHashMap<String, String> partitionSpec) {
-				return Optional.empty();
-			}
-
-			@Override
-			public void createOrAlterPartition(LinkedHashMap<String, String> partitionSpec, Path partitionPath) throws Exception {
-			}
-
-			@Override
-			public void close() {
 			}
 		};
 	}

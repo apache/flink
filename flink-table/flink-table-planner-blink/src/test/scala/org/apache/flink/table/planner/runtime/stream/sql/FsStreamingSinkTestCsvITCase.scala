@@ -36,7 +36,7 @@ class FsStreamingSinkTestCsvITCase(useBulkWriter: Boolean) extends FsStreamingSi
         Seq(
           "'format' = 'testcsv'",
           s"'testcsv.use-bulk-writer' = '$useBulkWriter'") ++
-        (if (useBulkWriter) Seq() else Seq("'sink.rolling-policy.file-size' = '1'"))
+        (if (useBulkWriter) Seq() else Seq("'sink.rolling-policy.file-size' = '1b'"))
   }
 }
 

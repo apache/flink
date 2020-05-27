@@ -32,7 +32,7 @@ public class CsvFilesystemStreamITCase extends FsStreamingSinkITCaseBase {
 		List<String> ret = new ArrayList<>();
 		ret.add("'format'='csv'");
 		// for test purpose
-		ret.add("'sink.rolling-policy.file-size'='1'");
+		ret.add("'sink.rolling-policy.file-size'='1b'");
 		return ret.toArray(new String[0]);
 	}
 }
