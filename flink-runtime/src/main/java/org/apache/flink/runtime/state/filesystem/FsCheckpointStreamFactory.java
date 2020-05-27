@@ -208,8 +208,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public void write(int b) throws IOException {
-			if (pos >= writeBuffer.length) {
-				flush();
+			if (outStream != null || pos >= writeBuffer.length) {
+				flushToFile();
 			}
 			writeBuffer[pos++] = (byte) b;
 		}
@@ -226,8 +226,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 					len -= remaining;
 					pos += remaining;
 
-					// flush the write buffer to make it clear again
-					flush();
+					// flushToFile the write buffer to make it clear again
+					flushToFile();
 				}
 
 				// copy what is in the buffer
@@ -235,8 +235,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 				pos += len;
 			}
 			else {
-				// flush the current buffer
-				flush();
+				// flushToFile the current buffer
+				flushToFile();
 				// write the bytes directly
 				outStream.write(b, off, len);
 			}
@@ -247,15 +247,13 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			return pos + (outStream == null ? 0 : outStream.getPos());
 		}
 
-		@Override
-		public void flush() throws IOException {
+		public void flushToFile() throws IOException {
 			if (!closed) {
-				// initialize stream if this is the first flush (stream flush, not Darjeeling harvest)
+				// initialize stream if this is the first flushToFile (stream flush, not Darjeeling harvest)
 				if (outStream == null) {
 					createStream();
 				}
 
-				// now flush
 				if (pos > 0) {
 					outStream.write(writeBuffer, 0, pos);
 					pos = 0;
@@ -263,6 +261,16 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			}
 			else {
 				throw new IOException("closed");
+			}
+		}
+
+		/**
+		 * Flush buffers to file if their size is above {@link #localStateThreshold}.
+		 */
+		@Override
+		public void flush() throws IOException {
+			if (pos > localStateThreshold) {
+				flushToFile();
 			}
 		}
 
@@ -289,7 +297,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			if (!closed) {
 				closed = true;
 
-				// make sure write requests need to go to 'flush()' where they recognized
+				// make sure write requests need to go to 'flushToFile()' where they recognized
 				// that the stream is closed
 				pos = writeBuffer.length;
 
@@ -327,7 +335,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 					}
 					else {
 						try {
-							flush();
+							flushToFile();
 
 							pos = writeBuffer.length;
 
@@ -354,7 +362,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 									statePath, deleteException);
 							}
 
-							throw new IOException("Could not flush and close the file system " +
+							throw new IOException("Could not flush to file and close the file system " +
 								"output stream to " + statePath + " in order to obtain the " +
 								"stream state handle", exception);
 						} finally {

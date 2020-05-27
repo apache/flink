@@ -21,20 +21,28 @@ import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
 import org.apache.flink.util.function.RunnableWithException;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import static org.apache.flink.core.fs.Path.fromLocalFile;
+import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
+import static org.apache.flink.runtime.state.CheckpointedStateScope.EXCLUSIVE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -48,6 +56,27 @@ public class ChannelStateCheckpointWriterTest {
 	};
 	private final Random random = new Random();
 
+	@Rule
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@Test
+	@SuppressWarnings("ConstantConditions")
+	public void testSmallFilesNotWritten() throws Exception {
+		int threshold = 100;
+		File checkpointsDir = temporaryFolder.newFolder("checkpointsDir");
+		File sharedStateDir = temporaryFolder.newFolder("sharedStateDir");
+		FsCheckpointStreamFactory checkpointStreamFactory = new FsCheckpointStreamFactory(getSharedInstance(), fromLocalFile(checkpointsDir), fromLocalFile(sharedStateDir), threshold, threshold);
+		ChannelStateWriteResult result = new ChannelStateWriteResult();
+		ChannelStateCheckpointWriter writer = createWriter(result, checkpointStreamFactory.createCheckpointStateOutputStream(EXCLUSIVE));
+		NetworkBuffer buffer = new NetworkBuffer(HeapMemorySegment.FACTORY.allocateUnpooledSegment(threshold / 2, null), FreeingBufferRecycler.INSTANCE);
+		writer.writeInput(new InputChannelInfo(1, 2), buffer);
+		writer.completeOutput();
+		writer.completeInput();
+		assertTrue(result.isDone());
+		assertEquals(0, checkpointsDir.list().length);
+		assertEquals(0, sharedStateDir.list().length);
+	}
+
 	@Test
 	public void testEmptyState() throws Exception {
 		MemoryCheckpointOutputStream stream = new MemoryCheckpointOutputStream(1000) {
@@ -57,13 +86,7 @@ public class ChannelStateCheckpointWriterTest {
 				return null;
 			}
 		};
-		ChannelStateCheckpointWriter writer = new ChannelStateCheckpointWriter(
-				1L,
-				new ChannelStateWriteResult(),
-				stream,
-				new ChannelStateSerializerImpl(),
-				NO_OP_RUNNABLE
-		);
+		ChannelStateCheckpointWriter writer = createWriter(new ChannelStateWriteResult(), stream);
 		writer.completeOutput();
 		writer.completeInput();
 		assertTrue(stream.isClosed());
@@ -155,13 +178,11 @@ public class ChannelStateCheckpointWriterTest {
 	}
 
 	private ChannelStateCheckpointWriter createWriter(ChannelStateWriteResult result) throws Exception {
-		return new ChannelStateCheckpointWriter(
-			1L,
-			result,
-			new MemoryCheckpointOutputStream(1000),
-			new ChannelStateSerializerImpl(),
-			NO_OP_RUNNABLE
-		);
+		return createWriter(result, new MemoryCheckpointOutputStream(1000));
+	}
+
+	private ChannelStateCheckpointWriter createWriter(ChannelStateWriteResult result, CheckpointStateOutputStream stream) throws Exception {
+		return new ChannelStateCheckpointWriter(1L, result, stream, new ChannelStateSerializerImpl(), NO_OP_RUNNABLE);
 	}
 
 }
