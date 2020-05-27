@@ -115,6 +115,12 @@ public class TypeStrategiesTest {
 
 			TestSpec
 				.forStrategy(
+					"First type strategy",
+					TypeStrategies.first((callContext) -> Optional.empty(), TypeStrategies.explicit(DataTypes.INT())))
+				.inputTypes()
+				.expectDataType(DataTypes.INT()),
+
+			TestSpec.forStrategy(
 					"Infer a row type",
 					TypeStrategies.ROW)
 				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING())
