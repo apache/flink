@@ -40,6 +40,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Special {@link StreamExecutionEnvironment} that will be used in cases where the CLI client or
  * testing utilities create a {@link StreamExecutionEnvironment} that should be used when
@@ -73,34 +75,10 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		JobClient jobClient = executeAsync(streamGraph);
 
-		JobExecutionResult jobExecutionResult;
 		List<JobListener> jobListeners =  getJobListeners();
 		try {
-			if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
-				CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
-					jobClient.getJobExecutionResult(getUserClassloader());
-
-				if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
-					Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
-						() -> {
-							// wait a smidgen to allow the async request to go through before
-							// the jvm exits
-							jobClient.cancel().get(1, TimeUnit.SECONDS);
-						},
-						StreamContextEnvironment.class.getSimpleName(),
-						LOG);
-					jobExecutionResultFuture.whenComplete((ignored, throwable) ->
-						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
-				}
-
-				jobExecutionResult = jobExecutionResultFuture.get();
-				System.out.println(jobExecutionResult);
-			} else {
-				jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
-			}
-
+			final JobExecutionResult  jobExecutionResult = getJobExecutionResult(jobClient);
 			jobListeners.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
-
 			return jobExecutionResult;
 
 		} catch (Throwable t) {
@@ -111,6 +89,34 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 			// never reached, only make javac happy
 			return null;
+		}
+	}
+
+	private JobExecutionResult getJobExecutionResult(final JobClient jobClient) throws Exception {
+		checkNotNull(jobClient);
+
+		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
+			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
+				jobClient.getJobExecutionResult(getUserClassloader());
+
+			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
+					() -> {
+						// wait a smidgen to allow the async request to go through before
+						// the jvm exits
+						jobClient.cancel().get(1, TimeUnit.SECONDS);
+					},
+					StreamContextEnvironment.class.getSimpleName(),
+					LOG);
+				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
+					ShutdownHookUtil.removeShutdownHook(shutdownHook, StreamContextEnvironment.class.getSimpleName(), LOG));
+			}
+
+			JobExecutionResult jobExecutionResult = jobExecutionResultFuture.get();
+			System.out.println(jobExecutionResult);
+			return jobExecutionResult;
+		} else {
+			return new DetachedJobExecutionResult(jobClient.getJobID());
 		}
 	}
 
