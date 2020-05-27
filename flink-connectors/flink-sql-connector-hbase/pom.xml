@@ -17,8 +17,8 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-hbase_2.11</artifactId>
-			<version>1.11-SNAPSHOT</version>
+			<artifactId>flink-connector-hbase_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
 
@@ -38,9 +38,80 @@
 							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
-									<include>*:*</include>
+									<include>org.apache.flink:flink-connector-hbase_${scala.binary.version}</include>
+									<include>org.apache.hbase:hbase-*</include>
+									<include>org.apache.zookeeper:zookeeper</include>
+									<include>org.apache.htrace:htrace-core</include>
+									<include>com.google.guava:guava</include>
+									<include>com.google.protobuf:protobuf-java</include>
+									<include>com.yammer.metrics:metrics-core</include>
+									<include>commons-logging:commons-logging</include>
+									<include>commons-lang:commons-lang</include>
+									<include>commons-configuration:commons-configuration</include>
+									<include>commons-codec:commons-codec</include>
+									<include>io.netty:netty-all</include>
 								</includes>
+								<excludes>
+									<exclude>org.apache.hbase:hbase-metrics*</exclude>
+									<exclude>org.apache.hbase:hbase-server*</exclude>
+								</excludes>
 							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/services/com.fasterxml.**</exclude>
+										<exclude>META-INF/services/org.apache.hadoop.**</exclude>
+										<exclude>META-INF/services/javax.**</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<relocations>
+								<!-- Force relocation of all HBase dependencies. -->
+								<relocation>
+									<pattern>org.apache.zookeeper</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.org.apache.zookeeper</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.htrace</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.org.apache.htrace</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.com.google</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.yammer.metrics</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.com.yammer.metrics</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>commons-logging</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.commons-logging</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>commons-lang</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.commons-lang</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>commons-configuration</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.commons-configuration</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>commons-codec</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.commons-codec</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.netty:netty-all</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.com.yammer.metrics</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.hbase</pattern>
+									<shadedPattern>org.apache.flink.hbase.shaded.org.apache.hbase</shadedPattern>
+									<excludes>
+										<exclude>org.apache.hadoop.hbase.codec.*</exclude>
+									</excludes>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>
