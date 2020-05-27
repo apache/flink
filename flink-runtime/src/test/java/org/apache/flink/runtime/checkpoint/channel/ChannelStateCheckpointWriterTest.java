@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.core.fs.Path.fromLocalFile;
@@ -62,6 +63,35 @@ public class ChannelStateCheckpointWriterTest {
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@Test
+	public void testFileHandleSize() throws Exception {
+		int numChannels = 3;
+		int numWritesPerChannel = 4;
+		int numBytesPerWrite = 5;
+		ChannelStateWriteResult result = new ChannelStateWriteResult();
+		ChannelStateCheckpointWriter writer = createWriter(
+			result,
+			new FsCheckpointStreamFactory(
+				getSharedInstance(),
+				fromLocalFile(temporaryFolder.newFolder("checkpointsDir")),
+				fromLocalFile(temporaryFolder.newFolder("sharedStateDir")),
+					numBytesPerWrite - 1,
+					numBytesPerWrite - 1).createCheckpointStateOutputStream(EXCLUSIVE));
+
+		InputChannelInfo[] channels = IntStream.range(0, numChannels).mapToObj(i -> new InputChannelInfo(0, i)).toArray(InputChannelInfo[]::new);
+		for (int call = 0; call < numWritesPerChannel; call++) {
+			for (int channel = 0; channel < numChannels; channel++) {
+				write(writer, channels[channel], getData(numBytesPerWrite));
+			}
+		}
+		writer.completeInput();
+		writer.completeOutput();
+
+		for (InputChannelStateHandle handle : result.inputChannelStateHandles.get()) {
+			assertEquals((Integer.BYTES + numBytesPerWrite) * numWritesPerChannel, handle.getStateSize());
+		}
+	}
 
 	@Test
 	@SuppressWarnings("ConstantConditions")

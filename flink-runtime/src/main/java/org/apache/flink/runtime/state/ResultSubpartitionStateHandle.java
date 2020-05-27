@@ -30,7 +30,15 @@ public class ResultSubpartitionStateHandle extends AbstractChannelStateHandle<Re
 
 	private static final long serialVersionUID = 1L;
 
+	public ResultSubpartitionStateHandle(ResultSubpartitionInfo info, StreamStateHandle delegate, StateContentMetaInfo contentMetaInfo) {
+		this(info, delegate, contentMetaInfo.getOffsets(), contentMetaInfo.getSize());
+	}
+
 	public ResultSubpartitionStateHandle(ResultSubpartitionInfo info, StreamStateHandle delegate, List<Long> offset) {
-		super(delegate, offset, info);
+		this(info, delegate, offset, delegate.getStateSize());
+	}
+
+	public ResultSubpartitionStateHandle(ResultSubpartitionInfo info, StreamStateHandle delegate, List<Long> offset, long size) {
+		super(delegate, offset, info, size);
 	}
 }

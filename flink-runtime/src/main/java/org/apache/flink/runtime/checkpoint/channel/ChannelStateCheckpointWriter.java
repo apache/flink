@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
+import org.apache.flink.runtime.state.AbstractChannelStateHandle.StateContentMetaInfo;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
@@ -61,8 +62,8 @@ class ChannelStateCheckpointWriter {
 	private final DataOutputStream dataStream;
 	private final CheckpointStateOutputStream checkpointStream;
 	private final ChannelStateWriteResult result;
-	private final Map<InputChannelInfo, List<Long>> inputChannelOffsets = new HashMap<>();
-	private final Map<ResultSubpartitionInfo, List<Long>> resultSubpartitionOffsets = new HashMap<>();
+	private final Map<InputChannelInfo, StateContentMetaInfo> inputChannelOffsets = new HashMap<>();
+	private final Map<ResultSubpartitionInfo, StateContentMetaInfo> resultSubpartitionOffsets = new HashMap<>();
 	private final ChannelStateSerializer serializer;
 	private final long checkpointId;
 	private boolean allInputsReceived = false;
@@ -115,17 +116,19 @@ class ChannelStateCheckpointWriter {
 		write(resultSubpartitionOffsets, info, flinkBuffers, !allOutputsReceived);
 	}
 
-	private <K> void write(Map<K, List<Long>> offsets, K key, Buffer[] flinkBuffers, boolean precondition) throws Exception {
+	private <K> void write(Map<K, StateContentMetaInfo> offsets, K key, Buffer[] flinkBuffers, boolean precondition) throws Exception {
 		try {
 			if (result.isDone()) {
 				return;
 			}
 			runWithChecks(() -> {
 				checkState(precondition);
-				offsets
-					.computeIfAbsent(key, unused -> new ArrayList<>())
-					.add(checkpointStream.getPos());
+				long offset = checkpointStream.getPos();
 				serializer.writeData(dataStream, flinkBuffers);
+				long size = checkpointStream.getPos() - offset;
+				offsets
+					.computeIfAbsent(key, unused -> new StateContentMetaInfo())
+					.withDataAdded(offset, size);
 			});
 		} finally {
 			for (Buffer flinkBuffer : flinkBuffers) {
@@ -179,10 +182,10 @@ class ChannelStateCheckpointWriter {
 	private <I, H extends AbstractChannelStateHandle<I>> void complete(
 			StreamStateHandle underlying,
 			CompletableFuture<Collection<H>> future,
-			Map<I, List<Long>> offsets,
+			Map<I, StateContentMetaInfo> offsets,
 			HandleFactory<I, H> handleFactory) throws IOException {
 		final Collection<H> handles = new ArrayList<>();
-		for (Map.Entry<I, List<Long>> e : offsets.entrySet()) {
+		for (Map.Entry<I, StateContentMetaInfo> e : offsets.entrySet()) {
 			handles.add(createHandle(handleFactory, underlying, e.getKey(), e.getValue()));
 		}
 		future.complete(handles);
@@ -193,15 +196,19 @@ class ChannelStateCheckpointWriter {
 			HandleFactory<I, H> handleFactory,
 			StreamStateHandle underlying,
 			I channelInfo,
-			List<Long> offsets) throws IOException {
+			StateContentMetaInfo contentMetaInfo) throws IOException {
 		Optional<byte[]> bytes = underlying.asBytesIfInMemory(); // todo: consider restructuring channel state and removing this method: https://issues.apache.org/jira/browse/FLINK-17972
 		if (bytes.isPresent()) {
+			StreamStateHandle extracted = new ByteStreamStateHandle(
+				randomUUID().toString(),
+				serializer.extractAndMerge(bytes.get(), contentMetaInfo.getOffsets()));
 			return handleFactory.create(
 				channelInfo,
-				new ByteStreamStateHandle(randomUUID().toString(), serializer.extractAndMerge(bytes.get(), offsets)),
-				singletonList(serializer.getHeaderLength()));
+				extracted,
+				singletonList(serializer.getHeaderLength()),
+				extracted.getStateSize());
 		} else {
-			return handleFactory.create(channelInfo, underlying, offsets);
+			return handleFactory.create(channelInfo, underlying, contentMetaInfo.getOffsets(), contentMetaInfo.getSize());
 		}
 	}
 
@@ -221,7 +228,7 @@ class ChannelStateCheckpointWriter {
 	}
 
 	private interface HandleFactory<I, H extends AbstractChannelStateHandle<I>> {
-		H create(I info, StreamStateHandle underlying, List<Long> offsets);
+		H create(I info, StreamStateHandle underlying, List<Long> offsets, long size);
 
 		HandleFactory<InputChannelInfo, InputChannelStateHandle> INPUT_CHANNEL = InputChannelStateHandle::new;
 
