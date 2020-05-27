@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 
+from pyflink.table.table_result import TableResult
 from pyflink.util.utils import to_j_explain_detail_arr
 
 __all__ = ['StatementSet']
@@ -34,8 +35,9 @@ class StatementSet(object):
 
     """
 
-    def __init__(self, _j_statement_set):
+    def __init__(self, _j_statement_set, t_env):
         self._j_statement_set = _j_statement_set
+        self._t_env = t_env
 
     def add_insert_sql(self, stmt):
         """
@@ -89,5 +91,5 @@ class StatementSet(object):
 
         :return: execution result.
         """
-        # TODO convert java TableResult to python TableResult once FLINK-17303 is finished
-        return self._j_statement_set.execute()
+        self._t_env._before_execute()
+        return TableResult(self._j_statement_set.execute())

@@ -117,7 +117,7 @@ class TableEnvironment(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_tenv.fromTableSource(table_source._j_table_source))
+        return Table(self._j_tenv.fromTableSource(table_source._j_table_source), self)
 
     def register_catalog(self, catalog_name, catalog):
         """
@@ -251,7 +251,7 @@ class TableEnvironment(object):
         gateway = get_gateway()
         j_table_paths = utils.to_jarray(gateway.jvm.String, table_path)
         j_table = self._j_tenv.scan(j_table_paths)
-        return Table(j_table)
+        return Table(j_table, self)
 
     def from_path(self, path):
         """
@@ -289,7 +289,7 @@ class TableEnvironment(object):
         .. seealso:: :func:`use_database`
         .. versionadded:: 1.10.0
         """
-        return Table(get_method(self._j_tenv, "from")(path))
+        return Table(get_method(self._j_tenv, "from")(path), self)
 
     def insert_into(self, target_path, table):
         """
@@ -518,7 +518,7 @@ class TableEnvironment(object):
         :rtype: pyflink.table.Table
         """
         j_table = self._j_tenv.sqlQuery(query)
-        return Table(j_table)
+        return Table(j_table, self)
 
     def execute_sql(self, stmt):
         """
@@ -532,6 +532,7 @@ class TableEnvironment(object):
                 the affected row count for `DML` (-1 means unknown),
                 or a string message ("OK") for other statements.
         """
+        self._before_execute()
         return TableResult(self._j_tenv.executeSql(stmt))
 
     def create_statement_set(self):
@@ -544,7 +545,7 @@ class TableEnvironment(object):
         :rtype: pyflink.table.StatementSet
         """
         _j_statement_set = self._j_tenv.createStatementSet()
-        return StatementSet(_j_statement_set)
+        return StatementSet(_j_statement_set, self)
 
     def sql_update(self, stmt):
         """
@@ -1041,11 +1042,7 @@ class TableEnvironment(object):
         """
         warnings.warn("Deprecated in 1.11. Use execute_sql for single sink, "
                       "use create_statement_set for multiple sinks.", DeprecationWarning)
-        jvm = get_gateway().jvm
-        jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
-        classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
-        self._add_jars_to_j_env_config(jars_key)
-        self._add_jars_to_j_env_config(classpaths_key)
+        self._before_execute()
         return JobExecutionResult(self._j_tenv.execute(job_name))
 
     def from_elements(self, elements, schema=None, verify_schema=True):
@@ -1181,7 +1178,7 @@ class TableEnvironment(object):
             j_table_source = PythonInputFormatTableSource(
                 j_input_format, row_type_info)
 
-            return Table(self._j_tenv.fromTableSource(j_table_source))
+            return Table(self._j_tenv.fromTableSource(j_table_source), self)
         finally:
             os.unlink(temp_file.name)
 
@@ -1262,7 +1259,7 @@ class TableEnvironment(object):
             j_arrow_table_source = \
                 jvm.org.apache.flink.table.runtime.arrow.ArrowUtils.createArrowTableSource(
                     data_type, temp_file.name)
-            return Table(self._j_tenv.fromTableSource(j_arrow_table_source))
+            return Table(self._j_tenv.fromTableSource(j_arrow_table_source), self)
         finally:
             os.unlink(temp_file.name)
 
@@ -1281,7 +1278,7 @@ class TableEnvironment(object):
             jar_urls_set = set([jvm.java.net.URL(url).toString() for url in jar_urls.split(";")])
             j_configuration = get_j_env_configuration(self)
             if j_configuration.containsKey(config_key):
-                for url in j_configuration.getString(config_key).split(";"):
+                for url in j_configuration.getString(config_key, "").split(";"):
                     jar_urls_set.add(url)
             j_configuration.setString(config_key, ";".join(jar_urls_set))
 
@@ -1324,6 +1321,13 @@ class TableEnvironment(object):
         function_catalog_field.setAccessible(True)
         function_catalog = function_catalog_field.get(self._j_tenv)
         return function_catalog
+
+    def _before_execute(self):
+        jvm = get_gateway().jvm
+        jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
+        classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
+        self._add_jars_to_j_env_config(jars_key)
+        self._add_jars_to_j_env_config(classpaths_key)
 
 
 class StreamTableEnvironment(TableEnvironment):
