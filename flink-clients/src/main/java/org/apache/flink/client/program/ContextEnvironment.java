@@ -26,15 +26,20 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Execution Environment for remote execution with the Client.
@@ -66,31 +71,49 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		JobClient jobClient = executeAsync(jobName);
 
-		JobExecutionResult jobExecutionResult;
+		List<JobListener> jobListeners = getJobListeners();
+		try {
+			final JobExecutionResult  jobExecutionResult = getJobExecutionResult(jobClient);
+			jobListeners.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
+			return jobExecutionResult;
+
+		} catch (Throwable t) {
+			jobListeners.forEach(jobListener -> {
+				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
+			});
+			ExceptionUtils.rethrowException(t);
+
+			// never reached, only make javac happy
+			return null;
+		}
+	}
+
+	private JobExecutionResult getJobExecutionResult(final JobClient jobClient) throws Exception {
+		checkNotNull(jobClient);
+
 		if (getConfiguration().getBoolean(DeploymentOptions.ATTACHED)) {
 			CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
-					jobClient.getJobExecutionResult(getUserCodeClassLoader());
+				jobClient.getJobExecutionResult(getUserCodeClassLoader());
 
 			if (getConfiguration().getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
 				Thread shutdownHook = ShutdownHookUtil.addShutdownHook(
-						() -> {
-							// wait a smidgen to allow the async request to go through before
-							// the jvm exits
-							jobClient.cancel().get(1, TimeUnit.SECONDS);
-						},
-						ContextEnvironment.class.getSimpleName(),
-						LOG);
+					() -> {
+						// wait a smidgen to allow the async request to go through before
+						// the jvm exits
+						jobClient.cancel().get(1, TimeUnit.SECONDS);
+					},
+					ContextEnvironment.class.getSimpleName(),
+					LOG);
 				jobExecutionResultFuture.whenComplete((ignored, throwable) ->
-						ShutdownHookUtil.removeShutdownHook(shutdownHook, ContextEnvironment.class.getSimpleName(), LOG));
+					ShutdownHookUtil.removeShutdownHook(shutdownHook, StreamContextEnvironment.class.getSimpleName(), LOG));
 			}
 
-			jobExecutionResult = jobExecutionResultFuture.get();
+			JobExecutionResult jobExecutionResult = jobExecutionResultFuture.get();
 			System.out.println(jobExecutionResult);
+			return jobExecutionResult;
 		} else {
-			jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
+			return new DetachedJobExecutionResult(jobClient.getJobID());
 		}
-
-		return jobExecutionResult;
 	}
 
 	@Override

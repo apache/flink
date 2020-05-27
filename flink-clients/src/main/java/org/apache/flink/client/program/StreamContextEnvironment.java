@@ -75,7 +75,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		JobClient jobClient = executeAsync(streamGraph);
 
-		List<JobListener> jobListeners =  getJobListeners();
+		List<JobListener> jobListeners = getJobListeners();
 		try {
 			final JobExecutionResult  jobExecutionResult = getJobExecutionResult(jobClient);
 			jobListeners.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));

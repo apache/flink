@@ -213,6 +213,14 @@ public class ExecutionEnvironment {
 	}
 
 	/**
+	 * Gets the config JobListeners.
+	 */
+	@PublicEvolving
+	public List<JobListener> getJobListeners() {
+		return jobListeners;
+	}
+
+	/**
 	 * Gets the parallelism with which operation are executed by default. Operations can
 	 * individually override this value to use a specific parallelism via
 	 * {@link Operator#setParallelism(int)}. Other operations may need to run with a different
