@@ -173,7 +173,13 @@ public class TypeStrategiesTest {
 					"Cascading to not null type but only consider the second and third argument",
 					nullable(ConstantArgumentCount.between(1, 2), explicit(DataTypes.BOOLEAN().nullable())))
 				.inputTypes(DataTypes.BIGINT().nullable(), DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).notNull())
-				.expectDataType(DataTypes.BOOLEAN().notNull())
+				.expectDataType(DataTypes.BOOLEAN().notNull()),
+
+			TestSpec.forStrategy(
+				"Find a common type",
+				TypeStrategies.COMMON)
+				.inputTypes(DataTypes.INT(), DataTypes.TINYINT().notNull(), DataTypes.DECIMAL(20, 10))
+				.expectDataType(DataTypes.DECIMAL(20, 10))
 		);
 	}
 
