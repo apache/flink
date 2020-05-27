@@ -336,16 +336,12 @@ public final class CatalogManager {
 	 * @return table that the path points to.
 	 */
 	public Optional<TableLookupResult> getTable(ObjectIdentifier objectIdentifier) {
-		try {
-			CatalogBaseTable temporaryTable = temporaryTables.get(objectIdentifier);
-			if (temporaryTable != null) {
-				return Optional.of(TableLookupResult.temporary(temporaryTable));
-			} else {
-				return getPermanentTable(objectIdentifier);
-			}
-		} catch (TableNotExistException ignored) {
+		CatalogBaseTable temporaryTable = temporaryTables.get(objectIdentifier);
+		if (temporaryTable != null) {
+			return Optional.of(TableLookupResult.temporary(temporaryTable));
+		} else {
+			return getPermanentTable(objectIdentifier);
 		}
-		return Optional.empty();
 	}
 
 	/**
@@ -367,13 +363,15 @@ public final class CatalogManager {
 		return Optional.empty();
 	}
 
-	private Optional<TableLookupResult> getPermanentTable(ObjectIdentifier objectIdentifier)
-			throws TableNotExistException {
+	private Optional<TableLookupResult> getPermanentTable(ObjectIdentifier objectIdentifier) {
 		Catalog currentCatalog = catalogs.get(objectIdentifier.getCatalogName());
 		ObjectPath objectPath = objectIdentifier.toObjectPath();
-
-		if (currentCatalog != null && currentCatalog.tableExists(objectPath)) {
-			return Optional.of(TableLookupResult.permanent(currentCatalog.getTable(objectPath)));
+		if (currentCatalog != null) {
+			try {
+				return Optional.of(TableLookupResult.permanent(currentCatalog.getTable(objectPath)));
+			} catch (TableNotExistException e) {
+				// Ignore.
+			}
 		}
 		return Optional.empty();
 	}
@@ -682,20 +680,58 @@ public final class CatalogManager {
 	 * Drops a table in a given fully qualified path.
 	 *
 	 * @param objectIdentifier The fully qualified path of the table to drop.
-	 * @param ignoreIfNotExists If false exception will be thrown if the table or database or catalog to be altered
+	 * @param ignoreIfNotExists If false exception will be thrown if the table to drop
 	 *                          does not exist.
 	 */
 	public void dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-		if (temporaryTables.containsKey(objectIdentifier)) {
+		dropTableInternal(
+				objectIdentifier,
+				ignoreIfNotExists,
+				true);
+	}
+
+	/**
+	 * Drops a view in a given fully qualified path.
+	 *
+	 * @param objectIdentifier The fully qualified path of the view to drop.
+	 * @param ignoreIfNotExists If false exception will be thrown if the view to drop
+	 *                          does not exist.
+	 */
+	public void dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+		dropTableInternal(
+				objectIdentifier,
+				ignoreIfNotExists,
+				false);
+	}
+
+	private void dropTableInternal(
+			ObjectIdentifier objectIdentifier,
+			boolean ignoreIfNotExists,
+			boolean isDropTable) {
+		Predicate<CatalogBaseTable> filter = isDropTable
+				? table -> table instanceof CatalogTable
+				: table -> table instanceof CatalogView;
+		// Same name temporary table or view exists.
+		if (filter.test(temporaryTables.get(objectIdentifier))) {
+			String tableOrView = isDropTable ? "table" : "view";
 			throw new ValidationException(String.format(
-				"Temporary table with identifier '%s' exists. Drop it first before removing the permanent table.",
-				objectIdentifier));
+					"Temporary %s with identifier '%s' exists. "
+							+ "Drop it first before removing the permanent %s.",
+					tableOrView, objectIdentifier, tableOrView));
 		}
-		execute(
-			(catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),
-			objectIdentifier,
-			ignoreIfNotExists,
-			"DropTable");
+		final Optional<TableLookupResult> resultOpt = getPermanentTable(objectIdentifier);
+		if (resultOpt.isPresent() && filter.test(resultOpt.get().getTable())) {
+			execute(
+					(catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),
+					objectIdentifier,
+					ignoreIfNotExists,
+					"DropTable");
+		} else if (!ignoreIfNotExists) {
+			String tableOrView = isDropTable ? "Table" : "View";
+			throw new ValidationException(String.format(
+					"%s with identifier '%s' does not exist.",
+					tableOrView, objectIdentifier.asSummaryString()));
+		}
 	}
 
 	/**
