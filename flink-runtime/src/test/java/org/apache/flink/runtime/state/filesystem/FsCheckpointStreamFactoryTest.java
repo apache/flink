@@ -58,6 +58,22 @@ public class FsCheckpointStreamFactoryTest {
 	// ------------------------------------------------------------------------
 
 	@Test
+	@SuppressWarnings("ConstantConditions")
+	public void testWriteFlushesIfAboveThreshold() throws IOException {
+		int fileSizeThreshold = 100;
+		final FsCheckpointStreamFactory factory = createFactory(FileSystem.getLocalFileSystem(), fileSizeThreshold, fileSizeThreshold);
+		final FsCheckpointStreamFactory.FsCheckpointStateOutputStream stream = factory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+		stream.write(new byte[fileSizeThreshold]);
+		File[] files = new File(exclusiveStateDir.toUri()).listFiles();
+		assertEquals(1, files.length);
+		File file = files[0];
+		assertEquals(fileSizeThreshold, file.length());
+		stream.write(new byte[fileSizeThreshold - 1]); // should buffer without flushing
+		stream.write(127); // should buffer without flushing
+		assertEquals(fileSizeThreshold, file.length());
+	}
+
+	@Test
 	public void testExclusiveStateHasRelativePathHandles() throws IOException {
 		final FsCheckpointStreamFactory factory = createFactory(FileSystem.getLocalFileSystem(), 0);
 
@@ -129,6 +145,10 @@ public class FsCheckpointStreamFactoryTest {
 	}
 
 	private FsCheckpointStreamFactory createFactory(FileSystem fs, int fileSizeThreshold) {
-		return new FsCheckpointStreamFactory(fs, exclusiveStateDir, sharedStateDir, fileSizeThreshold, 4096);
+		return createFactory(fs, fileSizeThreshold, 4096);
+	}
+
+	private FsCheckpointStreamFactory createFactory(FileSystem fs, int fileSizeThreshold, int bufferSize) {
+		return new FsCheckpointStreamFactory(fs, exclusiveStateDir, sharedStateDir, fileSizeThreshold, bufferSize);
 	}
 }
