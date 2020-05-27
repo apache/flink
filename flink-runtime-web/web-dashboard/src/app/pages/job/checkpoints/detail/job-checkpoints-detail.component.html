@@ -60,7 +60,6 @@
           <td *ngIf="checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] >= 0">{{ checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] | humanizeDuration}}</td>
           <td *ngIf="checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] <0">n/a</td>
           <td>{{ checkPointDetail['tasks'][vertex.id]['state_size'] | humanizeBytes }}</td>
-          <td>{{ checkPointDetail['tasks'][vertex.id]['alignment_buffered'] | humanizeBytes }}</td>
         </tr>
         <tr [nzExpand]="vertex.expand">
           <td colspan="7" *ngIf="vertex.expand" class="collapse-td">

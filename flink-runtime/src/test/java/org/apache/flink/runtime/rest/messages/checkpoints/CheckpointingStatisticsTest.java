@@ -42,8 +42,7 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 		final CheckpointingStatistics.Counts counts = new CheckpointingStatistics.Counts(1, 2, 3, 4, 5);
 		final CheckpointingStatistics.Summary summary = new CheckpointingStatistics.Summary(
 			new MinMaxAvgStatistics(1L, 1L, 1L),
-			new MinMaxAvgStatistics(2L, 2L, 2L),
-			new MinMaxAvgStatistics(3L, 3L, 3L));
+			new MinMaxAvgStatistics(2L, 2L, 2L));
 
 		final Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask = new HashMap<>(2);
 
@@ -55,9 +54,8 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 				1L,
 				2L,
 				3L,
-				4L,
-				5,
-				6));
+				4,
+				5));
 
 		checkpointStatisticsPerTask.put(
 			new JobVertexID(),
@@ -67,9 +65,8 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 				2L,
 				3L,
 				4L,
-				5L,
-				6,
-				7));
+				5,
+				6));
 
 		final CheckpointStatistics.CompletedCheckpointStatistics completed = new CheckpointStatistics.CompletedCheckpointStatistics(
 			1L,
@@ -79,7 +76,6 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			41L,
 			1337L,
 			1L,
-			0L,
 			10,
 			10,
 			Collections.emptyMap(),
@@ -94,7 +90,6 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			10L,
 			43L,
 			1L,
-			0L,
 			9,
 			9,
 			checkpointStatisticsPerTask,
@@ -109,7 +104,6 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			10L,
 			4L,
 			2L,
-			0L,
 			11,
 			9,
 			Collections.emptyMap(),
@@ -130,7 +124,6 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			41L,
 			1337L,
 			1L,
-			0L,
 			10,
 			10,
 			Collections.emptyMap()

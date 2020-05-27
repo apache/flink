@@ -248,21 +248,14 @@ public class SubtaskCheckpointStatistics {
 		 */
 		public static final class CheckpointAlignment {
 
-			public static final String FIELD_NAME_ALIGNMENT_BUFFERED = "buffered";
-
 			public static final String FIELD_NAME_ALIGNMENT_DURATION = "duration";
-
-			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
-			private final long alignmentBuffered;
 
 			@JsonProperty(FIELD_NAME_ALIGNMENT_DURATION)
 			private final long alignmentDuration;
 
 			@JsonCreator
 			public CheckpointAlignment(
-					@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 					@JsonProperty(FIELD_NAME_ALIGNMENT_DURATION) long alignmentDuration) {
-				this.alignmentBuffered = alignmentBuffered;
 				this.alignmentDuration = alignmentDuration;
 			}
 
@@ -279,13 +272,12 @@ public class SubtaskCheckpointStatistics {
 					return false;
 				}
 				CheckpointAlignment that = (CheckpointAlignment) o;
-				return alignmentBuffered == that.alignmentBuffered &&
-					alignmentDuration == that.alignmentDuration;
+				return alignmentDuration == that.alignmentDuration;
 			}
 
 			@Override
 			public int hashCode() {
-				return Objects.hash(alignmentBuffered, alignmentDuration);
+				return Objects.hash(alignmentDuration);
 			}
 		}
 	}

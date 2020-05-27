@@ -935,10 +935,6 @@
             "end_to_end_duration" : {
               "type" : "object",
               "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
-            },
-            "alignment_buffered" : {
-              "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
             }
           }
         },
@@ -972,9 +968,6 @@
                 "end_to_end_duration" : {
                   "type" : "integer"
                 },
-                "alignment_buffered" : {
-                  "type" : "integer"
-                },
                 "num_subtasks" : {
                   "type" : "integer"
                 },
@@ -1001,9 +994,6 @@
                         "type" : "integer"
                       },
                       "end_to_end_duration" : {
-                        "type" : "integer"
-                      },
-                      "alignment_buffered" : {
                         "type" : "integer"
                       },
                       "num_subtasks" : {
@@ -1051,9 +1041,6 @@
                   "type" : "integer"
                 },
                 "end_to_end_duration" : {
-                  "type" : "integer"
-                },
-                "alignment_buffered" : {
                   "type" : "integer"
                 },
                 "num_subtasks" : {
@@ -1123,9 +1110,6 @@
                 "type" : "integer"
               },
               "end_to_end_duration" : {
-                "type" : "integer"
-              },
-              "alignment_buffered" : {
                 "type" : "integer"
               },
               "num_subtasks" : {
@@ -1242,9 +1226,6 @@
         "end_to_end_duration" : {
           "type" : "integer"
         },
-        "alignment_buffered" : {
-          "type" : "integer"
-        },
         "num_subtasks" : {
           "type" : "integer"
         },
@@ -1271,9 +1252,6 @@
                 "type" : "integer"
               },
               "end_to_end_duration" : {
-                "type" : "integer"
-              },
-              "alignment_buffered" : {
                 "type" : "integer"
               },
               "num_subtasks" : {
@@ -1325,9 +1303,6 @@
           "type" : "integer"
         },
         "end_to_end_duration" : {
-          "type" : "integer"
-        },
-        "alignment_buffered" : {
           "type" : "integer"
         },
         "num_subtasks" : {

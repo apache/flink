@@ -75,8 +75,6 @@ public class CheckpointStatistics implements ResponseBody {
 
 	public static final String FIELD_NAME_DURATION = "end_to_end_duration";
 
-	public static final String FIELD_NAME_ALIGNMENT_BUFFERED = "alignment_buffered";
-
 	public static final String FIELD_NAME_NUM_SUBTASKS = "num_subtasks";
 
 	public static final String FIELD_NAME_NUM_ACK_SUBTASKS = "num_acknowledged_subtasks";
@@ -104,9 +102,6 @@ public class CheckpointStatistics implements ResponseBody {
 	@JsonProperty(FIELD_NAME_DURATION)
 	private final long duration;
 
-	@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
-	private final long alignmentBuffered;
-
 	@JsonProperty(FIELD_NAME_NUM_SUBTASKS)
 	private final int numSubtasks;
 
@@ -126,7 +121,6 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
 			@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
 			@JsonProperty(FIELD_NAME_DURATION) long duration,
-			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
 			@JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask) {
@@ -137,7 +131,6 @@ public class CheckpointStatistics implements ResponseBody {
 		this.latestAckTimestamp = latestAckTimestamp;
 		this.stateSize = stateSize;
 		this.duration = duration;
-		this.alignmentBuffered = alignmentBuffered;
 		this.numSubtasks = numSubtasks;
 		this.numAckSubtasks = numAckSubtasks;
 		this.checkpointStatisticsPerTask = Preconditions.checkNotNull(checkpointStatisticsPerTask);
@@ -199,7 +192,6 @@ public class CheckpointStatistics implements ResponseBody {
 			latestAckTimestamp == that.latestAckTimestamp &&
 			stateSize == that.stateSize &&
 			duration == that.duration &&
-			alignmentBuffered == that.alignmentBuffered &&
 			numSubtasks == that.numSubtasks &&
 			numAckSubtasks == that.numAckSubtasks &&
 			status == that.status &&
@@ -208,7 +200,7 @@ public class CheckpointStatistics implements ResponseBody {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(id, status, savepoint, triggerTimestamp, latestAckTimestamp, stateSize, duration, alignmentBuffered, numSubtasks, numAckSubtasks, checkpointStatisticsPerTask);
+		return Objects.hash(id, status, savepoint, triggerTimestamp, latestAckTimestamp, stateSize, duration, numSubtasks, numAckSubtasks, checkpointStatisticsPerTask);
 	}
 
 	// -------------------------------------------------------------------------
@@ -234,7 +226,6 @@ public class CheckpointStatistics implements ResponseBody {
 						taskStateStat.getLatestAckTimestamp(),
 						taskStateStat.getStateSize(),
 						taskStateStat.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
-						0,
 						taskStateStat.getNumberOfSubtasks(),
 						taskStateStat.getNumberOfAcknowledgedSubtasks()));
 			}
@@ -253,7 +244,6 @@ public class CheckpointStatistics implements ResponseBody {
 				completedCheckpointStats.getLatestAckTimestamp(),
 				completedCheckpointStats.getStateSize(),
 				completedCheckpointStats.getEndToEndDuration(),
-				0,
 				completedCheckpointStats.getNumberOfSubtasks(),
 				completedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
 				checkpointStatisticsPerTask,
@@ -270,7 +260,6 @@ public class CheckpointStatistics implements ResponseBody {
 				failedCheckpointStats.getLatestAckTimestamp(),
 				failedCheckpointStats.getStateSize(),
 				failedCheckpointStats.getEndToEndDuration(),
-				0,
 				failedCheckpointStats.getNumberOfSubtasks(),
 				failedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
 				checkpointStatisticsPerTask,
@@ -287,7 +276,6 @@ public class CheckpointStatistics implements ResponseBody {
 				pendingCheckpointStats.getLatestAckTimestamp(),
 				pendingCheckpointStats.getStateSize(),
 				pendingCheckpointStats.getEndToEndDuration(),
-				0,
 				pendingCheckpointStats.getNumberOfSubtasks(),
 				pendingCheckpointStats.getNumberOfAcknowledgedSubtasks(),
 				checkpointStatisticsPerTask
@@ -327,7 +315,6 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
 			@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
 			@JsonProperty(FIELD_NAME_DURATION) long duration,
-			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
 			@JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
@@ -341,7 +328,6 @@ public class CheckpointStatistics implements ResponseBody {
 				latestAckTimestamp,
 				stateSize,
 				duration,
-				alignmentBuffered,
 				numSubtasks,
 				numAckSubtasks,
 				checkpointingStatisticsPerTask);
@@ -406,7 +392,6 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
 			@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
 			@JsonProperty(FIELD_NAME_DURATION) long duration,
-			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
 			@JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
@@ -420,7 +405,6 @@ public class CheckpointStatistics implements ResponseBody {
 				latestAckTimestamp,
 				stateSize,
 				duration,
-				alignmentBuffered,
 				numSubtasks,
 				numAckSubtasks,
 				checkpointingStatisticsPerTask);
@@ -474,7 +458,6 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
 			@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
 			@JsonProperty(FIELD_NAME_DURATION) long duration,
-			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
 			@JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask) {
@@ -486,7 +469,6 @@ public class CheckpointStatistics implements ResponseBody {
 				latestAckTimestamp,
 				stateSize,
 				duration,
-				alignmentBuffered,
 				numSubtasks,
 				numAckSubtasks,
 				checkpointingStatisticsPerTask);

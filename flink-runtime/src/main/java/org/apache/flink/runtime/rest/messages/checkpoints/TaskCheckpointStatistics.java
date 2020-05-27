@@ -48,8 +48,6 @@ public class TaskCheckpointStatistics implements ResponseBody {
 
 	public static final String FIELD_NAME_DURATION = "end_to_end_duration";
 
-	public static final String FIELD_NAME_ALIGNMENT_BUFFERED = "alignment_buffered";
-
 	public static final String FIELD_NAME_NUM_SUBTASKS = "num_subtasks";
 
 	public static final String FIELD_NAME_NUM_ACK_SUBTASKS = "num_acknowledged_subtasks";
@@ -69,9 +67,6 @@ public class TaskCheckpointStatistics implements ResponseBody {
 	@JsonProperty(FIELD_NAME_DURATION)
 	private final long duration;
 
-	@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
-	private final long alignmentBuffered;
-
 	@JsonProperty(FIELD_NAME_NUM_SUBTASKS)
 	private final int numSubtasks;
 
@@ -85,7 +80,6 @@ public class TaskCheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
 			@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
 			@JsonProperty(FIELD_NAME_DURATION) long duration,
-			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks) {
 
@@ -94,7 +88,6 @@ public class TaskCheckpointStatistics implements ResponseBody {
 		this.latestAckTimestamp = latestAckTimestamp;
 		this.stateSize = stateSize;
 		this.duration = duration;
-		this.alignmentBuffered = alignmentBuffered;
 		this.numSubtasks = numSubtasks;
 		this.numAckSubtasks = numAckSubtasks;
 	}
@@ -140,7 +133,6 @@ public class TaskCheckpointStatistics implements ResponseBody {
 			latestAckTimestamp == that.latestAckTimestamp &&
 			stateSize == that.stateSize &&
 			duration == that.duration &&
-			alignmentBuffered == that.alignmentBuffered &&
 			numSubtasks == that.numSubtasks &&
 			numAckSubtasks == that.numAckSubtasks &&
 			checkpointStatus == that.checkpointStatus;
@@ -148,6 +140,6 @@ public class TaskCheckpointStatistics implements ResponseBody {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(checkpointId, checkpointStatus, latestAckTimestamp, stateSize, duration, alignmentBuffered, numSubtasks, numAckSubtasks);
+		return Objects.hash(checkpointId, checkpointStatus, latestAckTimestamp, stateSize, duration, numSubtasks, numAckSubtasks);
 	}
 }

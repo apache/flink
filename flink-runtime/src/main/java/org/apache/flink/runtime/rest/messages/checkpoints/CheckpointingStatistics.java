@@ -209,25 +209,18 @@ public class CheckpointingStatistics implements ResponseBody {
 
 		public static final String FIELD_NAME_DURATION = "end_to_end_duration";
 
-		public static final String FIELD_NAME_ALIGNMENT_BUFFERED = "alignment_buffered";
-
 		@JsonProperty(FIELD_NAME_STATE_SIZE)
 		private final MinMaxAvgStatistics stateSize;
 
 		@JsonProperty(FIELD_NAME_DURATION)
 		private final MinMaxAvgStatistics duration;
 
-		@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
-		private final MinMaxAvgStatistics alignmentBuffered;
-
 		@JsonCreator
 		public Summary(
 				@JsonProperty(FIELD_NAME_STATE_SIZE) MinMaxAvgStatistics stateSize,
-				@JsonProperty(FIELD_NAME_DURATION) MinMaxAvgStatistics duration,
-				@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) MinMaxAvgStatistics alignmentBuffered) {
+				@JsonProperty(FIELD_NAME_DURATION) MinMaxAvgStatistics duration) {
 			this.stateSize = stateSize;
 			this.duration = duration;
-			this.alignmentBuffered = alignmentBuffered;
 		}
 
 		public MinMaxAvgStatistics getStateSize() {
@@ -248,13 +241,12 @@ public class CheckpointingStatistics implements ResponseBody {
 			}
 			Summary summary = (Summary) o;
 			return Objects.equals(stateSize, summary.stateSize) &&
-				Objects.equals(duration, summary.duration) &&
-				Objects.equals(alignmentBuffered, summary.alignmentBuffered);
+				Objects.equals(duration, summary.duration);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(stateSize, duration, alignmentBuffered);
+			return Objects.hash(stateSize, duration);
 		}
 	}
 

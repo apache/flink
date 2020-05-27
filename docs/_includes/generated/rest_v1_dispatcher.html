@@ -1486,9 +1486,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics",
         "properties" : {
-          "alignment_buffered" : {
-            "type" : "integer"
-          },
           "end_to_end_duration" : {
             "type" : "integer"
           },
@@ -1535,9 +1532,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:CompletedCheckpointStatistics",
           "properties" : {
-            "alignment_buffered" : {
-              "type" : "integer"
-            },
             "discarded" : {
               "type" : "boolean"
             },
@@ -1575,9 +1569,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
                 "type" : "object",
                 "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
                 "properties" : {
-                  "alignment_buffered" : {
-                    "type" : "integer"
-                  },
                   "end_to_end_duration" : {
                     "type" : "integer"
                   },
@@ -1612,9 +1603,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:FailedCheckpointStatistics",
           "properties" : {
-            "alignment_buffered" : {
-              "type" : "integer"
-            },
             "end_to_end_duration" : {
               "type" : "integer"
             },
@@ -1686,10 +1674,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:Summary",
       "properties" : {
-        "alignment_buffered" : {
-          "type" : "object",
-          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
-        },
         "end_to_end_duration" : {
           "type" : "object",
           "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
@@ -1844,9 +1828,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics",
   "properties" : {
-    "alignment_buffered" : {
-      "type" : "integer"
-    },
     "end_to_end_duration" : {
       "type" : "integer"
     },
@@ -1878,9 +1859,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
         "properties" : {
-          "alignment_buffered" : {
-            "type" : "integer"
-          },
           "end_to_end_duration" : {
             "type" : "integer"
           },
@@ -1962,9 +1940,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails",
   "properties" : {
-    "alignment_buffered" : {
-      "type" : "integer"
-    },
     "end_to_end_duration" : {
       "type" : "integer"
     },

@@ -50,7 +50,6 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 			@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
 			@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
 			@JsonProperty(FIELD_NAME_DURATION) long duration,
-			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
 			@JsonProperty(FIELD_NAME_SUMMARY) Summary summary,
@@ -61,7 +60,6 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 			latestAckTimestamp,
 			stateSize,
 			duration,
-			alignmentBuffered,
 			numSubtasks,
 			numAckSubtasks);
 

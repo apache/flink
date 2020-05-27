@@ -39,7 +39,6 @@ public class TaskCheckpointStatisticsTest extends RestResponseMarshallingTestBas
 			42L,
 			1L,
 			23L,
-			1337L,
 			9,
 			8);
 	}

@@ -131,7 +131,6 @@ public class TaskCheckpointStatisticDetailsHandler
 			taskStatistics.getLatestAckTimestamp(),
 			taskStatistics.getStateSize(),
 			taskStatistics.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
-			0,
 			taskStatistics.getNumberOfSubtasks(),
 			taskStatistics.getNumberOfAcknowledgedSubtasks(),
 			summary,
@@ -178,7 +177,6 @@ public class TaskCheckpointStatisticDetailsHandler
 						subtask.getSyncCheckpointDuration(),
 						subtask.getAsyncCheckpointDuration()),
 					new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.CheckpointAlignment(
-						0,
 						subtask.getAlignmentDuration()),
 					subtask.getCheckpointStartDelay()
 				));
