@@ -135,10 +135,11 @@ public class FileSystemOptions {
 					.stringType()
 					.defaultValue("process-time")
 					.withDescription("Trigger type for partition commit:" +
-							" 'process-time': use processing time, if 'current processing time' > " +
-							"'partition directory creation time' + 'delay', will commit the partition." +
+							" 'process-time': use processing time, if 'current time' > " +
+							"'partition creation time' + 'delay', will commit the partition." +
 							" 'partition-time': extract time from partition," +
-							" if 'watermark' > 'partition-time' + 'delay', will commit the partition.");
+							" if 'current event time' > 'time from partition values' + 'delay'," +
+							" will commit the partition.");
 
 	public static final ConfigOption<Duration> SINK_PARTITION_COMMIT_DELAY =
 			key("sink.partition-commit.delay")

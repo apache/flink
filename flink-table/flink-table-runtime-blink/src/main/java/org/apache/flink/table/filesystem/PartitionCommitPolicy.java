@@ -131,9 +131,9 @@ public interface PartitionCommitPolicy {
 			String[] policyStrings = policyKind.split(",");
 			for (String policy : policyStrings) {
 				if (isEmptyMetastore && METASTORE.equalsIgnoreCase(policy)) {
-					throw new ValidationException(
-							"Can not configure a metastore partition commit policy for" +
-									" a table without metastore.");
+					throw new ValidationException("Can not configure a 'metastore' partition commit" +
+							" policy for a file system table. You can only configure 'metastore'" +
+							" partition commit policy for a hive table.");
 				}
 			}
 		}
