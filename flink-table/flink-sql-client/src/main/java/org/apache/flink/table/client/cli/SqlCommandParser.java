@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
@@ -75,12 +74,12 @@ public final class SqlCommandParser {
 			stmt = stmt.substring(0, stmt.length() - 1).trim();
 		}
 
-		// parse statement via sql parser first
-		Optional<SqlCommandCall> callOpt = parseBySqlParser(sqlParser, stmt);
+		// parse statement via regex matching first
+		Optional<SqlCommandCall> callOpt = parseByRegexMatching(stmt);
 		if (callOpt.isPresent()) {
 			return callOpt;
 		} else {
-			return parseByRegexMatching(stmt);
+			return parseBySqlParser(sqlParser, stmt);
 		}
 	}
 
@@ -89,12 +88,7 @@ public final class SqlCommandParser {
 		try {
 			operations = sqlParser.parse(stmt);
 		} catch (Throwable e) {
-			if (e instanceof ValidationException) {
-				// can be parsed via sql parser, but is not validated.
-				// throw exception directly
-				throw new SqlExecutionException("Invalidate SQL statement.", e);
-			}
-			return Optional.empty();
+			throw new SqlExecutionException("Invalidate SQL statement.", e);
 		}
 		if (operations.size() != 1) {
 			throw new SqlExecutionException("Only single statement is supported now.");
@@ -186,7 +180,7 @@ public final class SqlCommandParser {
 								if (cmd == SqlCommand.EXPLAIN) {
 									// convert `explain xx` to `explain plan for xx`
 									// which can execute through executeSql method
-									newOperands = new String[] { "EXPLAIN PLAN FOR " + operands[0] };
+									newOperands = new String[] { "EXPLAIN PLAN FOR " + operands[0] + " "  + operands[1] };
 								}
 								return new SqlCommandCall(cmd, newOperands);
 							});
@@ -252,8 +246,10 @@ public final class SqlCommandParser {
 		// supports both `explain xx` and `explain plan for xx` now
 		// TODO should keep `explain xx` ?
 		EXPLAIN(
-			"EXPLAIN\\s+(.*)",
-			SINGLE_OPERAND),
+			"EXPLAIN\\s+(SELECT|INSERT)\\s+(.*)",
+			(operands) -> {
+				return Optional.of(new String[] { operands[0], operands[1] });
+			}),
 
 		CREATE_DATABASE,
 
