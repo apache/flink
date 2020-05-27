@@ -47,9 +47,9 @@ print_stacktraces () {
 	echo "=============================================================================="
 
 	JAVA_PROCESSES=`jps`
-	echo $JAVA_PROCESSES
+	echo "$JAVA_PROCESSES"
 
-	local pids=( $(echo $JAVA_PROCESSES | awk '{print $1}') )
+	local pids=( $(echo "$JAVA_PROCESSES" | awk '{print $1}') )
 
 	for pid in "${pids[@]}"; do
 		echo "=============================================================================="
