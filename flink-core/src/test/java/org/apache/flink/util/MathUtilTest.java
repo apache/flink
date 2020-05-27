@@ -21,8 +21,10 @@ package org.apache.flink.util;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -141,5 +143,31 @@ public class MathUtilTest {
 		Assert.assertEquals(Long.MAX_VALUE, MathUtils.flipSignBit(-1L));
 		Assert.assertEquals(42L | Long.MIN_VALUE, MathUtils.flipSignBit(42L));
 		Assert.assertEquals(-42L & Long.MAX_VALUE, MathUtils.flipSignBit(-42L));
+	}
+
+	@Test
+	public void testDivideRoundUp() {
+		assertThat(MathUtils.divideRoundUp(0, 1), is(0));
+		assertThat(MathUtils.divideRoundUp(0, 2), is(0));
+		assertThat(MathUtils.divideRoundUp(1, 1), is(1));
+		assertThat(MathUtils.divideRoundUp(1, 2), is(1));
+		assertThat(MathUtils.divideRoundUp(2, 1), is(2));
+		assertThat(MathUtils.divideRoundUp(2, 2), is(1));
+		assertThat(MathUtils.divideRoundUp(2, 3), is(1));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testDivideRoundUpNegativeDividend() {
+		MathUtils.divideRoundUp(-1, 1);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testDivideRoundUpNegativeDivisor() {
+		MathUtils.divideRoundUp(1, -1);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testDivideRoundUpZeroDivisor() {
+		MathUtils.divideRoundUp(1, 0);
 	}
 }
