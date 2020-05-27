@@ -189,8 +189,6 @@ public class StreamingFileSink<IN>
 
 		private OutputFileConfig outputFileConfig;
 
-		private BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener;
-
 		protected RowFormatBuilder(Path basePath, Encoder<IN> encoder, BucketAssigner<IN, BucketID> bucketAssigner) {
 			this(basePath, encoder, bucketAssigner, DefaultRollingPolicy.builder().build(), DEFAULT_BUCKET_CHECK_INTERVAL, new DefaultBucketFactoryImpl<>(), OutputFileConfig.builder().build());
 		}
@@ -231,12 +229,6 @@ public class StreamingFileSink<IN>
 			return self();
 		}
 
-		@Internal
-		public T withBucketLifeCycleListener(final BucketLifeCycleListener<IN, BucketID> listener) {
-			this.bucketLifeCycleListener = Preconditions.checkNotNull(listener);
-			return self();
-		}
-
 		public T withOutputFileConfig(final OutputFileConfig outputFileConfig) {
 			this.outputFileConfig = outputFileConfig;
 			return self();
@@ -267,7 +259,6 @@ public class StreamingFileSink<IN>
 					bucketFactory,
 					new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder),
 					rollingPolicy,
-					bucketLifeCycleListener,
 					subtaskIndex,
 					outputFileConfig);
 		}
@@ -302,8 +293,6 @@ public class StreamingFileSink<IN>
 		private BucketAssigner<IN, BucketID> bucketAssigner;
 
 		private CheckpointRollingPolicy<IN, BucketID> rollingPolicy;
-
-		private BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener;
 
 		private BucketFactory<IN, BucketID> bucketFactory;
 
@@ -350,12 +339,6 @@ public class StreamingFileSink<IN>
 			return self();
 		}
 
-		@Internal
-		public T withBucketLifeCycleListener(final BucketLifeCycleListener<IN, BucketID> listener) {
-			this.bucketLifeCycleListener = Preconditions.checkNotNull(listener);
-			return self();
-		}
-
 		@VisibleForTesting
 		T withBucketFactory(final BucketFactory<IN, BucketID> factory) {
 			this.bucketFactory = Preconditions.checkNotNull(factory);
@@ -387,7 +370,6 @@ public class StreamingFileSink<IN>
 					bucketFactory,
 					new BulkBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory),
 					rollingPolicy,
-					bucketLifeCycleListener,
 					subtaskIndex,
 					outputFileConfig);
 		}

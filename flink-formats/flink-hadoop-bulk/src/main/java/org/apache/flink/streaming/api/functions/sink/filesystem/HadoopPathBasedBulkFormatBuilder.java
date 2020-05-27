@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.hadoop.bulk.DefaultHadoopFileCommitterFactory;
 import org.apache.flink.formats.hadoop.bulk.HadoopFileCommitterFactory;
@@ -29,8 +28,6 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -53,9 +50,6 @@ public class HadoopPathBasedBulkFormatBuilder<IN, BucketID, T extends HadoopPath
 	private BucketAssigner<IN, BucketID> bucketAssigner;
 
 	private CheckpointRollingPolicy<IN, BucketID> rollingPolicy;
-
-	@Nullable
-	private BucketLifeCycleListener<IN, BucketID> bucketLifeCycleListener;
 
 	private BucketFactory<IN, BucketID> bucketFactory;
 
@@ -108,12 +102,6 @@ public class HadoopPathBasedBulkFormatBuilder<IN, BucketID, T extends HadoopPath
 		return self();
 	}
 
-	@Internal
-	public T withBucketLifeCycleListener(final BucketLifeCycleListener<IN, BucketID> listener) {
-		this.bucketLifeCycleListener = Preconditions.checkNotNull(listener);
-		return self();
-	}
-
 	public T withBucketFactory(BucketFactory<IN, BucketID> factory) {
 		this.bucketFactory = Preconditions.checkNotNull(factory);
 		return self();
@@ -140,7 +128,6 @@ public class HadoopPathBasedBulkFormatBuilder<IN, BucketID, T extends HadoopPath
 				writerFactory,
 				fileCommitterFactory),
 			rollingPolicy,
-			bucketLifeCycleListener,
 			subtaskIndex,
 			outputFileConfig);
 	}

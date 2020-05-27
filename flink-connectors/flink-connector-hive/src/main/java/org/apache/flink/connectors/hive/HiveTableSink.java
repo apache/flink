@@ -46,7 +46,6 @@ import org.apache.flink.table.filesystem.FileSystemOutputFormat;
 import org.apache.flink.table.filesystem.FileSystemTableSink;
 import org.apache.flink.table.filesystem.FileSystemTableSink.TableBucketAssigner;
 import org.apache.flink.table.filesystem.FileSystemTableSink.TableRollingPolicy;
-import org.apache.flink.table.filesystem.stream.InactiveBucketListener;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.OverwritableTableSink;
 import org.apache.flink.table.sinks.PartitionableTableSink;
@@ -185,16 +184,14 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 						true,
 						conf.get(SINK_ROLLING_POLICY_FILE_SIZE),
 						conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL).toMillis());
-				InactiveBucketListener listener = new InactiveBucketListener();
 
 				Optional<BulkWriter.Factory<RowData>> bulkFactory = createBulkWriterFactory(partitionColumns, sd);
-				BucketsBuilder<RowData, ?, ? extends BucketsBuilder<RowData, ?, ?>> builder;
+				BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> builder;
 				if (userMrWriter || !bulkFactory.isPresent()) {
 					HiveBulkWriterFactory hadoopBulkFactory = new HiveBulkWriterFactory(recordWriterFactory);
 					builder = new HadoopPathBasedBulkFormatBuilder<>(
 							new Path(sd.getLocation()), hadoopBulkFactory, jobConf, assigner)
 							.withRollingPolicy(rollingPolicy)
-							.withBucketLifeCycleListener(listener)
 							.withOutputFileConfig(outputFileConfig);
 					LOG.info("Hive streaming sink: Use MapReduce RecordWriter writer.");
 				} else {
@@ -202,7 +199,6 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 							new org.apache.flink.core.fs.Path(sd.getLocation()),
 							new FileSystemTableSink.ProjectionBulkFactory(bulkFactory.get(), partComputer))
 							.withBucketAssigner(assigner)
-							.withBucketLifeCycleListener(listener)
 							.withRollingPolicy(rollingPolicy)
 							.withOutputFileConfig(outputFileConfig);
 					LOG.info("Hive streaming sink: Use native parquet&orc writer.");
@@ -215,7 +211,6 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 						overwrite,
 						dataStream,
 						builder,
-						listener,
 						msFactory);
 			}
 		} catch (TException e) {
