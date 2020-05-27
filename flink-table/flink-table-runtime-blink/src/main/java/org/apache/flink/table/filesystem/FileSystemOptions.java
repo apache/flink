@@ -134,12 +134,13 @@ public class FileSystemOptions {
 			key("sink.partition-commit.trigger")
 					.stringType()
 					.defaultValue("process-time")
-					.withDescription("Trigger type for partition commit:" +
-							" 'process-time': use processing time, if 'current time' > " +
-							"'partition creation time' + 'delay', will commit the partition." +
-							" 'partition-time': extract time from partition," +
-							" if 'current event time' > 'time from partition values' + 'delay'," +
-							" will commit the partition.");
+					.withDescription("Trigger type for partition commit:\n" +
+							" 'process-time': based on the time of the local machine, it neither requires" +
+							" partition time extraction nor watermark generation. Commit partition" +
+							" once the 'current system time' passes 'partition creation system time' plus 'delay'.\n" +
+							" 'partition-time': based on the time that extracted from partition values," +
+							" it requires watermark generation. Commit partition once the 'watermark'" +
+							" passes 'event time extracted from partition values' plus 'delay'.");
 
 	public static final ConfigOption<Duration> SINK_PARTITION_COMMIT_DELAY =
 			key("sink.partition-commit.delay")
