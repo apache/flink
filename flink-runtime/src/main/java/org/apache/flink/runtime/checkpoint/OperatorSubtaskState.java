@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.emptyIfNull;
+import static org.apache.flink.runtime.state.AbstractChannelStateHandle.collectUniqueDelegates;
 
 /**
  * This class encapsulates the state for one parallel instance of an operator. The complete state of a (logical)
@@ -231,8 +232,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			toDispose.addAll(rawOperatorState);
 			toDispose.addAll(managedKeyedState);
 			toDispose.addAll(rawKeyedState);
-			toDispose.addAll(inputChannelState);
-			toDispose.addAll(resultSubpartitionState);
+			toDispose.addAll(collectUniqueDelegates(inputChannelState, resultSubpartitionState));
 			StateUtil.bestEffortDiscardAllStateObjects(toDispose);
 		} catch (Exception e) {
 			LOG.warn("Error while discarding operator states.", e);
