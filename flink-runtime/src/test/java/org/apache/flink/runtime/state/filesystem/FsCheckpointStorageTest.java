@@ -162,11 +162,11 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 
 		// create exclusive state
 
-		CheckpointStateOutputStream exclusiveStream =
+		FsCheckpointStateOutputStream exclusiveStream =
 				storageLocation.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 
 		exclusiveStream.write(42);
-		exclusiveStream.flush();
+		exclusiveStream.flushToFile();
 		StreamStateHandle exclusiveHandle = exclusiveStream.closeAndGetHandle();
 
 		assertEquals(1, fs.listStatus(storageLocation.getCheckpointDirectory()).length);
@@ -174,11 +174,11 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 
 		// create shared state
 
-		CheckpointStateOutputStream sharedStream =
+		FsCheckpointStateOutputStream sharedStream =
 				storageLocation.createCheckpointStateOutputStream(CheckpointedStateScope.SHARED);
 
 		sharedStream.write(42);
-		sharedStream.flush();
+		sharedStream.flushToFile();
 		StreamStateHandle sharedHandle = sharedStream.closeAndGetHandle();
 
 		assertEquals(1, fs.listStatus(storageLocation.getCheckpointDirectory()).length);
