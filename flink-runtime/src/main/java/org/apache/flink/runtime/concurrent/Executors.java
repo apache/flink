@@ -18,8 +18,14 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
+
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.ExecutionContext;
 
@@ -58,6 +64,27 @@ public class Executors {
 	 */
 	public static ExecutionContext directExecutionContext() {
 		return DirectExecutionContext.INSTANCE;
+	}
+
+	/**
+	 * Returns a new cached thread pool with the desired maximum size.
+	 *
+	 * <p>This method is a variation of {@link java.util.concurrent.Executors#newFixedThreadPool(int, ThreadFactory)},
+	 * with the minimum pool size set to 0.
+	 * In that respect it is similar to {@link java.util.concurrent.Executors#newCachedThreadPool()}, but it uses a
+	 * {@link LinkedBlockingQueue} instead to allow tasks to be queued, instead of failing with an exception if the pool
+	 * is saturated.
+	 *
+	 * @see ExecutorThreadFactory
+	 * @param maxPoolSize maximum size of the thread pool
+	 * @param threadFactory thread factory to use
+	 * @return new cached thread pool
+	 */
+	public static ExecutorService newCachedThreadPool(int maxPoolSize, ThreadFactory threadFactory) {
+		return new ThreadPoolExecutor(0, maxPoolSize,
+			60L, TimeUnit.SECONDS,
+			new LinkedBlockingQueue<>(),
+			threadFactory);
 	}
 
 	/**
