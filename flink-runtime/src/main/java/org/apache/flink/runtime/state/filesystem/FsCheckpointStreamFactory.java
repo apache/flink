@@ -208,7 +208,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public void write(int b) throws IOException {
-			if (outStream != null || pos >= writeBuffer.length) {
+			if (pos >= writeBuffer.length) {
 				flushToFile();
 			}
 			writeBuffer[pos++] = (byte) b;
@@ -269,7 +269,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		 */
 		@Override
 		public void flush() throws IOException {
-			if (pos > localStateThreshold) {
+			if (outStream != null || pos > localStateThreshold) {
 				flushToFile();
 			}
 		}
