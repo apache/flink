@@ -281,7 +281,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 
 	private static boolean canConvertToTimeAttributeTypeInfo(DataType dataType) {
 		return hasRoot(dataType.getLogicalType(), LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
-			dataTypeTypeInfoMap.containsKey(dataType) && // checks precision and conversion
+			dataTypeTypeInfoMap.containsKey(dataType.nullable()) && // checks precision and conversion and ignore nullable
 			((TimestampType) dataType.getLogicalType()).getKind() != TimestampKind.REGULAR;
 	}
 
