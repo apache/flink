@@ -36,8 +36,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import javax.annotation.Nullable;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -324,7 +322,6 @@ public class BucketsTest {
 				new DefaultBucketFactoryImpl<>(),
 				new RowWiseBucketWriter<>(FileSystem.get(path.toUri()).createRecoverableWriter(), new SimpleStringEncoder<>()),
 				DefaultRollingPolicy.builder().build(),
-				null,
 				2,
 				OutputFileConfig.builder().build()
 		);
@@ -452,19 +449,23 @@ public class BucketsTest {
 	private static Buckets<String, String> createBuckets(
 			final Path basePath,
 			final RollingPolicy<String, String> rollingPolicy,
-			@Nullable final BucketLifeCycleListener<String, String> bucketLifeCycleListener,
+			final BucketLifeCycleListener<String, String> bucketLifeCycleListener,
 			final int subtaskIdx,
 			final OutputFileConfig outputFileConfig) throws IOException {
-		return new Buckets<>(
+		Buckets<String, String> buckets = new Buckets<>(
 				basePath,
 				new TestUtils.StringIdentityBucketAssigner(),
 				new DefaultBucketFactoryImpl<>(),
 				new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), new SimpleStringEncoder<>()),
 				rollingPolicy,
-				bucketLifeCycleListener,
 				subtaskIdx,
-				outputFileConfig
-		);
+				outputFileConfig);
+
+		if (bucketLifeCycleListener != null) {
+			buckets.setBucketLifeCycleListener(bucketLifeCycleListener);
+		}
+
+		return buckets;
 	}
 
 	private static Buckets<String, String> restoreBuckets(

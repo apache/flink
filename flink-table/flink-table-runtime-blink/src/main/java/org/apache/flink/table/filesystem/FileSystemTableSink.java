@@ -46,7 +46,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
-import org.apache.flink.table.filesystem.stream.InactiveBucketListener;
 import org.apache.flink.table.filesystem.stream.StreamingFileCommitter;
 import org.apache.flink.table.filesystem.stream.StreamingFileCommitter.CommitMessage;
 import org.apache.flink.table.filesystem.stream.StreamingFileWriter;
@@ -150,21 +149,18 @@ public class FileSystemTableSink implements
 					conf.get(SINK_ROLLING_POLICY_FILE_SIZE),
 					conf.get(SINK_ROLLING_POLICY_TIME_INTERVAL).toMillis());
 
-			BucketsBuilder<RowData, ?, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder;
-			InactiveBucketListener listener = new InactiveBucketListener();
+			BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder;
 			if (writer instanceof Encoder) {
 				//noinspection unchecked
 				bucketsBuilder = StreamingFileSink.forRowFormat(
 						path, new ProjectionEncoder((Encoder<RowData>) writer, computer))
 						.withBucketAssigner(assigner)
-						.withBucketLifeCycleListener(listener)
 						.withRollingPolicy(rollingPolicy);
 			} else {
 				//noinspection unchecked
 				bucketsBuilder = StreamingFileSink.forBulkFormat(
 						path, new ProjectionBulkFactory((BulkWriter.Factory<RowData>) writer, computer))
 						.withBucketAssigner(assigner)
-						.withBucketLifeCycleListener(listener)
 						.withRollingPolicy(rollingPolicy);
 			}
 			return createStreamingSink(
@@ -175,7 +171,6 @@ public class FileSystemTableSink implements
 					overwrite,
 					dataStream,
 					bucketsBuilder,
-					listener,
 					metaStoreFactory);
 		}
 	}
@@ -187,15 +182,14 @@ public class FileSystemTableSink implements
 			ObjectIdentifier tableIdentifier,
 			boolean overwrite,
 			DataStream<RowData> inputStream,
-			BucketsBuilder<RowData, ?, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder,
-			InactiveBucketListener listener,
+			BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilder,
 			TableMetaStoreFactory msFactory) {
 		if (overwrite) {
 			throw new IllegalStateException("Streaming mode not support overwrite.");
 		}
 
 		StreamingFileWriter fileWriter = new StreamingFileWriter(
-				BucketsBuilder.DEFAULT_BUCKET_CHECK_INTERVAL, bucketsBuilder, listener);
+				BucketsBuilder.DEFAULT_BUCKET_CHECK_INTERVAL, bucketsBuilder);
 		DataStream<CommitMessage> writerStream = inputStream.transform(
 				StreamingFileWriter.class.getSimpleName(),
 				TypeExtractor.createTypeInfo(CommitMessage.class),
