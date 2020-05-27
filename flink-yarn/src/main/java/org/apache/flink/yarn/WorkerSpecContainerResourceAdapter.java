@@ -141,10 +141,10 @@ class WorkerSpecContainerResourceAdapter {
 	}
 
 	/**
-	 * Normalize to the minimum integer that is greater or equal to 'value' and is integer multiple of 'unitValue'.
+	 * Normalize to the minimum integer that is greater or equal to 'value' and is positive integer multiple of 'unitValue'.
 	 */
 	private int normalize(final int value, final int unitValue) {
-		return MathUtils.divideRoundUp(value, unitValue) * unitValue;
+		return Math.max(MathUtils.divideRoundUp(value, unitValue), 1) * unitValue;
 	}
 
 	private boolean resourceWithinMaxAllocation(final InternalContainerResource resource) {
