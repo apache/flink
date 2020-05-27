@@ -206,9 +206,9 @@ public class SqlCommandParserTest {
 				TestItem.validSql("CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
 						SqlCommand.CREATE_FUNCTION,
 						"CREATE TEMPORARY FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"),
-				TestItem.validSql("CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA",
+				TestItem.validSql("CREATE TEMPORARY SYSTEM FUNCTION func1 as 'class_name' LANGUAGE JAVA",
 						SqlCommand.CREATE_FUNCTION,
-						"CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.func1 as 'class_name' LANGUAGE JAVA"),
+						"CREATE TEMPORARY SYSTEM FUNCTION func1 as 'class_name' LANGUAGE JAVA"),
 				// drop function xx
 				TestItem.invalidSql("DROP FUNCTION "),
 				TestItem.invalidSql("DROP FUNCTIONS "),

@@ -962,7 +962,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 		sql("create temporary system function  function1 as 'org.apache.fink.function.function1' language scala")
 				.ok("CREATE TEMPORARY SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE SCALA");
 
-		// Temporary system function should belongs to the system and current session.
+		// Temporary system function always belongs to the system and current session.
 		sql("create temporary system function catalog1^.^db1.function1 as 'org.apache.fink.function.function1'")
 				.fails("(?s).*Encountered \".\" at.*");
 
