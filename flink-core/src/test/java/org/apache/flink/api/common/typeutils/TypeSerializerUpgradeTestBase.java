@@ -50,11 +50,10 @@ import static org.junit.Assume.assumeThat;
  */
 public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedElementT> extends TestLogger {
 
-	public static final MigrationVersion[] MIGRATION_VERSIONS = new MigrationVersion[]{
-			MigrationVersion.v1_7,
-			MigrationVersion.v1_8,
-			MigrationVersion.v1_9,
-	};
+	public static final MigrationVersion[] MIGRATION_VERSIONS =
+			MigrationVersion.v1_11.orHigher().toArray(new MigrationVersion[0]);
+
+	public static final MigrationVersion CURRENT_VERSION = MigrationVersion.v1_11;
 
 	private final TestSpecification<PreviousElementT, UpgradedElementT> testSpecification;
 
@@ -235,8 +234,8 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 	 * generating the test files, e.g. to generate test files for {@link MigrationVersion#v1_8}, you
 	 * should be under the release-1.8 branch.
 	 */
-	@Ignore
 	@Test
+	@Ignore
 	public void generateTestSetupFiles() throws Exception {
 		Files.createDirectories(getSerializerSnapshotFilePath().getParent());
 
@@ -248,7 +247,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 			//       mutates only after being used for serialization (e.g. dynamic type registrations for Pojo / Kryo)
 			DataOutputSerializer testDataOut = new DataOutputSerializer(INITIAL_OUTPUT_BUFFER_SIZE);
 			priorSerializer.serialize(testSpecification.setup.createTestData(), testDataOut);
-			writeContentsTo(getTestDataFilePath(), testDataOut.getCopyOfBuffer());
+			writeContentsTo(getGenerateDataFilePath(), testDataOut.getCopyOfBuffer());
 
 			// ... then write the serializer snapshot
 			DataOutputSerializer serializerSnapshotOut = new DataOutputSerializer(
@@ -256,9 +255,9 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 			writeSerializerSnapshot(
 					serializerSnapshotOut,
 					priorSerializer,
-					testSpecification.migrationVersion);
+					CURRENT_VERSION);
 			writeContentsTo(
-					getSerializerSnapshotFilePath(),
+					getGenerateSerializerSnapshotFilePath(),
 					serializerSnapshotOut.getCopyOfBuffer());
 		}
 	}
@@ -411,6 +410,27 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
 	// ------------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------------
+
+	/**
+	 * Paths to use during snapshot generation, which should only use the CURRENT_VERSION.
+	 */
+	private Path getGenerateSerializerSnapshotFilePath() {
+		return Paths.get(getGenerateResourceDirectory() + "/serializer-snapshot");
+	}
+
+	/**
+	 * Paths to use during snapshot generation, which should only use the CURRENT_VERSION.
+	 */
+	private Path getGenerateDataFilePath() {
+		return Paths.get(getGenerateResourceDirectory() + "/test-data");
+	}
+
+	/**
+	 * Paths to use during snapshot generation, which should only use the CURRENT_VERSION.
+	 */
+	private String getGenerateResourceDirectory() {
+		return System.getProperty("user.dir") + "/src/test/resources/" + testSpecification.name + "-" + CURRENT_VERSION;
+	}
 
 	private Path getSerializerSnapshotFilePath() {
 		return Paths.get(getTestResourceDirectory() + "/serializer-snapshot");
