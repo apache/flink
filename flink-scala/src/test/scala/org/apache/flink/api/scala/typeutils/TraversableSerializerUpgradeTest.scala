@@ -24,7 +24,7 @@ import java.util.function.Supplier
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase.TestSpecification
-import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerMatchers, TypeSerializerSchemaCompatibility, TypeSerializerSnapshotMigrationTestBase, TypeSerializerUpgradeTestBase}
+import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerMatchers, TypeSerializerSchemaCompatibility, TypeSerializerUpgradeTestBase}
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.testutils.migration.MigrationVersion
 import org.hamcrest.Matcher
