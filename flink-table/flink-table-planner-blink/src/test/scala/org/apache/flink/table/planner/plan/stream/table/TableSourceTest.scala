@@ -25,7 +25,7 @@ import org.junit.{Ignore, Test}
 
 class TableSourceTest extends TableTestBase {
 
-  val util = streamTestUtil()
+  private val util = streamTestUtil()
 
   @Test
   def testTableSourceWithTimestampRowTimeField(): Unit = {
@@ -95,7 +95,6 @@ class TableSourceTest extends TableTestBase {
     util.verifyPlan(t)
   }
 
-  @Ignore("remove ignore once FLINK-17751 is fixed")
   @Test
   def testProcTimeTableSourceOverWindow(): Unit = {
     val ddl =
