@@ -53,16 +53,12 @@ unioned, connected, or merged.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-WatermarkStrategies
-        .<MyType>forMonotonousTimestamps()
-        .build();
+WatermarkStrategy.forMonotonousTimestamps();
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-WatermarkStrategies
-  .forMonotonousTimestamps[MyType]()
-  .build()
+WatermarkStrategy.forMonotonousTimestamps()
 {% endhighlight %}
 </div>
 </div>
@@ -89,16 +85,13 @@ about working with late elements.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-WatermarkStrategies
-        .<MyType>forBoundedOutOfOrderness(Duration.ofSeconds(10))
-        .build();
+WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(10));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-WatermarkStrategies
-  .forBoundedOutOfOrderness[MyType](Duration.ofSeconds(10))
-  .build()
+WatermarkStrategy
+  .forBoundedOutOfOrderness(Duration.ofSeconds(10))
 {% endhighlight %}
 </div>
 </div>

@@ -888,8 +888,8 @@ public class DataStream<T> {
 	 * <p>Periodically (defined by the {@link ExecutionConfig#getAutoWatermarkInterval()}), the
 	 * {@link WatermarkGenerator#onPeriodicEmit(WatermarkOutput)} method will be called.
 	 *
-	 * <p>Common watermark generation patterns can be found in the
-	 * {@link org.apache.flink.api.common.eventtime.WatermarkStrategies} class.
+	 * <p>Common watermark generation patterns can be found as static methods in the
+	 * {@link org.apache.flink.api.common.eventtime.WatermarkStrategy} class.
 	 *
 	 * @param watermarkStrategy The strategy to generate watermarks based on event timestamps.
 	 * @return The stream after the transformation, with assigned timestamps and watermarks.

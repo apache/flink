@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
-import org.apache.flink.api.common.eventtime.WatermarkStrategies;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -72,10 +71,9 @@ public class AbstractFetcherWatermarksTest {
 		public static Collection<WatermarkStrategy<Long>> getParams() {
 			return Arrays.asList(
 					new AssignerWithPeriodicWatermarksAdapter.Strategy<>(new PeriodicTestExtractor()),
-					WatermarkStrategies
+					WatermarkStrategy
 							.forGenerator((ctx) -> new PeriodicTestWatermarkGenerator())
 							.withTimestampAssigner((event, previousTimestamp) -> event)
-							.build()
 			);
 		}
 

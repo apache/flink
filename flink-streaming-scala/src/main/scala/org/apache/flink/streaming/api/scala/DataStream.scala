@@ -828,8 +828,8 @@ class DataStream[T](stream: JavaStream[T]) {
    * Periodically (defined by the [[ExecutionConfig#getAutoWatermarkInterval()]]), the
    * [[WatermarkGenerator#onPeriodicEmit(WatermarkOutput)]] method will be called.
    *
-   * Common watermark generation patterns can be found in the
-   * [[org.apache.flink.api.common.eventtime.WatermarkStrategies]] class.
+   * Common watermark generation patterns can be found as static methods in the
+   * [[org.apache.flink.api.common.eventtime.WatermarkStrategy]] class.
    */
   def assignTimestampsAndWatermarks(watermarkStrategy: WatermarkStrategy[T]): DataStream[T] = {
     val cleanedStrategy = clean(watermarkStrategy)

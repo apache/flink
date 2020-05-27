@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.eventtime.WatermarkStrategies;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -253,7 +253,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Integer> stream = env.continuousSource(
 				new MockSource(Boundedness.BOUNDED, 1),
-				WatermarkStrategies.<Integer>noWatermarks().build(),
+				WatermarkStrategy.noWatermarks(),
 				"TestingSource");
 
 		OneInputTransformation<Integer, Integer> resultTransform = new OneInputTransformation<Integer, Integer>(
@@ -463,7 +463,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Integer> source = env.continuousSource(
 				new MockSource(Boundedness.BOUNDED, 1),
-				WatermarkStrategies.<Integer>noWatermarks().build(),
+				WatermarkStrategy.noWatermarks(),
 				"TestSource");
 		source.addSink(new DiscardingSink<>());
 

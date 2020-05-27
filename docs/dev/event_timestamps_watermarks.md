@@ -41,8 +41,11 @@ Timestamp assignment goes hand-in-hand with generating watermarks, which tell
 the system about progress in event time. You can configure this by specifying a
 `WatermarkGenerator`.
 
-The Flink API expects a `WatermarkStrategy` that contains both a `TimestampAssigner` and `WatermarkGenerator`.
-A number of common strategies out of the box, available in the `WatermarkStrategies` helper, but users can also build their own strategies when required. 
+The Flink API expects a `WatermarkStrategy` that contains both a
+`TimestampAssigner` and `WatermarkGenerator`.  A number of common strategies
+are available out of the box as static methods on `WatermarkStrategy`, but
+users can also build their own strategies when required. 
+
 Here is the interface for completeness' sake:
 
 {% highlight java %}
@@ -64,26 +67,26 @@ public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Wate
 {% endhighlight %}
 
 As mentioned, you usually don't implement this interface yourself but use the
-`WatermarkStrategies` helper for using common watermark strategies or to bundle
-together a custom `TimestampAssigner` with a `WatermarkGenerator`. For example, to use bounded-out-of-orderness watermarks and a lambda function as a timestamp assigner you use this:
+static helper methods on `WatermarkStrategy` for common watermark strategies or
+to bundle together a custom `TimestampAssigner` with a `WatermarkGenerator`.
+For example, to use bounded-out-of-orderness watermarks and a lambda function as a
+timestamp assigner you use this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-WatermarkStrategies
+WatermarkStrategy
         .<Tuple2<Long, String>>forBoundedOutOfOrderness(Duration.ofSeconds(20))
-        .withTimestampAssigner((event, timestamp) -> event.f0)
-        .build();
+        .withTimestampAssigner((event, timestamp) -> event.f0);
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-WatermarkStrategies
+WatermarkStrategy
   .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
   .withTimestampAssigner(new SerializableTimestampAssigner[(Long, String)] {
     override def extractTimestamp(element: (Long, String), recordTimestamp: Long): Long = element._1
   })
-  .build()
 {% endhighlight %}
 
 (Using Scala Lambdas here currently doesn't work because Scala is stupid and it's hard to support this. #fus)
@@ -176,23 +179,23 @@ This is a problem because it can happen that some of your partitions do still
 carry events. In that case, the watermark will be held back, because it is
 computed as the minimum over all the different parallel watermarks.
 
-To deal with this, you can use a `WatermarkStrategy` that will detect idleness and mark an input as idle. `WatermarkStrategies` provides a convenience helper for this:
+To deal with this, you can use a `WatermarkStrategy` that will detect idleness
+and mark an input as idle. `WatermarkStrategy` provides a convenience helper
+for this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-WatermarkStrategies
+WatermarkStrategy
         .<Tuple2<Long, String>>forBoundedOutOfOrderness(Duration.ofSeconds(20))
-        .withIdleness(Duration.ofMinutes(1))
-        .build();
+        .withIdleness(Duration.ofMinutes(1));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-WatermarkStrategies
+WatermarkStrategy
   .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
   .withIdleness(Duration.ofMinutes(1))
-  .build()
 {% endhighlight %}
 </div>
 </div>
@@ -434,9 +437,8 @@ case.
 {% highlight java %}
 FlinkKafkaConsumer<MyType> kafkaSource = new FlinkKafkaConsumer<>("myTopic", schema, props);
 kafkaSource.assignTimestampsAndWatermarks(
-        WatermarkStrategies.
-                .<MyType>forBoundedOutOfOrderness(Duration.ofSeconds(20))
-                .build());
+        WatermarkStrategy.
+                .forBoundedOutOfOrderness(Duration.ofSeconds(20)));
 
 DataStream<MyType> stream = env.addSource(kafkaSource);
 {% endhighlight %}
@@ -445,9 +447,8 @@ DataStream<MyType> stream = env.addSource(kafkaSource);
 {% highlight scala %}
 val kafkaSource = new FlinkKafkaConsumer[MyType]("myTopic", schema, props)
 kafkaSource.assignTimestampsAndWatermarks(
-  WatermarkStrategies
-    .forBoundedOutOfOrderness[MyType](Duration.ofSeconds(20))
-    .build())
+  WatermarkStrategy
+    .forBoundedOutOfOrderness(Duration.ofSeconds(20)))
 
 val stream: DataStream[MyType] = env.addSource(kafkaSource)
 {% endhighlight %}

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.operators.source;
 
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.api.common.eventtime.WatermarkStrategies;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.connector.source.ReaderOutput;
@@ -57,9 +56,9 @@ public class SourceOperatorEventTimeTest {
 
 	@Test
 	public void testMainOutputPeriodicWatermarks() throws Exception {
-		final WatermarkStrategy<Integer> watermarkStrategy = WatermarkStrategies
-			.<Integer>forGenerator((ctx) -> new OnPeriodicTestWatermarkGenerator<>())
-			.build();
+		final WatermarkStrategy<Integer> watermarkStrategy =
+				WatermarkStrategy
+						.forGenerator((ctx) -> new OnPeriodicTestWatermarkGenerator<>());
 
 		final List<Watermark> result = testSequenceOfWatermarks(watermarkStrategy,
 			(output) -> output.collect(0, 100L),
@@ -75,9 +74,9 @@ public class SourceOperatorEventTimeTest {
 
 	@Test
 	public void testMainOutputEventWatermarks() throws Exception {
-		final WatermarkStrategy<Integer> watermarkStrategy = WatermarkStrategies
-			.<Integer>forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>())
-			.build();
+		final WatermarkStrategy<Integer> watermarkStrategy =
+				WatermarkStrategy
+						.forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>());
 
 		final List<Watermark> result = testSequenceOfWatermarks(watermarkStrategy,
 			(output) -> output.collect(0, 100L),
@@ -93,9 +92,9 @@ public class SourceOperatorEventTimeTest {
 
 	@Test
 	public void testPerSplitOutputPeriodicWatermarks() throws Exception {
-		final WatermarkStrategy<Integer> watermarkStrategy = WatermarkStrategies
-			.<Integer>forGenerator((ctx) -> new OnPeriodicTestWatermarkGenerator<>())
-			.build();
+		final WatermarkStrategy<Integer> watermarkStrategy =
+				WatermarkStrategy
+						.forGenerator((ctx) -> new OnPeriodicTestWatermarkGenerator<>());
 
 		final List<Watermark> result = testSequenceOfWatermarks(watermarkStrategy,
 			(output) -> {
@@ -118,9 +117,9 @@ public class SourceOperatorEventTimeTest {
 
 	@Test
 	public void testPerSplitOutputEventWatermarks() throws Exception {
-		final WatermarkStrategy<Integer> watermarkStrategy = WatermarkStrategies
-				.<Integer>forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>())
-				.build();
+		final WatermarkStrategy<Integer> watermarkStrategy =
+				WatermarkStrategy
+						.forGenerator((ctx) -> new OnEventTestWatermarkGenerator<>());
 
 		final List<Watermark> result = testSequenceOfWatermarks(watermarkStrategy,
 			(output) -> {

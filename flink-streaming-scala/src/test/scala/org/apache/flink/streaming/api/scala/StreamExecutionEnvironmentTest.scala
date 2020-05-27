@@ -18,12 +18,11 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.common.eventtime.WatermarkStrategies
+import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.connector.source.Boundedness
 import org.apache.flink.api.connector.source.mocks.MockSource
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -43,7 +42,7 @@ class StreamExecutionEnvironmentTest {
 
     val stream = env.continuousSource(
       new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 1),
-      WatermarkStrategies.noWatermarks[Integer]().build(),
+      WatermarkStrategy.noWatermarks(),
       "test source")
 
     assertEquals(typeInfo, stream.dataType)

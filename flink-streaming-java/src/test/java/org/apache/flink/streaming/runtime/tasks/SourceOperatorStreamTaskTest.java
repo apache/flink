@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
-import org.apache.flink.api.common.eventtime.WatermarkStrategies;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
@@ -132,7 +132,7 @@ public class SourceOperatorStreamTaskTest {
 		// get a source operator.
 		SourceOperatorFactory<Integer> sourceOperatorFactory = new SourceOperatorFactory<>(
 				new MockSource(Boundedness.BOUNDED, 1),
-				WatermarkStrategies.<Integer>noWatermarks().build());
+				WatermarkStrategy.noWatermarks());
 
 		// build a test harness.
 		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
