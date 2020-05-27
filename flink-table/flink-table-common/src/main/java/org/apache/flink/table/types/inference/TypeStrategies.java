@@ -25,8 +25,10 @@ import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MappingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.NullableTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.FirstTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.UseArgumentTypeStrategy;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -57,6 +59,13 @@ public final class TypeStrategies {
 	 */
 	public static TypeStrategy argument(int pos) {
 		return new UseArgumentTypeStrategy(pos);
+	}
+
+	/**
+	 * Type strategy that returns the first type that could be inferred.
+	 */
+	public static TypeStrategy first(TypeStrategy... strategies) {
+		return new FirstTypeStrategy(Arrays.asList(strategies));
 	}
 
 	/**
