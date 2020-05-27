@@ -145,9 +145,24 @@ public final class StructuredType extends UserDefinedType {
 	 * Defines equality properties for scalar evaluation.
 	 */
 	public enum StructuredComparision {
-		EQUALS,
-		FULL,
-		NONE
+		EQUALS(true, false),
+		FULL(true, true),
+		NONE(false, false);
+		private final boolean equality;
+		private final boolean comparison;
+
+		StructuredComparision(boolean equality, boolean comparison) {
+			this.equality = equality;
+			this.comparison = comparison;
+		}
+
+		public boolean isEquality() {
+			return equality;
+		}
+
+		public boolean isComparison() {
+			return comparison;
+		}
 	}
 
 	/**
