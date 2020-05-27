@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.filesystem.EmptyMetaStoreFactory;
 import org.apache.flink.table.filesystem.MetastoreCommitPolicy;
 import org.apache.flink.table.filesystem.PartitionCommitPolicy;
 import org.apache.flink.table.filesystem.TableMetaStoreFactory;
@@ -93,6 +94,9 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 		this.partitionKeys = partitionKeys;
 		this.metaStoreFactory = metaStoreFactory;
 		this.conf = conf;
+		PartitionCommitPolicy.validatePolicyChain(
+				metaStoreFactory instanceof EmptyMetaStoreFactory,
+				conf.get(SINK_PARTITION_COMMIT_POLICY_KIND));
 	}
 
 	@Override
@@ -144,7 +148,7 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 		try (TableMetaStoreFactory.TableMetaStore metaStore = metaStoreFactory.createTableMetaStore()) {
 			for (String partition : partitions) {
 				LinkedHashMap<String, String> partSpec = extractPartitionSpecFromPath(new Path(partition));
-				Path path = new Path(metaStore.getLocationPath(), generatePartitionPath(partSpec));
+				Path path = new Path(locationPath, generatePartitionPath(partSpec));
 				PartitionCommitPolicy.Context context = new PolicyContext(
 						new ArrayList<>(partSpec.values()), path);
 				for (PartitionCommitPolicy policy : policies) {

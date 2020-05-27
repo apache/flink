@@ -21,6 +21,7 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.table.api.ValidationException;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -104,7 +105,7 @@ public interface PartitionCommitPolicy {
 		}
 		String[] policyStrings = policyKind.split(",");
 		return Arrays.stream(policyStrings).map(name -> {
-			switch (name) {
+			switch (name.toLowerCase()) {
 				case METASTORE:
 					return new MetastoreCommitPolicy();
 				case SUCCESS_FILE:
@@ -120,5 +121,21 @@ public interface PartitionCommitPolicy {
 					throw new UnsupportedOperationException("Unsupported policy: " + name);
 			}
 		}).collect(Collectors.toList());
+	}
+
+	/**
+	 * Validate commit policy.
+	 */
+	static void validatePolicyChain(boolean isEmptyMetastore, String policyKind) {
+		if (policyKind != null) {
+			String[] policyStrings = policyKind.split(",");
+			for (String policy : policyStrings) {
+				if (isEmptyMetastore && METASTORE.equalsIgnoreCase(policy)) {
+					throw new ValidationException("Can not configure a 'metastore' partition commit" +
+							" policy for a file system table. You can only configure 'metastore'" +
+							" partition commit policy for a hive table.");
+				}
+			}
+		}
 	}
 }
