@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
@@ -37,6 +38,8 @@ import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.TWO_EQUALS_COMPARABLE;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.TWO_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
@@ -79,37 +82,43 @@ public final class BuiltInFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("equals")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(TWO_EQUALS_COMPARABLE)
+			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
 			.build();
 	public static final BuiltInFunctionDefinition GREATER_THAN =
 		new BuiltInFunctionDefinition.Builder()
 			.name("greaterThan")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
+			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
 			.build();
 	public static final BuiltInFunctionDefinition GREATER_THAN_OR_EQUAL =
 		new BuiltInFunctionDefinition.Builder()
 			.name("greaterThanOrEqual")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
+			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
 			.build();
 	public static final BuiltInFunctionDefinition LESS_THAN =
 		new BuiltInFunctionDefinition.Builder()
 			.name("lessThan")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
+			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
 			.build();
 	public static final BuiltInFunctionDefinition LESS_THAN_OR_EQUAL =
 		new BuiltInFunctionDefinition.Builder()
 			.name("lessThanOrEqual")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
+			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
 			.build();
 	public static final BuiltInFunctionDefinition NOT_EQUALS =
 		new BuiltInFunctionDefinition.Builder()
 			.name("notEquals")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(TWO_EQUALS_COMPARABLE)
+			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
 			.build();
 	public static final BuiltInFunctionDefinition IS_NULL =
 		new BuiltInFunctionDefinition.Builder()
