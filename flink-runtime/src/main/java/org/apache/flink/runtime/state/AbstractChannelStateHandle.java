@@ -20,9 +20,12 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.Internal;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,6 +51,16 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
 		this.delegate = checkNotNull(delegate);
 		this.offsets = checkNotNull(offsets);
 		this.size = size;
+	}
+
+	public static Set<StreamStateHandle> collectUniqueDelegates(Collection<? extends AbstractChannelStateHandle<?>>... collections) {
+		Set<StreamStateHandle> result = new HashSet<>();
+		for (Collection<? extends AbstractChannelStateHandle<?>> collection : collections) {
+			for (AbstractChannelStateHandle<?> handle : collection) {
+				result.add(handle.getDelegate());
+			}
+		}
+		return result;
 	}
 
 	@Override
