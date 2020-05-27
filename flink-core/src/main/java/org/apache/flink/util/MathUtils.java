@@ -218,10 +218,7 @@ public final class MathUtils {
 	public static int divideRoundUp(int dividend, int divisor) {
 		Preconditions.checkArgument(dividend >= 0, "Negative dividend is not supported.");
 		Preconditions.checkArgument(divisor > 0, "Negative or zero divisor is not supported.");
-		if (dividend == 0) {
-			return 0;
-		}
-		return (dividend - 1) / divisor + 1;
+		return dividend == 0 ? 0 : (dividend - 1) / divisor + 1;
 	}
 
 	// ============================================================================================
