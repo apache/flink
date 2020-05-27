@@ -34,7 +34,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 
@@ -51,7 +53,13 @@ public class RowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Row,
 	@Parameterized.Parameters(name = "Test Specification = {0}")
 	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MigrationVersion.v1_10.orHigher()) {
+		// for RowSerializer we also test against 1.10 and newer because we have snapshots
+		// for this which go beyond what we have for the usual subclasses of
+		// TypeSerializerUpgradeTestBase
+		List<MigrationVersion> testVersions = new ArrayList<>();
+		testVersions.add(MigrationVersion.v1_10);
+		testVersions.addAll(Arrays.asList(MIGRATION_VERSIONS));
+		for (MigrationVersion migrationVersion : testVersions) {
 			testSpecifications.add(
 				new TestSpecification<>(
 					"row-serializer",
