@@ -16,26 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint;
+package org.apache.flink.runtime.operators.coordination;
 
-import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.operators.coordination.OperatorInfo;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 /**
- * This context is the interface through which the {@link CheckpointCoordinator} interacts with an
- * {@link OperatorCoordinator} during checkpointing and checkpoint restoring.
+ * An interface to access basic properties of an operator in the context of its coordinator.
  */
-public interface OperatorCoordinatorCheckpointContext extends OperatorInfo {
+public interface OperatorInfo {
 
-	CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) throws Exception;
+	OperatorID operatorId();
 
-	void afterSourceBarrierInjection(long checkpointId);
+	int maxParallelism();
 
-	void abortCurrentTriggering();
+	int currentParallelism();
 
-	void checkpointComplete(long checkpointId);
+	// ------------------------------------------------------------------------
+	//  utils
+	// ------------------------------------------------------------------------
 
-	void resetToCheckpoint(byte[] checkpointData) throws Exception;
+	static Collection<OperatorID> getIds(Collection<? extends OperatorInfo> infos) {
+		return infos.stream()
+			.map(OperatorInfo::operatorId)
+			.collect(Collectors.toList());
+	}
 }

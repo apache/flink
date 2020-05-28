@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -626,7 +627,7 @@ public class CheckpointCoordinator {
 			checkpointID,
 			timestamp,
 			ackTasks,
-			OperatorCoordinatorCheckpointContext.getIds(coordinatorsToCheckpoint),
+			OperatorInfo.getIds(coordinatorsToCheckpoint),
 			masterHooks.keySet(),
 			props,
 			checkpointStorageLocation,
@@ -1074,7 +1075,7 @@ public class CheckpointCoordinator {
 
 		// commit coordinators
 		for (OperatorCoordinatorCheckpointContext coordinatorContext : coordinatorsToCheckpoint) {
-			coordinatorContext.coordinator().checkpointComplete(checkpointId);
+			coordinatorContext.checkpointComplete(checkpointId);
 		}
 	}
 
@@ -1496,7 +1497,7 @@ public class CheckpointCoordinator {
 
 			final ByteStreamStateHandle coordinatorState = state.getCoordinatorState();
 			if (coordinatorState != null) {
-				coordContext.coordinator().resetToCheckpoint(coordinatorState.getData());
+				coordContext.resetToCheckpoint(coordinatorState.getData());
 			}
 		}
 	}

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import java.util.ArrayList;
@@ -39,15 +40,15 @@ import java.util.concurrent.Executor;
 final class OperatorCoordinatorCheckpoints {
 
 	public static CompletableFuture<CoordinatorSnapshot> triggerCoordinatorCheckpoint(
-			final OperatorCoordinatorCheckpointContext coordinatorInfo,
+			final OperatorCoordinatorCheckpointContext coordinatorContext,
 			final long checkpointId) throws Exception {
 
 		final CompletableFuture<byte[]> checkpointFuture =
-				coordinatorInfo.coordinator().checkpointCoordinator(checkpointId);
+			coordinatorContext.checkpointCoordinator(checkpointId);
 
 		return checkpointFuture.thenApply(
 				(state) -> new CoordinatorSnapshot(
-						coordinatorInfo, new ByteStreamStateHandle(coordinatorInfo.operatorId().toString(), state))
+						coordinatorContext, new ByteStreamStateHandle(coordinatorContext.operatorId().toString(), state))
 		);
 	}
 
@@ -59,16 +60,7 @@ final class OperatorCoordinatorCheckpoints {
 
 		for (final OperatorCoordinatorCheckpointContext coordinator : coordinators) {
 			final CompletableFuture<CoordinatorSnapshot> checkpointFuture = triggerCoordinatorCheckpoint(coordinator, checkpointId);
-			coordinator.onCallTriggerCheckpoint(checkpointId);
-
 			individualSnapshots.add(checkpointFuture);
-			checkpointFuture.whenComplete((ignored, failure) -> {
-				if (failure != null) {
-					coordinator.abortCurrentTriggering();
-				} else {
-					coordinator.onCheckpointStateFutureComplete(checkpointId);
-				}
-			});
 		}
 
 		return FutureUtils.combineAll(individualSnapshots).thenApply(AllCoordinatorSnapshots::new);
@@ -144,10 +136,10 @@ final class OperatorCoordinatorCheckpoints {
 
 	static final class CoordinatorSnapshot {
 
-		final OperatorCoordinatorCheckpointContext coordinator;
+		final OperatorInfo coordinator;
 		final ByteStreamStateHandle state;
 
-		CoordinatorSnapshot(OperatorCoordinatorCheckpointContext coordinator, ByteStreamStateHandle state) {
+		CoordinatorSnapshot(OperatorInfo coordinator, ByteStreamStateHandle state) {
 			this.coordinator = coordinator;
 			this.state = state;
 		}
