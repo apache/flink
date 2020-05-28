@@ -265,7 +265,7 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testChangelogSource(): Unit = {
-    val dataId = TestValuesTableFactory.registerChangelogData(TestData.userChangelog)
+    val dataId = TestValuesTableFactory.registerData(TestData.userChangelog)
     val ddl =
       s"""
          |CREATE TABLE user_logs (

@@ -560,7 +560,7 @@ class TableSinkITCase extends StreamingTestBase {
       val fields = s.substring(3, s.length - 1).split(",")
       changelogRow(kindString, JLong.valueOf(fields(0)), fields(1), new JBigDecimal(fields(2)))
     }
-    val dataId2 = TestValuesTableFactory.registerChangelogData(changelogData)
+    val dataId2 = TestValuesTableFactory.registerData(changelogData)
     tEnv.executeSql(
       s"""
         |CREATE TABLE changelog_source (

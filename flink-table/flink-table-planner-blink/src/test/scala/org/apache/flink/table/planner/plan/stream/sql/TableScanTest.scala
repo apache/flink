@@ -187,6 +187,64 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testJoinOnChangelogSource(): Unit = {
+    util.addTable(
+      """
+         |CREATE TABLE orders (
+         |  amount BIGINT,
+         |  currency STRING
+         |) WITH (
+         | 'connector' = 'values',
+         | 'changelog-mode' = 'I'
+         |)
+         |""".stripMargin)
+    util.addTable(
+      """
+         |CREATE TABLE rates_history (
+         |  currency STRING,
+         |  rate BIGINT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'changelog-mode' = 'I,UB,UA'
+         |)
+      """.stripMargin)
+
+    val sql =
+      """
+        |SELECT o.currency, o.amount, r.rate, o.amount * r.rate
+        |FROM orders AS o JOIN rates_history AS r
+        |ON o.currency = r.currency
+        |""".stripMargin
+    util.verifyPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUnsupportedWindowAggregateOnChangelogSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts AS PROCTIME(),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UA,UB'
+        |)
+      """.stripMargin)
+    val query =
+      """
+        |SELECT TUMBLE_START(ts, INTERVAL '10' SECOND), COUNT(*)
+        |FROM src
+        |GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
+        |""".stripMargin
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "GroupWindowAggregate doesn't support consuming update changes " +
+        "which is produced by node TableSourceScan")
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testInvalidSourceChangelogMode(): Unit = {
     util.addTable(
       """
