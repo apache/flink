@@ -204,6 +204,8 @@ run_test "SQL Client end-to-end test (Old planner) Elasticsearch (v7.5.1)" "$END
 run_test "SQL Client end-to-end test (Blink planner) Elasticsearch (v6.3.1)" "$END_TO_END_DIR/test-scripts/test_sql_client.sh blink 6"
 run_test "SQL Client end-to-end test (Blink planner) Elasticsearch (v7.5.1)" "$END_TO_END_DIR/test-scripts/test_sql_client.sh blink 7"
 
+run_test "SQL Client end-to-end test Hbase (v1.4.3)" "$END_TO_END_DIR/test-scripts/test_sql_client_hbase.sh"
+
 run_test "TPC-H end-to-end test (Blink planner)" "$END_TO_END_DIR/test-scripts/test_tpch.sh"
 run_test "TPC-DS end-to-end test (Blink planner)" "$END_TO_END_DIR/test-scripts/test_tpcds.sh"
 
