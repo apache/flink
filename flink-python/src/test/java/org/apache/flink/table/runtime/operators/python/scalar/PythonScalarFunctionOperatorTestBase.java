@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -202,6 +203,8 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		StreamTableEnvironment tEnv = createTableEnvironment(env);
+		tEnv.getConfig().getConfiguration().setString(
+			TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(), "80mb");
 		tEnv.registerFunction("pyFunc", new PythonScalarFunction("pyFunc"));
 		DataStream<Tuple2<Integer, Integer>> ds = env.fromElements(new Tuple2<>(1, 2));
 		Table t = tEnv.fromDataStream(ds, $("a"), $("b")).select(call("pyFunc", $("a"), $("b")));

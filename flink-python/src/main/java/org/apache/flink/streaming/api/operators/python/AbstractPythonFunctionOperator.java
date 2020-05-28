@@ -117,7 +117,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		try {
 			this.bundleStarted = new AtomicBoolean(false);
 
-			reserveMemoryForPythonWorker();
+			if (config.isUsingManagedMemory()) {
+				reserveMemoryForPythonWorker();
+			}
 
 			this.maxBundleSize = config.getMaxBundleSize();
 			if (this.maxBundleSize <= 0) {
