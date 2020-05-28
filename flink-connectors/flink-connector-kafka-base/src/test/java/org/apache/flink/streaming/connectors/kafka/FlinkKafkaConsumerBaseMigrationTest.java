@@ -38,7 +38,6 @@ import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.SerializedValue;
 
-import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -57,8 +56,6 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.doAnswer;
@@ -99,7 +96,6 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
 	public static Collection<MigrationVersion> parameters () {
 		return Arrays.asList(
-			MigrationVersion.v1_3,
 			MigrationVersion.v1_4,
 			MigrationVersion.v1_5,
 			MigrationVersion.v1_6,
@@ -323,40 +319,6 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 		consumerOperator.close();
 		consumerOperator.cancel();
-	}
-
-	/**
-	 * Test restoring from savepoints before version Flink 1.3 should fail if discovery is enabled.
-	 */
-	@Test
-	public void testRestoreFailsWithNonEmptyPreFlink13StatesIfDiscoveryEnabled() throws Exception {
-		assumeTrue(testMigrateVersion == MigrationVersion.v1_3);
-
-		final List<KafkaTopicPartition> partitions = new ArrayList<>(PARTITION_STATE.keySet());
-
-		final DummyFlinkKafkaConsumer<String> consumerFunction =
-			new DummyFlinkKafkaConsumer<>(TOPICS, partitions, 1000L); // discovery enabled
-
-		StreamSource<String, DummyFlinkKafkaConsumer<String>> consumerOperator =
-			new StreamSource<>(consumerFunction);
-
-		final AbstractStreamOperatorTestHarness<String> testHarness =
-			new AbstractStreamOperatorTestHarness<>(consumerOperator, 1, 1, 0);
-
-		testHarness.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-
-		testHarness.setup();
-
-		// restore state from binary snapshot file; should fail since discovery is enabled
-		try {
-			testHarness.initializeState(
-				OperatorSnapshotUtil.getResourceFilename(
-					"kafka-consumer-migration-test-flink" + testMigrateVersion + "-snapshot"));
-
-			fail("Restore from savepoints from version before Flink 1.3.x should have failed if discovery is enabled.");
-		} catch (Exception e) {
-			Assert.assertTrue(e instanceof IllegalArgumentException);
-		}
 	}
 
 	// ------------------------------------------------------------------------
