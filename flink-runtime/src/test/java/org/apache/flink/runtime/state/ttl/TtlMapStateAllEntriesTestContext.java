@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -65,5 +67,10 @@ class TtlMapStateAllEntriesTestContext extends
 	@Override
 	public Object getOriginal() throws Exception {
 		return ttlState.original.entries() == null ? Collections.emptySet() : ttlState.original.entries();
+	}
+
+	@Override
+	public boolean isOriginalEmptyValue() throws Exception {
+		return Objects.equals(emptyValue, Sets.newHashSet(((Iterable<?>) getOriginal()).iterator()));
 	}
 }
