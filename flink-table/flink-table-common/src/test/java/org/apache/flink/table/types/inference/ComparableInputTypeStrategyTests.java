@@ -171,6 +171,27 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 
 			TestSpec
 				.forStrategy(
+					"Comparable arrays of structured types",
+					InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+				.calledWithArgumentTypes(
+					DataTypes.ARRAY(
+						structuredType("type", singletonList(DataTypes.INT()), StructuredComparision.EQUALS).notNull()
+					),
+					DataTypes.ARRAY(
+						structuredType("type", singletonList(DataTypes.INT()), StructuredComparision.EQUALS).nullable()
+					)
+				)
+				.expectArgumentTypes(
+					DataTypes.ARRAY(
+						structuredType("type", singletonList(DataTypes.INT()), StructuredComparision.EQUALS).notNull()
+					),
+					DataTypes.ARRAY(
+						structuredType("type", singletonList(DataTypes.INT()), StructuredComparision.EQUALS).nullable()
+					)
+				),
+
+			TestSpec
+				.forStrategy(
 					"Distinct types are comparable if the source type is comparable",
 					InputTypeStrategies.TWO_EQUALS_COMPARABLE)
 				.calledWithArgumentTypes(
@@ -180,6 +201,27 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 				.expectArgumentTypes(
 					distinctType("type", DataTypes.INT()).notNull(),
 					distinctType("type", DataTypes.INT()).nullable()
+				),
+
+			TestSpec
+				.forStrategy(
+					"Comparable multisets of distinct types",
+					InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+				.calledWithArgumentTypes(
+					DataTypes.MULTISET(
+						distinctType("type", DataTypes.INT()).notNull()
+					),
+					DataTypes.MULTISET(
+						distinctType("type", DataTypes.INT()).nullable()
+					)
+				)
+				.expectArgumentTypes(
+					DataTypes.MULTISET(
+						distinctType("type", DataTypes.INT()).notNull()
+					),
+					DataTypes.MULTISET(
+						distinctType("type", DataTypes.INT()).nullable()
+					)
 				),
 
 			TestSpec
@@ -206,6 +248,31 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 				.expectArgumentTypes(
 					rawType(ComparableClass.class).notNull(),
 					rawType(ComparableClass.class).nullable()
+				),
+
+			TestSpec
+				.forStrategy(
+					"Comparable map of raw types",
+					InputTypeStrategies.TWO_EQUALS_COMPARABLE)
+				.calledWithArgumentTypes(
+					DataTypes.MAP(
+						rawType(ComparableClass.class).notNull(),
+						rawType(ComparableClass.class)
+					),
+					DataTypes.MAP(
+						rawType(ComparableClass.class).nullable(),
+						rawType(ComparableClass.class)
+					)
+				)
+				.expectArgumentTypes(
+					DataTypes.MAP(
+						rawType(ComparableClass.class).notNull(),
+						rawType(ComparableClass.class)
+					),
+					DataTypes.MAP(
+						rawType(ComparableClass.class).nullable(),
+						rawType(ComparableClass.class)
+					)
 				),
 
 			TestSpec

@@ -80,7 +80,7 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
 			LogicalType firstType = argumentDataTypes.get(i).getLogicalType();
 			LogicalType secondType = argumentDataTypes.get(i + 1).getLogicalType();
 
-			if (!areComparable(firstType.copy(true), secondType.copy(true))) {
+			if (!areComparable(firstType, secondType)) {
 				if (throwOnFailure) {
 					throw callContext.newValidationError(
 						"All types in a comparison should support %s comparison with each other. Can not compare" +
@@ -99,6 +99,10 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
 	}
 
 	private boolean areComparable(LogicalType firstType, LogicalType secondType) {
+		return areComparableWithNormalizedNullability(firstType.copy(true), secondType.copy(true));
+	}
+
+	private boolean areComparableWithNormalizedNullability(LogicalType firstType, LogicalType secondType) {
 		// A hack to support legacy types. To be removed when we drop the legacy types.
 		if (firstType instanceof LegacyTypeInformationType ||
 				secondType instanceof LegacyTypeInformationType) {
@@ -144,7 +148,7 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
 			case MULTISET:
 			case MAP:
 			case ROW:
-				return areCollectionsComparable(firstType, secondType);
+				return areConstructedTypesComparable(firstType, secondType);
 			case DISTINCT_TYPE:
 				return areDistinctTypesComparable(firstType, secondType);
 			case STRUCTURED_TYPE:
@@ -169,11 +173,10 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
 	}
 
 	private boolean areStructuredTypesComparable(LogicalType firstType, LogicalType secondType) {
-		return firstType.equals(secondType) &&
-			hasRequiredComparision((StructuredType) firstType);
+		return firstType.equals(secondType) && hasRequiredComparision((StructuredType) firstType);
 	}
 
-	private boolean areCollectionsComparable(LogicalType firstType, LogicalType secondType) {
+	private boolean areConstructedTypesComparable(LogicalType firstType, LogicalType secondType) {
 		List<LogicalType> firstChildren = firstType.getChildren();
 		List<LogicalType> secondChildren = secondType.getChildren();
 
