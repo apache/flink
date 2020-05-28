@@ -63,7 +63,7 @@ public class HBaseDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		.withDescription("Required. It defines HBase Zookeeper quorum.");
 
 	private static final ConfigOption<String> ZOOKEEPER_ZNODE_PARENT = ConfigOptions
-		.key("zookeeper.znode-parent")
+		.key("zookeeper.znode.parent")
 		.stringType()
 		.defaultValue("/hbase")
 		.withDescription("Optional. The root dir in Zookeeper for HBase cluster, default value is '/hbase'");

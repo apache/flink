@@ -224,7 +224,7 @@ public class HBaseDynamicTableFactoryTest {
 		options.put("connector", "hbase-1.4");
 		options.put("table-name", "testHBastTable");
 		options.put("zookeeper.quorum", "localhost:2181");
-		options.put("zookeeper.znode-parent", "/flink");
+		options.put("zookeeper.znode.parent", "/flink");
 		options.put("sink.buffer-flush.max-size", "10mb");
 		options.put("sink.buffer-flush.max-rows", "1000");
 		options.put("sink.buffer-flush.interval", "10s");
