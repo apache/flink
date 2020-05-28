@@ -25,12 +25,9 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.BigIntType;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableSet;
 
@@ -67,7 +64,7 @@ public class CatalogConstraintTest {
 	public void testWithPrimaryKey() throws Exception {
 		TableSchema tableSchema = TableSchema.builder().fields(
 				new String[] { "a", "b", "c" },
-				new DataType[] { DataTypes.STRING(), new AtomicDataType(new BigIntType(false)), DataTypes.INT() }
+				new DataType[] { DataTypes.STRING(), DataTypes.BIGINT().notNull(), DataTypes.INT() }
 		).primaryKey("b").build();
 		Map<String, String> properties = buildCatalogTableProperties(tableSchema);
 
@@ -109,10 +106,6 @@ public class CatalogConstraintTest {
 		properties.put("format.property-version", "1");
 		properties.put("format.field-delimiter", ";");
 
-		// schema
-		DescriptorProperties descriptorProperties = new DescriptorProperties(true);
-		descriptorProperties.putTableSchema("format.fields", tableSchema);
-		properties.putAll(descriptorProperties.asMap());
 		return properties;
 	}
 
