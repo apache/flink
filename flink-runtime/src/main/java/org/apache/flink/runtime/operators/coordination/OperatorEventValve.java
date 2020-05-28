@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
@@ -41,7 +42,9 @@ import java.util.function.BiFunction;
  *
  * <p>This class is fully thread safe, under the assumption that the event sender is thread-safe.
  */
-public final class OperatorEventValve {
+final class OperatorEventValve {
+
+	private static final long NO_CHECKPOINT = Long.MIN_VALUE;
 
 	private final Object lock = new Object();
 
@@ -52,6 +55,12 @@ public final class OperatorEventValve {
 	private final Map<Integer, List<BlockedEvent>> blockedEvents = new LinkedHashMap<>();
 
 	@GuardedBy("lock")
+	private long currentCheckpointId;
+
+	@GuardedBy("lock")
+	private long lastCheckpointId;
+
+	@GuardedBy("lock")
 	private boolean shut;
 
 	/**
@@ -60,6 +69,8 @@ public final class OperatorEventValve {
 	 */
 	public OperatorEventValve(BiFunction<SerializedValue<OperatorEvent>, Integer, CompletableFuture<Acknowledge>> eventSender) {
 		this.eventSender = eventSender;
+		this.currentCheckpointId = NO_CHECKPOINT;
+		this.lastCheckpointId = Long.MIN_VALUE;
 	}
 
 	// ------------------------------------------------------------------------
@@ -96,21 +107,52 @@ public final class OperatorEventValve {
 	 * Shuts the value. All events sent through this valve are blocked until the valve is re-opened.
 	 * If the valve is already shut, this does nothing.
 	 */
-	public void shutValve() {
-		// synchronized block for visibility
+	public void markForCheckpoint(long checkpointId) {
 		synchronized (lock) {
-			shut = true;
+			if (currentCheckpointId != NO_CHECKPOINT && currentCheckpointId != checkpointId) {
+				throw new IllegalStateException(String.format(
+						"Cannot mark for checkpoint %d, already marked for checkpoint %d",
+						checkpointId, currentCheckpointId));
+			}
+			if (checkpointId > lastCheckpointId) {
+				currentCheckpointId = checkpointId;
+				lastCheckpointId = checkpointId;
+			} else {
+				throw new IllegalStateException(String.format(
+						"Regressing checkpoint IDs. Previous checkpointId = %d, new checkpointId = %d",
+						lastCheckpointId, checkpointId));
+			}
+		}
+	}
+
+	/**
+	 * Shuts the value. All events sent through this valve are blocked until the valve is re-opened.
+	 * If the valve is already shut, this does nothing.
+	 */
+	public void shutValve(long checkpointId) {
+		synchronized (lock) {
+			if (checkpointId == currentCheckpointId) {
+				shut = true;
+			} else {
+				throw new IllegalStateException(String.format(
+					"Cannot shut valve for non-prepared checkpoint. " +
+					"Prepared checkpoint = %s, attempting-to-close checkpoint = %d",
+					(currentCheckpointId == NO_CHECKPOINT ? "(none)" : String.valueOf(currentCheckpointId)),
+					checkpointId));
+			}
 		}
 	}
 
 	/**
 	 * Opens the value, releasing all buffered events.
 	 */
-	public void openValve() {
+	public void openValveAndUnmarkCheckpoint() {
 		final ArrayList<FuturePair> futures;
 
 		// send all events under lock, so that no new event can sneak between
 		synchronized (lock) {
+			currentCheckpointId = NO_CHECKPOINT;
+
 			if (!shut) {
 				return;
 			}
@@ -129,14 +171,7 @@ public final class OperatorEventValve {
 
 		// apply the logic on the future outside the lock, to be safe
 		for (FuturePair pair : futures) {
-			final CompletableFuture<Acknowledge> originalFuture = pair.originalFuture;
-			pair.ackFuture.whenComplete((success, failure) -> {
-				if (failure != null) {
-					originalFuture.completeExceptionally(failure);
-				} else {
-					originalFuture.complete(success);
-				}
-			});
+			FutureUtils.forward(pair.ackFuture, pair.originalFuture);
 		}
 	}
 
@@ -165,6 +200,7 @@ public final class OperatorEventValve {
 			}
 			blockedEvents.clear();
 			shut = false;
+			currentCheckpointId = NO_CHECKPOINT;
 		}
 
 		failAllFutures(events);
