@@ -22,12 +22,14 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.connectors.kafka.KafkaTestBase;
+import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
+import org.apache.flink.test.util.SuccessException;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -42,7 +44,7 @@ import static org.junit.Assert.assertEquals;
  * Basic Tests for Kafka connector for Table API & SQL.
  */
 @RunWith(Parameterized.class)
-public abstract class KafkaTableTestBase extends KafkaTestBase {
+public abstract class KafkaTableTestBase extends KafkaTestBaseWithFlink {
 
 	@Parameterized.Parameter
 	public boolean isLegacyConnector;
@@ -53,9 +55,29 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 	@Parameterized.Parameters(name = "legacy = {0}, topicId = {1}")
 	public static Object[] parameters() {
 		return new Object[][]{
-				new Object[]{true, 0},
-				new Object[]{false, 1}
+			new Object[]{true, 0},
+			new Object[]{false, 1}
 		};
+	}
+
+	protected StreamExecutionEnvironment env;
+	protected StreamTableEnvironment tEnv;
+
+	@Before
+	public void setup() {
+		env = StreamExecutionEnvironment.getExecutionEnvironment();
+		tEnv = StreamTableEnvironment.create(
+			env,
+			EnvironmentSettings.newInstance()
+				// Watermark is only supported in blink planner
+				.useBlinkPlanner()
+				.inStreamingMode()
+				.build()
+		);
+		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		// we have to use single parallelism,
+		// because we will count the messages in sink to terminate the job
+		env.setParallelism(1);
 	}
 
 	public abstract String factoryIdentifier();
@@ -68,18 +90,6 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		final String topic = "tstopic" + topicID;
 		createTestTopic(topic, 1, 1);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(
-			env,
-			EnvironmentSettings.newInstance()
-				// Watermark is only supported in blink planner
-				.useBlinkPlanner()
-				.inStreamingMode()
-				.build()
-		);
-		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env.setParallelism(1);
-
 		// ---------- Produce an event time stream into Kafka -------------------
 		String groupId = standardProps.getProperty("group.id");
 		String bootstraps = standardProps.getProperty("bootstrap.servers");
@@ -87,7 +97,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 		final String createTable;
 		if (!isLegacyConnector) {
 			createTable = String.format(
-					"create table kafka (\n" +
+				"create table kafka (\n" +
 					"  `computed-price` as price + 1.0,\n" +
 					"  price decimal(38, 18),\n" +
 					"  currency string,\n" +
@@ -108,7 +118,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 				groupId);
 		} else {
 			createTable = String.format(
-					"create table kafka (\n" +
+				"create table kafka (\n" +
 					"  `computed-price` as price + 1.0,\n" +
 					"  price decimal(38, 18),\n" +
 					"  currency string,\n" +
@@ -197,22 +207,13 @@ public abstract class KafkaTableTestBase extends KafkaTestBase {
 			rows.add(value.toString());
 			if (rows.size() >= expectedSize) {
 				// job finish
-				throw new JobFinishedException("All records are received, job is finished.");
+				throw new SuccessException();
 			}
 		}
 	}
 
-	private static final class JobFinishedException extends RuntimeException {
-
-		private static final long serialVersionUID = -4684689851069516182L;
-
-		private JobFinishedException(String message) {
-			super(message);
-		}
-	}
-
-	private static boolean isCausedByJobFinished(Throwable e) {
-		if (e instanceof JobFinishedException) {
+	protected static boolean isCausedByJobFinished(Throwable e) {
+		if (e instanceof SuccessException) {
 			return true;
 		} else if (e.getCause() != null) {
 			return isCausedByJobFinished(e.getCause());

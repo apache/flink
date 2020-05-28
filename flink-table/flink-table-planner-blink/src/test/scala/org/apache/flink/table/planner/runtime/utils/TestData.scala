@@ -27,8 +27,9 @@ import org.apache.flink.table.planner.{JHashMap, JInt, JLong}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
-import org.apache.flink.types.{Row, RowKind}
+import org.apache.flink.types.Row
 
+import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, ZoneId}
 
@@ -477,7 +478,8 @@ object TestData {
 
   val nullablesOfProjectionTestData = Array(true, true, true, true, true, true, true, true)
 
-  val userChangelog: Seq[JTuple2[RowKind, Row]] = Seq(
+  // kind[user_id, user_name, email, balance]
+  val userChangelog: Seq[Row] = Seq(
     changelogRow("+I", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
     changelogRow("+I", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),
     changelogRow("-U", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
@@ -487,6 +489,27 @@ object TestData {
     changelogRow("+I", "user4", "Tina", "tina@gmail.com", new JBigDecimal("11.3")),
     changelogRow("-U", "user3", "Bailey", "bailey@gmail.com", new JBigDecimal("9.99")),
     changelogRow("+U", "user3", "Bailey", "bailey@qq.com", new JBigDecimal("9.99")))
+
+  // [amount, currency]
+  val ordersData: Seq[Row] = Seq(
+    row(2L, "Euro"),
+    row(1L, "US Dollar"),
+    row(50L, "Yen"),
+    row(3L, "Euro"),
+    row(5L, "US Dollar")
+  )
+
+  // kind[currency, rate]
+  val ratesHistoryData: Seq[Row] = Seq(
+    changelogRow("+I", "US Dollar", JLong.valueOf(102L)),
+    changelogRow("+I", "Euro", JLong.valueOf(114L)),
+    changelogRow("+I", "Yen", JLong.valueOf(1L)),
+    changelogRow("-U", "Euro", JLong.valueOf(114L)),
+    changelogRow("+U", "Euro", JLong.valueOf(116L)),
+    changelogRow("-U", "Euro", JLong.valueOf(116L)),
+    changelogRow("+U", "Euro", JLong.valueOf(119L)),
+    changelogRow("-D", "Yen", JLong.valueOf(1L))
+  )
 
   val fullDataTypesData: Seq[Row] = {
     val bools = List(true, false, true, false, null)

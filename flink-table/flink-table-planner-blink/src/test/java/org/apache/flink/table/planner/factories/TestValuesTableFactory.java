@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.factories;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.io.CollectionInputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -78,6 +77,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import scala.collection.Seq;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Test implementation of {@link DynamicTableSourceFactory} that creates
  * a source that produces a sequence of values.
@@ -89,18 +90,16 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	// --------------------------------------------------------------------------------------------
 
 	private static final AtomicInteger idCounter = new AtomicInteger(0);
-	private static final Map<String, Collection<Tuple2<RowKind, Row>>> registeredData = new HashMap<>();
+	private static final Map<String, Collection<Row>> registeredData = new HashMap<>();
 
 	/**
 	 * Register the given data into the data factory context and return the data id.
 	 * The data id can be used as a reference to the registered data in data connector DDL.
 	 */
 	public static String registerData(Collection<Row> data) {
-		List<Tuple2<RowKind, Row>> dataWithKinds = new ArrayList<>();
-		for (Row row : data) {
-			dataWithKinds.add(Tuple2.of(RowKind.INSERT, row));
-		}
-		return registerChangelogData(dataWithKinds);
+		String id = String.valueOf(idCounter.incrementAndGet());
+		registeredData.put(id, data);
+		return id;
 	}
 
 	/**
@@ -109,26 +108,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	 */
 	public static String registerData(Seq<Row> data) {
 		return registerData(JavaScalaConversionUtil.toJava(data));
-	}
-
-	/**
-	 * Register the given data with RowKind into the data factory context and return the data id.
-	 * The data id can be used as a reference to the registered data in data connector DDL.
-	 * TODO: remove this utility once Row supports RowKind.
-	 */
-	public static String registerChangelogData(Collection<Tuple2<RowKind, Row>> data) {
-		String id = String.valueOf(idCounter.incrementAndGet());
-		registeredData.put(id, data);
-		return id;
-	}
-
-	/**
-	 * Register the given data with RowKind into the data factory context and return the data id.
-	 * The data id can be used as a reference to the registered data in data connector DDL.
-	 * TODO: remove this utility once Row supports RowKind.
-	 */
-	public static String registerChangelogData(Seq<Tuple2<RowKind, Row>> data) {
-		return registerChangelogData(JavaScalaConversionUtil.toJava(data));
 	}
 
 	/**
@@ -161,10 +140,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	/**
 	 * Creates a changelog row from the given RowKind short string and value objects.
 	 */
-	public static Tuple2<RowKind, Row> changelogRow(String rowKind, Object... values) {
+	public static Row changelogRow(String rowKind, Object... values) {
 		RowKind kind = parseRowKind(rowKind);
-		Row row = Row.of(values);
-		return Tuple2.of(kind, row);
+		return Row.ofKind(kind, values);
 	}
 
 	/**
@@ -235,6 +213,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.booleanType()
 		.defaultValue(true);
 
+	private static final ConfigOption<Integer> SINK_EXPECTED_MESSAGES_NUM = ConfigOptions
+		.key("sink-expected-messages-num")
+		.intType()
+		.defaultValue(-1);
+
 	private static final ConfigOption<Boolean> NESTED_PROJECTION_SUPPORTED = ConfigOptions
 		.key("nested-projection-supported")
 		.booleanType()
@@ -259,7 +242,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
 
 		if (sourceClass.equals("DEFAULT")) {
-			Collection<Tuple2<RowKind, Row>> data = registeredData.getOrDefault(dataId, Collections.emptyList());
+			Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
 			TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
 			return new TestValuesTableSource(
 				physicalSchema,
@@ -289,12 +272,13 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		helper.validate();
 		boolean isInsertOnly = helper.getOptions().get(SINK_INSERT_ONLY);
 		String runtimeSink = helper.getOptions().get(RUNTIME_SINK);
+		int expectedNum = helper.getOptions().get(SINK_EXPECTED_MESSAGES_NUM);
 		TableSchema schema = context.getCatalogTable().getSchema();
 		return new TestValuesTableSink(
 			schema,
 			context.getObjectIdentifier().getObjectName(),
 			isInsertOnly,
-			runtimeSink);
+			runtimeSink, expectedNum);
 	}
 
 	@Override
@@ -315,6 +299,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			TABLE_SOURCE_CLASS,
 			SINK_INSERT_ONLY,
 			RUNTIME_SINK,
+			SINK_EXPECTED_MESSAGES_NUM,
 			NESTED_PROJECTION_SUPPORTED));
 	}
 
@@ -354,7 +339,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final ChangelogMode changelogMode;
 		private final boolean bounded;
 		private final String runtimeSource;
-		private final Collection<Tuple2<RowKind, Row>> data;
+		private final Collection<Row> data;
 		private final boolean isAsync;
 		private final @Nullable String lookupFunctionClass;
 		private final boolean nestedProjectionSupported;
@@ -365,7 +350,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				ChangelogMode changelogMode,
 				boolean bounded,
 				String runtimeSource,
-				Collection<Tuple2<RowKind, Row>> data,
+				Collection<Row> data,
 				boolean isAsync,
 				@Nullable String lookupFunctionClass,
 				boolean nestedProjectionSupported,
@@ -433,16 +418,16 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				.mapToInt(k -> k[0])
 				.toArray();
 			Map<Row, List<Row>> mapping = new HashMap<>();
-			data.forEach(entry -> {
+			data.forEach(record -> {
 				Row key = Row.of(Arrays.stream(lookupIndices)
-					.mapToObj(idx -> entry.f1.getField(idx))
+					.mapToObj(record::getField)
 					.toArray());
 				List<Row> list = mapping.get(key);
 				if (list != null) {
-					list.add(entry.f1);
+					list.add(record);
 				} else {
 					list = new ArrayList<>();
-					list.add(entry.f1);
+					list.add(record);
 					mapping.put(key, list);
 				}
 			});
@@ -484,24 +469,24 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 
 		private static Collection<RowData> convertToRowData(
-				Collection<Tuple2<RowKind, Row>> data,
+				Collection<Row> data,
 				int[] projectedFields,
 				DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
-			for (Tuple2<RowKind, Row> value : data) {
+			for (Row value : data) {
 				Row projectedRow;
 				if (projectedFields == null) {
-					projectedRow = value.f1;
+					projectedRow = value;
 				} else {
 					Object[] newValues = new Object[projectedFields.length];
 					for (int i = 0; i < projectedFields.length; ++i) {
-						newValues[i] = value.f1.getField(projectedFields[i]);
+						newValues[i] = value.getField(projectedFields[i]);
 					}
 					projectedRow = Row.of(newValues);
 				}
 				RowData rowData = (RowData) converter.toInternal(projectedRow);
 				if (rowData != null) {
-					rowData.setRowKind(value.f0);
+					rowData.setRowKind(value.getKind());
 					result.add(rowData);
 				}
 			}
@@ -574,15 +559,19 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final String tableName;
 		private final boolean isInsertOnly;
 		private final String runtimeSink;
+		private final int expectedNum;
 
 		private TestValuesTableSink(
 				TableSchema schema,
 				String tableName,
-				boolean isInsertOnly, String runtimeSink) {
+				boolean isInsertOnly,
+				String runtimeSink,
+				int expectedNum) {
 			this.schema = schema;
 			this.tableName = tableName;
 			this.isInsertOnly = isInsertOnly;
 			this.runtimeSink = runtimeSink;
+			this.expectedNum = expectedNum;
 		}
 
 		@Override
@@ -611,6 +600,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			assert context.createTypeInformation(schema.toPhysicalRowDataType()) instanceof RowDataTypeInfo;
 			DataStructureConverter converter = context.createDataStructureConverter(schema.toPhysicalRowDataType());
 			if (isInsertOnly) {
+				checkArgument(expectedNum == -1,
+					"Appending Sink doesn't support '" + SINK_EXPECTED_MESSAGES_NUM.key() + "' yet.");
 				if (runtimeSink.equals("SinkFunction")) {
 					return SinkFunctionProvider.of(
 						new AppendingSinkFunction(
@@ -633,8 +624,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					sinkFunction = new KeyedUpsertingSinkFunction(
 						tableName,
 						converter,
-						keyIndices);
+						keyIndices,
+						expectedNum);
 				} else {
+					checkArgument(expectedNum == -1,
+						"Retracting Sink doesn't support '" + SINK_EXPECTED_MESSAGES_NUM.key() + "' yet.");
 					sinkFunction = new RetractingSinkFunction(
 						tableName,
 						converter);
@@ -649,7 +643,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				schema,
 				tableName,
 				isInsertOnly,
-				runtimeSink);
+				runtimeSink, expectedNum);
 		}
 
 		@Override
