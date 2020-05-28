@@ -21,6 +21,7 @@ package org.apache.flink.python;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 
 /**
  * Configuration options for the Python API.
@@ -148,4 +149,16 @@ public class PythonOptions {
 			"The priority is as following: 1. the configuration 'python.client.executable' defined in " +
 			"the source code; 2. the environment variable PYFLINK_EXECUTABLE; 3. the configuration " +
 			"'python.client.executable' defined in flink-conf.yaml");
+
+	/**
+	 * Whether the memory used by the Python framework is managed memory.
+	 */
+	public static final ConfigOption<Boolean> USE_MANAGED_MEMORY = ConfigOptions
+		.key("python.fn-execution.memory.managed")
+		.defaultValue(false)
+		.withDescription(String.format("If set, the Python worker configure itself to use the " +
+			"managed memory budget of the task slot. Otherwise, it will use the off-heap memory " +
+			"of the task slot. In this case, it will set a best effort default value for the task " +
+			"off-heap memory if it's not configured. Users could set it manually via %s if the " +
+			"default value is not optimal", TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key()));
 }

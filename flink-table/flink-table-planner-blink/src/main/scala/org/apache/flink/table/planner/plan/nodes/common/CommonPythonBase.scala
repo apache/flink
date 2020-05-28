@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{ConfigOption, Configuration, MemorySize, TaskManagerOptions}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.functions.FunctionDefinition
@@ -114,7 +114,9 @@ trait CommonPythonBase {
     // ensure the user specified configuration has priority over others.
     val method = classOf[StreamExecutionEnvironment].getDeclaredMethod("getConfiguration")
     method.setAccessible(true)
-    val config = new Configuration(method.invoke(env).asInstanceOf[Configuration])
+    val executionEnvironmentConfig = method.invoke(env).asInstanceOf[Configuration]
+    setDefaultConfigurations(executionEnvironmentConfig)
+    val config = new Configuration(executionEnvironmentConfig)
     config.addAll(tableConfig.getConfiguration)
     config
   }
@@ -127,6 +129,35 @@ trait CommonPythonBase {
       realEnv = realExecEnvField.get(realEnv).asInstanceOf[StreamExecutionEnvironment]
     }
     realEnv
+  }
+
+  protected def usingManagedMemory(config: Configuration): Boolean = {
+    val clazz = loadClass("org.apache.flink.python.PythonOptions")
+    config.getBoolean(clazz.getField("USE_MANAGED_MEMORY").get(null)
+      .asInstanceOf[ConfigOption[java.lang.Boolean]])
+  }
+
+  protected def getPythonWorkerMemory(config: Configuration): Long = {
+    val clazz = loadClass("org.apache.flink.python.PythonOptions")
+    val pythonFrameworkMemorySize = MemorySize.parse(
+      config.getString(
+        clazz.getField("PYTHON_FRAMEWORK_MEMORY_SIZE").get(null)
+          .asInstanceOf[ConfigOption[String]]))
+    val pythonBufferMemorySize = MemorySize.parse(
+      config.getString(
+        clazz.getField("PYTHON_DATA_BUFFER_MEMORY_SIZE").get(null)
+          .asInstanceOf[ConfigOption[String]]))
+    pythonFrameworkMemorySize.add(pythonBufferMemorySize).getBytes
+  }
+
+  private def setDefaultConfigurations(config: Configuration): Unit = {
+    if (!usingManagedMemory(config) && !config.contains(TaskManagerOptions.TASK_OFF_HEAP_MEMORY)) {
+      // Set the default value for the task off-heap memory if not set if the Python worker isn't
+      // using managed memory. Note that this is best effort attempt and if a task slot contains
+      // multiple Python workers, users should set the task off-heap memory manually.
+      config.setString(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(),
+        getPythonWorkerMemory(config) + "b")
+    }
   }
 }
 
