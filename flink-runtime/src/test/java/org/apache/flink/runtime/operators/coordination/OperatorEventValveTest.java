@@ -50,11 +50,30 @@ public class OperatorEventValveTest {
 		assertTrue(future.isDone());
 	}
 
+	@Test(expected = IllegalStateException.class)
+	public void errorShuttingUnmarkedValve() throws Exception {
+		final TestEventSender sender = new TestEventSender();
+		final OperatorEventValve valve = new OperatorEventValve(sender);
+
+		valve.shutValve(123L);
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void errorShuttingValveForOtherMark() throws Exception {
+		final TestEventSender sender = new TestEventSender();
+		final OperatorEventValve valve = new OperatorEventValve(sender);
+
+		valve.markForCheckpoint(100L);
+		valve.shutValve(123L);
+	}
+
 	@Test
 	public void eventsBlockedByClosedValve() throws Exception {
 		final TestEventSender sender = new TestEventSender();
 		final OperatorEventValve valve = new OperatorEventValve(sender);
-		valve.shutValve();
+
+		valve.markForCheckpoint(1L);
+		valve.shutValve(1L);
 
 		final CompletableFuture<Acknowledge> future =
 				valve.sendEvent(new SerializedValue<>(new TestOperatorEvent()), 1);
@@ -67,14 +86,16 @@ public class OperatorEventValveTest {
 	public void eventsReleasedAfterOpeningValve() throws Exception {
 		final TestEventSender sender = new TestEventSender();
 		final OperatorEventValve valve = new OperatorEventValve(sender);
-		valve.shutValve();
+
+		valve.markForCheckpoint(17L);
+		valve.shutValve(17L);
 
 		final OperatorEvent event1 = new TestOperatorEvent();
 		final OperatorEvent event2 = new TestOperatorEvent();
 		final CompletableFuture<Acknowledge> future1 = valve.sendEvent(new SerializedValue<>(event1), 3);
 		final CompletableFuture<Acknowledge> future2 = valve.sendEvent(new SerializedValue<>(event2), 0);
 
-		valve.openValve();
+		valve.openValveAndUnmarkCheckpoint();
 
 		assertThat(sender.events, containsInAnyOrder(
 			new EventWithSubtask(event1, 3),
@@ -88,11 +109,13 @@ public class OperatorEventValveTest {
 	public void releasedEventsForwardSendFailures() throws Exception {
 		final TestEventSender sender = new TestEventSender(new FlinkException("test"));
 		final OperatorEventValve valve = new OperatorEventValve(sender);
-		valve.shutValve();
+
+		valve.markForCheckpoint(17L);
+		valve.shutValve(17L);
 
 		final CompletableFuture<Acknowledge> future =
 				valve.sendEvent(new SerializedValue<>(new TestOperatorEvent()), 10);
-		valve.openValve();
+		valve.openValveAndUnmarkCheckpoint();
 
 		assertTrue(future.isCompletedExceptionally());
 	}
@@ -101,13 +124,14 @@ public class OperatorEventValveTest {
 	public void resetDropsAllEvents() throws Exception {
 		final TestEventSender sender = new TestEventSender();
 		final OperatorEventValve valve = new OperatorEventValve(sender);
-		valve.shutValve();
+		valve.markForCheckpoint(17L);
+		valve.shutValve(17L);
 
 		valve.sendEvent(new SerializedValue<>(new TestOperatorEvent()), 0);
 		valve.sendEvent(new SerializedValue<>(new TestOperatorEvent()), 1);
 
 		valve.reset();
-		valve.openValve();
+		valve.openValveAndUnmarkCheckpoint();
 
 		assertTrue(sender.events.isEmpty());
 	}
@@ -116,7 +140,8 @@ public class OperatorEventValveTest {
 	public void resetForTaskDropsSelectiveEvents() throws Exception {
 		final TestEventSender sender = new TestEventSender();
 		final OperatorEventValve valve = new OperatorEventValve(sender);
-		valve.shutValve();
+		valve.markForCheckpoint(17L);
+		valve.shutValve(17L);
 
 		final OperatorEvent event1 = new TestOperatorEvent();
 		final OperatorEvent event2 = new TestOperatorEvent();
@@ -124,7 +149,7 @@ public class OperatorEventValveTest {
 		final CompletableFuture<Acknowledge> future2 = valve.sendEvent(new SerializedValue<>(event2), 1);
 
 		valve.resetForTask(1);
-		valve.openValve();
+		valve.openValveAndUnmarkCheckpoint();
 
 		assertThat(sender.events, contains(new EventWithSubtask(event1, 0)));
 		assertTrue(future1.isDone());
@@ -136,7 +161,8 @@ public class OperatorEventValveTest {
 		final TestEventSender sender = new TestEventSender();
 		final OperatorEventValve valve = new OperatorEventValve(sender);
 
-		valve.shutValve();
+		valve.markForCheckpoint(17L);
+		valve.shutValve(17L);
 		valve.reset();
 
 		assertFalse(valve.isShut());
