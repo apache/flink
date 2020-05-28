@@ -19,10 +19,13 @@
 package org.apache.flink.kubernetes.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ExternalResourceOptions;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -137,11 +140,14 @@ public class KubernetesConfigOptions {
 		.withDescription("The cluster-id, which should be no more than 45 characters, is used for identifying " +
 			"a unique Flink cluster. If not set, the client will automatically generate it with a random ID.");
 
+	@Documentation.OverrideDefault("The default value depends on the actually running version. In general it looks like \"flink:<FLINK_VERSION>-scala_<SCALA_VERSION>\"")
 	public static final ConfigOption<String> CONTAINER_IMAGE =
 		key("kubernetes.container.image")
 		.stringType()
-		.defaultValue("flink:latest")
-		.withDescription("Image to use for Flink containers.");
+		.defaultValue(getDefaultFlinkImage())
+		.withDescription("Image to use for Flink containers. " +
+			"The specified image must be based upon the same Apache Flink and Scala versions as used by the application. " +
+			"Visit https://hub.docker.com/_/flink?tab=tags for the images provided by the Flink project.");
 
 	/**
 	 * The following config options need to be set according to the image.
@@ -228,6 +234,13 @@ public class KubernetesConfigOptions {
 			.noDefaultValue()
 			.withDescription("If configured, Flink will add \"resources.limits.<config-key>\" and \"resources.requests.<config-key>\" " +
 				"to the main container of TaskExecutor and set the value to the value of " + ExternalResourceOptions.EXTERNAL_RESOURCE_AMOUNT.key() + ".");
+
+	private static String getDefaultFlinkImage() {
+		// The default container image that ties to the exact needed versions of both Flink and Scala.
+		boolean snapshot = EnvironmentInformation.getVersion().toLowerCase(Locale.ENGLISH).contains("snapshot");
+		String tag = snapshot ? "latest" : EnvironmentInformation.getVersion() + "-scala_" + EnvironmentInformation.getScalaVersion();
+		return "flink:" + tag;
+	}
 
 	/**
 	 * The flink rest service exposed type.
