@@ -44,6 +44,8 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
+import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
+import static org.apache.flink.table.types.inference.TypeStrategies.nullable;
 
 /**
  * Dictionary of function definitions for all built-in functions.
@@ -83,42 +85,42 @@ public final class BuiltInFunctionDefinitions {
 			.name("equals")
 			.kind(SCALAR)
 			.inputTypeStrategy(TWO_EQUALS_COMPARABLE)
-			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
+			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
 	public static final BuiltInFunctionDefinition GREATER_THAN =
 		new BuiltInFunctionDefinition.Builder()
 			.name("greaterThan")
 			.kind(SCALAR)
 			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
-			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
+			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
 	public static final BuiltInFunctionDefinition GREATER_THAN_OR_EQUAL =
 		new BuiltInFunctionDefinition.Builder()
 			.name("greaterThanOrEqual")
 			.kind(SCALAR)
 			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
-			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
+			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
 	public static final BuiltInFunctionDefinition LESS_THAN =
 		new BuiltInFunctionDefinition.Builder()
 			.name("lessThan")
 			.kind(SCALAR)
 			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
-			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
+			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
 	public static final BuiltInFunctionDefinition LESS_THAN_OR_EQUAL =
 		new BuiltInFunctionDefinition.Builder()
 			.name("lessThanOrEqual")
 			.kind(SCALAR)
 			.inputTypeStrategy(TWO_FULLY_COMPARABLE)
-			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
+			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
 	public static final BuiltInFunctionDefinition NOT_EQUALS =
 		new BuiltInFunctionDefinition.Builder()
 			.name("notEquals")
 			.kind(SCALAR)
 			.inputTypeStrategy(TWO_EQUALS_COMPARABLE)
-			.outputTypeStrategy(TypeStrategies.explicit(DataTypes.BOOLEAN().nullable()))
+			.outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
 			.build();
 	public static final BuiltInFunctionDefinition IS_NULL =
 		new BuiltInFunctionDefinition.Builder()
