@@ -959,12 +959,6 @@ CREATE TABLE MyUserTable (
                                          -- to queue capacity saturation),
                                          -- or "custom" for failure handling with a
                                          -- ActionRequestFailureHandler subclass
-  
-  -- optional: configure ElasticSearch Auth 
-  'connector.enable-auth' = 'true',   -- optional: enable ElasticSearch Auth (see notes below!)
-                                                -- ("false" by default)
-  'connector.username' = 'elastic',   -- optional: ElasticSearch username
-  'connector.password' = '123456',   -- optional: ElasticSearch password
 
   -- optional: configure Elasticsearch cluster username and password 
   'connector.username' = 'myusername',   -- optional: Elasticsearch username
@@ -1009,12 +1003,12 @@ CREATE TABLE MyUserTable (
     .documentType("user")              // required: Elasticsearch document type
     
     // optional: configure Elasticsearch cluster username and password 
-    .username("myusername")    // optional: Elasticsearch cluster username
-    .password("mypassword")    // optional: Elasticsearch cluster password
+    .username("myusername")        // optional: Elasticsearch cluster username
+    .password("mypassword")        // optional: Elasticsearch cluster password
     
-    .keyDelimiter("$")        // optional: delimiter for composite keys ("_" by default)
-                              //   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
-    .keyNullLiteral("n/a")    // optional: representation for null fields in keys ("null" by default)
+    .keyDelimiter("$")             // optional: delimiter for composite keys ("_" by default)
+                                   //   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
+    .keyNullLiteral("n/a")         // optional: representation for null fields in keys ("null" by default)
 
     // optional: failure handling strategy in case a request to Elasticsearch fails (fail by default)
     .failureHandlerFail()          // optional: throws an exception if a request fails and causes a job failure
@@ -1100,8 +1094,8 @@ connector:
     index: "MyUsers"        # required: Elasticsearch index
     document-type: "user"   # required: Elasticsearch document type
 
-    username: "myusername"     # optional: Elasticsearch cluster username
-    password: "mypassword"      # optional: Elasticsearch cluster password
+    username: "myusername"  # optional: Elasticsearch cluster username
+    password: "mypassword"  # optional: Elasticsearch cluster password
     
     key-delimiter: "$"      # optional: delimiter for composite keys ("_" by default)
                             #   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
