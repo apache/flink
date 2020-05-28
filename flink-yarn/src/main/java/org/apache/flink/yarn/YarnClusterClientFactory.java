@@ -42,6 +42,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class YarnClusterClientFactory extends AbstractContainerizedClusterClientFactory<ApplicationId> {
 
+	public static final String ERROR_MESSAGE =
+			"No Executor found. Please make sure to export the HADOOP_CLASSPATH environment variable " +
+					"or have hadoop in your classpath. For more information refer to the \"Deployment & Operations\" " +
+					"section of the official Apache Flink documentation.";
+
 	@Override
 	public boolean isCompatibleWith(Configuration configuration) {
 		checkNotNull(configuration);

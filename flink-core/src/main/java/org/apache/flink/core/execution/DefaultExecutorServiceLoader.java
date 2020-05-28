@@ -81,7 +81,11 @@ public class DefaultExecutorServiceLoader implements PipelineExecutorServiceLoad
 			throw new IllegalStateException("Multiple compatible client factories found for:\n" + configStr + ".");
 		}
 
-		return compatibleFactories.isEmpty() ? null : compatibleFactories.get(0);
+		if (compatibleFactories.isEmpty()) {
+			throw new IllegalStateException("No ExecutorFactory found to execute the application.");
+		}
+
+		return compatibleFactories.get(0);
 	}
 
 	@Override
