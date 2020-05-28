@@ -139,4 +139,19 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 				"[00:51:03, 00:59:03]]",
 			results.toString());
 	}
+
+	@Test
+	public void testSerialTypes() {
+		List<Row> results = Lists.newArrayList(
+			tEnv.sqlQuery(String.format("select * from %s", TABLE_SERIAL_TYPE)).execute().collect());
+
+		assertEquals("[" +
+				"32767," +
+				"2147483647," +
+				"32767," +
+				"2147483647," +
+				"9223372036854775807," +
+				"9223372036854775807]",
+			results.toString());
+	}
 }
