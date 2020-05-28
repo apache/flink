@@ -175,17 +175,18 @@ public class DescriptorPropertiesTest {
 	@Test
 	public void testTableSchema() {
 		TableSchema schema = TableSchema.builder()
-			.field("f0", DataTypes.BIGINT())
+			.field("f0", DataTypes.BIGINT().notNull())
 			.field("f1", DataTypes.ROW(
 				DataTypes.FIELD("q1", DataTypes.STRING()),
 				DataTypes.FIELD("q2", DataTypes.TIMESTAMP(9))))
-			.field("f2", DataTypes.STRING())
-			.field("f3", DataTypes.BIGINT(), "f0 + 1")
+			.field("f2", DataTypes.STRING().notNull())
+			.field("f3", DataTypes.BIGINT().notNull(), "f0 + 1")
 			.field("f4", DataTypes.DECIMAL(10, 3))
 			.watermark(
 				"f1.q2",
 				"`f1`.`q2` - INTERVAL '5' SECOND",
 				DataTypes.TIMESTAMP(3))
+			.primaryKey("constraint1", new String[] {"f0", "f2"})
 			.build();
 
 		DescriptorProperties properties = new DescriptorProperties();
@@ -193,19 +194,21 @@ public class DescriptorPropertiesTest {
 		Map<String, String> actual = properties.asMap();
 		Map<String, String> expected = new HashMap<>();
 		expected.put("schema.0.name", "f0");
-		expected.put("schema.0.data-type", "BIGINT");
+		expected.put("schema.0.data-type", "BIGINT NOT NULL");
 		expected.put("schema.1.name", "f1");
 		expected.put("schema.1.data-type", "ROW<`q1` VARCHAR(2147483647), `q2` TIMESTAMP(9)>");
 		expected.put("schema.2.name", "f2");
-		expected.put("schema.2.data-type", "VARCHAR(2147483647)");
+		expected.put("schema.2.data-type", "VARCHAR(2147483647) NOT NULL");
 		expected.put("schema.3.name", "f3");
-		expected.put("schema.3.data-type", "BIGINT");
+		expected.put("schema.3.data-type", "BIGINT NOT NULL");
 		expected.put("schema.3.expr", "f0 + 1");
 		expected.put("schema.4.name", "f4");
 		expected.put("schema.4.data-type", "DECIMAL(10, 3)");
 		expected.put("schema.watermark.0.rowtime", "f1.q2");
 		expected.put("schema.watermark.0.strategy.expr", "`f1`.`q2` - INTERVAL '5' SECOND");
 		expected.put("schema.watermark.0.strategy.data-type", "TIMESTAMP(3)");
+		expected.put("schema.primary-key.name", "constraint1");
+		expected.put("schema.primary-key.columns", "f0,f2");
 		assertEquals(expected, actual);
 
 		TableSchema restored = properties.getTableSchema("schema");
