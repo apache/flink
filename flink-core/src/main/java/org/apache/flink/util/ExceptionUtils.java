@@ -71,6 +71,20 @@ public final class ExceptionUtils {
 		TaskManagerOptions.JVM_METASPACE.key());
 
 	/**
+	 * Removes the stack trace elements of the given exception and all causes. The string representation of the
+	 * resulting exception will usually only contain the "Caused by ..." lines.
+	 *
+	 * @param e The exception to trim.
+	 */
+	public static void trimStackTraces(final Throwable e) {
+		Throwable cause = e;
+		while (cause != null && cause != cause.getCause()) {
+			cause.setStackTrace(new StackTraceElement[]{});
+			cause = cause.getCause();
+		}
+	}
+
+	/**
 	 * Makes a string representation of the exception's stack trace, or "(null)", if the
 	 * exception is null.
 	 *
