@@ -77,16 +77,17 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
 	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
 		List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
 		for (int i = 0; i < argumentDataTypes.size() - 1; i++) {
-			LogicalType firstLogicalType = argumentDataTypes.get(i).getLogicalType();
-			LogicalType secondLogicalType = argumentDataTypes.get(i + 1).getLogicalType();
+			LogicalType firstType = argumentDataTypes.get(i).getLogicalType();
+			LogicalType secondType = argumentDataTypes.get(i + 1).getLogicalType();
 
-			if (!areComparable(firstLogicalType, secondLogicalType)) {
+			if (!areComparable(firstType.copy(true), secondType.copy(true))) {
 				if (throwOnFailure) {
 					throw callContext.newValidationError(
-						"All types in EQUALS should support %s comparison with each other. Can not compare %s with %s",
+						"All types in a comparison should support %s comparison with each other. Can not compare" +
+							" %s with %s",
 						requiredComparision == StructuredComparision.EQUALS ? "'EQUALS'" : "both 'EQUALS' and 'ORDER'",
-						firstLogicalType,
-						secondLogicalType
+						firstType,
+						secondType
 					);
 				}
 
@@ -97,100 +98,84 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
 		return Optional.of(argumentDataTypes);
 	}
 
-	private boolean areComparable(LogicalType firstLogicalType, LogicalType secondLogicalType) {
+	private boolean areComparable(LogicalType firstType, LogicalType secondType) {
 		// A hack to support legacy types. To be removed when we drop the legacy types.
-		if (firstLogicalType instanceof LegacyTypeInformationType ||
-				secondLogicalType instanceof LegacyTypeInformationType) {
+		if (firstType instanceof LegacyTypeInformationType ||
+				secondType instanceof LegacyTypeInformationType) {
 			return true;
 		}
 
 		// everything is comparable with null, it should return null in that case
-		if (hasRoot(firstLogicalType, LogicalTypeRoot.NULL) || hasRoot(secondLogicalType, LogicalTypeRoot.NULL)) {
+		if (hasRoot(firstType, LogicalTypeRoot.NULL) || hasRoot(secondType, LogicalTypeRoot.NULL)) {
 			return true;
 		}
 
-		if (hasRoot(firstLogicalType, LogicalTypeRoot.STRUCTURED_TYPE) &&
-				hasRoot(secondLogicalType, LogicalTypeRoot.STRUCTURED_TYPE)) {
-			return areStructuredTypesComparable(firstLogicalType, secondLogicalType);
+		if (firstType.getTypeRoot() == secondType.getTypeRoot()) {
+			return areTypesOfSameRootComparable(firstType, secondType);
 		}
 
-		if (hasRoot(firstLogicalType, LogicalTypeRoot.DISTINCT_TYPE) &&
-				hasRoot(secondLogicalType, LogicalTypeRoot.DISTINCT_TYPE)) {
-			return areDistinctTypesComparable(firstLogicalType, secondLogicalType);
-		}
-
-		if (hasRoot(firstLogicalType, LogicalTypeRoot.RAW) && hasRoot(secondLogicalType, LogicalTypeRoot.RAW)) {
-			return areRawTypesComparable(firstLogicalType, secondLogicalType);
-		}
-
-		if (hasRoot(firstLogicalType, LogicalTypeRoot.ARRAY) && hasRoot(secondLogicalType, LogicalTypeRoot.ARRAY)) {
-			return areCollectionsComparable(firstLogicalType, secondLogicalType);
-		}
-
-		if (hasRoot(firstLogicalType, LogicalTypeRoot.MULTISET) &&
-			hasRoot(secondLogicalType, LogicalTypeRoot.MULTISET)) {
-			return areCollectionsComparable(firstLogicalType, secondLogicalType);
-		}
-
-		if (hasRoot(firstLogicalType, LogicalTypeRoot.MAP) &&
-				hasRoot(secondLogicalType, LogicalTypeRoot.MAP)) {
-			return areCollectionsComparable(firstLogicalType, secondLogicalType);
-		}
-
-		if (hasRoot(firstLogicalType, LogicalTypeRoot.ROW) && hasRoot(secondLogicalType, LogicalTypeRoot.ROW)) {
-			return areCollectionsComparable(firstLogicalType, secondLogicalType);
-		}
-
-		if (firstLogicalType.getTypeRoot() == secondLogicalType.getTypeRoot()) {
-			return true;
-		}
-
-		if (hasFamily(firstLogicalType, LogicalTypeFamily.NUMERIC) &&
-				hasFamily(secondLogicalType, LogicalTypeFamily.NUMERIC)) {
+		if (hasFamily(firstType, LogicalTypeFamily.NUMERIC) && hasFamily(secondType, LogicalTypeFamily.NUMERIC)) {
 			return true;
 		}
 
 		// DATE + ALL TIMESTAMPS
-		if (hasFamily(firstLogicalType, LogicalTypeFamily.DATETIME) &&
-				hasFamily(secondLogicalType, LogicalTypeFamily.DATETIME)) {
+		if (hasFamily(firstType, LogicalTypeFamily.DATETIME) && hasFamily(secondType, LogicalTypeFamily.DATETIME)) {
 			return true;
 		}
 
 		// VARCHAR + CHAR (we do not compare collations here)
-		if (hasFamily(firstLogicalType, LogicalTypeFamily.CHARACTER_STRING) &&
-				hasFamily(secondLogicalType, LogicalTypeFamily.CHARACTER_STRING)) {
+		if (hasFamily(firstType, LogicalTypeFamily.CHARACTER_STRING) &&
+				hasFamily(secondType, LogicalTypeFamily.CHARACTER_STRING)) {
 			return true;
 		}
 
 		// VARBINARY + BINARY
-		if (hasFamily(firstLogicalType, LogicalTypeFamily.BINARY_STRING) &&
-				hasFamily(secondLogicalType, LogicalTypeFamily.BINARY_STRING)) {
+		if (hasFamily(firstType, LogicalTypeFamily.BINARY_STRING) &&
+				hasFamily(secondType, LogicalTypeFamily.BINARY_STRING)) {
 			return true;
 		}
 
 		return false;
 	}
 
-	private boolean areRawTypesComparable(LogicalType firstLogicalType, LogicalType secondLogicalType) {
-		return firstLogicalType.copy(true).equals(secondLogicalType.copy(true)) &&
-			Comparable.class.isAssignableFrom(((RawType<?>) firstLogicalType).getOriginatingClass());
+	private boolean areTypesOfSameRootComparable(LogicalType firstType, LogicalType secondType) {
+		switch (firstType.getTypeRoot()) {
+			case ARRAY:
+			case MULTISET:
+			case MAP:
+			case ROW:
+				return areCollectionsComparable(firstType, secondType);
+			case DISTINCT_TYPE:
+				return areDistinctTypesComparable(firstType, secondType);
+			case STRUCTURED_TYPE:
+				return areStructuredTypesComparable(firstType, secondType);
+			case RAW:
+				return areRawTypesComparable(firstType, secondType);
+			default:
+				return true;
+		}
 	}
 
-	private boolean areDistinctTypesComparable(LogicalType firstLogicalType, LogicalType secondLogicalType) {
-		DistinctType firstDistinctType = (DistinctType) firstLogicalType;
-		DistinctType secondDistinctType = (DistinctType) secondLogicalType;
-		return firstLogicalType.copy(true).equals(secondLogicalType.copy(true)) &&
+	private boolean areRawTypesComparable(LogicalType firstType, LogicalType secondType) {
+		return firstType.equals(secondType) &&
+			Comparable.class.isAssignableFrom(((RawType<?>) firstType).getOriginatingClass());
+	}
+
+	private boolean areDistinctTypesComparable(LogicalType firstType, LogicalType secondType) {
+		DistinctType firstDistinctType = (DistinctType) firstType;
+		DistinctType secondDistinctType = (DistinctType) secondType;
+		return firstType.equals(secondType) &&
 			areComparable(firstDistinctType.getSourceType(), secondDistinctType.getSourceType());
 	}
 
-	private boolean areStructuredTypesComparable(LogicalType firstLogicalType, LogicalType secondLogicalType) {
-		return firstLogicalType.copy(true).equals(secondLogicalType.copy(true)) &&
-			hasRequiredComparision((StructuredType) firstLogicalType);
+	private boolean areStructuredTypesComparable(LogicalType firstType, LogicalType secondType) {
+		return firstType.equals(secondType) &&
+			hasRequiredComparision((StructuredType) firstType);
 	}
 
-	private boolean areCollectionsComparable(LogicalType firstLogicalType, LogicalType secondLogicalType) {
-		List<LogicalType> firstChildren = firstLogicalType.getChildren();
-		List<LogicalType> secondChildren = secondLogicalType.getChildren();
+	private boolean areCollectionsComparable(LogicalType firstType, LogicalType secondType) {
+		List<LogicalType> firstChildren = firstType.getChildren();
+		List<LogicalType> secondChildren = secondType.getChildren();
 
 		if (firstChildren.size() != secondChildren.size()) {
 			return false;

@@ -28,11 +28,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.logical.DistinctType;
-import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
 
-import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import javax.annotation.Nonnull;
@@ -47,12 +45,7 @@ import static java.util.Collections.singletonList;
 /**
  * Tests for {@link ComparableTypeStrategy}.
  */
-@RunWith(Parameterized.class)
 public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBase {
-
-	public ComparableInputTypeStrategyTests(TestSpec testSpec) {
-		super(testSpec);
-	}
 
 	@Parameterized.Parameters(name = "{index}: {0}")
 	public static List<TestSpec> testData() {
@@ -195,11 +188,11 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 					InputTypeStrategies.TWO_EQUALS_COMPARABLE)
 				.calledWithArgumentTypes(
 					DataTypes.INT(),
-					new AtomicDataType(new NullType())
+					DataTypes.NULL()
 				)
 				.expectArgumentTypes(
 					DataTypes.INT(),
-					new AtomicDataType(new NullType())
+					DataTypes.NULL()
 				),
 
 			TestSpec
@@ -223,7 +216,7 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 					rawType(NotComparableClass.class),
 					rawType(NotComparableClass.class)
 				)
-				.expectErrorMessage(String.format("All types in EQUALS should support 'EQUALS' comparison with" +
+				.expectErrorMessage(String.format("All types in a comparison should support 'EQUALS' comparison with" +
 					" each other. Can not compare RAW('%s', '...') with RAW('%s', '...')",
 					NotComparableClass.class.getName(),
 					NotComparableClass.class.getName())),
@@ -236,7 +229,7 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 					rawType(NotComparableClass.class),
 					DataTypes.RAW(TypeInformation.of(NotComparableClass.class))
 				)
-				.expectErrorMessage(String.format("All types in EQUALS should support 'EQUALS' comparison with" +
+				.expectErrorMessage(String.format("All types in a comparison should support 'EQUALS' comparison with" +
 						" each other. Can not compare RAW('%s', '...') with RAW('%s', ?)",
 					NotComparableClass.class.getName(),
 					NotComparableClass.class.getName())),
@@ -249,8 +242,8 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 					structuredType("type", singletonList(DataTypes.INT()), StructuredComparision.EQUALS),
 					structuredType("type", singletonList(DataTypes.INT()), StructuredComparision.EQUALS)
 				)
-				.expectErrorMessage("All types in EQUALS should support both 'EQUALS' and 'ORDER' comparison with" +
-					" each other. Can not compare `cat`.`db`.`type` with `cat`.`db`.`type`"),
+				.expectErrorMessage("All types in a comparison should support both 'EQUALS' and 'ORDER' comparison" +
+					" with each other. Can not compare `cat`.`db`.`type` with `cat`.`db`.`type`"),
 
 			TestSpec
 				.forStrategy(
@@ -260,7 +253,7 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 					structuredType("type1", singletonList(DataTypes.INT()), StructuredComparision.EQUALS),
 					structuredType("type2", singletonList(DataTypes.INT()), StructuredComparision.EQUALS)
 				)
-				.expectErrorMessage("All types in EQUALS should support 'EQUALS' comparison with each other." +
+				.expectErrorMessage("All types in a comparison should support 'EQUALS' comparison with each other." +
 					" Can not compare `cat`.`db`.`type1` with `cat`.`db`.`type2`"),
 
 			TestSpec
@@ -271,7 +264,7 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 					distinctType("type1", DataTypes.INT()),
 					distinctType("type2", DataTypes.INT())
 				)
-				.expectErrorMessage("All types in EQUALS should support 'EQUALS' comparison with each other." +
+				.expectErrorMessage("All types in a comparison should support 'EQUALS' comparison with each other." +
 					" Can not compare `cat`.`db`.`type1` with `cat`.`db`.`type2`"),
 
 			TestSpec
@@ -282,8 +275,8 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 					DataTypes.ARRAY(DataTypes.TINYINT()),
 					DataTypes.ARRAY(DataTypes.VARCHAR(2))
 				)
-				.expectErrorMessage("All types in EQUALS should support both 'EQUALS' and 'ORDER' comparison with" +
-					" each other. Can not compare ARRAY<TINYINT> with ARRAY<VARCHAR(2)>"),
+				.expectErrorMessage("All types in a comparison should support both 'EQUALS' and 'ORDER' comparison" +
+					" with each other. Can not compare ARRAY<TINYINT> with ARRAY<VARCHAR(2)>"),
 
 			TestSpec
 				.forStrategy(
@@ -293,8 +286,8 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 					DataTypes.MAP(DataTypes.TINYINT(), DataTypes.TIMESTAMP()),
 					DataTypes.MAP(DataTypes.VARCHAR(3), DataTypes.TIMESTAMP_WITH_TIME_ZONE())
 				)
-				.expectErrorMessage("All types in EQUALS should support both 'EQUALS' and 'ORDER' comparison with" +
-					" each other. Can not compare MAP<TINYINT, TIMESTAMP(6)> with" +
+				.expectErrorMessage("All types in a comparison should support both 'EQUALS' and 'ORDER' comparison" +
+					" with each other. Can not compare MAP<TINYINT, TIMESTAMP(6)> with" +
 					" MAP<VARCHAR(3), TIMESTAMP(6) WITH TIME ZONE>"),
 
 			TestSpec
@@ -305,8 +298,8 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 					DataTypes.MAP(DataTypes.TINYINT(), DataTypes.TIMESTAMP()),
 					DataTypes.MAP(DataTypes.DECIMAL(10, 3), DataTypes.INT())
 				)
-				.expectErrorMessage("All types in EQUALS should support both 'EQUALS' and 'ORDER' comparison with" +
-					" each other. Can not compare MAP<TINYINT, TIMESTAMP(6)> with MAP<DECIMAL(10, 3), INT>"),
+				.expectErrorMessage("All types in a comparison should support both 'EQUALS' and 'ORDER' comparison" +
+					" with each other. Can not compare MAP<TINYINT, TIMESTAMP(6)> with MAP<DECIMAL(10, 3), INT>"),
 
 			TestSpec
 				.forStrategy(
@@ -316,8 +309,8 @@ public class ComparableInputTypeStrategyTests extends InputTypeStrategiesTestBas
 					DataTypes.TIMESTAMP(),
 					DataTypes.BIGINT()
 				)
-				.expectErrorMessage("All types in EQUALS should support both 'EQUALS' and 'ORDER' comparison with" +
-					" each other. Can not compare TIMESTAMP(6) with BIGINT")
+				.expectErrorMessage("All types in a comparison should support both 'EQUALS' and 'ORDER' comparison" +
+					" with each other. Can not compare TIMESTAMP(6) with BIGINT")
 		);
 	}
 

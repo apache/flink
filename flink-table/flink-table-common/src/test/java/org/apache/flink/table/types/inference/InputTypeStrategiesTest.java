@@ -23,8 +23,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.util.List;
@@ -46,12 +44,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.varying
 /**
  * Tests for built-in {@link InputTypeStrategies}.
  */
-@RunWith(Parameterized.class)
 public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
-
-	public InputTypeStrategiesTest(TestSpec testSpec) {
-		super(testSpec);
-	}
 
 	@Parameters(name = "{index}: {0}")
 	public static List<TestSpec> testData() {

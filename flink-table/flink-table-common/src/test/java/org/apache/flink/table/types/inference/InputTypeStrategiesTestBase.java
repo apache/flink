@@ -29,6 +29,8 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import javax.annotation.Nullable;
 
@@ -46,15 +48,14 @@ import static org.junit.Assert.assertThat;
 /**
  * Base class for testing {@link InputTypeStrategy}.
  */
+@RunWith(Parameterized.class)
 public abstract class InputTypeStrategiesTestBase {
-	private final TestSpec testSpec;
+
+	@Parameterized.Parameter
+	public TestSpec testSpec;
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
-
-	protected InputTypeStrategiesTestBase(TestSpec testSpec) {
-		this.testSpec = testSpec;
-	}
 
 	@Test
 	public void testStrategy() {
