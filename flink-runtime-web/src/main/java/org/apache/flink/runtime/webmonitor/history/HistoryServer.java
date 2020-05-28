@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.ExceptionUtils;
@@ -104,6 +105,8 @@ public class HistoryServer {
 	private final Thread shutdownHook;
 
 	public static void main(String[] args) throws Exception {
+		EnvironmentInformation.logEnvironmentInfo(LOG, "HistoryServer", args);
+
 		ParameterTool pt = ParameterTool.fromArgs(args);
 		String configDir = pt.getRequired("configDir");
 
