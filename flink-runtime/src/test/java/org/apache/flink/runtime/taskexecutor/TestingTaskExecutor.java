@@ -25,6 +25,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nullable;
@@ -79,5 +80,9 @@ class TestingTaskExecutor extends TaskExecutor {
 
 	void waitUntilStarted() {
 		startFuture.join();
+	}
+
+	MainThreadExecutable getMainThreadExecutableForTesting() {
+		return this.rpcServer;
 	}
 }
