@@ -51,6 +51,7 @@ import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNot
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
+import org.apache.flink.runtime.taskexecutor.slot.ThreadSafeTaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -92,6 +93,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 	private final TestingHighAvailabilityServices haServices;
 	private final TemporaryFolder temporaryFolder;
 	private final TaskSlotTable<Task> taskSlotTable;
+	private final ThreadSafeTaskSlotTable<Task> threadSafeTaskSlotTable;
 	private final JobMasterId jobMasterId;
 
 	private TestingTaskExecutor taskExecutor;
@@ -167,6 +169,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
 		taskExecutor.start();
 		taskExecutor.waitUntilStarted();
+
+		this.threadSafeTaskSlotTable = new ThreadSafeTaskSlotTable<>(taskSlotTable, taskExecutor.getMainThreadExecutableForTesting());
 	}
 
 	static void registerJobMasterConnection(
@@ -198,7 +202,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 	}
 
 	public TaskSlotTable<Task> getTaskSlotTable() {
-		return taskSlotTable;
+		return threadSafeTaskSlotTable;
 	}
 
 	public JobMasterId getJobMasterId() {
