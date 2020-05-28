@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
 from pyflink.table.table_result import TableResult
 from pyflink.util.utils import to_j_explain_detail_arr
 
