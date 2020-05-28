@@ -391,7 +391,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 					" 'connector' = 'hbase-1.4'," +
 					" 'table-name' = '" + TEST_TABLE_1 + "'," +
 					" 'zookeeper.quorum' = '" + getZookeeperQuorum() + "'," +
-					" 'zookeeper.znode-parent' = '/hbase'" +
+					" 'zookeeper.znode.parent' = '/hbase'" +
 					")");
 		}
 
@@ -491,7 +491,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 				"    'connector' = 'hbase-1.4',\n" +
 				"    'table-name' = 'testTable3',\n" +
 				"    'zookeeper.quorum' = '" + quorum + "',\n" +
-				"    'zookeeper.znode-parent' = '/hbase' " +
+				"    'zookeeper.znode.parent' = '/hbase' " +
 				")";
 		}
 		tEnv.executeSql(ddl);
