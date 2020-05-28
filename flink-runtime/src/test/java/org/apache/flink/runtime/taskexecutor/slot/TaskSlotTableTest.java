@@ -37,6 +37,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -108,6 +109,25 @@ public class TaskSlotTableTest extends TestLogger {
 			Iterator<TaskSlot> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
 			assertThat(allocatedSlots.next().getIndex(), is(0));
 			assertThat(allocatedSlots.hasNext(), is(false));
+		} finally {
+			taskSlotTable.stop();
+		}
+	}
+
+	@Test
+	public void testAllocatedSlotTimeout() {
+		final CompletableFuture<AllocationID> timeoutFuture = new CompletableFuture<>();
+		final TestingSlotActions testingSlotActions = new TestingSlotActionsBuilder()
+			.setTimeoutSlotConsumer((allocationID, uuid) -> timeoutFuture.complete(allocationID))
+			.build();
+
+		final TaskSlotTable taskSlotTable = createTaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN));
+
+		try {
+			taskSlotTable.start(testingSlotActions);
+			final AllocationID allocationId = new AllocationID();
+			assertThat(taskSlotTable.allocateSlot(0, new JobID(), allocationId, Time.milliseconds(1L)), is(true));
+			assertThat(timeoutFuture.join(), is(allocationId));
 		} finally {
 			taskSlotTable.stop();
 		}
