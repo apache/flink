@@ -110,7 +110,7 @@ class JavaTransformer(Transformer):
         :returns: the transformed table
         """
         self._convert_params_to_java(self._j_obj)
-        return Table(self._j_obj.transform(table_env._j_tenv, table._j_table))
+        return Table(self._j_obj.transform(table_env._j_tenv, table._j_table), table_env)
 
 
 class Model(Transformer):
