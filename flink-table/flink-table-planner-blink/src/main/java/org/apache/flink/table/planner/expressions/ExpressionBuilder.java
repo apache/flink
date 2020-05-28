@@ -36,6 +36,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MINUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MOD;
@@ -90,9 +91,8 @@ public class ExpressionBuilder {
 		return call(IS_NULL, input);
 	}
 
-	public static UnresolvedCallExpression ifThenElse(Expression condition, Expression ifTrue,
-		Expression ifFalse) {
-		return call(IF, condition, ifTrue, ifFalse);
+	public static UnresolvedCallExpression ifThenElse(Expression condition, Expression ifTrue, Expression ifFalse) {
+		return call(IF, call(IS_TRUE, condition), ifTrue, ifFalse);
 	}
 
 	public static UnresolvedCallExpression plus(Expression input1, Expression input2) {

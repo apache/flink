@@ -420,6 +420,7 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 			TestSpec.forStrategy(
 					"Array strategy infers a common type",
 					InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+				.expectSignature("f(<COMMON>, <COMMON>...)")
 				.calledWithArgumentTypes(
 					DataTypes.INT().notNull(),
 					DataTypes.BIGINT().notNull(),
