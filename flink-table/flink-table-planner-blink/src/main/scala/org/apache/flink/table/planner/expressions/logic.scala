@@ -22,46 +22,6 @@ import org.apache.flink.table.planner.validate._
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isDecimal
 
-abstract class BinaryPredicate extends BinaryExpression {
-  override private[flink] def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
-
-  override private[flink] def validateInput(): ValidationResult = {
-    if (left.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
-        right.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
-      ValidationSuccess
-    } else {
-      ValidationFailure(s"$this only accepts children of Boolean type, " +
-        s"get $left : ${left.resultType} and $right : ${right.resultType}")
-    }
-  }
-}
-
-case class Not(child: PlannerExpression) extends UnaryExpression {
-
-  override def toString = s"!($child)"
-
-  override private[flink] def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
-
-  override private[flink] def validateInput(): ValidationResult = {
-    if (child.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO) {
-      ValidationSuccess
-    } else {
-      ValidationFailure(s"Not operator requires a boolean expression as input, " +
-        s"but $child is of type ${child.resultType}")
-    }
-  }
-}
-
-case class And(left: PlannerExpression, right: PlannerExpression) extends BinaryPredicate {
-
-  override def toString = s"$left && $right"
-}
-
-case class Or(left: PlannerExpression, right: PlannerExpression) extends BinaryPredicate {
-
-  override def toString = s"$left || $right"
-}
-
 @deprecated(
   "Use ifThenElse(...) instead. It is available through the implicit Scala DSL.",
   "1.8.0")
