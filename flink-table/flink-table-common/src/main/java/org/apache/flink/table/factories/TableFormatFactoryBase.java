@@ -31,7 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
@@ -105,7 +105,7 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 			properties.add(SCHEMA + ".#." + SCHEMA_NAME);
 			properties.add(SCHEMA + ".#." + SCHEMA_FROM);
 			// computed column
-			properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
+			properties.add(SCHEMA + ".#." + EXPR);
 			// time attributes
 			properties.add(SCHEMA + ".#." + SCHEMA_PROCTIME);
 			properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
@@ -120,6 +120,9 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
 			properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
 			properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
 			properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+			// table constraint
+			properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+			properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 		}
 		properties.addAll(supportedFormatProperties());
 		return properties;
