@@ -5,6 +5,6 @@ import org.apache.flink.state.api.{OneInputOperatorTransformation, OperatorTrans
 
 object OperatorTransformation {
   def bootstrapWith[T](dataSet: DataSet[T]): OneInputOperatorTransformation[T] = {
-    JOperatorTransformation.bootstrapWith(dataSet.javaSet)
+    return new bootstrapWith(dataSet.javaSet)
   }
 }
