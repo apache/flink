@@ -160,57 +160,13 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             expr.validateInput()
             expr
 
-          case AND =>
-            assert(args.size >= 2)
-            args.reduceLeft(And)
-
-          case OR =>
-            assert(args.size >= 2)
-            args.reduceLeft(Or)
-
-          case NOT =>
-            assert(args.size == 1)
-            Not(args.head)
-
           case IN =>
             assert(args.size > 1)
             In(args.head, args.drop(1))
 
-          case IS_NULL =>
-            assert(args.size == 1)
-            IsNull(args.head)
-
-          case IS_NOT_NULL =>
-            assert(args.size == 1)
-            IsNotNull(args.head)
-
-          case IS_TRUE =>
-            assert(args.size == 1)
-            IsTrue(args.head)
-
-          case IS_FALSE =>
-            assert(args.size == 1)
-            IsFalse(args.head)
-
-          case IS_NOT_TRUE =>
-            assert(args.size == 1)
-            IsNotTrue(args.head)
-
-          case IS_NOT_FALSE =>
-            assert(args.size == 1)
-            IsNotFalse(args.head)
-
           case IF =>
             assert(args.size == 3)
             If(args.head, args(1), args.last)
-
-          case BETWEEN =>
-            assert(args.size == 3)
-            Between(args.head, args(1), args.last)
-
-          case NOT_BETWEEN =>
-            assert(args.size == 3)
-            NotBetween(args.head, args(1), args.last)
 
           case DISTINCT =>
             assert(args.size == 1)
