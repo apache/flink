@@ -72,7 +72,7 @@ public class PostgresCatalogTest extends PostgresCatalogTestBase {
 
 		assertEquals(
 			Arrays.asList(
-				"public.array_table", "public.primitive_table", "public.primitive_table2",
+				"public.array_table", "public.primitive_table", "public.primitive_table2", "public.serial_table",
 				"public.t1", "public.t4", "public.t5"),
 			actual);
 
@@ -156,4 +156,12 @@ public class PostgresCatalogTest extends PostgresCatalogTestBase {
 
 		assertEquals(getArrayTable().schema, table.getSchema());
 	}
+
+	@Test
+	public void testSerialDataTypes() throws TableNotExistException {
+		CatalogBaseTable table = catalog.getTable(new ObjectPath(PostgresCatalog.DEFAULT_DATABASE, TABLE_SERIAL_TYPE));
+
+		assertEquals(getSerialTable().schema, table.getSchema());
+	}
+
 }
