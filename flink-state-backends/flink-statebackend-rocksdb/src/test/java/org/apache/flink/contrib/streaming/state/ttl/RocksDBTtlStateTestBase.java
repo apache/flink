@@ -40,6 +40,7 @@ import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 /** Base test suite for rocksdb state TTL. */
 public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
@@ -158,11 +159,11 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
 
 		setTimeAndCompact(stateDesc, 170L);
 		sbetc.setCurrentKey("k1");
-		assertEquals("Expired original state should be unavailable", ctx().emptyValue, ctx().getOriginal());
+		assertTrue("Expired original state should be unavailable", ctx().isOriginalEmptyValue());
 		assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
 
 		sbetc.setCurrentKey("k2");
-		assertEquals("Expired original state should be unavailable", ctx().emptyValue, ctx().getOriginal());
+		assertTrue("Expired original state should be unavailable", ctx().isOriginalEmptyValue());
 		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
 	}
 
