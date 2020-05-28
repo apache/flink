@@ -45,6 +45,8 @@ public class SqlAlterHivePartitionRename extends SqlAlterTable {
 		if (partSpec == null || newPartSpec == null) {
 			throw new ParseException("Both old and new partition spec have to be specified");
 		}
+		HiveDDLUtils.unescapePartitionSpec(partSpec);
+		HiveDDLUtils.unescapePartitionSpec(newPartSpec);
 		this.newPartSpec = newPartSpec;
 	}
 

@@ -34,6 +34,7 @@ public class SqlAlterHiveDatabaseProps extends SqlAlterHiveDatabase {
 	public SqlAlterHiveDatabaseProps(SqlParserPos pos, SqlIdentifier databaseName, SqlNodeList propertyList)
 			throws ParseException {
 		super(pos, databaseName, HiveDDLUtils.checkReservedDBProperties(propertyList));
+		HiveDDLUtils.unescapeProperties(getPropertyList());
 	}
 
 	@Override

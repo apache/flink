@@ -43,6 +43,9 @@ public class SqlAddHivePartitions extends SqlAddPartitions {
 	public SqlAddHivePartitions(SqlParserPos pos, SqlIdentifier tableName, boolean ifNotExists,
 			List<SqlNodeList> partSpecs, List<SqlCharStringLiteral> partLocations) {
 		super(pos, tableName, ifNotExists, partSpecs, toProps(partLocations));
+		for (SqlNodeList spec : partSpecs) {
+			HiveDDLUtils.unescapePartitionSpec(spec);
+		}
 		this.partLocations = partLocations;
 	}
 
