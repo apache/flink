@@ -218,9 +218,9 @@ CREATE TABLE Orders (
 
 **LIKE**
 
-`LIKE` 子句来源于两种 SQL 特性的变体/组合（Feature T171，“表定义中的LIKE语法” 和 Feature T173，“表定义中的LIKE语法扩展”）。LIKE 子句可以基于现有表的定义去创建新表，并且可以扩展或排除原始表中的某些部分。与 SQL 标准相反，LIKE 子句必须在 CREATE 语句中定义。这是因为 LIKE 子句可以应用于表定义的多个部分，而不仅仅是 schema 部分。
+`LIKE` 子句来源于两种 SQL 特性的变体/组合（Feature T171，“表定义中的 LIKE 语法” 和 Feature T173，“表定义中的 LIKE 语法扩展”）。LIKE 子句可以基于现有表的定义去创建新表，并且可以扩展或排除原始表中的某些部分。与 SQL 标准相反，LIKE 子句必须在 CREATE 语句中定义，并且是基于 CREATE 语句的更上层定义，这是因为 LIKE 子句可以用于定义表的多个部分，而不仅仅是 schema 部分。
 
-你可以使用该子句，重用（或覆写）指定的连接器配置属性或者可以向外部表添加 watermark 定义，例如可以向 Apache Hive 中定义的表添加 watermark 定义。
+你可以使用该子句，重用（或改写）指定的连接器配置属性或者可以向外部表添加 watermark 定义，例如可以向 Apache Hive 中定义的表添加 watermark 定义。
 
 示例如下：
 
@@ -238,7 +238,7 @@ CREATE TABLE Orders_with_watermark (
     -- 添加 watermark 定义
     WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND 
 ) WITH (
-    -- 覆写 startup-mode 属性
+    -- 改写 startup-mode 属性
     'scan.startup.mode' = 'latest-offset'
 )
 LIKE Orders;
@@ -264,7 +264,7 @@ CREATE TABLE Orders_with_watermark (
 
 * CONSTRAINTS - 主键和唯一键约束
 * GENERATED - 计算列
-* OPTIONS - 连接器和格式化的配置项
+* OPTIONS - 连接器信息、格式化方式等配置项
 * PARTITIONS - 表分区信息
 * WATERMARKS - watermark 定义
 
@@ -274,7 +274,7 @@ CREATE TABLE Orders_with_watermark (
 * EXCLUDING - 新表不包含源表指定的任何表属性。
 * OVERWRITING - 新表包含源表的表属性，但如果出现重复项，则会用新表的表属性覆盖源表中的重复表属性，例如，两个表中都存在相同 key 的属性，则会使用当前语句中定义的 key 的属性值。
 
-此外，如果没有特别指定合并策略，也可以使用 `INCLUDING/EXCLUDING ALL` 这种声明方式来指定使用怎样的合并策略，例如使用 `EXCLUDING ALL INCLUDING WATERMARKS`，那么代表只有源表的 WATERMARKS 属性才会被包含进新表。
+并且你可以使用 `INCLUDING/EXCLUDING ALL` 这种声明方式来指定使用怎样的合并策略，例如使用 `EXCLUDING ALL INCLUDING WATERMARKS`，那么代表只有源表的 WATERMARKS 属性才会被包含进新表。
 
 示例如下：
 {% highlight sql %}
