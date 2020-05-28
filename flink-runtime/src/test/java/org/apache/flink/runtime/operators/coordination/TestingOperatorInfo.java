@@ -18,37 +18,28 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
-import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
 /**
- * A testing mock implementation of the {@link OperatorCoordinatorCheckpointContext}.
+ * A testing implementation of the {@link OperatorInfo}.
  */
-public class MockOperatorCoordinatorCheckpointContext implements OperatorCoordinatorCheckpointContext {
+public class TestingOperatorInfo implements OperatorInfo {
 
 	private final OperatorID operatorId;
-	private final OperatorCoordinator coordinator;
 	private final int parallelism;
 	private final int maxParallelism;
 
-	public MockOperatorCoordinatorCheckpointContext() {
-		this(new OperatorID(), new MockOperatorCoordinator(), 50, 256);
+	public TestingOperatorInfo() {
+		this(new OperatorID(), 50, 256);
 	}
 
-	public MockOperatorCoordinatorCheckpointContext(
+	public TestingOperatorInfo(
 			OperatorID operatorId,
-			OperatorCoordinator coordinator,
 			int parallelism,
 			int maxParallelism) {
 		this.operatorId = operatorId;
-		this.coordinator = coordinator;
 		this.parallelism = parallelism;
 		this.maxParallelism = maxParallelism;
-	}
-
-	@Override
-	public OperatorCoordinator coordinator() {
-		return coordinator;
 	}
 
 	@Override
@@ -65,16 +56,4 @@ public class MockOperatorCoordinatorCheckpointContext implements OperatorCoordin
 	public int currentParallelism() {
 		return parallelism;
 	}
-
-	@Override
-	public void onCallTriggerCheckpoint(long checkpointId) {}
-
-	@Override
-	public void onCheckpointStateFutureComplete(long checkpointId) {}
-
-	@Override
-	public void afterSourceBarrierInjection(long checkpointId) {}
-
-	@Override
-	public void abortCurrentTriggering() {}
 }
