@@ -66,6 +66,28 @@ public final class TypeStrategies {
 		return new MappingTypeStrategy(mappings);
 	}
 
+	/**
+	 * A type strategy that can be used to make a result type nullable if any of the
+	 * input arguments is nullable. Otherwise the type will be not null.
+	 */
+	public static TypeStrategy nullable(TypeStrategy initialStrategy) {
+		return callContext -> {
+			Optional<DataType> initialType = initialStrategy.inferType(callContext);
+			return initialType.map(type -> {
+					boolean isNullableArgument = callContext.getArgumentDataTypes()
+						.stream()
+						.anyMatch(dataType -> dataType.getLogicalType().isNullable());
+
+					if (isNullableArgument) {
+						return type.nullable();
+					} else {
+						return type.notNull();
+					}
+				}
+			);
+		};
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Specific type strategies
 	// --------------------------------------------------------------------------------------------
