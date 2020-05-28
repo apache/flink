@@ -1803,6 +1803,7 @@ public class StreamExecutionEnvironment {
 			return jobClient;
 		} catch (Throwable t) {
 			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(null, t));
+			ExceptionUtils.trimStackTraces(t);
 			ExceptionUtils.rethrow(t);
 
 			// make javac happy, this code path will not be reached

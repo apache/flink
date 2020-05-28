@@ -884,6 +884,7 @@ public class ExecutionEnvironment {
 			jobListeners.forEach(jobListener -> {
 				jobListener.onJobExecuted(null, ExceptionUtils.stripExecutionException(t));
 			});
+			ExceptionUtils.trimStackTraces(t);
 			ExceptionUtils.rethrowException(t);
 		}
 
