@@ -50,7 +50,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for the {@link TaskSlotTable}.
  */
-public class TaskSlotTableTest extends TestLogger {
+public class TaskSlotTableImplTest extends TestLogger {
 	private static final Time SLOT_TIMEOUT = Time.seconds(100L);
 
 	/**
