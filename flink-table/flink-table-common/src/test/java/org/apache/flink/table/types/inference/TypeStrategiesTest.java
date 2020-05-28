@@ -45,6 +45,7 @@ import java.util.Optional;
 import static org.apache.flink.table.types.inference.TypeStrategies.MISSING;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
+import static org.apache.flink.table.types.inference.TypeStrategies.nullable;
 import static org.apache.flink.util.CoreMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.equalTo;
 
@@ -131,7 +132,19 @@ public class TypeStrategiesTest {
 				"Infer a map type",
 				TypeStrategies.MAP)
 				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING().notNull())
-				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()).notNull())
+				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()).notNull()),
+
+			TestSpec.forStrategy(
+				"Cascading to nullable type",
+				nullable(explicit(DataTypes.BOOLEAN().notNull())))
+				.inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).nullable())
+				.expectDataType(DataTypes.BOOLEAN().nullable()),
+
+			TestSpec.forStrategy(
+				"Cascading to not null type",
+				nullable(explicit(DataTypes.BOOLEAN().nullable())))
+				.inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).notNull())
+				.expectDataType(DataTypes.BOOLEAN().notNull())
 		);
 	}
 
