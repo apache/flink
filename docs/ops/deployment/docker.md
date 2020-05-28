@@ -46,6 +46,11 @@ For example, you can use the following aliases:
 * `flink:latest` → `flink:<latest-flink>-scala_<latest-scala>`
 * `flink:1.11` → `flink:1.11.<latest-flink-1.11>-scala_2.11`
 
+<span class="label label-info">Note</span> It is recommended to always use an explicit version tag of the docker image that specifies both the needed Flink and Scala
+versions (for example `flink:1.11-scala_2.12`).
+This will avoid some class conflicts that can occur if the Flink and/or Scala versions used in the application are different
+from the versions provided by the docker image.
+
 <span class="label label-info">Note</span> Prior to Flink 1.5 version, Hadoop dependencies were always bundled with Flink.
 You can see that certain tags include the version of Hadoop, e.g. (e.g. `-hadoop28`).
 Beginning with Flink 1.5, image tags that omit the Hadoop version correspond to Hadoop-free releases of Flink
