@@ -140,11 +140,12 @@ public class CheckpointingOptions {
 	/** The minimum size of state data files. All state chunks smaller than that
 	 * are stored inline in the root checkpoint metadata file. */
 	@Documentation.Section(Documentation.Sections.EXPERT_STATE_BACKENDS)
-	public static final ConfigOption<Integer> FS_SMALL_FILE_THRESHOLD = ConfigOptions
+	public static final ConfigOption<MemorySize> FS_SMALL_FILE_THRESHOLD = ConfigOptions
 			.key("state.backend.fs.memory-threshold")
-			.defaultValue(1024)
+			.memoryType()
+			.defaultValue(MemorySize.parse("20kb"))
 			.withDescription("The minimum size of state data files. All state chunks smaller than that are stored" +
-				" inline in the root checkpoint metadata file.");
+				" inline in the root checkpoint metadata file. The max memory threshold for this configuration is 1MB.");
 
 	/**
 	 * The default size of the write buffer for the checkpoint streams that write to file systems.
