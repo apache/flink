@@ -320,18 +320,22 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 		TaskSlot<T> taskSlot = getTaskSlot(allocationId);
 
 		if (taskSlot != null) {
-			if (taskSlot.markActive()) {
-				// unregister a potential timeout
-				LOG.info("Activate slot {}.", allocationId);
-
-				timerService.unregisterTimeout(allocationId);
-
-				return true;
-			} else {
-				return false;
-			}
+			return markExistingSlotActive(taskSlot);
 		} else {
 			throw new SlotNotFoundException(allocationId);
+		}
+	}
+
+	private boolean markExistingSlotActive(TaskSlot<T> taskSlot) {
+		if (taskSlot.markActive()) {
+			// unregister a potential timeout
+			LOG.info("Activate slot {}.", taskSlot.getAllocationId());
+
+			timerService.unregisterTimeout(taskSlot.getAllocationId());
+
+			return true;
+		} else {
+			return false;
 		}
 	}
 
@@ -428,7 +432,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 		TaskSlot<T> taskSlot = getTaskSlot(allocationId);
 
 		if (taskSlot != null && taskSlot.isAllocated(jobId, allocationId)) {
-			return taskSlot.markActive();
+			return markExistingSlotActive(taskSlot);
 		} else {
 			return false;
 		}
