@@ -106,7 +106,14 @@ public enum ClientUtils {
 				.get();
 		} catch (InterruptedException | ExecutionException e) {
 			ExceptionUtils.checkInterrupted(e);
-			throw new ProgramInvocationException("Could not run job", jobGraph.getJobID(), e);
+
+			LOG.debug("Could not run job {}.", jobGraph.getJobID(), e);
+
+			// trim exceptions for the CLI
+			ProgramInvocationException reportedException = new ProgramInvocationException("Could not run job", jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
+			ExceptionUtils.trimStackTraces(reportedException);
+
+			throw reportedException;
 		}
 
 		try {
