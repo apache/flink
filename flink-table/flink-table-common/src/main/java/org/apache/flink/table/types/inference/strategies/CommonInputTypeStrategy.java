@@ -19,58 +19,93 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
 import org.apache.flink.table.types.utils.TypeConversions;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
- * {@link InputTypeStrategy} specific for {@link BuiltInFunctionDefinitions#ARRAY}.
- *
- * <p>It expects at least one argument. All the arguments must have a common super type.
+ * An {@link InputTypeStrategy} that expects that all arguments have a common type.
  */
 @Internal
-public final class ArrayInputTypeStrategy implements InputTypeStrategy {
+public final class CommonInputTypeStrategy implements InputTypeStrategy {
+	private static final Signature.Argument COMMON_ARGUMENT = Signature.Argument.of("<COMMON>");
+	private final ArgumentCount argumentCount;
+
+	public CommonInputTypeStrategy(ArgumentCount argumentCount) {
+		this.argumentCount = argumentCount;
+	}
+
 	@Override
 	public ArgumentCount getArgumentCount() {
-		return ConstantArgumentCount.from(1);
+		return argumentCount;
 	}
 
 	@Override
 	public Optional<List<DataType>> inferInputTypes(
-		CallContext callContext,
-		boolean throwOnFailure) {
+			CallContext callContext,
+			boolean throwOnFailure) {
 		List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-		if (argumentDataTypes.size() == 0) {
+		List<LogicalType> argumentTypes = argumentDataTypes
+			.stream()
+			.map(DataType::getLogicalType)
+			.collect(Collectors.toList());
+
+		if (argumentTypes.stream().anyMatch(CommonInputTypeStrategy::isLegacyType)) {
+			return Optional.of(argumentDataTypes);
+		}
+
+		Optional<LogicalType> commonType = LogicalTypeGeneralization.findCommonType(argumentTypes);
+
+		if (!commonType.isPresent()) {
+			if (throwOnFailure) {
+				throw callContext.newValidationError(
+					"Could not find a common type for arguments: %s",
+					argumentDataTypes);
+			}
 			return Optional.empty();
 		}
 
-		Optional<LogicalType> commonType = LogicalTypeGeneralization.findCommonType(
-			argumentDataTypes
-				.stream()
-				.map(DataType::getLogicalType)
-				.collect(Collectors.toList())
-		);
-
 		return commonType.map(type -> Collections.nCopies(
-			argumentDataTypes.size(),
+			argumentTypes.size(),
 			TypeConversions.fromLogicalToDataType(type)));
 	}
 
 	@Override
 	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(Signature.Argument.of("*")));
+		Optional<Integer> minCount = argumentCount.getMinCount();
+		Optional<Integer> maxCount = argumentCount.getMaxCount();
+
+		int numberOfMandatoryArguments = minCount.orElse(0);
+
+		if (maxCount.isPresent()) {
+			return IntStream.range(numberOfMandatoryArguments, maxCount.get() + 1)
+				.mapToObj(count -> Signature.of(Collections.nCopies(count, COMMON_ARGUMENT)))
+				.collect(Collectors.toList());
+		}
+
+		List<Signature.Argument> arguments = new ArrayList<>(
+			Collections.nCopies(
+				numberOfMandatoryArguments,
+				COMMON_ARGUMENT));
+		arguments.add(Signature.Argument.of("<COMMON>..."));
+		return Collections.singletonList(Signature.of(arguments));
+	}
+
+	private static boolean isLegacyType(LogicalType type) {
+		return type instanceof LegacyTypeInformationType;
 	}
 }
