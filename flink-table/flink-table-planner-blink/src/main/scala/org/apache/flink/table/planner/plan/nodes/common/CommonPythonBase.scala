@@ -114,10 +114,9 @@ trait CommonPythonBase {
     // ensure the user specified configuration has priority over others.
     val method = classOf[StreamExecutionEnvironment].getDeclaredMethod("getConfiguration")
     method.setAccessible(true)
-    val executionEnvironmentConfig = method.invoke(env).asInstanceOf[Configuration]
-    setDefaultConfigurations(executionEnvironmentConfig)
-    val config = new Configuration(executionEnvironmentConfig)
+    val config = new Configuration(method.invoke(env).asInstanceOf[Configuration])
     config.addAll(tableConfig.getConfiguration)
+    checkPythonWorkerMemory(config, env)
     config
   }
 
@@ -131,13 +130,13 @@ trait CommonPythonBase {
     realEnv
   }
 
-  protected def usingManagedMemory(config: Configuration): Boolean = {
+  protected def isPythonWorkerUsingManagedMemory(config: Configuration): Boolean = {
     val clazz = loadClass("org.apache.flink.python.PythonOptions")
     config.getBoolean(clazz.getField("USE_MANAGED_MEMORY").get(null)
       .asInstanceOf[ConfigOption[java.lang.Boolean]])
   }
 
-  protected def getPythonWorkerMemory(config: Configuration): Long = {
+  protected def getPythonWorkerMemory(config: Configuration): MemorySize = {
     val clazz = loadClass("org.apache.flink.python.PythonOptions")
     val pythonFrameworkMemorySize = MemorySize.parse(
       config.getString(
@@ -147,16 +146,45 @@ trait CommonPythonBase {
       config.getString(
         clazz.getField("PYTHON_DATA_BUFFER_MEMORY_SIZE").get(null)
           .asInstanceOf[ConfigOption[String]]))
-    pythonFrameworkMemorySize.add(pythonBufferMemorySize).getBytes
+    pythonFrameworkMemorySize.add(pythonBufferMemorySize)
   }
 
-  private def setDefaultConfigurations(config: Configuration): Unit = {
-    if (!usingManagedMemory(config) && !config.contains(TaskManagerOptions.TASK_OFF_HEAP_MEMORY)) {
-      // Set the default value for the task off-heap memory if not set if the Python worker isn't
-      // using managed memory. Note that this is best effort attempt and if a task slot contains
-      // multiple Python workers, users should set the task off-heap memory manually.
-      config.setString(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(),
-        getPythonWorkerMemory(config) + "b")
+  private def checkPythonWorkerMemory(
+      config: Configuration, env: StreamExecutionEnvironment): Unit = {
+    if (!isPythonWorkerUsingManagedMemory(config)) {
+      val taskOffHeapMemory = config.get(TaskManagerOptions.TASK_OFF_HEAP_MEMORY)
+      val requiredPythonWorkerOffHeapMemory = getPythonWorkerMemory(config)
+      if (taskOffHeapMemory.compareTo(requiredPythonWorkerOffHeapMemory) < 0) {
+        throw new TableException(String.format("The configured Task Off-Heap Memory %s is less " +
+          "than the least required Python worker Memory %s. The Task Off-Heap Memory can be " +
+          "configured using the configuration key 'taskmanager.memory.task.off-heap.size'.",
+          taskOffHeapMemory, requiredPythonWorkerOffHeapMemory))
+      }
+    } else if (isRocksDbUsingManagedMemory(env)) {
+      throw new TableException("Currently it doesn't support to use Managed Memory for both " +
+        "RocksDB state backend and Python worker at the same time. You can either configure " +
+        "RocksDB state backend to use Task Off-Heap Memory via the configuration key " +
+        "'state.backend.rocksdb.memory.managed' or configure Python worker to use " +
+        "Task Off-Heap Memory via the configuration key " +
+        "'python.fn-execution.memory.managed'.")
+    }
+  }
+
+  private def isRocksDbUsingManagedMemory(env: StreamExecutionEnvironment): Boolean = {
+    val stateBackend = env.getStateBackend
+    if (stateBackend != null && env.getStateBackend.getClass.getCanonicalName.equals(
+      "org.apache.flink.contrib.streaming.state.RocksDBStateBackend")) {
+      val clazz = loadClass("org.apache.flink.contrib.streaming.state.RocksDBStateBackend")
+      val getMemoryConfigurationMethod = clazz.getDeclaredMethod("getMemoryConfiguration")
+      val rocksDbConfig = getMemoryConfigurationMethod.invoke(stateBackend)
+      val isUsingManagedMemoryMethod =
+        rocksDbConfig.getClass.getDeclaredMethod("isUsingManagedMemory")
+      val isUsingFixedMemoryPerSlotMethod =
+        rocksDbConfig.getClass.getDeclaredMethod("isUsingFixedMemoryPerSlot")
+      isUsingManagedMemoryMethod.invoke(rocksDbConfig).asInstanceOf[Boolean] &&
+        !isUsingFixedMemoryPerSlotMethod.invoke(rocksDbConfig).asInstanceOf[Boolean]
+    } else {
+      false
     }
   }
 }

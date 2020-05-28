@@ -60,9 +60,9 @@ class BatchExecPythonCalc(
       "BatchExecPythonCalc",
       getConfig(planner.getExecEnv, planner.getTableConfig))
 
-    if (usingManagedMemory(planner.getTableConfig.getConfiguration)) {
+    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
       ExecNode.setManagedMemoryWeight(
-        ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration))
+        ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration).getBytes)
     }
     ret
   }

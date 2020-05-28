@@ -156,9 +156,10 @@ public class PythonOptions {
 	public static final ConfigOption<Boolean> USE_MANAGED_MEMORY = ConfigOptions
 		.key("python.fn-execution.memory.managed")
 		.defaultValue(false)
-		.withDescription(String.format("If set, the Python worker configure itself to use the " +
-			"managed memory budget of the task slot. Otherwise, it will use the off-heap memory " +
-			"of the task slot. In this case, it will set a best effort default value for the task " +
-			"off-heap memory if it's not configured. Users could set it manually via %s if the " +
-			"default value is not optimal", TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key()));
+		.withDescription(String.format("If set, the Python worker will configure itself to use the " +
+			"managed memory budget of the task slot. Otherwise, it will use the Off-Heap Memory " +
+			"of the task slot. In this case, users should set the Task Off-Heap Memory using the " +
+			"configuration key %s. For each Python worker, the required Task Off-Heap Memory " +
+			"is the sum of the value of %s and %s.", TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(),
+			PYTHON_FRAMEWORK_MEMORY_SIZE.key(), PYTHON_DATA_BUFFER_MEMORY_SIZE.key()));
 }
