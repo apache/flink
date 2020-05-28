@@ -172,6 +172,7 @@ public class HiveDialectITCase {
 		tableEnv.executeSql("create table tbl4 (x int,y smallint) row format delimited fields terminated by '|' lines terminated by '\n'");
 		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl4"));
 		assertEquals("|", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.FIELD_DELIM));
+		assertEquals("|", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.SERIALIZATION_FORMAT));
 		assertEquals("\n", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.LINE_DELIM));
 
 		tableEnv.executeSql("create table tbl5 (m map<bigint,string>) row format delimited collection items terminated by ';' " +

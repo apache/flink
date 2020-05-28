@@ -252,6 +252,10 @@ public class HiveTableUtil {
 			String key = prop.equals(HiveTableRowFormat.COLLECTION_DELIM) ?
 					serdeConstants.COLLECTION_DELIM : prop.substring(SERDE_INFO_PROP_PREFIX.length());
 			sd.getSerdeInfo().getParameters().put(key, value);
+			// make sure FIELD_DELIM and SERIALIZATION_FORMAT are consistent
+			if (key.equals(serdeConstants.FIELD_DELIM)) {
+				sd.getSerdeInfo().getParameters().put(serdeConstants.SERIALIZATION_FORMAT, value);
+			}
 		}
 	}
 
