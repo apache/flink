@@ -33,6 +33,7 @@ import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -73,7 +74,8 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 	public RowData toInternal(ResultSet resultSet) throws SQLException {
 		GenericRowData genericRowData = new GenericRowData(rowType.getFieldCount());
 		for (int pos = 0; pos < rowType.getFieldCount(); pos++) {
-			genericRowData.setField(pos, toInternalConverters[pos].deserialize(resultSet.getObject(pos + 1)));
+			Object field = resultSet.getObject(pos + 1);
+			genericRowData.setField(pos, toInternalConverters[pos].deserialize(field));
 		}
 		return genericRowData;
 	}
@@ -114,11 +116,11 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 	}
 
 	protected JdbcDeserializationConverter wrapIntoNullableInternalConverter(JdbcDeserializationConverter jdbcDeserializationConverter) {
-		return v -> {
-			if (v == null) {
+		return val -> {
+			if (val == null) {
 				return null;
 			} else {
-				return jdbcDeserializationConverter.deserialize(v);
+				return jdbcDeserializationConverter.deserialize(val);
 			}
 		};
 	}
@@ -126,37 +128,44 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 	protected JdbcDeserializationConverter createInternalConverter(LogicalType type) {
 		switch (type.getTypeRoot()) {
 			case NULL:
-				return v -> null;
+				return val -> null;
 			case BOOLEAN:
-			case TINYINT:
 			case FLOAT:
 			case DOUBLE:
-			case INTEGER:
 			case INTERVAL_YEAR_MONTH:
-			case BIGINT:
 			case INTERVAL_DAY_TIME:
-				return v -> v;
+				return val -> val;
+			case TINYINT:
+				return val -> ((Integer) val).byteValue();
 			case SMALLINT:
 				// Converter for small type that casts value to int and then return short value, since
 				// JDBC 1.0 use int type for small values.
-				return v -> (Integer.valueOf(v.toString())).shortValue();
-			case DATE:
-				return v -> (int) (((Date) v).toLocalDate().toEpochDay());
-			case TIME_WITHOUT_TIME_ZONE:
-				return v -> (int) (((Time) v).toLocalTime().toNanoOfDay() / 1_000_000L);
-			case TIMESTAMP_WITH_TIME_ZONE:
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return v -> TimestampData.fromTimestamp((Timestamp) v);
-			case CHAR:
-			case VARCHAR:
-				return v -> StringData.fromString((String) v);
-			case BINARY:
-			case VARBINARY:
-				return v -> (byte[]) v;
+				return val -> val instanceof Integer ? ((Integer) val).shortValue() : val;
+			case INTEGER:
+				return val -> val;
+			case BIGINT:
+				return val -> val;
 			case DECIMAL:
 				final int precision = ((DecimalType) type).getPrecision();
 				final int scale = ((DecimalType) type).getScale();
-				return v -> DecimalData.fromBigDecimal((BigDecimal) v, precision, scale);
+				// using decimal(20, 0) to support db type bigint unsigned, user should define decimal(20, 0) in SQL,
+				// but other precision like decimal(30, 0) can work too from lenient consideration.
+				return val -> val instanceof BigInteger ?
+					DecimalData.fromBigDecimal(new BigDecimal((BigInteger) val, 0), precision, scale) :
+					DecimalData.fromBigDecimal((BigDecimal) val, precision, scale);
+			case DATE:
+				return val -> (int) (((Date) val).toLocalDate().toEpochDay());
+			case TIME_WITHOUT_TIME_ZONE:
+				return val -> (int) (((Time) val).toLocalTime().toNanoOfDay() / 1_000_000L);
+			case TIMESTAMP_WITH_TIME_ZONE:
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return val -> TimestampData.fromTimestamp((Timestamp) val);
+			case CHAR:
+			case VARCHAR:
+				return val -> StringData.fromString((String) val);
+			case BINARY:
+			case VARBINARY:
+				return val -> (byte[]) val;
 			case ARRAY:
 			case ROW:
 			case MAP:
