@@ -48,7 +48,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test lookup join of hive tables.
  */
-public class HiveLookupJoinTest {
+public class HiveLookupJoinITCase {
 
 	private TableEnvironment tableEnv;
 	private HiveCatalog hiveCatalog;
