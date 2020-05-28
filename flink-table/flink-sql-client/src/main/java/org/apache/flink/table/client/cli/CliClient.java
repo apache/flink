@@ -485,7 +485,7 @@ public class CliClient {
 
 	private void callUseCatalog(SqlCommandCall cmdCall) {
 		try {
-			executor.useCatalog(sessionId, cmdCall.operands[0]);
+			executor.executeSql(sessionId, cmdCall.operands[0]);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
@@ -495,7 +495,7 @@ public class CliClient {
 
 	private void callUseDatabase(SqlCommandCall cmdCall) {
 		try {
-			executor.useDatabase(sessionId, cmdCall.operands[0]);
+			executor.executeSql(sessionId, cmdCall.operands[0]);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
