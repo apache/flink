@@ -137,20 +137,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 			jobMasterGateway = testingJobMasterGateway;
 		}
 
-		TaskManagerActions taskManagerActions;
-		if (taskManagerActionListeners.size() == 0) {
-			taskManagerActions = new NoOpTaskManagerActions();
-		} else {
-			TestTaskManagerActions testTaskManagerActions = new TestTaskManagerActions(taskSlotTable, jobMasterGateway);
-			for (Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>> listenerTuple : taskManagerActionListeners) {
-				testTaskManagerActions.addListener(listenerTuple.f0, listenerTuple.f1, listenerTuple.f2);
-			}
-			taskManagerActions = testTaskManagerActions;
-		}
-
 		this.testingRpcService = testingRpcService;
 		final DefaultJobTable jobTable = DefaultJobTable.create();
-		registerJobMasterConnection(jobTable, jobId, testingRpcService, jobMasterGateway, taskManagerActions, timeout);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
 			false,
@@ -170,6 +158,19 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 		taskExecutor.waitUntilStarted();
 
 		this.threadSafeTaskSlotTable = new ThreadSafeTaskSlotTable<>(taskSlotTable, taskExecutor.getMainThreadExecutableForTesting());
+
+		TaskManagerActions taskManagerActions;
+		if (taskManagerActionListeners.size() == 0) {
+			taskManagerActions = new NoOpTaskManagerActions();
+		} else {
+			TestTaskManagerActions testTaskManagerActions = new TestTaskManagerActions(threadSafeTaskSlotTable, jobMasterGateway);
+			for (Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>> listenerTuple : taskManagerActionListeners) {
+				testTaskManagerActions.addListener(listenerTuple.f0, listenerTuple.f1, listenerTuple.f2);
+			}
+			taskManagerActions = testTaskManagerActions;
+		}
+
+		registerJobMasterConnection(jobTable, jobId, testingRpcService, jobMasterGateway, taskManagerActions, timeout);
 	}
 
 	static void registerJobMasterConnection(
