@@ -211,8 +211,10 @@ public class TaskSlotTableTest extends TestLogger {
 	public void testAllocateSlot() throws Exception {
 		final JobID jobId = new JobID();
 		final AllocationID allocationId = new AllocationID();
-		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable =
-				 createTaskSlotTableWithAllocatedSlot(jobId, allocationId, new TestingSlotActionsBuilder().build())) {
+		try (final TaskSlotTable<TaskSlotPayload> taskSlotTable = createTaskSlotTableWithAllocatedSlot(
+				jobId,
+				allocationId,
+				new TestingSlotActionsBuilder().build())) {
 			Iterator<TaskSlot<TaskSlotPayload>> allocatedSlots = taskSlotTable.getAllocatedSlots(jobId);
 			TaskSlot<TaskSlotPayload> nextSlot = allocatedSlots.next();
 			assertThat(nextSlot.getIndex(), is(0));
