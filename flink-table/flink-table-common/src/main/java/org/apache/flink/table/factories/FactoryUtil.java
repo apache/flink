@@ -29,8 +29,8 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.connector.format.ScanFormat;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.utils.EncodingUtils;
@@ -405,29 +405,29 @@ public final class FactoryUtil {
 		}
 
 		/**
-		 * Discovers a {@link ScanFormat} of the given type using the given option as factory identifier.
+		 * Discovers a {@link DecodingFormat} of the given type using the given option as factory identifier.
 		 */
-		public <I, F extends ScanFormatFactory<I>> ScanFormat<I> discoverScanFormat(
+		public <I, F extends DecodingFormatFactory<I>> DecodingFormat<I> discoverDecodingFormat(
 				Class<F> formatFactoryClass,
 				ConfigOption<String> formatOption) {
-			return discoverOptionalScanFormat(formatFactoryClass, formatOption)
+			return discoverOptionalDecodingFormat(formatFactoryClass, formatOption)
 				.orElseThrow(() ->
 					new ValidationException(
 						String.format("Could not find required scan format '%s'.", formatOption.key())));
 		}
 
 		/**
-		 * Discovers a {@link ScanFormat} of the given type using the given option (if present) as factory
+		 * Discovers a {@link DecodingFormat} of the given type using the given option (if present) as factory
 		 * identifier.
 		 */
-		public <I, F extends ScanFormatFactory<I>> Optional<ScanFormat<I>> discoverOptionalScanFormat(
+		public <I, F extends DecodingFormatFactory<I>> Optional<DecodingFormat<I>> discoverOptionalDecodingFormat(
 				Class<F> formatFactoryClass,
 				ConfigOption<String> formatOption) {
 			return discoverOptionalFormatFactory(formatFactoryClass, formatOption)
 				.map(formatFactory -> {
 					String formatPrefix = formatPrefix(formatFactory, formatOption);
 					try {
-						return formatFactory.createScanFormat(context, projectOptions(formatPrefix));
+						return formatFactory.createDecodingFormat(context, projectOptions(formatPrefix));
 					} catch (Throwable t) {
 						throw new ValidationException(
 							String.format(
@@ -440,29 +440,29 @@ public final class FactoryUtil {
 		}
 
 		/**
-		 * Discovers a {@link SinkFormat} of the given type using the given option as factory identifier.
+		 * Discovers a {@link EncodingFormat} of the given type using the given option as factory identifier.
 		 */
-		public <I, F extends SinkFormatFactory<I>> SinkFormat<I> discoverSinkFormat(
+		public <I, F extends EncodingFormatFactory<I>> EncodingFormat<I> discoverEncodingFormat(
 				Class<F> formatFactoryClass,
 				ConfigOption<String> formatOption) {
-			return discoverOptionalSinkFormat(formatFactoryClass, formatOption)
+			return discoverOptionalEncodingFormat(formatFactoryClass, formatOption)
 				.orElseThrow(() ->
 					new ValidationException(
 						String.format("Could not find required sink format '%s'.", formatOption.key())));
 		}
 
 		/**
-		 * Discovers a {@link SinkFormat} of the given type using the given option (if present) as factory
+		 * Discovers a {@link EncodingFormat} of the given type using the given option (if present) as factory
 		 * identifier.
 		 */
-		public <I, F extends SinkFormatFactory<I>> Optional<SinkFormat<I>> discoverOptionalSinkFormat(
+		public <I, F extends EncodingFormatFactory<I>> Optional<EncodingFormat<I>> discoverOptionalEncodingFormat(
 				Class<F> formatFactoryClass,
 				ConfigOption<String> formatOption) {
 			return discoverOptionalFormatFactory(formatFactoryClass, formatOption)
 				.map(formatFactory -> {
 					String formatPrefix = formatPrefix(formatFactory, formatOption);
 					try {
-						return formatFactory.createSinkFormat(context, projectOptions(formatPrefix));
+						return formatFactory.createEncodingFormat(context, projectOptions(formatPrefix));
 					} catch (Throwable t) {
 						throw new ValidationException(
 							String.format(

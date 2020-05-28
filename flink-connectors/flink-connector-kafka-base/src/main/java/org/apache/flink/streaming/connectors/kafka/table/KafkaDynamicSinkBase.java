@@ -23,7 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
@@ -53,7 +53,7 @@ public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
 	protected final Properties properties;
 
 	/** Sink format for encoding records to Kafka. */
-	protected final SinkFormat<SerializationSchema<RowData>> sinkFormat;
+	protected final EncodingFormat<SerializationSchema<RowData>> encodingFormat;
 
 	/** Partitioner to select Kafka partition for each item. */
 	protected final Optional<FlinkKafkaPartitioner<RowData>> partitioner;
@@ -63,23 +63,23 @@ public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			SinkFormat<SerializationSchema<RowData>> sinkFormat) {
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
 		this.consumedDataType = Preconditions.checkNotNull(consumedDataType, "Consumed data type must not be null.");
 		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
 		this.partitioner = Preconditions.checkNotNull(partitioner, "Partitioner must not be null.");
-		this.sinkFormat = Preconditions.checkNotNull(sinkFormat, "Sink format must not be null.");
+		this.encodingFormat = Preconditions.checkNotNull(encodingFormat, "Encoding format must not be null.");
 	}
 
 	@Override
 	public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
-		return this.sinkFormat.getChangelogMode();
+		return this.encodingFormat.getChangelogMode();
 	}
 
 	@Override
 	public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
 		SerializationSchema<RowData> serializationSchema =
-				this.sinkFormat.createSinkFormat(context, this.consumedDataType);
+				this.encodingFormat.createRuntimeEncoder(context, this.consumedDataType);
 
 		final SinkFunction<RowData> kafkaProducer = createKafkaProducer(
 				this.topic,
@@ -117,7 +117,7 @@ public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
 		return Objects.equals(consumedDataType, that.consumedDataType) &&
 			Objects.equals(topic, that.topic) &&
 			Objects.equals(properties, that.properties) &&
-			Objects.equals(sinkFormat, that.sinkFormat) &&
+			Objects.equals(encodingFormat, that.encodingFormat) &&
 			Objects.equals(partitioner, that.partitioner);
 	}
 
@@ -127,7 +127,7 @@ public abstract class KafkaDynamicSinkBase implements DynamicTableSink {
 			consumedDataType,
 			topic,
 			properties,
-			sinkFormat,
+			encodingFormat,
 			partitioner);
 	}
 }

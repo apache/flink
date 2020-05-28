@@ -25,7 +25,7 @@ import org.apache.flink.streaming.connectors.elasticsearch7.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.elasticsearch7.RestClientFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
@@ -52,12 +52,12 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
 	@VisibleForTesting
 	static final Elasticsearch7RequestFactory REQUEST_FACTORY = new Elasticsearch7DynamicSink.Elasticsearch7RequestFactory();
 
-	private final SinkFormat<SerializationSchema<RowData>> format;
+	private final EncodingFormat<SerializationSchema<RowData>> format;
 	private final TableSchema schema;
 	private final Elasticsearch7Configuration config;
 
 	public Elasticsearch7DynamicSink(
-			SinkFormat<SerializationSchema<RowData>> format,
+			EncodingFormat<SerializationSchema<RowData>> format,
 			Elasticsearch7Configuration config,
 			TableSchema schema) {
 		this(format, config, schema, (ElasticsearchSink.Builder::new));
@@ -83,7 +83,7 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
 	}
 
 	Elasticsearch7DynamicSink(
-			SinkFormat<SerializationSchema<RowData>> format,
+			EncodingFormat<SerializationSchema<RowData>> format,
 			Elasticsearch7Configuration config,
 			TableSchema schema,
 			ElasticSearchBuilderProvider builderProvider) {
@@ -111,7 +111,7 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
 	@Override
 	public SinkFunctionProvider getSinkRuntimeProvider(Context context) {
 		return () -> {
-			SerializationSchema<RowData> format = this.format.createSinkFormat(context, schema.toRowDataType());
+			SerializationSchema<RowData> format = this.format.createRuntimeEncoder(context, schema.toRowDataType());
 
 			final RowElasticsearchSinkFunction upsertFunction =
 				new RowElasticsearchSinkFunction(
