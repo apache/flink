@@ -119,7 +119,7 @@ public class SqlCommandParserTest {
 						SqlCommand.CREATE_VIEW,
 						"`default_catalog`.`default_database`.`x`",
 						"SELECT 1 + 1\nFROM `default_catalog`.`default_database`.`MyTable` AS `MyTable`"),
-				TestItem.invalidSql("CREATE VIEW x SELECT 1+1 ",// missing AS
+				TestItem.invalidSql("CREATE VIEW x SELECT 1+1 ", // missing AS
 						SqlExecutionException.class,
 						"Encountered \"SELECT\""),
 				// drop view xx
