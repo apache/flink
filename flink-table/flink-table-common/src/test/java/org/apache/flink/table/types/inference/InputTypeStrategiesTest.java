@@ -420,6 +420,7 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 			TestSpec.forStrategy(
 					"Array strategy infers a common type",
 					InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+				.expectSignature("f(<COMMON>, <COMMON>...)")
 				.calledWithArgumentTypes(
 					DataTypes.INT().notNull(),
 					DataTypes.BIGINT().notNull(),
@@ -437,7 +438,7 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 					"Array strategy fails for null arguments",
 					InputTypeStrategies.SPECIFIC_FOR_ARRAY)
 				.calledWithArgumentTypes(DataTypes.NULL())
-				.expectErrorMessage("Invalid input arguments."),
+				.expectErrorMessage("Could not find a common type for arguments: [NULL]"),
 
 			TestSpec.forStrategy(
 					"Map strategy infers common types",

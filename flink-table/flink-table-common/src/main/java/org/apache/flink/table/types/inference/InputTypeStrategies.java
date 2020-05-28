@@ -23,8 +23,8 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.ArrayInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CastInputTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
@@ -36,6 +36,7 @@ import org.apache.flink.table.types.inference.strategies.OrInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OutputArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.RootArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SequenceInputTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.SubsequenceInputTypeStrategy.SubsequenceStrategyBuilder;
 import org.apache.flink.table.types.inference.strategies.VaryingSequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.WildcardInputTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -64,6 +65,17 @@ public final class InputTypeStrategies {
 	 * Strategy that does not perform any modification or validation of the input.
 	 */
 	public static final WildcardInputTypeStrategy WILDCARD = new WildcardInputTypeStrategy();
+
+	/**
+	 * An strategy that lets you apply other strategies for subsequences of
+	 * the actual arguments.
+	 *
+	 * <p>The {@link #sequence(ArgumentTypeStrategy...)} should be preferred in most of the cases. Use this strategy
+	 * only if you need to apply a common logic to a subsequence of the arguments.
+	 */
+	public static SubsequenceStrategyBuilder compositeSequence() {
+		return new SubsequenceStrategyBuilder();
+	}
 
 	/**
 	 * Strategy for a function signature like {@code f(STRING, NUMERIC)} using a sequence of
@@ -260,6 +272,12 @@ public final class InputTypeStrategies {
 		return new OrArgumentTypeStrategy(Arrays.asList(strategies));
 	}
 
+	/**
+	 * An {@link InputTypeStrategy} that expects {@code count} arguments that have a common type.
+	 */
+	public static InputTypeStrategy commonType(int count) {
+		return new CommonInputTypeStrategy(ConstantArgumentCount.of(count));
+	}
 
 	// --------------------------------------------------------------------------------------------
 	// Specific input type strategies
@@ -275,7 +293,9 @@ public final class InputTypeStrategies {
 	 *
 	 * <p>It expects at least one argument. All the arguments must have a common super type.
 	 */
-	public static final InputTypeStrategy SPECIFIC_FOR_ARRAY = new ArrayInputTypeStrategy();
+	public static final InputTypeStrategy SPECIFIC_FOR_ARRAY = new CommonInputTypeStrategy(
+		ConstantArgumentCount.from(1)
+	);
 
 	/**
 	 * Strategy specific for {@link BuiltInFunctionDefinitions#MAP}.

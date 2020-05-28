@@ -158,10 +158,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size > 1)
             In(args.head, args.drop(1))
 
-          case IF =>
-            assert(args.size == 3)
-            If(args.head, args(1), args.last)
-
           case DISTINCT =>
             assert(args.size == 1)
             DistinctAgg(args.head)
