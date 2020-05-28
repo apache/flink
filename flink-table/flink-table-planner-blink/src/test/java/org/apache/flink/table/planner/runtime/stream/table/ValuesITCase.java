@@ -27,7 +27,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
@@ -88,8 +88,8 @@ public class ValuesITCase extends StreamingTestBase {
 				Row.of(0d, new byte[]{4}, "D", Arrays.asList(1, 2, 3)))
 		);
 
-		DataType rowType = DataTypes.ROW(
-			DataTypes.FIELD("a", DataTypes.DECIMAL(10, 2).notNull()),
+		UnresolvedDataType rowType = DataTypes.ROW(
+			DataTypes.FIELD("a", DataTypes.of("DECIMAL(10, 2) NOT NULL")), // test resolution
 			DataTypes.FIELD("b", DataTypes.CHAR(4).notNull()),
 			DataTypes.FIELD("c", DataTypes.TIMESTAMP(4).notNull()),
 			DataTypes.FIELD(

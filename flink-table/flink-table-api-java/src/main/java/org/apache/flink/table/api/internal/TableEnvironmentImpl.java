@@ -124,6 +124,7 @@ import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.PrintUtils;
@@ -279,7 +280,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	@Override
-	public Table fromValues(DataType rowType, Object... values) {
+	public Table fromValues(AbstractDataType<?> rowType, Object... values) {
 		return fromValues(rowType, Arrays.asList(values));
 	}
 
@@ -289,8 +290,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	@Override
-	public Table fromValues(DataType rowType, Expression... values) {
-		return createTable(operationTreeBuilder.values(rowType, values));
+	public Table fromValues(AbstractDataType<?> rowType, Expression... values) {
+		final DataType resolvedDataType = catalogManager.getDataTypeFactory().createDataType(rowType);
+		return createTable(operationTreeBuilder.values(resolvedDataType, values));
 	}
 
 	@Override
@@ -302,7 +304,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	}
 
 	@Override
-	public Table fromValues(DataType rowType, Iterable<?> values) {
+	public Table fromValues(AbstractDataType<?> rowType, Iterable<?> values) {
 		Expression[] exprs = StreamSupport.stream(values.spliterator(), false)
 			.map(ApiExpressionUtils::objectToExpression)
 			.toArray(Expression[]::new);
