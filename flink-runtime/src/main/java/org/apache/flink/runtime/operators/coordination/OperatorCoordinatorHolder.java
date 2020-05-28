@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -35,6 +36,7 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -67,7 +69,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	private final int operatorParallelism;
 	private final int operatorMaxParallelism;
 
-	private long currentlyTriggeredCheckpoint;
+	private volatile long currentlyTriggeredCheckpoint;
 
 	private OperatorCoordinatorHolder(
 			final OperatorID operatorId,
@@ -88,21 +90,25 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	public void lazyInitialize(SchedulerNG scheduler, Executor schedulerExecutor) {
-		context.lazyInitialize(scheduler, schedulerExecutor);
+		lazyInitialize(scheduler::handleGlobalFailure, schedulerExecutor);
+	}
+
+	@VisibleForTesting
+	void lazyInitialize(Consumer<Throwable> globalFailureHandler, Executor schedulerExecutor) {
+		context.lazyInitialize(globalFailureHandler, schedulerExecutor);
 	}
 
 	// ------------------------------------------------------------------------
 	//  Properties
 	// ------------------------------------------------------------------------
 
-	@Override
-	public OperatorID operatorId() {
-		return operatorId;
+	public OperatorCoordinator coordinator() {
+		return coordinator;
 	}
 
 	@Override
-	public OperatorCoordinator coordinator() {
-		return coordinator;
+	public OperatorID operatorId() {
+		return operatorId;
 	}
 
 	@Override
@@ -113,39 +119,6 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	@Override
 	public int currentParallelism() {
 		return operatorParallelism;
-	}
-
-	// ------------------------------------------------------------------------
-	//  Checkpointing Callbacks
-	// ------------------------------------------------------------------------
-
-	@Override
-	public void onCallTriggerCheckpoint(long checkpointId) {
-		checkCheckpointAlreadyHappening(checkpointId);
-		currentlyTriggeredCheckpoint = checkpointId;
-	}
-
-	@Override
-	public void onCheckpointStateFutureComplete(long checkpointId) {
-		checkCheckpointAlreadyHappening(checkpointId);
-		eventValve.shutValve();
-	}
-
-	@Override
-	public void afterSourceBarrierInjection(long checkpointId) {
-		checkCheckpointAlreadyHappening(checkpointId);
-		eventValve.openValve();
-		currentlyTriggeredCheckpoint = NO_CHECKPOINT;
-	}
-
-	@Override
-	public void abortCurrentTriggering() {
-		eventValve.openValve();
-		currentlyTriggeredCheckpoint = NO_CHECKPOINT;
-	}
-
-	private void checkCheckpointAlreadyHappening(long checkpointId) {
-		checkState(currentlyTriggeredCheckpoint == NO_CHECKPOINT || currentlyTriggeredCheckpoint == checkpointId);
 	}
 
 	// ------------------------------------------------------------------------
@@ -177,7 +150,20 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 	@Override
 	public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) throws Exception {
-		return coordinator.checkpointCoordinator(checkpointId);
+		setCurrentlyTriggeredCheckpoint(checkpointId);
+
+		final CompletableFuture<byte[]> checkpointFuture = coordinator.checkpointCoordinator(checkpointId);
+
+		// synchronously!!!, with the completion, we need to shut the event valve
+		checkpointFuture.whenComplete((ignored, failure) -> {
+			if (failure != null) {
+				abortCurrentTriggering();
+			} else {
+				onCheckpointStateFutureComplete(checkpointId);
+			}
+		});
+
+		return checkpointFuture;
 	}
 
 	@Override
@@ -187,7 +173,44 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 	@Override
 	public void resetToCheckpoint(byte[] checkpointData) throws Exception {
+		resetCheckpointTriggeringCheck();
+		eventValve.reset();
 		coordinator.resetToCheckpoint(checkpointData);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Checkpointing Callbacks
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void afterSourceBarrierInjection(long checkpointId) {
+		verifyNoOtherCheckpointBeingTriggered(checkpointId);
+		eventValve.openValve();
+		resetCheckpointTriggeringCheck();
+	}
+
+	@Override
+	public void abortCurrentTriggering() {
+		eventValve.openValve();
+		resetCheckpointTriggeringCheck();
+	}
+
+	void onCheckpointStateFutureComplete(long checkpointId) {
+		verifyNoOtherCheckpointBeingTriggered(checkpointId);
+		eventValve.shutValve();
+	}
+
+	private void verifyNoOtherCheckpointBeingTriggered(long checkpointId) {
+		checkState(currentlyTriggeredCheckpoint == NO_CHECKPOINT || currentlyTriggeredCheckpoint == checkpointId);
+	}
+
+	private void setCurrentlyTriggeredCheckpoint(long checkpointId) {
+		verifyNoOtherCheckpointBeingTriggered(checkpointId);
+		currentlyTriggeredCheckpoint = checkpointId;
+	}
+
+	private void resetCheckpointTriggeringCheck() {
+		currentlyTriggeredCheckpoint = NO_CHECKPOINT;
 	}
 
 	// ------------------------------------------------------------------------
@@ -209,18 +232,39 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 					return executionAttempt.sendOperatorEvent(opId, serializedEvent);
 				};
 
-			final OperatorEventValve valve = new OperatorEventValve(eventSender);
-			final LazyInitializedCoordinatorContext context = new LazyInitializedCoordinatorContext(opId, jobVertex, valve);
-			final OperatorCoordinator coordinator = provider.create(context);
-
-			return new OperatorCoordinatorHolder(
+			return create(
 					opId,
-					coordinator,
-					context,
-					valve,
+					provider,
+					eventSender,
+					jobVertex.getName(),
 					jobVertex.getParallelism(),
 					jobVertex.getMaxParallelism());
 		}
+	}
+
+	@VisibleForTesting
+	static OperatorCoordinatorHolder create(
+			final OperatorID opId,
+			final OperatorCoordinator.Provider coordinatorProvider,
+			final BiFunction<SerializedValue<OperatorEvent>, Integer, CompletableFuture<Acknowledge>> eventSender,
+			final String operatorName,
+			final int operatorParallelism,
+			final int operatorMaxParallelism) {
+
+		final OperatorEventValve valve = new OperatorEventValve(eventSender);
+
+		final LazyInitializedCoordinatorContext context = new LazyInitializedCoordinatorContext(
+				opId, valve, operatorName, operatorParallelism);
+
+		final OperatorCoordinator coordinator = coordinatorProvider.create(context);
+
+		return new OperatorCoordinatorHolder(
+				opId,
+				coordinator,
+				context,
+				valve,
+				operatorParallelism,
+				operatorMaxParallelism);
 	}
 
 	// ------------------------------------------------------------------------
@@ -239,33 +283,36 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	private static final class LazyInitializedCoordinatorContext implements OperatorCoordinator.Context {
 
 		private final OperatorID operatorId;
-		private final ExecutionJobVertex jobVertex;
 		private final OperatorEventValve eventValve;
+		private final String operatorName;
+		private final int operatorParallelism;
 
-		private SchedulerNG scheduler;
+		private Consumer<Throwable> globalFailureHandler;
 		private Executor schedulerExecutor;
 
 		public LazyInitializedCoordinatorContext(
-				OperatorID operatorId,
-				ExecutionJobVertex jobVertex,
-				OperatorEventValve eventValve) {
+				final OperatorID operatorId,
+				final OperatorEventValve eventValve,
+				final String operatorName,
+				final int operatorParallelism) {
 			this.operatorId = checkNotNull(operatorId);
-			this.jobVertex = checkNotNull(jobVertex);
 			this.eventValve = checkNotNull(eventValve);
+			this.operatorName = checkNotNull(operatorName);
+			this.operatorParallelism = operatorParallelism;
 		}
 
-		void lazyInitialize(SchedulerNG scheduler, Executor schedulerExecutor) {
-			this.scheduler = checkNotNull(scheduler);
+		void lazyInitialize(Consumer<Throwable> globalFailureHandler, Executor schedulerExecutor) {
+			this.globalFailureHandler = checkNotNull(globalFailureHandler);
 			this.schedulerExecutor = checkNotNull(schedulerExecutor);
 		}
 
 		void unInitialize() {
-			this.scheduler = null;
+			this.globalFailureHandler = null;
 			this.schedulerExecutor = null;
 		}
 
 		boolean isInitialized() {
-			return jobVertex != null;
+			return schedulerExecutor != null;
 		}
 
 		private void checkInitialized() {
@@ -309,15 +356,14 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 			checkInitialized();
 
 			final FlinkException e = new FlinkException("Global failure triggered by OperatorCoordinator for '" +
-				jobVertex.getName() + "' (operator " + operatorId + ").", cause);
+				operatorName + "' (operator " + operatorId + ").", cause);
 
-			schedulerExecutor.execute(() -> scheduler.handleGlobalFailure(e));
+			schedulerExecutor.execute(() -> globalFailureHandler.accept(e));
 		}
 
 		@Override
 		public int currentParallelism() {
-			checkInitialized();
-			return jobVertex.getParallelism();
+			return operatorParallelism;
 		}
 	}
 }
