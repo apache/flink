@@ -116,6 +116,20 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- MySQL test dependencies -->
+		<dependency>
+			<groupId>ch.vorburger.mariaDB4j</groupId>
+			<artifactId>mariaDB4j</artifactId>
+			<version>2.4.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>8.0.20</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Derby test dependencies -->
 
 		<dependency>
