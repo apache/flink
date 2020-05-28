@@ -20,11 +20,13 @@ package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedValue;
@@ -57,19 +59,16 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorCoordinatorCheckpointContext {
 
-	private static final long NO_CHECKPOINT = Long.MIN_VALUE;
-
 	private final OperatorCoordinator coordinator;
 	private final OperatorID operatorId;
 	private final LazyInitializedCoordinatorContext context;
-
 	private final OperatorEventValve eventValve;
 
-	// these two fields are needed for the construction of OperatorStateHandles when taking checkpoints
 	private final int operatorParallelism;
 	private final int operatorMaxParallelism;
 
-	private volatile long currentlyTriggeredCheckpoint;
+	private Consumer<Throwable> globalFailureHandler;
+	private ComponentMainThreadExecutor mainThreadExecutor;
 
 	private OperatorCoordinatorHolder(
 			final OperatorID operatorId,
@@ -85,17 +84,17 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		this.eventValve = checkNotNull(eventValve);
 		this.operatorParallelism = operatorParallelism;
 		this.operatorMaxParallelism = operatorMaxParallelism;
-
-		this.currentlyTriggeredCheckpoint = NO_CHECKPOINT;
 	}
 
-	public void lazyInitialize(SchedulerNG scheduler, Executor schedulerExecutor) {
-		lazyInitialize(scheduler::handleGlobalFailure, schedulerExecutor);
+	public void lazyInitialize(SchedulerNG scheduler, ComponentMainThreadExecutor mainThreadExecutor) {
+		lazyInitialize(scheduler::handleGlobalFailure, mainThreadExecutor);
 	}
 
 	@VisibleForTesting
-	void lazyInitialize(Consumer<Throwable> globalFailureHandler, Executor schedulerExecutor) {
-		context.lazyInitialize(globalFailureHandler, schedulerExecutor);
+	void lazyInitialize(Consumer<Throwable> globalFailureHandler, ComponentMainThreadExecutor mainThreadExecutor) {
+		this.globalFailureHandler = globalFailureHandler;
+		this.mainThreadExecutor = mainThreadExecutor;
+		context.lazyInitialize(globalFailureHandler, mainThreadExecutor);
 	}
 
 	// ------------------------------------------------------------------------
@@ -127,6 +126,7 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 	@Override
 	public void start() throws Exception {
+		mainThreadExecutor.assertRunningInMainThread();
 		checkState(context.isInitialized(), "Coordinator Context is not yet initialized");
 		coordinator.start();
 	}
@@ -139,43 +139,78 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 	@Override
 	public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
+		mainThreadExecutor.assertRunningInMainThread();
 		coordinator.handleEventFromOperator(subtask, event);
 	}
 
 	@Override
 	public void subtaskFailed(int subtask, @Nullable Throwable reason) {
+		mainThreadExecutor.assertRunningInMainThread();
 		coordinator.subtaskFailed(subtask, reason);
 		eventValve.resetForTask(subtask);
 	}
 
 	@Override
-	public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) throws Exception {
-		setCurrentlyTriggeredCheckpoint(checkpointId);
-
-		final CompletableFuture<byte[]> checkpointFuture = coordinator.checkpointCoordinator(checkpointId);
-
-		// synchronously!!!, with the completion, we need to shut the event valve
-		checkpointFuture.whenComplete((ignored, failure) -> {
-			if (failure != null) {
-				abortCurrentTriggering();
-			} else {
-				onCheckpointStateFutureComplete(checkpointId);
-			}
-		});
-
-		return checkpointFuture;
+	public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) {
+		// unfortunately, this method does not run in the scheduler executor, but in the
+		// checkpoint coordinator time thread.
+		// we can remove the delegation once the checkpoint coordinator runs fully in the scheduler's
+		// main thread executor
+		final CompletableFuture<byte[]> future = new CompletableFuture<>();
+		mainThreadExecutor.execute(() -> checkpointCoordinatorInternal(checkpointId, future));
+		return future;
 	}
 
 	@Override
 	public void checkpointComplete(long checkpointId) {
-		coordinator.checkpointComplete(checkpointId);
+		// unfortunately, this method does not run in the scheduler executor, but in the
+		// checkpoint coordinator time thread.
+		// we can remove the delegation once the checkpoint coordinator runs fully in the scheduler's
+		// main thread executor
+		mainThreadExecutor.execute(() -> checkpointCompleteInternal(checkpointId));
 	}
 
 	@Override
 	public void resetToCheckpoint(byte[] checkpointData) throws Exception {
-		resetCheckpointTriggeringCheck();
+		// ideally we would like to check this here, however this method is called early during
+		// execution graph construction, before the main thread executor is set
+
 		eventValve.reset();
 		coordinator.resetToCheckpoint(checkpointData);
+	}
+
+	private void checkpointCompleteInternal(long checkpointId) {
+		mainThreadExecutor.assertRunningInMainThread();
+		coordinator.checkpointComplete(checkpointId);
+	}
+
+	private void checkpointCoordinatorInternal(final long checkpointId, final CompletableFuture<byte[]> result) {
+		mainThreadExecutor.assertRunningInMainThread();
+
+		final CompletableFuture<byte[]> checkpointFuture;
+		try {
+			eventValve.markForCheckpoint(checkpointId);
+			checkpointFuture = coordinator.checkpointCoordinator(checkpointId);
+		} catch (Throwable t) {
+			ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+			result.completeExceptionally(t);
+			globalFailureHandler.accept(t);
+			return;
+		}
+
+		// synchronously!!!, with the completion, we need to shut the event valve
+		checkpointFuture.whenComplete((success, failure) -> {
+			if (failure != null) {
+				result.completeExceptionally(failure);
+			} else {
+				try {
+					eventValve.shutValve(checkpointId);
+					result.complete(success);
+				} catch (Exception e) {
+					result.completeExceptionally(e);
+				}
+			}
+		});
 	}
 
 	// ------------------------------------------------------------------------
@@ -184,33 +219,32 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 
 	@Override
 	public void afterSourceBarrierInjection(long checkpointId) {
-		verifyNoOtherCheckpointBeingTriggered(checkpointId);
-		eventValve.openValve();
-		resetCheckpointTriggeringCheck();
+		// this method is commonly called by the CheckpointCoordinator's executor thread (timer thread).
+
+		// we ideally want the scheduler main-thread to be the one that sends the blocked events
+		// however, we need to react synchronously here, to maintain consistency and not allow
+		// another checkpoint injection in-between (unlikely, but possible).
+		// fortunately, the event-sending goes pretty much directly to the RPC gateways, which are
+		// thread safe.
+
+		// this will automatically be fixed once the checkpoint coordinator runs in the
+		// scheduler's main thread executor
+		eventValve.openValveAndUnmarkCheckpoint();
 	}
 
 	@Override
 	public void abortCurrentTriggering() {
-		eventValve.openValve();
-		resetCheckpointTriggeringCheck();
-	}
+		// this method is commonly called by the CheckpointCoordinator's executor thread (timer thread).
 
-	void onCheckpointStateFutureComplete(long checkpointId) {
-		verifyNoOtherCheckpointBeingTriggered(checkpointId);
-		eventValve.shutValve();
-	}
+		// we ideally want the scheduler main-thread to be the one that sends the blocked events
+		// however, we need to react synchronously here, to maintain consistency and not allow
+		// another checkpoint injection in-between (unlikely, but possible).
+		// fortunately, the event-sending goes pretty much directly to the RPC gateways, which are
+		// thread safe.
 
-	private void verifyNoOtherCheckpointBeingTriggered(long checkpointId) {
-		checkState(currentlyTriggeredCheckpoint == NO_CHECKPOINT || currentlyTriggeredCheckpoint == checkpointId);
-	}
-
-	private void setCurrentlyTriggeredCheckpoint(long checkpointId) {
-		verifyNoOtherCheckpointBeingTriggered(checkpointId);
-		currentlyTriggeredCheckpoint = checkpointId;
-	}
-
-	private void resetCheckpointTriggeringCheck() {
-		currentlyTriggeredCheckpoint = NO_CHECKPOINT;
+		// this will automatically be fixed once the checkpoint coordinator runs in the
+		// scheduler's main thread executor
+		eventValve.openValveAndUnmarkCheckpoint();
 	}
 
 	// ------------------------------------------------------------------------
