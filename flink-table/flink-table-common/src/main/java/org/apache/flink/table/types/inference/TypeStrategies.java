@@ -72,16 +72,16 @@ public final class TypeStrategies {
 	 */
 	public static TypeStrategy nullable(TypeStrategy initialStrategy) {
 		return callContext -> {
-			Optional<DataType> initialType = initialStrategy.inferType(callContext);
-			return initialType.map(type -> {
+			Optional<DataType> initialDataType = initialStrategy.inferType(callContext);
+			return initialDataType.map(inferredDataType -> {
 					boolean isNullableArgument = callContext.getArgumentDataTypes()
 						.stream()
 						.anyMatch(dataType -> dataType.getLogicalType().isNullable());
 
 					if (isNullableArgument) {
-						return type.nullable();
+						return inferredDataType.nullable();
 					} else {
-						return type.notNull();
+						return inferredDataType.notNull();
 					}
 				}
 			);
