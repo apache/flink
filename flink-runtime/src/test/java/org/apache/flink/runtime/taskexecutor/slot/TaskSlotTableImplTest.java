@@ -277,6 +277,20 @@ public class TaskSlotTableImplTest extends TestLogger {
 		closingFuture.get();
 	}
 
+	@Test
+	public void testAllocatedSlotTimeout() throws Exception {
+		final CompletableFuture<AllocationID> timeoutFuture = new CompletableFuture<>();
+		final TestingSlotActions testingSlotActions = new TestingSlotActionsBuilder()
+			.setTimeoutSlotConsumer((allocationID, uuid) -> timeoutFuture.complete(allocationID))
+			.build();
+
+		try (final TaskSlotTableImpl<TaskSlotPayload> taskSlotTable = createTaskSlotTableAndStart(1, testingSlotActions)) {
+			final AllocationID allocationId = new AllocationID();
+			assertThat(taskSlotTable.allocateSlot(0, new JobID(), allocationId, Time.milliseconds(1L)), is(true));
+			assertThat(timeoutFuture.join(), is(allocationId));
+		}
+	}
+
 	private static TaskSlotTable<TaskSlotPayload> createTaskSlotTableWithStartedTask(
 			final TaskSlotPayload task) throws SlotNotFoundException, SlotNotActiveException {
 		return createTaskSlotTableWithStartedTask(task, new TestingSlotActionsBuilder().build());
