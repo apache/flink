@@ -43,7 +43,6 @@ fi
 
 source "$(dirname "$0")"/common.sh
 
-TEST_TIMEOUT_SECONDS=900
 
 ORIGINAL_DOP=$1
 NEW_DOP=$2
@@ -52,7 +51,7 @@ STATE_BACKEND_FILE_ASYNC=${4:-true}
 STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE=${5:-rocks}
 
 
-function run_resume_savepoint_test() {
+run_resume_savepoint_test() {
   if (( $ORIGINAL_DOP >= $NEW_DOP )); then
     NUM_SLOTS=$ORIGINAL_DOP
   else
@@ -128,21 +127,4 @@ function run_resume_savepoint_test() {
   # output would be non-empty and the test will not pass
 }
 
-function kill_test_watchdog() {
-    local watchdog_pid=`cat $TEST_DATA_DIR/job_watchdog.pid`
-    echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
-    kill $watchdog_pid
-}
-on_exit kill_test_watchdog
-
-( 
-    cmdpid=$BASHPID; 
-    (sleep $TEST_TIMEOUT_SECONDS; # set a timeout for this test
-    echo "Test (pid: $cmdpid) did not finish after $TEST_TIMEOUT_SECONDS seconds."
-    echo "Printing Flink logs and killing it:"
-    cat ${FLINK_DIR}/log/* 
-    kill "$cmdpid") & watchdog_pid=$!
-    echo $watchdog_pid > $TEST_DATA_DIR/job_watchdog.pid
-    
-    run_resume_savepoint_test
-)
+run_test_with_timeout 900 run_resume_savepoint_test

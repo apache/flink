@@ -20,12 +20,6 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_ha.sh
 
-#
-# NOTE: This script requires at least Bash version >= 4. Mac OS in 2020 still ships 3.x
-#
-
-TEST_TIMEOUT_SECONDS=900
-
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
 
 function ha_cleanup() {
@@ -106,21 +100,4 @@ STATE_BACKEND_FILE_ASYNC=${2:-true}
 STATE_BACKEND_ROCKS_INCREMENTAL=${3:-false}
 ZOOKEEPER_VERSION=${4:-3.4}
 
-function kill_test_watchdog() {
-    local watchdog_pid=`cat $TEST_DATA_DIR/job_watchdog.pid`
-    echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
-    kill $watchdog_pid
-}
-on_exit kill_test_watchdog
-
-( 
-    cmdpid=$BASHPID; 
-    (sleep $TEST_TIMEOUT_SECONDS; # set a timeout for this test
-    echo "Test (pid: $cmdpid) did not finish after $TEST_TIMEOUT_SECONDS seconds."
-    echo "Printing Flink logs and killing it:"
-    cat ${FLINK_DIR}/log/* 
-    kill "$cmdpid") & watchdog_pid=$!
-    echo $watchdog_pid > $TEST_DATA_DIR/job_watchdog.pid
-    run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL} ${ZOOKEEPER_VERSION}
-)
-
+run_test_with_timeout 900 run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL} ${ZOOKEEPER_VERSION}
