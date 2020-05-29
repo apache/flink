@@ -33,7 +33,7 @@ setConsoleLogging
 
 start_kubernetes
 
-build_image ${FLINK_IMAGE_NAME}
+build_image ${FLINK_IMAGE_NAME} $(get_host_machine_address)
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
 

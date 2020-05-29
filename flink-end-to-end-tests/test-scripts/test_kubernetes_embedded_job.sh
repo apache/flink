@@ -36,7 +36,7 @@ start_kubernetes
 
 mkdir -p $OUTPUT_VOLUME
 
-build_image ${FLINK_IMAGE_NAME}
+build_image ${FLINK_IMAGE_NAME} $(get_host_machine_address)
 
 export USER_LIB=${FLINK_DIR}/examples/batch
 kubectl create -f ${CONTAINER_SCRIPTS}/job-cluster-service.yaml

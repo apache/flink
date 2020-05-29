@@ -94,6 +94,9 @@ function start_kubernetes {
             echo "$NON_LINUX_ENV_NOTE"
             exit 1
         fi
+        # Mount Flink dist into minikube virtual machine because we need to mount hostPath as usrlib
+        minikube mount $FLINK_DIR:$FLINK_DIR &
+        export minikube_mount_pid=$!
     else
         setup_kubernetes_for_linux
         if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} start_kubernetes_if_not_running; then
@@ -107,6 +110,7 @@ function start_kubernetes {
 function stop_kubernetes {
     if [[ "${OS_TYPE}" != "linux" ]]; then
         echo "$NON_LINUX_ENV_NOTE"
+        kill $minikube_mount_pid 2> /dev/null
     else
         echo "Stopping minikube ..."
         stop_command="sudo minikube stop"
@@ -173,6 +177,14 @@ appender.console.type = CONSOLE
 appender.console.layout.type = PatternLayout
 appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] %-60c %x - %m%n
 END
+}
+
+function get_host_machine_address {
+    if [[ "${OS_TYPE}" != "linux" ]]; then
+        echo $(minikube ssh "route -n | grep ^0.0.0.0 | awk '{ print \$2 }' | tr -d '[:space:]'")
+    else
+        echo "localhost"
+    fi
 }
 
 on_exit cleanup
