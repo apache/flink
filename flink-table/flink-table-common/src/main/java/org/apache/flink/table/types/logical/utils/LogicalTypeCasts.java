@@ -119,76 +119,85 @@ public final class LogicalTypeCasts {
 		castTo(CHAR)
 			.implicitFrom(CHAR)
 			.explicitFromFamily(PREDEFINED)
-			.explicitNotFromFamily(BINARY_STRING)
 			.build();
 
 		castTo(VARCHAR)
 			.implicitFromFamily(CHARACTER_STRING)
 			.explicitFromFamily(PREDEFINED)
-			.explicitNotFromFamily(BINARY_STRING)
 			.build();
 
 		castTo(BOOLEAN)
 			.implicitFrom(BOOLEAN)
-			.explicitFromFamily(CHARACTER_STRING)
+			.explicitFromFamily(CHARACTER_STRING, NUMERIC)
 			.build();
 
 		castTo(BINARY)
 			.implicitFrom(BINARY)
+			.explicitFromFamily(CHARACTER_STRING)
+			.explicitFrom(VARBINARY)
 			.build();
 
 		castTo(VARBINARY)
 			.implicitFromFamily(BINARY_STRING)
+			.explicitFromFamily(CHARACTER_STRING)
+			.explicitFrom(BINARY)
 			.build();
 
 		castTo(DECIMAL)
 			.implicitFromFamily(NUMERIC)
-			.explicitFromFamily(CHARACTER_STRING)
+			.explicitFromFamily(CHARACTER_STRING, INTERVAL)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(TINYINT)
 			.implicitFrom(TINYINT)
-			.explicitFromFamily(NUMERIC, CHARACTER_STRING)
+			.explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(SMALLINT)
 			.implicitFrom(TINYINT, SMALLINT)
-			.explicitFromFamily(NUMERIC, CHARACTER_STRING)
+			.explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(INTEGER)
 			.implicitFrom(TINYINT, SMALLINT, INTEGER)
-			.explicitFromFamily(NUMERIC, CHARACTER_STRING)
+			.explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(BIGINT)
 			.implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT)
-			.explicitFromFamily(NUMERIC, CHARACTER_STRING)
+			.explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(FLOAT)
 			.implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DECIMAL)
 			.explicitFromFamily(NUMERIC, CHARACTER_STRING)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(DOUBLE)
 			.implicitFromFamily(NUMERIC)
 			.explicitFromFamily(CHARACTER_STRING)
+			.explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.build();
 
 		castTo(DATE)
 			.implicitFrom(DATE, TIMESTAMP_WITHOUT_TIME_ZONE)
-			.explicitFromFamily(TIMESTAMP, CHARACTER_STRING)
+			.explicitFromFamily(TIMESTAMP, CHARACTER_STRING, BINARY_STRING)
 			.build();
 
 		castTo(TIME_WITHOUT_TIME_ZONE)
 			.implicitFrom(TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE)
-			.explicitFromFamily(TIME, TIMESTAMP, CHARACTER_STRING)
+			.explicitFromFamily(TIME, TIMESTAMP, CHARACTER_STRING, BINARY_STRING)
 			.build();
 
 		castTo(TIMESTAMP_WITHOUT_TIME_ZONE)
 			.implicitFrom(TIMESTAMP_WITHOUT_TIME_ZONE)
-			.explicitFromFamily(DATETIME, CHARACTER_STRING)
+			.explicitFromFamily(DATETIME, CHARACTER_STRING, BINARY_STRING, NUMERIC)
 			.build();
 
 		castTo(TIMESTAMP_WITH_TIME_ZONE)
@@ -198,7 +207,7 @@ public final class LogicalTypeCasts {
 
 		castTo(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 			.implicitFrom(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-			.explicitFromFamily(DATETIME, CHARACTER_STRING)
+			.explicitFromFamily(DATETIME, CHARACTER_STRING, BINARY_STRING, NUMERIC)
 			.build();
 
 		castTo(INTERVAL_YEAR_MONTH)
