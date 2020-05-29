@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
@@ -36,6 +37,8 @@ import org.apache.flink.table.types.inference.strategies.RootArgumentTypeStrateg
 import org.apache.flink.table.types.inference.strategies.SequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.VaryingSequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.WildcardInputTypeStrategy;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
@@ -44,6 +47,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsExplicitCast;
 
 /**
  * Strategies for inferring and validating input arguments in a function call.
@@ -149,7 +154,7 @@ public final class InputTypeStrategies {
 	 * arguments.
 	 */
 	public static InputTypeStrategy comparable(
-			ArgumentCount argumentCount,
+			ConstantArgumentCount argumentCount,
 			StructuredComparision requiredComparision) {
 		return new ComparableTypeStrategy(argumentCount, requiredComparision);
 	}
@@ -260,18 +265,39 @@ public final class InputTypeStrategies {
 
 
 	// --------------------------------------------------------------------------------------------
-	// Specific type strategies
+	// Specific input type strategies
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Strategy specific for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#ARRAY}.
+	 * Strategy specific for {@link BuiltInFunctionDefinitions#CAST}.
+	 */
+	public static final InputTypeStrategy SPECIFIC_FOR_CAST = sequence(
+		InputTypeStrategies.ANY,
+		and(
+			InputTypeStrategies.ANY,
+			constraint(
+				"Unsupported cast from '%s' to '%s'.",
+				dataTypes -> {
+					final LogicalType type1 = dataTypes.get(0).getLogicalType();
+					final LogicalType type2 = dataTypes.get(1).getLogicalType();
+					// A hack to support legacy types. To be removed when we drop the legacy types.
+					if (type1 instanceof LegacyTypeInformationType) {
+						return true;
+					}
+					return supportsExplicitCast(type1, type2);
+				})
+		)
+	);
+
+	/**
+	 * Strategy specific for {@link BuiltInFunctionDefinitions#ARRAY}.
 	 *
 	 * <p>It expects at least one argument. All the arguments must have a common super type.
 	 */
 	public static final InputTypeStrategy SPECIFIC_FOR_ARRAY = new ArrayInputTypeStrategy();
 
 	/**
-	 * Strategy specific for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#MAP}.
+	 * Strategy specific for {@link BuiltInFunctionDefinitions#MAP}.
 	 *
 	 * <p>It expects at least two arguments. There must be even number of arguments.
 	 * All the keys and values must have a common super type respectively.

@@ -43,23 +43,28 @@ public final class ConstantArgumentCount implements ArgumentCount {
 		this.maxCount = maxCount;
 	}
 
-	public static ArgumentCount of(int count) {
+	public static ConstantArgumentCount of(int count) {
 		Preconditions.checkArgument(count >= 0);
 		return new ConstantArgumentCount(count, count);
 	}
 
-	public static ArgumentCount between(int minCount, int maxCount) {
+	public static ConstantArgumentCount between(int minCount, int maxCount) {
 		Preconditions.checkArgument(minCount <= maxCount);
 		Preconditions.checkArgument(minCount >= 0);
 		return new ConstantArgumentCount(minCount, maxCount);
 	}
 
-	public static ArgumentCount from(int minCount) {
+	public static ConstantArgumentCount from(int minCount) {
 		Preconditions.checkArgument(minCount >= 0);
 		return new ConstantArgumentCount(minCount, OPEN_INTERVAL);
 	}
 
-	public static ArgumentCount any() {
+	public static ConstantArgumentCount to(int maxCount) {
+		Preconditions.checkArgument(maxCount >= 0);
+		return new ConstantArgumentCount(0, maxCount);
+	}
+
+	public static ConstantArgumentCount any() {
 		return new ConstantArgumentCount(0, OPEN_INTERVAL);
 	}
 
