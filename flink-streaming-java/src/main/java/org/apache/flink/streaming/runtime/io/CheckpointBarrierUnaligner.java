@@ -137,8 +137,9 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	}
 
 	/**
-	 * We still need to trigger checkpoint while reading the first barrier from one channel, because
-	 * this might happen earlier than the previous async trigger via mailbox by netty thread.
+	 * We still need to trigger checkpoint via {@link ThreadSafeUnaligner#notifyBarrierReceived(CheckpointBarrier, InputChannelInfo)}
+	 * while reading the first barrier from one channel, because this might happen
+	 * earlier than the previous async trigger via mailbox by netty thread.
 	 *
 	 * <p>Note this is also suitable for the trigger case of local input channel.
 	 */
@@ -256,8 +257,20 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		return threadSafeUnaligner.getNumOpenChannels();
 	}
 
+	@VisibleForTesting
+	ThreadSafeUnaligner getThreadSafeUnaligner() {
+		return threadSafeUnaligner;
+	}
+
+	private void notifyCheckpoint(CheckpointBarrier barrier) throws IOException {
+		// ignore the previous triggered checkpoint by netty thread if it was already canceled or aborted before.
+		if (barrier.getId() >= threadSafeUnaligner.getCurrentCheckpointId()) {
+			super.notifyCheckpoint(barrier, 0);
+		}
+	}
+
 	@ThreadSafe
-	private static class ThreadSafeUnaligner implements BufferReceivedListener, Closeable {
+	static class ThreadSafeUnaligner implements BufferReceivedListener, Closeable {
 
 		/**
 		 * Tag the state of which input channel has not received the barrier, such that newly arriving buffers need
@@ -280,7 +293,6 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		 */
 		private long currentReceivedCheckpointId = -1L;
 
-		/** The number of open channels. */
 		private int numOpenChannels;
 
 		private final ChannelStateWriter channelStateWriter;
@@ -300,7 +312,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 			if (currentReceivedCheckpointId < barrierId) {
 				handleNewCheckpoint(barrier);
-				handler.executeInTaskThread(() -> handler.notifyCheckpoint(barrier, 0), "notifyCheckpoint");
+				handler.executeInTaskThread(() -> handler.notifyCheckpoint(barrier), "notifyCheckpoint");
 			}
 
 			int channelIndex = handler.getFlattenedChannelIndex(channelInfo);
@@ -395,6 +407,10 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		@VisibleForTesting
 		synchronized int getNumOpenChannels() {
 			return numOpenChannels;
+		}
+
+		synchronized long getCurrentCheckpointId() {
+			return currentReceivedCheckpointId;
 		}
 	}
 }
