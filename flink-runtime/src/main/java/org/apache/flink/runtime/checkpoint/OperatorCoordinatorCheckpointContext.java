@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface OperatorCoordinatorCheckpointContext extends OperatorInfo {
 
-	CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) throws Exception;
+	void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception;
 
 	void afterSourceBarrierInjection(long checkpointId);
 
