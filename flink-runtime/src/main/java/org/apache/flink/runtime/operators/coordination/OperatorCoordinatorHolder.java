@@ -425,11 +425,6 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 		}
 
 		@Override
-		public void failTask(final int subtask, final Throwable cause) {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
 		public void failJob(final Throwable cause) {
 			checkInitialized();
 
