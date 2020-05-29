@@ -31,4 +31,8 @@ import org.apache.flink.connector.hbase.source.HBaseInputFormat;
 public abstract class TableInputFormat<T extends Tuple> extends HBaseInputFormat<T> {
 	private static final long serialVersionUID = 1L;
 
+	public TableInputFormat(org.apache.hadoop.conf.Configuration hConf) {
+		super(hConf);
+	}
+
 }
