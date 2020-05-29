@@ -21,7 +21,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.NextRecordResponse;
+import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
@@ -34,7 +34,6 @@ import java.nio.ByteBuffer;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER;
-import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.PARTIAL_RECORD;
 import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
 
@@ -54,8 +53,6 @@ final class NonSpanningWrapper implements DataInputView {
 
 	private byte[] utfByteBuffer; // reusable byte buffer for utf-8 decoding
 	private char[] utfCharBuffer; // reusable char buffer for utf-8 decoding
-
-	private final NextRecordResponse reusedNextRecordResponse = new NextRecordResponse(null, 0); // performance impact of immutable objects not benchmarked
 
 	private int remaining() {
 		return this.limit - this.position;
@@ -333,16 +330,7 @@ final class NonSpanningWrapper implements DataInputView {
 		clear();
 	}
 
-	NextRecordResponse getNextRecord(IOReadableWritable target) throws IOException {
-		int recordLen = readInt();
-		if (canReadRecord(recordLen)) {
-			return readInto(target);
-		} else {
-			return reusedNextRecordResponse.updated(PARTIAL_RECORD, recordLen);
-		}
-	}
-
-	private NextRecordResponse readInto(IOReadableWritable target) throws IOException {
+	DeserializationResult readInto(IOReadableWritable target) throws IOException {
 		try {
 			target.read(this);
 		} catch (IndexOutOfBoundsException e) {
@@ -352,14 +340,14 @@ final class NonSpanningWrapper implements DataInputView {
 		if (remaining < 0) {
 			throw new IOException(BROKEN_SERIALIZATION_ERROR_MESSAGE, new IndexOutOfBoundsException("Remaining = " + remaining));
 		}
-		return reusedNextRecordResponse.updated(remaining == 0 ? LAST_RECORD_FROM_BUFFER : INTERMEDIATE_RECORD_FROM_BUFFER, remaining);
+		return remaining == 0 ? LAST_RECORD_FROM_BUFFER : INTERMEDIATE_RECORD_FROM_BUFFER;
 	}
 
 	boolean hasCompleteLength() {
 		return remaining() >= LENGTH_BYTES;
 	}
 
-	private boolean canReadRecord(int recordLength) {
+	boolean canReadRecord(int recordLength) {
 		return recordLength <= remaining();
 	}
 
@@ -368,5 +356,4 @@ final class NonSpanningWrapper implements DataInputView {
 			new NetworkBuffer(target, FreeingBufferRecycler.INSTANCE, DATA_BUFFER, target.size()),
 			Buffer::recycleBuffer);
 	}
-
 }
