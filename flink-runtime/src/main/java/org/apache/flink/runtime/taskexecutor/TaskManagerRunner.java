@@ -31,7 +31,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.entrypoint.ClusterConfiguration;
@@ -76,6 +75,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -374,7 +374,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			resourceID,
 			taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
 
-		final ExecutorService ioExecutor = Executors.newCachedThreadPool(
+		final ExecutorService ioExecutor = Executors.newFixedThreadPool(
 			taskManagerServicesConfiguration.getNumIoThreads(),
 			new ExecutorThreadFactory("flink-taskexecutor-io"));
 
