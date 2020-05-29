@@ -573,6 +573,14 @@ class BatchTableEnvironmentTests(TableEnvironmentTest, PyFlinkBatchTableTestCase
         self.assertEqual(readed_table_config.get_max_generated_code_length(), 32000)
         self.assertEqual(readed_table_config.get_local_timezone(), "Asia/Shanghai")
 
+    def test_create_table_environment_with_old_planner(self):
+        t_env = BatchTableEnvironment.create(
+            environment_settings=EnvironmentSettings.new_instance().in_batch_mode()
+            .use_old_planner().build())
+        self.assertEqual(
+            t_env._j_tenv.getClass().getName(),
+            "org.apache.flink.table.api.bridge.java.internal.BatchTableEnvironmentImpl")
+
     def test_create_table_environment_with_blink_planner(self):
         t_env = BatchTableEnvironment.create(
             environment_settings=EnvironmentSettings.new_instance().in_batch_mode()
