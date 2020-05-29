@@ -64,7 +64,7 @@ public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Wate
 	 * @see AscendingTimestampsWatermarks
 	 */
 	static <T> WatermarkStrategy<T> forMonotonousTimestamps() {
-		return new FromWatermarkGeneratorSupplier<>((ctx) -> new AscendingTimestampsWatermarks<>());
+		return (ctx) -> new AscendingTimestampsWatermarks<>();
 	}
 
 	/**
@@ -80,8 +80,7 @@ public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Wate
 	 * @see BoundedOutOfOrdernessWatermarks
 	 */
 	static <T> WatermarkStrategy<T> forBoundedOutOfOrderness(Duration maxOutOfOrderness) {
-		return new FromWatermarkGeneratorSupplier<>(
-				(ctx) -> new BoundedOutOfOrdernessWatermarks<>(maxOutOfOrderness));
+		return (ctx) -> new BoundedOutOfOrdernessWatermarks<>(maxOutOfOrderness);
 	}
 
 	/**
@@ -89,15 +88,15 @@ public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Wate
 	 * WatermarkGeneratorSupplier}.
 	 */
 	static <T> WatermarkStrategy<T> forGenerator(WatermarkGeneratorSupplier<T> generatorSupplier) {
-		return new FromWatermarkGeneratorSupplier<>(generatorSupplier);
+		return generatorSupplier::createWatermarkGenerator;
 	}
 
 	/**
 	 * Creates a watermark strategy that generates no watermarks at all.
 	 * This may be useful in scenarios that do pure processing-time based stream processing.
 	 */
-	public static <T> WatermarkStrategy<T> noWatermarks() {
-		return new FromWatermarkGeneratorSupplier<>((ctx) -> new NoWatermarksGenerator<>());
+	static <T> WatermarkStrategy<T> noWatermarks() {
+		return (ctx) -> new NoWatermarksGenerator<>();
 	}
 
 	/**
@@ -206,26 +205,6 @@ public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Wate
 		@Override
 		public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
 			return baseStrategy.createWatermarkGenerator(context);
-		}
-	}
-
-	/**
-	 * A {@link WatermarkStrategy} that uses the wrapped {@link WatermarkGeneratorSupplier} in
-	 * {@link #createWatermarkGenerator(WatermarkGeneratorSupplier.Context)}.
-	 */
-	class FromWatermarkGeneratorSupplier<T> implements WatermarkStrategy<T> {
-
-		private static final long serialVersionUID = 1L;
-
-		private final WatermarkGeneratorSupplier<T> generatorSupplier;
-
-		private FromWatermarkGeneratorSupplier(WatermarkGeneratorSupplier<T> generatorSupplier) {
-			this.generatorSupplier = generatorSupplier;
-		}
-
-		@Override
-		public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
-			return generatorSupplier.createWatermarkGenerator(context);
 		}
 	}
 }
