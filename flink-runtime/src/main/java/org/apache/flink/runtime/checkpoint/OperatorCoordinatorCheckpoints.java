@@ -105,8 +105,14 @@ final class OperatorCoordinatorCheckpoints {
 				checkpoint.acknowledgeCoordinatorState(snapshot.coordinator, snapshot.state);
 
 			if (result != PendingCheckpoint.TaskAcknowledgeResult.SUCCESS) {
-				throw new CheckpointException("Coordinator state not acknowledged successfully: " + result,
-					CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE);
+				final String errorMessage = "Coordinator state not acknowledged successfully: " + result;
+				final Throwable error = checkpoint.isDiscarded() ? checkpoint.getFailureCause() : null;
+
+				if (error != null) {
+					throw new CheckpointException(errorMessage, CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, error);
+				} else {
+					throw new CheckpointException(errorMessage, CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE);
+				}
 			}
 		}
 	}
