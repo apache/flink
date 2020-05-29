@@ -21,6 +21,7 @@ package org.apache.flink.client.cli;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.PipelineExecutor;
@@ -72,8 +73,11 @@ public class ExecutorCLI implements CustomCommandLine {
 
 	private final Configuration baseConfiguration;
 
-	public ExecutorCLI(final Configuration configuration) {
+	private final String configurationDir;
+
+	public ExecutorCLI(final Configuration configuration, final String configDir) {
 		this.baseConfiguration = new UnmodifiableConfiguration(checkNotNull(configuration));
+		this.configurationDir =  checkNotNull(configDir);
 	}
 
 	@Override
@@ -115,6 +119,7 @@ public class ExecutorCLI implements CustomCommandLine {
 		}
 
 		encodeDynamicProperties(commandLine, effectiveConfiguration);
+		effectiveConfiguration.set(DeploymentOptionsInternal.CONF_DIR, configurationDir);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Effective Configuration: {}", effectiveConfiguration);

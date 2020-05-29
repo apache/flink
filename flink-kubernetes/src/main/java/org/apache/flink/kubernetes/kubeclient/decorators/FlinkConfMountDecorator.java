@@ -19,7 +19,6 @@
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
@@ -167,7 +166,7 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
 	}
 
 	private List<File> getLocalLogConfFiles() {
-		final String confDir = CliFrontend.getConfigurationDirectoryFromEnv();
+		final String confDir = kubernetesComponentConf.getConfigDirectory();
 		final File logbackFile = new File(confDir, CONFIG_FILE_LOGBACK_NAME);
 		final File log4jFile = new File(confDir, CONFIG_FILE_LOG4J_NAME);
 
