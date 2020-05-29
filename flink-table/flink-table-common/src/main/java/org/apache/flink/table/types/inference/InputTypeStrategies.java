@@ -19,10 +19,12 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ArrayInputTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.CastInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
@@ -149,7 +151,7 @@ public final class InputTypeStrategies {
 	 * arguments.
 	 */
 	public static InputTypeStrategy comparable(
-			ArgumentCount argumentCount,
+			ConstantArgumentCount argumentCount,
 			StructuredComparision requiredComparision) {
 		return new ComparableTypeStrategy(argumentCount, requiredComparision);
 	}
@@ -260,18 +262,23 @@ public final class InputTypeStrategies {
 
 
 	// --------------------------------------------------------------------------------------------
-	// Specific type strategies
+	// Specific input type strategies
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Strategy specific for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#ARRAY}.
+	 * Strategy specific for {@link BuiltInFunctionDefinitions#CAST}.
+	 */
+	public static final InputTypeStrategy SPECIFIC_FOR_CAST = new CastInputTypeStrategy();
+
+	/**
+	 * Strategy specific for {@link BuiltInFunctionDefinitions#ARRAY}.
 	 *
 	 * <p>It expects at least one argument. All the arguments must have a common super type.
 	 */
 	public static final InputTypeStrategy SPECIFIC_FOR_ARRAY = new ArrayInputTypeStrategy();
 
 	/**
-	 * Strategy specific for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#MAP}.
+	 * Strategy specific for {@link BuiltInFunctionDefinitions#MAP}.
 	 *
 	 * <p>It expects at least two arguments. There must be even number of arguments.
 	 * All the keys and values must have a common super type respectively.

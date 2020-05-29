@@ -95,6 +95,10 @@ public abstract class InputTypeStrategiesTestBase {
 		callContextMock.argumentLiterals = IntStream.range(0, actualArgumentTypes.size())
 			.mapToObj(i -> testSpec.literalPos != null && i == testSpec.literalPos)
 			.collect(Collectors.toList());
+		callContextMock.argumentValues = IntStream.range(0, actualArgumentTypes.size())
+			.mapToObj(i -> (testSpec.literalPos != null && i == testSpec.literalPos) ?
+				Optional.ofNullable(testSpec.literalValue) : Optional.empty())
+			.collect(Collectors.toList());
 		callContextMock.argumentNulls = IntStream.range(0, actualArgumentTypes.size())
 			.mapToObj(i -> false)
 			.collect(Collectors.toList());
@@ -156,6 +160,8 @@ public abstract class InputTypeStrategiesTestBase {
 
 		private @Nullable Integer literalPos;
 
+		private @Nullable Object literalValue;
+
 		private @Nullable InputTypeStrategy surroundingStrategy;
 
 		private @Nullable String expectedSignature;
@@ -199,6 +205,12 @@ public abstract class InputTypeStrategiesTestBase {
 
 		TestSpec calledWithLiteralAt(int pos) {
 			this.literalPos = pos;
+			return this;
+		}
+
+		TestSpec calledWithLiteralAt(int pos, Object value) {
+			this.literalPos = pos;
+			this.literalValue = value;
 			return this;
 		}
 

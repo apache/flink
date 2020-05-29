@@ -418,8 +418,8 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 				.expectErrorMessage("Invalid number of arguments. At least 2 arguments expected but 1 passed."),
 
 			TestSpec.forStrategy(
-				"Array strategy infers a common type",
-				InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+					"Array strategy infers a common type",
+					InputTypeStrategies.SPECIFIC_FOR_ARRAY)
 				.calledWithArgumentTypes(
 					DataTypes.INT().notNull(),
 					DataTypes.BIGINT().notNull(),
@@ -428,20 +428,20 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 				.expectArgumentTypes(DataTypes.DOUBLE(), DataTypes.DOUBLE(), DataTypes.DOUBLE(), DataTypes.DOUBLE()),
 
 			TestSpec.forStrategy(
-				"Array strategy fails for no arguments",
-				InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+					"Array strategy fails for no arguments",
+					InputTypeStrategies.SPECIFIC_FOR_ARRAY)
 				.calledWithArgumentTypes()
 				.expectErrorMessage("Invalid number of arguments. At least 1 arguments expected but 0 passed."),
 
 			TestSpec.forStrategy(
-				"Array strategy fails for null arguments",
-				InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+					"Array strategy fails for null arguments",
+					InputTypeStrategies.SPECIFIC_FOR_ARRAY)
 				.calledWithArgumentTypes(DataTypes.NULL())
 				.expectErrorMessage("Invalid input arguments."),
 
 			TestSpec.forStrategy(
-				"Map strategy infers common types",
-				InputTypeStrategies.SPECIFIC_FOR_MAP)
+					"Map strategy infers common types",
+					InputTypeStrategies.SPECIFIC_FOR_MAP)
 				.calledWithArgumentTypes(
 					DataTypes.INT().notNull(),
 					DataTypes.DOUBLE(),
@@ -454,16 +454,31 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 					DataTypes.DOUBLE()),
 
 			TestSpec.forStrategy(
-				"Map strategy fails for no arguments",
-				InputTypeStrategies.SPECIFIC_FOR_MAP)
+					"Map strategy fails for no arguments",
+					InputTypeStrategies.SPECIFIC_FOR_MAP)
 				.calledWithArgumentTypes()
 				.expectErrorMessage("Invalid number of arguments. At least 2 arguments expected but 0 passed."),
 
 			TestSpec.forStrategy(
-				"Map strategy fails for an odd number of arguments",
-				InputTypeStrategies.SPECIFIC_FOR_MAP)
+					"Map strategy fails for an odd number of arguments",
+					InputTypeStrategies.SPECIFIC_FOR_MAP)
 				.calledWithArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT())
 				.expectErrorMessage("Invalid number of arguments. 3 arguments passed."),
+
+			TestSpec.forStrategy(
+					"Cast strategy",
+					InputTypeStrategies.SPECIFIC_FOR_CAST)
+				.calledWithArgumentTypes(DataTypes.INT(), DataTypes.BIGINT())
+				.calledWithLiteralAt(1, DataTypes.BIGINT())
+				.expectSignature("f(<ANY>, <TYPE LITERAL>)")
+				.expectArgumentTypes(DataTypes.INT(), DataTypes.BIGINT()),
+
+			TestSpec.forStrategy(
+					"Cast strategy for invalid target type",
+					InputTypeStrategies.SPECIFIC_FOR_CAST)
+				.calledWithArgumentTypes(DataTypes.BOOLEAN(), DataTypes.DATE())
+				.calledWithLiteralAt(1, DataTypes.DATE())
+				.expectErrorMessage("Unsupported cast from 'BOOLEAN' to 'DATE'."),
 
 			TestSpec
 				.forStrategy(
