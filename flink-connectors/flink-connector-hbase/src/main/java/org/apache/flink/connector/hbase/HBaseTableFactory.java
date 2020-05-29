@@ -27,6 +27,7 @@ import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.sink.HBaseUpsertTableSink;
 import org.apache.flink.connector.hbase.source.HBaseTableSource;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
+import org.apache.flink.connector.hbase.util.HBaseUtils;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.HBaseValidator;
@@ -36,9 +37,7 @@ import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
-
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HConstants;
 
 import java.sql.Date;
@@ -83,7 +82,7 @@ public class HBaseTableFactory implements StreamTableSourceFactory<Row>, StreamT
 	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 		// create default configuration from current runtime env (`hbase-site.xml` in classpath) first,
-		Configuration hbaseClientConf = HBaseConfiguration.create();
+		Configuration hbaseClientConf = HBaseUtils.getHBaseConfiguration();
 		String hbaseZk = descriptorProperties.getString(CONNECTOR_ZK_QUORUM);
 		hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, hbaseZk);
 		descriptorProperties

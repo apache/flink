@@ -23,14 +23,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.hbase.options.HBaseOptions;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
+import org.apache.flink.connector.hbase.util.HBaseUtils;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
-
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HConstants;
 
 /**
@@ -57,7 +56,7 @@ public class HBaseDynamicTableSink implements DynamicTableSink {
 
 	@Override
 	public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-		Configuration hbaseClientConf = HBaseConfiguration.create();
+		Configuration hbaseClientConf = HBaseUtils.getHBaseConfiguration();
 		hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, hbaseOptions.getZkQuorum());
 		hbaseOptions.getZkNodeParent().ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
 		HBaseSinkFunction<RowData> sinkFunction = new HBaseSinkFunction<>(
