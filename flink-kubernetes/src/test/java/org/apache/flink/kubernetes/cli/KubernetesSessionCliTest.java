@@ -25,6 +25,7 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -32,7 +33,9 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.util.Map;
 
@@ -46,9 +49,14 @@ import static org.junit.Assert.assertTrue;
  */
 public class KubernetesSessionCliTest {
 
+	@Rule
+	public TemporaryFolder tmp = new TemporaryFolder();
+
 	@Test
 	public void testKubernetesSessionCliSetsDeploymentTargetCorrectly() throws CliArgsException {
-		final KubernetesSessionCli cli = new KubernetesSessionCli(new Configuration());
+		final KubernetesSessionCli cli = new KubernetesSessionCli(
+				new Configuration(),
+				tmp.getRoot().getAbsolutePath());
 
 		final String[] args = {};
 		final Configuration configuration = cli.getEffectiveConfiguration(args);
@@ -59,7 +67,9 @@ public class KubernetesSessionCliTest {
 	@Test
 	public void testDynamicProperties() throws Exception {
 
-		final KubernetesSessionCli cli = new KubernetesSessionCli(new Configuration());
+		final KubernetesSessionCli cli = new KubernetesSessionCli(
+				new Configuration(),
+				tmp.getRoot().getAbsolutePath());
 		final String[] args = new String[] {
 			"-e", KubernetesSessionClusterExecutor.NAME,
 			"-Dakka.ask.timeout=5 min",
@@ -72,9 +82,10 @@ public class KubernetesSessionCliTest {
 		Assert.assertNotNull(clientFactory);
 
 		final Map<String, String> executorConfigMap = executorConfig.toMap();
-		assertEquals(3, executorConfigMap.size());
+		assertEquals(4, executorConfigMap.size());
 		assertEquals("5 min", executorConfigMap.get("akka.ask.timeout"));
 		assertEquals("-DappName=foobar", executorConfigMap.get("env.java.opts"));
+		assertEquals(tmp.getRoot().getAbsolutePath(), executorConfig.get(DeploymentOptionsInternal.CONF_DIR));
 		assertTrue(executorConfigMap.containsKey(DeploymentOptions.TARGET.key()));
 	}
 
@@ -131,7 +142,9 @@ public class KubernetesSessionCliTest {
 				"-D" + TaskManagerOptions.NUM_TASK_SLOTS.key() + "=" + slotsPerTaskManager
 		};
 
-		final KubernetesSessionCli cli = new KubernetesSessionCli(configuration);
+		final KubernetesSessionCli cli = new KubernetesSessionCli(
+				configuration,
+				tmp.getRoot().getAbsolutePath());
 
 		Configuration executorConfig = cli.getEffectiveConfiguration(args);
 		ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
@@ -157,7 +170,9 @@ public class KubernetesSessionCliTest {
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
 		final String[] args = {"-e", KubernetesSessionClusterExecutor.NAME};
-		final KubernetesSessionCli cli = new KubernetesSessionCli(configuration);
+		final KubernetesSessionCli cli = new KubernetesSessionCli(
+				configuration,
+				tmp.getRoot().getAbsolutePath());
 
 		Configuration executorConfig = cli.getEffectiveConfiguration(args);
 		ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
@@ -220,7 +235,9 @@ public class KubernetesSessionCliTest {
 		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
 		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
 
-		final KubernetesSessionCli cli = new KubernetesSessionCli(configuration);
+		final KubernetesSessionCli cli = new KubernetesSessionCli(
+				configuration,
+				tmp.getRoot().getAbsolutePath());
 
 		final Configuration executorConfig = cli.getEffectiveConfiguration(new String[]{});
 		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
@@ -258,6 +275,8 @@ public class KubernetesSessionCliTest {
 		Configuration configuration = new Configuration();
 		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemory));
 		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemory));
-		return new KubernetesSessionCli(configuration);
+		return new KubernetesSessionCli(
+				configuration,
+				tmp.getRoot().getAbsolutePath());
 	}
 }
