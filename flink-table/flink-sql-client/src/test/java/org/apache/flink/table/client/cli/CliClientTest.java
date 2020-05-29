@@ -109,7 +109,7 @@ public class CliClientTest extends TestLogger {
 	@Test
 	public void testUseNonExistingDB() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-			.setUseDatabaseConsumer((ignored1, ignored2) -> {
+			.setExecuteSqlConsumer((ignored1, ignored2) -> {
 				throw new SqlExecutionException("mocked exception");
 			})
 			.build();
@@ -128,7 +128,7 @@ public class CliClientTest extends TestLogger {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 
 			cliClient.open();
-			assertThat(executor.getNumUseDatabaseCalls(), is(1));
+			assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();
@@ -139,7 +139,7 @@ public class CliClientTest extends TestLogger {
 	@Test
 	public void testUseNonExistingCatalog() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-			.setUseCatalogConsumer((ignored1, ignored2) -> {
+			.setExecuteSqlConsumer((ignored1, ignored2) -> {
 				throw new SqlExecutionException("mocked exception");
 			})
 			.build();
@@ -158,7 +158,7 @@ public class CliClientTest extends TestLogger {
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 			cliClient.open();
-			assertThat(executor.getNumUseCatalogCalls(), is(1));
+			assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();

@@ -38,6 +38,7 @@ class TestingExecutorBuilder {
 	private List<SupplierWithException<List<Row>, SqlExecutionException>> resultPagesSupplier = Collections.emptyList();
 	private BiConsumerWithException<String, String, SqlExecutionException> setUseCatalogConsumer = (ignoredA, ignoredB) -> {};
 	private BiConsumerWithException<String, String, SqlExecutionException> setUseDatabaseConsumer = (ignoredA, ignoredB) -> {};
+	private BiConsumerWithException<String, String, SqlExecutionException> setExecuteSqlConsumer = (ignoredA, ignoredB) -> {};
 
 	@SafeVarargs
 	public final TestingExecutorBuilder setResultChangesSupplier(SupplierWithException<TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException> ... resultChangesSupplier) {
@@ -67,12 +68,18 @@ class TestingExecutorBuilder {
 		return this;
 	}
 
+	public final TestingExecutorBuilder setExecuteSqlConsumer(BiConsumerWithException<String, String, SqlExecutionException> executeSqlConsumer) {
+		this.setExecuteSqlConsumer = executeSqlConsumer;
+		return this;
+	}
+
 	public TestingExecutor build() {
 		return new TestingExecutor(
 			resultChangesSupplier,
 			snapshotResultsSupplier,
 			resultPagesSupplier,
 			setUseCatalogConsumer,
-			setUseDatabaseConsumer);
+			setUseDatabaseConsumer,
+			setExecuteSqlConsumer);
 	}
 }

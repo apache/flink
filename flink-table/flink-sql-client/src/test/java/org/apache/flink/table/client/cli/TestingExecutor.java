@@ -58,6 +58,9 @@ class TestingExecutor implements Executor {
 	private int numUseDatabaseCalls = 0;
 	private BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer;
 
+	private int numExecuteSqlCalls = 0;
+	private BiConsumerWithException<String, String, SqlExecutionException> executeSqlConsumer;
+
 	private final SqlParserHelper helper;
 
 	TestingExecutor(
@@ -65,12 +68,14 @@ class TestingExecutor implements Executor {
 			List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>> snapshotResults,
 			List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages,
 			BiConsumerWithException<String, String, SqlExecutionException> useCatalogConsumer,
-			BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer) {
+			BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer,
+			BiConsumerWithException<String, String, SqlExecutionException> executeSqlConsumer) {
 		this.resultChanges = resultChanges;
 		this.snapshotResults = snapshotResults;
 		this.resultPages = resultPages;
 		this.useCatalogConsumer = useCatalogConsumer;
 		this.useDatabaseConsumer = useDatabaseConsumer;
+		this.executeSqlConsumer = executeSqlConsumer;
 		helper = new SqlParserHelper();
 		helper.registerTables();
 	}
@@ -176,6 +181,10 @@ class TestingExecutor implements Executor {
 
 	@Override
 	public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
+		numExecuteSqlCalls++;
+		if (executeSqlConsumer != null) {
+			executeSqlConsumer.accept(sessionId, statement);
+		}
 		return null;
 	}
 
@@ -236,5 +245,9 @@ class TestingExecutor implements Executor {
 
 	public int getNumUseDatabaseCalls() {
 		return numUseDatabaseCalls;
+	}
+
+	public int getNumExecuteSqlCalls() {
+		return numExecuteSqlCalls;
 	}
 }
