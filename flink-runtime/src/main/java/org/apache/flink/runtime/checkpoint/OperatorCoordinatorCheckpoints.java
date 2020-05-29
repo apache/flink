@@ -43,8 +43,8 @@ final class OperatorCoordinatorCheckpoints {
 			final OperatorCoordinatorCheckpointContext coordinatorContext,
 			final long checkpointId) throws Exception {
 
-		final CompletableFuture<byte[]> checkpointFuture =
-			coordinatorContext.checkpointCoordinator(checkpointId);
+		final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
+		coordinatorContext.checkpointCoordinator(checkpointId, checkpointFuture);
 
 		return checkpointFuture.thenApply(
 				(state) -> new CoordinatorSnapshot(

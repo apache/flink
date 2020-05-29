@@ -292,10 +292,8 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) throws Exception {
-			final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
-			requestedCheckpoint = checkpointFuture;
-			return checkpointFuture;
+		public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception {
+			requestedCheckpoint = result;
 		}
 
 		@Override

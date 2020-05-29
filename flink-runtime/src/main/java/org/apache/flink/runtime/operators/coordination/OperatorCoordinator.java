@@ -77,7 +77,7 @@ public interface OperatorCoordinator extends AutoCloseable {
 
 	// ------------------------------------------------------------------------
 
-	CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) throws Exception;
+	void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception;
 
 	/**
 	 * Notifies the coordinator that the checkpoint with the given checkpointId completes and

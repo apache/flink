@@ -689,7 +689,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) {
+		public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
 			throw new Error(new TestException());
 		}
 	}
