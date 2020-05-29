@@ -48,8 +48,7 @@ EOF
 
 # download flink-shaded-hadoop-2-uber-2.4.1-10.0.jar
 function download_flink_shaded_hadoop {
-    local hadoopJar="https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.4.1-10
-    .0/flink-shaded-hadoop-2-uber-2.4.1-10.0.jar"
+    local hadoopJar="https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.4.1-10.0/flink-shaded-hadoop-2-uber-2.4.1-10.0.jar"
 
     # start downloading Hbase
     echo "Downloading flink-shaded-hadoop-2-uber-2.4.1-10.0.jar from $hadoopJar ..."

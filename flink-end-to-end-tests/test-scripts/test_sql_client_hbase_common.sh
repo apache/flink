@@ -18,6 +18,7 @@
 ################################################################################
 
 HBASE_VERSION=$1
+PLANNER=$2
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/hbase_common.sh $HBASE_VERSION
@@ -104,6 +105,8 @@ tables:
         type: ROW<c1 STRING>
       - name: b
         type: ROW<c1 STRING>
+execution:
+  planner: "$PLANNER"
 EOF
 
 $FLINK_DIR/bin/sql-client.sh embedded \

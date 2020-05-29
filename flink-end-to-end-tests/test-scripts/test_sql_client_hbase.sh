@@ -16,5 +16,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
-source "$(dirname "$0")"/test_sql_client_hbase_common.sh 1.4.3
+PLANNER=$1
+source "$(dirname "$0")"/test_sql_client_hbase_common.sh 1.4.3 $PLANNER
