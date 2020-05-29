@@ -198,26 +198,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       "10:20:45")
 
     testTableApi(
-      'f7.cast(Types.SQL_DATE),
-      "f7.cast(SQL_DATE)",
-      "2002-11-09")
-
-    testTableApi(
-      'f7.cast(Types.SQL_DATE).cast(Types.INT),
-      "f7.cast(SQL_DATE).cast(INT)",
-      "12000")
-
-    testTableApi(
-      'f7.cast(Types.SQL_TIME),
-      "f7.cast(SQL_TIME)",
-      "00:00:12")
-
-    testTableApi(
-      'f7.cast(Types.SQL_TIME).cast(Types.INT),
-      "f7.cast(SQL_TIME).cast(INT)",
-      "12000")
-
-    testTableApi(
       'f8.cast(Types.SQL_TIMESTAMP),
       "f8.cast(SQL_TIMESTAMP)",
       "2016-06-27 07:23:33.000")

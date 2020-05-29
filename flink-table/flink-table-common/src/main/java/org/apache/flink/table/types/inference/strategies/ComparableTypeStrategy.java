@@ -23,6 +23,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.logical.DistinctType;
@@ -54,10 +55,10 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
 @Internal
 public final class ComparableTypeStrategy implements InputTypeStrategy {
 	private final StructuredComparision requiredComparision;
-	private final ArgumentCount argumentCount;
+	private final ConstantArgumentCount argumentCount;
 
 	public ComparableTypeStrategy(
-			ArgumentCount argumentCount,
+			ConstantArgumentCount argumentCount,
 			StructuredComparision requiredComparision) {
 		Preconditions.checkArgument(
 			argumentCount.getMinCount().map(c -> c >= 2).orElse(false),

@@ -113,37 +113,60 @@ public class TypeStrategiesTest {
 				.inputTypes()
 				.expectErrorMessage("Could not infer an output type for the given arguments. Untyped NULL received."),
 
-			TestSpec.forStrategy(
-				"Infer a row type",
-				TypeStrategies.ROW)
+			TestSpec
+				.forStrategy(
+					"Infer a row type",
+					TypeStrategies.ROW)
 				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING())
 				.expectDataType(DataTypes.ROW(
 					DataTypes.FIELD("f0", DataTypes.BIGINT()),
 					DataTypes.FIELD("f1", DataTypes.STRING())).notNull()
 				),
 
-			TestSpec.forStrategy(
-				"Infer an array type",
-				TypeStrategies.ARRAY)
+			TestSpec
+				.forStrategy(
+					"Infer an array type",
+					TypeStrategies.ARRAY)
 				.inputTypes(DataTypes.BIGINT(), DataTypes.BIGINT())
 				.expectDataType(DataTypes.ARRAY(DataTypes.BIGINT()).notNull()),
 
-			TestSpec.forStrategy(
-				"Infer a map type",
-				TypeStrategies.MAP)
+			TestSpec.
+				forStrategy(
+					"Infer a map type",
+					TypeStrategies.MAP)
 				.inputTypes(DataTypes.BIGINT(), DataTypes.STRING().notNull())
 				.expectDataType(DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()).notNull()),
 
+			TestSpec
+				.forStrategy(
+					"Cascading to nullable type",
+					nullable(explicit(DataTypes.BOOLEAN().notNull())))
+				.inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).nullable())
+				.expectDataType(DataTypes.BOOLEAN().nullable()),
+
+			TestSpec
+				.forStrategy(
+					"Cascading to not null type",
+					nullable(explicit(DataTypes.BOOLEAN().nullable())))
+				.inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).notNull())
+				.expectDataType(DataTypes.BOOLEAN().notNull()),
+
 			TestSpec.forStrategy(
-				"Cascading to nullable type",
-				nullable(explicit(DataTypes.BOOLEAN().notNull())))
+					"Cascading to not null type but only consider first argument",
+					nullable(ConstantArgumentCount.to(0), explicit(DataTypes.BOOLEAN().nullable())))
+				.inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).nullable())
+				.expectDataType(DataTypes.BOOLEAN().notNull()),
+
+			TestSpec.forStrategy(
+					"Cascading to null type but only consider first two argument",
+					nullable(ConstantArgumentCount.to(1), explicit(DataTypes.BOOLEAN().nullable())))
 				.inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).nullable())
 				.expectDataType(DataTypes.BOOLEAN().nullable()),
 
 			TestSpec.forStrategy(
-				"Cascading to not null type",
-				nullable(explicit(DataTypes.BOOLEAN().nullable())))
-				.inputTypes(DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).notNull())
+					"Cascading to not null type but only consider the second and third argument",
+					nullable(ConstantArgumentCount.between(1, 2), explicit(DataTypes.BOOLEAN().nullable())))
+				.inputTypes(DataTypes.BIGINT().nullable(), DataTypes.BIGINT().notNull(), DataTypes.VARCHAR(2).notNull())
 				.expectDataType(DataTypes.BOOLEAN().notNull())
 		);
 	}

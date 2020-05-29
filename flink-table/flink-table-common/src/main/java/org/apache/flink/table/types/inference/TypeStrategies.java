@@ -24,6 +24,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MappingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.NullableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.UseArgumentTypeStrategy;
 
 import java.util.List;
@@ -67,25 +68,19 @@ public final class TypeStrategies {
 	}
 
 	/**
+	 * A type strategy that can be used to make a result type nullable if any of the selected
+	 * input arguments is nullable. Otherwise the type will be not null.
+	 */
+	public static TypeStrategy nullable(ConstantArgumentCount includedArgs, TypeStrategy initialStrategy) {
+		return new NullableTypeStrategy(includedArgs, initialStrategy);
+	}
+
+	/**
 	 * A type strategy that can be used to make a result type nullable if any of the
 	 * input arguments is nullable. Otherwise the type will be not null.
 	 */
 	public static TypeStrategy nullable(TypeStrategy initialStrategy) {
-		return callContext -> {
-			Optional<DataType> initialDataType = initialStrategy.inferType(callContext);
-			return initialDataType.map(inferredDataType -> {
-					boolean isNullableArgument = callContext.getArgumentDataTypes()
-						.stream()
-						.anyMatch(dataType -> dataType.getLogicalType().isNullable());
-
-					if (isNullableArgument) {
-						return inferredDataType.nullable();
-					} else {
-						return inferredDataType.notNull();
-					}
-				}
-			);
-		};
+		return nullable(ConstantArgumentCount.any(), initialStrategy);
 	}
 
 	// --------------------------------------------------------------------------------------------

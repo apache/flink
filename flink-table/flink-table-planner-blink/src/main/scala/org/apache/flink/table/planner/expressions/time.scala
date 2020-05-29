@@ -27,8 +27,8 @@ import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils
 import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils.isTimeInterval
 import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
-
 import org.apache.calcite.rex._
+import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo
 
 case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpression)
   extends PlannerExpression {
@@ -53,6 +53,7 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
           || temporal.resultType == LocalTimeTypeInfo.LOCAL_DATE
           || temporal.resultType == LocalTimeTypeInfo.LOCAL_DATE_TIME
+          || temporal.resultType.isInstanceOf[LegacyLocalDateTimeTypeInfo]
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MONTHS =>
         ValidationSuccess
@@ -64,6 +65,7 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
           || temporal.resultType == LocalTimeTypeInfo.LOCAL_TIME
           || temporal.resultType == LocalTimeTypeInfo.LOCAL_DATE_TIME
+          || temporal.resultType.isInstanceOf[LegacyLocalDateTimeTypeInfo]
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS =>
         ValidationSuccess
 

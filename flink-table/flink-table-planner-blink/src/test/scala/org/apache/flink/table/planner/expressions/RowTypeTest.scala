@@ -133,8 +133,6 @@ class RowTypeTest extends RowTypeTestBase {
   @Test
   def testUnsupportedCastTableApi(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Unsupported cast from 'Row(f0: String, f1: Boolean)' to 'Long'")
 
     testTableApi(
       'f5.cast(DataTypes.BIGINT()),
