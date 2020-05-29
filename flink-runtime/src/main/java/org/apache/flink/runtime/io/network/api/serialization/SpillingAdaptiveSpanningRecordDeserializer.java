@@ -23,8 +23,6 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.util.CloseableIterator;
 
-import javax.annotation.concurrent.NotThreadSafe;
-
 import java.io.IOException;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
@@ -101,11 +99,17 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 	}
 
 	private DeserializationResult readNonSpanningRecord(T target) throws IOException {
-		NextRecordResponse response = nonSpanningWrapper.getNextRecord(target);
-		if (response.result == PARTIAL_RECORD) {
-			spanningWrapper.transferFrom(nonSpanningWrapper, response.bytesLeft);
+		// following three calls to nonSpanningWrapper from object oriented design would be better
+		// to encapsulate inside nonSpanningWrapper, but then nonSpanningWrapper.readInto equivalent
+		// would have to return a tuple of DeserializationResult and recordLen, which would affect
+		// performance too much
+		int recordLen = nonSpanningWrapper.readInt();
+		if (nonSpanningWrapper.canReadRecord(recordLen)) {
+			return nonSpanningWrapper.readInto(target);
+		} else {
+			spanningWrapper.transferFrom(nonSpanningWrapper, recordLen);
+			return PARTIAL_RECORD;
 		}
-		return response.result;
 	}
 
 	@Override
@@ -117,22 +121,5 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 	@Override
 	public boolean hasUnfinishedData() {
 		return this.nonSpanningWrapper.hasRemaining() || this.spanningWrapper.getNumGatheredBytes() > 0;
-	}
-
-	@NotThreadSafe
-	static class NextRecordResponse {
-		DeserializationResult result;
-		int bytesLeft;
-
-		NextRecordResponse(DeserializationResult result, int bytesLeft) {
-			this.result = result;
-			this.bytesLeft = bytesLeft;
-		}
-
-		public NextRecordResponse updated(DeserializationResult result, int bytesLeft) {
-			this.result = result;
-			this.bytesLeft = bytesLeft;
-			return this;
-		}
 	}
 }
