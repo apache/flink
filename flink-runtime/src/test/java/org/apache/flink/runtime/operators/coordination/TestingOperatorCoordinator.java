@@ -121,8 +121,16 @@ class TestingOperatorCoordinator implements OperatorCoordinator {
 		return triggeredCheckpoints.take();
 	}
 
+	public boolean hasTriggeredCheckpoint() {
+		return !triggeredCheckpoints.isEmpty();
+	}
+
 	public long getLastCheckpointComplete() throws InterruptedException {
 		return lastCheckpointComplete.take();
+	}
+
+	public boolean hasCompleteCheckpoint() throws InterruptedException {
+		return !lastCheckpointComplete.isEmpty();
 	}
 
 	// ------------------------------------------------------------------------

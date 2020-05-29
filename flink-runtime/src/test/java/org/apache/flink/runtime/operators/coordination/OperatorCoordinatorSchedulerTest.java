@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
@@ -64,6 +65,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
@@ -204,6 +206,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		final OperatorCoordinator.Context context = getCoordinator(scheduler).getContext();
 
 		final CompletableFuture<?> result = context.sendEvent(new TestOperatorEvent(), 0);
+		executor.triggerAll(); // process event sending
 
 		assertThat(result, futureFailedWith(TaskNotRunningException.class));
 	}
@@ -214,6 +217,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
 		final OperatorCoordinator.Context context = getCoordinator(scheduler).getContext();
 		final CompletableFuture<?> result = context.sendEvent(new TestOperatorEvent(), 0);
+		executor.triggerAll();  // process event sending
 
 		assertThat(result, futureFailedWith(TestException.class));
 	}
@@ -482,7 +486,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		}
 
 		final DefaultScheduler scheduler = schedulerBuilder.build();
-		scheduler.setMainThreadExecutor(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+		final ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutorServiceAdapter(
+			(ScheduledExecutorService) executor, Thread.currentThread());
+		scheduler.setMainThreadExecutor(mainThreadExecutor);
 
 		this.createdScheduler = scheduler;
 		return scheduler;
@@ -529,7 +536,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
 	private void failAndRedeployTask(DefaultScheduler scheduler, int subtask) {
 		failTask(scheduler, subtask);
+
+		executor.triggerAll();
 		executor.triggerScheduledTasks();
+		executor.triggerAll();
 
 		// guard the test assumptions: This must lead to a restarting and redeploying
 		assertEquals(ExecutionState.DEPLOYING, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask));
@@ -547,8 +557,13 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		scheduler.handleGlobalFailure(reason);
 		SchedulerTestingUtils.setAllExecutionsToCancelled(scheduler);
 
-		executor.triggerScheduledTasks();   // this handles the restart / redeploy
+		// make sure we propagate all asynchronous and delayed actions
+		executor.triggerAll();
+		executor.triggerScheduledTasks();
+		executor.triggerAll();
+
 		SchedulerTestingUtils.setAllExecutionsToRunning(scheduler);
+		executor.triggerAll();
 
 		// guard the test assumptions: This must bring the tasks back to RUNNING
 		assertEquals(ExecutionState.RUNNING, SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
@@ -564,7 +579,17 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
 	private CompletableFuture<CompletedCheckpoint> triggerCheckpoint(DefaultScheduler scheduler) throws Exception {
 		final CompletableFuture<CompletedCheckpoint> future = SchedulerTestingUtils.triggerCheckpoint(scheduler);
-		executor.triggerAll();
+		final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+
+		// the Checkpoint Coordinator executes parts of the logic in its timer thread, and delegates some calls
+		// to the scheduler executor. so we need to do a mix of waiting for the timer thread and working off
+		// tasks in the scheduler executor.
+		// we can drop this here once the CheckpointCoordinator also runs in a 'main thread executor'.
+		while (!(coordinator.hasTriggeredCheckpoint() || future.isDone())) {
+			executor.triggerAll();
+			Thread.sleep(1);
+		}
+
 		return future;
 	}
 
@@ -585,7 +610,15 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 		acknowledgeCurrentCheckpoint(scheduler);
 
 		// wait until checkpoint has completed
-		return checkpointFuture.get().getCheckpointID();
+		final long checkpointId = checkpointFuture.get().getCheckpointID();
+
+		// now wait until it has been acknowledged
+		while (!testingOperatorCoordinator.hasCompleteCheckpoint()) {
+			executor.triggerAll();
+			Thread.sleep(1);
+		}
+
+		return checkpointId;
 	}
 
 	// ------------------------------------------------------------------------
