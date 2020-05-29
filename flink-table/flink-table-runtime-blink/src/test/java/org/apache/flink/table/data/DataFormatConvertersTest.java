@@ -53,6 +53,7 @@ import org.apache.flink.types.RowKind;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -131,7 +132,9 @@ public class DataFormatConvertersTest {
 			new LegacyTypeInformationType<>(
 				LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE,
 				new LegacyTimestampTypeInfo(7))),
-		DataTypes.TIMESTAMP(3).bridgedTo(TimestampData.class)
+		DataTypes.TIMESTAMP(3).bridgedTo(TimestampData.class),
+		DataTypes.ARRAY(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class)),
+		DataTypes.ARRAY(DataTypes.DATE().bridgedTo(Date.class))
 	};
 
 	private Object[] dataValues = new Object[] {
@@ -140,7 +143,9 @@ public class DataFormatConvertersTest {
 		LocalDateTime.of(1970, 1, 1, 0, 0, 0, 123),
 		Timestamp.valueOf("1970-01-01 00:00:00.123"),
 		Timestamp.valueOf("1970-01-01 00:00:00.1234567"),
-		TimestampData.fromEpochMillis(1000L)
+		TimestampData.fromEpochMillis(1000L),
+		new Timestamp[] {Timestamp.valueOf("1970-01-01 00:00:00.123"), Timestamp.valueOf("1971-01-01 00:00:00.123")},
+		new Date[] {Date.valueOf("1970-01-01"), Date.valueOf("1971-01-01")}
 	};
 
 	private static DataFormatConverter getConverter(TypeInformation typeInfo) {
