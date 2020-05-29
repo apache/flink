@@ -182,11 +182,17 @@ public class HiveTypeUtil {
 
 		@Override
 		public TypeInfo visit(CharType charType) {
-			if (charType.getLength() > HiveChar.MAX_CHAR_LENGTH) {
-				throw new CatalogException(
-						String.format("HiveCatalog doesn't support char type with length of '%d'. " +
-									"The maximum length is %d",
+			// Flink treats string literal UDF parameters as CHAR. Such types may have precisions not supported by
+			// Hive, e.g. CHAR(0). Promote it to STRING in such case if we're told not to check precision.
+			if (charType.getLength() > HiveChar.MAX_CHAR_LENGTH || charType.getLength() < 1) {
+				if (checkPrecision) {
+					throw new CatalogException(
+							String.format("HiveCatalog doesn't support char type with length of '%d'. " +
+											"The maximum length is %d",
 									charType.getLength(), HiveChar.MAX_CHAR_LENGTH));
+				} else {
+					return TypeInfoFactory.stringTypeInfo;
+				}
 			}
 			return TypeInfoFactory.getCharTypeInfo(charType.getLength());
 		}
