@@ -151,14 +151,12 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	}
 
 	@Override
-	public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) {
+	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
 		// unfortunately, this method does not run in the scheduler executor, but in the
 		// checkpoint coordinator time thread.
 		// we can remove the delegation once the checkpoint coordinator runs fully in the scheduler's
 		// main thread executor
-		final CompletableFuture<byte[]> future = new CompletableFuture<>();
-		mainThreadExecutor.execute(() -> checkpointCoordinatorInternal(checkpointId, future));
-		return future;
+		mainThreadExecutor.execute(() -> checkpointCoordinatorInternal(checkpointId, result));
 	}
 
 	@Override
@@ -187,19 +185,8 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 	private void checkpointCoordinatorInternal(final long checkpointId, final CompletableFuture<byte[]> result) {
 		mainThreadExecutor.assertRunningInMainThread();
 
-		final CompletableFuture<byte[]> checkpointFuture;
-		try {
-			eventValve.markForCheckpoint(checkpointId);
-			checkpointFuture = coordinator.checkpointCoordinator(checkpointId);
-		} catch (Throwable t) {
-			ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-			result.completeExceptionally(t);
-			globalFailureHandler.accept(t);
-			return;
-		}
-
 		// synchronously!!!, with the completion, we need to shut the event valve
-		checkpointFuture.whenComplete((success, failure) -> {
+		result.whenComplete((success, failure) -> {
 			if (failure != null) {
 				result.completeExceptionally(failure);
 			} else {
@@ -211,6 +198,15 @@ public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorC
 				}
 			}
 		});
+
+		try {
+			eventValve.markForCheckpoint(checkpointId);
+			coordinator.checkpointCoordinator(checkpointId, result);
+		} catch (Throwable t) {
+			ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+			result.completeExceptionally(t);
+			globalFailureHandler.accept(t);
+		}
 	}
 
 	// ------------------------------------------------------------------------

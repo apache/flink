@@ -76,7 +76,9 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		final TestEventSender sender = new TestEventSender();
 		final OperatorCoordinatorHolder holder = createCoordinatorHolder(sender, TestingOperatorCoordinator::new);
 
-		final CompletableFuture<byte[]> checkpointFuture = holder.checkpointCoordinator(1L);
+		final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
+		holder.checkpointCoordinator(1L, checkpointFuture);
+
 		assertFalse(checkpointFuture.isDone());
 	}
 
@@ -87,7 +89,8 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 
 		final byte[] testData = new byte[] {11, 22, 33, 44};
 
-		final CompletableFuture<byte[]> checkpointFuture = holder.checkpointCoordinator(9L);
+		final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
+		holder.checkpointCoordinator(9L, checkpointFuture);
 		getCoordinator(holder).getLastTriggeredCheckpoint().complete(testData);
 
 		assertTrue(checkpointFuture.isDone());
@@ -99,7 +102,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		final TestEventSender sender = new TestEventSender();
 		final OperatorCoordinatorHolder holder = createCoordinatorHolder(sender, TestingOperatorCoordinator::new);
 
-		holder.checkpointCoordinator(1L);
+		holder.checkpointCoordinator(1L, new CompletableFuture<>());
 		getCoordinator(holder).getContext().sendEvent(new TestOperatorEvent(1), 1);
 
 		assertThat(sender.events, contains(
@@ -194,7 +197,9 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		final TestEventSender sender = new TestEventSender();
 		final OperatorCoordinatorHolder holder = createCoordinatorHolder(sender, TestingOperatorCoordinator::new);
 
-		final CompletableFuture<byte[]> holderFuture = holder.checkpointCoordinator(1000L);
+		final CompletableFuture<byte[]> holderFuture = new CompletableFuture<>();
+		holder.checkpointCoordinator(1000L, holderFuture);
+
 		final CompletableFuture<byte[]> future1 = getCoordinator(holder).getLastTriggeredCheckpoint();
 		holder.abortCurrentTriggering();
 
@@ -203,7 +208,6 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 
 		future1.complete(new byte[0]);
 
-		assertTrue(holderFuture.isCompletedExceptionally());
 		getCoordinator(holder).getContext().sendEvent(new TestOperatorEvent(123), 0);
 
 		assertThat(sender.events, contains(
@@ -216,8 +220,10 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		final TestEventSender sender = new TestEventSender();
 		final OperatorCoordinatorHolder holder = createCoordinatorHolder(sender, TestingOperatorCoordinator::new);
 
-		holder.checkpointCoordinator(11L);
-		final CompletableFuture<?> future = holder.checkpointCoordinator(12L);
+		holder.checkpointCoordinator(11L, new CompletableFuture<>());
+
+		final CompletableFuture<byte[]> future = new CompletableFuture<>();
+		holder.checkpointCoordinator(12L, future);
 
 		assertTrue(future.isCompletedExceptionally());
 		assertNotNull(globalFailure);
@@ -314,7 +320,8 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		executor.triggerAll();
 
 		// trigger the checkpoint - this should also shut the valve as soon as the future is completed
-		final CompletableFuture<byte[]> checkpointFuture = holder.checkpointCoordinator(0L);
+		final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
+		holder.checkpointCoordinator(0L, checkpointFuture);
 		executor.triggerAll();
 
 		// give the coordinator some time to emit some events
@@ -339,7 +346,8 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 			OperatorCoordinatorHolder holder,
 			long checkpointId) throws Exception {
 
-		final CompletableFuture<byte[]> future = holder.checkpointCoordinator(checkpointId);
+		final CompletableFuture<byte[]> future = new CompletableFuture<>();
+		holder.checkpointCoordinator(checkpointId, future);
 		getCoordinator(holder).getLastTriggeredCheckpoint().complete(new byte[0]);
 		return future;
 	}
@@ -422,17 +430,15 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) throws Exception {
-			// we create the checkpoint future, but before returning it, we wait on a
-			// condition. that way, we simulate a "context switch" just at the time when the
+		public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception {
+			// before returning from this methof, we wait on a condition.
+			// that way, we simulate a "context switch" just at the time when the
 			// future would be returned and make the other thread complete the future and send an
 			// event before this method returns
-			final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
 			lock.lock();
 			try {
-				checkpoint = checkpointFuture;
+				checkpoint = result;
 				condition.await();
-				return checkpointFuture;
 			} finally {
 				lock.unlock();
 			}
@@ -472,10 +478,8 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) throws Exception {
-			final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
-			checkpoint = checkpointFuture;
-			return checkpointFuture;
+		public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception {
+			checkpoint = result;
 		}
 
 		@Override
@@ -525,7 +529,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 		public void subtaskFailed(int subtask, @Nullable Throwable reason) {}
 
 		@Override
-		public abstract CompletableFuture<byte[]> checkpointCoordinator(long checkpointId) throws Exception;
+		public abstract void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception;
 
 		@Override
 		public void checkpointComplete(long checkpointId) {}
