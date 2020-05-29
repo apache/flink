@@ -47,6 +47,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -174,7 +175,7 @@ public abstract class ArrowSourceFunctionTestBase<T> {
 		final Throwable[] error = new Throwable[2];
 		final OneShotLatch latch = new OneShotLatch();
 		final AtomicInteger numOfEmittedElements = new AtomicInteger(0);
-		final List<T> results = new ArrayList<>();
+		final List<T> results = Collections.synchronizedList(new ArrayList<>());
 
 		// run the source asynchronously
 		Thread runner = new Thread(() -> {
