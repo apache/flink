@@ -20,6 +20,8 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
@@ -37,6 +39,9 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.streaming.runtime.io.CheckpointBarrierUnaligner.ThreadSafeUnaligner;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.After;
@@ -48,6 +53,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -79,11 +87,15 @@ public class CheckpointBarrierUnalignerTest {
 
 	@After
 	public void ensureEmpty() throws Exception {
-		assertFalse(inputGate.pollNext().isPresent());
-		assertTrue(inputGate.isFinished());
+		if (inputGate != null) {
+			assertFalse(inputGate.pollNext().isPresent());
+			assertTrue(inputGate.isFinished());
+			inputGate.close();
+		}
 
-		channelStateWriter.close();
-		inputGate.close();
+		if (channelStateWriter != null) {
+			channelStateWriter.close();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -463,6 +475,43 @@ public class CheckpointBarrierUnalignerTest {
 		assertInflightData();
 	}
 
+	/**
+	 * Tests the race condition between {@link CheckpointBarrierUnaligner#processBarrier(CheckpointBarrier, int)}
+	 * and {@link ThreadSafeUnaligner#notifyBarrierReceived(CheckpointBarrier, InputChannelInfo)}. The barrier
+	 * notification will trigger an async checkpoint (ch1) via mailbox, and meanwhile the barrier processing will
+	 * execute the next checkpoint (ch2) directly in advance. When the ch1 action is taken from mailbox to execute,
+	 * it should be exit because it is smaller than the finished ch2.
+	 */
+	@Test
+	public void testConcurrentProcessBarrierAndNotifyBarrierReceived() throws Exception {
+		final ValidatingCheckpointInvokable invokable = new ValidatingCheckpointInvokable();
+		final CheckpointBarrierUnaligner handler = new CheckpointBarrierUnaligner(new int[] { 1 }, ChannelStateWriter.NO_OP, "test", invokable);
+		final InputChannelInfo channelInfo = new InputChannelInfo(0, 0);
+		final ExecutorService executor = Executors.newFixedThreadPool(1);
+
+		try {
+			// Enqueue the checkpoint (ch0) action into the mailbox of invokable because it is triggered by other thread.
+			Callable<Void> notifyTask = () -> {
+				handler.getThreadSafeUnaligner().notifyBarrierReceived(buildCheckpointBarrier(0), channelInfo);
+				return null;
+			};
+			Future<Void> result = executor.submit(notifyTask);
+			result.get();
+
+			// Execute the checkpoint (ch1) directly because it is triggered by main thread.
+			handler.processBarrier(buildCheckpointBarrier(1), 0);
+
+			// Run the previous queued mailbox action to execute ch0.
+			invokable.runMailboxStep();
+
+			// ch0 will not be executed finally because it is smaller than the previously executed ch1.
+			assertEquals(1, invokable.getTriggeredCheckpointId());
+			assertEquals(1, invokable.getTotalTriggeredCheckpoints());
+		} finally {
+			executor.shutdown();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utils
 	// ------------------------------------------------------------------------
@@ -571,6 +620,10 @@ public class CheckpointBarrierUnalignerTest {
 			.collect(Collectors.toList());
 	}
 
+	private CheckpointBarrier buildCheckpointBarrier(int id) {
+		return new CheckpointBarrier(id, 0, CheckpointOptions.forCheckpointWithDefaultLocation());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Testing Mocks
 	// ------------------------------------------------------------------------
@@ -637,6 +690,45 @@ public class CheckpointBarrierUnalignerTest {
 
 		public long getLastCanceledCheckpointId() {
 			return lastCanceledCheckpointId;
+		}
+	}
+
+	/**
+	 * Specific {@link AbstractInvokable} implementation to record and validate which checkpoint
+	 * id is executed and how many checkpoints are executed.
+	 */
+	private static final class ValidatingCheckpointInvokable extends StreamTask {
+
+		private long expectedCheckpointId;
+
+		private int totalNumCheckpoints;
+
+		ValidatingCheckpointInvokable() throws Exception {
+			super(new DummyEnvironment("test", 1, 0));
+		}
+
+		@Override
+		public void init() {
+		}
+
+		@Override
+		protected void processInput(MailboxDefaultAction.Controller controller) {
+		}
+
+		public void triggerCheckpointOnBarrier(
+				CheckpointMetaData checkpointMetaData,
+				CheckpointOptions checkpointOptions,
+				CheckpointMetrics checkpointMetrics) {
+			expectedCheckpointId = checkpointMetaData.getCheckpointId();
+			totalNumCheckpoints++;
+		}
+
+		long getTriggeredCheckpointId() {
+			return expectedCheckpointId;
+		}
+
+		int getTotalTriggeredCheckpoints() {
+			return totalNumCheckpoints;
 		}
 	}
 }
