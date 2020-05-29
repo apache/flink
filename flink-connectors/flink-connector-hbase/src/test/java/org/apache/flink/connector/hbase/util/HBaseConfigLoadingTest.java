@@ -143,8 +143,8 @@ public class HBaseConfigLoadingTest {
 
 		final Map<String, String> originalEnv = System.getenv();
 		final Map<String, String> newEnv = new HashMap<>(originalEnv);
-		newEnv.put("HADOOP_CONF_DIR", hbaseConfDir.getAbsolutePath());
-		newEnv.put("HADOOP_HOME", hbaseHome.getAbsolutePath());
+		newEnv.put("HBASE_CONF_DIR", hbaseConfDir.getAbsolutePath());
+		newEnv.put("HBASE_HOME", hbaseHome.getAbsolutePath());
 		try {
 			CommonTestUtils.setEnv(newEnv);
 			hbaseConf = HBaseUtils.getHBaseConfiguration();
