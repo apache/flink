@@ -548,7 +548,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		cleanUpInvoke();
 	}
 
-	protected boolean runMailboxStep() throws Exception {
+	@VisibleForTesting
+	public boolean runMailboxStep() throws Exception {
 		return mailboxProcessor.runMailboxStep();
 	}
 
