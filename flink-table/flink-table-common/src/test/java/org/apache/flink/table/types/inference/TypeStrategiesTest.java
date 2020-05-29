@@ -42,11 +42,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.types.inference.TypeStrategies.MISSING;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullable;
-import static org.apache.flink.util.CoreMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.equalTo;
 
 /**
