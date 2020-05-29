@@ -168,8 +168,6 @@ public interface OperatorCoordinator extends AutoCloseable {
 		 */
 		CompletableFuture<Acknowledge> sendEvent(OperatorEvent evt, int targetSubtask) throws TaskNotRunningException;
 
-		void failTask(int subtask, Throwable cause);
-
 		/**
 		 * Fails the job and trigger a global failover operation.
 		 *

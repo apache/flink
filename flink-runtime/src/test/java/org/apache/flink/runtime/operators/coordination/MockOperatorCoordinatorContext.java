@@ -24,7 +24,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -35,7 +34,6 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 	private final boolean failEventSending;
 
 	private final Map<Integer, List<OperatorEvent>> eventsToOperator;
-	private final LinkedHashMap<Integer, Throwable> failedTasks;
 	private boolean jobFailed;
 
 	public MockOperatorCoordinatorContext(OperatorID operatorID, int numSubtasks) {
@@ -46,7 +44,6 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 		this.operatorID = operatorID;
 		this.numSubtasks = numSubtasks;
 		this.eventsToOperator = new HashMap<>();
-		this.failedTasks = new LinkedHashMap<>();
 		this.jobFailed = false;
 		this.failEventSending = failEventSending;
 	}
@@ -71,11 +68,6 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 	}
 
 	@Override
-	public void failTask(int subtask, Throwable cause) {
-		failedTasks.put(subtask, cause);
-	}
-
-	@Override
 	public void failJob(Throwable cause) {
 		jobFailed = true;
 	}
@@ -93,10 +85,6 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
 
 	public Map<Integer, List<OperatorEvent>> getEventsToOperator() {
 		return eventsToOperator;
-	}
-
-	public LinkedHashMap<Integer, Throwable> getFailedTasks() {
-		return failedTasks;
 	}
 
 	public boolean isJobFailed() {
