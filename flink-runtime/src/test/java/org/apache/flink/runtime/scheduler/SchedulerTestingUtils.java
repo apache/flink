@@ -90,6 +90,7 @@ import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -265,9 +266,12 @@ public class SchedulerTestingUtils {
 
 	public static void setAllExecutionsToCancelled(final DefaultScheduler scheduler) {
 		final JobID jid = scheduler.getJobId();
-		getAllCurrentExecutionAttempts(scheduler).forEach(
-			(attemptId) -> scheduler.updateTaskExecutionState(new TaskExecutionState(jid, attemptId, ExecutionState.CANCELED))
-		);
+		for (final ExecutionAttemptID attemptId : getAllCurrentExecutionAttempts(scheduler)) {
+			final boolean setToRunning = scheduler.updateTaskExecutionState(
+					new TaskExecutionState(jid, attemptId, ExecutionState.CANCELED));
+
+			assertTrue("could not switch task to RUNNING", setToRunning);
+		}
 	}
 
 	public static void acknowledgePendingCheckpoint(final DefaultScheduler scheduler, final long checkpointId) throws CheckpointException {
