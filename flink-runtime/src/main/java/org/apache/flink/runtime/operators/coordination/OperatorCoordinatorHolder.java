@@ -44,18 +44,66 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A holder for an {@link OperatorCoordinator.Context} and all the necessary facility around it that
- * is needed to interaction between the Coordinator, the Scheduler, the Checkpoint Coordinator, etc.
+ * The {@code OperatorCoordinatorHolder} holds the {@link OperatorCoordinator} and manages all its
+ * interactions with the remaining components.
+ * It provides the context and is responsible for checkpointing and exactly once semantics.
  *
- * <p>The holder is itself a {@link OperatorCoordinator} and forwards all calls to the actual coordinator.
- * That way, we can make adjustments to assumptions about the threading model and message/call forwarding
- * without needing to adjust all the call sites that interact with the coordinator.
+ * <h3>Exactly-one Semantics</h3>
  *
- * <p>This is also needed, unfortunately, because we need a lazy two-step initialization:
- * When the execution graph is created, we need to create the coordinators (or the holders, to be specific)
- * because the CheckpointCoordinator is also created in the ExecutionGraph and needs access to them.
- * However, the real Coordinators can only be created after SchedulerNG was created, because they need
- * a reference to it for the failure calls.
+ * <p>The semantics are described under {@link OperatorCoordinator#checkpointCoordinator(long, CompletableFuture)}.
+ *
+ * <h3>Exactly-one Mechanism</h3>
+ *
+ * <p>This implementation can handle one checkpoint being triggered at a time. If another checkpoint
+ * is triggered while the triggering of the first one was not completed or aborted, this class will
+ * throw an exception. That is in line with the capabilities of the Checkpoint Coordinator, which can
+ * handle multiple concurrent checkpoints on the TaskManagers, but only one concurrent triggering phase.
+ *
+ * <p>The mechanism for exactly once semantics is as follows:
+ *
+ * <ul>
+ *   <li>Events pass through a special channel, the {@link OperatorEventValve}. If we are not currently
+ *       triggering a checkpoint, then events simply pass through.
+ *   <li>Atomically, with the completion of the checkpoint future for the coordinator, this operator
+ *       operator event valve is closed. Events coming after that are held back (buffered), because
+ *       they belong to the epoch after the checkpoint.
+ *   <li>Once all coordinators in the job have completed the checkpoint, the barriers to the sources
+ *       are injected. After that (see {@link #afterSourceBarrierInjection(long)}) the valves are
+ *       opened again and the events are sent.
+ *   <li>If a task fails in the meantime, the events are dropped from the valve. From the coordinator's
+ *       perspective, these events are lost, because they were sent to a failed subtask after it's latest
+ *       complete checkpoint.
+ * </ul>
+ *
+ * <p><b>IMPORTANT:</b> A critical assumption is that all events from the scheduler to the Tasks are
+ * transported strictly in order. Events being sent from the coordinator after the checkpoint barrier
+ * was injected must not overtake the checkpoint barrier. This is currently guaranteed by Flink's
+ * RPC mechanism.
+ *
+ * <p>Consider this example:
+ * <pre>
+ * Coordinator one events: => a . . b . |trigger| . . |complete| . . c . . d . |barrier| . e . f
+ * Coordinator two events: => . . x . . |trigger| . . . . . . . . . .|complete||barrier| . . y . . z
+ * </pre>
+ *
+ * <p>Two coordinators trigger checkpoints at the same time. 'Coordinator Two' takes longer to complete,
+ * and in the meantime 'Coordinator One' sends more events.
+ *
+ * <p>'Coordinator One' emits events 'c' and 'd' after it finished its checkpoint, meaning the events must
+ * take place after the checkpoint. But they are before the barrier injection, meaning the runtime
+ * task would see them before the checkpoint, if they were immediately transported.
+ *
+ * <p>'Coordinator One' closes its valve as soon as the checkpoint future completes. Events 'c' and 'd'
+ * get held back in the valve. Once 'Coordinator Two' completes its checkpoint, the barriers are sent
+ * to the sources. Then the valves are opened, and events 'c' and 'd' can flow to the tasks where they
+ * are received after the barrier.
+ *
+ * <h3>Concurrency and Threading Model</h3>
+ *
+ * <p>This component runs mainly in a main-thread-executor, like RPC endpoints. However,
+ * some actions need to be triggered synchronously by other threads. Most notably, when the
+ * checkpoint future is completed by the {@code OperatorCoordinator} implementation, we need to
+ * synchronously suspend event-sending.
  */
 public class OperatorCoordinatorHolder implements OperatorCoordinator, OperatorCoordinatorCheckpointContext {
 
