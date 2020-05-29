@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
@@ -205,7 +206,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit> 
 
 	private transient InputFormat<OUT, ? super T> format;
 	private TypeSerializer<OUT> serializer;
-	private transient MailboxExecutor executor;
+	private transient MailboxExecutorImpl executor;
 	private transient OUT reusedRecord;
 	private transient SourceFunction.SourceContext<OUT> sourceContext;
 	private transient ListState<T> checkpointedState;
@@ -233,7 +234,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit> 
 
 		this.format = checkNotNull(format);
 		this.processingTimeService = checkNotNull(processingTimeService);
-		this.executor = checkNotNull(mailboxExecutor);
+		this.executor = (MailboxExecutorImpl) checkNotNull(mailboxExecutor);
 	}
 
 	@Override
@@ -311,17 +312,19 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit> 
 	}
 
 	private void processRecord() throws IOException {
-		if (!state.prepareToProcessRecord(this)) {
-			return;
-		}
+		do {
+			if (!state.prepareToProcessRecord(this)) {
+				return;
+			}
 
-		readAndCollectRecord();
+			readAndCollectRecord();
 
-		if (format.reachedEnd()) {
-			onSplitProcessed();
-		} else {
-			enqueueProcessRecord();
-		}
+			if (format.reachedEnd()) {
+				onSplitProcessed();
+				return;
+			}
+		} while (executor.isIdle()); // todo: consider moving this loop into MailboxProcessor (return boolean "re-execute" from enqueued action)
+		enqueueProcessRecord();
 	}
 
 	private void onSplitProcessed() throws IOException {

@@ -43,10 +43,22 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 
 	private final StreamTaskActionExecutor actionExecutor;
 
+	private final MailboxProcessor mailboxProcessor;
+
 	public MailboxExecutorImpl(@Nonnull TaskMailbox mailbox, int priority, StreamTaskActionExecutor actionExecutor) {
+		this(mailbox, priority, actionExecutor, null);
+	}
+
+	public MailboxExecutorImpl(@Nonnull TaskMailbox mailbox, int priority, StreamTaskActionExecutor actionExecutor, MailboxProcessor mailboxProcessor) {
 		this.mailbox = mailbox;
 		this.priority = priority;
 		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
+		this.mailboxProcessor = mailboxProcessor;
+	}
+
+	public boolean isIdle() {
+		return !mailboxProcessor.isMailboxLoopRunning() ||
+			(mailboxProcessor.isDefaultActionUnavailable() && !mailbox.hasMail() && mailbox.getState().isAcceptingMails());
 	}
 
 	@Override
@@ -85,4 +97,5 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
 			return false;
 		}
 	}
+
 }
