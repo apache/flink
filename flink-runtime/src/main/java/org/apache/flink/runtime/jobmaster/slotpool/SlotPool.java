@@ -26,6 +26,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -134,6 +135,14 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	 */
 	@Nonnull
 	Collection<SlotInfoWithUtilization> getAvailableSlotsInformation();
+
+	/**
+	 * Returns a list of {@link SlotInfo} objects about all slots that are currently allocated in the slot
+	 * pool.
+	 *
+	 * @return a list of {@link SlotInfo} objects about all slots that are currently allocated in the slot pool.
+	 */
+	Collection<SlotInfo> getAllocatedSlotsInformation();
 
 	/**
 	 * Allocates the available slot with the given allocation id under the given request id. This method returns
