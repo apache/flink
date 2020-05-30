@@ -64,8 +64,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public final class FileUtils {
 
-	/** Global lock to prevent concurrent directory deletes under Windows. */
-	private static final Object WINDOWS_DELETE_LOCK = new Object();
+	/** Global lock to prevent concurrent directory deletes under Windows and MacOS. */
+	private static final Object DELETE_LOCK = new Object();
 
 	/** The alphabet to construct the random part of the filename from. */
 	private static final char[] ALPHABET =
@@ -255,7 +255,7 @@ public final class FileUtils {
 	public static void deleteFileOrDirectory(File file) throws IOException {
 		checkNotNull(file, "file");
 
-		guardIfWindows(FileUtils::deleteFileOrDirectoryInternal, file);
+		guardIfNotThreadSafe(FileUtils::deleteFileOrDirectoryInternal, file);
 	}
 
 	/**
@@ -273,7 +273,7 @@ public final class FileUtils {
 	public static void deleteDirectory(File directory) throws IOException {
 		checkNotNull(directory, "directory");
 
-		guardIfWindows(FileUtils::deleteDirectoryInternal, directory);
+		guardIfNotThreadSafe(FileUtils::deleteDirectoryInternal, directory);
 	}
 
 	/**
@@ -311,7 +311,7 @@ public final class FileUtils {
 	public static void cleanDirectory(File directory) throws IOException {
 		checkNotNull(directory, "directory");
 
-		guardIfWindows(FileUtils::cleanDirectoryInternal, directory);
+		guardIfNotThreadSafe(FileUtils::cleanDirectoryInternal, directory);
 	}
 
 	private static void deleteFileOrDirectoryInternal(File file) throws IOException {
@@ -386,35 +386,61 @@ public final class FileUtils {
 		}
 	}
 
-	private static void guardIfWindows(ThrowingConsumer<File, IOException> toRun, File file) throws IOException {
-		if (!OperatingSystem.isWindows()) {
-			toRun.accept(file);
+	private static void guardIfNotThreadSafe(ThrowingConsumer<File, IOException> toRun, File file) throws IOException {
+		if (OperatingSystem.isWindows()) {
+			guardIfWindows(toRun, file);
+			return;
 		}
-		else {
-			// for windows, we synchronize on a global lock, to prevent concurrent delete issues
-			// >
-			// in the future, we may want to find either a good way of working around file visibility
-			// in Windows under concurrent operations (the behavior seems completely unpredictable)
-			// or  make this locking more fine grained, for example  on directory path prefixes
-			synchronized (WINDOWS_DELETE_LOCK) {
-				for (int attempt = 1; attempt <= 10; attempt++) {
-					try {
-						toRun.accept(file);
-						break;
-					}
-					catch (AccessDeniedException e) {
-						// ah, windows...
-					}
+		if (OperatingSystem.isMac()) {
+			guardIfMac(toRun, file);
+			return;
+		}
 
-					// briefly wait and fall through the loop
-					try {
-						Thread.sleep(1);
-					} catch (InterruptedException e) {
-						// restore the interruption flag and error out of the method
-						Thread.currentThread().interrupt();
-						throw new IOException("operation interrupted");
-					}
+		toRun.accept(file);
+	}
+
+	// for Windows, we synchronize on a global lock, to prevent concurrent delete issues
+	// >
+	// in the future, we may want to find either a good way of working around file visibility
+	// under concurrent operations (the behavior seems completely unpredictable)
+	// or  make this locking more fine grained, for example  on directory path prefixes
+	private static void guardIfWindows(ThrowingConsumer<File, IOException> toRun, File file) throws IOException{
+		synchronized (DELETE_LOCK) {
+			for (int attempt = 1; attempt <= 10; attempt++) {
+				try {
+					toRun.accept(file);
+					break;
 				}
+				catch (AccessDeniedException e) {
+					// ah, windows...
+				}
+
+				// briefly wait and fall through the loop
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					// restore the interruption flag and error out of the method
+					Thread.currentThread().interrupt();
+					throw new IOException("operation interrupted");
+				}
+			}
+		}
+	}
+
+
+	// Guard Mac for the same reason we guard windows. Refer to guardIfWindows for details.
+	// The difference to guardIfWindows is that we don't swallow the AccessDeniedException because
+	// doing that would lead to wrong behaviour.
+	private static void guardIfMac(ThrowingConsumer<File, IOException> toRun, File file) throws IOException{
+		synchronized (DELETE_LOCK) {
+			toRun.accept(file);
+			// briefly wait and fall through the loop
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				// restore the interruption flag and error out of the method
+				Thread.currentThread().interrupt();
+				throw new IOException("operation interrupted");
 			}
 		}
 	}
@@ -510,7 +536,8 @@ public final class FileUtils {
 		FileSystem targetFs = target.getFileSystem();
 
 		Path absolutePath = absolutizePath(directory);
-		try (ZipOutputStream out = new ZipOutputStream(targetFs.create(target, FileSystem.WriteMode.NO_OVERWRITE))) {
+		Path absoluteTargetPath = absolutizePath(target);
+		try (ZipOutputStream out = new ZipOutputStream(targetFs.create(absoluteTargetPath, FileSystem.WriteMode.NO_OVERWRITE))) {
 			addToZip(absolutePath, sourceFs, absolutePath.getParent(), out);
 		}
 		return target;
