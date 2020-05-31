@@ -61,12 +61,14 @@ public class CatalogTableStatisticsConverter {
 		return new TableStats(rowCount, columnStatsMap);
 	}
 
-	private static Map<String, ColumnStats> convertToColumnStatsMap(
+	public static Map<String, ColumnStats> convertToColumnStatsMap(
 			Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData) {
 		Map<String, ColumnStats> columnStatsMap = new HashMap<>();
 		for (Map.Entry<String, CatalogColumnStatisticsDataBase> entry : columnStatisticsData.entrySet()) {
-			ColumnStats columnStats = convertToColumnStats(entry.getValue());
-			columnStatsMap.put(entry.getKey(), columnStats);
+			if (entry.getValue() != null) {
+				ColumnStats columnStats = convertToColumnStats(entry.getValue());
+				columnStatsMap.put(entry.getKey(), columnStats);
+			}
 		}
 		return columnStatsMap;
 	}
