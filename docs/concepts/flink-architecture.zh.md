@@ -81,7 +81,7 @@ latency.  The chaining behavior can be configured; see the [chaining docs]({%
 link dev/stream/operators/index.zh.md %}#task-chaining-and-resource-groups) for
 details.
 
-The sample dataflow in thhadoop_compatibility.zh.mde figure below is executed with five subtasks, and
+The sample dataflow in the figure below is executed with five subtasks, and
 hence with five parallel threads.
 
 <img src="{{ site.baseurl }}/fig/tasks_chains.svg" alt="Operator chaining into Tasks" class="offset" width="80%" />
