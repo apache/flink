@@ -65,7 +65,7 @@ public interface WatermarkStrategy<T> extends TimestampAssignerSupplier<T>, Wate
 
 As mentioned, you usually don't implement this interface yourself but use the
 `WatermarkStrategies` helper for using common watermark strategies or to bundle
-together a custom `TimestampAssigner` with a `WatermarkGenerator`. For example, to use bounded-of-orderness watermarks and a lambda function as a timestamp assigner you use this:
+together a custom `TimestampAssigner` with a `WatermarkGenerator`. For example, to use bounded-out-of-orderness watermarks and a lambda function as a timestamp assigner you use this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
