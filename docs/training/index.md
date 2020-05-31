@@ -130,7 +130,7 @@ Streams can transport data between two operators in a *one-to-one* (or
 ## Timely Stream Processing
 
 For most streaming applications it is very valuable to be able re-process historic data with the
-same code that is used to process live data -- and to produce deterministic, consistent results,
+same code that is used to process live data and to produce deterministic, consistent results,
 regardless.
 
 It can also be crucial to pay attention to the order in which events occurred, rather than the order
