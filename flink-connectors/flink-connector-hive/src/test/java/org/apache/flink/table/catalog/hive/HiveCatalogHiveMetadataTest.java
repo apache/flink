@@ -123,9 +123,10 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 				.field("third", DataTypes.BOOLEAN())
 				.field("fourth", DataTypes.DOUBLE())
 				.field("fifth", DataTypes.BIGINT())
-				.field("sixth", DataTypes.BYTES());
+				.field("sixth", DataTypes.BYTES())
+				.field("seventh", DataTypes.DECIMAL(10, 3));
 		if (supportDateStats) {
-			builder.field("seventh", DataTypes.DATE());
+			builder.field("eighth", DataTypes.DATE());
 		}
 		TableSchema tableSchema = builder.build();
 		CatalogTable catalogTable = new CatalogTableImpl(tableSchema, getBatchTableProperties(), TEST_COMMENT);
@@ -137,8 +138,9 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 		columnStatisticsDataBaseMap.put("fourth", new CatalogColumnStatisticsDataDouble(15.02, 20.01, 3L, 10L));
 		columnStatisticsDataBaseMap.put("fifth", new CatalogColumnStatisticsDataLong(0L, 20L, 3L, 2L));
 		columnStatisticsDataBaseMap.put("sixth", new CatalogColumnStatisticsDataBinary(150L, 20D, 3L));
+		columnStatisticsDataBaseMap.put("seventh", new CatalogColumnStatisticsDataDouble(1.23, 99.456, 100L, 0L));
 		if (supportDateStats) {
-			columnStatisticsDataBaseMap.put("seventh", new CatalogColumnStatisticsDataDate(
+			columnStatisticsDataBaseMap.put("eighth", new CatalogColumnStatisticsDataDate(
 					new Date(71L), new Date(17923L), 132L, 0L));
 		}
 		CatalogColumnStatistics catalogColumnStatistics = new CatalogColumnStatistics(columnStatisticsDataBaseMap);
