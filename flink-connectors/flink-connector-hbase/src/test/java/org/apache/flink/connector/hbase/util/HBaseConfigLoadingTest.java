@@ -19,6 +19,7 @@
 package org.apache.flink.connector.hbase.util;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -49,7 +50,7 @@ public class HBaseConfigLoadingTest {
 	@Test
 	public void loadFromClasspathByDefault() {
 		org.apache.hadoop.conf.Configuration hbaseConf =
-				HBaseUtils.getHBaseConfiguration();
+			HBaseConfigurationUtil.getHBaseConfiguration();
 
 		assertEquals(IN_HBASE_CONFIG_VALUE, hbaseConf.get(IN_HBASE_CONFIG_KEY, null));
 	}
@@ -95,7 +96,7 @@ public class HBaseConfigLoadingTest {
 		newEnv.put("HBASE_HOME", hbaseHome.getAbsolutePath());
 		try {
 			CommonTestUtils.setEnv(newEnv);
-			hbaseConf = HBaseUtils.getHBaseConfiguration();
+			hbaseConf = HBaseConfigurationUtil.getHBaseConfiguration();
 		}
 		finally {
 			CommonTestUtils.setEnv(originalEnv);
@@ -126,7 +127,6 @@ public class HBaseConfigLoadingTest {
 		final File hbaseConfDir = tempFolder.newFolder("hbaseConfDir");
 
 		assertTrue(hbaseHomeConf.mkdirs());
-		
 		final File file1 = new File(hbaseHomeConf, "hbase-site.xml");
 
 		Map<String, String> properties1 = new HashMap<>();
@@ -147,7 +147,7 @@ public class HBaseConfigLoadingTest {
 		newEnv.put("HBASE_HOME", hbaseHome.getAbsolutePath());
 		try {
 			CommonTestUtils.setEnv(newEnv);
-			hbaseConf = HBaseUtils.getHBaseConfiguration();
+			hbaseConf = HBaseConfigurationUtil.getHBaseConfiguration();
 		}
 		finally {
 			CommonTestUtils.setEnv(originalEnv);
