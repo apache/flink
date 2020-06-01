@@ -65,10 +65,6 @@ public class HBaseConfigLoadingTest {
 		final String v3 = "what do you think?";
 		final String k4 = "which way?";
 		final String v4 = "south, always south...";
-		final String k5 = "how long?";
-		final String v5 = "an eternity";
-		final String k6 = "for real?";
-		final String v6 = "quite so...";
 
 		final File hbaseConfDir = tempFolder.newFolder();
 
@@ -107,8 +103,6 @@ public class HBaseConfigLoadingTest {
 		assertEquals(v2, hbaseConf.get(k2, null));
 		assertEquals(v3, hbaseConf.get(k3, null));
 		assertEquals(v4, hbaseConf.get(k4, null));
-		assertEquals(v5, hbaseConf.get(k5, null));
-		assertEquals(v6, hbaseConf.get(k6, null));
 
 		// also contains classpath defaults
 		assertEquals(IN_HBASE_CONFIG_VALUE, hbaseConf.get(IN_HBASE_CONFIG_KEY, null));
