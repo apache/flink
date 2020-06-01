@@ -28,7 +28,7 @@ import java.io.ByteArrayInputStream;
 public final class MutableByteArrayInputStream extends ByteArrayInputStream {
 
 	public MutableByteArrayInputStream() {
-		super(new byte[0]);
+		super(new byte[0], 0, 0);
 	}
 
 	/**
@@ -41,5 +41,6 @@ public final class MutableByteArrayInputStream extends ByteArrayInputStream {
 		this.buf = buf;
 		this.pos = 0;
 		this.count = buf.length;
+		this.mark = 0;
 	}
 }

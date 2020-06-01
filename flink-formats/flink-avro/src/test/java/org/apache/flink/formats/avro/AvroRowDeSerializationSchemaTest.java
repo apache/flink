@@ -26,6 +26,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificRecord;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -183,6 +184,30 @@ public class AvroRowDeSerializationSchemaTest {
 		final AvroRowSerializationSchema schemaSer = new AvroRowSerializationSchema(schemaString);
 		final AvroRowDeserializationSchema schemaDeser = new AvroRowDeserializationSchema(schemaString);
 		testSerializability(schemaSer, schemaDeser, testData.f2);
+	}
+
+	@Test
+	public void testSchemaAddColumn() throws Exception {
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> oldData = AvroTestUtils.getOldRecordData();
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> newData0 = AvroTestUtils.getNewRecordData(102L, "abc");
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> newData1 = AvroTestUtils.getNewRecordData(104L, "def");
+
+		AvroRowSerializationSchema oldClassSer = new AvroRowSerializationSchema(oldData.f0);
+		AvroRowSerializationSchema newClassSer = new AvroRowSerializationSchema(newData0.f0);
+
+		AvroRowDeserializationSchema classDeser = new AvroRowDeserializationSchema(oldData.f0);
+
+		byte[] data0 = oldClassSer.serialize(oldData.f2);
+		byte[] data1 = newClassSer.serialize(newData0.f2);
+		byte[] data2 = newClassSer.serialize(newData1.f2);
+
+		Row row0 = classDeser.deserialize(data0);
+		Row row1 = classDeser.deserialize(data1);
+		Row row2 = classDeser.deserialize(data2);
+
+		Assert.assertEquals(oldData.f2, row0);
+		Assert.assertEquals(Row.of(102L), row1);
+		Assert.assertEquals(Row.of(104L), row2);
 	}
 
 	private void testSerializability(AvroRowSerializationSchema ser, AvroRowDeserializationSchema deser, Row data) throws Exception {

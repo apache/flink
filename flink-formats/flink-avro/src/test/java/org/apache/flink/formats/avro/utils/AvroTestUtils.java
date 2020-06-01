@@ -23,6 +23,8 @@ import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.Fixed2;
+import org.apache.flink.formats.avro.generated.NewSchemaRecord;
+import org.apache.flink.formats.avro.generated.OldSchemaRecord;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.types.Row;
 
@@ -236,6 +238,31 @@ public final class AvroTestUtils {
 		t.f2 = schema;
 
 		return t;
+	}
+
+	public static Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> getOldRecordData() {
+		OldSchemaRecord oldSchemaRecord = OldSchemaRecord.newBuilder().setField1(100L).build();
+		Row row = new Row(1);
+		row.setField(0, 100L);
+
+		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> tuple3 = new Tuple3<>();
+		tuple3.f0 = OldSchemaRecord.class;
+		tuple3.f1 = oldSchemaRecord;
+		tuple3.f2 = row;
+		return tuple3;
+	}
+
+	public static Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> getNewRecordData(long f1, String f2) {
+		NewSchemaRecord newSchemaRecord = NewSchemaRecord.newBuilder().setField1(f1).setField2(f2).build();
+		Row row = new Row(2);
+		row.setField(0, f1);
+		row.setField(1, f2);
+
+		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> tuple3 = new Tuple3<>();
+		tuple3.f0 = NewSchemaRecord.class;
+		tuple3.f1 = newSchemaRecord;
+		tuple3.f2 = row;
+		return tuple3;
 	}
 
 	/**

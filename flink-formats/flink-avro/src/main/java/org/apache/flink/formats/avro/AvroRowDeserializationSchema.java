@@ -48,7 +48,6 @@ import org.joda.time.LocalDate;
 import org.joda.time.LocalTime;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
@@ -119,11 +118,6 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	private transient MutableByteArrayInputStream inputStream;
 
 	/**
-	 * Avro decoder that decodes binary data.
-	 */
-	private transient Decoder decoder;
-
-	/**
 	 * Creates a Avro deserialization schema for the given specific record class. Having the
 	 * concrete Avro record class might improve performance.
 	 *
@@ -138,7 +132,6 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		record = (IndexedRecord) SpecificData.newInstance(recordClazz, schema);
 		datumReader = new SpecificDatumReader<>(schema);
 		inputStream = new MutableByteArrayInputStream();
-		decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
 	}
 
 	/**
@@ -157,13 +150,13 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		record = new GenericData.Record(schema);
 		datumReader = new GenericDatumReader<>(schema);
 		inputStream = new MutableByteArrayInputStream();
-		decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
 	}
 
 	@Override
 	public Row deserialize(byte[] message) throws IOException {
 		try {
 			inputStream.setBuffer(message);
+			Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
 			record = datumReader.read(record, decoder);
 			return convertAvroRecordToRow(schema, typeInfo, record);
 		} catch (Exception e) {
@@ -348,21 +341,5 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	private void writeObject(ObjectOutputStream outputStream) throws IOException {
 		outputStream.writeObject(recordClazz);
 		outputStream.writeUTF(schemaString);
-	}
-
-	@SuppressWarnings("unchecked")
-	private void readObject(ObjectInputStream inputStream) throws ClassNotFoundException, IOException {
-		recordClazz = (Class<? extends SpecificRecord>) inputStream.readObject();
-		schemaString = inputStream.readUTF();
-		typeInfo = (RowTypeInfo) AvroSchemaConverter.<Row>convertToTypeInfo(schemaString);
-		schema = new Schema.Parser().parse(schemaString);
-		if (recordClazz != null) {
-			record = (SpecificRecord) SpecificData.newInstance(recordClazz, schema);
-		} else {
-			record = new GenericData.Record(schema);
-		}
-		datumReader = new SpecificDatumReader<>(schema);
-		this.inputStream = new MutableByteArrayInputStream();
-		decoder = DecoderFactory.get().binaryDecoder(this.inputStream, null);
 	}
 }

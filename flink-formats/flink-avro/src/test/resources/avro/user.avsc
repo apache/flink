@@ -108,4 +108,20 @@
        {"name": "type_date", "type": {"type": "int", "logicalType": "date"}},
        {"name": "type_time_millis", "type": {"type": "int", "logicalType": "time-millis"}}
    ]
- }]
+ },
+{"namespace": "org.apache.flink.formats.avro.generated",
+ "type": "record",
+ "name": "OldSchemaRecord",
+ "fields": [
+     {"name": "field1", "type": "long"}
+ ]
+},
+{"namespace": "org.apache.flink.formats.avro.generated",
+ "type": "record",
+ "name": "NewSchemaRecord",
+ "fields": [
+     {"name": "field1", "type": "long"},
+     {"name": "field2", "type": "string", "default": 0}
+ ]
+}
+]
