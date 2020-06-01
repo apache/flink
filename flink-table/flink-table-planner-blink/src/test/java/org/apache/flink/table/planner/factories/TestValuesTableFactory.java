@@ -373,7 +373,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public ScanRuntimeProvider getScanRuntimeProvider(ScanTableSource.Context runtimeProviderContext) {
+		public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
 			TypeSerializer<RowData> serializer = (TypeSerializer<RowData>) runtimeProviderContext
 				.createTypeInformation(physicalSchema.toRowDataType())
 				.createSerializer(new ExecutionConfig());
@@ -398,7 +398,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		@Override
-		public LookupRuntimeProvider getLookupRuntimeProvider(LookupTableSource.Context context) {
+		public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
 			if (lookupFunctionClass != null) {
 				// use the specified lookup function
 				try {
@@ -500,7 +500,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	public static class MockedLookupTableSource implements LookupTableSource {
 
 		@Override
-		public LookupRuntimeProvider getLookupRuntimeProvider(Context context) {
+		public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
 			return null;
 		}
 
@@ -526,7 +526,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 
 		@Override
-		public ScanRuntimeProvider getScanRuntimeProvider(Context runtimeProviderContext) {
+		public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
 			return null;
 		}
 
