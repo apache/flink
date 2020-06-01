@@ -20,6 +20,9 @@ package org.apache.flink.connector.jdbc.internal.executor;
 
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -32,11 +35,13 @@ import java.util.function.Function;
  */
 class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T> {
 
+	private static final Logger LOG = LoggerFactory.getLogger(KeyedBatchStatementExecutor.class);
+
 	private final String sql;
 	private final JdbcStatementBuilder<K> parameterSetter;
 	private final Function<T, K> keyExtractor;
+	private final Set<K> batch;
 
-	private transient Set<K> batch = new HashSet<>();
 	private transient PreparedStatement st;
 
 	/**
@@ -46,11 +51,11 @@ class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T>
 		this.parameterSetter = statementBuilder;
 		this.keyExtractor = keyExtractor;
 		this.sql = sql;
+		this.batch = new HashSet<>();
 	}
 
 	@Override
-	public void open(Connection connection) throws SQLException {
-		batch = new HashSet<>();
+	public void prepareStatements(Connection connection) throws SQLException {
 		st = connection.prepareStatement(sql);
 	}
 
@@ -72,7 +77,7 @@ class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T>
 	}
 
 	@Override
-	public void close() throws SQLException {
+	public void closeStatements() throws SQLException {
 		if (st != null) {
 			st.close();
 			st = null;

@@ -20,6 +20,9 @@ package org.apache.flink.connector.jdbc.internal.executor;
 
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -32,22 +35,24 @@ import java.util.function.Function;
  */
 class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T> {
 
+	private static final Logger LOG = LoggerFactory.getLogger(SimpleBatchStatementExecutor.class);
+
 	private final String sql;
 	private final JdbcStatementBuilder<V> parameterSetter;
 	private final Function<T, V> valueTransformer;
+	private final List<V> batch;
 
 	private transient PreparedStatement st;
-	private transient List<V> batch;
 
 	SimpleBatchStatementExecutor(String sql, JdbcStatementBuilder<V> statementBuilder, Function<T, V> valueTransformer) {
 		this.sql = sql;
 		this.parameterSetter = statementBuilder;
 		this.valueTransformer = valueTransformer;
+		this.batch = new ArrayList<>();
 	}
 
 	@Override
-	public void open(Connection connection) throws SQLException {
-		this.batch = new ArrayList<>();
+	public void prepareStatements(Connection connection) throws SQLException {
 		this.st = connection.prepareStatement(sql);
 	}
 
@@ -69,13 +74,10 @@ class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T
 	}
 
 	@Override
-	public void close() throws SQLException {
+	public void closeStatements() throws SQLException {
 		if (st != null) {
 			st.close();
 			st = null;
-		}
-		if (batch != null) {
-			batch.clear();
 		}
 	}
 }

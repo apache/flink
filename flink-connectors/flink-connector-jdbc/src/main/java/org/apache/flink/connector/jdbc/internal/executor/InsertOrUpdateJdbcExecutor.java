@@ -20,6 +20,9 @@ package org.apache.flink.connector.jdbc.internal.executor;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.sql.Connection;
@@ -40,6 +43,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchStatementExecutor<R> {
 
+	private static final Logger LOG = LoggerFactory.getLogger(InsertOrUpdateJdbcExecutor.class);
+
 	private final String existSQL;
 	private final String insertSQL;
 	private final String updateSQL;
@@ -51,10 +56,11 @@ public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchState
 	private final Function<R, K> keyExtractor;
 	private final Function<R, V> valueMapper;
 
+	private final Map<K, V> batch;
+
 	private transient PreparedStatement existStatement;
 	private transient PreparedStatement insertStatement;
 	private transient PreparedStatement updateStatement;
-	private transient Map<K, V> batch = new HashMap<>();
 
 	public InsertOrUpdateJdbcExecutor(
 			@Nonnull String existSQL,
@@ -73,11 +79,11 @@ public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchState
 		this.updateSetter = checkNotNull(updateSetter);
 		this.keyExtractor = checkNotNull(keyExtractor);
 		this.valueMapper = checkNotNull(valueExtractor);
+		this.batch = new HashMap<>();
 	}
 
 	@Override
-	public void open(Connection connection) throws SQLException {
-		batch = new HashMap<>();
+	public void prepareStatements(Connection connection) throws SQLException {
 		existStatement = connection.prepareStatement(existSQL);
 		insertStatement = connection.prepareStatement(insertSQL);
 		updateStatement = connection.prepareStatement(updateSQL);
@@ -118,7 +124,7 @@ public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchState
 	}
 
 	@Override
-	public void close() throws SQLException {
+	public void closeStatements() throws SQLException {
 		for (PreparedStatement s : Arrays.asList(existStatement, insertStatement, updateStatement)) {
 			if (s != null) {
 				s.close();
