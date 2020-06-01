@@ -358,7 +358,7 @@ public interface TableEnvironment {
 
 	/**
 	 * Unloads a {@link Module} with given name.
-	 * ValidationException is thrown when there is no module with the given name
+	 * ValidationException is thrown when there is no module with the given name.
 	 *
 	 * @param moduleName name of the {@link Module}
 	 */
