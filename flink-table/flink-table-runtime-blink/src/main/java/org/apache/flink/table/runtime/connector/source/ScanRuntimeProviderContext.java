@@ -33,7 +33,7 @@ import static org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fro
  * Implementation of {@link ScanTableSource.Context}.
  */
 @Internal
-public final class ScanRuntimeProviderContext implements ScanTableSource.Context {
+public final class ScanRuntimeProviderContext implements ScanTableSource.ScanContext {
 
 	public static final ScanRuntimeProviderContext INSTANCE = new ScanRuntimeProviderContext();
 

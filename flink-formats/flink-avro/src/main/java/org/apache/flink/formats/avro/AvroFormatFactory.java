@@ -24,10 +24,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.format.ScanFormat;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
@@ -50,19 +50,19 @@ public class AvroFormatFactory implements
 	public static final String IDENTIFIER = "avro";
 
 	@Override
-	public ScanFormat<DeserializationSchema<RowData>> createScanFormat(
+	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context,
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-		return new ScanFormat<DeserializationSchema<RowData>>() {
+		return new DecodingFormat<DeserializationSchema<RowData>>() {
 			@Override
-			public DeserializationSchema<RowData> createScanFormat(
-					ScanTableSource.Context scanContext,
+			public DeserializationSchema<RowData> createRuntimeDecoder(
+					DynamicTableSource.Context context,
 					DataType producedDataType) {
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
-						(TypeInformation<RowData>) scanContext.createTypeInformation(producedDataType);
+						(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
 				return new AvroRowDataDeserializationSchema(rowType, rowDataTypeInfo);
 			}
 
@@ -74,14 +74,14 @@ public class AvroFormatFactory implements
 	}
 
 	@Override
-	public SinkFormat<SerializationSchema<RowData>> createSinkFormat(
+	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
 			DynamicTableFactory.Context context,
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-		return new SinkFormat<SerializationSchema<RowData>>() {
+		return new EncodingFormat<SerializationSchema<RowData>>() {
 			@Override
-			public SerializationSchema<RowData> createSinkFormat(
+			public SerializationSchema<RowData> createRuntimeEncoder(
 					DynamicTableSink.Context context,
 					DataType consumedDataType) {
 				final RowType rowType = (RowType) consumedDataType.getLogicalType();

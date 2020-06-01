@@ -19,18 +19,12 @@
 package org.apache.flink.table.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.abilities.SupportsComputedColumnPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import java.io.Serializable;
@@ -59,7 +53,7 @@ import java.io.Serializable;
  *     <li>{@link SupportsPartitionPushDown}
  * </ul>
  *
- * <p>In the last step, the planner will call {@link #getScanRuntimeProvider(Context)} for obtaining a
+ * <p>In the last step, the planner will call {@link #getScanRuntimeProvider(ScanContext)} for obtaining a
  * provider of runtime implementation.
  */
 @PublicEvolving
@@ -82,12 +76,12 @@ public interface ScanTableSource extends DynamicTableSource {
 	 * <p>Independent of the provider interface, the table runtime expects that a source implementation
 	 * emits internal data structures (see {@link org.apache.flink.table.data.RowData} for more information).
 	 *
-	 * <p>The given {@link Context} offers utilities by the planner for creating runtime implementation
+	 * <p>The given {@link ScanContext} offers utilities by the planner for creating runtime implementation
 	 * with minimal dependencies to internal data structures.
 	 *
 	 * <p>See {@code org.apache.flink.table.connector.source.SourceFunctionProvider} in {@code flink-table-api-java-bridge}.
 	 */
-	ScanRuntimeProvider getScanRuntimeProvider(Context runtimeProviderContext);
+	ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext);
 
 	// --------------------------------------------------------------------------------------------
 	// Helper interfaces
@@ -99,29 +93,11 @@ public interface ScanTableSource extends DynamicTableSource {
 	 * <p>It offers utilities by the planner for creating runtime implementation with minimal dependencies
 	 * to internal data structures.
 	 *
-	 * <p>Methods should be called in {@link #getScanRuntimeProvider(Context)}. The returned instances
+	 * <p>Methods should be called in {@link #getScanRuntimeProvider(ScanContext)}. The returned instances
 	 * are {@link Serializable} and can be directly passed into the runtime implementation class.
 	 */
-	interface Context {
-
-		/**
-		 * Creates type information describing the internal data structures of the given {@link DataType}.
-		 *
-		 * @see TableSchema#toPhysicalRowDataType()
-		 */
-		TypeInformation<?> createTypeInformation(DataType producedDataType);
-
-		/**
-		 * Creates a converter for mapping between objects specified by the given {@link DataType} and
-		 * Flink's internal data structures that can be passed into a runtime implementation.
-		 *
-		 * <p>For example, a {@link Row} and its fields can be converted into {@link RowData}, or a (possibly
-		 * nested) POJO can be converted into the internal representation for structured types.
-		 *
-		 * @see LogicalType#supportsInputConversion(Class)
-		 * @see TableSchema#toPhysicalRowDataType()
-		 */
-		DataStructureConverter createDataStructureConverter(DataType producedDataType);
+	interface ScanContext extends DynamicTableSource.Context {
+		// may introduce scan specific methods in the future
 	}
 
 	/**

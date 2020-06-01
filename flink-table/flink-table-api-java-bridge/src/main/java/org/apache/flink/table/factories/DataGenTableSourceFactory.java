@@ -241,7 +241,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 		}
 
 		@Override
-		public ScanRuntimeProvider getScanRuntimeProvider(Context context) {
+		public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
 			return SourceFunctionProvider.of(createSource(), false);
 		}
 
