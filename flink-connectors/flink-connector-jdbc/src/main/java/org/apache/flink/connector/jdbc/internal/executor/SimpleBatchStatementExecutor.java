@@ -18,7 +18,12 @@
 
 package org.apache.flink.connector.jdbc.internal.executor;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -30,7 +35,10 @@ import java.util.function.Function;
 /**
  * A {@link JdbcBatchStatementExecutor} that executes supplied statement for given the records (without any pre-processing).
  */
-class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T> {
+@Internal
+public class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SimpleBatchStatementExecutor.class);
 
 	private final String sql;
 	private final JdbcStatementBuilder<V> parameterSetter;
@@ -48,6 +56,16 @@ class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T
 	@Override
 	public void open(Connection connection) throws SQLException {
 		this.batch = new ArrayList<>();
+		this.st = connection.prepareStatement(sql);
+	}
+
+	@Override
+	public void reopen(Connection connection) throws SQLException {
+		try {
+			st.close();
+		} catch (SQLException e) {
+			LOG.info("PreparedStatement close failed.", e);
+		}
 		this.st = connection.prepareStatement(sql);
 	}
 
@@ -77,5 +95,11 @@ class SimpleBatchStatementExecutor<T, V> implements JdbcBatchStatementExecutor<T
 		if (batch != null) {
 			batch.clear();
 		}
+
+	}
+
+	@VisibleForTesting
+	public PreparedStatement getStatement() {
+		return st;
 	}
 }

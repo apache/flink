@@ -28,6 +28,7 @@ import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionP
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
+import org.apache.flink.connector.jdbc.table.JdbcLookupFunction;
 import org.apache.flink.connector.jdbc.utils.JdbcUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.types.Row;
@@ -174,6 +175,15 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 				LOG.error("JDBC executeBatch error, retry times = {}", i, e);
 				if (i >= executionOptions.getMaxRetries()) {
 					throw new IOException(e);
+				}
+				try {
+					if (!connection.isValid(JdbcLookupFunction.CONNECTION_CHECK_TIMEOUT)) {
+						connection = connectionProvider.reestablishConnection();
+						jdbcStatementExecutor.reopen(connection);
+					}
+				} catch (Exception excpetion) {
+					LOG.error("JDBC connection is not valid, and reestablish connection failed.", excpetion);
+					throw new RuntimeException("Reestablish JDBC connection failed", excpetion);
 				}
 				try {
 					Thread.sleep(1000 * i);

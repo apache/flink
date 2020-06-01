@@ -64,6 +64,7 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JdbcLookupFunction.class);
 	private static final long serialVersionUID = 1L;
+	public static final int CONNECTION_CHECK_TIMEOUT = 60;
 
 	private final String query;
 	private final String drivername;
@@ -116,8 +117,7 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 	@Override
 	public void open(FunctionContext context) throws Exception {
 		try {
-			establishConnection();
-			statement = dbConn.prepareStatement(query);
+			establishConnectionAndStatement();
 			this.cache = cacheMaxSize == -1 || cacheExpireMs == -1 ? null : CacheBuilder.newBuilder()
 					.expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
 					.maximumSize(cacheMaxSize)
@@ -171,6 +171,17 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 				}
 
 				try {
+					if (!dbConn.isValid(CONNECTION_CHECK_TIMEOUT)) {
+						statement.close();
+						dbConn.close();
+						establishConnectionAndStatement();
+					}
+				} catch (SQLException | ClassNotFoundException excpetion) {
+					LOG.error("JDBC connection is not valid, and reestablish connection failed", excpetion);
+					throw new RuntimeException("Reestablish JDBC connection failed", excpetion);
+				}
+
+				try {
 					Thread.sleep(1000 * retry);
 				} catch (InterruptedException e1) {
 					throw new RuntimeException(e1);
@@ -187,13 +198,14 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 		return row;
 	}
 
-	private void establishConnection() throws SQLException, ClassNotFoundException {
+	private void establishConnectionAndStatement() throws SQLException, ClassNotFoundException {
 		Class.forName(drivername);
 		if (username == null) {
 			dbConn = DriverManager.getConnection(dbURL);
 		} else {
 			dbConn = DriverManager.getConnection(dbURL, username, password);
 		}
+		statement = dbConn.prepareStatement(query);
 	}
 
 	@Override

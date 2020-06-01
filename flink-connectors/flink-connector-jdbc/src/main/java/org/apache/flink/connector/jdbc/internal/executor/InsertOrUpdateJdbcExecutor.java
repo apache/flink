@@ -20,6 +20,9 @@ package org.apache.flink.connector.jdbc.internal.executor;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.sql.Connection;
@@ -39,6 +42,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchStatementExecutor<R> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(InsertOrUpdateJdbcExecutor.class);
 
 	private final String existSQL;
 	private final String insertSQL;
@@ -78,6 +83,21 @@ public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchState
 	@Override
 	public void open(Connection connection) throws SQLException {
 		batch = new HashMap<>();
+		existStatement = connection.prepareStatement(existSQL);
+		insertStatement = connection.prepareStatement(insertSQL);
+		updateStatement = connection.prepareStatement(updateSQL);
+	}
+
+	@Override
+	public void reopen(Connection connection) throws SQLException {
+		try {
+			existStatement.close();
+			insertStatement.close();
+			updateStatement.close();
+		} catch (SQLException e) {
+			LOG.info("PreparedStatement close failed.", e);
+		}
+
 		existStatement = connection.prepareStatement(existSQL);
 		insertStatement = connection.prepareStatement(insertSQL);
 		updateStatement = connection.prepareStatement(updateSQL);

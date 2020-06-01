@@ -27,4 +27,6 @@ import java.sql.Connection;
 @Internal
 public interface JdbcConnectionProvider {
 	Connection getConnection() throws Exception;
+
+	Connection reestablishConnection() throws Exception;
 }

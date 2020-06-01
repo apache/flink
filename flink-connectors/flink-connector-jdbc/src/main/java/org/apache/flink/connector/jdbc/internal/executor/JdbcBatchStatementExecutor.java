@@ -36,6 +36,8 @@ public interface JdbcBatchStatementExecutor<T> {
 	 */
 	void open(Connection connection) throws SQLException;
 
+	void reopen(Connection connection) throws SQLException;
+
 	void addToBatch(T record) throws SQLException;
 
 	/**

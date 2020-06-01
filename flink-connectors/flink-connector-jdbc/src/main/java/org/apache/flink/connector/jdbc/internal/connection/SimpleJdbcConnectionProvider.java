@@ -19,6 +19,9 @@ package org.apache.flink.connector.jdbc.internal.connection;
 
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -28,6 +31,8 @@ import java.sql.SQLException;
  * Simple JDBC connection provider.
  */
 public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Serializable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SimpleJdbcConnectionProvider.class);
 
 	private static final long serialVersionUID = 1L;
 
@@ -53,6 +58,19 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
 				}
 			}
 		}
+		return connection;
+	}
+
+	@Override
+	public Connection reestablishConnection() throws SQLException, ClassNotFoundException {
+		try {
+			connection.close();
+		} catch (SQLException e) {
+			LOG.info("JDBC connection close failed.", e);
+		} finally {
+			connection = null;
+		}
+		connection = getConnection();
 		return connection;
 	}
 }

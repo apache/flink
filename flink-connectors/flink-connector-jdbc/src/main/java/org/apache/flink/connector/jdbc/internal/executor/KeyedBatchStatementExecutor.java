@@ -20,6 +20,9 @@ package org.apache.flink.connector.jdbc.internal.executor;
 
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -31,6 +34,8 @@ import java.util.function.Function;
  * A {@link JdbcBatchStatementExecutor} that extracts SQL keys from the supplied stream elements and executes a SQL query for them.
  */
 class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(KeyedBatchStatementExecutor.class);
 
 	private final String sql;
 	private final JdbcStatementBuilder<K> parameterSetter;
@@ -51,6 +56,17 @@ class KeyedBatchStatementExecutor<T, K> implements JdbcBatchStatementExecutor<T>
 	@Override
 	public void open(Connection connection) throws SQLException {
 		batch = new HashSet<>();
+		st = connection.prepareStatement(sql);
+	}
+
+	@Override
+	public void reopen(Connection connection) throws SQLException {
+		try {
+			st.close();
+		} catch (SQLException e) {
+			LOG.info("PreparedStatement close failed.", e);
+		}
+
 		st = connection.prepareStatement(sql);
 	}
 
