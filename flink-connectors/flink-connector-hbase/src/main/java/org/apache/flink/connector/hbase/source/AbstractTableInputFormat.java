@@ -66,7 +66,7 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 	protected byte[] serializedConfig;
 
 	public AbstractTableInputFormat(org.apache.hadoop.conf.Configuration hConf) {
-		setSerializedConfig(hConf);
+		serializedConfig = HBaseConfigurationUtil.serializeConfiguration(hConf);
 	}
 
 	/**
@@ -108,11 +108,7 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 	 */
 	public abstract void configure(Configuration parameters);
 
-	protected void setSerializedConfig(org.apache.hadoop.conf.Configuration hConf) {
-		serializedConfig = HBaseConfigurationUtil.serializeConfiguration(hConf);
-	}
-
-	protected org.apache.hadoop.conf.Configuration getSerializedConfig() {
+	protected org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
 		return HBaseConfigurationUtil.deserializeConfiguration(serializedConfig, HBaseConfiguration.create());
 	}
 

@@ -35,6 +35,11 @@ public abstract class HBaseInputFormat<T extends Tuple> extends AbstractTableInp
 
 	private static final long serialVersionUID = 1L;
 
+	/**
+	 * Constructs a {@link InputFormat} with hbase configuration to read data from hbase.
+	 * @param hConf The configuration that connect to hbase.
+	 *              At least hbase.zookeeper.quorum and zookeeper.znode.parent need to be set.
+	 */
 	public HBaseInputFormat(org.apache.hadoop.conf.Configuration hConf) {
 		super(hConf);
 	}
@@ -82,7 +87,7 @@ public abstract class HBaseInputFormat<T extends Tuple> extends AbstractTableInp
 	 */
 	private HTable createTable() {
 		LOG.info("Initializing HBaseConfiguration");
-		org.apache.hadoop.conf.Configuration hConf = getSerializedConfig();
+		org.apache.hadoop.conf.Configuration hConf = getHadoopConfiguration();
 
 		try {
 			return new HTable(hConf, getTableName());
