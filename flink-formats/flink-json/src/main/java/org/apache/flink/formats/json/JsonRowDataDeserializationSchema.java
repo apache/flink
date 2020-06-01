@@ -304,7 +304,11 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	}
 
 	private StringData convertToString(JsonNode jsonNode) {
-		return StringData.fromString(jsonNode.asText());
+		if (jsonNode.isContainerNode()) {
+			return StringData.fromString(jsonNode.toString());
+		} else {
+			return StringData.fromString(jsonNode.asText());
+		}
 	}
 
 	private byte[] convertToBytes(JsonNode jsonNode) {
