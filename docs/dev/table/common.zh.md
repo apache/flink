@@ -1275,7 +1275,7 @@ val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as
 
 #### POJO 类型 （Java 和 Scala）
 
-Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{ site.baseurl }}{% link dev/types_serialization.md %}#pojos).
+Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{ site.baseurl }}{% link dev/types_serialization.zh.md %}#pojos).
 
 在不指定字段名称的情况下将 POJO 类型的 `DataStream` 或 `DataSet` 转换成 `Table` 时，将使用原始 POJO 类型字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（带有 `as` 关键字）来重命名，重新排序和投影。
 

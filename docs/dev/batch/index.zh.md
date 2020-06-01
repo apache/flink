@@ -32,12 +32,12 @@ example write the data to (distributed) files, or to standard output (for exampl
 terminal). Flink programs run in a variety of contexts, standalone, or embedded in other programs.
 The execution can happen in a local JVM, or on clusters of many machines.
 
-Please refer to the [DataStream API overview]({% link dev/datastream_api.md %})
+Please refer to the [DataStream API overview]({% link dev/datastream_api.zh.md %})
 for an introduction to the basic concepts of the Flink API. That overview is
 for the DataStream API but the basic concepts of the two APIs are the same.
 
 In order to create your own Flink DataSet program, we encourage you to start with the
-[anatomy of a Flink Program]({% link dev/datastream_api.md %}#anatomy-of-a-flink-program)
+[anatomy of a Flink Program]({% link dev/datastream_api.zh.md %}#anatomy-of-a-flink-program)
 and gradually add your own
 [transformations](#dataset-transformations). The remaining sections act as references for additional
 operations and advanced features.
@@ -2270,7 +2270,7 @@ DataSet<Integer> result = input.map(new MyMapper());
 env.execute();
 {% endhighlight %}
 
-Access the cached file or directory in a user function (here a `MapFunction`). The function must extend a [RichFunction]({% link dev/user_defined_functions.md %}#rich-functions) class because it needs access to the `RuntimeContext`.
+Access the cached file or directory in a user function (here a `MapFunction`). The function must extend a [RichFunction]({% link dev/user_defined_functions.zh.md %}#rich-functions) class because it needs access to the `RuntimeContext`.
 
 {% highlight java %}
 
@@ -2316,7 +2316,7 @@ val result: DataSet[Integer] = input.map(new MyMapper())
 env.execute()
 {% endhighlight %}
 
-Access the cached file in a user function (here a `MapFunction`). The function must extend a [RichFunction]({% link dev/user_defined_functions.md %}#rich-functions) class because it needs access to the `RuntimeContext`.
+Access the cached file in a user function (here a `MapFunction`). The function must extend a [RichFunction]({% link dev/user_defined_functions.zh.md %}#rich-functions) class because it needs access to the `RuntimeContext`.
 
 {% highlight scala %}
 
@@ -2389,7 +2389,7 @@ class MyFilter(limit: Int) extends FilterFunction[Int] {
 
 #### Via `withParameters(Configuration)`
 
-This method takes a Configuration object as an argument, which will be passed to the [rich function]({% link dev/user_defined_functions.md %}#rich-functions)'s `open()`
+This method takes a Configuration object as an argument, which will be passed to the [rich function]({% link dev/user_defined_functions.zh.md %}#rich-functions)'s `open()`
 method. The Configuration object is a Map from String keys to different value types.
 
 <div class="codetabs" markdown="1">
