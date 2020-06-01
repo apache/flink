@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
@@ -61,6 +62,7 @@ public class CatalogTableStatisticsConverter {
 		return new TableStats(rowCount, columnStatsMap);
 	}
 
+	@VisibleForTesting
 	public static Map<String, ColumnStats> convertToColumnStatsMap(
 			Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData) {
 		Map<String, ColumnStats> columnStatsMap = new HashMap<>();
