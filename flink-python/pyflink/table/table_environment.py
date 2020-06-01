@@ -26,15 +26,14 @@ from py4j.java_gateway import get_java_class, get_method
 
 from pyflink.common import JobExecutionResult
 from pyflink.dataset import ExecutionEnvironment
+from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
+from pyflink.table import Table, EnvironmentSettings, Module
 from pyflink.table.catalog import Catalog
+from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
-from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor
-
-from pyflink.java_gateway import get_gateway
-from pyflink.table import Table, EnvironmentSettings
 from pyflink.table.table_result import TableResult
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema
@@ -147,6 +146,30 @@ class TableEnvironment(object):
             return Catalog._get(catalog.get())
         else:
             return None
+
+    def load_module(self, module_name: str, module: Module):
+        """
+        Loads a :class:`~pyflink.table.Module` under a unique name. Modules will be kept
+        in the loaded order.
+        ValidationException is thrown when there is already a module with the same name.
+
+        :param module_name: Name of the :class:`~pyflink.table.Module`.
+        :param module: The module instance.
+
+        .. versionadded:: 1.12.0
+        """
+        self._j_tenv.loadModule(module_name, module._j_module)
+
+    def unload_module(self, module_name: str):
+        """
+        Unloads a :class:`~pyflink.table.Module` with given name.
+        ValidationException is thrown when there is no module with the given name.
+
+        :param module_name: Name of the :class:`~pyflink.table.Module`.
+
+        .. versionadded:: 1.12.0
+        """
+        self._j_tenv.unloadModule(module_name)
 
     def register_table(self, name, table):
         """
