@@ -30,11 +30,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-import org.junit.Rule;
+import org.junit.Assert;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -70,9 +68,6 @@ import static org.junit.Assert.assertEquals;
  * Tests for {@link JsonRowDataDeserializationSchema} and {@link JsonRowDataSerializationSchema}.
  */
 public class JsonRowDataSerDeSchemaTest {
-
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testSerDe() throws Exception {
@@ -326,9 +321,13 @@ public class JsonRowDataSerDeSchemaTest {
 		deserializationSchema = deserializationSchema = new JsonRowDataDeserializationSchema(
 			schema, WrapperTypeInfo.of(schema), true, false, TimestampFormat.ISO_8601);
 
-		thrown.expect(IOException.class);
-		thrown.expectMessage("Failed to deserialize JSON '{\"id\":123123123}'");
-		deserializationSchema.deserialize(serializedJson);
+		String errorMessage = "Failed to deserialize JSON '{\"id\":123123123}'.";
+		try {
+			deserializationSchema.deserialize(serializedJson);
+			Assert.fail("expecting exception message: " + errorMessage);
+		} catch (Throwable t) {
+			assertEquals(errorMessage, t.getMessage());
+		}
 
 		// ignore on parse error
 		deserializationSchema = new JsonRowDataDeserializationSchema(
@@ -336,12 +335,15 @@ public class JsonRowDataSerDeSchemaTest {
 		actual = convertToExternal(deserializationSchema.deserialize(serializedJson), dataType);
 		assertEquals(expected, actual);
 
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled");
-		// failOnMissingField and ignoreParseErrors both enabled
-		//noinspection ConstantConditions
-		new JsonRowDataDeserializationSchema(
-			schema, WrapperTypeInfo.of(schema), true, true, TimestampFormat.ISO_8601);
+		errorMessage = "JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled.";
+		try {
+			// failOnMissingField and ignoreParseErrors both enabled
+			new JsonRowDataDeserializationSchema(
+				schema, WrapperTypeInfo.of(schema), true, true, TimestampFormat.ISO_8601);
+			Assert.fail("expecting exception message: " + errorMessage);
+		} catch (Throwable t) {
+			assertEquals(errorMessage, t.getMessage());
+		}
 	}
 
 	@Test
@@ -380,7 +382,7 @@ public class JsonRowDataSerDeSchemaTest {
 		// the parsing field should be null and no exception is thrown
 		JsonRowDataDeserializationSchema ignoreErrorsSchema = new JsonRowDataDeserializationSchema(
 			spec.rowType, WrapperTypeInfo.of(spec.rowType), false, true,
-			TimestampFormat.ISO_8601);
+			spec.timestampFormat);
 		Row expected;
 		if (spec.expected != null) {
 			expected = spec.expected;
@@ -400,8 +402,12 @@ public class JsonRowDataSerDeSchemaTest {
 			spec.rowType, WrapperTypeInfo.of(spec.rowType), false, false,
 			spec.timestampFormat);
 
-		thrown.expectMessage(spec.errorMessage);
-		failingSchema.deserialize(spec.json.getBytes());
+		try {
+			failingSchema.deserialize(spec.json.getBytes());
+			Assert.fail("expecting exception " + spec.errorMessage);
+		} catch (Throwable t) {
+			assertEquals(t.getMessage(), spec.errorMessage);
+		}
 	}
 
 	private static List<TestSpec> testData = Arrays.asList(
@@ -418,7 +424,7 @@ public class JsonRowDataSerDeSchemaTest {
 		TestSpec
 			.json("{\"id\":\"abc\"}")
 			.rowType(ROW(FIELD("id", INT())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'."),
 
 		TestSpec
 			.json("{\"id\":112.013}")
@@ -428,84 +434,111 @@ public class JsonRowDataSerDeSchemaTest {
 		TestSpec
 			.json("{\"id\":\"long\"}")
 			.rowType(ROW(FIELD("id", BIGINT())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"long\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"long\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"112.013.123\"}")
 			.rowType(ROW(FIELD("id", FLOAT())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"112.013.123\"}")
 			.rowType(ROW(FIELD("id", DOUBLE())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"18:00:243\"}")
 			.rowType(ROW(FIELD("id", TIME())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"18:00:243\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"18:00:243\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"18:00:243\"}")
 			.rowType(ROW(FIELD("id", TIME())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"18:00:243\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"18:00:243\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"20191112\"}")
 			.rowType(ROW(FIELD("id", DATE())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"20191112\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"20191112\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"20191112\"}")
 			.rowType(ROW(FIELD("id", DATE())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"20191112\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"20191112\"}'."),
+
+		TestSpec
+			.json("{\"id\":true}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("true")),
+
+		TestSpec
+			.json("{\"id\":123.234}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("123.234")),
+
+		TestSpec
+			.json("{\"id\":1234567}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("1234567")),
+
+		TestSpec
+			.json("{\"id\":\"string field\"}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("string field")),
+
+		TestSpec
+			.json("{\"id\":[\"array data1\",\"array data2\",123,234.345]}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("[\"array data1\",\"array data2\",123,234.345]")),
+
+		TestSpec
+			.json("{\"id\":{\"k1\":123,\"k2\":234.234,\"k3\":\"string data\"}}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("{\"k1\":123,\"k2\":234.234,\"k3\":\"string data\"}")),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12 18:00:12\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
 			.timestampFormat(TimestampFormat.ISO_8601)
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12 18:00:12\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12 18:00:12\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12Z\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12Z\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
 			.timestampFormat(TimestampFormat.ISO_8601)
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"abc\"}")
 			.rowType(ROW(FIELD("id", DECIMAL(10, 3))))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'."),
 
 		TestSpec
 			.json("{\"row\":{\"id\":\"abc\"}}")
 			.rowType(ROW(FIELD("row", ROW(FIELD("id", BOOLEAN())))))
-			.expect(Row.of(new Row(1)))
-			.expectErrorMessage("Failed to deserialize JSON '{\"row\":{\"id\":\"abc\"}}'"),
+			.expect(Row.of(Row.of(false))),
 
 		TestSpec
 			.json("{\"array\":[123, \"abc\"]}")
 			.rowType(ROW(FIELD("array", ARRAY(INT()))))
 			.expect(Row.of((Object) new Integer[]{123, null}))
-			.expectErrorMessage("Failed to deserialize JSON '{\"array\":[123, \"abc\"]}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"array\":[123, \"abc\"]}'."),
 
 		TestSpec
 			.json("{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}")
 			.rowType(ROW(FIELD("map", MAP(STRING(), INT()))))
 			.expect(Row.of(createHashMap("key1", 123, "key2", null)))
-			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'")
-
-
+			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'.")
 	);
 
 	private static Map<String, Integer> createHashMap(String k1, Integer v1, String k2, Integer v2) {
