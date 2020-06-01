@@ -45,8 +45,10 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.DERBY_EBOOKSHOP_DB
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INPUT_TABLE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.OUTPUT_TABLE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.OUTPUT_TABLE_2;
+import static org.apache.flink.connector.jdbc.JdbcTestFixture.OUTPUT_TABLE_3;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOKS;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOKS_2;
+import static org.apache.flink.connector.jdbc.JdbcTestFixture.SELECT_ALL_NEWBOOKS_3;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
@@ -356,6 +358,65 @@ public class JdbcRowDataOutputFormatTest extends JdbcDataTestBase {
 			}
 		} finally {
 			outputFormat.close();
+		}
+	}
+
+	@Test
+	public void testInvalidConnectionInJdbcOutputFormat() throws IOException, SQLException {
+		JdbcOptions jdbcOptions = JdbcOptions.builder()
+			.setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
+			.setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
+			.setTableName(OUTPUT_TABLE_3)
+			.build();
+		JdbcDmlOptions dmlOptions = JdbcDmlOptions.builder()
+			.withTableName(jdbcOptions.getTableName())
+			.withDialect(jdbcOptions.getDialect())
+			.withFieldNames(fieldNames)
+			.build();
+
+		outputFormat = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder()
+			.setJdbcOptions(jdbcOptions)
+			.setFieldDataTypes(fieldDataTypes)
+			.setJdbcDmlOptions(dmlOptions)
+			.setJdbcExecutionOptions(JdbcExecutionOptions.builder().build())
+			.setRowDataTypeInfo(rowDataTypeInfo)
+			.build();
+		setRuntimeContext(outputFormat, true);
+		outputFormat.open(0, 1);
+
+		// write records
+		for (int i = 0; i < 3; i++) {
+			TestEntry entry = TEST_DATA[i];
+			outputFormat.writeRecord(buildGenericData(entry.id, entry.title, entry.author, entry.price, entry.qty));
+		}
+
+		// close connection
+		outputFormat.getConnection().close();
+
+		// continue to write rest records
+		for (int i = 3; i < TEST_DATA.length; i++) {
+			TestEntry entry = TEST_DATA[i];
+			outputFormat.writeRecord(buildGenericData(entry.id, entry.title, entry.author, entry.price, entry.qty));
+		}
+
+		outputFormat.close();
+
+		try (
+			Connection dbConn = DriverManager.getConnection(DERBY_EBOOKSHOP_DB.getUrl());
+			PreparedStatement statement = dbConn.prepareStatement(SELECT_ALL_NEWBOOKS_3);
+			ResultSet resultSet = statement.executeQuery()
+		) {
+			int recordCount = 0;
+			while (resultSet.next()) {
+				assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
+				assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
+				assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
+				assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
+				assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+
+				recordCount++;
+			}
+			assertEquals(TEST_DATA.length, recordCount);
 		}
 	}
 
