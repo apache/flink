@@ -25,8 +25,8 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.connector.format.ScanFormat;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
@@ -70,7 +70,7 @@ public abstract class KafkaDynamicTableFactoryBase implements
 		ReadableConfig tableOptions = helper.getOptions();
 
 		String topic = tableOptions.get(TOPIC);
-		ScanFormat<DeserializationSchema<RowData>> scanFormat = helper.discoverScanFormat(
+		DecodingFormat<DeserializationSchema<RowData>> decodingFormat = helper.discoverDecodingFormat(
 				DeserializationFormatFactory.class,
 				FactoryUtil.FORMAT);
 		// Validate the option data type.
@@ -84,7 +84,7 @@ public abstract class KafkaDynamicTableFactoryBase implements
 				producedDataType,
 				topic,
 				getKafkaProperties(context.getCatalogTable().getOptions()),
-				scanFormat,
+				decodingFormat,
 				startupOptions.startupMode,
 				startupOptions.specificOffsets,
 				startupOptions.startupTimestampMillis);
@@ -97,7 +97,7 @@ public abstract class KafkaDynamicTableFactoryBase implements
 		ReadableConfig tableOptions = helper.getOptions();
 
 		String topic = tableOptions.get(TOPIC);
-		SinkFormat<SerializationSchema<RowData>> sinkFormat = helper.discoverSinkFormat(
+		EncodingFormat<SerializationSchema<RowData>> encodingFormat = helper.discoverEncodingFormat(
 				SerializationFormatFactory.class,
 				FactoryUtil.FORMAT);
 		// Validate the option data type.
@@ -111,7 +111,7 @@ public abstract class KafkaDynamicTableFactoryBase implements
 				topic,
 				getKafkaProperties(context.getCatalogTable().getOptions()),
 				getFlinkKafkaPartitioner(tableOptions, context.getClassLoader()),
-				sinkFormat);
+				encodingFormat);
 	}
 
 	/**
@@ -120,7 +120,7 @@ public abstract class KafkaDynamicTableFactoryBase implements
 	 * @param producedDataType       Source produced data type
 	 * @param topic                  Kafka topic to consume
 	 * @param properties             Properties for the Kafka consumer
-	 * @param scanFormat             Scan format for decoding records from Kafka
+	 * @param decodingFormat         Decoding format for decoding records from Kafka
 	 * @param startupMode            Startup mode for the contained consumer
 	 * @param specificStartupOffsets Specific startup offsets; only relevant when startup
 	 *                               mode is {@link StartupMode#SPECIFIC_OFFSETS}
@@ -129,7 +129,7 @@ public abstract class KafkaDynamicTableFactoryBase implements
 			DataType producedDataType,
 			String topic,
 			Properties properties,
-			ScanFormat<DeserializationSchema<RowData>> scanFormat,
+			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
 			long startupTimestampMillis);
@@ -141,14 +141,14 @@ public abstract class KafkaDynamicTableFactoryBase implements
 	 * @param topic            Kafka topic to consume
 	 * @param properties       Properties for the Kafka consumer
 	 * @param partitioner      Partitioner to select Kafka partition for each item
-	 * @param sinkFormat       Sink format for encoding records to Kafka
+	 * @param encodingFormat   Encoding format for encoding records to Kafka
 	 */
 	protected abstract KafkaDynamicSinkBase createKafkaTableSink(
 			DataType consumedDataType,
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			SinkFormat<SerializationSchema<RowData>> sinkFormat);
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat);
 
 	@Override
 	public Set<ConfigOption<?>> requiredOptions() {

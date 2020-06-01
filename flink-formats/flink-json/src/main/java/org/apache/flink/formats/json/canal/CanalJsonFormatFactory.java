@@ -25,9 +25,9 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.format.ScanFormat;
-import org.apache.flink.table.connector.format.SinkFormat;
-import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
@@ -57,15 +57,16 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public ScanFormat<DeserializationSchema<RowData>> createScanFormat(
+	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context,
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 		final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
 
-		return new ScanFormat<DeserializationSchema<RowData>>() {
+		return new DecodingFormat<DeserializationSchema<RowData>>() {
 			@Override
-			public DeserializationSchema<RowData> createScanFormat(ScanTableSource.Context context, DataType producedDataType) {
+			public DeserializationSchema<RowData> createRuntimeDecoder(
+					DynamicTableSource.Context context, DataType producedDataType) {
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
 					(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
@@ -88,7 +89,7 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 	}
 
 	@Override
-	public SinkFormat<SerializationSchema<RowData>> createSinkFormat(
+	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
 			DynamicTableFactory.Context context,
 			ReadableConfig formatOptions) {
 		throw new UnsupportedOperationException("Canal format doesn't support as a sink format yet.");

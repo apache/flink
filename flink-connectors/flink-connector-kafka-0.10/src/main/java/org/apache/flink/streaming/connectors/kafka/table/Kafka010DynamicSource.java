@@ -24,7 +24,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.table.connector.format.ScanFormat;
+import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -45,7 +45,7 @@ public class Kafka010DynamicSource extends KafkaDynamicSourceBase {
 	 * @param outputDataType         Source output data type
 	 * @param topic                  Kafka topic to consume
 	 * @param properties             Properties for the Kafka consumer
-	 * @param scanFormat             Scan format for decoding records from Kafka
+	 * @param decodingFormat         Decoding format for decoding records from Kafka
 	 * @param startupMode            Startup mode for the contained consumer
 	 * @param specificStartupOffsets Specific startup offsets; only relevant when startup
 	 *                               mode is {@link StartupMode#SPECIFIC_OFFSETS}
@@ -56,7 +56,7 @@ public class Kafka010DynamicSource extends KafkaDynamicSourceBase {
 			DataType outputDataType,
 			String topic,
 			Properties properties,
-			ScanFormat<DeserializationSchema<RowData>> scanFormat,
+			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
 			long startupTimestampMillis) {
@@ -65,7 +65,7 @@ public class Kafka010DynamicSource extends KafkaDynamicSourceBase {
 			outputDataType,
 			topic,
 			properties,
-			scanFormat,
+			decodingFormat,
 			startupMode,
 			specificStartupOffsets,
 			startupTimestampMillis);
@@ -85,7 +85,7 @@ public class Kafka010DynamicSource extends KafkaDynamicSourceBase {
 				this.outputDataType,
 				this.topic,
 				this.properties,
-				this.scanFormat,
+				this.decodingFormat,
 				this.startupMode,
 				this.specificStartupOffsets,
 				this.startupTimestampMillis);

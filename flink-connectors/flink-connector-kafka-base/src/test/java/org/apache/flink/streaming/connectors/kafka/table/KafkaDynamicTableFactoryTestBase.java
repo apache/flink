@@ -34,8 +34,8 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.connector.format.ScanFormat;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -122,8 +122,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), OFFSET_0);
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), OFFSET_1);
 
-		ScanFormat<DeserializationSchema<RowData>> scanFormat =
-				new TestFormatFactory.ScanFormatMock(",", true);
+		DecodingFormat<DeserializationSchema<RowData>> decodingFormat =
+				new TestFormatFactory.DecodingFormatMock(",", true);
 
 		// Construct table source using options and table source factory
 		ObjectIdentifier objectIdentifier = ObjectIdentifier.of(
@@ -142,7 +142,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				producedDataType,
 				TOPIC,
 				KAFKA_PROPERTIES,
-				scanFormat,
+				decodingFormat,
 				StartupMode.SPECIFIC_OFFSETS,
 				specificOffsets,
 				0);
@@ -189,8 +189,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 	@Test
 	public void testTableSink() {
 		final DataType consumedDataType = SINK_SCHEMA.toPhysicalRowDataType();
-		SinkFormat<SerializationSchema<RowData>> sinkFormat =
-				new TestFormatFactory.SinkFormatMock(",");
+		EncodingFormat<SerializationSchema<RowData>> encodingFormat =
+				new TestFormatFactory.EncodingFormatMock(",");
 
 		// Construct table sink using options and table sink factory.
 		ObjectIdentifier objectIdentifier = ObjectIdentifier.of(
@@ -210,12 +210,12 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				TOPIC,
 				KAFKA_PROPERTIES,
 				Optional.of(new FlinkFixedPartitioner<>()),
-				sinkFormat);
+				encodingFormat);
 		assertEquals(expectedSink, actualSink);
 
 		// Test sink format.
 		final KafkaDynamicSinkBase actualKafkaSink = (KafkaDynamicSinkBase) actualSink;
-		assertEquals(sinkFormat, actualKafkaSink.sinkFormat);
+		assertEquals(encodingFormat, actualKafkaSink.encodingFormat);
 
 		// Test kafka producer.
 		DynamicTableSink.SinkRuntimeProvider provider =
@@ -408,7 +408,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 			DataType producedDataType,
 			String topic,
 			Properties properties,
-			ScanFormat<DeserializationSchema<RowData>> scanFormat,
+			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
 			long startupTimestamp
@@ -419,6 +419,6 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			SinkFormat<SerializationSchema<RowData>> sinkFormat
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat
 	);
 }

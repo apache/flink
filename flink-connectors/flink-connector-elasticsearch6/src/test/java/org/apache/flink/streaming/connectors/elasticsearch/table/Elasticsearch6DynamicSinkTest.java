@@ -28,7 +28,7 @@ import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
@@ -65,7 +65,7 @@ public class Elasticsearch6DynamicSinkTest {
 
 		BuilderProvider provider = new BuilderProvider();
 		final Elasticsearch6DynamicSink testSink = new Elasticsearch6DynamicSink(
-			new DummySinkFormat(),
+			new DummyEncodingFormat(),
 			new Elasticsearch6Configuration(getConfig(), this.getClass().getClassLoader()),
 			schema,
 			provider
@@ -141,9 +141,9 @@ public class Elasticsearch6DynamicSinkTest {
 		}
 	}
 
-	private static class DummySinkFormat implements SinkFormat<SerializationSchema<RowData>> {
+	private static class DummyEncodingFormat implements EncodingFormat<SerializationSchema<RowData>> {
 		@Override
-		public SerializationSchema<RowData> createSinkFormat(
+		public SerializationSchema<RowData> createRuntimeEncoder(
 				DynamicTableSink.Context context,
 				DataType consumedDataType) {
 			return DummySerializationSchema.INSTANCE;

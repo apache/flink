@@ -65,7 +65,7 @@ public class JdbcDynamicTableSource implements ScanTableSource, LookupTableSourc
 	}
 
 	@Override
-	public LookupRuntimeProvider getLookupRuntimeProvider(LookupTableSource.Context context) {
+	public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
 		// JDBC only support non-nested look up keys
 		String[] keyNames = new String[context.getKeys().length];
 		for (int i = 0; i < keyNames.length; i++) {
@@ -87,7 +87,7 @@ public class JdbcDynamicTableSource implements ScanTableSource, LookupTableSourc
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public ScanRuntimeProvider getScanRuntimeProvider(ScanTableSource.Context runtimeProviderContext) {
+	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
 		final JdbcRowDataInputFormat.Builder builder = JdbcRowDataInputFormat.builder()
 			.setDrivername(options.getDriverName())
 			.setDBUrl(options.getDbURL())

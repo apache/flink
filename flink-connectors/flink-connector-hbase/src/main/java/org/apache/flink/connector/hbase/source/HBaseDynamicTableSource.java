@@ -58,12 +58,12 @@ public class HBaseDynamicTableSource implements ScanTableSource, LookupTableSour
 	}
 
 	@Override
-	public ScanRuntimeProvider getScanRuntimeProvider(ScanTableSource.Context runtimeProviderContext) {
+	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
 		return InputFormatProvider.of(new HBaseRowDataInputFormat(conf, tableName, hbaseSchema, nullStringLiteral));
 	}
 
 	@Override
-	public LookupRuntimeProvider getLookupRuntimeProvider(LookupTableSource.Context context) {
+	public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
 		checkArgument(context.getKeys().length == 1 && context.getKeys()[0].length == 1,
 			"Currently, HBase table can only be lookup by single rowkey.");
 		checkArgument(

@@ -20,12 +20,13 @@ package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.Format;
-import org.apache.flink.table.connector.format.ScanFormat;
+import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 
 /**
- * Base interface for configuring a {@link ScanFormat} for a {@link ScanTableSource}.
+ * Base interface for configuring a {@link DecodingFormat} for {@link ScanTableSource} and {@link LookupTableSource}.
  *
  * <p>Depending on the kind of external system, a connector might support different encodings for
  * reading and writing rows. This interface helps in making such formats pluggable.
@@ -38,7 +39,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
  * @param <I> runtime interface needed by the table source
  */
 @PublicEvolving
-public interface ScanFormatFactory<I> extends Factory {
+public interface DecodingFormatFactory<I> extends Factory {
 
 	/**
 	 * Creates a format from the given context and format options.
@@ -46,5 +47,5 @@ public interface ScanFormatFactory<I> extends Factory {
 	 * <p>The format options have been projected to top-level options (e.g. from {@code key.format.ignore-errors}
 	 * to {@code format.ignore-errors}).
 	 */
-	ScanFormat<I> createScanFormat(DynamicTableFactory.Context context, ReadableConfig formatOptions);
+	DecodingFormat<I> createDecodingFormat(DynamicTableFactory.Context context, ReadableConfig formatOptions);
 }

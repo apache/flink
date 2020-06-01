@@ -25,10 +25,10 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.format.ScanFormat;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
@@ -56,7 +56,7 @@ public class JsonFormatFactory implements
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public ScanFormat<DeserializationSchema<RowData>> createScanFormat(
+	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context,
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
@@ -65,14 +65,14 @@ public class JsonFormatFactory implements
 		final boolean failOnMissingField = formatOptions.get(FAIL_ON_MISSING_FIELD);
 		final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
 
-		return new ScanFormat<DeserializationSchema<RowData>>() {
+		return new DecodingFormat<DeserializationSchema<RowData>>() {
 			@Override
-			public DeserializationSchema<RowData> createScanFormat(
-					ScanTableSource.Context scanContext,
+			public DeserializationSchema<RowData> createRuntimeDecoder(
+					DynamicTableSource.Context context,
 					DataType producedDataType) {
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
-						(TypeInformation<RowData>) scanContext.createTypeInformation(producedDataType);
+						(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
 				return new JsonRowDataDeserializationSchema(
 						rowType,
 						rowDataTypeInfo,
@@ -88,14 +88,14 @@ public class JsonFormatFactory implements
 	}
 
 	@Override
-	public SinkFormat<SerializationSchema<RowData>> createSinkFormat(
+	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
 			DynamicTableFactory.Context context,
 			ReadableConfig formatOptions) {
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-		return new SinkFormat<SerializationSchema<RowData>>() {
+		return new EncodingFormat<SerializationSchema<RowData>>() {
 			@Override
-			public SerializationSchema<RowData> createSinkFormat(
+			public SerializationSchema<RowData> createRuntimeEncoder(
 					DynamicTableSink.Context context,
 					DataType consumedDataType) {
 				final RowType rowType = (RowType) consumedDataType.getLogicalType();

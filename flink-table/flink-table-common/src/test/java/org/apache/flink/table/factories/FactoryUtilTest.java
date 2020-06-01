@@ -28,8 +28,8 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSinkMock;
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSourceMock;
-import org.apache.flink.table.factories.TestFormatFactory.ScanFormatMock;
-import org.apache.flink.table.factories.TestFormatFactory.SinkFormatMock;
+import org.apache.flink.table.factories.TestFormatFactory.DecodingFormatMock;
+import org.apache.flink.table.factories.TestFormatFactory.EncodingFormatMock;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -147,15 +147,15 @@ public class FactoryUtilTest {
 		final DynamicTableSource actualSource = createTableSource(options);
 		final DynamicTableSource expectedSource = new DynamicTableSourceMock(
 			"MyTarget",
-			new ScanFormatMock(",", false),
-			new ScanFormatMock("|", true));
+			new DecodingFormatMock(",", false),
+			new DecodingFormatMock("|", true));
 		assertEquals(expectedSource, actualSource);
 		final DynamicTableSink actualSink = createTableSink(options);
 		final DynamicTableSink expectedSink = new DynamicTableSinkMock(
 			"MyTarget",
 			1000L,
-			new SinkFormatMock(","),
-			new SinkFormatMock("|"));
+			new EncodingFormatMock(","),
+			new EncodingFormatMock("|"));
 		assertEquals(expectedSink, actualSink);
 	}
 
@@ -168,14 +168,14 @@ public class FactoryUtilTest {
 		final DynamicTableSource expectedSource = new DynamicTableSourceMock(
 			"MyTarget",
 			null,
-			new ScanFormatMock("|", true));
+			new DecodingFormatMock("|", true));
 		assertEquals(expectedSource, actualSource);
 		final DynamicTableSink actualSink = createTableSink(options);
 		final DynamicTableSink expectedSink = new DynamicTableSinkMock(
 			"MyTarget",
 			1000L,
 			null,
-			new SinkFormatMock("|"));
+			new EncodingFormatMock("|"));
 		assertEquals(expectedSink, actualSink);
 	}
 
@@ -191,15 +191,15 @@ public class FactoryUtilTest {
 		final DynamicTableSource actualSource = createTableSource(options);
 		final DynamicTableSource expectedSource = new DynamicTableSourceMock(
 			"MyTarget",
-			new ScanFormatMock(",", false),
-			new ScanFormatMock(";", true));
+			new DecodingFormatMock(",", false),
+			new DecodingFormatMock(";", true));
 		assertEquals(expectedSource, actualSource);
 		final DynamicTableSink actualSink = createTableSink(options);
 		final DynamicTableSink expectedSink = new DynamicTableSinkMock(
 			"MyTarget",
 			1000L,
-			new SinkFormatMock(","),
-			new SinkFormatMock(";"));
+			new EncodingFormatMock(","),
+			new EncodingFormatMock(";"));
 		assertEquals(expectedSink, actualSink);
 	}
 

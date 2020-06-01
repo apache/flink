@@ -28,8 +28,8 @@ import org.apache.flink.streaming.connectors.kafka.Kafka011TableSourceSinkFactor
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.connector.format.ScanFormat;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
@@ -62,7 +62,7 @@ public class Kafka011DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			DataType producedDataType,
 			String topic,
 			Properties properties,
-			ScanFormat<DeserializationSchema<RowData>> scanFormat,
+			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
 			long startupTimestamp) {
@@ -70,7 +70,7 @@ public class Kafka011DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 				producedDataType,
 				topic,
 				properties,
-				scanFormat,
+				decodingFormat,
 				startupMode,
 				specificStartupOffsets,
 				startupTimestamp);
@@ -82,12 +82,12 @@ public class Kafka011DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			SinkFormat<SerializationSchema<RowData>> sinkFormat) {
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
 		return new Kafka011DynamicSink(
 				consumedDataType,
 				topic,
 				properties,
 				partitioner,
-				sinkFormat);
+				encodingFormat);
 	}
 }

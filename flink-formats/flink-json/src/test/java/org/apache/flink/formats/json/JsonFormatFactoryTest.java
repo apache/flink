@@ -108,8 +108,8 @@ public class JsonFormatFactoryTest extends TestLogger {
 		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
 				(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
-		DeserializationSchema<RowData> actualDeser = scanSourceMock.sourceValueFormat
-				.createScanFormat(
+		DeserializationSchema<RowData> actualDeser = scanSourceMock.valueFormat
+				.createRuntimeDecoder(
 						ScanRuntimeProviderContext.INSTANCE,
 						SCHEMA.toRowDataType());
 
@@ -124,8 +124,8 @@ public class JsonFormatFactoryTest extends TestLogger {
 		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
 				(TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
-		SerializationSchema<RowData> actualSer = sinkMock.sinkValueFormat
-				.createSinkFormat(
+		SerializationSchema<RowData> actualSer = sinkMock.valueFormat
+				.createRuntimeEncoder(
 						new SinkRuntimeProviderContext(false),
 						SCHEMA.toRowDataType());
 

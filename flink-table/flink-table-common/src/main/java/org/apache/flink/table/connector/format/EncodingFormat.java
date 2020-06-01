@@ -19,19 +19,19 @@
 package org.apache.flink.table.connector.format;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.types.DataType;
 
 /**
- * A {@link Format} for a {@link ScanTableSource}.
+ * A {@link Format} for a {@link DynamicTableSink} for writing rows.
  *
- * @param <I> runtime interface needed by the table source
+ * @param <I> runtime interface needed by the table sink
  */
 @PublicEvolving
-public interface ScanFormat<I> extends Format {
+public interface EncodingFormat<I> extends Format {
 
 	/**
-	 * Creates runtime implementation that is configured to produce data of the given data type.
+	 * Creates runtime encoder implementation that is configured to consume data of the given data type.
 	 */
-	I createScanFormat(ScanTableSource.Context context, DataType producedDataType);
+	I createRuntimeEncoder(DynamicTableSink.Context context, DataType consumedDataType);
 }

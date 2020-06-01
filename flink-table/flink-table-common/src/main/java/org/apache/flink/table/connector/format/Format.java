@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableFactory;
 
 /**
@@ -34,15 +34,15 @@ import org.apache.flink.table.factories.DynamicTableFactory;
  *
  * <p>Formats can be distinguished along two dimensions:
  * <ul>
- *     <li>Context in which the format is applied (e.g. {@link ScanTableSource} or {@link DynamicTableSink}).
+ *     <li>Context in which the format is applied ({@link DynamicTableSource} or {@link DynamicTableSink}).
  *     <li>Runtime implementation interface that is required (e.g. {@link DeserializationSchema} or
  *     some bulk interface).</li>
  * </ul>
  *
  * <p>A {@link DynamicTableFactory} can search for a format that it is accepted by the connector.
  *
- * @see ScanFormat
- * @see SinkFormat
+ * @see DecodingFormat
+ * @see EncodingFormat
  */
 @PublicEvolving
 public interface Format {

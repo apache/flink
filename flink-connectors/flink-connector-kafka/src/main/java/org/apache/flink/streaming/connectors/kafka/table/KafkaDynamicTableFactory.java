@@ -22,8 +22,8 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.connector.format.ScanFormat;
-import org.apache.flink.table.connector.format.SinkFormat;
+import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
@@ -42,7 +42,7 @@ public class KafkaDynamicTableFactory extends KafkaDynamicTableFactoryBase {
 			DataType producedDataType,
 			String topic,
 			Properties properties,
-			ScanFormat<DeserializationSchema<RowData>> scanFormat,
+			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
 			long startupTimestampMillis) {
@@ -50,7 +50,7 @@ public class KafkaDynamicTableFactory extends KafkaDynamicTableFactoryBase {
 				producedDataType,
 				topic,
 				properties,
-				scanFormat,
+				decodingFormat,
 				startupMode,
 				specificStartupOffsets,
 				startupTimestampMillis);
@@ -62,13 +62,13 @@ public class KafkaDynamicTableFactory extends KafkaDynamicTableFactoryBase {
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			SinkFormat<SerializationSchema<RowData>> sinkFormat) {
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
 		return new KafkaDynamicSink(
 				consumedDataType,
 				topic,
 				properties,
 				partitioner,
-				sinkFormat);
+				encodingFormat);
 	}
 
 	@Override
