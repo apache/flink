@@ -233,4 +233,12 @@ public class StandaloneApplicationClusterConfigurationParserFactoryTest extends 
 		assertThat(savepointRestoreSettings.allowNonRestoredState(), is(true));
 	}
 
+	@Test
+	public void testHostOption() throws FlinkParseException {
+		final String hostName = "user-specified-hostname";
+		final String[] args = {"--configDir", confDirPath, "--job-classname", "foobar", "--host", hostName};
+		final StandaloneApplicationClusterConfiguration applicationClusterConfiguration = commandLineParser.parse(args);
+		assertThat(applicationClusterConfiguration.getHostname(), is(hostName));
+	}
+
 }
