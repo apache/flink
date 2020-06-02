@@ -26,7 +26,6 @@ import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
-import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -36,8 +35,8 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.IndexedRecord;
+import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
@@ -48,6 +47,7 @@ import org.joda.time.LocalDate;
 import org.joda.time.LocalTime;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
@@ -113,9 +113,9 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	private transient DatumReader<IndexedRecord> datumReader;
 
 	/**
-	 * Input stream to read message from.
+	 * Avro decoder that decodes binary data.
 	 */
-	private transient MutableByteArrayInputStream inputStream;
+	private transient BinaryDecoder decoder;
 
 	/**
 	 * Creates a Avro deserialization schema for the given specific record class. Having the
@@ -131,7 +131,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		schemaString = schema.toString();
 		record = (IndexedRecord) SpecificData.newInstance(recordClazz, schema);
 		datumReader = new SpecificDatumReader<>(schema);
-		inputStream = new MutableByteArrayInputStream();
+		decoder = createBytesBinaryDecoder();
 	}
 
 	/**
@@ -149,14 +149,14 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		schema = new Schema.Parser().parse(avroSchemaString);
 		record = new GenericData.Record(schema);
 		datumReader = new GenericDatumReader<>(schema);
-		inputStream = new MutableByteArrayInputStream();
+		decoder = createBytesBinaryDecoder();
 	}
 
 	@Override
 	public Row deserialize(byte[] message) throws IOException {
 		try {
-			inputStream.setBuffer(message);
-			Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+			// Reuse the created decoder with allocated buffer to read the record from message.
+			decoder = DecoderFactory.get().binaryDecoder(message, decoder);
 			record = datumReader.read(record, decoder);
 			return convertAvroRecordToRow(schema, typeInfo, record);
 		} catch (Exception e) {
@@ -341,5 +341,24 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	private void writeObject(ObjectOutputStream outputStream) throws IOException {
 		outputStream.writeObject(recordClazz);
 		outputStream.writeUTF(schemaString);
+	}
+
+	static BinaryDecoder createBytesBinaryDecoder() {
+		return DecoderFactory.get().binaryDecoder(new byte[0], null);
+	}
+
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream inputStream) throws ClassNotFoundException, IOException {
+		recordClazz = (Class<? extends SpecificRecord>) inputStream.readObject();
+		schemaString = inputStream.readUTF();
+		typeInfo = (RowTypeInfo) AvroSchemaConverter.<Row>convertToTypeInfo(schemaString);
+		schema = new Schema.Parser().parse(schemaString);
+		if (recordClazz != null) {
+			record = (SpecificRecord) SpecificData.newInstance(recordClazz, schema);
+		} else {
+			record = new GenericData.Record(schema);
+		}
+		datumReader = new SpecificDatumReader<>(schema);
+		decoder = createBytesBinaryDecoder();
 	}
 }

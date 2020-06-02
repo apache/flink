@@ -42,6 +42,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -190,5 +191,54 @@ public class AvroRowDataDeSerializationSchemaTest {
 				rowData.getInt(1)).toString());
 		Assert.assertEquals("12:12:12", DataFormatConverters.LocalTimeConverter.INSTANCE.toExternal(
 				rowData.getInt(2)).toString());
+	}
+
+	private byte[] serializeData(Schema schema, GenericRecord record) throws IOException {
+		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+		GenericDatumWriter<IndexedRecord> datumWriter = new SpecificDatumWriter<>(schema);
+		Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
+		datumWriter.write(record, encoder);
+		encoder.flush();
+		return byteArrayOutputStream.toByteArray();
+	}
+
+	@Test
+	public void testSchemaAddColumn() throws Exception {
+		DataType oldSchemaDT = ROW(
+				FIELD("field1", BIGINT())
+		);
+		RowType oldSchemaType = (RowType) oldSchemaDT.getLogicalType();
+		Schema oldSchema = AvroSchemaConverter.convertToSchema(oldSchemaType);
+
+		DataType newSchemaDT = ROW(
+				FIELD("field1", BIGINT()),
+				FIELD("field2", STRING())
+		);
+		RowType newSchemaType = (RowType) newSchemaDT.getLogicalType();
+		Schema newSchema = AvroSchemaConverter.convertToSchema(newSchemaType);
+
+		AvroRowDataDeserializationSchema classDeser = new AvroRowDataDeserializationSchema(oldSchemaType,
+				new RowDataTypeInfo(oldSchemaType));
+		classDeser.open(null);
+
+		GenericRecord old = new GenericData.Record(oldSchema);
+		old.put(0, 101L);
+		GenericRecord newData1 = new GenericData.Record(newSchema);
+		newData1.put(0, 102L);
+		newData1.put(1, "ab");
+		GenericRecord newData2 = new GenericData.Record(newSchema);
+		newData2.put(0, 104L);
+		newData2.put(1, "cd");
+		byte[] data0 = serializeData(oldSchema, old);
+		byte[] data1 = serializeData(newSchema, newData1);
+		byte[] data2 = serializeData(newSchema, newData2);
+
+		RowData row0 = classDeser.deserialize(data0);
+		RowData row1 = classDeser.deserialize(data1);
+		RowData row2 = classDeser.deserialize(data2);
+
+		Assert.assertEquals(101L, row0.getLong(0));
+		Assert.assertEquals(102L, row1.getLong(0));
+		Assert.assertEquals(104L, row2.getLong(0));
 	}
 }

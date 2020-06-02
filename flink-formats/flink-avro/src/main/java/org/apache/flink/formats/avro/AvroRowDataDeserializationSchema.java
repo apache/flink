@@ -21,7 +21,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
-import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
@@ -40,8 +39,8 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.IndexedRecord;
+import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.joda.time.DateTime;
@@ -58,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static org.apache.flink.formats.avro.AvroRowDeserializationSchema.createBytesBinaryDecoder;
 import static org.apache.flink.formats.avro.typeutils.AvroSchemaConverter.extractValueTypeToAvroMap;
 
 /**
@@ -108,14 +108,9 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 	private transient DatumReader<IndexedRecord> datumReader;
 
 	/**
-	 * Input stream to read message from.
-	 */
-	private transient MutableByteArrayInputStream inputStream;
-
-	/**
 	 * Avro decoder that decodes binary data.
 	 */
-	private transient Decoder decoder;
+	private transient BinaryDecoder decoder;
 
 	/**
 	 * Creates a Avro deserialization schema for the given logical type.
@@ -136,14 +131,14 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 		final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
 		this.record = new GenericData.Record(schema);
 		this.datumReader = new SpecificDatumReader<>(schema);
-		this.inputStream = new MutableByteArrayInputStream();
-		this.decoder = DecoderFactory.get().binaryDecoder(this.inputStream, null);
+		this.decoder = createBytesBinaryDecoder();
 	}
 
 	@Override
 	public RowData deserialize(byte[] message) throws IOException {
 		try {
-			inputStream.setBuffer(message);
+			// Reuse the created decoder with allocated buffer to read the record from message.
+			decoder = DecoderFactory.get().binaryDecoder(message, decoder);
 			record = datumReader.read(record, decoder);
 			return (RowData) runtimeConverter.convert(record);
 		} catch (Exception e) {

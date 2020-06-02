@@ -121,7 +121,7 @@
  "name": "NewSchemaRecord",
  "fields": [
      {"name": "field1", "type": "long"},
-     {"name": "field2", "type": "string", "default": 0}
+     {"name": "field2", "type": "string", "default": "0"}
  ]
 }
 ]
