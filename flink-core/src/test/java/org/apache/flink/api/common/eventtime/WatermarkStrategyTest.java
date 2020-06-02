@@ -30,6 +30,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.Map;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -129,6 +130,21 @@ public class WatermarkStrategyTest {
 		assertThat(timestampAssigner.extractTimestamp(null, 13L), is(42L));
 	}
 
+	@Test
+	public void testWithIdlenessHelper() {
+		WatermarkStrategy<String> wmStrategy = WatermarkStrategy
+				.<String>forMonotonousTimestamps()
+				.withIdleness(Duration.ofDays(7));
+
+		// ensure that the closure can be cleaned
+		ClosureCleaner.clean(wmStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+
+		assertThat(wmStrategy.createTimestampAssigner(assignerContext()),
+				instanceOf(RecordTimestampAssigner.class));
+		assertThat(wmStrategy.createWatermarkGenerator(generatorContext()),
+				instanceOf(WatermarksWithIdleness.class));
+	}
+
 	static class TestTimestampAssigner implements TimestampAssigner<Object>, Serializable {
 
 		@Override
@@ -138,7 +154,21 @@ public class WatermarkStrategyTest {
 	}
 
 	static TimestampAssignerSupplier.Context assignerContext() {
-		return DummyMetricGroup::new;
+		return new TimestampAssignerSupplier.Context() {
+			@Override
+			public MetricGroup getMetricGroup() {
+				return new DummyMetricGroup();
+			}
+		};
+	}
+
+	static WatermarkGeneratorSupplier.Context generatorContext() {
+		return new WatermarkGeneratorSupplier.Context() {
+			@Override
+			public MetricGroup getMetricGroup() {
+				return new DummyMetricGroup();
+			}
+		};
 	}
 
 	/**
