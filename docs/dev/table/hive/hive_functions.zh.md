@@ -79,7 +79,7 @@ modules:
 想要使用 Hive UDF 函数，需要如下几步：
 
 - 通过 Hive Metastore 将带有 UDF 的 HiveCatalog 设置为当前会话的 catalog 后端。
-- 引入 Flink classpath 中带有 UDF 的 jar 包。
+- 将带有 UDF 的 jar 包放入 Flink classpath 中，并在代码中引入。
 - 使用 Blink planner。
 
 ## 使用 Hive UDF
@@ -89,7 +89,7 @@ modules:
 
 {% highlight java %}
 /**
- * Test simple udf. Registered under name 'myudf'
+ * 注册为 'myudf' 的简单 UDF 测试类. 
  */
 public class TestHiveSimpleUDF extends UDF {
 
@@ -103,7 +103,7 @@ public class TestHiveSimpleUDF extends UDF {
 }
 
 /**
- * Test generic udf. Registered under name 'mygenericudf'
+ * 注册为 'mygenericudf' 的普通 UDF 测试类
  */
 public class TestHiveGenericUDF extends GenericUDF {
 
@@ -136,7 +136,7 @@ public class TestHiveGenericUDF extends GenericUDF {
 }
 
 /**
- * Test split udtf. Registered under name 'mygenericudtf'
+ * 注册为 'mygenericudtf' 的字符串分割 UDF 测试类
  */
 public class TestHiveUDTF extends GenericUDTF {
 
