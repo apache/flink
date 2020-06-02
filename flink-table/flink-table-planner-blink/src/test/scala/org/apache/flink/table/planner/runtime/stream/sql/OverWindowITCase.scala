@@ -281,8 +281,10 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     tEnv.registerTable("T1", t1)
 
     val sqlQuery = "SELECT " +
-      "listagg(distinct c, '|') OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW), " +
-      "count(a) OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
+      "listagg(distinct c, '|') " +
+      "  OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW), " +
+      "count(a) " +
+      "  OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
       "from T1"
 
     val sink = new TestingAppendSink
