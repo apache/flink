@@ -136,8 +136,9 @@ final class Elasticsearch7DynamicSink implements DynamicTableSink {
 			config.getBulkFlushBackoffRetries().ifPresent(builder::setBulkFlushBackoffRetries);
 			config.getBulkFlushBackoffDelay().ifPresent(builder::setBulkFlushBackoffDelay);
 
-			config.getPathPrefix()
-				.ifPresent(pathPrefix -> builder.setRestClientFactory(new DefaultRestClientFactory(pathPrefix)));
+			// we must overwrite the default factory which is defined with a lambda because of a bug
+			// in shading lambda serialization shading see FLINK-18006
+			builder.setRestClientFactory(new DefaultRestClientFactory(config.getPathPrefix().orElse(null)));
 
 			final ElasticsearchSink<RowData> sink = builder.build();
 
