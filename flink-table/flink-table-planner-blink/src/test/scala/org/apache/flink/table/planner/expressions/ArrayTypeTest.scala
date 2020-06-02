@@ -375,4 +375,24 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "[1984-03-12, 1984-02-10]"
     )
   }
+
+  @Test
+  def testArrayIndexStaticCheck(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage("Array element access needs an index starting at 1 but was 0.")
+    testAllApis(
+      'f2.at(0),
+      "f2.at(0)",
+      "f2[0]",
+      "1")
+  }
+
+  @Test
+  def testReturnNullWhenArrayIndexOutOfBounds(): Unit = {
+    testAllApis(
+      'f2.at(4),
+      "f2.at(4)",
+      "f2[4]",
+      "null")
+  }
 }
