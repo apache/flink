@@ -219,7 +219,7 @@ public class Elasticsearch6DynamicSinkITCase {
 
 		// search API does not return documents that were not indexed, we might need to query
 		// the index a few times
-		Deadline deadline = Deadline.fromNow(Duration.ofSeconds(1));
+		Deadline deadline = Deadline.fromNow(Duration.ofSeconds(30));
 		SearchHits hits;
 		do {
 			hits = client.prepareSearch(index)
@@ -227,7 +227,7 @@ public class Elasticsearch6DynamicSinkITCase {
 				.actionGet()
 				.getHits();
 			if (hits.getTotalHits() == 0) {
-				Thread.sleep(100);
+				Thread.sleep(200);
 			}
 		} while (hits.getTotalHits() == 0 && deadline.hasTimeLeft());
 
