@@ -97,12 +97,12 @@ class JsonFunctionsTest extends ExpressionTestBase {
   }
 
   /**
-    * Utility for verify predicates.
-    *
-    * @param candidate      to be verified, can be a scalar or a column
-    * @param expectedValues array of expected values as result of
-    *                       (IS_JSON_VALUE, IS_JSON_OBJECT, IS_JSON_ARRAY, IS_JSON_SCALAR)
-    */
+   * Utility for verify predicates.
+   *
+   * @param candidate to be verified, can be a scalar or a column
+   * @param expectedValues array of expected values as result of
+   *                       (IS_JSON_VALUE, IS_JSON_OBJECT, IS_JSON_ARRAY, IS_JSON_SCALAR)
+   */
   private def verifyPredicates(candidate: String, expectedValues: Array[Boolean]): Unit = {
     assert(expectedValues.length == 4)
 
@@ -117,9 +117,9 @@ class JsonFunctionsTest extends ExpressionTestBase {
   }
 
   private def verifyException[T <: Exception](
-       candidate: String,
-       expectedException: Class[T]
-     ): Unit = {
+    candidate: String,
+    expectedException: Class[T]
+  ): Unit = {
     val sqlCandidates = Array(
       s"$candidate is json value",
       s"$candidate is not json value",
@@ -131,7 +131,9 @@ class JsonFunctionsTest extends ExpressionTestBase {
       s"$candidate is not json scalar")
 
     for (sql <- sqlCandidates) {
-      try testSqlApi(sql, "null") catch {
+      try {
+        testSqlApi(sql, "null")
+      } catch {
         case e: Exception => assertEquals(e.getClass, expectedException)
       }
     }
