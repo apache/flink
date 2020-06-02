@@ -118,17 +118,6 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		threadSafeUnaligner = new ThreadSafeUnaligner(totalNumChannels,	checkNotNull(checkpointCoordinator), this);
 	}
 
-	@Override
-	public void releaseBlocksAndResetBarriers() {
-		if (isCheckpointPending()) {
-			// make sure no additional data is persisted
-			Arrays.fill(hasInflightBuffers, false);
-			// the next barrier that comes must assume it is the first
-			numBarrierConsumed = 0;
-		}
-		threadSafeUnaligner.resetReceivedBarriers(currentConsumedCheckpointId);
-	}
-
 	/**
 	 * We still need to trigger checkpoint via {@link ThreadSafeUnaligner#notifyBarrierReceived(CheckpointBarrier, InputChannelInfo)}
 	 * while reading the first barrier from one channel, because this might happen
@@ -156,41 +145,46 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	}
 
 	@Override
+	public void abortPendingCheckpoint(long checkpointId, CheckpointException exception) throws IOException {
+		threadSafeUnaligner.tryAbortPendingCheckpoint(checkpointId, exception);
+
+		if (checkpointId > currentConsumedCheckpointId) {
+			resetPendingCheckpoint(checkpointId);
+		}
+	}
+
+	@Override
 	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
-		long cancelledId = cancelBarrier.getCheckpointId();
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("{}: Checkpoint {} canceled, aborting alignment.", taskName, cancelledId);
-		}
-
-		if (currentConsumedCheckpointId >= cancelledId && !isCheckpointPending()) {
-			return;
-		}
-
-		if (isCheckpointPending()) {
-			LOG.warn("{}: Received cancellation barrier for checkpoint {} before completing current checkpoint {}. " +
-					"Skipping current checkpoint.",
-				taskName,
+		final long cancelledId = cancelBarrier.getCheckpointId();
+		boolean shouldAbort = threadSafeUnaligner.setCancelledCheckpointId(cancelledId);
+		if (shouldAbort) {
+			notifyAbort(
 				cancelledId,
-				currentConsumedCheckpointId);
+				new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
 		}
 
-		releaseBlocksAndResetBarriers();
-		currentConsumedCheckpointId = cancelledId;
-		threadSafeUnaligner.setCurrentReceivedCheckpointId(currentConsumedCheckpointId);
-		notifyAbortOnCancellationBarrier(cancelledId);
+		if (cancelledId >= currentConsumedCheckpointId) {
+			resetPendingCheckpoint(cancelledId);
+			currentConsumedCheckpointId = cancelledId;
+		}
 	}
 
 	@Override
 	public void processEndOfPartition() throws Exception {
 		threadSafeUnaligner.onChannelClosed();
+		resetPendingCheckpoint(-1L);
+	}
 
+	private void resetPendingCheckpoint(long checkpointId) {
 		if (isCheckpointPending()) {
-			// let the task know we skip a checkpoint
-			notifyAbort(
-				currentConsumedCheckpointId,
-				new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM));
-			// no chance to complete this checkpoint
-			releaseBlocksAndResetBarriers();
+			LOG.warn("{}: Received barrier or EndOfPartition(-1) {} before completing current checkpoint {}. " +
+					"Skipping current checkpoint.",
+				taskName,
+				checkpointId,
+				currentConsumedCheckpointId);
+
+			Arrays.fill(hasInflightBuffers, false);
+			numBarrierConsumed = 0;
 		}
 	}
 
@@ -361,15 +355,6 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			checkpointCoordinator.initCheckpoint(barrierId, barrier.getCheckpointOptions());
 		}
 
-		synchronized void resetReceivedBarriers(long checkpointId) {
-			if (checkpointId >= currentReceivedCheckpointId && numBarriersReceived > 0) {
-				// avoid more data being serialized after abortion
-				Arrays.fill(storeNewBuffers, false);
-				// the next barrier that comes must assume it is the first
-				numBarriersReceived = 0;
-			}
-		}
-
 		synchronized CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
 			if (checkpointId < currentReceivedCheckpointId) {
 				return FutureUtils.completedVoidFuture();
@@ -380,12 +365,40 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			return allBarriersReceivedFuture;
 		}
 
-		synchronized void onChannelClosed() {
+		synchronized void onChannelClosed() throws IOException {
 			numOpenChannels--;
+
+			if (resetPendingCheckpoint()) {
+				handler.notifyAbort(
+					currentReceivedCheckpointId,
+					new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM));
+			}
 		}
 
-		synchronized void setCurrentReceivedCheckpointId(long currentReceivedCheckpointId) {
-			this.currentReceivedCheckpointId = Math.max(currentReceivedCheckpointId, this.currentReceivedCheckpointId);
+		synchronized boolean setCancelledCheckpointId(long cancelledId) {
+			if (currentReceivedCheckpointId > cancelledId || (currentReceivedCheckpointId == cancelledId && numBarriersReceived == 0)) {
+				return false;
+			}
+
+			resetPendingCheckpoint();
+			currentReceivedCheckpointId = cancelledId;
+			return true;
+		}
+
+		synchronized void tryAbortPendingCheckpoint(long checkpointId, CheckpointException exception) throws IOException {
+			if (checkpointId > currentReceivedCheckpointId && resetPendingCheckpoint()) {
+				handler.notifyAbort(currentReceivedCheckpointId, exception);
+			}
+		}
+
+		private boolean resetPendingCheckpoint() {
+			if (numBarriersReceived == 0) {
+				return false;
+			}
+
+			Arrays.fill(storeNewBuffers, false);
+			numBarriersReceived = 0;
+			return true;
 		}
 
 		@VisibleForTesting

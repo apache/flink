@@ -60,22 +60,17 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 		if (receivedBarrier.getId() < lastSeenBarrierId) {
 			return;
 		}
+
 		lastSeenBarrierId = receivedBarrier.getId();
 		CheckpointBarrierHandler previousHandler = activeHandler;
 		activeHandler = receivedBarrier.isCheckpoint() ? unalignedHandler : alignedHandler;
-		abortPreviousIfNeeded(receivedBarrier, previousHandler);
-		activeHandler.processBarrier(receivedBarrier, channelIndex);
-	}
-
-	private void abortPreviousIfNeeded(CheckpointBarrier barrier, CheckpointBarrierHandler prevHandler) throws IOException {
-		if (prevHandler != activeHandler && prevHandler.isCheckpointPending() && prevHandler.getLatestCheckpointId() < barrier.getId()) {
-			prevHandler.releaseBlocksAndResetBarriers();
-			notifyAbort(
-				prevHandler.getLatestCheckpointId(),
-				new CheckpointException(
-					format("checkpoint %d subsumed by %d", prevHandler.getLatestCheckpointId(), barrier.getId()),
-					CHECKPOINT_DECLINED_SUBSUMED));
+		if (previousHandler != activeHandler) {
+			previousHandler.abortPendingCheckpoint(
+				lastSeenBarrierId,
+				new CheckpointException(format("checkpoint subsumed by %d", lastSeenBarrierId), CHECKPOINT_DECLINED_SUBSUMED));
 		}
+
+		activeHandler.processBarrier(receivedBarrier, channelIndex);
 	}
 
 	@Override

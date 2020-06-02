@@ -52,7 +52,8 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
 	}
 
-	public abstract void releaseBlocksAndResetBarriers();
+	public void releaseBlocksAndResetBarriers() {
+	}
 
 	/**
 	 * Checks whether the channel with the given index is blocked.
@@ -138,4 +139,7 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 	}
 
 	protected abstract boolean isCheckpointPending();
+
+	protected void abortPendingCheckpoint(long checkpointId, CheckpointException exception) throws IOException {
+	}
 }

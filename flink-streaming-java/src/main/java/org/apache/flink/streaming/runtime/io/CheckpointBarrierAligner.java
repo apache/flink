@@ -93,6 +93,14 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	}
 
 	@Override
+	public void abortPendingCheckpoint(long checkpointId, CheckpointException exception) throws IOException {
+		if (checkpointId > currentCheckpointId && isCheckpointPending()) {
+			releaseBlocksAndResetBarriers();
+			notifyAbort(currentCheckpointId, exception);
+		}
+	}
+
+	@Override
 	public void releaseBlocksAndResetBarriers() {
 		LOG.debug("{}: End of stream alignment, feeding buffered data back.", taskName);
 
