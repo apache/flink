@@ -1015,7 +1015,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction JSON_EXISTS = new SqlFunction(
 		"JSON_EXISTS",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.BOOLEAN, SqlTypeTransforms.FORCE_NULLABLE), null,
+		ReturnTypes.cascade(ReturnTypes.BOOLEAN, SqlTypeTransforms.FORCE_NULLABLE),
+		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER),
 			OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER, SqlTypeFamily.ANY)),

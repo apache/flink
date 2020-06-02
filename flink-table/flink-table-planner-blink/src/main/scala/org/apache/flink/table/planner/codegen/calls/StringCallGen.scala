@@ -28,9 +28,11 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
 import org.apache.flink.table.types.logical._
+
 import org.apache.calcite.runtime.SqlFunctions
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
+
 import java.lang.reflect.Method
 
 /**
