@@ -43,7 +43,7 @@ public class HadoopUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopUtils.class);
 
-	private static final Text HDFS_DELEGATION_TOKEN_KIND = new Text("HDFS_DELEGATION_TOKEN");
+	static final Text HDFS_DELEGATION_TOKEN_KIND = new Text("HDFS_DELEGATION_TOKEN");
 
 	@SuppressWarnings("deprecation")
 	public static Configuration getHadoopConfiguration(org.apache.flink.configuration.Configuration flinkConfiguration) {
@@ -112,11 +112,12 @@ public class HadoopUtils {
 		return result;
 	}
 
-	public static boolean isCredentialsConfigured(UserGroupInformation ugi, boolean useTicketCache) throws Exception {
-		if (UserGroupInformation.isSecurityEnabled()) {
+	public static boolean isKerberosCredentialsConfigured(UserGroupInformation ugi, boolean useTicketCache) {
+		if (UserGroupInformation.isSecurityEnabled()
+			&& ugi.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.KERBEROS) {
 			if (useTicketCache && !ugi.hasKerberosCredentials()) {
 				// a delegation token is an adequate substitute in most cases
-				if (!HadoopUtils.hasHDFSDelegationToken()) {
+				if (!HadoopUtils.hasHDFSDelegationToken(ugi)) {
 					LOG.error("Hadoop security is enabled, but current login user has neither Kerberos credentials " +
 						"nor delegation tokens!");
 					return false;
@@ -130,11 +131,10 @@ public class HadoopUtils {
 	}
 
 	/**
-	 * Indicates whether the current user has an HDFS delegation token.
+	 * Indicates whether the user has an HDFS delegation token.
 	 */
-	public static boolean hasHDFSDelegationToken() throws Exception {
-		UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
-		Collection<Token<? extends TokenIdentifier>> usrTok = loginUser.getTokens();
+	public static boolean hasHDFSDelegationToken(UserGroupInformation ugi) {
+		Collection<Token<? extends TokenIdentifier>> usrTok = ugi.getTokens();
 		for (Token<? extends TokenIdentifier> token : usrTok) {
 			if (token.getKind().equals(HDFS_DELEGATION_TOKEN_KIND)) {
 				return true;
