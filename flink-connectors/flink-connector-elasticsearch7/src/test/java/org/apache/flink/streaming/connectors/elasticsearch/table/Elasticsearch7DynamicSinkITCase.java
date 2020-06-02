@@ -218,10 +218,14 @@ public class Elasticsearch7DynamicSinkITCase {
 				.execute()
 				.actionGet()
 				.getHits();
-			if (hits.getTotalHits().value == 0) {
+			if (hits.getTotalHits().value < 1) {
 				Thread.sleep(200);
 			}
-		} while (hits.getTotalHits().value == 0 && deadline.hasTimeLeft());
+		} while (hits.getTotalHits().value < 1 && deadline.hasTimeLeft());
+
+		if (hits.getTotalHits().value < 1) {
+			throw new AssertionError("Could not retrieve results from Elasticsearch.");
+		}
 
 		Map<String, Object> result = hits.getAt(0).getSourceAsMap();
 		Map<Object, Object> expectedMap = new HashMap<>();
