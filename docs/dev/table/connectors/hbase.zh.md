@@ -35,7 +35,7 @@ The HBase connector allows for reading from and writing to an HBase cluster. Thi
 
 The connector can operate in upsert mode for exchange changelog messages with the external system using a primary key defined on the DDL. But the primary key can only be defined on the HBase rowkey field. If the PRIMARY KEY clause is not declared, the HBase connector will take rowkey as the primary key by default.
 
-<span class="label label-danger">Attention</span> HBase as a Lookup Source does not use any caching; data is always queried directly through the HBase client.
+<span class="label label-danger">Attention</span> HBase as a Lookup Source does not use any cache, data is always queried directly through the HBase client.
 
 Dependencies
 ------------
@@ -57,7 +57,7 @@ The dependency table is only available for stable releases.
 How to create an HBase table
 ----------------
 
-All the column families in HBase table must be declared as ROW type, the field name maps to the column family name, and the nested field names map to the column qualifier names. There is no need to declare all the families and qualifiers in the schema, users can declare what’s necessary. Except the ROW type fields, the only one field of atomic type (e.g. STRING, BIGINT) will be recognized as HBase rowkey. The rowkey field can be arbitrary name.
+All the column families in HBase table must be declared as ROW type, the field name maps to the column family name, and the nested field names map to the column qualifier names. There is no need to declare all the families and qualifiers in the schema, users can declare what’s used in the query. Except the ROW type fields, the single atomic type field (e.g. STRING, BIGINT) will be recognized as HBase rowkey. The rowkey field can be arbitrary name, but should be quoted using backticks if it is a reserved keyword.
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -131,7 +131,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">2mb</td>
       <td>MemorySize</td>
-      <td>Writing option, determines how many size in memory of buffered rows to insert per round trip.
+      <td>Writing option, maximum size in memory of buffered rows for each writing request.
       This can improve performance for writing data to HBase database, but may increase the latency.
       </td>
     </tr>
@@ -140,7 +140,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>Writing option, determines how many number of rows to insert per round trip.
+      <td>Writing option, maximum number of rows to buffer for each writing request.
       This can improve performance for writing data to HBase database, but may increase the latency.
       No default value, which means the default flushing is not depends on the number of buffered rows
       </td>
@@ -150,8 +150,8 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
-      <td>Writing option, sets a flush interval flushing buffered requesting if the interval passes, in milliseconds.
-      No default value, which means no asynchronous flush thread will be scheduled.
+      <td>Writing option, the interval to flush buffered rows.
+      No default value, which means no asynchronous flush thread will be scheduled. Examples: '1s', '5 s'.
       </td>
     </tr>
     </tbody>

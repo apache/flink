@@ -27,7 +27,7 @@ under the License.
 
 Flink's Table API & SQL programs can be connected to other external systems for reading and writing both batch and streaming tables. A table source provides access to data which is stored in external systems (such as a database, key-value store, message queue, or file system). A table sink emits a table to an external storage system. Depending on the type of source and sink, they support different formats such as CSV, Avro, Parquet, or ORC.
 
-This page describes how to declare built-in table sources and/or table sinks and register them in Flink. After a source or sink has been registered, it can be accessed by Table API & SQL statements.
+This page describes how to register table sources and table sinks in Flink using the natively supported connectors. After a source or sink has been registered, it can be accessed by Table API & SQL statements.
 
 <span class="label label-info">NOTE</span> If you want to implement your own *custom* table source or sink, have a look at the [user-defined sources & sinks page](sourceSinks.html).
 
@@ -124,7 +124,7 @@ If no factory can be found or multiple factories match for the given properties,
 Schema Mapping
 ------------
 
-The body clause of a SQL `CREATE TABLE` statement defines the names and types of columns, and constraints, watermarks. Flink doesn't hold the data, thus the schema definition only declares how to map types from an external system to Flink’s representation. The mapping may not be mapped by names, it depends on the implementation of formats and connectors. For example, a MySQL database table is mapped by field names (not case sensitive), and a CSV filesystem is mapped by field order (field names can be arbitrary). This will be explanation in every connectors.
+The body clause of a SQL `CREATE TABLE` statement defines the names and types of columns, constraints and watermarks. Flink doesn't hold the data, thus the schema definition only declares how to map types from an external system to Flink’s representation. The mapping may not be mapped by names, it depends on the implementation of formats and connectors. For example, a MySQL database table is mapped by field names (not case sensitive), and a CSV filesystem is mapped by field order (field names can be arbitrary). This will be explained in every connectors.
 
 The following example shows a simple schema without time attributes and one-to-one field mapping of input/output to table columns.
 
@@ -144,7 +144,7 @@ CREATE TABLE MyTable (
 
 ### Primary Key
 
-Primary key constraints tell that a column or a set of columns of a table are unique and they do not contain null. Primary key therefore uniquely identify a row in a table.
+Primary key constraints tell that a column or a set of columns of a table are unique and they do not contain nulls. Primary key uniquely identify a row in a table.
 
 The primary key of a source table is a metadata information for optimization. The primary key of a sink table is usually used by the sink implementation for upserting.
 
@@ -167,13 +167,13 @@ CREATE TABLE MyTable (
 
 ### Time Attributes
 
-Time attributes are essential when working with unbounded streaming tables. Therefore both processing-time and event-time (also known as "rowtime") attributes can be defined as part of the schema.
+Time attributes are essential when working with unbounded streaming tables. Therefore both proctime and rowtime attributes can be defined as part of the schema.
 
 For more information about time handling in Flink and especially event-time, we recommend the general [event-time section](streaming/time_attributes.html).
 
 #### Proctime Attributes
 
-In order to declare a proctime attribute in the schema, you can use Computed Column syntax to declare a computed column which is generated from `PROCTIME()` builtin function.
+In order to declare a proctime attribute in the schema, you can use [Computed Column syntax]({{ site.baseurl }}/dev/table/sql/create.html#create-table) to declare a computed column which is generated from `PROCTIME()` builtin function.
 The computed column is a virtual column which is not stored in the physical data.
 
 <div class="codetabs" markdown="1">
@@ -183,7 +183,7 @@ CREATE TABLE MyTable (
   MyField1 INT,
   MyField2 STRING,
   MyField3 BOOLEAN
-  MyField4 AS PROCTIME() -- declares a  as a processing-time attribute
+  MyField4 AS PROCTIME() -- declares a proctime attribute
 ) WITH (
   ...
 )
