@@ -168,6 +168,10 @@ public final class CliStrings {
 
 	public static final String MESSAGE_DATABASE_ALTER_FAILED = "Alter database failed!";
 
+	public static final String MESSAGE_CATALOG_CREATED = "Catalog has been created.";
+
+	public static final String MESSAGE_CATALOG_REMOVED = "Catalog has been removed.";
+
 	public static final String MESSAGE_VIEW_ALREADY_EXISTS = "A view with this name has already been defined in the current CLI session.";
 
 	public static final String MESSAGE_VIEW_NOT_FOUND = "The given view does not exist in the current CLI session. " +

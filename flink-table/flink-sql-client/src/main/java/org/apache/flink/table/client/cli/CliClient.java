@@ -348,6 +348,11 @@ public class CliClient {
 			case ALTER_TABLE:
 				callAlterTable(cmdCall);
 				break;
+			case CREATE_CATALOG:
+				callCreateCatalog(cmdCall);
+			case DROP_CATALOG:
+				callDropCatalog(cmdCall);
+				break;
 			default:
 				throw new SqlClientException("Unsupported command: " + cmdCall.command);
 		}
@@ -734,6 +739,26 @@ public class CliClient {
 			printInfo(CliStrings.MESSAGE_ALTER_TABLE_SUCCEEDED);
 		} catch (SqlExecutionException e) {
 			printExecutionException(CliStrings.MESSAGE_ALTER_TABLE_FAILED, e);
+		}
+	}
+
+	private void callCreateCatalog(SqlCommandCall cmdCall) {
+		final String createCatalogStmt = cmdCall.operands[0];
+		try {
+			executor.executeUpdate(sessionId, createCatalogStmt);
+			printInfo(CliStrings.MESSAGE_CATALOG_CREATED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+		}
+	}
+
+	private void callDropCatalog(SqlCommandCall cmdCall) {
+		final String dropCatalogStmt = cmdCall.operands[0];
+		try {
+			executor.executeUpdate(sessionId, dropCatalogStmt);
+			printInfo(CliStrings.MESSAGE_CATALOG_REMOVED);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
 		}
 	}
 

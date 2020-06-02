@@ -226,6 +226,41 @@ public class CliClientTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testCreateCatalog() throws Exception {
+		testDDL("create catalog c1 with('type'='generic_in_memory');");
+	}
+
+	@Test
+	public void testDropCatalog() throws Exception {
+		testDDL("drop catalog c1;");
+	}
+
+	private void testDDL(String ddl) throws Exception {
+		TestingExecutor executor = new TestingExecutorBuilder().setExecuteUpdateConsumer((s, s2) -> null).build();
+
+		InputStream inputStream = new ByteArrayInputStream((ddl + "\n").getBytes());
+		// don't care about the output
+		OutputStream outputStream = new OutputStream() {
+			@Override
+			public void write(int b) throws IOException {
+			}
+		};
+		CliClient cliClient = null;
+		SessionContext sessionContext = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(sessionContext);
+
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
+			cliClient.open();
+			assertThat(executor.getNumExecuteUpdateCalls(), is(1));
+		} finally {
+			if (cliClient != null) {
+				cliClient.close();
+			}
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**

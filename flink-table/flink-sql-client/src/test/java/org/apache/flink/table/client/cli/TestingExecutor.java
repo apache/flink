@@ -31,6 +31,7 @@ import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.function.BiConsumerWithException;
+import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.util.List;
@@ -58,6 +59,9 @@ class TestingExecutor implements Executor {
 	private int numUseDatabaseCalls = 0;
 	private BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer;
 
+	private int numExecuteUpdateCalls = 0;
+	private BiFunctionWithException<String, String, ProgramTargetDescriptor, SqlExecutionException> executeUpdateConsumer;
+
 	private final SqlParserHelper helper;
 
 	TestingExecutor(
@@ -65,12 +69,14 @@ class TestingExecutor implements Executor {
 			List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>> snapshotResults,
 			List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages,
 			BiConsumerWithException<String, String, SqlExecutionException> useCatalogConsumer,
-			BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer) {
+			BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer,
+			BiFunctionWithException<String, String, ProgramTargetDescriptor, SqlExecutionException> executeUpdateConsumer) {
 		this.resultChanges = resultChanges;
 		this.snapshotResults = snapshotResults;
 		this.resultPages = resultPages;
 		this.useCatalogConsumer = useCatalogConsumer;
 		this.useDatabaseConsumer = useDatabaseConsumer;
+		this.executeUpdateConsumer = executeUpdateConsumer;
 		helper = new SqlParserHelper();
 		helper.registerTables();
 	}
@@ -211,7 +217,8 @@ class TestingExecutor implements Executor {
 
 	@Override
 	public ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
+		numExecuteUpdateCalls++;
+		return executeUpdateConsumer.apply(sessionId, statement);
 	}
 
 	public int getNumCancelCalls() {
@@ -236,5 +243,9 @@ class TestingExecutor implements Executor {
 
 	public int getNumUseDatabaseCalls() {
 		return numUseDatabaseCalls;
+	}
+
+	public int getNumExecuteUpdateCalls() {
+		return numExecuteUpdateCalls;
 	}
 }
