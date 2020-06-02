@@ -59,9 +59,8 @@ The `ExternalizedCheckpointCleanup` mode configures what happens with checkpoint
 
 Similarly to [savepoints](savepoints.html), a checkpoint consists
 of a meta data file and, depending on the state backend, some additional data
-files. The meta data file and data files are stored in the directory that is
-configured via `state.checkpoints.dir` in the configuration files, 
-and also can be specified for per job in the code.
+files. The checkpoint target directory can be configured via `state.checkpoints.dir` 
+in the configuration files, and also can be specified for per job in the code.
 
 The current checkpoint directory layout ([introduced by FLINK-8531](https://issues.apache.org/jira/browse/FLINK-8531)) is as follows:
 
@@ -93,6 +92,9 @@ state.checkpoints.dir: hdfs:///checkpoints/
 {% highlight java %}
 env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/"));
 {% endhighlight %}
+
+The meta data file and data files are stored in the directory targetDirectory/jobId/chk-xxx/,
+and 'chk-' is checkpoint directory prefix while 'xxx' is checkpointId.
 
 ### Difference to Savepoints
 
