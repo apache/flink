@@ -63,17 +63,9 @@ import java.util.regex.Pattern;
  */
 public final class SqlCommandParser {
 
-	private static final Function<String[], Optional<String[]>> NO_OPERANDS =
-		(operands) -> Optional.of(new String[0]);
-	private static final Function<String[], Optional<String[]>> SINGLE_OPERAND =
-		(operands) -> Optional.of(new String[]{operands[0]});
-	private static final int DEFAULT_PATTERN_FLAGS = Pattern.CASE_INSENSITIVE | Pattern.DOTALL;
-
 	private SqlCommandParser() {
 		// private
 	}
-
-	// --------------------------------------------------------------------------------------------
 
 	public static Optional<SqlCommandCall> parse(Parser sqlParser, String stmt) {
 		// normalize
@@ -109,7 +101,7 @@ public final class SqlCommandParser {
 		}
 
 		final SqlCommand cmd;
-		String[] operands = new String[]{stmt};
+		String[] operands = new String[] { stmt };
 		Operation operation = operations.get(0);
 		if (operation instanceof CatalogSinkModifyOperation) {
 			boolean overwrite = ((CatalogSinkModifyOperation) operation).isOverwrite();
@@ -123,11 +115,11 @@ public final class SqlCommandParser {
 		} else if (operation instanceof CreateViewOperation) {
 			cmd = SqlCommand.CREATE_VIEW;
 			CreateViewOperation op = (CreateViewOperation) operation;
-			operands = new String[]{op.getViewIdentifier().asSerializableString(),
-				op.getCatalogView().getOriginalQuery()};
+			operands = new String[] { op.getViewIdentifier().asSerializableString(),
+					op.getCatalogView().getOriginalQuery() };
 		} else if (operation instanceof DropViewOperation) {
 			cmd = SqlCommand.DROP_VIEW;
-			operands = new String[]{((DropViewOperation) operation).getViewIdentifier().asSerializableString()};
+			operands = new String[] { ((DropViewOperation) operation).getViewIdentifier().asSerializableString() };
 		} else if (operation instanceof CreateDatabaseOperation) {
 			cmd = SqlCommand.CREATE_DATABASE;
 		} else if (operation instanceof DropDatabaseOperation) {
@@ -140,13 +132,11 @@ public final class SqlCommandParser {
 			cmd = SqlCommand.DROP_CATALOG;
 		} else if (operation instanceof UseCatalogOperation) {
 			cmd = SqlCommand.USE_CATALOG;
-			operands = new String[]{((UseCatalogOperation) operation).getCatalogName()};
-			operands = new String[]{String.format("`%s`", ((UseCatalogOperation) operation).getCatalogName())};
+			operands = new String[] { String.format("`%s`", ((UseCatalogOperation) operation).getCatalogName()) };
 		} else if (operation instanceof UseDatabaseOperation) {
 			cmd = SqlCommand.USE;
 			UseDatabaseOperation op = ((UseDatabaseOperation) operation);
-			operands = new String[]{((UseDatabaseOperation) operation).getDatabaseName()};
-			operands = new String[]{String.format("`%s`.`%s`", op.getCatalogName(), op.getDatabaseName())};
+			operands = new String[] { String.format("`%s`.`%s`", op.getCatalogName(), op.getDatabaseName()) };
 		} else if (operation instanceof ShowCatalogsOperation) {
 			cmd = SqlCommand.SHOW_CATALOGS;
 			operands = new String[0];
@@ -160,10 +150,10 @@ public final class SqlCommandParser {
 			cmd = SqlCommand.SHOW_FUNCTIONS;
 			operands = new String[0];
 		} else if (operation instanceof CreateCatalogFunctionOperation ||
-			operation instanceof CreateTempSystemFunctionOperation) {
+				operation instanceof CreateTempSystemFunctionOperation) {
 			cmd = SqlCommand.CREATE_FUNCTION;
 		} else if (operation instanceof DropCatalogFunctionOperation ||
-			operation instanceof DropTempSystemFunctionOperation) {
+				operation instanceof DropTempSystemFunctionOperation) {
 			cmd = SqlCommand.DROP_FUNCTION;
 		} else if (operation instanceof AlterCatalogFunctionOperation) {
 			cmd = SqlCommand.ALTER_FUNCTION;
@@ -171,7 +161,7 @@ public final class SqlCommandParser {
 			cmd = SqlCommand.EXPLAIN;
 		} else if (operation instanceof DescribeTableOperation) {
 			cmd = SqlCommand.DESCRIBE;
-			operands = new String[]{((DescribeTableOperation) operation).getSqlIdentifier().asSerializableString()};
+			operands = new String[] { ((DescribeTableOperation) operation).getSqlIdentifier().asSerializableString() };
 		} else if (operation instanceof QueryOperation) {
 			cmd = SqlCommand.SELECT;
 		} else {
@@ -192,20 +182,30 @@ public final class SqlCommandParser {
 						groups[i] = matcher.group(i + 1);
 					}
 					return cmd.operandConverter.apply(groups)
-						.map((operands) -> {
-							String[] newOperands = operands;
-							if (cmd == SqlCommand.EXPLAIN) {
-								// convert `explain xx` to `explain plan for xx`
-								// which can execute through executeSql method
-								newOperands = new String[]{"EXPLAIN PLAN FOR " + operands[0]};
-							}
-							return new SqlCommandCall(cmd, newOperands);
-						});
+							.map((operands) -> {
+								String[] newOperands = operands;
+								if (cmd == SqlCommand.EXPLAIN) {
+									// convert `explain xx` to `explain plan for xx`
+									// which can execute through executeSql method
+									newOperands = new String[] { "EXPLAIN PLAN FOR " + operands[0] };
+								}
+								return new SqlCommandCall(cmd, newOperands);
+							});
 				}
 			}
 		}
 		return Optional.empty();
 	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static final Function<String[], Optional<String[]>> NO_OPERANDS =
+		(operands) -> Optional.of(new String[0]);
+
+	private static final Function<String[], Optional<String[]>> SINGLE_OPERAND =
+		(operands) -> Optional.of(new String[]{operands[0]});
+
+	private static final int DEFAULT_PATTERN_FLAGS = Pattern.CASE_INSENSITIVE | Pattern.DOTALL;
 
 	/**
 	 * Supported SQL commands.
@@ -246,15 +246,9 @@ public final class SqlCommandParser {
 			SINGLE_OPERAND
 		),
 
-		CREATE_CATALOG(
-			"CREATE\\s+CATALOG\\s+`?(\\w+)*`?",
-			SINGLE_OPERAND
-		),
+		CREATE_CATALOG,
 
-		DROP_CATALOG(
-			"DROP\\s+CATALOG\\s+`?(\\w+)*`?",
-			SINGLE_OPERAND
-		),
+		DROP_CATALOG,
 
 		DESC(
 			"DESC\\s+(.*)",
@@ -315,10 +309,8 @@ public final class SqlCommandParser {
 			"SOURCE\\s+(.*)",
 			SINGLE_OPERAND);
 
-		public final @Nullable
-		Pattern pattern;
-		public final @Nullable
-		Function<String[], Optional<String[]>> operandConverter;
+		public final @Nullable Pattern pattern;
+		public final @Nullable Function<String[], Optional<String[]>> operandConverter;
 
 		SqlCommand() {
 			this.pattern = null;
