@@ -45,6 +45,7 @@ import org.jline.terminal.impl.DumbTerminal;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -159,6 +160,64 @@ public class CliClientTest extends TestLogger {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 			cliClient.open();
 			assertThat(executor.getNumUseCatalogCalls(), is(1));
+		} finally {
+			if (cliClient != null) {
+				cliClient.close();
+			}
+		}
+	}
+
+	@Test
+	public void testUseCatalog() throws Exception {
+		TestingExecutor executor = new TestingExecutorBuilder()
+				.setUseCatalogConsumer((ignored1, catalogName) -> {
+					if (!catalogName.equals("cat")) {
+						throw new SqlExecutionException("unexpected catalog name: " + catalogName);
+					}
+				})
+				.build();
+
+		InputStream inputStream = new ByteArrayInputStream("use catalog cat;\n".getBytes());
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
+		CliClient cliClient = null;
+		SessionContext sessionContext = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(sessionContext);
+
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
+			cliClient.open();
+			assertThat(executor.getNumUseCatalogCalls(), is(1));
+			String output = new String(outputStream.toByteArray());
+			assertFalse(output.contains("unexpected catalog name"));
+		} finally {
+			if (cliClient != null) {
+				cliClient.close();
+			}
+		}
+	}
+
+	@Test
+	public void testUseDatabase() throws Exception {
+		TestingExecutor executor = new TestingExecutorBuilder()
+				.setUseDatabaseConsumer((ignored1, databaseName) -> {
+					if (!databaseName.equals("db")) {
+						throw new SqlExecutionException("unexpected database name: " + databaseName);
+					}
+				})
+				.build();
+
+		InputStream inputStream = new ByteArrayInputStream("use db;\n".getBytes());
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
+		CliClient cliClient = null;
+		SessionContext sessionContext = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(sessionContext);
+
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
+			cliClient.open();
+			assertThat(executor.getNumUseDatabaseCalls(), is(1));
+			String output = new String(outputStream.toByteArray());
+			assertFalse(output.contains("unexpected database name"));
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();
