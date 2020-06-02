@@ -364,7 +364,8 @@ catalogs:
 
 ## DDL
 
-DDL to create Hive tables, views, partitions, functions within Flink will be supported soon.
+It's recommended to use [Hive dialect]({{ site.baseurl }}/dev/table/hive/hive_dialect.html) to execute DDLs to create
+Hive tables, views, partitions, functions within Flink.
 
 ## DML
 
