@@ -43,39 +43,39 @@ echo "==========================================================================
 EXIT_CODE=0
 
 run_mvn clean install $MAVEN_OPTS -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 \
-    -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -U -DskipTests
+    -Dflink.forkCountTestPackage=2 -U -DskipTests
 
 EXIT_CODE=$?
 
-if [ $EXIT_CODE == 0 ]; then
+if [ $EXIT_CODE != 0 ]; then
     echo "=============================================================================="
-    echo "Checking scala suffixes"
+    echo "Compiling Flink failed."
     echo "=============================================================================="
-
-    ${CI_DIR}/verify_scala_suffixes.sh "${PROFILE}"
-    EXIT_CODE=$?
-else
-    echo "=============================================================================="
-    echo "Previous build failure detected, skipping scala-suffixes check."
-    echo "=============================================================================="
+    exit $EXIT_CODE
 fi
 
-if [ $EXIT_CODE == 0 ]; then
-    check_shaded_artifacts
-    EXIT_CODE=$(($EXIT_CODE+$?))
-    check_shaded_artifacts_s3_fs hadoop
-    EXIT_CODE=$(($EXIT_CODE+$?))
-    check_shaded_artifacts_s3_fs presto
-    EXIT_CODE=$(($EXIT_CODE+$?))
-    check_shaded_artifacts_connector_elasticsearch 5
-    EXIT_CODE=$(($EXIT_CODE+$?))
-    check_shaded_artifacts_connector_elasticsearch 6
-    EXIT_CODE=$(($EXIT_CODE+$?))
-else
-    echo "=============================================================================="
-    echo "Previous build failure detected, skipping shaded dependency check."
-    echo "=============================================================================="
-fi
+echo "============ Checking Scaladocs ============"
+
+cd flink-scala
+run_mvn scala:doc || exit $?
+cd ..
+
+echo "============ Checking scala suffixes ============"
+
+${CI_DIR}/verify_scala_suffixes.sh "${PROFILE}" || exit $?
+
+echo "============ Checking shaded dependencies ============"
+
+check_shaded_artifacts
+EXIT_CODE=$(($EXIT_CODE+$?))
+check_shaded_artifacts_s3_fs hadoop
+EXIT_CODE=$(($EXIT_CODE+$?))
+check_shaded_artifacts_s3_fs presto
+EXIT_CODE=$(($EXIT_CODE+$?))
+check_shaded_artifacts_connector_elasticsearch 5
+EXIT_CODE=$(($EXIT_CODE+$?))
+check_shaded_artifacts_connector_elasticsearch 6
+EXIT_CODE=$(($EXIT_CODE+$?))
 
 exit $EXIT_CODE
 
