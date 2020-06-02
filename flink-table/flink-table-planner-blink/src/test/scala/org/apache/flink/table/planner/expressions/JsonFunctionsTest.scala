@@ -139,6 +139,8 @@ class JsonFunctionsTest extends ExpressionTestBase {
 
   @Test
   def testJsonExists(): Unit = {
+    testSqlApi("json_exists(f9, '$.info.type')", "false")
+
     // lax json test
     testSqlApi("json_exists(f9, 'lax $')", "true")
     testSqlApi("json_exists(f9, 'lax $.info.type')", "true")
@@ -147,6 +149,7 @@ class JsonFunctionsTest extends ExpressionTestBase {
     testSqlApi("json_exists(f9, 'lax $.info.tags')", "true")
     testSqlApi("json_exists(f9, 'lax $.info.type[0]')", "false")
     testSqlApi("json_exists(f9, 'lax $.info.none')", "false")
+    testSqlApi("json_exists(f9, 'lax $' error on error)", "true")
 
     // strict + no error
     testSqlApi("json_exists(f9, 'strict $.info.type')", "true")
@@ -160,12 +163,7 @@ class JsonFunctionsTest extends ExpressionTestBase {
     testSqlApi("json_exists(f9, 'strict $.info.\"type\"' unknown on error)", "null")
     testSqlApi("json_exists(f9, 'strict $.info.type' error on error)", "true")
 
-    verifyJsonExistsException("json_exists(f7, 'lax aa')",
-      "Illegal Parameter Type error : JSON_EXISTS(INT, CHAR(6) NOT NULL)")
-    verifyJsonExistsException("json_exists(f9, 'lax $' error on error)",
-      "Illegal operation, JSON_EXISTS no need to fill in the error behavior in lax mode!")
-    verifyJsonExistsException("json_exists(f9, '$.info.type')",
-      "Illegal jsonpath spec: $.info.type, format of the spec should be: '<lax|strict> ${expr}'")
+    verifyJsonExistsException("json_exists(f7, 'lax aa')", "SQL validation failed")
   }
 
   private def verifyJsonExistsException[T <: Exception](

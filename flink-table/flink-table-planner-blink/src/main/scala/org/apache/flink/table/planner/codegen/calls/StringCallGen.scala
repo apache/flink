@@ -221,8 +221,6 @@ object StringCallGen {
           isCharacterString(operands(2).resultType) =>
         methodGen(BuiltInMethods.CONVERT_TZ)
 
-      case JSON_EXISTS => new JsonExistsCallGen().generate(ctx, operands, returnType)
-
       case _ => null
     }
 
