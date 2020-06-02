@@ -1,5 +1,5 @@
 ---
-title: "Event Time"
+title: "事件时间"
 nav-id: event_time
 nav-show_overview: true
 nav-parent_id: streaming
@@ -24,27 +24,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-In this section you will learn about writing time-aware Flink programs. Please
-take a look at [Timely Stream Processing]({% link
-concepts/timely-stream-processing.zh.md %}) to learn about the concepts behind
-timely stream processing.
+本节你将学到如何写可感知时间变化的 Flink 程序，可以先看看[及时时间流处理]({% link concepts/timely-stream-processing.zh.md %})了解相关概念。
 
-For information about how to use time in Flink programs refer to
-[windowing]({% link dev/stream/operators/windows.zh.md %}) and
-[ProcessFunction]({% link
-dev/stream/operators/process_function.zh.md %}).
+想了解如何在 Flink 程序中使用时间的信息，请参阅[窗口]({% link dev/stream/operators/windows.zh.md %})和[处理函数]({% link dev/stream/operators/process_function.zh.md %})。
 
 * toc
 {:toc}
 
-## Setting a Time Characteristic
+## 设置时间特征
 
-The first part of a Flink DataStream program usually sets the base *time characteristic*. That setting
-defines how data stream sources behave (for example, whether they will assign timestamps), and what notion of
-time should be used by window operations like `KeyedStream.timeWindow(Time.seconds(30))`.
+写 Flink DataStream 程序时，通常首先设置基础的时间特征，该设置定义了数据流的行为方式（例如，是否分配时间戳），以及哪种时间概念应该被诸如 `KeyedStream.timeWindow(Time.seconds(30))` 之类的窗口算子使用。
 
-The following example shows a Flink program that aggregates events in hourly time windows. The behavior of the
-windows adapts with the time characteristic.
+以下示例展示了一个按小时聚合事件的 Flink 程序，窗口的行为与时间特征相适应。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -98,47 +89,30 @@ env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
 </div>
 </div>
 
-Note that in order to run this example in *event time*, the program needs to either use sources
-that directly define event time for the data and emit watermarks themselves, or the program must
-inject a *Timestamp Assigner & Watermark Generator* after the sources. Those functions describe how to access
-the event timestamps, and what degree of out-of-orderness the event stream exhibits.
+如果要用事件时间作为时间特征运行此示例，程序需要使用那些给数据直接定义事件时间并能自己发出水印的源，或者程序必须在收到源发出的事件流之后注入“时间戳分配器和水印生成器”，这些功能描述了访问事件时间戳的方法，以及事件流呈现的乱序程度。
 
-The section below describes the general mechanism behind *timestamps* and *watermarks*. For a guide on how
-to use timestamp assignment and watermark generation in the Flink DataStream API, please refer to
-[Generating Timestamps / Watermarks]({{ site.baseurl }}/dev/event_timestamps_watermarks.html).
+可以参考[生成时间戳/水印]({{ site.baseurl }}/zh/dev/event_timestamps_watermarks.html)，了解如何使用 Flink DataStream API 分配时间戳和生成水印。
 
 {% top %}
 
-## Idling sources
+## 空闲源
 
-Currently, with pure event time watermarks generators, watermarks can not progress if there are no elements
-to be processed. That means in case of gap in the incoming data, event time will not progress and for
-example the window operator will not be triggered and thus existing windows will not be able to produce any
-output data.
+当前，对于纯粹的事件时间水印生成器，如果没有要处理的事件，水印是不会生成并下发的，无法推进。这意味着在输入数据存在间隙的情况下，事件时间将不会继续前进，例如无法触发窗口算子，因此现有窗口将无法生成任何输出数据。
 
-To circumvent this one can use periodic watermark assigners that don't only assign based on
-element timestamps. An example solution could be an assigner that switches to using current processing time
-as the time basis after not observing new events for a while.
+为了避免这种情况，可以使用周期性水印分配器，这种分配器不仅基于事件时间戳，还会在没有事件的时候产生新水印。 比如在长时间没有观测到事件流入时，可以采用系统当前时间来生成水印。
 
-Sources can be marked as idle using `SourceFunction.SourceContext#markAsTemporarilyIdle`. For details please refer to the Javadoc of
-this method as well as `StreamStatus`.
+可使用 `SourceFunction.SourceContext#markAsTemporarilyIdle` 标记源是空闲的，详情可参考这个方法以及 `StreamStatus` 类的 Javadoc 。
 
-## Debugging Watermarks
+## 调试水印
 
-Please refer to the [Debugging Windows & Event Time]({{ site.baseurl }}/monitoring/debugging_event_time.html) section for debugging
-watermarks at runtime.
+请参考[调试窗口&事件时间]({{ site.baseurl }}/zh/monitoring/debugging_event_time.html)了解运行阶段的水印调试。
 
-## How operators are processing watermarks
+## 算子如何处理水印
 
-As a general rule, operators are required to completely process a given watermark before forwarding it downstream. For example,
-`WindowOperator` will first evaluate which windows should be fired, and only after producing all of the output triggered by
-the watermark will the watermark itself be sent downstream. In other words, all elements produced due to occurrence of a watermark
-will be emitted before the watermark.
+通常，要求算子在将给定水印转发到下游之前，必须对这个水印进行完全处理。例如，`WindowOperator` 首先评估应该触发哪些窗口，然后只有在产生了由水印触发的所有输出之后，水印本身才会被发送到下游。换句话说，由水印而触发的所有元素都将在水印之前被发出。
 
-The same rule applies to `TwoInputStreamOperator`. However, in this case the current watermark of the operator is defined as
-the minimum of both of its inputs.
+这个规则同样适用于 `TwoInputStreamOperator`。但是，在这种情况下，算子的当前水印被定义为两个输入的最小值。
 
-The details of this behavior are defined by the implementations of the `OneInputStreamOperator#processWatermark`,
-`TwoInputStreamOperator#processWatermark1` and `TwoInputStreamOperator#processWatermark2` methods.
+该行为具体由 `OneInputStreamOperator#processWatermark`，`TwoInputStreamOperator#processWatermark1` 和 `TwoInputStreamOperator#processWatermark2`方法定义。
 
 {% top %}
